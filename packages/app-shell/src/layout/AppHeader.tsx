@@ -72,11 +72,9 @@ function PathSep() {
 }
 
 
-const FALLBACK_PRESENCE_USERS: PresenceUser[] = [
-  { userId: 'u1', userName: 'Alice Chen', color: '#3498db', status: 'active', lastActivity: new Date().toISOString() },
-  { userId: 'u2', userName: 'Bob Smith', color: '#2ecc71', status: 'idle', lastActivity: new Date().toISOString() },
-  { userId: 'u3', userName: 'Carol Li', color: '#e74c3c', status: 'active', lastActivity: new Date().toISOString() },
-];
+// No fake fallback presence — render nothing when the API has no data so the
+// header doesn't ship phantom collaborators in production.
+const EMPTY_PRESENCE_USERS: PresenceUser[] = [];
 
 export type AppHeaderVariant = 'app' | 'home' | 'orgs';
 
@@ -148,7 +146,7 @@ export function AppHeader({
 
   useEffect(() => { fetchPresenceAndActivities(); }, [fetchPresenceAndActivities]);
 
-  const activeUsers = presenceUsers ?? apiPresenceUsers ?? FALLBACK_PRESENCE_USERS;
+  const activeUsers = presenceUsers ?? apiPresenceUsers ?? EMPTY_PRESENCE_USERS;
   const activeActivities = activities ?? apiActivities ?? [];
   const orgList = organizations ?? [];
   const hasOrgSection = isOrganizationsLoading || orgList.length > 0 || !!activeOrganization;

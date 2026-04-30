@@ -683,123 +683,138 @@ export const DetailView: React.FC<DetailViewProps> = ({
         <HeaderHighlight fields={schema.highlightFields} data={data} objectName={schema.objectName} objectSchema={objectSchema} />
       )}
 
-      {/* Auto Tabs mode: wrap sections, related, activity into tabs */}
-      {schema.autoTabs && !schema.tabs?.length ? (
-        <Tabs defaultValue="details" className="w-full">
-          <TabsList className="w-full justify-start border-b rounded-none bg-transparent p-0">
-            <TabsTrigger
-              value="details"
-              className="relative rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent"
-            >
-              {t('detail.details')}
-            </TabsTrigger>
-            {effectiveRelated.length > 0 && (
-              <TabsTrigger
-                value="related"
-                className="relative rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent"
-              >
-                <span className="flex items-center gap-1.5">
-                  {t('detail.related')}
-                  <Badge variant="secondary" className="text-xs">{effectiveRelated.length}</Badge>
-                </span>
-              </TabsTrigger>
-            )}
-            {schema.activities && schema.activities.length > 0 && (
-              <TabsTrigger
-                value="activity"
-                className="relative rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent"
-              >
-                <span className="flex items-center gap-1.5">
-                  {t('detail.activity')}
-                  <Badge variant="secondary" className="text-xs">{schema.activities.length}</Badge>
-                </span>
-              </TabsTrigger>
-            )}
-          </TabsList>
-
-          {/* Details Tab Content */}
-          <TabsContent value="details" className="mt-4">
-            <div className="space-y-3 sm:space-y-4">
-              {/* Section Groups */}
-              {schema.sectionGroups && schema.sectionGroups.length > 0 && (
-                schema.sectionGroups.map((group, index) => (
-                  <SectionGroup
-                    key={index}
-                    group={group}
-                    data={{ ...data, ...editedValues }}
-                    objectSchema={objectSchema}
-                    objectName={schema.objectName}
-                    isEditing={isInlineEditing}
-                    onFieldChange={handleInlineFieldChange}
-                  />
-                ))
-              )}
-              {schema.sections && schema.sections.length > 0 && (
-                schema.sections.map((section, index) => (
-                  <DetailSection
-                    key={index}
-                    section={section}
-                    data={{ ...data, ...editedValues }}
-                    objectSchema={objectSchema}
-                    objectName={schema.objectName}
-                    isEditing={isInlineEditing}
-                    onFieldChange={handleInlineFieldChange}
-                  />
-                ))
-              )}
-              {schema.fields && schema.fields.length > 0 && !schema.sections?.length && (
-                <DetailSection
-                  section={{
-                    fields: schema.fields,
-                    columns: schema.columns,
-                  }}
+      {/* Auto Tabs mode: wrap sections, related, activity into tabs.
+          When only the Details tab would render (no related, no activity),
+          skip the Tabs strip entirely — it's pure visual noise. */}
+      {schema.autoTabs && !schema.tabs?.length ? (() => {
+        const hasRelated = effectiveRelated.length > 0;
+        const hasActivity = !!schema.activities && schema.activities.length > 0;
+        const detailsContent = (
+          <div className="space-y-3 sm:space-y-4">
+            {/* Section Groups */}
+            {schema.sectionGroups && schema.sectionGroups.length > 0 && (
+              schema.sectionGroups.map((group, index) => (
+                <SectionGroup
+                  key={index}
+                  group={group}
                   data={{ ...data, ...editedValues }}
                   objectSchema={objectSchema}
                   objectName={schema.objectName}
                   isEditing={isInlineEditing}
                   onFieldChange={handleInlineFieldChange}
                 />
-              )}
-              {/* Comments in details tab */}
-              {schema.comments && (
-                <RecordComments
-                  comments={schema.comments}
-                  onAddComment={schema.onAddComment}
+              ))
+            )}
+            {schema.sections && schema.sections.length > 0 && (
+              schema.sections.map((section, index) => (
+                <DetailSection
+                  key={index}
+                  section={section}
+                  data={{ ...data, ...editedValues }}
+                  objectSchema={objectSchema}
+                  objectName={schema.objectName}
+                  isEditing={isInlineEditing}
+                  onFieldChange={handleInlineFieldChange}
                 />
+              ))
+            )}
+            {schema.fields && schema.fields.length > 0 && !schema.sections?.length && (
+              <DetailSection
+                section={{
+                  fields: schema.fields,
+                  columns: schema.columns,
+                }}
+                data={{ ...data, ...editedValues }}
+                objectSchema={objectSchema}
+                objectName={schema.objectName}
+                isEditing={isInlineEditing}
+                onFieldChange={handleInlineFieldChange}
+              />
+            )}
+            {/* Comments in details tab */}
+            {schema.comments && (
+              <RecordComments
+                comments={schema.comments}
+                onAddComment={schema.onAddComment}
+              />
+            )}
+          </div>
+        );
+
+        if (!hasRelated && !hasActivity) {
+          // Single-tab case: render just the details content without a tab strip.
+          return <div className="mt-2">{detailsContent}</div>;
+        }
+
+        return (
+          <Tabs defaultValue="details" className="w-full">
+            <TabsList className="w-full justify-start border-b rounded-none bg-transparent p-0">
+              <TabsTrigger
+                value="details"
+                className="relative rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent"
+              >
+                {t('detail.details')}
+              </TabsTrigger>
+              {hasRelated && (
+                <TabsTrigger
+                  value="related"
+                  className="relative rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent"
+                >
+                  <span className="flex items-center gap-1.5">
+                    {t('detail.related')}
+                    <Badge variant="secondary" className="text-xs">{effectiveRelated.length}</Badge>
+                  </span>
+                </TabsTrigger>
               )}
-            </div>
-          </TabsContent>
+              {hasActivity && (
+                <TabsTrigger
+                  value="activity"
+                  className="relative rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent"
+                >
+                  <span className="flex items-center gap-1.5">
+                    {t('detail.activity')}
+                    <Badge variant="secondary" className="text-xs">{schema.activities!.length}</Badge>
+                  </span>
+                </TabsTrigger>
+              )}
+            </TabsList>
 
-          {/* Related Tab Content */}
-          {effectiveRelated.length > 0 && (
-            <TabsContent value="related" className="mt-4">
-              <div className="space-y-4">
-                {effectiveRelated.map((related, index) => (
-                  <RelatedList
-                    key={index}
-                    title={related.title}
-                    type={related.type}
-                    api={related.api}
-                    data={related.data}
-                    columns={related.columns as any}
-                    dataSource={dataSource}
-                    objectName={related.api}
-                    collapsible
-                    pageSize={DEFAULT_RELATED_PAGE_SIZE}
-                  />
-                ))}
-              </div>
+            {/* Details Tab Content */}
+            <TabsContent value="details" className="mt-4">
+              {detailsContent}
             </TabsContent>
-          )}
 
-          {/* Activity Tab Content */}
-          {schema.activities && schema.activities.length > 0 && (
-            <TabsContent value="activity" className="mt-4">
-              <ActivityTimeline activities={schema.activities} />
-            </TabsContent>
-          )}
-        </Tabs>
-      ) : (
+            {/* Related Tab Content */}
+            {hasRelated && (
+              <TabsContent value="related" className="mt-4">
+                <div className="space-y-4">
+                  {effectiveRelated.map((related, index) => (
+                    <RelatedList
+                      key={index}
+                      title={related.title}
+                      type={related.type}
+                      api={related.api}
+                      data={related.data}
+                      columns={related.columns as any}
+                      dataSource={dataSource}
+                      objectName={related.api}
+                      collapsible
+                      pageSize={DEFAULT_RELATED_PAGE_SIZE}
+                    />
+                  ))}
+                </div>
+              </TabsContent>
+            )}
+
+            {/* Activity Tab Content */}
+            {hasActivity && (
+              <TabsContent value="activity" className="mt-4">
+                <ActivityTimeline activities={schema.activities!} />
+              </TabsContent>
+            )}
+          </Tabs>
+        );
+      })() : (
         <>
           {/* Section Groups */}
           {schema.sectionGroups && schema.sectionGroups.length > 0 && (

@@ -35,6 +35,9 @@ export function RecentApps({ items }: RecentAppsProps) {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
         {items.map((item) => {
           const Icon = getIcon(item.type);
+          const typeLabel = t(`home.recentApps.itemType.${item.type}`, {
+            defaultValue: capitalizeFirst(item.type),
+          });
           return (
             <Card
               key={item.id}
@@ -57,7 +60,7 @@ export function RecentApps({ items }: RecentAppsProps) {
                   </div>
                   <div className="flex-1 min-w-0">
                     <h3 className="font-medium text-sm truncate">{item.label}</h3>
-                    <p className="text-xs text-muted-foreground">{capitalizeFirst(item.type)}</p>
+                    <p className="text-xs text-muted-foreground">{typeLabel}</p>
                   </div>
                 </div>
               </CardContent>

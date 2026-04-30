@@ -884,6 +884,15 @@ const zh = {
       systemSettings: '系统设置',
       systemSettingsDesc: '配置您的工作区',
     },
+    recentApps: {
+      title: '最近访问',
+      itemType: {
+        object: '对象',
+        dashboard: '仪表盘',
+        page: '页面',
+        record: '记录',
+      },
+    },
     appCard: {
       noDescription: '暂无描述',
       default: '默认',

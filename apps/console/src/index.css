@@ -2,6 +2,8 @@
 
 /* Scan sources for Tailwind classes */
 @source '../src/**/*.{ts,tsx}';
+@source '../../../packages/app-shell/src/**/*.{ts,tsx}';
+@source '../../../packages/auth/src/**/*.{ts,tsx}';
 @source '../../../packages/components/src/**/*.{ts,tsx}';
 @source '../../../packages/layout/src/**/*.{ts,tsx}';
 @source '../../../packages/fields/src/**/*.{ts,tsx}';
@@ -20,6 +22,11 @@
 @source '../../../packages/plugin-chatbot/src/**/*.{ts,tsx}';
 @source '../../../packages/plugin-editor/src/**/*.{ts,tsx}';
 @source '../../../packages/plugin-view/src/**/*.{ts,tsx}';
+@source '../../../packages/plugin-detail/src/**/*.{ts,tsx}';
+@source '../../../packages/plugin-list/src/**/*.{ts,tsx}';
+@source '../../../packages/plugin-designer/src/**/*.{ts,tsx}';
+@source '../../../packages/i18n/src/**/*.{ts,tsx}';
+@source '../../../packages/collaboration/src/**/*.{ts,tsx}';
 @source '../../../packages/mobile/src/**/*.{ts,tsx}';
 
 /* Tailwind plugin for animations remove

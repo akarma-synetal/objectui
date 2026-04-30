@@ -275,11 +275,6 @@ export const DetailSection: React.FC<DetailSectionProps> = ({
               <div className="flex items-center gap-2">
                 {section.icon && <span className="text-muted-foreground">{section.icon}</span>}
                 <span>{section.title}</span>
-                {section.fields && (
-                  <Badge variant="secondary" className="ml-2 text-xs">
-                    {section.fields.length}
-                  </Badge>
-                )}
               </div>
             </CardTitle>
             {section.description && (

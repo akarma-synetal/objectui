@@ -53,7 +53,9 @@ export function AppCard({ app, onClick, isFavorite }: AppCardProps) {
           size="sm"
           className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity"
           onClick={handleToggleFavorite}
-          aria-label={isFavorite ? `Remove ${label} from favorites` : `Add ${label} to favorites`}
+          aria-label={isFavorite
+            ? t('common.removeFromFavorites', { defaultValue: 'Remove from favorites' }) + ` — ${label}`
+            : t('common.addToFavorites', { defaultValue: 'Add to favorites' }) + ` — ${label}`}
           aria-pressed={isFavorite}
           data-testid={`favorite-btn-${app.name}`}
         >

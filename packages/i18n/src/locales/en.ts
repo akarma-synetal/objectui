@@ -884,6 +884,15 @@ const en = {
       systemSettings: 'System Settings',
       systemSettingsDesc: 'Configure your workspace',
     },
+    recentApps: {
+      title: 'Recently Accessed',
+      itemType: {
+        object: 'Object',
+        dashboard: 'Dashboard',
+        page: 'Page',
+        record: 'Record',
+      },
+    },
     appCard: {
       noDescription: 'No description',
       default: 'Default',
