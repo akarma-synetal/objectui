@@ -19,7 +19,6 @@
 
 import { useLocation, useParams, Link, useNavigate } from 'react-router-dom';
 import {
-  SidebarTrigger,
   Button,
   DropdownMenu,
   DropdownMenuTrigger,
@@ -245,9 +244,6 @@ export function AppHeader({
 
         {isApp && (
           <>
-            {/* Mobile sidebar trigger */}
-            <SidebarTrigger className="md:hidden shrink-0 ml-1" />
-
             {/* App dropdown */}
             {activeAppName && onAppChange ? (
               <>
