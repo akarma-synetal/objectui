@@ -6,7 +6,31 @@
  * LICENSE file in the root directory of this source tree.
  */
 
-import './index.css';
+// NOTE: Do NOT `import './index.css'` here.
+//
+// `index.css` is a standalone Tailwind v4 entry (`@import 'tailwindcss'`).
+// In Vite library `build`, that import is extracted to `dist/index.css` and
+// dropped from the JS bundle automatically — consumers explicitly load it
+// via `@import '@object-ui/components/style.css'` (see README).
+//
+// In a pnpm monorepo dev server, however, the workspace package is resolved
+// to its `src/`, so the import would be evaluated and Vite would inject a
+// SECOND, partial Tailwind stylesheet (its `@source` only scans
+// `packages/components/src`, missing every other package's classes). That
+// second sheet is appended after the app's stylesheet, so any base utility
+// it redeclares (e.g. `.inline-flex`) overrides media-query variants from
+// the first sheet (e.g. `md:hidden`, `!top-14`) defined elsewhere — silently
+// breaking responsive utilities and overrides used by `@object-ui/app-shell`,
+// `@object-ui/auth`, etc.
+//
+// Apps must own the single Tailwind entrypoint and `@source`-scan every
+// workspace package they consume (see `apps/console-starter/src/index.css`).
+//
+// We DO import `sidebar-fixes.css` below: it contains plain CSS overrides
+// (no Tailwind directives) for shadcn sidebar utility classes that Tailwind
+// v4 cannot compile correctly. Plain CSS is safe to inject from a workspace
+// package because it doesn't trigger a second Tailwind build.
+import './sidebar-fixes.css';
 
 // Register all ObjectUI renderers (side-effects)
 import './renderers'; 

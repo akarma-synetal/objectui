@@ -1,0 +1,107 @@
+/**
+ * ObjectUI — Shadcn Sidebar compatibility overrides for Tailwind v4.
+ *
+ * These rules are plain CSS (no `@import 'tailwindcss'` / `@theme`), so they
+ * can be safely imported from `src/index.ts` without re-injecting a second
+ * Tailwind stylesheet (which would override responsive utilities like
+ * `md:hidden`/`!top-14` declared in sibling packages — see comment in
+ * `src/index.ts`).
+ *
+ * Background:
+ *   Shadcn's `sidebar.tsx` was authored for Tailwind v3 and uses arbitrary
+ *   value classes like `w-[--sidebar-width]` and
+ *   `group-data-[collapsible=icon]:w-[--sidebar-width-icon]`. Tailwind v4
+ *   accepts the selector but emits an empty rule (the bare `--xxx` is no
+ *   longer interpreted as `var(--xxx)` for arbitrary values), so the
+ *   sidebar collapses to its content width and overlays the main area.
+ *
+ * The rules below restore the intended behaviour by writing the equivalent
+ * `width`, `opacity`, `display`, etc. declarations explicitly, scoped to
+ * the data-attribute combinations the shadcn component actually toggles.
+ */
+
+/* Sidebar explicit rules for Tailwind 4 compatibility */
+
+/* Icon mode: collapsed state = icon width, expanded state = full width */
+.group[data-collapsible="icon"][data-state="collapsed"] .group-data-\[collapsible\=icon\]\:w-\[--sidebar-width-icon\] {
+  width: var(--sidebar-width-icon);
+}
+
+.group[data-collapsible="icon"][data-state="expanded"] .group-data-\[collapsible\=icon\]\:w-\[--sidebar-width-icon\] {
+  width: var(--sidebar-width);
+}
+
+.group[data-collapsible="icon"][data-state="collapsed"] .group-data-\[collapsible\=icon\]\:w-\[calc\(var\(--sidebar-width-icon\)_\+_theme\(spacing\.4\)\)\] {
+  width: calc(var(--sidebar-width-icon) + 1rem);
+}
+
+.group[data-collapsible="icon"][data-state="expanded"] .group-data-\[collapsible\=icon\]\:w-\[calc\(var\(--sidebar-width-icon\)_\+_theme\(spacing\.4\)\)\] {
+  width: var(--sidebar-width);
+}
+
+.group[data-collapsible="icon"][data-state="collapsed"] .group-data-\[collapsible\=icon\]\:w-\[calc\(var\(--sidebar-width-icon\)_\+_theme\(spacing\.4\)_\+2px\)\] {
+  width: calc(var(--sidebar-width-icon) + 1rem + 2px);
+}
+
+.group[data-collapsible="icon"][data-state="expanded"] .group-data-\[collapsible\=icon\]\:w-\[calc\(var\(--sidebar-width-icon\)_\+_theme\(spacing\.4\)_\+2px\)\] {
+  width: var(--sidebar-width);
+}
+
+/* Labels visibility - only hide when BOTH icon mode AND collapsed */
+.group[data-collapsible="icon"][data-state="collapsed"] .group-data-\[collapsible\=icon\]\:opacity-0 {
+  opacity: 0;
+}
+
+.group[data-collapsible="icon"][data-state="expanded"] .group-data-\[collapsible\=icon\]\:opacity-0 {
+  opacity: 1;
+}
+
+.group[data-collapsible="icon"][data-state="collapsed"] .group-data-\[collapsible\=icon\]\:-mt-8 {
+  margin-top: -2rem;
+}
+
+.group[data-collapsible="icon"][data-state="expanded"] .group-data-\[collapsible\=icon\]\:-mt-8 {
+  margin-top: 0;
+}
+
+.group[data-collapsible="icon"][data-state="collapsed"] .group-data-\[collapsible\=icon\]\:hidden {
+  display: none;
+}
+
+.group[data-collapsible="icon"][data-state="expanded"] .group-data-\[collapsible\=icon\]\:hidden {
+  display: block;
+}
+
+.group[data-collapsible="icon"][data-state="collapsed"] .group-data-\[collapsible\=icon\]\:overflow-hidden {
+  overflow: hidden;
+}
+
+.group[data-collapsible="icon"][data-state="expanded"] .group-data-\[collapsible\=icon\]\:overflow-hidden {
+  overflow: auto;
+}
+
+/* Menu button behavior - collapsed = icon only, expanded = full width */
+.group[data-collapsible="icon"][data-state="collapsed"] .sidebar-menu-button-icon-mode {
+  width: 2rem !important;
+  height: 2rem !important;
+  padding: 0.5rem !important;
+}
+
+.group[data-collapsible="icon"][data-state="expanded"] .sidebar-menu-button-icon-mode {
+  width: 100%;
+  height: auto;
+  padding: 0.5rem;
+}
+
+.group[data-collapsible="icon"][data-state="collapsed"] .sidebar-menu-button-icon-mode-lg {
+  padding: 0 !important;
+}
+
+.group[data-collapsible="icon"][data-state="expanded"] .sidebar-menu-button-icon-mode-lg {
+  padding: 0.5rem;
+}
+
+/* Offcanvas mode: always collapsed = 0 width */
+.group[data-collapsible="offcanvas"] .group-data-\[collapsible\=offcanvas\]\:w-0 {
+  width: 0;
+}
