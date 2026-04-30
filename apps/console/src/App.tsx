@@ -15,7 +15,6 @@ import {
   RootRedirect,
   SystemRedirect,
   LoadingFallback,
-  ThemeProvider,
   ConsoleToaster,
   ConditionalAuthWrapper,
   DefaultLoginPage,
@@ -42,13 +41,12 @@ const AUTH_URL = `${import.meta.env.VITE_SERVER_URL || ''}/api/v1/auth`;
 
 export function App() {
   return (
-    <ThemeProvider defaultTheme="system" storageKey="object-ui-theme">
-      <ConsoleToaster position="bottom-right" />
-      <ConditionalAuthWrapper authUrl={AUTH_URL}>
-        <PreviewBanner />
-        <BrowserRouter basename={BASENAME}>
-          <ConsoleShell>
-            <Routes>
+    <ConditionalAuthWrapper authUrl={AUTH_URL}>
+      <PreviewBanner />
+      <BrowserRouter basename={BASENAME}>
+        <ConsoleShell>
+          <ConsoleToaster position="bottom-right" />
+          <Routes>
               <Route path="/login" element={<DefaultLoginPage />} />
               <Route path="/register" element={<DefaultRegisterPage />} />
               <Route path="/forgot-password" element={<DefaultForgotPasswordPage />} />
@@ -90,7 +88,6 @@ export function App() {
           </ConsoleShell>
         </BrowserRouter>
       </ConditionalAuthWrapper>
-    </ThemeProvider>
   );
 }
 

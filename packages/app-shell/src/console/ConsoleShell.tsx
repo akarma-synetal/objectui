@@ -17,6 +17,7 @@ import { AdapterProvider, useAdapter } from '../providers/AdapterProvider';
 import { MetadataProvider, useMetadata } from '../providers/MetadataProvider';
 import { NavigationProvider } from '../context/NavigationContext';
 import { FavoritesProvider } from '../context/FavoritesProvider';
+import { ThemeProvider } from '../chrome/ThemeProvider';
 
 export function LoadingFallback() {
   return (
@@ -28,8 +29,9 @@ export function LoadingFallback() {
 
 /**
  * ConsoleShell — top-level provider stack shared by every console route.
- * Wraps children in NavigationProvider + FavoritesProvider + Suspense so lazy
- * route components get a default loading fallback.
+ * Wraps children in ThemeProvider + NavigationProvider + FavoritesProvider +
+ * Suspense so lazy route components get a default loading fallback and
+ * dark/light/system theme switching works out of the box.
  *
  * Place this inside a <BrowserRouter> and around your <Routes>:
  *
@@ -41,11 +43,13 @@ export function LoadingFallback() {
  */
 export function ConsoleShell({ children }: { children: ReactNode }) {
   return (
-    <NavigationProvider>
-      <FavoritesProvider>
-        <Suspense fallback={<LoadingFallback />}>{children}</Suspense>
-      </FavoritesProvider>
-    </NavigationProvider>
+    <ThemeProvider defaultTheme="system" storageKey="object-ui-theme">
+      <NavigationProvider>
+        <FavoritesProvider>
+          <Suspense fallback={<LoadingFallback />}>{children}</Suspense>
+        </FavoritesProvider>
+      </NavigationProvider>
+    </ThemeProvider>
   );
 }
 
