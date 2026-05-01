@@ -1,12 +1,10 @@
 import React, { useState, useEffect, useCallback, useRef, useContext, useMemo } from 'react';
-import { 
-  Button, 
+import { Button, 
   Input,
   Badge,
   Popover,
   PopoverTrigger,
-  PopoverContent,
-} from '@object-ui/components';
+  PopoverContent, EmptyValue } from '@object-ui/components';
 import { Search, X, Loader2, AlertCircle, Plus, TableProperties } from 'lucide-react';
 import { FieldWidgetProps } from './types';
 import type { DataSource, QueryParams, LookupColumnDef } from '@object-ui/types';
@@ -337,7 +335,7 @@ export function LookupField({ value, onChange, field, readonly, ...props }: Fiel
 
   if (readonly) {
     if (!selectedOptions.length) {
-      return <span className="text-sm">-</span>;
+      return <EmptyValue />;
     }
 
     if (multiple) {

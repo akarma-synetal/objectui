@@ -31,7 +31,7 @@ describe('DateTimeCellRenderer', () => {
         field={{ name: 'created_at', type: 'datetime' } as any}
       />
     );
-    expect(container.textContent).toBe('-');
+    expect(container.textContent).toBe('—');
   });
 
   it('should show dash for invalid date', () => {
@@ -41,6 +41,6 @@ describe('DateTimeCellRenderer', () => {
         field={{ name: 'created_at', type: 'datetime' } as any}
       />
     );
-    expect(container.textContent).toBe('-');
+    expect(container.textContent).toBe('—');
   });
 });

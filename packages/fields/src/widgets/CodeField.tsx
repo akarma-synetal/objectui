@@ -1,5 +1,5 @@
 import React from 'react';
-import { Textarea, cn } from '@object-ui/components';
+import { Textarea, cn, EmptyValue } from '@object-ui/components';
 import { FieldWidgetProps } from './types';
 
 /**
@@ -15,7 +15,7 @@ export function CodeField({ value, onChange, field, readonly, ...props }: FieldW
   if (readonly) {
     return (
       <pre className={cn("text-sm bg-muted p-2 rounded overflow-x-auto border", props.className)}>
-        <code>{value || '-'}</code>
+        <code>{value || <EmptyValue />}</code>
       </pre>
     );
   }

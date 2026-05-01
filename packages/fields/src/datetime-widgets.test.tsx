@@ -42,7 +42,7 @@ describe('Date/Time Widgets', () => {
 
         it('renders dash for empty readonly value', () => {
             render(<DateField {...baseProps} readonly value={''} />);
-            expect(screen.getByText('-')).toBeInTheDocument();
+            expect(screen.getByText('—')).toBeInTheDocument();
         });
     });
 

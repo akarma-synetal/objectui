@@ -1,5 +1,5 @@
 import React from 'react';
-import { Textarea } from '@object-ui/components';
+import { Textarea, EmptyValue } from '@object-ui/components';
 import { FieldWidgetProps } from './types';
 
 /**
@@ -10,7 +10,7 @@ export function TextAreaField({ value, onChange, field, readonly, errorMessage, 
   if (readonly) {
     return (
       <div className="text-sm whitespace-pre-wrap">
-        {value || '-'}
+        {value || <EmptyValue />}
       </div>
     );
   }

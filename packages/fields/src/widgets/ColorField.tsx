@@ -1,5 +1,5 @@
 import React from 'react';
-import { Input } from '@object-ui/components';
+import { Input, EmptyValue } from '@object-ui/components';
 import { FieldWidgetProps } from './types';
 
 /**
@@ -16,7 +16,7 @@ export function ColorField({ value, onChange, field, readonly, ...props }: Field
           className="w-6 h-6 rounded border border-input"
           style={{ backgroundColor: value || '#000000' }}
         />
-        <span className="text-sm">{value || '-'}</span>
+        <span className="text-sm">{value || <EmptyValue />}</span>
       </div>
     );
   }

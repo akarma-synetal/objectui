@@ -1,5 +1,5 @@
 import React from 'react';
-import { Textarea } from '@object-ui/components';
+import { Textarea, EmptyValue } from '@object-ui/components';
 import { FieldWidgetProps } from './types';
 
 /**
@@ -13,7 +13,7 @@ export function RichTextField({ value, onChange, field, readonly, errorMessage, 
       <div 
         className="text-sm prose prose-sm max-w-none"
       >
-        {value || '-'}
+        {value || <EmptyValue />}
       </div>
     );
   }

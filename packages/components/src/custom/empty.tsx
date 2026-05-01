@@ -102,6 +102,34 @@ function EmptyContent({ className, ...props }: React.ComponentProps<"div">) {
   )
 }
 
+/**
+ * EmptyValue — universal inline placeholder for missing cell/field values.
+ *
+ * Use this anywhere a renderer would otherwise show "-" or "—" for a null,
+ * undefined or empty value. It renders a muted, non-interactive en-dash that
+ * does not inherit link/button colors from surrounding ancestors, so a missing
+ * value never looks clickable.
+ */
+function EmptyValue({
+  className,
+  glyph = "—",
+  ...props
+}: React.ComponentProps<"span"> & { glyph?: string }) {
+  return (
+    <span
+      data-slot="empty-value"
+      aria-label="No value"
+      className={cn(
+        "select-none text-muted-foreground/50 no-underline pointer-events-none",
+        className
+      )}
+      {...props}
+    >
+      {glyph}
+    </span>
+  )
+}
+
 export {
   Empty,
   EmptyHeader,
@@ -109,4 +137,5 @@ export {
   EmptyDescription,
   EmptyContent,
   EmptyMedia,
+  EmptyValue,
 }

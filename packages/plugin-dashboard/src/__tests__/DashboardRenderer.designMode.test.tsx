@@ -274,9 +274,10 @@ describe('DashboardRenderer design mode', () => {
     it('should NOT apply pointer-events-none when not in design mode', () => {
       const { container } = render(<DashboardRenderer schema={DASHBOARD_WITH_WIDGETS} />);
 
-      // No design-mode content wrapper should have pointer-events-none class
-      // (data-table ghost rows have pointer-events-none internally, which is unrelated to design mode)
-      expect(container.querySelector('.pointer-events-none:not([data-testid="ghost-row"])')).not.toBeInTheDocument();
+      // No design-mode content wrapper should have pointer-events-none class.
+      // Empty-value cell placeholders use pointer-events-none for accessibility
+      // (so they don't intercept row clicks); they are unrelated to design mode.
+      expect(container.querySelector('.pointer-events-none:not([data-slot="empty-value"])')).not.toBeInTheDocument();
     });
 
     it('should still call onWidgetClick when clicking on Card-based widget content area', () => {

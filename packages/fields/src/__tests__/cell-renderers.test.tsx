@@ -106,17 +106,17 @@ describe('TextCellRenderer', () => {
 
   it('should render dash for null', () => {
     render(<TextCellRenderer value={null} field={{ name: 'title', type: 'text' } as any} />);
-    expect(screen.getByText('-')).toBeInTheDocument();
+    expect(screen.getByText('—')).toBeInTheDocument();
   });
 
   it('should render dash for undefined', () => {
     render(<TextCellRenderer value={undefined} field={{ name: 'title', type: 'text' } as any} />);
-    expect(screen.getByText('-')).toBeInTheDocument();
+    expect(screen.getByText('—')).toBeInTheDocument();
   });
 
   it('should render dash for empty string', () => {
     render(<TextCellRenderer value="" field={{ name: 'title', type: 'text' } as any} />);
-    expect(screen.getByText('-')).toBeInTheDocument();
+    expect(screen.getByText('—')).toBeInTheDocument();
   });
 
   it('should render "0" for numeric zero (not dash)', () => {
@@ -149,8 +149,12 @@ describe('SelectCellRenderer', () => {
     expect(container.querySelector('[class*="bg-blue-100"]')).toBeInTheDocument();
   });
 
-  it('should use muted style when no color configured', () => {
-    const { container } = render(
+  it('should fall back to a deterministic palette color when no color configured and no semantic match', () => {
+    // Hash-based fallback: distinct values get distinct colors so badges
+    // never all collapse to muted gray. The exact color is deterministic
+    // (stable across renders) but value-derived; we just assert one of the
+    // palette tones is applied.
+    const { container, rerender } = render(
       <SelectCellRenderer
         value="Unknown"
         field={{
@@ -161,7 +165,24 @@ describe('SelectCellRenderer', () => {
       />
     );
     expect(screen.getByText('Unknown')).toBeInTheDocument();
-    expect(container.querySelector('[class*="bg-muted"]')).toBeInTheDocument();
+    const palette = ['blue', 'green', 'purple', 'orange', 'pink', 'indigo', 'yellow', 'red'];
+    const matched = palette.some((c) => container.querySelector(`[class*="bg-${c}-100"]`));
+    expect(matched).toBe(true);
+
+    // Same value → same color across renders (deterministic).
+    const firstClass = container.querySelector('[data-slot="badge"], [class*="bg-"][class*="-100"]')?.className;
+    rerender(
+      <SelectCellRenderer
+        value="Unknown"
+        field={{
+          name: 'status',
+          type: 'select',
+          options: [{ value: 'Unknown', label: 'Unknown' }],
+        } as any}
+      />
+    );
+    const secondClass = container.querySelector('[data-slot="badge"], [class*="bg-"][class*="-100"]')?.className;
+    expect(secondClass).toBe(firstClass);
   });
 
   it('should auto-detect priority semantic colors (Critical → red)', () => {
@@ -302,7 +323,7 @@ describe('SelectCellRenderer', () => {
         field={{ name: 'status', type: 'select' } as any}
       />
     );
-    expect(screen.getByText('-')).toBeInTheDocument();
+    expect(screen.getByText('—')).toBeInTheDocument();
   });
 
   it('should render multiple badges for array values', () => {
@@ -413,7 +434,7 @@ describe('DateCellRenderer', () => {
         field={{ name: 'due_date', type: 'date' } as any}
       />
     );
-    expect(container.textContent).toBe('-');
+    expect(container.textContent).toBe('—');
   });
 
   it('should use explicit format when provided', () => {
@@ -590,7 +611,7 @@ describe('EmailCellRenderer', () => {
 
   it('should render dash for empty value', () => {
     render(<EmailCellRenderer value={null} field={{ name: 'email', type: 'email' } as any} />);
-    expect(screen.getByText('-')).toBeInTheDocument();
+    expect(screen.getByText('—')).toBeInTheDocument();
   });
 });
 
@@ -613,7 +634,7 @@ describe('PhoneCellRenderer', () => {
 
   it('should render dash for empty value', () => {
     render(<PhoneCellRenderer value={null} field={{ name: 'phone', type: 'phone' } as any} />);
-    expect(screen.getByText('-')).toBeInTheDocument();
+    expect(screen.getByText('—')).toBeInTheDocument();
   });
 });
 
@@ -632,15 +653,15 @@ describe('formatRelativeDate', () => {
   });
 
   it('should return "-" for null', () => {
-    expect(formatRelativeDate(null as any)).toBe('-');
+    expect(formatRelativeDate(null as any)).toBe('—');
   });
 
   it('should return "-" for empty string', () => {
-    expect(formatRelativeDate('')).toBe('-');
+    expect(formatRelativeDate('')).toBe('—');
   });
 
   it('should return "-" for invalid date', () => {
-    expect(formatRelativeDate('not-a-date')).toBe('-');
+    expect(formatRelativeDate('not-a-date')).toBe('—');
   });
 
   it('should return "Today" for today', () => {
@@ -694,11 +715,11 @@ describe('formatRelativeDate', () => {
 // =========================================================================
 describe('formatDate', () => {
   it('should return "-" for null', () => {
-    expect(formatDate(null as any)).toBe('-');
+    expect(formatDate(null as any)).toBe('—');
   });
 
   it('should return "-" for invalid date', () => {
-    expect(formatDate('invalid')).toBe('-');
+    expect(formatDate('invalid')).toBe('—');
   });
 
   it('should format as relative when style is "relative"', () => {
@@ -731,7 +752,7 @@ describe('LookupCellRenderer', () => {
         field={{ name: 'customer', type: 'lookup' } as any}
       />
     );
-    expect(screen.getByText('-')).toBeInTheDocument();
+    expect(screen.getByText('—')).toBeInTheDocument();
   });
 
   it('should render dash for empty string', () => {
@@ -741,7 +762,7 @@ describe('LookupCellRenderer', () => {
         field={{ name: 'customer', type: 'lookup' } as any}
       />
     );
-    expect(screen.getByText('-')).toBeInTheDocument();
+    expect(screen.getByText('—')).toBeInTheDocument();
   });
 
   it('should resolve primitive ID to label via field options', () => {
@@ -858,7 +879,7 @@ describe('UserCellRenderer', () => {
         field={{ name: 'owner', type: 'user' } as any}
       />
     );
-    expect(screen.getByText('-')).toBeInTheDocument();
+    expect(screen.getByText('—')).toBeInTheDocument();
   });
 
   it('should render text for primitive user ID (number)', () => {

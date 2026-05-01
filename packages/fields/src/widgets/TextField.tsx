@@ -1,5 +1,5 @@
 import React from 'react';
-import { Input, Textarea } from '@object-ui/components';
+import { Input, Textarea, EmptyValue } from '@object-ui/components';
 import { TextareaFieldMetadata } from '@object-ui/types';
 import { FieldWidgetProps } from './types';
 
@@ -11,7 +11,7 @@ export function TextField({ value, onChange, field, readonly, ...props }: FieldW
   const fieldData = field || (props as any).schema;
 
   if (readonly) {
-    return <span className="text-sm">{value || '-'}</span>;
+    return <span className="text-sm">{value || <EmptyValue />}</span>;
   }
 
   // Cast for rows property

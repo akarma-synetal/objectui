@@ -1,5 +1,5 @@
 import React from 'react';
-import { Avatar, AvatarFallback, Badge } from '@object-ui/components';
+import { Avatar, AvatarFallback, Badge, EmptyValue } from '@object-ui/components';
 import { X } from 'lucide-react';
 import { FieldWidgetProps } from './types';
 
@@ -12,7 +12,7 @@ export function UserField({ value, onChange, field, readonly, ...props }: FieldW
   const multiple = userField?.multiple || false;
 
   if (readonly) {
-    if (!value) return <span className="text-sm">-</span>;
+    if (!value) return <EmptyValue />;
     
     const users = Array.isArray(value) ? value : [value];
     return (

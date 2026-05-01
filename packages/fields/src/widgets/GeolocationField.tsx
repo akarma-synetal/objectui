@@ -1,5 +1,5 @@
 import React from 'react';
-import { Input, Button, Label } from '@object-ui/components';
+import { Input, Button, Label, EmptyValue } from '@object-ui/components';
 import { MapPin, Crosshair } from 'lucide-react';
 import { FieldWidgetProps } from './types';
 
@@ -56,7 +56,7 @@ export function GeolocationField({ value, onChange, field, readonly, ...props }:
   };
 
   const formatLocation = (loc: GeolocationValue): string => {
-    if (!loc.latitude || !loc.longitude) return '-';
+    if (!loc.latitude || !loc.longitude) return '';
     return `${loc.latitude.toFixed(6)}, ${loc.longitude.toFixed(6)}`;
   };
 
@@ -67,10 +67,11 @@ export function GeolocationField({ value, onChange, field, readonly, ...props }:
   };
 
   if (readonly) {
+    const formatted = formatLocation(location);
     return (
       <div className="flex items-center gap-2">
         <MapPin className="w-4 h-4 text-muted-foreground" />
-        <span className="text-sm">{formatLocation(location)}</span>
+        {formatted ? <span className="text-sm">{formatted}</span> : <EmptyValue />}
         {location.latitude && location.longitude && (
           <Button
             type="button"

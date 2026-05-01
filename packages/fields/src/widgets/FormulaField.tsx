@@ -1,4 +1,5 @@
 import React from 'react';
+import { EmptyValue } from '@object-ui/components';
 import { FieldWidgetProps } from './types';
 
 /**
@@ -9,18 +10,19 @@ export function FormulaField({ value, field, ...props }: FieldWidgetProps<any>) 
   const formulaField = (field || (props as any).schema) as any;
   const returnType = formulaField?.return_type || 'text';
 
-  // Format based on return type
-  let displayValue = '-';
-  if (value != null) {
-    if (returnType === 'number' || returnType === 'currency') {
-      displayValue = typeof value === 'number' ? value.toFixed(2) : String(value);
-    } else if (returnType === 'boolean') {
-      displayValue = value ? 'Yes' : 'No';
-    } else if (returnType === 'date') {
-      displayValue = new Date(value).toLocaleDateString();
-    } else {
-      displayValue = String(value);
-    }
+  if (value == null) {
+    return <EmptyValue className={props.className} />;
+  }
+
+  let displayValue: string;
+  if (returnType === 'number' || returnType === 'currency') {
+    displayValue = typeof value === 'number' ? value.toFixed(2) : String(value);
+  } else if (returnType === 'boolean') {
+    displayValue = value ? 'Yes' : 'No';
+  } else if (returnType === 'date') {
+    displayValue = new Date(value).toLocaleDateString();
+  } else {
+    displayValue = String(value);
   }
 
   return (

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Input, Button } from '@object-ui/components';
+import { Input, Button, EmptyValue } from '@object-ui/components';
 import { QrCode, Copy } from 'lucide-react';
 import { FieldWidgetProps } from './types';
 
@@ -27,7 +27,7 @@ export function QRCodeField({ value, onChange, field, readonly, ...props }: Fiel
   if (readonly) {
     return (
       <div className="flex items-center gap-3">
-        <span className="text-sm flex-1 truncate">{value || '-'}</span>
+        <span className="text-sm flex-1 truncate">{value || <EmptyValue />}</span>
         {value && (
           <Button
             type="button"

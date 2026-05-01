@@ -1,5 +1,5 @@
 import React from 'react';
-import { Input } from '@object-ui/components';
+import { Input, EmptyValue } from '@object-ui/components';
 import { FieldWidgetProps } from './types';
 
 /**
@@ -9,7 +9,7 @@ import { FieldWidgetProps } from './types';
 export function PhoneField({ value, onChange, field, readonly, errorMessage, ...props }: FieldWidgetProps<string>) {
   const config = field || (props as any).schema;
   if (readonly) {
-    if (!value) return <span className="text-sm">-</span>;
+    if (!value) return <EmptyValue />;
     return (
       <a 
         href={`tel:${value}`}

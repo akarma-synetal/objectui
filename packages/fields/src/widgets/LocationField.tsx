@@ -1,5 +1,5 @@
 import React from 'react';
-import { Input } from '@object-ui/components';
+import { Input, EmptyValue } from '@object-ui/components';
 import { FieldWidgetProps } from './types';
 
 /**
@@ -15,7 +15,7 @@ export function LocationField({ value, onChange, field, readonly, ...props }: Fi
     : '';
 
   if (readonly) {
-    return <span className="text-sm">{displayValue || '-'}</span>;
+    return <span className="text-sm">{displayValue || <EmptyValue />}</span>;
   }
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {

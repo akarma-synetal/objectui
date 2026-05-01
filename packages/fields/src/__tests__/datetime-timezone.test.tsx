@@ -347,7 +347,7 @@ describe('P3.2 Date/Time Timezone & Locale Formatting', () => {
           readonly={true}
         />
       );
-      expect(container.textContent).toBe('-');
+      expect(container.textContent).toBe('—');
     });
 
     it('DateField readonly shows "-" for null', () => {
@@ -359,7 +359,7 @@ describe('P3.2 Date/Time Timezone & Locale Formatting', () => {
           readonly={true}
         />
       );
-      expect(container.textContent).toBe('-');
+      expect(container.textContent).toBe('—');
     });
 
     it('DateField readonly shows "-" for undefined', () => {
@@ -371,7 +371,7 @@ describe('P3.2 Date/Time Timezone & Locale Formatting', () => {
           readonly={true}
         />
       );
-      expect(container.textContent).toBe('-');
+      expect(container.textContent).toBe('—');
     });
 
     it('TimeField readonly shows "-" for empty string', () => {
@@ -383,7 +383,7 @@ describe('P3.2 Date/Time Timezone & Locale Formatting', () => {
           readonly={true}
         />
       );
-      expect(container.textContent).toBe('-');
+      expect(container.textContent).toBe('—');
     });
 
     it('TimeField readonly shows "-" for null', () => {
@@ -395,7 +395,7 @@ describe('P3.2 Date/Time Timezone & Locale Formatting', () => {
           readonly={true}
         />
       );
-      expect(container.textContent).toBe('-');
+      expect(container.textContent).toBe('—');
     });
 
     it('TimeField readonly shows "-" for undefined', () => {
@@ -407,7 +407,7 @@ describe('P3.2 Date/Time Timezone & Locale Formatting', () => {
           readonly={true}
         />
       );
-      expect(container.textContent).toBe('-');
+      expect(container.textContent).toBe('—');
     });
 
     it('DateTimeField readonly shows "-" for empty string', () => {
@@ -419,7 +419,7 @@ describe('P3.2 Date/Time Timezone & Locale Formatting', () => {
           readonly={true}
         />
       );
-      expect(container.textContent).toBe('-');
+      expect(container.textContent).toBe('—');
     });
 
     it('DateTimeField readonly shows "-" for null', () => {
@@ -431,7 +431,7 @@ describe('P3.2 Date/Time Timezone & Locale Formatting', () => {
           readonly={true}
         />
       );
-      expect(container.textContent).toBe('-');
+      expect(container.textContent).toBe('—');
     });
 
     it('DateTimeField readonly shows "-" for undefined', () => {
@@ -443,7 +443,7 @@ describe('P3.2 Date/Time Timezone & Locale Formatting', () => {
           readonly={true}
         />
       );
-      expect(container.textContent).toBe('-');
+      expect(container.textContent).toBe('—');
     });
 
     it('DateField editable uses empty string for null value', () => {

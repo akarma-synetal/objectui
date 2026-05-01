@@ -1,5 +1,5 @@
 import React, { useRef } from 'react';
-import { Button } from '@object-ui/components';
+import { Button, EmptyValue } from '@object-ui/components';
 import { Upload, X, Image as ImageIcon } from 'lucide-react';
 import { FieldWidgetProps } from './types';
 
@@ -14,7 +14,7 @@ export function ImageField({ value, onChange, field, readonly, ...props }: Field
   const accept = imageField?.accept ? imageField.accept.join(',') : 'image/*';
 
   if (readonly) {
-    if (!value) return <span className="text-sm">-</span>;
+    if (!value) return <EmptyValue />;
     
     const images = Array.isArray(value) ? value : [value];
     return (

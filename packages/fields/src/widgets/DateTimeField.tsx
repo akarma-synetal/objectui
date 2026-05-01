@@ -1,5 +1,5 @@
 import React from 'react';
-import { Input } from '@object-ui/components';
+import { Input, EmptyValue } from '@object-ui/components';
 import { FieldWidgetProps } from './types';
 
 /**
@@ -8,7 +8,7 @@ import { FieldWidgetProps } from './types';
  */
 export function DateTimeField({ value, onChange, field, readonly, ...props }: FieldWidgetProps<string>) {
   if (readonly) {
-    if (!value) return <span className="text-sm">-</span>;
+    if (!value) return <EmptyValue />;
     const date = new Date(value);
     return (
       <span className="text-sm">

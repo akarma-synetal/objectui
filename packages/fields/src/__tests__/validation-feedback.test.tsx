@@ -191,7 +191,7 @@ describe('P3.2 Validation Feedback', () => {
           readonly={true}
         />
       );
-      expect(container.textContent).toBe('-');
+      expect(container.textContent).toBe('—');
     });
 
     it('NumberField shows dash for null value in readonly', () => {
@@ -203,7 +203,7 @@ describe('P3.2 Validation Feedback', () => {
           readonly={true}
         />
       );
-      expect(container.textContent).toBe('-');
+      expect(container.textContent).toBe('—');
     });
 
     it('EmailField shows dash for empty value in readonly', () => {
@@ -215,7 +215,7 @@ describe('P3.2 Validation Feedback', () => {
           readonly={true}
         />
       );
-      expect(container.textContent).toBe('-');
+      expect(container.textContent).toBe('—');
     });
 
     it('UrlField shows dash for empty value in readonly', () => {
@@ -227,7 +227,7 @@ describe('P3.2 Validation Feedback', () => {
           readonly={true}
         />
       );
-      expect(container.textContent).toBe('-');
+      expect(container.textContent).toBe('—');
     });
 
     it('PhoneField shows dash for empty value in readonly', () => {
@@ -239,7 +239,7 @@ describe('P3.2 Validation Feedback', () => {
           readonly={true}
         />
       );
-      expect(container.textContent).toBe('-');
+      expect(container.textContent).toBe('—');
     });
 
     it('TextAreaField shows dash for empty value in readonly', () => {
@@ -251,7 +251,7 @@ describe('P3.2 Validation Feedback', () => {
           readonly={true}
         />
       );
-      expect(container.textContent).toBe('-');
+      expect(container.textContent).toBe('—');
     });
 
     it('BooleanField shows Yes/No in readonly', () => {
@@ -285,7 +285,7 @@ describe('P3.2 Validation Feedback', () => {
           readonly={true}
         />
       );
-      expect(container.textContent).toBe('-');
+      expect(container.textContent).toBe('—');
     });
 
     it('CurrencyField shows dash for null value in readonly', () => {
@@ -297,7 +297,7 @@ describe('P3.2 Validation Feedback', () => {
           readonly={true}
         />
       );
-      expect(container.textContent).toBe('-');
+      expect(container.textContent).toBe('—');
     });
   });
 

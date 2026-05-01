@@ -1,4 +1,5 @@
 import React from 'react';
+import { EmptyValue } from '@object-ui/components';
 import { FieldWidgetProps } from './types';
 
 /**
@@ -9,16 +10,17 @@ export function SummaryField({ value, field, ...props }: FieldWidgetProps<any>) 
   const summaryField = (field || (props as any).schema) as any;
   const summaryType = summaryField?.summary_type || 'count';
 
-  // Format based on aggregation type
-  let displayValue = '-';
-  if (value != null) {
-    if (summaryType === 'count') {
-      displayValue = String(value);
-    } else if (['sum', 'avg', 'min', 'max'].includes(summaryType)) {
-      displayValue = typeof value === 'number' ? value.toFixed(2) : String(value);
-    } else {
-      displayValue = String(value);
-    }
+  if (value == null) {
+    return <EmptyValue className={props.className} />;
+  }
+
+  let displayValue: string;
+  if (summaryType === 'count') {
+    displayValue = String(value);
+  } else if (['sum', 'avg', 'min', 'max'].includes(summaryType)) {
+    displayValue = typeof value === 'number' ? value.toFixed(2) : String(value);
+  } else {
+    displayValue = String(value);
   }
 
   return (

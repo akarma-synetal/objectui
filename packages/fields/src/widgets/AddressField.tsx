@@ -1,5 +1,5 @@
 import React from 'react';
-import { Input, Label } from '@object-ui/components';
+import { Input, Label, EmptyValue } from '@object-ui/components';
 import { FieldWidgetProps } from './types';
 
 /**
@@ -34,11 +34,12 @@ export function AddressField({ value, onChange, field, readonly, ...props }: Fie
       [addr.state, addr.zipCode].filter(Boolean).join(' '),
       addr.country,
     ].filter(Boolean);
-    return parts.join(', ') || '-';
+    return parts.join(', ');
   };
 
   if (readonly) {
-    return <span className="text-sm">{formatAddress(address)}</span>;
+    const formatted = formatAddress(address);
+    return formatted ? <span className="text-sm">{formatted}</span> : <EmptyValue />;
   }
 
   return (

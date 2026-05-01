@@ -1,5 +1,5 @@
 import React, { useRef, useState, useCallback } from 'react';
-import { Button } from '@object-ui/components';
+import { Button, EmptyValue } from '@object-ui/components';
 import { Upload, X, File as FileIcon, ImageIcon } from 'lucide-react';
 import { FieldWidgetProps } from './types';
 
@@ -86,7 +86,7 @@ export function FileField({ value, onChange, field, readonly, ...props }: FieldW
   }, [accept, processFiles]);
 
   if (readonly) {
-    if (!value) return <span className="text-sm">-</span>;
+    if (!value) return <EmptyValue />;
     
     const readonlyFiles = Array.isArray(value) ? value : [value];
     return (

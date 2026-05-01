@@ -434,12 +434,14 @@ describe('Empty value display', () => {
     // Non-empty value should be displayed normally
     expect(screen.getByText('Acme')).toBeInTheDocument();
 
-    // Empty values should show muted dash indicators
+    // Empty values should show muted dash indicators rendered by EmptyValue
     const emptyIndicators = screen.getAllByText('—');
     expect(emptyIndicators.length).toBeGreaterThanOrEqual(2);
-    // Verify they have the styled classes
+    // Verify they use the unified EmptyValue component (muted, non-interactive)
     emptyIndicators.forEach(el => {
-      expect(el.className).toContain('italic');
+      expect(el.getAttribute('data-slot')).toBe('empty-value');
+      expect(el.className).toContain('text-muted-foreground/50');
+      expect(el.className).toContain('pointer-events-none');
     });
   });
 });

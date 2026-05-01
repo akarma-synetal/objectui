@@ -1,5 +1,5 @@
 import React from 'react';
-import { Input } from '@object-ui/components';
+import { Input, EmptyValue } from '@object-ui/components';
 import { FieldWidgetProps } from './types';
 
 /**
@@ -22,7 +22,7 @@ export function CurrencyField({ value, onChange, field, readonly, errorMessage, 
   const precision = currencyField?.precision ?? 2;
 
   if (readonly) {
-    if (value == null) return <span className="text-sm">-</span>;
+    if (value == null) return <EmptyValue />;
     return (
       <span className="text-sm font-medium tabular-nums">
         {formatCurrency(Number(value), currency)}

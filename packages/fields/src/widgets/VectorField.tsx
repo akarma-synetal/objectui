@@ -1,4 +1,5 @@
 import React from 'react';
+import { EmptyValue } from '@object-ui/components';
 import { FieldWidgetProps } from './types';
 
 /**
@@ -10,7 +11,7 @@ export function VectorField({ value, field, ...props }: FieldWidgetProps<number[
   const dimensions = vectorField?.dimensions || (Array.isArray(value) ? value.length : 0);
 
   if (!value || !Array.isArray(value)) {
-    return <span className="text-sm text-gray-500">-</span>;
+    return <EmptyValue />;
   }
 
   // Show first few values and total dimensions

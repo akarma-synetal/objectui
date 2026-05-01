@@ -1,5 +1,5 @@
 import React from 'react';
-import { Input } from '@object-ui/components';
+import { Input, EmptyValue } from '@object-ui/components';
 import { NumberFieldMetadata } from '@object-ui/types';
 import { FieldWidgetProps } from './types';
 
@@ -9,7 +9,7 @@ import { FieldWidgetProps } from './types';
  */
 export function NumberField({ value, onChange, field, readonly, ...props }: FieldWidgetProps<number>) {
   if (readonly) {
-    return <span className="text-sm">{value ?? '-'}</span>;
+    return value == null ? <EmptyValue /> : <span className="text-sm">{value}</span>;
   }
 
   const numberField = (field || (props as any).schema) as NumberFieldMetadata;

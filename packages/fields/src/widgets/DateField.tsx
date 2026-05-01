@@ -1,5 +1,5 @@
 import React from 'react';
-import { Input } from '@object-ui/components';
+import { Input, EmptyValue } from '@object-ui/components';
 import { FieldWidgetProps } from './types';
 
 /**
@@ -8,7 +8,7 @@ import { FieldWidgetProps } from './types';
  */
 export function DateField({ value, onChange, field, readonly, ...props }: FieldWidgetProps<string>) {
   if (readonly) {
-    return <span className="text-sm">{value ? new Date(value).toLocaleDateString() : '-'}</span>;
+    return value ? <span className="text-sm">{new Date(value).toLocaleDateString()}</span> : <EmptyValue />;
   }
 
   // Filter out non-DOM props

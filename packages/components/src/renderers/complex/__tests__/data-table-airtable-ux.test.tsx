@@ -215,7 +215,10 @@ describe('Filler rows', () => {
     expect(fillerRows).toHaveLength(0);
   });
 
-  it('should render filler rows when pagination is enabled and page is not full', async () => {
+  it('should NOT render filler rows when pagination is enabled and page is not full', async () => {
+    // Filler rows were removed: they created visible bordered empty bands
+    // making underfilled pages look broken. Layout stability is now handled
+    // by the table container's flex-1 min-h-0 sizing.
     render(
       <SchemaRenderer
         schema={{ ...baseSchema, pagination: true, pageSize: 5, searchable: false }}
@@ -230,10 +233,9 @@ describe('Filler rows', () => {
     const tbody = table.querySelector('tbody');
     const allRows = tbody!.querySelectorAll('tr');
 
-    // With 2 data rows and pageSize 5, expect 3 filler rows (5 - 2 = 3)
     const fillerRows = Array.from(allRows).filter(
       (row) => row.querySelector('td[class*="p-0"]') && row.textContent === ''
     );
-    expect(fillerRows).toHaveLength(3);
+    expect(fillerRows).toHaveLength(0);
   });
 });

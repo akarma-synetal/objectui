@@ -1,6 +1,6 @@
 import React from 'react';
 import { FieldWidgetProps } from './types';
-import { cn } from '@object-ui/components';
+import { cn, EmptyValue } from '@object-ui/components';
 
 /**
  * GridField - Sub-table/grid data display
@@ -12,7 +12,7 @@ export function GridField({ value, field, readonly, ...props }: FieldWidgetProps
   const columns = gridField?.columns || [];
 
   if (!value || !Array.isArray(value)) {
-    return <span className="text-sm text-muted-foreground">-</span>;
+    return <EmptyValue />;
   }
 
   if (readonly) {
@@ -45,7 +45,7 @@ export function GridField({ value, field, readonly, ...props }: FieldWidgetProps
               <tr key={rowIdx} className="hover:bg-muted/50 transition-colors">
                 {columns.map((col: any, colIdx: number) => (
                   <td key={colIdx} className="px-3 py-2 text-foreground">
-                    {row[col.name] != null ? String(row[col.name]) : '-'}
+                    {row[col.name] != null ? String(row[col.name]) : <EmptyValue />}
                   </td>
                 ))}
               </tr>

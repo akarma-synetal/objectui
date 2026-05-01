@@ -9,7 +9,7 @@
 import React from 'react';
 import type { FieldMetadata, SelectOptionMetadata } from '@object-ui/types';
 import { ComponentRegistry } from '@object-ui/core';
-import { Badge, Avatar, AvatarFallback, Button, Checkbox } from '@object-ui/components';
+import { Badge, Avatar, AvatarFallback, Button, Checkbox, EmptyValue } from '@object-ui/components';
 import { Check, X, Copy, Phone as PhoneIcon } from 'lucide-react';
 
 import { TextField } from './widgets/TextField';
@@ -154,9 +154,9 @@ export function humanizeLabel(value: string): string {
  * Format date as relative time (e.g., "2 days ago", "Today", "Overdue 3d")
  */
 export function formatRelativeDate(value: string | Date): string {
-  if (!value) return '-';
+  if (!value) return '—';
   const date = typeof value === 'string' ? new Date(value) : value;
-  if (isNaN(date.getTime())) return '-';
+  if (isNaN(date.getTime())) return '—';
 
   const now = new Date();
   const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -180,9 +180,9 @@ export function formatRelativeDate(value: string | Date): string {
  * Format date value
  */
 export function formatDate(value: string | Date, style?: string): string {
-  if (!value) return '-';
+  if (!value) return '—';
   const date = typeof value === 'string' ? new Date(value) : value;
-  if (isNaN(date.getTime())) return '-';
+  if (isNaN(date.getTime())) return '—';
 
   if (style === 'short') {
     // Compact format for mobile: "Jan 15, '24"
@@ -208,9 +208,9 @@ export function formatDate(value: string | Date, style?: string): string {
  * Format datetime value
  */
 export function formatDateTime(value: string | Date): string {
-  if (!value) return '-';
+  if (!value) return '—';
   const date = typeof value === 'string' ? new Date(value) : value;
-  if (isNaN(date.getTime())) return '-';
+  if (isNaN(date.getTime())) return '—';
   
   return date.toLocaleDateString(undefined, {
     year: 'numeric',
@@ -226,14 +226,15 @@ export function formatDateTime(value: string | Date): string {
  */
 export function TextCellRenderer({ value }: CellRendererProps): React.ReactElement {
   const safe = coerceToSafeValue(value);
-  return <span className="truncate">{(safe != null && safe !== '') ? String(safe) : '-'}</span>;
+  if (safe == null || safe === '') return <EmptyValue />;
+  return <span className="truncate">{String(safe)}</span>;
 }
 
 /**
  * Number field cell renderer
  */
 export function NumberCellRenderer({ value, field }: CellRendererProps): React.ReactElement {
-  if (value == null) return <span className="text-muted-foreground">-</span>;
+  if (value == null) return <EmptyValue />;
   
   const safe = coerceToSafeValue(value);
   const numField = field as any;
@@ -250,7 +251,7 @@ export function NumberCellRenderer({ value, field }: CellRendererProps): React.R
  * Currency field cell renderer
  */
 export function CurrencyCellRenderer({ value, field }: CellRendererProps): React.ReactElement {
-  if (value == null) return <span className="text-muted-foreground">-</span>;
+  if (value == null) return <EmptyValue />;
   
   const safe = coerceToSafeValue(value);
   const currencyField = field as any;
@@ -268,7 +269,7 @@ const WHOLE_PERCENT_FIELD_PATTERN = /progress|completion/;
  * Percent field cell renderer with mini progress bar
  */
 export function PercentCellRenderer({ value, field }: CellRendererProps): React.ReactElement {
-  if (value == null) return <span className="text-muted-foreground">-</span>;
+  if (value == null) return <EmptyValue />;
   
   const safe = coerceToSafeValue(value);
   const percentField = field as any;
@@ -317,7 +318,7 @@ const STATUS_FIELD_NAMES = new Set([
  */
 export function BooleanCellRenderer({ value, field }: CellRendererProps): React.ReactElement {
   if (value == null) {
-    return <span className="text-muted-foreground/50 text-xs italic flex items-center justify-center">—</span>;
+    return <span className="flex items-center justify-center"><EmptyValue /></span>;
   }
 
   // Semantic rendering for completion fields (green circle indicator)
@@ -360,7 +361,7 @@ export function BooleanCellRenderer({ value, field }: CellRendererProps): React.
  * Date field cell renderer
  */
 export function DateCellRenderer({ value, field }: CellRendererProps): React.ReactElement {
-  if (!value) return <span className="text-muted-foreground">-</span>;
+  if (!value) return <EmptyValue />;
   const safe = coerceToSafeValue(value);
   const dateField = field as any;
   const style = dateField.format || 'relative';
@@ -388,10 +389,10 @@ export function DateCellRenderer({ value, field }: CellRendererProps): React.Rea
  * DateTime field cell renderer (Airtable-style with date and time visually separated)
  */
 export function DateTimeCellRenderer({ value }: CellRendererProps): React.ReactElement {
-  if (!value) return <span className="text-muted-foreground">-</span>;
+  if (!value) return <EmptyValue />;
   const safe = coerceToSafeValue(value);
   const date = typeof safe === 'string' ? new Date(safe) : safe;
-  if (!(date instanceof Date) || isNaN(date.getTime())) return <span className="text-muted-foreground">-</span>;
+  if (!(date instanceof Date) || isNaN(date.getTime())) return <EmptyValue />;
 
   const datePart = date.toLocaleDateString(undefined, {
     month: 'numeric',
@@ -463,10 +464,34 @@ const BADGE_COLOR_MAP: Record<string, string> = {
   pink: 'bg-pink-100 text-pink-800 border-pink-300',
 };
 
-function getBadgeColorClasses(color?: string, val?: string): string {
-  const resolvedColor = color
-    || (val ? SEMANTIC_COLOR_MAP[String(val).toLowerCase().replace(/[\s-]/g, '_')] : undefined);
-  return BADGE_COLOR_MAP[resolvedColor || ''] || 'bg-muted text-muted-foreground border-border';
+// Color palette used by the deterministic fallback when no schema/semantic
+// color matches. Excludes 'gray' to ensure visual contrast between values.
+const BADGE_FALLBACK_PALETTE: readonly string[] = [
+  'blue', 'green', 'purple', 'orange', 'pink', 'indigo', 'yellow', 'red',
+];
+
+/**
+ * Stable string hash (djb2-ish) → palette index.
+ * Same value always yields the same color across renders/sessions.
+ */
+function hashToColor(value: string): string {
+  let h = 5381;
+  for (let i = 0; i < value.length; i++) {
+    h = ((h << 5) + h) ^ value.charCodeAt(i);
+  }
+  const idx = Math.abs(h) % BADGE_FALLBACK_PALETTE.length;
+  return BADGE_FALLBACK_PALETTE[idx];
+}
+
+function getBadgeColorClasses(color?: string, val?: unknown): string {
+  if (color && BADGE_COLOR_MAP[color]) return BADGE_COLOR_MAP[color];
+  if (val == null || val === '') return 'bg-muted text-muted-foreground border-border';
+  const key = String(val).toLowerCase().replace(/[\s-]/g, '_');
+  const semantic = SEMANTIC_COLOR_MAP[key];
+  if (semantic && BADGE_COLOR_MAP[semantic]) return BADGE_COLOR_MAP[semantic];
+  // Deterministic fallback so distinct values are visually distinguishable
+  // even when metadata declares no colors.
+  return BADGE_COLOR_MAP[hashToColor(key)];
 }
 
 /**
@@ -476,7 +501,7 @@ export function SelectCellRenderer({ value, field }: CellRendererProps): React.R
   const selectField = field as any;
   const options: SelectOptionMetadata[] = selectField.options || [];
   
-  if (!value) return <span>-</span>;
+  if (value == null || value === '') return <EmptyValue />;
   
   // Handle multiple values
   if (Array.isArray(value)) {
@@ -520,7 +545,7 @@ export function SelectCellRenderer({ value, field }: CellRendererProps): React.R
  * Email field cell renderer
  */
 export function EmailCellRenderer({ value }: CellRendererProps): React.ReactElement {
-  if (!value) return <span>-</span>;
+  if (!value) return <EmptyValue />;
   
   const safe = String(coerceToSafeValue(value) ?? '');
   const [copied, setCopied] = React.useState(false);
@@ -568,7 +593,7 @@ export function EmailCellRenderer({ value }: CellRendererProps): React.ReactElem
  * URL field cell renderer
  */
 export function UrlCellRenderer({ value }: CellRendererProps): React.ReactElement {
-  if (!value) return <span>-</span>;
+  if (!value) return <EmptyValue />;
   
   const safe = String(coerceToSafeValue(value) ?? '');
   return (
@@ -593,7 +618,7 @@ export function UrlCellRenderer({ value }: CellRendererProps): React.ReactElemen
  * Phone field cell renderer
  */
 export function PhoneCellRenderer({ value }: CellRendererProps): React.ReactElement {
-  if (!value) return <span>-</span>;
+  if (!value) return <EmptyValue />;
   
   const safe = String(coerceToSafeValue(value) ?? '');
   const [copied, setCopied] = React.useState(false);
@@ -637,7 +662,7 @@ export function PhoneCellRenderer({ value }: CellRendererProps): React.ReactElem
  * File field cell renderer
  */
 export function FileCellRenderer({ value, field }: CellRendererProps): React.ReactElement {
-  if (!value) return <span>-</span>;
+  if (!value) return <EmptyValue />;
   
   const fileField = field as any;
   const isMultiple = fileField.multiple;
@@ -659,7 +684,7 @@ export function FileCellRenderer({ value, field }: CellRendererProps): React.Rea
  * Image field cell renderer (with thumbnails)
  */
 export function ImageCellRenderer({ value }: CellRendererProps): React.ReactElement {
-  if (!value) return <span>-</span>;
+  if (!value) return <EmptyValue />;
   
   if (Array.isArray(value)) {
     return (
@@ -694,7 +719,7 @@ export function ImageCellRenderer({ value }: CellRendererProps): React.ReactElem
  * Lookup/Master-Detail field cell renderer
  */
 export function LookupCellRenderer({ value, field }: CellRendererProps): React.ReactElement {
-  if (value == null || value === '') return <span>-</span>;
+  if (value == null || value === '') return <EmptyValue />;
 
   const options: Array<{ value: unknown; label: string }> =
     (field as { options?: Array<{ value: unknown; label: string }> }).options || [];
@@ -745,9 +770,10 @@ export function LookupCellRenderer({ value, field }: CellRendererProps): React.R
  */
 export function FormulaCellRenderer({ value }: CellRendererProps): React.ReactElement {
   const safe = coerceToSafeValue(value);
+  if (safe == null || safe === '') return <EmptyValue />;
   return (
     <span className="text-gray-700 font-mono text-sm">
-      {safe != null ? String(safe) : '-'}
+      {String(safe)}
     </span>
   );
 }
@@ -756,7 +782,7 @@ export function FormulaCellRenderer({ value }: CellRendererProps): React.ReactEl
  * User/Owner field cell renderer (with avatars)
  */
 export function UserCellRenderer({ value }: CellRendererProps): React.ReactElement {
-  if (!value) return <span>-</span>;
+  if (!value) return <EmptyValue />;
 
   // Primitive value: just display the ID/username as text
   if (typeof value !== 'object') {

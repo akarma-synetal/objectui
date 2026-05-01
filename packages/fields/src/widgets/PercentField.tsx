@@ -1,5 +1,5 @@
 import React from 'react';
-import { Input, Slider } from '@object-ui/components';
+import { Input, Slider, EmptyValue } from '@object-ui/components';
 import { FieldWidgetProps } from './types';
 
 /**
@@ -12,7 +12,7 @@ export function PercentField({ value, onChange, field, readonly, errorMessage, c
   const precision = percentField?.precision ?? 2;
 
   if (readonly) {
-    if (value == null) return <span className="text-sm">-</span>;
+    if (value == null) return <EmptyValue />;
     return (
       <span className="text-sm font-medium tabular-nums">
         {(value * 100).toFixed(precision)}%

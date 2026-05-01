@@ -1,10 +1,11 @@
 import React from 'react';
-import { 
-  Select, 
-  SelectContent, 
-  SelectItem, 
-  SelectTrigger, 
-  SelectValue 
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  EmptyValue,
 } from '@object-ui/components';
 import { SelectFieldMetadata } from '@object-ui/types';
 import { useFieldTranslation } from './useFieldTranslation';
@@ -21,7 +22,8 @@ export function SelectField({ value, onChange, field, readonly, ...props }: Fiel
 
   if (readonly) {
     const option = options.find((o) => o.value === value);
-    return <span className="text-sm">{option?.label || value || '-'}</span>;
+    const display = option?.label || value;
+    return display ? <span className="text-sm">{display}</span> : <EmptyValue />;
   }
 
   return (

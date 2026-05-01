@@ -27,7 +27,7 @@ import type { I18nLabel } from '@objectstack/spec/ui';
 import { SchemaRenderer, useDataScope, useNavigationOverlay, useAction, useObjectTranslation, useSafeFieldLabel } from '@object-ui/react';
 import { getCellRenderer, formatCurrency, formatCompactCurrency, formatDate, formatPercent, humanizeLabel } from '@object-ui/fields';
 import {
-  Badge, Button, NavigationOverlay,
+  Badge, Button, NavigationOverlay, EmptyValue,
   Popover, PopoverContent, PopoverTrigger,
 } from '@object-ui/components';
 import { usePullToRefresh } from '@object-ui/mobile';
@@ -736,7 +736,7 @@ export const ObjectGrid: React.FC<ObjectGridProps> = ({
                 cellRenderer = (value: any) => (
                   value != null && value !== ''
                     ? <span>{String(value)}</span>
-                    : <span className="text-muted-foreground/50 text-xs italic">—</span>
+                    : <EmptyValue />
                 );
               }
 

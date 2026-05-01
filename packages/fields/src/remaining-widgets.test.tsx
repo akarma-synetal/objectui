@@ -37,7 +37,7 @@ describe('Remaining Field Widgets', () => {
 
     it('should render dash for null value', () => {
       render(<AutoNumberField {...baseProps} value={null as any} />);
-      expect(screen.getByText('-')).toBeInTheDocument();
+      expect(screen.getByText('—')).toBeInTheDocument();
     });
   });
 

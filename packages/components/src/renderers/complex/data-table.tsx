@@ -53,16 +53,6 @@ import {
 
 type SortDirection = 'asc' | 'desc' | null;
 
-/** Number of skeleton rows shown when the table has no data */
-const GHOST_ROW_COUNT = 3;
-
-/** Returns a Tailwind width class for ghost cell placeholders to create visual variety */
-function ghostCellWidth(columnIndex: number, totalColumns: number): string {
-  if (columnIndex === 0) return 'w-3/4';
-  if (columnIndex === totalColumns - 1) return 'w-1/3';
-  return 'w-1/2';
-}
-
 // Default English fallback translations for the data table
 const TABLE_DEFAULT_TRANSLATIONS: Record<string, string> = {
   'table.rowsPerPage': 'Rows per page',
@@ -817,33 +807,18 @@ const DataTableRenderer = ({ schema }: { schema: DataTableSchema }) => {
           </TableHeader>
           <TableBody>
             {paginatedData.length === 0 ? (
-              <>
-                <TableRow>
-                  <TableCell
-                    colSpan={columns.length + (selectable ? 1 : 0) + (showRowNumbers ? 1 : 0) + (rowActions ? 1 : 0)}
-                    className="h-24 text-center text-muted-foreground"
-                  >
-                    <div className="flex flex-col items-center justify-center gap-2">
-                      <Search className="h-8 w-8 text-muted-foreground/50" />
-                      <p>{t('table.noResults')}</p>
-                      <p className="text-xs text-muted-foreground/50">{t('table.noResultsHint')}</p>
-                    </div>
-                  </TableCell>
-                </TableRow>
-                {/* Ghost placeholder rows – visual skeleton to maintain table height when empty */}
-                {Array.from({ length: GHOST_ROW_COUNT }).map((_, i) => (
-                  <TableRow key={`ghost-${i}`} className="hover:bg-transparent opacity-[0.15] pointer-events-none" data-testid="ghost-row">
-                    {selectable && <TableCell className="p-3"><div className="h-4 w-4 rounded border border-muted-foreground/30" /></TableCell>}
-                    {showRowNumbers && <TableCell className="text-center p-3"><div className="h-3 w-6 mx-auto rounded bg-muted-foreground/30" /></TableCell>}
-                    {columns.map((_col, ci) => (
-                      <TableCell key={ci} className="p-3">
-                        <div className={cn("h-3 rounded bg-muted-foreground/30", ghostCellWidth(ci, columns.length))} />
-                      </TableCell>
-                    ))}
-                    {rowActions && <TableCell className="p-3"><div className="h-3 w-8 rounded bg-muted-foreground/30" /></TableCell>}
-                  </TableRow>
-                ))}
-              </>
+              <TableRow className="hover:bg-transparent">
+                <TableCell
+                  colSpan={columns.length + (selectable ? 1 : 0) + (showRowNumbers ? 1 : 0) + (rowActions ? 1 : 0)}
+                  className="h-48 text-center text-muted-foreground border-0"
+                >
+                  <div className="flex flex-col items-center justify-center gap-2">
+                    <Search className="h-8 w-8 text-muted-foreground/50" />
+                    <p>{t('table.noResults')}</p>
+                    <p className="text-xs text-muted-foreground/50">{t('table.noResultsHint')}</p>
+                  </div>
+                </TableCell>
+              </TableRow>
             ) : (
               <>
                 {paginatedData.map((row, rowIndex) => {
@@ -1045,12 +1020,10 @@ const DataTableRenderer = ({ schema }: { schema: DataTableSchema }) => {
                     </TableCell>
                   </TableRow>
                 )}
-                {/* Filler rows to maintain height consistency (only when pagination is enabled) */}
-                {pagination && paginatedData.length > 0 && Array.from({ length: Math.max(0, pageSize - paginatedData.length) }).map((_, i) => (
-                  <TableRow key={`empty-${i}`} className="hover:bg-transparent">
-                    <TableCell colSpan={columns.length + (selectable ? 1 : 0) + (showRowNumbers ? 1 : 0) + (rowActions ? 1 : 0)} className="h-[52px] p-0" />
-                  </TableRow>
-                ))}
+                {/* Filler rows intentionally removed: they create visible
+                 * bordered empty bands on incomplete pages, making the table
+                 * look broken. The scroll container's flex-1 min-h-0 handles
+                 * height stability instead. */}
               </>
             )}
           </TableBody>

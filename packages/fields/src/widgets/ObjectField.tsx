@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Textarea, cn } from '@object-ui/components';
+import { Textarea, cn, EmptyValue } from '@object-ui/components';
 import { FieldWidgetProps } from './types';
 
 /**
@@ -42,7 +42,7 @@ export function ObjectField({ value, onChange, field, readonly, ...props }: Fiel
   }, [value, jsonString]);
 
   if (readonly) {
-    if (!value) return <span className="text-sm">-</span>;
+    if (!value) return <EmptyValue />;
     return (
       <pre className={cn("text-xs bg-gray-50 p-2 rounded border border-gray-200 overflow-auto max-h-40", props.className)}>
         {JSON.stringify(value, null, 2)}
