@@ -112,6 +112,8 @@ export const DetailViewSchema = BaseSchema.extend({
     data: z.array(z.any()).optional().describe('Static data'),
     columns: z.array(z.any()).optional().describe('Columns for table view'),
     fields: z.array(z.string()).optional().describe('Fields for list view'),
+    referenceField: z.string().optional().describe('Foreign-key field on the child object pointing back to the parent record. The renderer hides this column from the related-list table by default since the parent is implicit context.'),
+    icon: z.string().optional().describe('Optional Lucide-style icon name to render next to the section title'),
   })).optional().describe('Related records section'),
 });
 

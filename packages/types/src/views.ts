@@ -556,6 +556,16 @@ export interface DetailViewSchema extends BaseSchema {
      * Fields for list view
      */
     fields?: string[];
+    /**
+     * Optional foreign-key field on the child records that points back to the
+     * parent record. When provided, the renderer hides this column from the
+     * default related-list table because the parent is implicit context.
+     */
+    referenceField?: string;
+    /**
+     * Optional Lucide-style icon name to render next to the section title.
+     */
+    icon?: string;
   }>;
   /**
    * When true, auto-discover related lists from objectSchema reference fields

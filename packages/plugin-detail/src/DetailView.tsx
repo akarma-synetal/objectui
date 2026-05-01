@@ -418,6 +418,7 @@ export const DetailView: React.FC<DetailViewProps> = ({
       type: r.type,
       api: r.objectName,
       data: [] as any[],
+      referenceField: r.referenceField,
     }));
   }, [schema.related, discoveredRelated]);
 
@@ -969,7 +970,7 @@ export const DetailView: React.FC<DetailViewProps> = ({
             {/* Related Tab Content */}
             {hasRelated && (
               <TabsContent value="related" className="mt-4">
-                <div className="space-y-4">
+                <div className="space-y-3">
                   {effectiveRelated.map((related, index) => (
                     <RelatedList
                       key={index}
@@ -980,6 +981,8 @@ export const DetailView: React.FC<DetailViewProps> = ({
                       columns={related.columns as any}
                       dataSource={dataSource}
                       objectName={related.api}
+                      referenceField={(related as any).referenceField}
+                      icon={(related as any).icon}
                       collapsible
                       pageSize={DEFAULT_RELATED_PAGE_SIZE}
                     />
@@ -1061,8 +1064,8 @@ export const DetailView: React.FC<DetailViewProps> = ({
 
           {/* Related Lists */}
           {effectiveRelated.length > 0 && (
-            <div className="space-y-4">
-              <h2 className="text-xl font-semibold">{t('detail.related')}</h2>
+            <div className="space-y-3">
+              <h2 className="text-lg font-semibold">{t('detail.related')}</h2>
               {effectiveRelated.map((related, index) => (
                 <RelatedList
                   key={index}
@@ -1073,6 +1076,8 @@ export const DetailView: React.FC<DetailViewProps> = ({
                   columns={related.columns as any}
                   dataSource={dataSource}
                   objectName={related.api}
+                  referenceField={(related as any).referenceField}
+                  icon={(related as any).icon}
                   collapsible
                   pageSize={DEFAULT_RELATED_PAGE_SIZE}
                 />

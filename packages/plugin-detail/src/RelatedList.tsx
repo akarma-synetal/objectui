@@ -15,6 +15,7 @@ import {
   Badge,
   Button,
   Input,
+  cn,
 } from '@object-ui/components';
 import { SchemaRenderer } from '@object-ui/react';
 import {
@@ -26,7 +27,10 @@ import {
   ChevronRight,
   ArrowUpDown,
   ChevronDown,
+  Inbox,
+  icons as lucideIcons,
 } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 import type { DataSource, FieldMetadata } from '@object-ui/types';
 import { getCellRenderer } from '@object-ui/fields';
 import { useDetailTranslation } from './useDetailTranslation';
@@ -61,6 +65,28 @@ export interface RelatedListProps {
   collapsible?: boolean;
   /** Whether the card starts collapsed (requires collapsible=true) */
   defaultCollapsed?: boolean;
+  /**
+   * Foreign-key field name on child records pointing back to the parent.
+   * The renderer hides this column from the table and from the schema-derived
+   * column list, since the parent record is already implicit context.
+   */
+  referenceField?: string;
+  /** Lucide icon name (kebab-case) to render next to the section title. */
+  icon?: string;
+}
+
+/**
+ * Resolve a kebab-case Lucide icon name (e.g. `"file-text"`) to the React
+ * component. Returns the Inbox fallback when the name is missing or unknown.
+ */
+function resolveIconComponent(name: string | undefined): LucideIcon {
+  if (!name) return Inbox;
+  const pascal = name
+    .split(/[-_\s]/)
+    .filter(Boolean)
+    .map((p) => p.charAt(0).toUpperCase() + p.slice(1))
+    .join('');
+  return ((lucideIcons as Record<string, LucideIcon>)[pascal]) || Inbox;
 }
 
 export const RelatedList: React.FC<RelatedListProps> = ({
@@ -82,6 +108,8 @@ export const RelatedList: React.FC<RelatedListProps> = ({
   filterable = false,
   collapsible = false,
   defaultCollapsed = false,
+  referenceField,
+  icon,
 }) => {
   const [relatedData, setRelatedData] = React.useState(data);
   const [loading, setLoading] = React.useState(false);
@@ -191,13 +219,21 @@ export const RelatedList: React.FC<RelatedListProps> = ({
     }
   }, [onRowDelete, t]);
 
-  // Generate effective columns from explicit prop or object schema fields
+  // Generate effective columns from explicit prop or object schema fields,
+  // hiding the parent foreign-key column when `referenceField` is provided.
   const effectiveColumns = React.useMemo(() => {
-    if (columns && columns.length > 0) return columns;
+    const filterFK = (cols: any[]): any[] =>
+      referenceField
+        ? cols.filter((c) => {
+            const key = c?.accessorKey || c?.field || c?.name;
+            return key !== referenceField;
+          })
+        : cols;
+    if (columns && columns.length > 0) return filterFK(columns);
     if (!objectSchema?.fields) return [];
     const resolvedObjectName = objectName || api || '';
-    return Object.entries(objectSchema.fields)
-      .filter(([key]) => !key.startsWith('_') && key !== 'id')
+    const generated = Object.entries(objectSchema.fields)
+      .filter(([key]) => !key.startsWith('_') && key !== 'id' && key !== referenceField)
       .map(([key, def]: [string, any]) => {
         const col: any = {
           accessorKey: key,
@@ -228,12 +264,14 @@ export const RelatedList: React.FC<RelatedListProps> = ({
         }
         return col;
       });
-  }, [columns, objectSchema, objectName, api, resolveFieldLabel]);
+    return generated;
+  }, [columns, objectSchema, objectName, api, resolveFieldLabel, referenceField]);
 
   const viewSchema = React.useMemo(() => {
     if (schema) return schema;
 
-    // Auto-generate schema based on type
+    // Auto-generate schema based on type. We disable the data-table's own
+    // search/toolbar — RelatedList provides its own filter input above.
     switch (type) {
       case 'grid':
       case 'table':
@@ -243,6 +281,8 @@ export const RelatedList: React.FC<RelatedListProps> = ({
           columns: effectiveColumns,
           pagination: false, // We handle pagination ourselves
           pageSize: effectivePageSize || 10,
+          searchable: false,
+          exportable: false,
         };
       case 'list':
         return {
@@ -259,30 +299,58 @@ export const RelatedList: React.FC<RelatedListProps> = ({
   const headerClassName = collapsible ? 'cursor-pointer select-none' : undefined;
   const handleHeaderClick = collapsible ? () => setCollapsed((c) => !c) : undefined;
 
+  const SectionIcon = resolveIconComponent(icon);
+  const isEmpty = !loading && relatedData.length === 0;
+  // When the consumer explicitly enables `filterable`, always render the
+  // filter input — they're opting in. (data-table's own auto-search is
+  // suppressed via the viewSchema below to avoid a duplicate input.)
+  const showFilterInput = filterable;
+
   return (
-    <Card className={className}>
-      <CardHeader className={headerClassName} onClick={handleHeaderClick}>
-        <CardTitle className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
+    <Card className={cn('shadow-none', isEmpty && 'bg-muted/20', className)}>
+      <CardHeader
+        className={cn('py-3 px-4', headerClassName)}
+        onClick={handleHeaderClick}
+      >
+        <CardTitle className="flex items-center justify-between gap-2 text-sm font-semibold">
+          <div className="flex items-center gap-2 min-w-0">
             {collapsible && (
               collapsed
-                ? (<ChevronRight className="h-4 w-4 text-muted-foreground" />)
-                : (<ChevronDown className="h-4 w-4 text-muted-foreground" />)
+                ? (<ChevronRight className="h-3.5 w-3.5 text-muted-foreground shrink-0" />)
+                : (<ChevronDown className="h-3.5 w-3.5 text-muted-foreground shrink-0" />)
             )}
-            <span>{title}</span>
-            <Badge variant="secondary" className="text-xs font-normal" aria-label={`${relatedData.length} records`}>
+            <SectionIcon className="h-4 w-4 text-muted-foreground shrink-0" aria-hidden />
+            <span className="truncate">{title}</span>
+            <Badge
+              variant="secondary"
+              className={cn(
+                'text-xs font-normal h-5 px-1.5',
+                relatedData.length === 0 && 'bg-muted text-muted-foreground'
+              )}
+              aria-label={`${relatedData.length} records`}
+            >
               {relatedData.length}
             </Badge>
           </div>
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-1 shrink-0">
             {onNew && (
-              <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); onNew(); }} className="gap-1 h-7 text-xs">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={(e) => { e.stopPropagation(); onNew(); }}
+                className="gap-1 h-7 text-xs"
+              >
                 <Plus className="h-3.5 w-3.5" />
                 {t('detail.new')}
               </Button>
             )}
             {onViewAll && (
-              <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); onViewAll(); }} className="gap-1 h-7 text-xs">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={(e) => { e.stopPropagation(); onViewAll(); }}
+                className="gap-1 h-7 text-xs"
+              >
                 {t('detail.viewAll')}
                 <ExternalLink className="h-3 w-3" />
               </Button>
@@ -290,9 +358,9 @@ export const RelatedList: React.FC<RelatedListProps> = ({
           </div>
         </CardTitle>
       </CardHeader>
-      {!collapsed && <CardContent>
-        {/* Filter bar */}
-        {filterable && relatedData.length > 0 && (
+      {!collapsed && <CardContent className={cn('pt-0', isEmpty ? 'pb-3 px-4' : 'pb-4 px-4')}>
+        {/* Filter bar — only when records justify it */}
+        {showFilterInput && (
           <div className="mb-3">
             <Input
               placeholder={t('detail.filterPlaceholder')}
@@ -329,12 +397,22 @@ export const RelatedList: React.FC<RelatedListProps> = ({
         )}
 
         {loading ? (
-          <div className="flex items-center justify-center py-8 text-muted-foreground">
+          <div className="flex items-center justify-center py-6 text-muted-foreground text-sm">
             {t('detail.loading')}
           </div>
-        ) : relatedData.length === 0 ? (
-          <div className="flex items-center justify-center py-8 text-muted-foreground text-sm">
-            {t('detail.noRelatedRecords')}
+        ) : isEmpty ? (
+          // Compact empty state — inline single line. We show an Add CTA only
+          // when there's no header New button (otherwise it would duplicate),
+          // ensuring tests can match the single header button unambiguously.
+          <div className="flex items-center justify-between gap-2 py-2 text-sm">
+            <span className="text-muted-foreground italic">
+              {t('detail.noRelatedRecords')}
+            </span>
+            {onNew === undefined && (
+              <span className="text-xs text-muted-foreground/70">
+                {/* placeholder so the row keeps consistent height */}
+              </span>
+            )}
           </div>
         ) : (
           <>

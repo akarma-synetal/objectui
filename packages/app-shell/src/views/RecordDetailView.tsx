@@ -397,13 +397,21 @@ export function RecordDetailView({ dataSource, objects, onEdit }: RecordDetailVi
     const sectionGroups: SectionGroup[] | undefined =
       objectDef.views?.detail?.sectionGroups ?? objectDef.views?.form?.sectionGroups;
 
-    // Build related entries from reverse-reference child objects
-    const related = childRelations.map(({ childObject, childLabel }) => ({
-      title: childLabel,
-      type: 'table' as const,
-      api: childObject,
-      data: childRelatedData[childObject] || [],
-    }));
+    // Build related entries from reverse-reference child objects.
+    // `referenceField` is the FK field on the child pointing back to this
+    // record — passed so the related-list renderer can hide the redundant
+    // parent-ID column.
+    const related = childRelations.map(({ childObject, childLabel, referenceField }) => {
+      const childObjectDef = objects.find((o: any) => o.name === childObject);
+      return {
+        title: childLabel,
+        type: 'table' as const,
+        api: childObject,
+        data: childRelatedData[childObject] || [],
+        referenceField,
+        icon: childObjectDef?.icon,
+      };
+    });
 
     return {
       type: 'detail-view' as const,
