@@ -1237,12 +1237,22 @@ export const ListView = React.forwardRef<ListViewHandle, ListViewProps>(({
           )}
 
           {/* --- Separator: Hide Fields | Data Manipulation --- */}
-          {toolbarFlags.showHideFields && (toolbarFlags.showFilters || toolbarFlags.showSort || toolbarFlags.showGroup) && (
+          {toolbarFlags.showHideFields && (
+            (toolbarFlags.showFilters && !(resolvedUserFilters && !hasFilters)) ||
+            toolbarFlags.showSort ||
+            toolbarFlags.showGroup
+          ) && (
             <div className="h-4 w-px bg-border/60 mx-0.5 shrink-0" />
           )}
 
-          {/* Filter */}
-          {toolbarFlags.showFilters && (
+          {/* Filter — universal advanced filter builder.
+              Hidden when quick-filter chips already occupy the left side AND
+              no advanced filter is currently active, to avoid duplicating the
+              "filter records" affordance. The chips become the primary entry
+              point; if a user has applied an advanced filter via API or by
+              previously toggling it, the trigger reappears (with its badge)
+              so the active filter is discoverable and clearable. */}
+          {toolbarFlags.showFilters && !(resolvedUserFilters && !hasFilters) && (
           <Popover open={showFilters} onOpenChange={setShowFilters}>
             <PopoverTrigger asChild>
               <Button

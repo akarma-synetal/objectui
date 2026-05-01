@@ -620,7 +620,7 @@ export const ObjectGrid: React.FC<ObjectGridProps> = ({
 
             return {
               ...col,
-              headerIcon: getTypeIcon(inferredType),
+              ...(schema.showColumnTypeIcons && { headerIcon: getTypeIcon(inferredType) }),
               cell: (value: any) => <CellRenderer value={value} field={fieldMeta as any} />,
             };
           });
@@ -772,7 +772,7 @@ export const ObjectGrid: React.FC<ObjectGridProps> = ({
               return {
                 header,
                 accessorKey: col.field,
-                headerIcon: getTypeIcon(inferredType),
+                ...(schema.showColumnTypeIcons && { headerIcon: getTypeIcon(inferredType) }),
                 ...(!isEssential && { className: 'hidden sm:table-cell' }),
                 ...(col.width && { width: col.width }),
                 ...(inferredAlign && { align: inferredAlign }),
@@ -853,7 +853,7 @@ export const ObjectGrid: React.FC<ObjectGridProps> = ({
           return {
             header,
             accessorKey: fieldName,
-            ...(resolvedType && { headerIcon: getTypeIcon(resolvedType) }),
+            ...(schema.showColumnTypeIcons && resolvedType && { headerIcon: getTypeIcon(resolvedType) }),
             ...(inferredAlign && { align: inferredAlign }),
             ...(cellRenderer && { cell: cellRenderer }),
             sortable: fieldDef?.sortable !== false,
@@ -893,7 +893,7 @@ export const ObjectGrid: React.FC<ObjectGridProps> = ({
           return {
             header,
             accessorKey: fieldName,
-            ...(resolvedType && { headerIcon: getTypeIcon(resolvedType) }),
+            ...(schema.showColumnTypeIcons && resolvedType && { headerIcon: getTypeIcon(resolvedType) }),
             ...(inferredAlign && { align: inferredAlign }),
             ...(CellRenderer && { cell: (value: any) => <CellRenderer value={value} field={fieldMeta as any} /> }),
             sortable: fieldDef?.sortable !== false,

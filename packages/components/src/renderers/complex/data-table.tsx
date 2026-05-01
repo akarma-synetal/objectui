@@ -812,10 +812,23 @@ const DataTableRenderer = ({ schema }: { schema: DataTableSchema }) => {
                   colSpan={columns.length + (selectable ? 1 : 0) + (showRowNumbers ? 1 : 0) + (rowActions ? 1 : 0)}
                   className="h-48 text-center text-muted-foreground border-0"
                 >
-                  <div className="flex flex-col items-center justify-center gap-2">
+                  <div className="flex flex-col items-center justify-center gap-3">
                     <Search className="h-8 w-8 text-muted-foreground/50" />
-                    <p>{t('table.noResults')}</p>
-                    <p className="text-xs text-muted-foreground/50">{t('table.noResultsHint')}</p>
+                    <div className="space-y-1">
+                      <p>{t('table.noResults')}</p>
+                      <p className="text-xs text-muted-foreground/50">{t('table.noResultsHint')}</p>
+                    </div>
+                    {/* CTA slot — when the schema declares an `emptyAction`,
+                        render it as an inviting follow-up instead of leaving
+                        the user at a dead end. The node is resolved via the
+                        component registry so it can be any schema node
+                        (button, link, action) authored in JSON. */}
+                    {schema.emptyAction && (() => {
+                      const node: any = schema.emptyAction;
+                      const Comp = node?.type ? ComponentRegistry.get(node.type) : null;
+                      if (Comp) return <Comp schema={node} />;
+                      return null;
+                    })()}
                   </div>
                 </TableCell>
               </TableRow>
@@ -833,7 +846,15 @@ const DataTableRenderer = ({ schema }: { schema: DataTableSchema }) => {
                       key={rowId} 
                       data-state={isSelected ? 'selected' : undefined}
                       className={cn(
-                        "bg-background border-b border-border hover:bg-muted/50 group/row",
+                        // Unified row state styling — softer hover (40 vs default 50),
+                        // brand-tinted selected fill, and explicit focus-visible ring
+                        // for keyboard navigation. Overrides the upstream Shadcn
+                        // TableRow defaults (which we cannot edit directly per
+                        // No-Touch-Zone policy).
+                        "bg-background border-b border-border group/row transition-colors",
+                        "hover:bg-muted/40",
+                        "data-[state=selected]:bg-primary/5 data-[state=selected]:hover:bg-primary/10",
+                        "focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-inset",
                         schema.onRowClick && "cursor-pointer",
                         rowHasChanges && "bg-amber-50 dark:bg-amber-950/20",
                         rowClassName && rowClassName(row, rowIndex)

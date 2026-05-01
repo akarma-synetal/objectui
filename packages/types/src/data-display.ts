@@ -448,6 +448,12 @@ export interface DataTableSchema extends BaseSchema {
    */
   showAddRow?: boolean;
   /**
+   * Optional schema node rendered inside the empty-state, e.g. an
+   * "Add record" button. Lets the empty state become an actionable
+   * invitation rather than a dead end.
+   */
+  emptyAction?: SchemaNode;
+  /**
    * Callback when the "+ Add record" row is clicked
    */
   onAddRecord?: () => void;

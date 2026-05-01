@@ -149,6 +149,7 @@ export const DataTableSchema = BaseSchema.extend({
   onColumnsReorder: z.function().optional().describe('Column reorder handler'),
   frozenColumns: z.number().optional().describe('Number of frozen columns'),
   showRowNumbers: z.boolean().optional().describe('Show row numbers'),
+  emptyAction: SchemaNodeSchema.optional().describe('Optional schema node rendered inside the empty-state, e.g. an "Add record" button. Lets the empty state become an actionable invitation rather than a dead end.'),
 });
 
 /**

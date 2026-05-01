@@ -17,14 +17,17 @@ export function PageHeader({
 }: PageHeaderProps) {
     return (
         <div className={cn("flex flex-col gap-4 pb-4 md:pb-8", className)} {...props}>
-            <div className="flex items-center justify-between gap-4">
-                <div className="flex flex-col gap-1">
-                    <h1 className="text-2xl font-bold tracking-tight md:text-3xl">{title}</h1>
+            {/* Title + primary action sit together (left-aligned). Pushing the
+                action to the far right of the viewport on wide screens
+                disconnects it from the title context. The flex-wrap allows
+                the action to drop to a second row on narrow viewports. */}
+            <div className="flex flex-wrap items-end gap-x-4 gap-y-2">
+                <div className="flex flex-col gap-1 min-w-0">
+                    <h1 className="text-2xl font-bold tracking-tight md:text-3xl truncate">{title}</h1>
                     {description && <p className="text-sm text-muted-foreground">{description}</p>}
                 </div>
-                {/* Render children (actions) in the top-right slot if available */}
                 {(action || children) && (
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 ml-auto sm:ml-0">
                         {action}
                         {children}
                     </div>

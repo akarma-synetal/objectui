@@ -339,6 +339,14 @@ export interface ObjectGridSchema extends BaseSchema {
    * Display borders around cells
    */
   bordered?: boolean;
+
+  /**
+   * Show column type icons (T / Tag / Calendar / Hash) in column headers.
+   * Off by default — type is usually obvious from cell content; the icons
+   * add visual noise that competes with column labels.
+   * @default false
+   */
+  showColumnTypeIcons?: boolean;
   
   /**
    * Row Selection Configuration

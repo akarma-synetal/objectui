@@ -126,6 +126,7 @@ export const ObjectGridSchema = BaseSchema.extend({
   resizable: z.boolean().optional().describe('Enable column resizing'),
   striped: z.boolean().optional().describe('Striped rows'),
   bordered: z.boolean().optional().describe('Show borders'),
+  showColumnTypeIcons: z.boolean().optional().describe('Show column type icons (T/Tag/Calendar) in headers. Off by default — type is usually obvious from cell content; the icons add visual noise.'),
   selection: SelectionConfigSchema.optional().describe('Selection configuration'),
   pagination: PaginationConfigSchema.optional().describe('Pagination configuration'),
   
