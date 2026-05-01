@@ -155,6 +155,7 @@ export const DashboardRenderer = forwardRef<HTMLDivElement, DashboardRendererPro
                     trend: options.trend,
                     icon: options.icon,
                     description: options.description,
+                    colorVariant: (widget as any).colorVariant,
                 };
             }
 

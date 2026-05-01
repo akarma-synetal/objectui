@@ -50,6 +50,8 @@ export interface ObjectMetricWidgetProps {
   description?: string | { key?: string; defaultValue?: string };
   /** External data source (overrides context) */
   dataSource?: any;
+  /** Visual color variant for the icon container */
+  colorVariant?: 'default' | 'blue' | 'teal' | 'orange' | 'purple' | 'success' | 'warning' | 'danger';
 }
 
 export const ObjectMetricWidget: React.FC<ObjectMetricWidgetProps> = ({
@@ -63,6 +65,7 @@ export const ObjectMetricWidget: React.FC<ObjectMetricWidgetProps> = ({
   className,
   description,
   dataSource: propDataSource,
+  colorVariant,
 }) => {
   const context = useContext(SchemaRendererContext);
   const dataSource = propDataSource || context?.dataSource;
@@ -154,6 +157,7 @@ export const ObjectMetricWidget: React.FC<ObjectMetricWidgetProps> = ({
       description={description}
       loading={loading}
       error={error}
+      colorVariant={colorVariant}
     />
   );
 };

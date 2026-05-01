@@ -303,17 +303,28 @@ export default function AdvancedChartImpl({
           content={<ChartLegendContent />}
           {...(isMobile && { verticalAlign: "bottom", wrapperStyle: { fontSize: '11px', paddingTop: '8px' } })}
         />
-        {series.map((s: any) => {
-          const color = resolveColor(config[s.dataKey]?.color || DEFAULT_CHART_COLOR);
-          
+        {series.map((s: any, sIdx: number) => {
+          const palette = getPalette();
+          const seriesColor = resolveColor(config[s.dataKey]?.color || palette[sIdx % palette.length] || DEFAULT_CHART_COLOR);
+
           if (chartType === 'bar') {
-            return <Bar key={s.dataKey} dataKey={s.dataKey} fill={color} radius={4} />;
+            // For categorical bar charts with a single series, color each bar
+            // distinctly so that categories are visually distinguishable.
+            // For multi-series bars, keep one color per series (standard behavior).
+            const colorPerCategory = series.length === 1 && data.length > 1;
+            return (
+              <Bar key={s.dataKey} dataKey={s.dataKey} fill={seriesColor} radius={4}>
+                {colorPerCategory && data.map((_entry, idx) => (
+                  <Cell key={`cell-${idx}`} fill={resolveColor(palette[idx % palette.length])} />
+                ))}
+              </Bar>
+            );
           }
           if (chartType === 'line') {
-            return <Line key={s.dataKey} type="monotone" dataKey={s.dataKey} stroke={color} strokeWidth={2} dot={false} />;
+            return <Line key={s.dataKey} type="monotone" dataKey={s.dataKey} stroke={seriesColor} strokeWidth={2} dot={false} />;
           }
           if (chartType === 'area') {
-            return <Area key={s.dataKey} type="monotone" dataKey={s.dataKey} fill={color} stroke={color} fillOpacity={0.4} />;
+            return <Area key={s.dataKey} type="monotone" dataKey={s.dataKey} fill={seriesColor} stroke={seriesColor} fillOpacity={0.4} />;
           }
           return null;
         })}
