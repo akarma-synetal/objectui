@@ -1030,8 +1030,8 @@ const DataTableRenderer = ({ schema }: { schema: DataTableSchema }) => {
         </Table>
       </div>
 
-      {/* Pagination */}
-      {pagination && sortedData.length > 0 && (
+      {/* Pagination — hidden when only one page (no controls would be actionable) */}
+      {pagination && sortedData.length > 0 && totalPages > 1 && (
         <div className="flex flex-col sm:flex-row items-center justify-between gap-2">
           <div className="flex items-center gap-2">
             <span className="text-xs sm:text-sm text-muted-foreground">{t('table.rowsPerPage')}:</span>
@@ -1057,7 +1057,7 @@ const DataTableRenderer = ({ schema }: { schema: DataTableSchema }) => {
 
           <div className="flex items-center gap-2">
             <span className="text-xs sm:text-sm text-muted-foreground">
-              {t('table.pageInfo', { current: currentPage, total: totalPages })} <span className="hidden sm:inline">({t('table.totalRecords', { count: sortedData.length })})</span>
+              {t('table.pageInfo', { current: currentPage, total: totalPages })}
             </span>
             <div className="flex items-center gap-1">
               <Button

@@ -160,6 +160,39 @@ body {
 
 /* Sidebar explicit rules for Tailwind 4 compatibility */
 
+/* Brand-tinted active state for sidebar nav buttons (overrides Shadcn default gray).
+ * Targets the upstream SidebarMenuButton without modifying its source — uses the
+ * data-active="true" attribute that the component sets when isActive is true.
+ * A 2px brand-colored bar on the leading edge reinforces the selection at a glance. */
+[data-sidebar="menu-button"][data-active="true"] {
+  background-color: hsl(var(--primary) / 0.10);
+  color: hsl(var(--primary));
+  font-weight: 500;
+  position: relative;
+}
+[data-sidebar="menu-button"][data-active="true"]::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 50%;
+  height: 1.25rem;
+  width: 2px;
+  border-radius: 0 9999px 9999px 0;
+  background-color: hsl(var(--primary));
+  transform: translateY(-50%);
+}
+[data-sidebar="menu-button"][data-active="true"]:hover {
+  background-color: hsl(var(--primary) / 0.14);
+  color: hsl(var(--primary));
+}
+.dark [data-sidebar="menu-button"][data-active="true"] {
+  background-color: hsl(var(--primary) / 0.18);
+  color: hsl(var(--primary));
+}
+.dark [data-sidebar="menu-button"][data-active="true"]:hover {
+  background-color: hsl(var(--primary) / 0.24);
+}
+
 /* Icon mode: collapsed state = icon width, expanded state = full width */
 .group[data-collapsible="icon"][data-state="collapsed"] .group-data-\[collapsible\=icon\]\:w-\[--sidebar-width-icon\] {
   width: var(--sidebar-width-icon);

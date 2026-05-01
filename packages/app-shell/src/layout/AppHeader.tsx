@@ -325,8 +325,8 @@ export function AppHeader({
         )}
       </div>
 
-      {/* ── RIGHT: actions ── */}
-      <div className="flex items-center gap-0.5 sm:gap-1 shrink-0">
+      {/* ── RIGHT: actions (grouped: search | notifications/help | preferences/account) ── */}
+      <div className="flex items-center gap-0.5 sm:gap-1 shrink-0 [&>*+*[data-topbar-group]]:ml-1 [&>[data-topbar-group]+[data-topbar-group]]:border-l [&>[data-topbar-group]+[data-topbar-group]]:border-border/60 [&>[data-topbar-group]+[data-topbar-group]]:pl-1 sm:[&>[data-topbar-group]+[data-topbar-group]]:pl-2 sm:[&>[data-topbar-group]+[data-topbar-group]]:ml-2">
         {/* Offline indicator */}
         {!isOnline && (
           <div className="flex items-center gap-1 px-2 py-1 rounded-full bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-200 text-xs font-medium">
@@ -345,58 +345,66 @@ export function AppHeader({
           </div>
         )}
 
-        {/* Search — desktop */}
-        <button
-          onClick={() => document.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', metaKey: true }))}
-          className="hidden lg:flex relative items-center gap-2 w-48 xl:w-64 h-8 px-3 text-sm rounded-md border bg-muted/50 text-muted-foreground hover:bg-muted transition-colors"
-        >
-          <Search className="h-3.5 w-3.5 shrink-0" />
-          <span className="flex-1 text-left text-xs">
-            {t('console.search', { defaultValue: 'Search...' })}
-          </span>
-          <kbd className="pointer-events-none inline-flex h-5 items-center gap-0.5 rounded border bg-background px-1.5 text-[10px] font-medium text-muted-foreground">
-            <span className="text-xs">⌘</span>K
-          </kbd>
-        </button>
+        {/* Group 1: Search */}
+        <div data-topbar-group className="flex items-center gap-0.5 sm:gap-1 shrink-0">
+          {/* Search — desktop */}
+          <button
+            onClick={() => document.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', metaKey: true }))}
+            className="hidden lg:flex relative items-center gap-2 w-48 xl:w-64 h-8 px-3 text-sm rounded-md border bg-muted/50 text-muted-foreground hover:bg-muted transition-colors"
+          >
+            <Search className="h-3.5 w-3.5 shrink-0" />
+            <span className="flex-1 text-left text-xs">
+              {t('console.search', { defaultValue: 'Search...' })}
+            </span>
+            <kbd className="pointer-events-none inline-flex h-5 items-center gap-0.5 rounded border bg-background px-1.5 text-[10px] font-medium text-muted-foreground">
+              <span className="text-xs">⌘</span>K
+            </kbd>
+          </button>
 
-        {/* Search — mobile/tablet */}
-        <Button
-          variant="ghost"
-          size="icon"
-          className="lg:hidden h-8 w-8 shrink-0"
-          onClick={() => document.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', metaKey: true }))}
-          aria-label={t('console.search', { defaultValue: 'Search...' })}
-        >
-          <Search className="h-4 w-4" />
-        </Button>
-
-        {/* Activity Feed */}
-        <div className="hidden sm:flex shrink-0">
-          <ActivityFeed activities={activeActivities} />
+          {/* Search — mobile/tablet */}
+          <Button
+            variant="ghost"
+            size="icon"
+            className="lg:hidden h-8 w-8 shrink-0"
+            onClick={() => document.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', metaKey: true }))}
+            aria-label={t('console.search', { defaultValue: 'Search...' })}
+          >
+            <Search className="h-4 w-4" />
+          </Button>
         </div>
 
-        {/* Help */}
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-8 w-8 hidden md:flex shrink-0"
-          asChild
-          aria-label={t('sidebar.helpTooltip', { defaultValue: 'Help & Documentation' })}
-        >
-          <a href="https://docs.objectstack.ai" target="_blank" rel="noopener noreferrer">
-            <HelpCircle className="h-4 w-4" />
-          </a>
-        </Button>
+        {/* Group 2: Notifications & Help */}
+        <div data-topbar-group className="flex items-center gap-0.5 shrink-0">
+          {/* Activity Feed */}
+          <div className="hidden sm:flex shrink-0">
+            <ActivityFeed activities={activeActivities} />
+          </div>
 
-        {/* Theme toggle */}
-        <div className="hidden sm:flex shrink-0">
-          <ModeToggle />
+          {/* Help */}
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 hidden md:flex shrink-0"
+            asChild
+            aria-label={t('sidebar.helpTooltip', { defaultValue: 'Help & Documentation' })}
+          >
+            <a href="https://docs.objectstack.ai" target="_blank" rel="noopener noreferrer">
+              <HelpCircle className="h-4 w-4" />
+            </a>
+          </Button>
         </div>
 
-        {/* Language switcher */}
-        <div className="hidden sm:flex shrink-0">
-          <LocaleSwitcher />
-        </div>
+        {/* Group 3: Preferences & account */}
+        <div data-topbar-group className="flex items-center gap-0.5 shrink-0">
+          {/* Theme toggle */}
+          <div className="hidden sm:flex shrink-0">
+            <ModeToggle />
+          </div>
+
+          {/* Language switcher */}
+          <div className="hidden sm:flex shrink-0">
+            <LocaleSwitcher />
+          </div>
 
         {/* User Profile + Organization switcher */}
         <DropdownMenu>
@@ -451,6 +459,7 @@ export function AppHeader({
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
+        </div>
       </div>
     </div>
   );

@@ -219,3 +219,35 @@
     padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
   }
 }
+
+/* Brand-tinted active state for sidebar nav buttons (P1.1).
+ * Layered outside @layer base so it wins over Shadcn's default tokenized classes
+ * without modifying any file under packages/components/src/ui (no-touch zone). */
+[data-sidebar="menu-button"][data-active="true"] {
+  background-color: hsl(var(--primary) / 0.10);
+  color: hsl(var(--primary));
+  font-weight: 500;
+  position: relative;
+}
+[data-sidebar="menu-button"][data-active="true"]::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 50%;
+  height: 1.25rem;
+  width: 2px;
+  border-radius: 0 9999px 9999px 0;
+  background-color: hsl(var(--primary));
+  transform: translateY(-50%);
+}
+[data-sidebar="menu-button"][data-active="true"]:hover {
+  background-color: hsl(var(--primary) / 0.14);
+  color: hsl(var(--primary));
+}
+.dark [data-sidebar="menu-button"][data-active="true"] {
+  background-color: hsl(var(--primary) / 0.18);
+  color: hsl(var(--primary));
+}
+.dark [data-sidebar="menu-button"][data-active="true"]:hover {
+  background-color: hsl(var(--primary) / 0.24);
+}
