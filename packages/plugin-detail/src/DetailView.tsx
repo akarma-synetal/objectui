@@ -30,6 +30,7 @@ import {
   Check,
   ChevronLeft,
   ChevronRight,
+  Copy,
 } from 'lucide-react';
 import { DetailSection } from './DetailSection';
 import { DetailTabs } from './DetailTabs';
@@ -57,6 +58,23 @@ export interface DetailViewProps {
   inlineEdit?: boolean;
   /** Callback when a field value is saved inline */
   onFieldSave?: (field: string, value: any, record: any) => void | Promise<void>;
+  /**
+   * Optional discussion content rendered as a dedicated "Discussion" tab when
+   * autoTabs is enabled. Lets the host page mount a rich chatter panel without
+   * floating it below the detail body.
+   */
+  discussionSlot?: React.ReactNode;
+  /**
+   * Reserved: optional right-rail content (activity feed, related summary).
+   * Currently accepted but rendered as a stacked block at the bottom; a
+   * proper side-by-side layout is on the roadmap.
+   */
+  rightRail?: React.ReactNode;
+  /**
+   * Localized object label displayed in the header subtitle. When omitted,
+   * `schema.objectName` is used as a fallback.
+   */
+  objectLabel?: string;
 }
 
 export const DetailView: React.FC<DetailViewProps> = ({
@@ -68,6 +86,9 @@ export const DetailView: React.FC<DetailViewProps> = ({
   onBack,
   inlineEdit = false,
   onFieldSave,
+  discussionSlot,
+  rightRail,
+  objectLabel,
 }) => {
   const [data, setData] = React.useState<any>(schema.data);
   const [loading, setLoading] = React.useState(!schema.data && !!((schema.api && schema.resourceId) || (dataSource && schema.objectName && schema.resourceId)));
@@ -75,7 +96,64 @@ export const DetailView: React.FC<DetailViewProps> = ({
   const [isInlineEditing, setIsInlineEditing] = React.useState(false);
   const [editedValues, setEditedValues] = React.useState<Record<string, any>>({});
   const [objectSchema, setObjectSchema] = React.useState<any>(null);
+  const [idCopied, setIdCopied] = React.useState(false);
   const { t } = useDetailTranslation();
+
+  /**
+   * Auto-detect "summary fields" for the header chip row when the schema does
+   * not explicitly provide them. Heuristic: pick the first status/select-like
+   * field, the first currency/number "main metric", and the first date.
+   * Skipped entirely when explicit `summaryFields` are configured.
+   */
+  const autoSummaryFields = React.useMemo<string[]>(() => {
+    if (schema.summaryFields && schema.summaryFields.length > 0) return [];
+    const allFields = [
+      ...(schema.sections?.flatMap((s) => s.fields) || []),
+      ...(schema.fields || []),
+    ];
+    const fieldDefMap: Record<string, any> = {};
+    for (const f of allFields) {
+      if (!fieldDefMap[f.name]) fieldDefMap[f.name] = f;
+    }
+    if (objectSchema?.fields) {
+      for (const [name, def] of Object.entries<any>(objectSchema.fields)) {
+        fieldDefMap[name] = { ...(fieldDefMap[name] || {}), ...def, name };
+      }
+    }
+    const has = (n: string) => data?.[n] !== undefined && data?.[n] !== null && data?.[n] !== '';
+    const picks: string[] = [];
+    // 1) status / stage / state / select with options
+    const statusKeys = ['status', 'stage', 'state', 'phase'];
+    const statusName = statusKeys.find((k) => fieldDefMap[k] && has(k))
+      || Object.keys(fieldDefMap).find((n) => fieldDefMap[n]?.type === 'select' && has(n));
+    if (statusName) picks.push(statusName);
+    // 2) primary metric: currency or number whose name suggests value
+    const moneyName = Object.keys(fieldDefMap).find(
+      (n) => (fieldDefMap[n]?.type === 'currency' || /amount|revenue|value|total|price/i.test(n)) && has(n),
+    );
+    if (moneyName && !picks.includes(moneyName)) picks.push(moneyName);
+    // 3) primary date
+    const dateName = Object.keys(fieldDefMap).find(
+      (n) => (fieldDefMap[n]?.type === 'date' || fieldDefMap[n]?.type === 'datetime')
+        && /close|due|start|end|expected/i.test(n)
+        && has(n),
+    );
+    if (dateName && !picks.includes(dateName)) picks.push(dateName);
+    return picks;
+  }, [schema.summaryFields, schema.sections, schema.fields, objectSchema, data]);
+
+  const effectiveSummaryFields = schema.summaryFields && schema.summaryFields.length > 0
+    ? schema.summaryFields
+    : autoSummaryFields;
+
+  const handleCopyRecordId = React.useCallback(() => {
+    if (!schema.resourceId) return;
+    navigator.clipboard.writeText(String(schema.resourceId)).then(() => {
+      setIdCopied(true);
+      setTimeout(() => setIdCopied(false), 1500);
+    });
+  }, [schema.resourceId]);
+
 
   // Fetch objectSchema + data with $expand when DataSource is provided
   React.useEffect(() => {
@@ -522,12 +600,51 @@ export const DetailView: React.FC<DetailViewProps> = ({
                 <h1 className="text-xl sm:text-2xl font-bold truncate">
                   {(schema.primaryField && data?.[schema.primaryField]) || schema.title || t('detail.details')}
                 </h1>
-                {schema.summaryFields?.map((fieldName) => {
+                {effectiveSummaryFields.map((fieldName) => {
                   const val = data?.[fieldName];
                   if (val === null || val === undefined || val === '') return null;
+                  // Format value based on field type from schema or objectSchema.
+                  // Best-effort: currency → localized currency, date/datetime →
+                  // localized date string, others → String(val).
+                  const sectionField = (schema.sections || [])
+                    .flatMap((s) => s.fields)
+                    .concat(schema.fields || [])
+                    .find((f) => f.name === fieldName);
+                  const objField = objectSchema?.fields?.[fieldName];
+                  const ftype = sectionField?.type || objField?.type;
+                  let display: string = String(val);
+                  try {
+                    if (ftype === 'currency') {
+                      const num = Number(val);
+                      if (!Number.isNaN(num)) {
+                        display = new Intl.NumberFormat(undefined, {
+                          style: 'currency',
+                          currency: (sectionField as any)?.currency || objField?.currency || 'USD',
+                          maximumFractionDigits: 0,
+                        }).format(num);
+                      }
+                    } else if (ftype === 'date' || ftype === 'datetime') {
+                      const d = new Date(val);
+                      if (!Number.isNaN(d.getTime())) {
+                        display = ftype === 'datetime'
+                          ? d.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })
+                          : d.toLocaleDateString(undefined, { dateStyle: 'medium' } as any);
+                      }
+                    } else if (ftype === 'percent') {
+                      const num = Number(val);
+                      if (!Number.isNaN(num)) display = `${num}%`;
+                    }
+                  } catch {
+                    /* fall back to String(val) */
+                  }
                   return (
-                    <Badge key={fieldName} variant="secondary" className="text-xs" aria-label={`${fieldName}: ${val}`}>
-                      {String(val)}
+                    <Badge
+                      key={fieldName}
+                      variant="secondary"
+                      className="text-xs bg-primary/10 text-primary border-transparent hover:bg-primary/15"
+                      aria-label={`${fieldName}: ${display}`}
+                    >
+                      {display}
                     </Badge>
                   );
                 })}
@@ -538,6 +655,7 @@ export const DetailView: React.FC<DetailViewProps> = ({
                       size="icon" 
                       className="h-6 w-6 shrink-0"
                       onClick={handleToggleFavorite}
+                      aria-label={isFavorite ? t('detail.removeFromFavorites') : t('detail.addToFavorites')}
                     >
                       {isFavorite ? (
                         <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
@@ -552,10 +670,32 @@ export const DetailView: React.FC<DetailViewProps> = ({
                 </Tooltip>
               </div>
               {schema.objectName && (
-                <p className="text-sm text-muted-foreground mt-1 flex items-center gap-1.5">
-                  <span className="font-medium">{schema.objectName}</span>
-                  <span className="text-muted-foreground/60">•</span>
-                  <span>#{schema.resourceId}</span>
+                <p className="text-sm text-muted-foreground mt-1 flex items-center gap-1">
+                  <span className="font-medium">{objectLabel || schema.objectName}</span>
+                  {schema.resourceId && (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-5 w-5 shrink-0 text-muted-foreground/60 hover:text-foreground"
+                          onClick={handleCopyRecordId}
+                          aria-label={t('detail.copyRecordId', { defaultValue: 'Copy record ID' })}
+                        >
+                          {idCopied ? (
+                            <Check className="h-3 w-3 text-green-600" />
+                          ) : (
+                            <Copy className="h-3 w-3" />
+                          )}
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        {idCopied
+                          ? t('detail.copied', { defaultValue: 'Copied' })
+                          : t('detail.copyRecordId', { defaultValue: 'Copy record ID' })}
+                      </TooltipContent>
+                    </Tooltip>
+                  )}
                 </p>
               )}
             </div>
@@ -684,11 +824,12 @@ export const DetailView: React.FC<DetailViewProps> = ({
       )}
 
       {/* Auto Tabs mode: wrap sections, related, activity into tabs.
-          When only the Details tab would render (no related, no activity),
-          skip the Tabs strip entirely — it's pure visual noise. */}
+          When only the Details tab would render (no related, no activity, no
+          discussion), skip the Tabs strip entirely — it's pure visual noise. */}
       {schema.autoTabs && !schema.tabs?.length ? (() => {
         const hasRelated = effectiveRelated.length > 0;
         const hasActivity = !!schema.activities && schema.activities.length > 0;
+        const hasDiscussion = !!discussionSlot;
         const detailsContent = (
           <div className="space-y-3 sm:space-y-4">
             {/* Section Groups */}
@@ -741,7 +882,7 @@ export const DetailView: React.FC<DetailViewProps> = ({
           </div>
         );
 
-        if (!hasRelated && !hasActivity) {
+        if (!hasRelated && !hasActivity && !hasDiscussion) {
           // Single-tab case: render just the details content without a tab strip.
           return <div className="mt-2">{detailsContent}</div>;
         }
@@ -762,7 +903,7 @@ export const DetailView: React.FC<DetailViewProps> = ({
                 >
                   <span className="flex items-center gap-1.5">
                     {t('detail.related')}
-                    <Badge variant="secondary" className="text-xs">{effectiveRelated.length}</Badge>
+                    <Badge variant="secondary" className="text-xs bg-primary/10 text-primary border-transparent">{effectiveRelated.length}</Badge>
                   </span>
                 </TabsTrigger>
               )}
@@ -773,8 +914,16 @@ export const DetailView: React.FC<DetailViewProps> = ({
                 >
                   <span className="flex items-center gap-1.5">
                     {t('detail.activity')}
-                    <Badge variant="secondary" className="text-xs">{schema.activities!.length}</Badge>
+                    <Badge variant="secondary" className="text-xs bg-primary/10 text-primary border-transparent">{schema.activities!.length}</Badge>
                   </span>
+                </TabsTrigger>
+              )}
+              {hasDiscussion && (
+                <TabsTrigger
+                  value="discussion"
+                  className="relative rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent"
+                >
+                  {t('detail.discussion', { defaultValue: 'Discussion' })}
                 </TabsTrigger>
               )}
             </TabsList>
@@ -810,6 +959,13 @@ export const DetailView: React.FC<DetailViewProps> = ({
             {hasActivity && (
               <TabsContent value="activity" className="mt-4">
                 <ActivityTimeline activities={schema.activities!} />
+              </TabsContent>
+            )}
+
+            {/* Discussion Tab Content */}
+            {hasDiscussion && (
+              <TabsContent value="discussion" className="mt-4">
+                {discussionSlot}
               </TabsContent>
             )}
           </Tabs>

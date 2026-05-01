@@ -352,7 +352,10 @@ export function RecordDetailView({ dataSource, objects, onEdit }: RecordDetailVi
         }))
       : [
           {
-            title: t('detail.details', { defaultValue: 'Details' }),
+            // Intentionally untitled: when there's only one auto-generated
+            // section, DetailSection flattens it (no Card chrome, no
+            // redundant "Details" heading).
+            showBorder: false as const,
             fields: Object.keys(objectDef.fields || {}).map(key => {
               const fieldDef = objectDef.fields[key];
               const refTarget = fieldDef.reference_to || fieldDef.reference;
@@ -469,31 +472,29 @@ export function RecordDetailView({ dataSource, objects, onEdit }: RecordDetailVi
               key={actionRefreshKey}
               schema={detailSchema}
               dataSource={dataSource}
+              objectLabel={objectDef.label}
               onEdit={() => {
                 onEdit({ id: pureRecordId });
               }}
+              discussionSlot={
+                <RecordChatterPanel
+                  config={{
+                    position: 'bottom',
+                    collapsible: false,
+                    feed: {
+                      enableReactions: true,
+                      enableThreading: true,
+                      showCommentInput: true,
+                    },
+                  }}
+                  items={feedItems}
+                  onAddComment={handleAddComment}
+                  onAddReply={handleAddReply}
+                  onToggleReaction={handleToggleReaction}
+                />
+              }
             />
           </ActionProvider>
-
-          {/* Comments & Discussion */}
-          <div className="mt-6 border-t pt-6">
-            <RecordChatterPanel
-              config={{
-                position: 'bottom',
-                collapsible: true,
-                feed: {
-                  enableReactions: true,
-                  enableThreading: true,
-                  showCommentInput: true,
-                },
-              }}
-              collapseWhenEmpty
-              items={feedItems}
-              onAddComment={handleAddComment}
-              onAddReply={handleAddReply}
-              onToggleReaction={handleToggleReaction}
-            />
-          </div>
         </div>
         <MetadataPanel
           open={showDebug}

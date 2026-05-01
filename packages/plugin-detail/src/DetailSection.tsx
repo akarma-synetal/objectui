@@ -91,6 +91,7 @@ export const DetailSection: React.FC<DetailSectionProps> = ({
   const [isCollapsed, setIsCollapsed] = React.useState(section.defaultCollapsed ?? false);
   const [copiedField, setCopiedField] = React.useState<string | null>(null);
   const [visibleCount, setVisibleCount] = React.useState<number | undefined>(undefined);
+  const [showEmptyOverride, setShowEmptyOverride] = React.useState(false);
   const { t } = useDetailTranslation();
   const { fieldLabel } = useSafeFieldLabel();
 
@@ -102,16 +103,41 @@ export const DetailSection: React.FC<DetailSectionProps> = ({
     });
   }, []);
 
-  // Filter out empty fields when hideEmpty is set
-  const visibleFields = section.hideEmpty
-    ? section.fields.filter((field) => {
-        const value = data?.[field.name] ?? field.value;
-        return value !== null && value !== undefined && value !== '';
-      })
+  // Identify empty fields once for both filtering and the toggle counter.
+  const isEmptyValue = React.useCallback((field: DetailViewField) => {
+    const value = data?.[field.name] ?? field.value;
+    return value === null || value === undefined || value === '';
+  }, [data]);
+
+  const emptyCount = React.useMemo(
+    () => section.fields.filter(isEmptyValue).length,
+    [section.fields, isEmptyValue]
+  );
+
+  // Auto-hide-empty heuristic: when a section has many empty rows AND at least
+  // some filled rows, default to hiding empties so the page does not become a
+  // label-graveyard. The user can still reveal them with the toggle. If a
+  // section is entirely empty (e.g., loading state, brand-new record), do NOT
+  // auto-hide — the labels themselves are useful as a structural skeleton.
+  // Explicit `hideEmpty` honored as before.
+  const AUTO_HIDE_MIN_FIELDS = 6;
+  const AUTO_HIDE_RATIO = 0.5;
+  const filledCount = section.fields.length - emptyCount;
+  const shouldAutoHideEmpty =
+    !section.hideEmpty &&
+    !isEditing &&
+    section.fields.length >= AUTO_HIDE_MIN_FIELDS &&
+    emptyCount / section.fields.length >= AUTO_HIDE_RATIO &&
+    filledCount > 0;
+  const hideEmptyEffective = !showEmptyOverride && (section.hideEmpty || shouldAutoHideEmpty);
+
+  // Filter out empty fields when hideEmpty is set or auto-hide kicked in.
+  const visibleFields = hideEmptyEffective
+    ? section.fields.filter((field) => !isEmptyValue(field))
     : section.fields;
 
-  // Hide entire section when all fields are empty
-  if (visibleFields.length === 0) return null;
+  // Hide entire section when all fields are empty AND user did not request to show them.
+  if (visibleFields.length === 0 && emptyCount === section.fields.length) return null;
 
   // Apply auto-layout: infer columns and auto-span wide fields
   const { fields: layoutFields, columns: effectiveColumns } = applyDetailAutoLayout(
@@ -252,19 +278,43 @@ export const DetailSection: React.FC<DetailSectionProps> = ({
     ? layoutFields.slice(0, visibleCount)
     : layoutFields;
 
+  const showEmptyToggle = emptyCount > 0 && (section.hideEmpty || shouldAutoHideEmpty);
+
   const content = (
-    <div 
-      className={cn(
-        "grid gap-3 sm:gap-4",
-        effectiveColumns === 1 ? "grid-cols-1" :
-        effectiveColumns === 2 ? "grid-cols-1 md:grid-cols-2" :
-        effectiveColumns === 3 ? "grid-cols-1 md:grid-cols-2 lg:grid-cols-3" :
-        "grid-cols-1 md:grid-cols-2 lg:grid-cols-3"
+    <>
+      <div
+        className={cn(
+          "grid gap-3 sm:gap-4",
+          effectiveColumns === 1 ? "grid-cols-1" :
+          effectiveColumns === 2 ? "grid-cols-1 md:grid-cols-2" :
+          effectiveColumns === 3 ? "grid-cols-1 md:grid-cols-2 lg:grid-cols-3" :
+          "grid-cols-1 md:grid-cols-2 lg:grid-cols-3"
+        )}
+      >
+        {renderedFields.map(renderField)}
+      </div>
+      {showEmptyToggle && (
+        <button
+          type="button"
+          onClick={() => setShowEmptyOverride((s) => !s)}
+          className="mt-3 text-xs text-muted-foreground hover:text-foreground transition-colors"
+        >
+          {showEmptyOverride
+            ? t('detail.hideEmptyFields', { defaultValue: 'Hide empty fields' })
+            : t('detail.showEmptyFields', { count: emptyCount, defaultValue: `Show ${emptyCount} empty field${emptyCount === 1 ? '' : 's'}` })}
+        </button>
       )}
-    >
-      {renderedFields.map(renderField)}
-    </div>
+    </>
   );
+
+  // Flat render: when section has no title, no border, and is not collapsible,
+  // skip the Card chrome entirely. This is the universal case for an
+  // auto-generated single section (no need for a "Details" wrapper around
+  // a single block of fields).
+  const isFlat = !section.title && !section.collapsible && section.showBorder === false;
+  if (isFlat) {
+    return <div className={cn(className)}>{content}</div>;
+  }
 
   if (!section.collapsible) {
     return (
