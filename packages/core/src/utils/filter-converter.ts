@@ -35,6 +35,9 @@ export type FilterNode =
  * @returns ObjectStack operator or null if not recognized
  */
 export function convertOperatorToAST(operator: string): string | null {
+  // Spec reference: framework/packages/spec/src/data/filter.zod.ts
+  // Canonical MongoDB-style keys are camelCase ($startsWith, $endsWith, $notContains).
+  // Lowercase aliases are accepted for tolerance.
   const operatorMap: Record<string, string> = {
     '$eq': '=',
     '$ne': '!=',
@@ -45,9 +48,14 @@ export function convertOperatorToAST(operator: string): string | null {
     '$in': 'in',
     '$nin': 'nin',
     '$notin': 'nin',
-    '$contains': 'contains',
-    '$startswith': 'startswith',
     '$between': 'between',
+    '$contains': 'contains',
+    '$notContains': 'notcontains',
+    '$notcontains': 'notcontains',
+    '$startsWith': 'startswith',
+    '$startswith': 'startswith',
+    '$endsWith': 'endswith',
+    '$endswith': 'endswith',
   };
   
   return operatorMap[operator] || null;
@@ -93,12 +101,24 @@ export function convertFiltersToAST(filter: Record<string, any>): FilterNode | R
             `[ObjectUI] Warning: $regex operator is not fully supported. ` +
             `Converting to 'contains' which only supports substring matching, not regex patterns. ` +
             `Field: '${field}', Value: ${JSON.stringify(operatorValue)}. ` +
-            `Consider using $contains or $startswith instead.`
+            `Consider using $contains or $startsWith instead.`
           );
           conditions.push([field, 'contains', operatorValue]);
           continue;
         }
-        
+
+        // $null / $exists translate based on their boolean value (per spec semantics).
+        // $null: true  → IS NULL    | $null: false  → IS NOT NULL
+        // $exists: true → IS NOT NULL | $exists: false → IS NULL
+        if (operator === '$null') {
+          conditions.push([field, operatorValue ? 'is_null' : 'is_not_null', true]);
+          continue;
+        }
+        if (operator === '$exists') {
+          conditions.push([field, operatorValue ? 'is_not_null' : 'is_null', true]);
+          continue;
+        }
+
         const astOperator = convertOperatorToAST(operator);
         
         if (astOperator) {
@@ -107,7 +127,8 @@ export function convertFiltersToAST(filter: Record<string, any>): FilterNode | R
           // Unknown operator - throw error to avoid silent failure
           throw new Error(
             `[ObjectUI] Unknown filter operator '${operator}' for field '${field}'. ` +
-            `Supported operators: $eq, $ne, $gt, $gte, $lt, $lte, $in, $nin, $contains, $startswith, $between. ` +
+            `Supported operators: $eq, $ne, $gt, $gte, $lt, $lte, $in, $nin, $between, ` +
+            `$contains, $notContains, $startsWith, $endsWith, $null, $exists. ` +
             `If you need exact object matching, use the value directly without an operator.`
           );
         }
