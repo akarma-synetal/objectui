@@ -25,6 +25,8 @@ export interface CacheStats {
   hits: number;
   misses: number;
   evictions: number;
+  /** Number of concurrent fetches that were coalesced onto an in-flight request. */
+  coalesced: number;
   hitRate: number;
 }
 
@@ -38,9 +40,9 @@ export interface CacheStats {
  * - Async-safe operations
  * - Performance statistics tracking
  * 
- * Note: Concurrent requests for the same uncached key may result in multiple
- * fetcher calls. For production use cases requiring request deduplication,
- * consider wrapping the cache with a promise-based deduplication layer.
+ * Concurrent requests for the same uncached key are deduplicated via an
+ * internal in-flight Promise map: only the first call invokes the fetcher,
+ * and subsequent callers receive the same Promise.
  * 
  * @example
  * ```typescript
@@ -55,12 +57,14 @@ export interface CacheStats {
  */
 export class MetadataCache {
   private cache: Map<string, CachedSchema>;
+  private inflight: Map<string, Promise<unknown>>;
   private maxSize: number;
   private ttl: number;
   private stats: {
     hits: number;
     misses: number;
     evictions: number;
+    coalesced: number;
   };
 
   /**
@@ -72,12 +76,14 @@ export class MetadataCache {
    */
   constructor(options: { maxSize?: number; ttl?: number } = {}) {
     this.cache = new Map();
+    this.inflight = new Map();
     this.maxSize = options.maxSize || 100;
     this.ttl = options.ttl || 5 * 60 * 1000; // 5 minutes default
     this.stats = {
       hits: 0,
       misses: 0,
       evictions: 0,
+      coalesced: 0,
     };
   }
 
@@ -113,14 +119,34 @@ export class MetadataCache {
       }
     }
 
-    // Cache miss - fetch the data
+    // Cache miss - dedupe concurrent fetches for the same key
+    const existing = this.inflight.get(key);
+    if (existing) {
+      this.stats.coalesced++;
+      return existing as Promise<T>;
+    }
+
     this.stats.misses++;
-    const data = await fetcher();
+    const promise = (async () => {
+      try {
+        const data = await fetcher();
+        this.set(key, data);
+        return data;
+      } finally {
+        this.inflight.delete(key);
+      }
+    })();
+    this.inflight.set(key, promise as Promise<unknown>);
+    return promise;
+  }
 
-    // Store in cache
+  /**
+   * Prime the cache with a pre-fetched value. Useful when a bulk endpoint
+   * (e.g. list of all object schemas) returns data that would otherwise
+   * be fetched again per item.
+   */
+  prime(key: string, data: unknown): void {
     this.set(key, data);
-
-    return data;
   }
 
   /**
@@ -178,10 +204,12 @@ export class MetadataCache {
    */
   clear(): void {
     this.cache.clear();
+    this.inflight.clear();
     this.stats = {
       hits: 0,
       misses: 0,
       evictions: 0,
+      coalesced: 0,
     };
   }
 
@@ -200,6 +228,7 @@ export class MetadataCache {
       hits: this.stats.hits,
       misses: this.stats.misses,
       evictions: this.stats.evictions,
+      coalesced: this.stats.coalesced,
       hitRate: hitRate,
     };
   }

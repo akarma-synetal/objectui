@@ -676,10 +676,39 @@ export const ListView = React.forwardRef<ListViewHandle, ListViewProps>(({
               .map(item => ({ field: item.field, order: item.order }))
           : undefined;
 
+        // Build a $select projection from the columns the listview actually
+        // shows (plus required relational keys). This trims server payload
+        // significantly for wide objects.
+        const selectFields = (() => {
+          const cols = Array.isArray(schema.fields)
+            ? (schema.fields as any[])
+                .map(f => (typeof f === 'string' ? f : f?.field))
+                .filter((v): v is string => typeof v === 'string' && v.length > 0)
+            : [];
+          if (cols.length === 0) return undefined;
+          // Don't speculatively add `_id` / `name` — some backends reject
+          // unknown select keys with an empty result set rather than
+          // ignoring them. Stick to the user-requested columns plus the
+          // expanded relation roots (which we know are valid because
+          // buildExpandFields() derived them from the object schema).
+          const required = new Set<string>(['id']);
+          for (const c of cols) required.add(c);
+          for (const e of expandFields) required.add(e);
+          return Array.from(required);
+        })();
+
+        // Only send $filter when it is a non-empty AST. Sending an empty
+        // array results in `?filter=%5B%5D` which is wasted bandwidth and
+        // can defeat server-side query parsing/caching.
+        const hasFilter = Array.isArray(finalFilter)
+          ? finalFilter.length > 0
+          : !!finalFilter && Object.keys(finalFilter).length > 0;
+
         const results = await dataSource.find(schema.objectName, {
-           $filter: finalFilter,
+           ...(hasFilter ? { $filter: finalFilter } : {}),
            $orderby: sort,
            $top: effectivePageSize,
+           ...(selectFields ? { $select: selectFields } : {}),
            ...(expandFields.length > 0 ? { $expand: expandFields } : {}),
            ...(searchTerm ? {
              $search: searchTerm,

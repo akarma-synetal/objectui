@@ -42,7 +42,7 @@ import {
   Boxes,
 } from 'lucide-react';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useOffline } from '@object-ui/react';
 import { PresenceAvatars, type PresenceUser } from '@object-ui/collaboration';
 import { ModeToggle } from './ModeToggle';
@@ -121,14 +121,30 @@ export function AppHeader({
 
   const [apiPresenceUsers, setApiPresenceUsers] = useState<PresenceUser[] | null>(null);
   const [apiActivities, setApiActivities] = useState<ActivityItem[] | null>(null);
+  // Once the server returns 404 for these collections we stop retrying for
+  // the lifetime of the page — they're optional features and re-requesting
+  // on every navigation creates console noise + wasted round trips.
+  const presenceUnavailableRef = useRef(false);
+  const activityUnavailableRef = useRef(false);
 
   const fetchPresenceAndActivities = useCallback(async () => {
     if (!dataSource || !isApp) return;
+    const presenceP = presenceUnavailableRef.current
+      ? Promise.resolve({ data: [] as Record<string, unknown>[] })
+      : dataSource.find('sys_presence').catch((err: any) => {
+          if (err?.status === 404) presenceUnavailableRef.current = true;
+          return { data: [] as Record<string, unknown>[] };
+        });
+    const activityP = activityUnavailableRef.current
+      ? Promise.resolve({ data: [] as Record<string, unknown>[] })
+      : dataSource
+          .find('sys_activity', { $orderby: { timestamp: 'desc' }, $top: 20 })
+          .catch((err: any) => {
+            if (err?.status === 404) activityUnavailableRef.current = true;
+            return { data: [] as Record<string, unknown>[] };
+          });
     try {
-      const [presenceResult, activityResult] = await Promise.all([
-        dataSource.find('sys_presence').catch(() => ({ data: [] })),
-        dataSource.find('sys_activity', { $orderby: { timestamp: 'desc' }, $top: 20 }).catch(() => ({ data: [] })),
-      ]);
+      const [presenceResult, activityResult] = await Promise.all([presenceP, activityP]);
       if (presenceResult.data?.length) {
         const users = (presenceResult.data as Record<string, unknown>[]).filter(
           (u): u is PresenceUser & Record<string, unknown> => typeof u.userId === 'string'

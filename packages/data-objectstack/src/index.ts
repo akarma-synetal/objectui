@@ -18,6 +18,38 @@ import {
   createErrorFromResponse,
 } from './errors';
 
+// Module-level discovery cache. Multiple ObjectStackAdapter instances pointed
+// at the same baseUrl (e.g. ConditionalAuthWrapper's throwaway adapter +
+// AdapterProvider's main adapter) would otherwise each fire `/discovery`. By
+// keying on baseUrl we collapse them to a single network round trip per origin.
+const discoveryCache = new Map<string, Promise<unknown>>();
+
+/**
+ * Fetch the server `discovery` document once per (baseUrl) and reuse the
+ * resulting Promise. Used by `ObjectStackAdapter.connect()` (and any caller
+ * that wants the discovery payload without spinning up a new client).
+ */
+export async function getSharedDiscovery(
+  baseUrl: string,
+  fetcher: () => Promise<unknown>,
+): Promise<unknown> {
+  const key = baseUrl || '<default>';
+  const cached = discoveryCache.get(key);
+  if (cached) return cached;
+  const p = fetcher().catch((err) => {
+    // Allow retry on failure
+    discoveryCache.delete(key);
+    throw err;
+  });
+  discoveryCache.set(key, p);
+  return p;
+}
+
+/** Test/dev helper to drop the cache (e.g. on logout or origin change). */
+export function clearSharedDiscoveryCache(): void {
+  discoveryCache.clear();
+}
+
 /**
  * Connection state for monitoring
  */
@@ -88,6 +120,7 @@ export type { FileUploadResult } from '@object-ui/types';
 export class ObjectStackAdapter<T = unknown> implements DataSource<T> {
   private client: ObjectStackClient;
   private connected: boolean = false;
+  private connectPromise: Promise<void> | null = null;
   private metadataCache: MetadataCache;
   private connectionState: ConnectionState = 'disconnected';
   private connectionStateListeners: ConnectionStateListener[] = [];
@@ -127,11 +160,44 @@ export class ObjectStackAdapter<T = unknown> implements DataSource<T> {
    * Call this before making requests or it will auto-connect on first request.
    */
   async connect(): Promise<void> {
-    if (!this.connected) {
-      this.setConnectionState('connecting');
-      
+    if (this.connected) return;
+    // Dedupe concurrent connect() calls — without this, every component
+    // that mounts on first paint can trigger an independent discovery
+    // request before the first one completes.
+    if (this.connectPromise) return this.connectPromise;
+
+    this.setConnectionState('connecting');
+    this.connectPromise = (async () => {
       try {
-        await this.client.connect();
+        // Use the module-level discovery cache so multiple adapter instances
+        // (or React StrictMode double-mounts) at the same baseUrl share a
+        // single network round trip. We inject the result into the client's
+        // private `discoveryInfo` field to avoid client.connect() re-fetching.
+        const baseUrl = this.baseUrl || '';
+        const discoveryUrl = baseUrl
+          ? `${baseUrl.replace(/\/$/, '')}/api/v1/discovery`
+          : '/api/v1/discovery';
+
+        const data = await getSharedDiscovery(baseUrl, async () => {
+          const res = await this.fetchImpl(discoveryUrl, {
+            method: 'GET',
+            headers: this.token
+              ? { Authorization: `Bearer ${this.token}` }
+              : undefined,
+          });
+          if (!res.ok) {
+            throw new Error(`discovery ${res.status} ${res.statusText}`);
+          }
+          const body = await res.json();
+          return body && typeof body.success === 'boolean' && 'data' in body
+            ? body.data
+            : body;
+        });
+
+        // Prime the underlying client's cached discovery so capability/route
+        // helpers continue to work without a redundant fetch.
+        (this.client as unknown as { discoveryInfo?: unknown }).discoveryInfo = data;
+
         this.connected = true;
         this.reconnectAttempts = 0;
         this.setConnectionState('connected');
@@ -142,17 +208,20 @@ export class ObjectStackAdapter<T = unknown> implements DataSource<T> {
           undefined,
           { originalError: error }
         );
-        
+
         this.setConnectionState('error', connectionError);
-        
+
         // Attempt auto-reconnect if enabled
         if (this.autoReconnect && this.reconnectAttempts < this.maxReconnectAttempts) {
           await this.attemptReconnect();
         } else {
           throw connectionError;
         }
+      } finally {
+        this.connectPromise = null;
       }
-    }
+    })();
+    return this.connectPromise;
   }
 
   /**
@@ -582,9 +651,14 @@ export class ObjectStackAdapter<T = unknown> implements DataSource<T> {
       }
     }
 
-    // Filter
-    if (params.$filter) {
-      queryParams.set('filter', JSON.stringify(params.$filter));
+    // Filter — drop empty arrays/objects so we don't send `?filter=%5B%5D`
+    if (params.$filter !== undefined && params.$filter !== null) {
+      const isEmpty = Array.isArray(params.$filter)
+        ? params.$filter.length === 0
+        : typeof params.$filter === 'object' && Object.keys(params.$filter).length === 0;
+      if (!isEmpty) {
+        queryParams.set('filter', JSON.stringify(params.$filter));
+      }
     }
 
     const baseUrl = this.baseUrl.replace(/\/$/, '');
@@ -632,13 +706,19 @@ export class ObjectStackAdapter<T = unknown> implements DataSource<T> {
       options.select = params.$select;
     }
 
-    // Filtering - convert to ObjectStack FilterNode AST format
-    if (params.$filter) {
-      if (Array.isArray(params.$filter)) {
-        // Assume active AST format if it's already an array
-        options.filters = params.$filter;
-      } else {
-        options.filters = convertFiltersToAST(params.$filter);
+    // Filtering - convert to ObjectStack FilterNode AST format. Treat empty
+    // arrays/objects as "no filter" to avoid emitting `filter=[]` over the wire.
+    if (params.$filter !== undefined && params.$filter !== null) {
+      const isEmpty = Array.isArray(params.$filter)
+        ? params.$filter.length === 0
+        : typeof params.$filter === 'object' && Object.keys(params.$filter).length === 0;
+      if (!isEmpty) {
+        if (Array.isArray(params.$filter)) {
+          // Assume active AST format if it's already an array
+          options.filters = params.$filter;
+        } else {
+          options.filters = convertFiltersToAST(params.$filter);
+        }
       }
     }
 

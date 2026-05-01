@@ -146,7 +146,18 @@ export function MetadataProvider({ children, adapter, ttlMs = DEFAULT_TTL_MS }: 
   adapterRef.current = adapter;
 
   const [version, setVersion] = useState(0);
-  const bump = useCallback(() => setVersion(v => v + 1), []);
+  // Defer state bumps so they never occur synchronously during a consumer's
+  // render phase. `ensureType` may be invoked from inside `useMemo` getters
+  // (e.g. when a list-page renders and triggers a lazy fetch), and React
+  // forbids cross-component setState during render. queueMicrotask schedules
+  // the update after the current render has committed.
+  const bump = useCallback(() => {
+    if (typeof queueMicrotask === 'function') {
+      queueMicrotask(() => setVersion(v => v + 1));
+    } else {
+      Promise.resolve().then(() => setVersion(v => v + 1));
+    }
+  }, []);
 
   const getEntry = useCallback((type: string): TypeCacheEntry => {
     let entry = cacheRef.current.get(type);
@@ -203,7 +214,10 @@ export function MetadataProvider({ children, adapter, ttlMs = DEFAULT_TTL_MS }: 
         });
 
       entry.promise = promise;
-      bump();
+      // No synchronous bump here: the only externally-visible state change at
+      // this point is `status: 'loading'`, which no consumer reads. Bumping
+      // from inside a render-phase getter (see useMemo below) would trigger
+      // React's "Cannot update a component while rendering" warning.
       return promise;
     },
     [bump, getEntry, ttlMs],

@@ -7,7 +7,7 @@
  */
 
 import { useState, useEffect, ReactNode } from 'react';
-import { ObjectStackAdapter } from '@object-ui/data-objectstack';
+import { getSharedDiscovery } from '@object-ui/data-objectstack';
 import { AuthProvider } from '@object-ui/auth';
 import type { PreviewModeOptions } from '@object-ui/auth';
 import { LoadingScreen } from './LoadingScreen';
@@ -38,16 +38,23 @@ export function ConditionalAuthWrapper({ children, authUrl }: ConditionalAuthWra
 
     async function checkAuthStatus() {
       try {
-        // Create a temporary adapter to fetch discovery
-        // Empty baseUrl allows the adapter to use browser-relative paths
-        // This works because the console app is served from the same origin as the API
-        const adapter = new ObjectStackAdapter({
-          baseUrl: import.meta.env.VITE_SERVER_URL || '',
-          autoReconnect: false,
-        });
-
-        await adapter.connect();
-        const discovery = await adapter.getDiscovery() as DiscoveryInfo | null;
+        // Fetch discovery via the shared cache. AdapterProvider also calls
+        // ObjectStackAdapter.connect() which triggers discovery for the same
+        // baseUrl; the shared cache collapses both to a single round trip.
+        const baseUrl = (import.meta.env.VITE_SERVER_URL as string | undefined) || '';
+        const discoveryUrl = baseUrl
+          ? `${baseUrl.replace(/\/$/, '')}/api/v1/discovery`
+          : '/api/v1/discovery';
+        const discovery = (await getSharedDiscovery(baseUrl, async () => {
+          const res = await fetch(discoveryUrl, { credentials: 'include' });
+          if (!res.ok) throw new Error(`discovery ${res.status}`);
+          const body = await res.json();
+          // Unwrap { success, data } envelope if present.
+          if (body && typeof body.success === 'boolean' && 'data' in body) {
+            return body.data;
+          }
+          return body;
+        })) as DiscoveryInfo | null;
 
         if (!cancelled) {
           // Detect preview mode from discovery

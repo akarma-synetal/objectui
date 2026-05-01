@@ -410,6 +410,57 @@ describe('MetadataCache', () => {
       expect(fetcher).toHaveBeenCalledTimes(1);
     });
 
+    it('should coalesce concurrent fetches for the same key', async () => {
+      let resolveFetch: (v: { data: string }) => void = () => {};
+      const fetcher = vi.fn(
+        () =>
+          new Promise<{ data: string }>((resolve) => {
+            resolveFetch = resolve;
+          })
+      );
+
+      const p1 = cache.get('shared-key', fetcher);
+      const p2 = cache.get('shared-key', fetcher);
+      const p3 = cache.get('shared-key', fetcher);
+
+      // All three calls should share a single in-flight fetcher invocation
+      expect(fetcher).toHaveBeenCalledTimes(1);
+
+      resolveFetch({ data: 'shared' });
+      const [r1, r2, r3] = await Promise.all([p1, p2, p3]);
+
+      expect(r1).toEqual({ data: 'shared' });
+      expect(r2).toBe(r1);
+      expect(r3).toBe(r1);
+
+      const stats = cache.getStats();
+      expect(stats.coalesced).toBe(2);
+      expect(stats.misses).toBe(1);
+    });
+
+    it('should clear inflight slot after fetch rejection so retries are possible', async () => {
+      const fetcher = vi
+        .fn()
+        .mockRejectedValueOnce(new Error('boom'))
+        .mockResolvedValueOnce({ data: 'ok' });
+
+      await expect(cache.get('retry-key', fetcher)).rejects.toThrow('boom');
+      const result = await cache.get('retry-key', fetcher);
+
+      expect(result).toEqual({ data: 'ok' });
+      expect(fetcher).toHaveBeenCalledTimes(2);
+    });
+
+    it('should expose prime() to seed cache from bulk endpoints', async () => {
+      cache.prime('object:account', { name: 'account', fields: [] });
+
+      const fetcher = vi.fn(async () => ({ name: 'account', fields: [{ name: 'id' }] }));
+      const result = await cache.get('object:account', fetcher);
+
+      expect(fetcher).not.toHaveBeenCalled();
+      expect(result).toEqual({ name: 'account', fields: [] });
+    });
+
     it('should handle very large cache', async () => {
       const largeCache = new MetadataCache({ maxSize: 10000, ttl: 60000 });
       
