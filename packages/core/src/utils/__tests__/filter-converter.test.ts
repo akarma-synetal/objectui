@@ -19,8 +19,8 @@ describe('Filter Converter Utilities', () => {
       expect(convertOperatorToAST('$lt')).toBe('<');
       expect(convertOperatorToAST('$lte')).toBe('<=');
       expect(convertOperatorToAST('$in')).toBe('in');
-      expect(convertOperatorToAST('$nin')).toBe('notin');
-      expect(convertOperatorToAST('$notin')).toBe('notin');
+      expect(convertOperatorToAST('$nin')).toBe('nin');
+      expect(convertOperatorToAST('$notin')).toBe('nin');
       expect(convertOperatorToAST('$contains')).toBe('contains');
       expect(convertOperatorToAST('$startswith')).toBe('startswith');
       expect(convertOperatorToAST('$between')).toBe('between');
@@ -71,7 +71,7 @@ describe('Filter Converter Utilities', () => {
       const result = convertFiltersToAST({
         status: { $nin: ['archived'] }
       });
-      expect(result).toEqual(['status', 'notin', ['archived']]);
+      expect(result).toEqual(['status', 'nin', ['archived']]);
     });
 
     it('should warn on $regex operator and convert to contains', () => {

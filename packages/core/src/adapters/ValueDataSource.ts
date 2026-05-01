@@ -78,7 +78,9 @@ function matchesASTFilter(record: any, filterNode: any[]): boolean {
       case 'in':
         return Array.isArray(target) && target.includes(value);
       case 'not in':
-      case 'notin': // alias used by convertFiltersToAST
+      case 'not_in':
+      case 'nin': // canonical (per spec)
+      case 'notin': // legacy alias
         return Array.isArray(target) && !target.includes(value);
       case 'contains': {
         const lv = typeof value === 'string' ? value.toLowerCase() : '';
