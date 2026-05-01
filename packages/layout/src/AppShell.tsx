@@ -65,6 +65,26 @@ function hexToHSL(hex: string): string | null {
 }
 
 /**
+ * Compute readable foreground (white or near-black) for a hex color
+ * using the WCAG relative luminance formula. Returns an HSL string.
+ */
+function foregroundForHex(hex: string): string {
+  const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+  if (!result) return '0 0% 100%';
+  const toLin = (v: number) => {
+    const s = v / 255;
+    return s <= 0.03928 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4);
+  };
+  const r = toLin(parseInt(result[1], 16));
+  const g = toLin(parseInt(result[2], 16));
+  const b = toLin(parseInt(result[3], 16));
+  const luminance = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+  // Threshold tuned for typical brand colors. Use near-black for very light
+  // brands and pure white otherwise.
+  return luminance > 0.6 ? '222 47% 11%' : '0 0% 100%';
+}
+
+/**
  * Apply branding CSS custom properties to the document root.
  * This is extracted as a standalone hook so it can be re-used independently.
  */
@@ -73,15 +93,33 @@ export function useAppShellBranding(branding?: AppShellBranding, title?: string)
     const root = document.documentElement;
 
     // Primary color
+    // Per ObjectStack spec, AppSchema.branding.primaryColor is a hex code.
+    // We translate it to the Shadcn theme tokens (`--primary` + foreground)
+    // so that all `bg-primary` / `text-primary` / `ring-primary` consumers
+    // throughout the UI inherit the brand color automatically.
     if (branding?.primaryColor) {
       const hsl = hexToHSL(branding.primaryColor);
       if (hsl) {
+        // Backward-compat alias (may be removed once no consumers depend on it)
         root.style.setProperty('--brand-primary', branding.primaryColor);
         root.style.setProperty('--brand-primary-hsl', hsl);
+
+        // Override Shadcn theme tokens — this is what makes the brand color
+        // actually visible on buttons, focus rings, sidebar highlights, etc.
+        root.style.setProperty('--primary', hsl);
+        root.style.setProperty('--primary-foreground', foregroundForHex(branding.primaryColor));
+        root.style.setProperty('--ring', hsl);
+        root.style.setProperty('--sidebar-primary', hsl);
+        root.style.setProperty('--sidebar-ring', hsl);
       }
     } else {
       root.style.removeProperty('--brand-primary');
       root.style.removeProperty('--brand-primary-hsl');
+      root.style.removeProperty('--primary');
+      root.style.removeProperty('--primary-foreground');
+      root.style.removeProperty('--ring');
+      root.style.removeProperty('--sidebar-primary');
+      root.style.removeProperty('--sidebar-ring');
     }
 
     // Accent color
@@ -90,10 +128,15 @@ export function useAppShellBranding(branding?: AppShellBranding, title?: string)
       if (hsl) {
         root.style.setProperty('--brand-accent', branding.accentColor);
         root.style.setProperty('--brand-accent-hsl', hsl);
+        // Map accent to Shadcn `--accent` so secondary highlights pick it up.
+        root.style.setProperty('--accent', hsl);
+        root.style.setProperty('--accent-foreground', foregroundForHex(branding.accentColor));
       }
     } else {
       root.style.removeProperty('--brand-accent');
       root.style.removeProperty('--brand-accent-hsl');
+      root.style.removeProperty('--accent');
+      root.style.removeProperty('--accent-foreground');
     }
 
     // Favicon
@@ -115,6 +158,13 @@ export function useAppShellBranding(branding?: AppShellBranding, title?: string)
       root.style.removeProperty('--brand-primary-hsl');
       root.style.removeProperty('--brand-accent');
       root.style.removeProperty('--brand-accent-hsl');
+      root.style.removeProperty('--primary');
+      root.style.removeProperty('--primary-foreground');
+      root.style.removeProperty('--ring');
+      root.style.removeProperty('--sidebar-primary');
+      root.style.removeProperty('--sidebar-ring');
+      root.style.removeProperty('--accent');
+      root.style.removeProperty('--accent-foreground');
     };
   }, [branding?.primaryColor, branding?.accentColor, branding?.favicon, title]);
 }
