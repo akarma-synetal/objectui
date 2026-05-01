@@ -49,7 +49,24 @@ export interface DashboardRendererProps {
 
 export const DashboardRenderer = forwardRef<HTMLDivElement, DashboardRendererProps>(
   ({ schema, className, dataSource, onRefresh, recordCount, userActions, designMode, selectedWidgetId, onWidgetClick, ...props }, ref) => {
-    const columns = schema.columns || 4; // Default to 4 columns for better density
+    // Auto-infer the grid column count when the dashboard schema doesn't
+    // specify one. Spec convention is a 12-column grid (widgets use w: 3 for
+    // quarter-row KPIs, w: 6 for half-row charts, etc.). If we always default
+    // to 4 columns, a widget with `w: 3` claims 75% of a row and KPI rows
+    // collapse into a vertical stack. Expand to fit the largest widget span.
+    const inferredColumns = (() => {
+      if (schema.columns != null) return schema.columns;
+      const widgets = schema.widgets ?? [];
+      let maxSpan = 0;
+      for (const w of widgets) {
+        const span = (w.layout?.x ?? 0) + (w.layout?.w ?? 0);
+        if (span > maxSpan) maxSpan = span;
+        if ((w.layout?.w ?? 0) > maxSpan) maxSpan = w.layout!.w;
+      }
+      if (maxSpan > 4) return 12;
+      return 4;
+    })();
+    const columns = inferredColumns;
     const gap = schema.gap || 4;
     const [refreshing, setRefreshing] = useState(false);
     const [isMobile, setIsMobile] = useState(false);
@@ -478,7 +495,7 @@ export const DashboardRenderer = forwardRef<HTMLDivElement, DashboardRendererPro
       );
     }
 
-    const hasExplicitColumns = schema.columns != null;
+    const hasExplicitColumns = schema.columns != null || inferredColumns !== 4;
 
     return (
       <div
