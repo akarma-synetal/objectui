@@ -148,7 +148,12 @@ export function SidebarNav({ items, title = "Application", className, collapsibl
         )}
         {filteredGroups.map((group, gIdx) => (
           <SidebarGroup key={group.groupLabel || gIdx}>
-            <SidebarGroupLabel>{group.groupLabel || title}</SidebarGroupLabel>
+            {gIdx > 0 && (
+              <div className="mx-3 mb-1 h-px bg-sidebar-border/60" aria-hidden />
+            )}
+            <SidebarGroupLabel className="text-[10px] font-semibold uppercase tracking-wider text-sidebar-foreground/60">
+              {group.groupLabel || title}
+            </SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu>
                 {group.items.map((item) => (

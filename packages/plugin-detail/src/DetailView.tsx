@@ -24,7 +24,6 @@ import {
 import { 
   ArrowLeft, 
   Edit, 
-  Share2, 
   Star,
   StarOff,
   Check,
@@ -75,6 +74,13 @@ export interface DetailViewProps {
    * `schema.objectName` is used as a fallback.
    */
   objectLabel?: string;
+  /**
+   * Optional callback fired whenever the detail record is loaded or refreshed
+   * (after fetch, optimistic save, or schema-provided initial data). Lets the
+   * host page surface the record's primary value (e.g. to a breadcrumb or
+   * window title) without re-fetching.
+   */
+  onDataLoaded?: (record: any) => void;
 }
 
 export const DetailView: React.FC<DetailViewProps> = ({
@@ -89,6 +95,7 @@ export const DetailView: React.FC<DetailViewProps> = ({
   discussionSlot,
   rightRail,
   objectLabel,
+  onDataLoaded,
 }) => {
   const [data, setData] = React.useState<any>(schema.data);
   const [loading, setLoading] = React.useState(!schema.data && !!((schema.api && schema.resourceId) || (dataSource && schema.objectName && schema.resourceId)));
@@ -98,6 +105,12 @@ export const DetailView: React.FC<DetailViewProps> = ({
   const [objectSchema, setObjectSchema] = React.useState<any>(null);
   const [idCopied, setIdCopied] = React.useState(false);
   const { t } = useDetailTranslation();
+
+  // Fire onDataLoaded whenever the record changes so hosts can publish it
+  // (e.g. to the navigation breadcrumb or document title).
+  React.useEffect(() => {
+    if (data && onDataLoaded) onDataLoaded(data);
+  }, [data, onDataLoaded]);
 
   /**
    * Auto-detect "summary fields" for the header chip row when the schema does
@@ -424,13 +437,13 @@ export const DetailView: React.FC<DetailViewProps> = ({
   const systemActions = React.useMemo<ActionSchema[]>(() => {
     const items: ActionSchema[] = [];
 
-    // Mobile-only mirrors of the desktop inline chrome buttons.
+    // Share lives in the unified overflow on every breakpoint — keeps the
+    // header focused on the primary Edit CTA. (Was sm:hidden previously.)
     items.push({
-      name: 'sys_share_mobile',
+      name: 'sys_share',
       label: t('detail.share'),
       icon: 'share-2',
       type: 'script',
-      className: 'sm:hidden',
       onClick: handleShare,
     });
     if (schema.showEdit) {
@@ -613,6 +626,7 @@ export const DetailView: React.FC<DetailViewProps> = ({
                   const objField = objectSchema?.fields?.[fieldName];
                   const ftype = sectionField?.type || objField?.type;
                   let display: string = String(val);
+                  let percentValue: number | null = null;
                   try {
                     if (ftype === 'currency') {
                       const num = Number(val);
@@ -632,10 +646,37 @@ export const DetailView: React.FC<DetailViewProps> = ({
                       }
                     } else if (ftype === 'percent') {
                       const num = Number(val);
-                      if (!Number.isNaN(num)) display = `${num}%`;
+                      if (!Number.isNaN(num)) {
+                        display = `${num}%`;
+                        // Normalize to 0..100 for the bar; values <=1 are
+                        // treated as ratios (0.6 → 60%), otherwise capped.
+                        const normalized = num <= 1 ? num * 100 : num;
+                        percentValue = Math.max(0, Math.min(100, normalized));
+                      }
                     }
                   } catch {
                     /* fall back to String(val) */
+                  }
+                  if (percentValue !== null) {
+                    return (
+                      <Badge
+                        key={fieldName}
+                        variant="secondary"
+                        className="text-xs bg-primary/10 text-primary border-transparent hover:bg-primary/15 gap-1.5 pl-2 pr-2"
+                        aria-label={`${fieldName}: ${display}`}
+                      >
+                        <span
+                          className="relative inline-block h-1.5 w-12 rounded-full bg-primary/20 overflow-hidden"
+                          aria-hidden
+                        >
+                          <span
+                            className="absolute inset-y-0 left-0 rounded-full bg-primary"
+                            style={{ width: `${percentValue}%` }}
+                          />
+                        </span>
+                        {display}
+                      </Badge>
+                    );
                   }
                   return (
                     <Badge
@@ -784,16 +825,8 @@ export const DetailView: React.FC<DetailViewProps> = ({
               </Tooltip>
             )}
 
-            {/* Share Button — desktop-only chrome. Mobile fallback is in the
-                unified overflow via `systemActions`. */}
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button variant="outline" size="icon" onClick={handleShare} className="hidden sm:inline-flex">
-                  <Share2 className="h-4 w-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>{t('detail.share')}</TooltipContent>
-            </Tooltip>
+            {/* Share moved into the unified overflow menu (sys_share) so the
+                header focuses on the primary Edit CTA. */}
 
             {/* Edit Button — desktop-only primary CTA. Mobile fallback is in
                 the unified overflow via `systemActions`. */}

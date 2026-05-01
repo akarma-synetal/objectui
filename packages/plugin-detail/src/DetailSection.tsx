@@ -23,7 +23,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@object-ui/components';
-import { ChevronDown, ChevronRight, Copy, Check } from 'lucide-react';
+import { ChevronDown, ChevronRight, Copy, Check, Eye, EyeOff } from 'lucide-react';
 import { SchemaRenderer } from '@object-ui/react';
 import { getCellRenderer } from '@object-ui/fields';
 import type { DetailViewSection as DetailViewSectionType, DetailViewField, FieldMetadata } from '@object-ui/types';
@@ -294,15 +294,24 @@ export const DetailSection: React.FC<DetailSectionProps> = ({
         {renderedFields.map(renderField)}
       </div>
       {showEmptyToggle && (
-        <button
-          type="button"
-          onClick={() => setShowEmptyOverride((s) => !s)}
-          className="mt-3 text-xs text-muted-foreground hover:text-foreground transition-colors"
-        >
-          {showEmptyOverride
-            ? t('detail.hideEmptyFields', { defaultValue: 'Hide empty fields' })
-            : t('detail.showEmptyFields', { count: emptyCount, defaultValue: `Show ${emptyCount} empty field${emptyCount === 1 ? '' : 's'}` })}
-        </button>
+        <div className="mt-3 -ml-2">
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={() => setShowEmptyOverride((s) => !s)}
+            className="h-7 px-2 text-xs text-muted-foreground hover:text-foreground"
+          >
+            {showEmptyOverride ? (
+              <EyeOff className="h-3.5 w-3.5 mr-1.5" />
+            ) : (
+              <Eye className="h-3.5 w-3.5 mr-1.5" />
+            )}
+            {showEmptyOverride
+              ? t('detail.hideEmptyFields', { defaultValue: 'Hide empty fields' })
+              : t('detail.showEmptyFields', { count: emptyCount, defaultValue: `Show ${emptyCount} empty field${emptyCount === 1 ? '' : 's'}` })}
+          </Button>
+        </div>
       )}
     </>
   );

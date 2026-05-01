@@ -1642,6 +1642,18 @@ export const ListView = React.forwardRef<ListViewHandle, ListViewProps>(({
                 <p className="text-sm text-muted-foreground max-w-md">
                   {(typeof schema.emptyState?.message === 'string' ? schema.emptyState.message : undefined) ?? 'There are no records to display. Try adjusting your filters or adding new data.'}
                 </p>
+                {toolbarFlags.showAddRecord && (
+                  <Button
+                    variant="default"
+                    size="sm"
+                    className="mt-4"
+                    data-testid="empty-state-add-record"
+                    onClick={() => props.onAddRecord?.()}
+                  >
+                    <Plus className="h-4 w-4 mr-1.5" />
+                    {t('list.addRecord')}
+                  </Button>
+                )}
               </div>
             );
           })()

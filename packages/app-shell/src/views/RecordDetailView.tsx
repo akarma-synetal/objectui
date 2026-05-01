@@ -19,6 +19,7 @@ import { MetadataPanel, useMetadataInspector } from './MetadataInspector';
 import { SkeletonDetail } from '../skeletons';
 import { ActionConfirmDialog, type ConfirmDialogState } from './ActionConfirmDialog';
 import { ActionParamDialog, type ParamDialogState } from './ActionParamDialog';
+import { useRecordBreadcrumbTitle } from '../context/NavigationContext';
 import type { DetailViewSchema, FeedItem, HighlightField, SectionGroup } from '@object-ui/types';
 import type { ActionDef, ActionParamDef } from '@object-ui/core';
 
@@ -41,7 +42,12 @@ export function RecordDetailView({ dataSource, objects, onEdit }: RecordDetailVi
   const [recordViewers, setRecordViewers] = useState<PresenceUser[]>([]);
   const [actionRefreshKey, setActionRefreshKey] = useState(0);
   const [childRelatedData, setChildRelatedData] = useState<Record<string, any[]>>({});
+  const [recordTitle, setRecordTitle] = useState<string | undefined>();
   const objectDef = objects.find((o: any) => o.name === objectName);
+
+  // Publish record title to the navigation context so the top-bar breadcrumb
+  // can display "Acme Platform Upgrade" instead of "#9U1_MmmxjiGR…".
+  useRecordBreadcrumbTitle(recordTitle);
 
   // Use the URL recordId as-is — it contains the actual record id.
   // Navigation code passes `record.id || record._id` directly into the URL
@@ -473,6 +479,21 @@ export function RecordDetailView({ dataSource, objects, onEdit }: RecordDetailVi
               schema={detailSchema}
               dataSource={dataSource}
               objectLabel={objectDef.label}
+              onDataLoaded={(record) => {
+                if (!record || typeof record !== 'object') return;
+                const primary = detailSchema.primaryField;
+                const candidates = [
+                  primary && record[primary],
+                  record.name,
+                  record.title,
+                  record.label,
+                  record.subject,
+                ];
+                const next = candidates.find(
+                  (v) => typeof v === 'string' && v.trim().length > 0
+                );
+                if (next && next !== recordTitle) setRecordTitle(next);
+              }}
               onEdit={() => {
                 onEdit({ id: pureRecordId });
               }}

@@ -117,7 +117,7 @@ export function AppHeader({
   const { t } = useObjectTranslation();
   const { objectLabel } = useObjectLabel();
   const { apps: metadataApps } = useMetadata();
-  const { currentAppName } = useNavigationContext();
+  const { currentAppName, recordTitle } = useNavigationContext();
 
   const [apiPresenceUsers, setApiPresenceUsers] = useState<PresenceUser[] | null>(null);
   const [apiActivities, setApiActivities] = useState<ActivityItem[] | null>(null);
@@ -221,7 +221,11 @@ export function AppHeader({
         });
         if (pathParts[3] === 'record' && pathParts[4]) {
           const shortId = pathParts[4].length > 12 ? `${pathParts[4].slice(0, 8)}…` : pathParts[4];
-          extraSegments.push({ label: `#${shortId}` });
+          const trimmedTitle = recordTitle?.trim();
+          const displayTitle = trimmedTitle && trimmedTitle.length > 48
+            ? `${trimmedTitle.slice(0, 45)}…`
+            : trimmedTitle;
+          extraSegments.push({ label: displayTitle || `#${shortId}` });
         } else if (pathParts[3] === 'view' && pathParts[4]) {
           extraSegments.push({ label: humanizeSlug(pathParts[4]) });
         }
