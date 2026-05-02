@@ -5,6 +5,30 @@ export const SalesDashboard = {
   columns: 12,
   gap: 4,
   refreshInterval: 180,
+  header: {
+    showTitle: true,
+    showDescription: true,
+    actions: [
+      {
+        label: 'New Opportunity',
+        icon: 'Plus',
+        actionType: 'modal',
+        actionUrl: 'opportunity',
+      },
+      {
+        label: 'Forecast',
+        icon: 'TrendingUp',
+        actionType: 'script',
+        actionUrl: 'forecast_dashboard',
+      },
+      {
+        label: 'Export',
+        icon: 'Download',
+        actionType: 'script',
+        actionUrl: 'export_dashboard_pdf',
+      },
+    ],
+  },
   widgets: [
     // ─── Row 1: Pipeline KPIs ─────────────────────────────────────────
     {

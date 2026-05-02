@@ -183,6 +183,7 @@ export interface ActionParamDef {
 
 export class ActionRunner {
   private handlers = new Map<string, ActionHandler>();
+  private scripts = new Map<string, ActionHandler>();
   private evaluator: ExpressionEvaluator;
   private context: ActionContext;
   private confirmHandler: ConfirmationHandler;
@@ -244,6 +245,20 @@ export class ActionRunner {
 
   unregisterHandler(actionName: string): void {
     this.handlers.delete(actionName);
+  }
+
+  /**
+   * Register a named script handler. When a `script` action's
+   * `target`/`execute` matches the registered name, the handler runs
+   * instead of the expression evaluator. Lets dashboards/views wire
+   * symbolic action names (e.g. 'export_dashboard_pdf') to JS callbacks.
+   */
+  registerScript(scriptName: string, handler: ActionHandler): void {
+    this.scripts.set(scriptName, handler);
+  }
+
+  unregisterScript(scriptName: string): void {
+    this.scripts.delete(scriptName);
   }
 
   async execute(action: ActionDef): Promise<ActionResult> {
@@ -455,6 +470,18 @@ export class ActionRunner {
     const script = action.execute || action.target;
     if (!script) {
       return { success: false, error: 'No script provided for script action' };
+    }
+
+    // Named script registry wins over the expression evaluator. This lets
+    // dashboards/views bind a symbolic action name (e.g. 'export_dashboard_pdf')
+    // to a JS callback without piping the literal through ExpressionEvaluator.
+    const named = this.scripts.get(script);
+    if (named) {
+      try {
+        return await named(action, this.context);
+      } catch (error) {
+        return { success: false, error: `Script execution failed: ${(error as Error).message}` };
+      }
     }
 
     try {

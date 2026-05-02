@@ -2,6 +2,8 @@ export const CrmDashboard = {
   name: 'crm_dashboard',
   label: 'CRM Overview',
   description: 'Revenue metrics, pipeline analytics, and deal insights',
+  columns: 4,
+  gap: 4,
   widgets: [
     // --- KPI Row ---
     // NOTE: `options.value` is a fallback displayed only when no dataSource is

@@ -22,6 +22,7 @@ import '@object-ui/plugin-kanban';
 import '@object-ui/plugin-calendar';
 import { Button, Empty, EmptyTitle, EmptyDescription, NavigationOverlay, DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@object-ui/components';
 import { Plus, Table as TableIcon, Settings2, Wrench, KanbanSquare, Calendar, LayoutGrid, Activity, GanttChart, MapPin, BarChart3 } from 'lucide-react';
+import { getIcon } from '../utils/getIcon';
 import type { ListViewSchema, ViewNavigationConfig, FeedItem } from '@object-ui/types';
 import { MetadataToggle, MetadataPanel, useMetadataInspector } from './MetadataInspector';
 import { ViewConfigPanel } from './ViewConfigPanel';
@@ -778,7 +779,7 @@ export function ObjectView({ dataSource, objects, onEdit }: any) {
              <div className="flex justify-between items-center py-2.5 sm:py-3 px-3 sm:px-4 border-b shrink-0 bg-background z-10">
                  <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
                     <div className="bg-primary/10 p-1.5 sm:p-2 rounded-md shrink-0">
-                        <TableIcon className="h-4 w-4 text-primary" />
+                        {(() => { const I = getIcon((objectDef as any)?.icon); return <I className="h-4 w-4 text-primary" />; })()}
                     </div>
                     <div className="min-w-0">
                         <h1 className="text-base sm:text-lg font-semibold tracking-tight text-foreground truncate">{objectLabel(objectDef)}</h1>

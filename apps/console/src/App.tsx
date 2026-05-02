@@ -6,7 +6,7 @@
  * console, edit this file — don't look for a config object.
  */
 
-import { lazy, Suspense } from 'react';
+import { lazy, Suspense, type ReactNode } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import {
   ConsoleShell,
@@ -30,9 +30,14 @@ import {
   DefaultSettingsPage,
   DefaultAcceptInvitationPage,
 } from '@object-ui/app-shell';
-import { PreviewBanner } from '@object-ui/auth';
+import { PreviewBanner, AuthProvider } from '@object-ui/auth';
 
 import { AppContent } from './AppContent';
+
+// Dev-only auth bypass: opt-in via VITE_DEV_AUTH_BYPASS=true to skip the
+// login flow when iterating locally. Production builds always go through
+// ConditionalAuthWrapper.
+const DEV_AUTH_BYPASS = import.meta.env.DEV && import.meta.env.VITE_DEV_AUTH_BYPASS === 'true';
 
 const CreateAppPage = lazy(() => import('@object-ui/plugin-designer').then(m => ({ default: m.CreateAppPage })));
 
@@ -40,8 +45,15 @@ const BASENAME = import.meta.env.BASE_URL?.replace(/\/$/, '') || '/';
 const AUTH_URL = `${import.meta.env.VITE_SERVER_URL || ''}/api/v1/auth`;
 
 export function App() {
+  const Wrapper = DEV_AUTH_BYPASS
+    ? ({ children }: { children: ReactNode }) => (
+        <AuthProvider authUrl={AUTH_URL} enabled={false}>{children}</AuthProvider>
+      )
+    : ({ children }: { children: ReactNode }) => (
+        <ConditionalAuthWrapper authUrl={AUTH_URL}>{children}</ConditionalAuthWrapper>
+      );
   return (
-    <ConditionalAuthWrapper authUrl={AUTH_URL}>
+    <Wrapper>
       <PreviewBanner />
       <BrowserRouter basename={BASENAME}>
         <ConsoleShell>
@@ -87,7 +99,7 @@ export function App() {
             </Routes>
           </ConsoleShell>
         </BrowserRouter>
-      </ConditionalAuthWrapper>
+    </Wrapper>
   );
 }
 

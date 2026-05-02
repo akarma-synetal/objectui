@@ -12,7 +12,21 @@ import {
   DashboardConfigPanel,
   WidgetConfigPanel,
 } from '@object-ui/plugin-dashboard';
-import { Empty, EmptyTitle, EmptyDescription, Button } from '@object-ui/components';
+import { ModalForm } from '@object-ui/plugin-form';
+import { toast } from 'sonner';
+import type { ModalHandler, ActionDef, ActionContext, ActionResult } from '@object-ui/core';
+import {
+  Empty,
+  EmptyTitle,
+  EmptyDescription,
+  Button,
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from '@object-ui/components';
 import {
   LayoutDashboard,
   Pencil,
@@ -137,6 +151,55 @@ export function DashboardView({ dataSource }: { dataSource?: any }) {
   const [selectedWidgetId, setSelectedWidgetId] = useState<string | null>(null);
   // Version counter — incremented on save to refresh the stable config reference
   const [configVersion, setConfigVersion] = useState(0);
+
+  // Modal state for header action buttons that request a modal (e.g. New Opportunity)
+  const [modalState, setModalState] = useState<{
+    schema: any;
+    resolve: (r: ActionResult) => void;
+  } | null>(null);
+
+  const closeModal = useCallback((result: ActionResult) => {
+    setModalState((curr) => {
+      if (curr) curr.resolve(result);
+      return null;
+    });
+  }, []);
+
+  const modalHandler = useCallback<ModalHandler>(
+    (schema) =>
+      new Promise<ActionResult>((resolve) => {
+        // Normalize string schema (e.g. action.target = 'opportunity') to a
+        // ModalForm-compatible descriptor so header `modal` actions like
+        // { actionType: 'modal', actionUrl: 'opportunity' } open the create
+        // form for that object.
+        const normalized =
+          typeof schema === 'string'
+            ? { objectName: schema, mode: 'create' }
+            : schema;
+        setModalState({ schema: normalized, resolve });
+      }),
+    [],
+  );
+
+  const scriptHandlers = useMemo<Record<string, (a: ActionDef, c: ActionContext) => Promise<ActionResult> | ActionResult>>(
+    () => ({
+      export_dashboard_pdf: async () => {
+        toast.info('Preparing PDF export…');
+        try {
+          window.print();
+          return { success: true };
+        } catch (err: any) {
+          toast.error(`Export failed: ${err?.message || String(err)}`);
+          return { success: false, error: err?.message || String(err) };
+        }
+      },
+      forecast_dashboard: async () => {
+        toast.info('Forecast view coming soon');
+        return { success: true };
+      },
+    }),
+    [],
+  );
 
   useEffect(() => {
     setIsLoading(true);
@@ -429,6 +492,8 @@ export function DashboardView({ dataSource }: { dataSource?: any }) {
               designMode={configPanelOpen}
               selectedWidgetId={selectedWidgetId}
               onWidgetClick={setSelectedWidgetId}
+              modalHandler={modalHandler}
+              scriptHandlers={scriptHandlers}
             />
          </div>
 
@@ -471,6 +536,44 @@ export function DashboardView({ dataSource }: { dataSource?: any }) {
             sections={[{ title: 'Dashboard Configuration', data: previewSchema }]}
          />
       </div>
+
+      {/* Modal triggered by header actions (e.g. "New Opportunity") */}
+      {modalState && modalState.schema?.objectName ? (
+        <ModalForm
+          schema={{
+            type: 'object-form',
+            formType: 'modal',
+            objectName: modalState.schema.objectName,
+            mode: modalState.schema.mode || 'create',
+            recordId: modalState.schema.recordId,
+            title: modalState.schema.title,
+            description: modalState.schema.description,
+            fields: modalState.schema.fields,
+            open: true,
+            onOpenChange: (open: boolean) => { if (!open) closeModal({ success: false }); },
+            onSuccess: (data: any) => { closeModal({ success: true, reload: true, data }); },
+            onCancel: () => { closeModal({ success: false }); },
+            showSubmit: true,
+            showCancel: true,
+          }}
+          dataSource={adapter as any}
+        />
+      ) : modalState ? (
+        <Dialog open onOpenChange={(open) => { if (!open) closeModal({ success: false }); }}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>{modalState.schema?.title || 'Action'}</DialogTitle>
+              {modalState.schema?.description && (
+                <DialogDescription>{modalState.schema.description}</DialogDescription>
+              )}
+            </DialogHeader>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => closeModal({ success: false })}>Cancel</Button>
+              <Button onClick={() => closeModal({ success: true })}>OK</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      ) : null}
     </div>
   );
 }

@@ -7,11 +7,22 @@
  */
 
 import type { DashboardSchema, DashboardWidgetSchema } from '@object-ui/types';
-import { SchemaRenderer } from '@object-ui/react';
+import { SchemaRenderer, useActionEngine } from '@object-ui/react';
+import type { ActionDef, ActionResult, ActionContext, ModalHandler } from '@object-ui/core';
 import { cn, Card, CardHeader, CardTitle, CardContent, Button } from '@object-ui/components';
-import { forwardRef, useState, useEffect, useCallback, useRef } from 'react';
+import { forwardRef, useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import * as LucideIcons from 'lucide-react';
 import { RefreshCw } from 'lucide-react';
 import { isObjectProvider } from './utils';
+
+/** Resolve a Lucide icon by name (PascalCase or kebab-case). */
+function resolveLucideIcon(name?: string): React.ElementType | null {
+  if (!name) return null;
+  const icons = LucideIcons as unknown as Record<string, React.ElementType>;
+  if (icons[name]) return icons[name];
+  const pascal = name.split('-').map(p => p.charAt(0).toUpperCase() + p.slice(1)).join('');
+  return icons[pascal] ?? null;
+}
 
 /** Resolve an I18nLabel (string or {key, defaultValue}) to a plain string. */
 function resolveLabel(label: string | { key?: string; defaultValue?: string } | undefined): string | undefined {
@@ -44,11 +55,15 @@ export interface DashboardRendererProps {
   selectedWidgetId?: string | null;
   /** Callback when a widget is clicked in design mode */
   onWidgetClick?: (widgetId: string | null) => void;
+  /** Optional handler for actionType="modal" header actions. Receives a schema and ActionContext. */
+  modalHandler?: ModalHandler;
+  /** Optional named handlers for actionType="script" header actions, keyed by action name (actionUrl). */
+  scriptHandlers?: Record<string, (action: ActionDef, context: ActionContext) => Promise<ActionResult> | ActionResult>;
   [key: string]: any;
 }
 
 export const DashboardRenderer = forwardRef<HTMLDivElement, DashboardRendererProps>(
-  ({ schema, className, dataSource, onRefresh, recordCount, userActions, designMode, selectedWidgetId, onWidgetClick, ...props }, ref) => {
+  ({ schema, className, dataSource, onRefresh, recordCount, userActions, designMode, selectedWidgetId, onWidgetClick, modalHandler, scriptHandlers, ...props }, ref) => {
     // Auto-infer the grid column count when the dashboard schema doesn't
     // specify one. Spec convention is a 12-column grid (widgets use w: 3 for
     // quarter-row KPIs, w: 6 for half-row charts, etc.). If we always default
@@ -71,6 +86,30 @@ export const DashboardRenderer = forwardRef<HTMLDivElement, DashboardRendererPro
     const [refreshing, setRefreshing] = useState(false);
     const [isMobile, setIsMobile] = useState(false);
     const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+    // Build ActionDef[] from header actions so useActionEngine can dispatch by name.
+    const headerActionDefs = useMemo<ActionDef[]>(() => {
+      const actions = schema.header?.actions ?? [];
+      return actions.map((a: { label: string; actionUrl?: string; actionType?: string; icon?: string }) => ({
+        name: a.actionUrl || a.label,
+        type: (a.actionType as ActionDef['type']) || 'url',
+        target: a.actionUrl,
+        label: a.label,
+      }));
+    }, [schema.header?.actions]);
+
+    const { executeAction, engine } = useActionEngine({ actions: headerActionDefs });
+
+    // Install host-supplied modal/script handlers on the underlying ActionRunner.
+    useEffect(() => {
+      const runner = engine.getRunner();
+      if (modalHandler) runner.setModalHandler(modalHandler);
+      if (scriptHandlers) {
+        for (const [name, fn] of Object.entries(scriptHandlers)) {
+          runner.registerScript(name, fn as any);
+        }
+      }
+    }, [engine, modalHandler, scriptHandlers]);
 
     useEffect(() => {
       const checkMobile = () => setIsMobile(window.innerWidth < 768);
@@ -434,11 +473,38 @@ export const DashboardRenderer = forwardRef<HTMLDivElement, DashboardRendererPro
         )}
         {schema.header.actions && schema.header.actions.length > 0 && (
           <div className="flex gap-2 mt-3">
-            {schema.header.actions.map((action: { label: string; actionUrl?: string; actionType?: string; icon?: string }, i: number) => (
-              <Button key={i} variant="outline" size="sm">
-                {action.label}
-              </Button>
-            ))}
+            {schema.header.actions.map((action: { label: string; actionUrl?: string; actionType?: string; icon?: string }, i: number) => {
+              const Icon = resolveLucideIcon(action.icon);
+              const handleClick = async () => {
+                const { actionType, actionUrl, label } = action;
+                if (!actionType || !actionUrl) {
+                  console.warn('[DashboardRenderer] Header action missing actionType/actionUrl:', action);
+                  return;
+                }
+                if (actionType === 'url') {
+                  if (/^https?:\/\//.test(actionUrl) || actionUrl.startsWith('//')) {
+                    window.location.assign(actionUrl);
+                  } else {
+                    // SPA-friendly navigation: use history API + popstate so React Router picks it up.
+                    window.history.pushState({}, '', actionUrl);
+                    window.dispatchEvent(new PopStateEvent('popstate'));
+                  }
+                  return;
+                }
+                if (actionType === 'modal' || actionType === 'script') {
+                  const result = await executeAction(actionUrl || label);
+                  if (!result?.success) console.warn('[DashboardRenderer] action failed', result?.error);
+                  return;
+                }
+                console.warn(`[DashboardRenderer] Unknown header actionType="${actionType}" for "${label}"`);
+              };
+              return (
+                <Button key={i} variant="outline" size="sm" onClick={handleClick}>
+                  {Icon && <Icon className="w-4 h-4 mr-1.5" />}
+                  {action.label}
+                </Button>
+              );
+            })}
           </div>
         )}
       </div>

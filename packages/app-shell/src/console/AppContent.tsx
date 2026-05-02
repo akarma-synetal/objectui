@@ -132,6 +132,40 @@ export function AppContent({ extraRoutes, extraRoutesNoApp }: AppContentProps = 
       setIsDialogOpen(false);
       return { success: true };
     });
+
+    runner.registerHandler('flow', async (action: any, ctx: any) => {
+      const flowName = action.target || action.name;
+      if (!flowName) {
+        return { success: false, error: 'No flow target provided for flow action' };
+      }
+      try {
+        const res = await fetch(`/api/automation/${encodeURIComponent(flowName)}/trigger`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({
+            record: ctx?.record,
+            object: action.objectName,
+            event: action.event,
+            userId: ctx?.user?.id,
+            params: action.params,
+          }),
+        });
+        const json = await res.json().catch(() => ({ success: false, error: `HTTP ${res.status}` }));
+        if (!res.ok || !json.success) {
+          const errMsg = json?.error || `Flow ${flowName} failed (HTTP ${res.status})`;
+          toast.error(errMsg);
+          return { success: false, error: errMsg };
+        }
+        toast.success(`Flow "${flowName}" executed successfully`);
+        setRefreshKey(k => k + 1);
+        return { success: true, data: json.output, reload: true };
+      } catch (err: any) {
+        const errMsg = err?.message || String(err);
+        toast.error(`Flow ${flowName} error: ${errMsg}`);
+        return { success: false, error: errMsg };
+      }
+    });
   }, [runner]);
 
   useEffect(() => {
