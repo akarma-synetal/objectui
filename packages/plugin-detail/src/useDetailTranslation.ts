@@ -92,7 +92,6 @@ export const DETAIL_DEFAULT_TRANSLATIONS: Record<string, string> = {
   'detail.new': 'New',
   'detail.emptyValue': '—',
   'detail.activity': 'Activity',
-  'detail.discussion': 'Discussion',
   'detail.copyRecordId': 'Copy record ID',
   'detail.showEmptyFields': 'Show {{count}} empty fields',
   'detail.hideEmptyFields': 'Hide empty fields',

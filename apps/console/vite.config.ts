@@ -130,8 +130,6 @@ export default defineConfig({
   },
   optimizeDeps: {
     include: [
-      'msw',
-      'msw/browser',
       '@objectstack/spec',
       '@objectstack/spec/data',
       '@objectstack/spec/system',
@@ -142,8 +140,8 @@ export default defineConfig({
     ],
     esbuildOptions: {
       target: 'esnext',
-      supported: { 
-        'top-level-await': true 
+      supported: {
+        'top-level-await': true
       },
       resolveExtensions: ['.mjs', '.js', '.mts', '.ts', '.jsx', '.tsx', '.json']
     }
@@ -157,15 +155,6 @@ export default defineConfig({
       transformMixedEsModules: true
     },
     rollupOptions: {
-      onwarn(warning, warn) {
-        if (
-          warning.code === 'UNRESOLVED_IMPORT' &&
-          warning.message.includes('@objectstack/driver-memory')
-        ) {
-          return;
-        }
-        warn(warning);
-      },
       output: {
         manualChunks(id) {
           // Vendor: React ecosystem
@@ -179,6 +168,10 @@ export default defineConfig({
           if (id.includes('node_modules/@radix-ui/')) {
             return 'vendor-radix';
           }
+          // Vendor: @objectstack/* SDK & spec
+          if (id.includes('node_modules/@objectstack/')) {
+            return 'vendor-objectstack';
+          }
           // Vendor: Lucide icons
           if (id.includes('node_modules/lucide-react/')) {
             return 'vendor-icons';
@@ -190,23 +183,9 @@ export default defineConfig({
               id.includes('node_modules/sonner/')) {
             return 'vendor-ui-utils';
           }
-          // ObjectStack SDK
-          if (id.includes('node_modules/@objectstack/')) {
-            return 'vendor-objectstack';
-          }
           // Zod (validation)
           if (id.includes('node_modules/zod/')) {
             return 'vendor-zod';
-          }
-          // MSW + related (mock server — dev/demo only)
-          if (id.includes('node_modules/msw/') ||
-              id.includes('node_modules/mswjs/') ||
-              id.includes('node_modules/@mswjs/') ||
-              id.includes('node_modules/strict-event-emitter/') ||
-              id.includes('node_modules/outvariant/') ||
-              id.includes('node_modules/headers-polyfill/') ||
-              id.includes('node_modules/@bundled-es-modules/')) {
-            return 'vendor-msw';
           }
           // Recharts (charts)
           if (id.includes('node_modules/recharts/') ||
@@ -238,6 +217,10 @@ export default defineConfig({
           if (id.includes('/packages/layout/')) {
             return 'ui-layout';
           }
+          // @object-ui/data-objectstack adapter
+          if (id.includes('/packages/data-objectstack/')) {
+            return 'data-adapter';
+          }
           // Infrastructure: auth, permissions, tenant, i18n
           if (id.includes('/packages/auth/') ||
               id.includes('/packages/permissions/') ||
@@ -258,10 +241,6 @@ export default defineConfig({
               id.includes('/packages/plugin-report/')) {
             return 'plugins-views';
           }
-          // Data adapter
-          if (id.includes('/packages/data-objectstack/')) {
-            return 'data-adapter';
-          }
         }
       }
     }
@@ -272,9 +251,9 @@ export default defineConfig({
     setupFiles: ['../../vitest.setup.tsx'],
     server: {
       deps: {
-        inline: [/@objectstack/]
-      }
-    }
+        inline: [/@objectstack/],
+      },
+    },
   },
   server: {},
 });

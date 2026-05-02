@@ -19,14 +19,9 @@
     "plugin.d.ts"
   ],
   "scripts": {
-    "msw:init": "msw init -y public",
-    "dev": "pnpm msw:init && vite",
-    "start": "tsx ../../node_modules/@objectstack/cli/bin/objectstack.js serve objectstack.config.ts",
-    "start:mock": "pnpm msw:init && vite preview",
+    "dev": "vite",
     "build:plugin": "tsc -p tsconfig.plugin.json",
-    "build": "pnpm msw:init && tsc && VITE_USE_MOCK_SERVER=false vite build && pnpm build:plugin",
-    "build:e2e": "pnpm msw:init && tsc && VITE_USE_MOCK_SERVER=true vite build && pnpm build:plugin",
-    "build:vercel": "pnpm msw:init && tsc && VITE_USE_MOCK_SERVER=true vite build && pnpm build:plugin",
+    "build": "tsc && vite build && pnpm build:plugin",
     "build:analyze": "pnpm build && echo 'Bundle analysis available at dist/stats.html'",
     "preview": "vite preview",
     "test": "vitest run",
@@ -66,7 +61,6 @@
     "@object-ui/plugin-view": "workspace:*",
     "@object-ui/react": "workspace:*",
     "@object-ui/types": "workspace:*",
-    "@objectstack/cli": "^4.0.4",
     "@objectstack/client": "^4.0.4",
     "@objectstack/spec": "^4.0.4",
     "@tailwindcss/postcss": "^4.2.4",
@@ -81,7 +75,6 @@
     "autoprefixer": "^10.5.0",
     "happy-dom": "^20.9.0",
     "lucide-react": "^1.8.0",
-    "msw": "^2.13.6",
     "postcss": "^8.5.11",
     "react": "19.2.5",
     "react-dom": "19.2.5",
@@ -91,10 +84,5 @@
     "typescript": "^6.0.3",
     "vite": "^8.0.9",
     "vitest": "^4.1.5"
-  },
-  "msw": {
-    "workerDirectory": [
-      "public"
-    ]
   }
 }

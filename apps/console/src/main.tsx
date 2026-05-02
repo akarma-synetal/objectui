@@ -1,7 +1,7 @@
 /**
  * Main Entry Point
- * 
- * Initializes MSW and renders the React application.
+ *
+ * Renders the React application.
  */
 
 import React from 'react';
@@ -31,24 +31,12 @@ import '@object-ui/plugin-markdown';
 // Register console-specific schema widgets (object detail page sections)
 import './components/schema/registerObjectDetailWidgets';
 
-// Start MSW before rendering the app
-async function bootstrap() {
-  // Initialize Mock Service Worker if enabled (lazy-loaded to keep production bundle lean)
-  if (import.meta.env.VITE_USE_MOCK_SERVER !== 'false') {
-    const { startMockServer } = await import('../dev/mocks/browser');
-    await startMockServer();
-  }
-
-  // Render the React app
-  ReactDOM.createRoot(document.getElementById('root')!).render(
-    <React.StrictMode>
-      <MobileProvider pwa={{ enabled: true, name: 'ObjectUI Console', shortName: 'Console' }}>
-        <I18nProvider loadLanguage={loadLanguage}>
-          <App />
-        </I18nProvider>
-      </MobileProvider>
-    </React.StrictMode>
-  );
-}
-
-bootstrap();
+ReactDOM.createRoot(document.getElementById('root')!).render(
+  <React.StrictMode>
+    <MobileProvider pwa={{ enabled: true, name: 'ObjectUI Console', shortName: 'Console' }}>
+      <I18nProvider loadLanguage={loadLanguage}>
+        <App />
+      </I18nProvider>
+    </MobileProvider>
+  </React.StrictMode>
+);
