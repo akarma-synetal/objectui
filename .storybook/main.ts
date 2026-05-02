@@ -42,8 +42,6 @@ const config: StorybookConfig = {
           '@object-ui/fields': path.resolve(__dirname, '../packages/fields/src/index.tsx'),
           '@object-ui/layout': path.resolve(__dirname, '../packages/layout/src/index.ts'),
           '@object-ui/data-objectstack': path.resolve(__dirname, '../packages/data-objectstack/src/index.ts'),
-          // Alias example packages for Storybook to resolve them from workspace
-          '@object-ui/example-crm': path.resolve(__dirname, '../examples/crm/src/index.ts'),
           // Alias plugin packages for Storybook to resolve them from workspace
           '@object-ui/plugin-aggrid': path.resolve(__dirname, '../packages/plugin-aggrid/src/index.tsx'),
           '@object-ui/plugin-calendar': path.resolve(__dirname, '../packages/plugin-calendar/src/index.tsx'),
@@ -66,16 +64,10 @@ const config: StorybookConfig = {
       },
       optimizeDeps: {
         include: [
-          'msw',
-          'msw/browser',
           '@objectstack/spec',
           '@objectstack/spec/data',
           '@objectstack/spec/system',
           '@objectstack/spec/ui',
-          '@objectstack/runtime',
-          '@objectstack/objectql',
-          '@objectstack/driver-memory',
-          '@objectstack/plugin-msw',
           '@mdx-js/react',
           'react-router-dom',
         ],

@@ -235,6 +235,8 @@ describe('AppHeader', () => {
       <AppHeader
         appName="CRM App"
         objects={mockObjects}
+        presenceUsers={[{ userId: 'u1', name: 'Alice' } as any]}
+        activities={[]}
       />
     );
 
