@@ -73,10 +73,15 @@ test.describe('Console Rendering', () => {
     // If it's missing, the app may hang during bootstrap.
     const response = await page.request.get(`${CONSOLE_BASE}/mockServiceWorker.js`);
 
-    // In production builds without MSW, 404 is acceptable.
-    // But if the build includes it, it must be valid JS.
+    // In production builds without MSW, the asset may be absent. The static
+    // server returns the SPA fallback (index.html) for unknown paths, which
+    // is a 200 with `text/html`. Treat that as "MSW not bundled" and skip.
     if (response.ok()) {
       const contentType = response.headers()['content-type'] || '';
+      if (contentType.includes('text/html')) {
+        // SPA fallback — mockServiceWorker.js is not bundled in this build.
+        return;
+      }
       expect(contentType).toContain('javascript');
     }
   });

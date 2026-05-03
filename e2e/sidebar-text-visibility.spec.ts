@@ -46,8 +46,10 @@ test.describe('Sidebar Text Visibility', () => {
     const sidebar = page.locator('[data-sidebar="sidebar"]').first();
     await expect(sidebar).toBeVisible({ timeout: SIDEBAR_VISIBLE_TIMEOUT });
 
-    // Find the sidebar toggle button (desktop trigger rendered by AppShell)
-    const toggleButton = page.locator('[data-sidebar="trigger"]').first();
+    // Find the sidebar toggle button (desktop trigger rendered in SidebarFooter).
+    // AppHeader also renders a mobile-only `md:hidden` trigger that is not
+    // visible at desktop viewport widths, so filter by visibility.
+    const toggleButton = page.locator('[data-sidebar="trigger"]:visible').first();
     await expect(toggleButton).toBeVisible({ timeout: SIDEBAR_VISIBLE_TIMEOUT });
 
     // Get the parent sidebar element that has data-state attribute
@@ -126,7 +128,7 @@ test.describe('Sidebar Text Visibility', () => {
     const sidebar = page.locator('[data-sidebar="sidebar"]').first();
     await expect(sidebar).toBeVisible({ timeout: SIDEBAR_VISIBLE_TIMEOUT });
 
-    const toggleButton = page.locator('[data-sidebar="trigger"]').first();
+    const toggleButton = page.locator('[data-sidebar="trigger"]:visible').first();
     await expect(toggleButton).toBeVisible({ timeout: SIDEBAR_VISIBLE_TIMEOUT });
 
     const sidebarGroup = page.locator('.group[data-collapsible="icon"]').first();
