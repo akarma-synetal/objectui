@@ -514,6 +514,42 @@ export function ObjectView({ dataSource, objects, onEdit }: any) {
         }
     }, [authFetch, objectDef.name]);
 
+    // Server-side action handler — POST to /api/v1/actions/{object}/{action}.
+    // For list-toolbar/list-item `script` and `modal` actions whose `target`
+    // matches a server-registered handler. selectedIds (from action.params)
+    // is forwarded so bulk handlers like massUpdateStage / addToCampaign work.
+    const serverActionHandler = useCallback(async (action: ActionDef) => {
+        const targetName = action.target || action.name;
+        if (!targetName) {
+            return { success: false, error: 'No action target provided' };
+        }
+        const params = (action.params && !Array.isArray(action.params))
+            ? (action.params as Record<string, unknown>)
+            : {};
+        try {
+            const baseUrl = import.meta.env.VITE_SERVER_URL || '';
+            const obj = action.objectName || objectDef.name || 'global';
+            const res = await authFetch(
+                `${baseUrl}/api/v1/actions/${encodeURIComponent(obj)}/${encodeURIComponent(targetName)}`,
+                {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ recordId: (params as any).recordId, params }),
+                },
+            );
+            const json = await res.json().catch(() => null);
+            if (!res.ok || (json && json.success === false)) {
+                const errMsg = json?.error || `Action "${targetName}" failed (HTTP ${res.status})`;
+                return { success: false, error: errMsg };
+            }
+            const shouldRefresh = action.refreshAfter !== false;
+            if (shouldRefresh) setRefreshKey(k => k + 1);
+            return { success: true, data: json?.data, reload: shouldRefresh };
+        } catch (error) {
+            return { success: false, error: (error as Error).message };
+        }
+    }, [authFetch, objectDef.name]);
+
     // Real-time: auto-refresh when server reports data changes
     const { lastMessage: realtimeMessage } = useRealtimeSubscription({
         channel: `object:${objectDef.name}`,
@@ -814,7 +850,7 @@ export function ObjectView({ dataSource, objects, onEdit }: any) {
             onToast={toastHandler}
             onNavigate={navigateHandler}
             onParamCollection={paramCollectionHandler}
-            handlers={{ api: apiHandler, flow: flowHandler }}
+            handlers={{ api: apiHandler, flow: flowHandler, script: serverActionHandler, modal: serverActionHandler }}
         >
         <div className="h-full flex flex-col bg-background min-w-0 overflow-hidden">
              {/* 1. Header with breadcrumb + description */}

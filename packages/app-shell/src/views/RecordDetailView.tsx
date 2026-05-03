@@ -163,6 +163,43 @@ export function RecordDetailView({ dataSource, objects, onEdit }: RecordDetailVi
     }
   }, [authFetch, pureRecordId, objectName]);
 
+  // Server-side action handler — POST to /api/v1/actions/{object}/{action}.
+  // Used for `script` and `modal` actions where `action.target` matches a
+  // server-registered handler name (engine.registerAction). Sends the
+  // current recordId, objectName, and any collected/static params, and the
+  // server resolves the handler (with wildcard '*' fallback) and runs it.
+  const serverActionHandler = useCallback(async (action: ActionDef) => {
+    const targetName = action.target || action.name;
+    if (!targetName) {
+      return { success: false, error: 'No action target provided' };
+    }
+    const params = (action.params && !Array.isArray(action.params))
+      ? (action.params as Record<string, unknown>)
+      : {};
+    try {
+      const baseUrl = import.meta.env.VITE_SERVER_URL || '';
+      const obj = action.objectName || objectName || 'global';
+      const res = await authFetch(
+        `${baseUrl}/api/v1/actions/${encodeURIComponent(obj)}/${encodeURIComponent(targetName)}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ recordId: pureRecordId, params }),
+        },
+      );
+      const json = await res.json().catch(() => null);
+      if (!res.ok || (json && json.success === false)) {
+        const errMsg = json?.error || `Action "${targetName}" failed (HTTP ${res.status})`;
+        return { success: false, error: errMsg };
+      }
+      const shouldRefresh = action.refreshAfter !== false;
+      if (shouldRefresh) setActionRefreshKey(k => k + 1);
+      return { success: true, data: json?.data, reload: shouldRefresh };
+    } catch (error) {
+      return { success: false, error: (error as Error).message };
+    }
+  }, [authFetch, pureRecordId, objectName]);
+
   // Discover reverse references: other objects with lookup/master_detail fields
   // pointing to the current object (e.g., order_item.order → order).
   const childRelations = useMemo(() => {
@@ -522,7 +559,7 @@ export function RecordDetailView({ dataSource, objects, onEdit }: RecordDetailVi
             onToast={toastHandler}
             onNavigate={navigateHandler}
             onParamCollection={paramCollectionHandler}
-            handlers={{ api: apiHandler, flow: flowHandler }}
+            handlers={{ api: apiHandler, flow: flowHandler, script: serverActionHandler, modal: serverActionHandler }}
           >
             <DetailView
               key={actionRefreshKey}

@@ -302,14 +302,22 @@ export class ActionRunner {
 
       // Param collection: if the action defines ActionParam[] to collect,
       // show a dialog to gather user input before executing.
-      if (action.actionParams && Array.isArray(action.actionParams) && action.actionParams.length > 0) {
+      // Spec defines this as `params: ActionParam[]`; ActionRunner historically
+      // used `actionParams` to disambiguate from the static-params object that
+      // some custom handlers consume. Accept both — when `params` is an array,
+      // treat it as the input-collection definition.
+      const paramDefs: ActionParamDef[] | undefined =
+        action.actionParams && Array.isArray(action.actionParams) ? action.actionParams
+          : (Array.isArray(action.params) ? (action.params as unknown as ActionParamDef[]) : undefined);
+      if (paramDefs && paramDefs.length > 0) {
         if (this.paramCollectionHandler) {
-          const collected = await this.paramCollectionHandler(action.actionParams);
+          const collected = await this.paramCollectionHandler(paramDefs);
           if (collected === null) {
             return { success: false, error: 'Action cancelled by user (params)' };
           }
-          // Merge collected params into action.params
-          action.params = { ...(action.params || {}), ...collected };
+          // Merge collected params into action.params as a values map for downstream consumers.
+          // (Replace the array form with a values object once collected.)
+          action.params = { ...(Array.isArray(action.params) ? {} : (action.params || {})), ...collected };
         }
       }
 
