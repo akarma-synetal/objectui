@@ -1,5 +1,25 @@
 # @object-ui/components
 
+## 3.3.1
+
+### Patch Changes
+
+- b429568: chore(examples): relocate console templates under `examples/`
+
+  The fork-ready ObjectStack console template moved from `apps/console-starter`
+  to `examples/console-starter`, so `apps/` only contains real deployable
+  products (`console`, `site`). The third-party integration demo
+  `examples/minimal-console` was renamed to `examples/byo-backend-console`
+  to make its "bring-your-own backend" purpose explicit and to remove the
+  naming collision with the starter template. Source comments and READMEs in
+  `@object-ui/app-shell` and `@object-ui/components` have been updated to
+  point at the new paths; no runtime behaviour changed. A new
+  `examples/README.md` provides a "which example should I use?" selector.
+  - @object-ui/types@3.3.1
+  - @object-ui/core@3.3.1
+  - @object-ui/i18n@3.3.1
+  - @object-ui/react@3.3.1
+
 ## 3.3.0
 
 ### Patch Changes
