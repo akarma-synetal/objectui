@@ -11,7 +11,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { DetailView, RecordChatterPanel } from '@object-ui/plugin-detail';
 import { Empty, EmptyTitle, EmptyDescription } from '@object-ui/components';
 import { PresenceAvatars, type PresenceUser } from '@object-ui/collaboration';
-import { useAuth } from '@object-ui/auth';
+import { useAuth, createAuthenticatedFetch } from '@object-ui/auth';
 import { ActionProvider, useObjectTranslation } from '@object-ui/react';
 import { toast } from 'sonner';
 import { Database, Users } from 'lucide-react';
@@ -120,6 +120,48 @@ export function RecordDetailView({ dataSource, objects, onEdit }: RecordDetailVi
       return { success: false, error: (error as Error).message };
     }
   }, [dataSource, objectName, pureRecordId]);
+
+  // Authenticated fetch for direct backend calls (e.g. flow trigger).
+  const authFetch = useMemo(() => createAuthenticatedFetch(), []);
+
+  // Flow action handler — POST to /api/v1/automation/{name}/trigger.
+  // Triggered when an Action with `type: 'flow'` is invoked from a record-level
+  // location (record_header, record_more, …). The server-side automation
+  // engine resolves `{name}` against the registered flow definitions and
+  // returns `{success, output, durationMs}`.
+  const flowHandler = useCallback(async (action: ActionDef) => {
+    const flowName = action.target || action.name;
+    if (!flowName) {
+      return { success: false, error: 'No flow target provided for flow action' };
+    }
+    try {
+      const baseUrl = import.meta.env.VITE_SERVER_URL || '';
+      const res = await authFetch(
+        `${baseUrl}/api/v1/automation/${encodeURIComponent(flowName)}/trigger`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            recordId: pureRecordId,
+            objectName,
+            params: action.params ?? {},
+          }),
+        },
+      );
+      const json = await res.json().catch(() => null);
+      if (!res.ok || (json && json.success === false)) {
+        const errMsg = json?.error || `Flow "${flowName}" failed (HTTP ${res.status})`;
+        return { success: false, error: errMsg };
+      }
+      const shouldRefresh = action.refreshAfter !== false;
+      if (shouldRefresh) {
+        setActionRefreshKey(k => k + 1);
+      }
+      return { success: true, data: json?.data, reload: shouldRefresh };
+    } catch (error) {
+      return { success: false, error: (error as Error).message };
+    }
+  }, [authFetch, pureRecordId, objectName]);
 
   // Discover reverse references: other objects with lookup/master_detail fields
   // pointing to the current object (e.g., order_item.order → order).
@@ -480,7 +522,7 @@ export function RecordDetailView({ dataSource, objects, onEdit }: RecordDetailVi
             onToast={toastHandler}
             onNavigate={navigateHandler}
             onParamCollection={paramCollectionHandler}
-            handlers={{ api: apiHandler }}
+            handlers={{ api: apiHandler, flow: flowHandler }}
           >
             <DetailView
               key={actionRefreshKey}

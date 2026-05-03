@@ -12,7 +12,7 @@ import { mockDataSource } from './mockDataSource';
 
 function App() {
   return (
-    <ThemeProvider defaultTheme="light" storageKey="minimal-console-theme">
+    <ThemeProvider defaultTheme="light" storageKey="byo-backend-console-theme">
       <DataSourceProvider dataSource={mockDataSource}>
         <BrowserRouter>
           <AppShell sidebar={<Sidebar />}>

@@ -168,7 +168,7 @@ Third-Party App
 
 ## Examples
 
-See `examples/minimal-console` for a complete working example that demonstrates:
+See `examples/byo-backend-console` for a complete working example that demonstrates:
 - Custom routing with React Router
 - Custom data adapter (not ObjectStack)
 - Custom authentication

@@ -24,7 +24,7 @@
 // `@object-ui/auth`, etc.
 //
 // Apps must own the single Tailwind entrypoint and `@source`-scan every
-// workspace package they consume (see `apps/console-starter/src/index.css`).
+// workspace package they consume (see `examples/console-starter/src/index.css`).
 //
 // We DO import `sidebar-fixes.css` below: it contains plain CSS overrides
 // (no Tailwind directives) for shadcn sidebar utility classes that Tailwind

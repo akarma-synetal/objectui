@@ -42,9 +42,9 @@ This implementation completed **Phase 1** of the console streamlining project, e
 - Fully typed with TypeScript
 - Minimal dependencies
 
-### 3. examples/minimal-console
+### 3. examples/byo-backend-console
 
-**Location**: `examples/minimal-console/`
+**Location**: `examples/byo-backend-console/`
 
 **Purpose**: Proof-of-concept demonstrating third-party integration
 
@@ -80,7 +80,7 @@ This implementation completed **Phase 1** of the console streamlining project, e
 Each new package has comprehensive documentation:
 - `packages/app-shell/README.md` - Component API, examples, comparison with full console
 - `packages/providers/README.md` - Provider usage and examples
-- `examples/minimal-console/README.md` - Complete walkthrough and customization guide
+- `examples/byo-backend-console/README.md` - Complete walkthrough and customization guide
 
 ### 3. Updated Main README
 
@@ -159,7 +159,7 @@ Third-Party App
 ### Package Breakdown
 - `@object-ui/app-shell`: 7 source files, ~350 lines
 - `@object-ui/providers`: 5 source files, ~200 lines
-- `examples/minimal-console`: 10 source files, ~300 lines
+- `examples/byo-backend-console`: 10 source files, ~300 lines
 - Documentation: 4 files, ~1,000 lines
 
 ## What Works
@@ -191,7 +191,7 @@ Third-Party App
 - Build all new packages with TypeScript
 - Add unit tests for providers
 - Add integration tests for app-shell
-- Create E2E tests for minimal-console
+- Create E2E tests for byo-backend-console
 - Add to Turbo build pipeline
 
 ### Phase 5: Package Publishing
@@ -231,7 +231,7 @@ Third-Party App
 - `packages/providers/` (complete package)
 
 **New Example**:
-- `examples/minimal-console/` (complete example)
+- `examples/byo-backend-console/` (complete example)
 
 **Documentation**:
 - `docs/ARCHITECTURE.md` (new)

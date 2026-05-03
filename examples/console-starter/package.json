@@ -1,9 +1,9 @@
 {
-  "name": "@object-ui/console-starter",
+  "name": "@object-ui/example-console-starter",
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Minimal third-party console template built on createConsole() — fork this and customise.",
+  "description": "Opinionated, fork-ready console template built on @object-ui/app-shell with the full plugin set wired up.",
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",

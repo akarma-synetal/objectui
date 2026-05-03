@@ -131,7 +131,7 @@ Third-Party App
 
 1. Create `@object-ui/app-shell`
 2. Create `@object-ui/providers`
-3. Create `examples/minimal-console`
+3. Create `examples/byo-backend-console`
 4. No breaking changes to console
 
 ### Phase 2: Extract More Components (Future)
@@ -249,13 +249,13 @@ const myDataSource = {
 
 ### Integration Tests
 
-- Test minimal-console example end-to-end
+- Test byo-backend-console example end-to-end
 - Verify custom data source integration
 - Test routing scenarios
 
 ### E2E Tests
 
-- Separate E2E tests for minimal-console
+- Separate E2E tests for byo-backend-console
 - Verify it works independently of full console
 
 ## Documentation
@@ -270,7 +270,7 @@ Each package has comprehensive documentation:
 
 ### Examples
 
-- `examples/minimal-console` - Basic integration (~100 lines)
+- `examples/byo-backend-console` - Basic integration (~100 lines)
 - `examples/nextjs-console` - Next.js integration (TODO)
 - `examples/embedded-widget` - Embedded usage (TODO)
 

@@ -343,91 +343,6 @@ importers:
         specifier: ^4.1.5
         version: 4.1.5(@opentelemetry/api@1.9.0)(@types/node@25.6.0)(@vitest/coverage-v8@4.1.5)(@vitest/ui@4.1.5)(happy-dom@20.9.0)(jsdom@29.1.0(@noble/hashes@2.2.0))(msw@2.13.6(@types/node@25.6.0)(typescript@6.0.3))(vite@8.0.9(@types/node@25.6.0)(esbuild@0.28.0)(jiti@2.6.1)(tsx@4.21.0)(yaml@2.8.3))
 
-  apps/console-starter:
-    dependencies:
-      '@object-ui/app-shell':
-        specifier: workspace:*
-        version: link:../../packages/app-shell
-      '@object-ui/auth':
-        specifier: workspace:*
-        version: link:../../packages/auth
-      '@object-ui/components':
-        specifier: workspace:*
-        version: link:../../packages/components
-      '@object-ui/i18n':
-        specifier: workspace:*
-        version: link:../../packages/i18n
-      '@object-ui/plugin-calendar':
-        specifier: workspace:*
-        version: link:../../packages/plugin-calendar
-      '@object-ui/plugin-charts':
-        specifier: workspace:*
-        version: link:../../packages/plugin-charts
-      '@object-ui/plugin-chatbot':
-        specifier: workspace:*
-        version: link:../../packages/plugin-chatbot
-      '@object-ui/plugin-dashboard':
-        specifier: workspace:*
-        version: link:../../packages/plugin-dashboard
-      '@object-ui/plugin-designer':
-        specifier: workspace:*
-        version: link:../../packages/plugin-designer
-      '@object-ui/plugin-detail':
-        specifier: workspace:*
-        version: link:../../packages/plugin-detail
-      '@object-ui/plugin-form':
-        specifier: workspace:*
-        version: link:../../packages/plugin-form
-      '@object-ui/plugin-grid':
-        specifier: workspace:*
-        version: link:../../packages/plugin-grid
-      '@object-ui/plugin-kanban':
-        specifier: workspace:*
-        version: link:../../packages/plugin-kanban
-      '@object-ui/plugin-list':
-        specifier: workspace:*
-        version: link:../../packages/plugin-list
-      '@object-ui/plugin-report':
-        specifier: workspace:*
-        version: link:../../packages/plugin-report
-      '@object-ui/plugin-view':
-        specifier: workspace:*
-        version: link:../../packages/plugin-view
-      react:
-        specifier: 19.2.5
-        version: 19.2.5
-      react-dom:
-        specifier: 19.2.5
-        version: 19.2.5(react@19.2.5)
-      react-router-dom:
-        specifier: ^7.14.2
-        version: 7.14.2(react-dom@19.2.5(react@19.2.5))(react@19.2.5)
-      sonner:
-        specifier: ^2.0.7
-        version: 2.0.7(react-dom@19.2.5(react@19.2.5))(react@19.2.5)
-    devDependencies:
-      '@tailwindcss/postcss':
-        specifier: ^4.2.4
-        version: 4.2.4
-      '@types/react':
-        specifier: 19.2.14
-        version: 19.2.14
-      '@types/react-dom':
-        specifier: 19.2.3
-        version: 19.2.3(@types/react@19.2.14)
-      '@vitejs/plugin-react':
-        specifier: ^6.0.1
-        version: 6.0.1(vite@8.0.9(@types/node@25.6.0)(esbuild@0.28.0)(jiti@2.6.1)(tsx@4.21.0)(yaml@2.8.3))
-      tailwindcss:
-        specifier: ^4.2.4
-        version: 4.2.4
-      typescript:
-        specifier: ^6.0.3
-        version: 6.0.3
-      vite:
-        specifier: ^8.0.9
-        version: 8.0.9(@types/node@25.6.0)(esbuild@0.28.0)(jiti@2.6.1)(tsx@4.21.0)(yaml@2.8.3)
-
   apps/site:
     dependencies:
       '@monaco-editor/react':
@@ -549,25 +464,7 @@ importers:
         specifier: ^6.0.3
         version: 6.0.3
 
-  examples/hello-world:
-    dependencies:
-      '@object-ui/components':
-        specifier: workspace:*
-        version: link:../../packages/components
-      '@object-ui/core':
-        specifier: workspace:*
-        version: link:../../packages/core
-      '@object-ui/react':
-        specifier: workspace:*
-        version: link:../../packages/react
-      react:
-        specifier: 19.2.5
-        version: 19.2.5
-      react-dom:
-        specifier: 19.2.5
-        version: 19.2.5(react@19.2.5)
-
-  examples/minimal-console:
+  examples/byo-backend-console:
     dependencies:
       '@object-ui/app-shell':
         specifier: workspace:*
@@ -621,6 +518,109 @@ importers:
       vite:
         specifier: ^8.0.9
         version: 8.0.9(@types/node@25.6.0)(esbuild@0.28.0)(jiti@2.6.1)(tsx@4.21.0)(yaml@2.8.3)
+
+  examples/console-starter:
+    dependencies:
+      '@object-ui/app-shell':
+        specifier: workspace:*
+        version: link:../../packages/app-shell
+      '@object-ui/auth':
+        specifier: workspace:*
+        version: link:../../packages/auth
+      '@object-ui/components':
+        specifier: workspace:*
+        version: link:../../packages/components
+      '@object-ui/i18n':
+        specifier: workspace:*
+        version: link:../../packages/i18n
+      '@object-ui/plugin-calendar':
+        specifier: workspace:*
+        version: link:../../packages/plugin-calendar
+      '@object-ui/plugin-charts':
+        specifier: workspace:*
+        version: link:../../packages/plugin-charts
+      '@object-ui/plugin-chatbot':
+        specifier: workspace:*
+        version: link:../../packages/plugin-chatbot
+      '@object-ui/plugin-dashboard':
+        specifier: workspace:*
+        version: link:../../packages/plugin-dashboard
+      '@object-ui/plugin-designer':
+        specifier: workspace:*
+        version: link:../../packages/plugin-designer
+      '@object-ui/plugin-detail':
+        specifier: workspace:*
+        version: link:../../packages/plugin-detail
+      '@object-ui/plugin-form':
+        specifier: workspace:*
+        version: link:../../packages/plugin-form
+      '@object-ui/plugin-grid':
+        specifier: workspace:*
+        version: link:../../packages/plugin-grid
+      '@object-ui/plugin-kanban':
+        specifier: workspace:*
+        version: link:../../packages/plugin-kanban
+      '@object-ui/plugin-list':
+        specifier: workspace:*
+        version: link:../../packages/plugin-list
+      '@object-ui/plugin-report':
+        specifier: workspace:*
+        version: link:../../packages/plugin-report
+      '@object-ui/plugin-view':
+        specifier: workspace:*
+        version: link:../../packages/plugin-view
+      react:
+        specifier: 19.2.5
+        version: 19.2.5
+      react-dom:
+        specifier: 19.2.5
+        version: 19.2.5(react@19.2.5)
+      react-router-dom:
+        specifier: ^7.14.2
+        version: 7.14.2(react-dom@19.2.5(react@19.2.5))(react@19.2.5)
+      sonner:
+        specifier: ^2.0.7
+        version: 2.0.7(react-dom@19.2.5(react@19.2.5))(react@19.2.5)
+    devDependencies:
+      '@tailwindcss/postcss':
+        specifier: ^4.2.4
+        version: 4.2.4
+      '@types/react':
+        specifier: 19.2.14
+        version: 19.2.14
+      '@types/react-dom':
+        specifier: 19.2.3
+        version: 19.2.3(@types/react@19.2.14)
+      '@vitejs/plugin-react':
+        specifier: ^6.0.1
+        version: 6.0.1(vite@8.0.9(@types/node@25.6.0)(esbuild@0.28.0)(jiti@2.6.1)(tsx@4.21.0)(yaml@2.8.3))
+      tailwindcss:
+        specifier: ^4.2.4
+        version: 4.2.4
+      typescript:
+        specifier: ^6.0.3
+        version: 6.0.3
+      vite:
+        specifier: ^8.0.9
+        version: 8.0.9(@types/node@25.6.0)(esbuild@0.28.0)(jiti@2.6.1)(tsx@4.21.0)(yaml@2.8.3)
+
+  examples/hello-world:
+    dependencies:
+      '@object-ui/components':
+        specifier: workspace:*
+        version: link:../../packages/components
+      '@object-ui/core':
+        specifier: workspace:*
+        version: link:../../packages/core
+      '@object-ui/react':
+        specifier: workspace:*
+        version: link:../../packages/react
+      react:
+        specifier: 19.2.5
+        version: 19.2.5
+      react-dom:
+        specifier: 19.2.5
+        version: 19.2.5(react@19.2.5)
 
   packages/app-shell:
     dependencies:

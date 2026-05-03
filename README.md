@@ -81,12 +81,12 @@ Since this package is not yet published to NPM, here is how to play with the sou
     # Opens http://localhost:5173
     ```
 
-3.  **Try the Minimal Console Example** (New!)
+3.  **Try the BYO-Backend Console Example** (New!)
 
     See how to integrate ObjectUI in your own app:
 
     ```bash
-    cd examples/minimal-console
+    cd examples/byo-backend-console
     pnpm dev
     # Opens http://localhost:5174
     ```
@@ -103,7 +103,8 @@ ObjectStack examples that demonstrate different features and use cases:
 - **[examples/todo](examples/todo)** - Simple task management app demonstrating basic ObjectStack configuration and field types.
 - **[examples/kitchen-sink](examples/kitchen-sink)** - Comprehensive component catalog showing all available field types, dashboard widgets, and view types.
 - **[examples/msw-todo](examples/msw-todo)** - Frontend-first development example using MSW (Mock Service Worker) to run ObjectStack in the browser.
-- **[examples/minimal-console](examples/minimal-console)** ⭐ **NEW!** - Minimal custom console in ~100 lines showing third-party integration without full console infrastructure. Uses `@object-ui/app-shell` and `@object-ui/providers` with custom routing and mock API.
+- **[examples/byo-backend-console](examples/byo-backend-console)** ⭐ - Minimal custom console in ~100 lines showing third-party integration without full console infrastructure. Uses `@object-ui/app-shell` and `@object-ui/providers` with custom routing and a mock REST adapter (BYO backend).
+- **[examples/console-starter](examples/console-starter)** - Opinionated, fork-ready console template with the full plugin set (grid, kanban, dashboard, designer, charts, …) wired up against an ObjectStack backend. Use this as the starting point when you want a complete console rather than a minimal integration.
 
 ### Running Examples as API Servers
 
@@ -167,7 +168,7 @@ function MyConsole() {
 - 🎨 **Full Control**: Custom routing, auth, layouts
 - 📦 **Cherry-pick**: Use only what you need
 
-See [examples/minimal-console](examples/minimal-console) for a complete working example.
+See [examples/byo-backend-console](examples/byo-backend-console) for a complete working example, or [examples/console-starter](examples/console-starter) if you want the full ObjectStack-bound console as a fork-ready template.
 
 ### 🎨 **Beautiful by Default**
 - Professional designs using **Tailwind CSS** and **Shadcn/UI**

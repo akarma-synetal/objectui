@@ -53,7 +53,7 @@ pnpm changeset publish         # Publish to npm (CI only)
 | `apps/console` | Full ObjectUI console app (Vite + React) |
 | `apps/site` | Public docs site at <https://www.objectui.org> (fumadocs) |
 | `apps/server` | Vercel backend for `demo.objectstack.ai` |
-| `examples/*` | Runnable integration examples (CRM, todo, minimal-console, …) |
+| `examples/*` | Runnable integration examples (CRM, todo, byo-backend-console, console-starter, …) |
 | `content/docs/` | MDX source for the docs site |
 | `e2e/` | Playwright end-to-end tests |
 | `.changeset/` | Pending release notes |

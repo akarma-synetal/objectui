@@ -33,7 +33,7 @@ pnpm install
 pnpm build
 
 # Run the example
-cd examples/minimal-console
+cd examples/byo-backend-console
 pnpm dev
 
 # Open http://localhost:5174
