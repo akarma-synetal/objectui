@@ -29,7 +29,7 @@ import { ViewConfigPanel } from './ViewConfigPanel';
 import { useObjectActions } from '../hooks/useObjectActions';
 import { useObjectTranslation, useObjectLabel } from '@object-ui/i18n';
 import { usePermissions } from '@object-ui/permissions';
-import { useAuth } from '@object-ui/auth';
+import { useAuth, createAuthenticatedFetch } from '@object-ui/auth';
 import { useRealtimeSubscription, useConflictResolution } from '@object-ui/collaboration';
 import { ActionProvider, useNavigationOverlay, SchemaRenderer } from '@object-ui/react';
 import { toast } from 'sonner';
@@ -472,6 +472,48 @@ export function ObjectView({ dataSource, objects, onEdit }: any) {
         }
     }, [dataSource, objectDef.name]);
 
+    // Authenticated fetch for direct backend calls (e.g. flow trigger).
+    const authFetch = useMemo(() => createAuthenticatedFetch(), []);
+
+    // Flow action handler — POST to /api/v1/automation/{name}/trigger.
+    // Triggered when an Action with `type: 'flow'` is invoked from list-level
+    // locations (list_toolbar, list_item). For list_item the row's recordId is
+    // expected in `action.params.recordId`.
+    const flowHandler = useCallback(async (action: ActionDef) => {
+        const flowName = action.target || action.name;
+        if (!flowName) {
+            return { success: false, error: 'No flow target provided for flow action' };
+        }
+        try {
+            const baseUrl = import.meta.env.VITE_SERVER_URL || '';
+            const params = action.params || {};
+            const res = await authFetch(
+                `${baseUrl}/api/v1/automation/${encodeURIComponent(flowName)}/trigger`,
+                {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        recordId: params.recordId,
+                        objectName: objectDef.name,
+                        params,
+                    }),
+                },
+            );
+            const json = await res.json().catch(() => null);
+            if (!res.ok || (json && json.success === false)) {
+                const errMsg = json?.error || `Flow "${flowName}" failed (HTTP ${res.status})`;
+                return { success: false, error: errMsg };
+            }
+            const shouldRefresh = action.refreshAfter !== false;
+            if (shouldRefresh) {
+                setRefreshKey(k => k + 1);
+            }
+            return { success: true, data: json?.data, reload: shouldRefresh };
+        } catch (error) {
+            return { success: false, error: (error as Error).message };
+        }
+    }, [authFetch, objectDef.name]);
+
     // Real-time: auto-refresh when server reports data changes
     const { lastMessage: realtimeMessage } = useRealtimeSubscription({
         channel: `object:${objectDef.name}`,
@@ -772,7 +814,7 @@ export function ObjectView({ dataSource, objects, onEdit }: any) {
             onToast={toastHandler}
             onNavigate={navigateHandler}
             onParamCollection={paramCollectionHandler}
-            handlers={{ api: apiHandler }}
+            handlers={{ api: apiHandler, flow: flowHandler }}
         >
         <div className="h-full flex flex-col bg-background min-w-0 overflow-hidden">
              {/* 1. Header with breadcrumb + description */}
