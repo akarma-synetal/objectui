@@ -75,6 +75,7 @@ vi.mock('react-router-dom', () => ({
 // Mock auth — default admin so Create button is visible
 vi.mock('@object-ui/auth', () => ({
     useAuth: () => ({ user: { id: 'u1', name: 'Admin', role: 'admin' } }),
+    createAuthenticatedFetch: () => (input: RequestInfo | URL, init?: RequestInit) => fetch(input as any, init),
 }));
 
 // ─── Test Data ───────────────────────────────────────────────────────────────

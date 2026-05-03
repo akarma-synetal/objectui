@@ -108,6 +108,7 @@ vi.mock('react-router-dom', () => ({
 let mockAuthUser: { id: string; name: string; role: string } | null = null;
 vi.mock('@object-ui/auth', () => ({
     useAuth: () => ({ user: mockAuthUser }),
+    createAuthenticatedFetch: () => (input: RequestInfo | URL, init?: RequestInit) => fetch(input as any, init),
 }));
 
 describe('ObjectView Component', () => {

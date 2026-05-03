@@ -89,7 +89,7 @@ jobs:
       - name: Build Core & Console
         run: |
           pnpm turbo run build --filter='./packages/*'
-          pnpm --filter @object-ui/console build:e2e
+          pnpm --filter @object-ui/console build
 
       - name: Check for build artifacts
         run: |
