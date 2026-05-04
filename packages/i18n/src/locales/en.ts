@@ -586,6 +586,16 @@ const en = {
       loadingConfig: 'Loading configuration',
       preparingWorkspace: 'Preparing workspace',
     },
+    error: {
+      connectionFailed: 'Cannot connect to server',
+      serverUnreachable: 'The server at {{url}} is unreachable.',
+      checkServer: 'Please check your network connection or that the backend is running.',
+      timeout: 'Connection timed out after 10 seconds.',
+    },
+    actions: {
+      retry: 'Retry',
+      retrying: 'Retrying…',
+    },
     shortcuts: {
       title: 'Keyboard Shortcuts',
       description: 'Quick reference for all available keyboard shortcuts.',

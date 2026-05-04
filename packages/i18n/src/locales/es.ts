@@ -538,6 +538,16 @@ const es = {
       loadingConfig: 'Cargando configuración',
       preparingWorkspace: 'Preparando espacio de trabajo',
     },
+    error: {
+      connectionFailed: 'No se puede conectar al servidor',
+      serverUnreachable: 'El servidor {{url}} no está accesible.',
+      checkServer: 'Compruebe su conexión de red o que el backend esté en ejecución.',
+      timeout: 'Tiempo de conexión agotado tras 10 segundos.',
+    },
+    actions: {
+      retry: 'Reintentar',
+      retrying: 'Reintentando…',
+    },
     shortcuts: {
       title: 'Atajos de teclado',
       description: 'Referencia rápida de todos los atajos de teclado disponibles.',

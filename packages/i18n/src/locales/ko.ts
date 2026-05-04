@@ -538,6 +538,16 @@ const ko = {
       loadingConfig: '설정 로드 중',
       preparingWorkspace: '워크스페이스 준비 중',
     },
+    error: {
+      connectionFailed: '서버에 연결할 수 없습니다',
+      serverUnreachable: '서버 {{url}}에 연결할 수 없습니다.',
+      checkServer: '네트워크 연결을 확인하거나 백엔드가 실행 중인지 확인하세요.',
+      timeout: '연결 시간이 초과되었습니다 (10초).',
+    },
+    actions: {
+      retry: '재시도',
+      retrying: '재시도 중…',
+    },
     shortcuts: {
       title: '키보드 단축키',
       description: '사용 가능한 모든 키보드 단축키 빠른 참조.',

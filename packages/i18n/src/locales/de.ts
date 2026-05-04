@@ -547,6 +547,16 @@ const de = {
       loadingConfig: 'Konfiguration laden',
       preparingWorkspace: 'Arbeitsbereich vorbereiten',
     },
+    error: {
+      connectionFailed: 'Verbindung zum Server nicht möglich',
+      serverUnreachable: 'Der Server {{url}} ist nicht erreichbar.',
+      checkServer: 'Bitte prüfen Sie Ihre Netzwerkverbindung oder ob das Backend läuft.',
+      timeout: 'Zeitüberschreitung der Verbindung nach 10 Sekunden.',
+    },
+    actions: {
+      retry: 'Erneut versuchen',
+      retrying: 'Wird wiederholt…',
+    },
     shortcuts: {
       title: 'Tastenkürzel',
       description: 'Kurzreferenz für alle verfügbaren Tastenkürzel.',

@@ -1,12 +1,12 @@
 /**
  * ObjectUI Console - Conditional Auth Wrapper
- * 
+ *
  * This component fetches discovery information from the server and conditionally
  * enables/disables authentication based on the server's auth service status.
  * Also detects preview mode from the server and configures the auth provider accordingly.
  */
 
-import { useState, useEffect, ReactNode } from 'react';
+import { useState, useEffect, useCallback, ReactNode } from 'react';
 import { getSharedDiscovery } from '@object-ui/data-objectstack';
 import { AuthProvider } from '@object-ui/auth';
 import type { PreviewModeOptions } from '@object-ui/auth';
@@ -18,86 +18,115 @@ interface ConditionalAuthWrapperProps {
   authUrl: string;
 }
 
+const DISCOVERY_TIMEOUT_MS = 10_000;
+
+// Bootstrap-critical UI: must render before i18n is loaded (especially when the
+// server is unreachable, which is also when i18n can't load translations).
+// We deliberately do NOT use useObjectTranslation here — it suspends on first
+// render and would prevent the discovery fetch from ever running.
+const STRINGS = {
+  timeout: 'Connection timed out after 10 seconds.',
+  serverUnreachable: (url: string) => `The server at ${url} is unreachable.`,
+};
+
 /**
  * Wrapper component that conditionally enables authentication based on server discovery.
- * 
- * This component:
- * 1. Creates a temporary data source connection
- * 2. Fetches discovery information from the server
- * 3. Checks if auth.enabled is true in the discovery response
- * 4. Detects preview mode from discovery (mode === 'preview')
- * 5. Conditionally wraps children with AuthProvider with the appropriate config
+ *
+ * On startup it:
+ * 1. Calls `/api/v1/discovery` (with a 10s AbortController timeout)
+ * 2. Detects preview mode + auth.enabled from the response
+ * 3. On failure, shows the LoadingScreen in error mode with a Retry button
+ *    (no silent fallback to "auth enabled" — the user is told the server is unreachable)
  */
 export function ConditionalAuthWrapper({ children, authUrl }: ConditionalAuthWrapperProps) {
   const [authEnabled, setAuthEnabled] = useState<boolean | null>(null);
   const [previewMode, setPreviewMode] = useState<PreviewModeOptions | undefined>(undefined);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [retrying, setRetrying] = useState(false);
 
-  useEffect(() => {
-    let cancelled = false;
+  const runDiscovery = useCallback(async (isRetry = false) => {
+    if (isRetry) setRetrying(true);
+    setError(null);
 
-    async function checkAuthStatus() {
-      try {
-        // Fetch discovery via the shared cache. AdapterProvider also calls
-        // ObjectStackAdapter.connect() which triggers discovery for the same
-        // baseUrl; the shared cache collapses both to a single round trip.
-        const baseUrl = (import.meta.env.VITE_SERVER_URL as string | undefined) || '';
-        const discoveryUrl = baseUrl
-          ? `${baseUrl.replace(/\/$/, '')}/api/v1/discovery`
-          : '/api/v1/discovery';
-        const discovery = (await getSharedDiscovery(baseUrl, async () => {
-          const res = await fetch(discoveryUrl, { credentials: 'include' });
-          if (!res.ok) throw new Error(`discovery ${res.status}`);
+    const baseUrl = (import.meta.env.VITE_SERVER_URL as string | undefined) || '';
+    const discoveryUrl = baseUrl
+      ? `${baseUrl.replace(/\/$/, '')}/api/v1/discovery`
+      : '/api/v1/discovery';
+
+    try {
+      const discovery = (await getSharedDiscovery(baseUrl, async () => {
+        const ctrl = new AbortController();
+        const timeoutId = setTimeout(() => ctrl.abort(), DISCOVERY_TIMEOUT_MS);
+        try {
+          const res = await fetch(discoveryUrl, {
+            credentials: 'include',
+            signal: ctrl.signal,
+          });
+          if (!res.ok) {
+            throw new Error(`HTTP ${res.status}`);
+          }
           const body = await res.json();
-          // Unwrap { success, data } envelope if present.
           if (body && typeof body.success === 'boolean' && 'data' in body) {
             return body.data;
           }
           return body;
-        })) as DiscoveryInfo | null;
-
-        if (!cancelled) {
-          // Detect preview mode from discovery
-          if (discovery?.mode === 'preview') {
-            setPreviewMode({
-              autoLogin: discovery.previewMode?.autoLogin ?? true,
-              simulatedRole: discovery.previewMode?.simulatedRole ?? 'admin',
-              simulatedUserName: discovery.previewMode?.simulatedUserName ?? 'Preview User',
-              readOnly: discovery.previewMode?.readOnly ?? false,
-              expiresInSeconds: discovery.previewMode?.expiresInSeconds ?? 0,
-              bannerMessage: discovery.previewMode?.bannerMessage,
-            });
-            // In preview mode, auth is effectively bypassed
-            setAuthEnabled(false);
-          } else {
-            // Check if auth is enabled in discovery
-            // Default to true if discovery doesn't provide this information
-            const isAuthEnabled = discovery?.services?.auth?.enabled ?? true;
-            setAuthEnabled(isAuthEnabled);
+        } catch (e) {
+          if ((e as Error).name === 'AbortError') {
+            throw new Error('timeout');
           }
+          throw e;
+        } finally {
+          clearTimeout(timeoutId);
         }
-      } catch (error) {
-        if (!cancelled) {
-          // If discovery fails, default to auth enabled for security
-          console.warn('[ConditionalAuthWrapper] Failed to fetch discovery, defaulting to auth enabled:', error);
-          setAuthEnabled(true);
-        }
-      } finally {
-        if (!cancelled) {
-          setIsLoading(false);
-        }
+      })) as DiscoveryInfo | null;
+
+      if (discovery?.mode === 'preview') {
+        setPreviewMode({
+          autoLogin: discovery.previewMode?.autoLogin ?? true,
+          simulatedRole: discovery.previewMode?.simulatedRole ?? 'admin',
+          simulatedUserName: discovery.previewMode?.simulatedUserName ?? 'Preview User',
+          readOnly: discovery.previewMode?.readOnly ?? false,
+          expiresInSeconds: discovery.previewMode?.expiresInSeconds ?? 0,
+          bannerMessage: discovery.previewMode?.bannerMessage,
+        });
+        setAuthEnabled(false);
+      } else {
+        const isAuthEnabled = discovery?.services?.auth?.enabled ?? true;
+        setAuthEnabled(isAuthEnabled);
       }
+      setIsLoading(false);
+    } catch (e) {
+      const err = e as Error;
+      let message: string;
+      if (err.message === 'timeout') {
+        message = STRINGS.timeout;
+      } else if (err.message?.startsWith('HTTP ')) {
+        message = `${STRINGS.serverUnreachable(discoveryUrl)} (${err.message})`;
+      } else {
+        message = `${STRINGS.serverUnreachable(discoveryUrl)}${err.message ? ` (${err.message})` : ''}`;
+      }
+      console.warn('[ConditionalAuthWrapper] Discovery failed:', err);
+      setError(message);
+      // Keep isLoading true so the splash stays mounted with the error UI.
+      setIsLoading(true);
+    } finally {
+      setRetrying(false);
     }
-
-    checkAuthStatus();
-
-    return () => {
-      cancelled = true;
-    };
   }, []);
 
+  useEffect(() => {
+    runDiscovery();
+  }, [runDiscovery]);
+
   if (isLoading) {
-    return <LoadingScreen />;
+    return (
+      <LoadingScreen
+        error={error}
+        onRetry={error ? () => runDiscovery(true) : undefined}
+        retrying={retrying}
+      />
+    );
   }
 
   // If in preview mode, wrap with a preview-configured AuthProvider

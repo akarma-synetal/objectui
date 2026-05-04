@@ -538,6 +538,16 @@ const pt = {
       loadingConfig: 'Carregando configuração',
       preparingWorkspace: 'Preparando espaço de trabalho',
     },
+    error: {
+      connectionFailed: 'Não é possível conectar ao servidor',
+      serverUnreachable: 'O servidor {{url}} está inacessível.',
+      checkServer: 'Verifique sua conexão de rede ou se o backend está em execução.',
+      timeout: 'Tempo limite de conexão esgotado após 10 segundos.',
+    },
+    actions: {
+      retry: 'Tentar novamente',
+      retrying: 'Tentando novamente…',
+    },
     shortcuts: {
       title: 'Atalhos de teclado',
       description: 'Referência rápida de todos os atalhos de teclado disponíveis.',

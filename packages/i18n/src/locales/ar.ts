@@ -539,6 +539,16 @@ const ar = {
       loadingConfig: 'جاري تحميل الإعدادات',
       preparingWorkspace: 'جاري تجهيز مساحة العمل',
     },
+    error: {
+      connectionFailed: 'تعذّر الاتصال بالخادم',
+      serverUnreachable: 'الخادم {{url}} غير قابل للوصول.',
+      checkServer: 'يرجى التحقق من اتصال الشبكة أو من تشغيل الواجهة الخلفية.',
+      timeout: 'انتهت مهلة الاتصال بعد 10 ثوانٍ.',
+    },
+    actions: {
+      retry: 'إعادة المحاولة',
+      retrying: 'جاري إعادة المحاولة…',
+    },
     shortcuts: {
       title: 'اختصارات لوحة المفاتيح',
       description: 'مرجع سريع لجميع اختصارات لوحة المفاتيح المتاحة.',

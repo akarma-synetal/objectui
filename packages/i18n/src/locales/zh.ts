@@ -586,6 +586,16 @@ const zh = {
       loadingConfig: '正在加载配置',
       preparingWorkspace: '正在准备工作区',
     },
+    error: {
+      connectionFailed: '无法连接到服务器',
+      serverUnreachable: '无法访问服务器 {{url}}。',
+      checkServer: '请检查网络连接，或确认后端服务正在运行。',
+      timeout: '连接超时（10 秒）。',
+    },
+    actions: {
+      retry: '重试',
+      retrying: '正在重试…',
+    },
     shortcuts: {
       title: '键盘快捷键',
       description: '所有可用键盘快捷键的快速参考。',

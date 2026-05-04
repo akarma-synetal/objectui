@@ -549,6 +549,16 @@ const ja = {
       loadingConfig: '設定を読み込み中',
       preparingWorkspace: 'ワークスペースを準備中',
     },
+    error: {
+      connectionFailed: 'サーバーに接続できません',
+      serverUnreachable: 'サーバー {{url}} に接続できません。',
+      checkServer: 'ネットワーク接続、またはバックエンドが稼働していることを確認してください。',
+      timeout: '接続がタイムアウトしました（10秒）。',
+    },
+    actions: {
+      retry: '再試行',
+      retrying: '再試行中…',
+    },
     shortcuts: {
       title: 'キーボードショートカット',
       description: '利用可能なすべてのキーボードショートカットのクイックリファレンス。',

@@ -547,6 +547,16 @@ const fr = {
       loadingConfig: 'Chargement de la configuration',
       preparingWorkspace: "Préparation de l'espace de travail",
     },
+    error: {
+      connectionFailed: 'Impossible de se connecter au serveur',
+      serverUnreachable: "Le serveur {{url}} est inaccessible.",
+      checkServer: 'Veuillez vérifier votre connexion réseau ou que le backend est en cours d’exécution.',
+      timeout: 'Délai de connexion dépassé après 10 secondes.',
+    },
+    actions: {
+      retry: 'Réessayer',
+      retrying: 'Nouvelle tentative…',
+    },
     shortcuts: {
       title: 'Raccourcis clavier',
       description: 'Référence rapide de tous les raccourcis clavier disponibles.',
