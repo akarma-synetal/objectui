@@ -1113,29 +1113,36 @@ describe('RecordPickerDialog — renderGrid slot', () => {
       expect(screen.getByTestId('custom-grid')).toBeInTheDocument();
     });
 
-    // renderGrid should have been called with grid slot props
-    expect(renderGrid).toHaveBeenCalledWith(
-      expect.objectContaining({
-        columns: expect.arrayContaining([
-          expect.objectContaining({ field: 'name' }),
-        ]),
-        records: expect.arrayContaining([
-          expect.objectContaining({ id: '1', name: 'Acme Corp' }),
-        ]),
-        loading: false,
-        totalCount: 1,
-        currentPage: 1,
-        pageSize: 10,
-        sortField: null,
-        sortDirection: 'asc',
-        onSort: expect.any(Function),
-        onPageChange: expect.any(Function),
-        onRowClick: expect.any(Function),
-        isSelected: expect.any(Function),
-        multiple: false,
-        idField: 'id',
-      }),
-    );
+    // Wait for data to load, then check the last renderGrid call has records
+    await waitFor(() => {
+      expect(renderGrid).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          columns: expect.arrayContaining([
+            expect.objectContaining({ field: 'name' }),
+          ]),
+          records: expect.arrayContaining([
+            expect.objectContaining({ id: '1', name: 'Acme Corp' }),
+          ]),
+          loading: false,
+          totalCount: 1,
+        }),
+      );
+    });
+
+    // Verify all expected props are present in the last call
+    const lastCallArgs = renderGrid.mock.calls[renderGrid.mock.calls.length - 1][0];
+    expect(lastCallArgs).toMatchObject({
+      currentPage: 1,
+      pageSize: 10,
+      sortField: null,
+      sortDirection: 'asc',
+      multiple: false,
+      idField: 'id',
+    });
+    expect(lastCallArgs.onSort).toBeTypeOf('function');
+    expect(lastCallArgs.onPageChange).toBeTypeOf('function');
+    expect(lastCallArgs.onRowClick).toBeTypeOf('function');
+    expect(lastCallArgs.isSelected).toBeTypeOf('function');
   });
 
   it('hides built-in table when renderGrid is provided', async () => {

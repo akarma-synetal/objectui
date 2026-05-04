@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **`@object-ui/fields`**: Fixed flaky `RecordPickerDialog` test that asserted
+  `renderGrid` slot props before async data fetch had completed. The test now
+  awaits the final render with populated records before asserting.
+
 ### Changed
 
 - **`MetadataProvider` now lazy-loads metadata.** Previously the console
