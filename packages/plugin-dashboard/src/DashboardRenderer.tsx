@@ -7,7 +7,7 @@
  */
 
 import type { DashboardSchema, DashboardWidgetSchema } from '@object-ui/types';
-import { SchemaRenderer, useActionEngine } from '@object-ui/react';
+import { SchemaRenderer, useActionEngine, useObjectLabel } from '@object-ui/react';
 import type { ActionDef, ActionResult, ActionContext, ModalHandler } from '@object-ui/core';
 import { cn, Card, CardHeader, CardTitle, CardContent, Button, getLazyIcon } from '@object-ui/components';
 import { forwardRef, useState, useEffect, useCallback, useMemo, useRef } from 'react';
@@ -99,6 +99,50 @@ export const DashboardRenderer = forwardRef<HTMLDivElement, DashboardRendererPro
     }, [schema.header?.actions]);
 
     const { executeAction, engine } = useActionEngine({ actions: headerActionDefs });
+
+    // ── i18n: convention-based label resolution for dashboard / widget /
+    // action text. The dashboard name (`schema.name`) keys all lookups; when
+    // it's missing we silently degrade to the raw English fallbacks.
+    const { dashboardLabel, dashboardDescription, dashboardActionLabel, widgetTitle, widgetDescription } = useObjectLabel();
+    const dashName = (schema as any).name as string | undefined;
+
+    /**
+     * Translate a header-action label using the
+     * `{ns}.dashboards.{dashName}.actions.{actionKey}.label` convention.
+     * Falls back to the action's English label when no translation exists or
+     * the dashboard schema has no `name`.
+     */
+    const tActionLabel = useCallback(
+      (action: { label: string; actionUrl?: string }): string => {
+        if (!dashName) return action.label;
+        const key = action.actionUrl || action.label;
+        return dashboardActionLabel(dashName, key, action.label);
+      },
+      [dashName, dashboardActionLabel],
+    );
+
+    /**
+     * Translate a widget title / description using the
+     * `{ns}.dashboards.{dashName}.widgets.{widgetId}.title|description`
+     * convention. Falls back to the metadata-supplied string.
+     */
+    const tWidgetTitle = useCallback(
+      (widget: DashboardWidgetSchema): string | undefined => {
+        const fallback = resolveLabel(widget.title);
+        if (!dashName || !widget.id || fallback === undefined) return fallback;
+        return widgetTitle(dashName, widget.id, fallback);
+      },
+      [dashName, widgetTitle],
+    );
+
+    const tWidgetDescription = useCallback(
+      (widget: DashboardWidgetSchema): string | undefined => {
+        const fallback = resolveLabel(widget.description);
+        if (!dashName || !widget.id) return fallback;
+        return widgetDescription(dashName, widget.id, fallback);
+      },
+      [dashName, widgetDescription],
+    );
 
     // Install host-supplied modal/script handlers on the underlying ActionRunner.
     useEffect(() => {
@@ -206,7 +250,7 @@ export const DashboardRenderer = forwardRef<HTMLDivElement, DashboardRendererPro
                     objectName: widget.object || (isObjectProvider(widgetData) ? widgetData.object : undefined),
                     aggregate,
                     filter: (isObjectProvider(widgetData) ? widgetData.filter : undefined) || widget.filter,
-                    label: options.label || resolveLabel(widget.title) || '',
+                    label: options.label || tWidgetTitle(widget) || '',
                     fallbackValue: options.value,
                     trend: options.trend,
                     icon: options.icon,
@@ -227,7 +271,7 @@ export const DashboardRenderer = forwardRef<HTMLDivElement, DashboardRendererPro
                     objectName: widget.object,
                     aggregate,
                     filter: widget.filter,
-                    label: options.label || resolveLabel(widget.title) || '',
+                    label: options.label || tWidgetTitle(widget) || '',
                     fallbackValue: options.fallbackValue ?? options.value,
                     icon: options.icon,
                     description: options.description,
@@ -384,8 +428,8 @@ export const DashboardRenderer = forwardRef<HTMLDivElement, DashboardRendererPro
         
         const componentSchema = getComponentSchema();
         const isSelfContained = widget.type === 'metric';
-        const resolvedTitle = resolveLabel(widget.title);
-        const resolvedDescription = resolveLabel(widget.description);
+        const resolvedTitle = tWidgetTitle(widget);
+        const resolvedDescription = tWidgetDescription(widget);
         const widgetKey = widget.id || resolvedTitle || `widget-${index}`;
         const isSelected = designMode && selectedWidgetId === widget.id;
 
@@ -466,10 +510,18 @@ export const DashboardRenderer = forwardRef<HTMLDivElement, DashboardRendererPro
     const headerSection = schema.header && (
       <div className="col-span-full mb-4">
         {schema.header.showTitle !== false && schema.title && (
-          <h2 className="text-lg font-semibold tracking-tight">{resolveLabel(schema.title)}</h2>
+          <h2 className="text-lg font-semibold tracking-tight">
+            {dashName
+              ? dashboardLabel({ name: dashName, label: resolveLabel(schema.title) })
+              : resolveLabel(schema.title)}
+          </h2>
         )}
         {schema.header.showDescription !== false && schema.description && (
-          <p className="text-sm text-muted-foreground mt-1">{resolveLabel(schema.description)}</p>
+          <p className="text-sm text-muted-foreground mt-1">
+            {dashName
+              ? dashboardDescription({ name: dashName, description: resolveLabel(schema.description) })
+              : resolveLabel(schema.description)}
+          </p>
         )}
         {schema.header.actions && schema.header.actions.length > 0 && (
           <div className="flex gap-2 mt-3">
@@ -501,7 +553,7 @@ export const DashboardRenderer = forwardRef<HTMLDivElement, DashboardRendererPro
               return (
                 <Button key={i} variant="outline" size="sm" onClick={handleClick}>
                   {Icon && <Icon className="w-4 h-4 mr-1.5" />}
-                  {action.label}
+                  {tActionLabel(action)}
                 </Button>
               );
             })}

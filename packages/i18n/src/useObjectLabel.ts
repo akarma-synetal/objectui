@@ -62,7 +62,7 @@ export function useObjectLabel() {
     if (!bundle) return [];
     return Object.keys(bundle).filter(
       (key) => !BUILTIN_KEYS.has(key) && bundle[key] && typeof bundle[key] === 'object'
-        && (bundle[key].objects || bundle[key].fields || bundle[key].apps),
+        && (bundle[key].objects || bundle[key].fields || bundle[key].apps || bundle[key].dashboards),
     );
   };
 
@@ -120,6 +120,18 @@ export function useObjectLabel() {
           `fieldOptions.${base}.${fieldName}.${optionValue}`,
         ]
       : [`fieldOptions.${objectName}.${fieldName}.${optionValue}`];
+  };
+
+  /**
+   * Build suffix candidates for a dashboard-scoped key. Mirrors the
+   * object/field convention: prefer the (possibly namespaced) dashboard name,
+   * fall back to the unprefixed base name.
+   */
+  const dashboardSuffixes = (dashboardName: string, tail: string): string[] => {
+    const base = stripNamespace(dashboardName);
+    return base !== dashboardName
+      ? [`dashboards.${dashboardName}.${tail}`, `dashboards.${base}.${tail}`]
+      : [`dashboards.${dashboardName}.${tail}`];
   };
 
   return {
@@ -181,6 +193,52 @@ export function useObjectLabel() {
     appDescription: (appDef: { name: string; description?: string }) => {
       const fallback = appDef.description ?? '';
       const resolved = resolve(`apps.${appDef.name}.description`, fallback);
+      return resolved || undefined;
+    },
+
+    /**
+     * Resolve translated dashboard label, falling back to dashboardDef.label.
+     * Convention: `{ns}.dashboards.{dashboardName}.label`.
+     */
+    dashboardLabel: (dashboardDef: { name: string; label?: string }) =>
+      resolve(dashboardSuffixes(dashboardDef.name, 'label'), dashboardDef.label ?? dashboardDef.name),
+
+    /**
+     * Resolve translated dashboard description, falling back to
+     * dashboardDef.description. Returns undefined when neither metadata nor
+     * translation provides one.
+     * Convention: `{ns}.dashboards.{dashboardName}.description`.
+     */
+    dashboardDescription: (dashboardDef: { name: string; description?: string }) => {
+      const fallback = dashboardDef.description ?? '';
+      const resolved = resolve(dashboardSuffixes(dashboardDef.name, 'description'), fallback);
+      return resolved || undefined;
+    },
+
+    /**
+     * Resolve translated dashboard header-action label.
+     * Convention: `{ns}.dashboards.{dashboardName}.actions.{actionKey}.label`.
+     * The actionKey is typically the action's `actionUrl` (e.g.
+     * `create_opportunity`) or its English label slugified.
+     */
+    dashboardActionLabel: (dashboardName: string, actionKey: string, fallback: string) =>
+      resolve(dashboardSuffixes(dashboardName, `actions.${actionKey}.label`), fallback),
+
+    /**
+     * Resolve translated widget title within a dashboard.
+     * Convention: `{ns}.dashboards.{dashboardName}.widgets.{widgetId}.title`.
+     */
+    widgetTitle: (dashboardName: string, widgetId: string, fallback: string) =>
+      resolve(dashboardSuffixes(dashboardName, `widgets.${widgetId}.title`), fallback),
+
+    /**
+     * Resolve translated widget description within a dashboard.
+     * Convention: `{ns}.dashboards.{dashboardName}.widgets.{widgetId}.description`.
+     * Returns undefined when neither metadata nor translation provides one.
+     */
+    widgetDescription: (dashboardName: string, widgetId: string, fallback?: string) => {
+      const fb = fallback ?? '';
+      const resolved = resolve(dashboardSuffixes(dashboardName, `widgets.${widgetId}.description`), fb);
       return resolved || undefined;
     },
   };

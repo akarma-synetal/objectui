@@ -44,7 +44,7 @@ import { SkeletonDashboard } from '../skeletons';
 import { useMetadata } from '../providers/MetadataProvider';
 import { resolveI18nLabel } from '../utils';
 import { useAdapter } from '../providers/AdapterProvider';
-import { useObjectTranslation } from '@object-ui/i18n';
+import { useObjectTranslation, useObjectLabel } from '@object-ui/i18n';
 import type { DashboardSchema, DashboardWidgetSchema } from '@object-ui/types';
 
 // ---------------------------------------------------------------------------
@@ -146,6 +146,7 @@ export function DashboardView({ dataSource }: { dataSource?: any }) {
   const { showDebug } = useMetadataInspector();
   const adapter = useAdapter();
   const { t } = useObjectTranslation();
+  const { dashboardLabel, dashboardDescription } = useObjectLabel();
   const [isLoading, setIsLoading] = useState(true);
   const [configPanelOpen, setConfigPanelOpen] = useState(false);
   const [selectedWidgetId, setSelectedWidgetId] = useState<string | null>(null);
@@ -458,10 +459,16 @@ export function DashboardView({ dataSource }: { dataSource?: any }) {
       {/* ── Header ───────────────────────────────────────────────── */}
       <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-3 sm:gap-4 p-4 sm:p-6 border-b shrink-0">
         <div className="min-w-0 flex-1">
-          <h1 className="text-lg sm:text-xl md:text-2xl font-bold tracking-tight truncate">{resolveI18nLabel(dashboard.label, t) || dashboard.name}</h1>
-          {dashboard.description && (
-            <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{resolveI18nLabel(dashboard.description, t)}</p>
-          )}
+          <h1 className="text-lg sm:text-xl md:text-2xl font-bold tracking-tight truncate">{dashboardLabel({ name: dashboard.name, label: resolveI18nLabel(dashboard.label, t) }) || dashboard.name}</h1>
+          {(() => {
+            const desc = dashboardDescription({
+              name: dashboard.name,
+              description: resolveI18nLabel(dashboard.description, t),
+            });
+            return desc ? (
+              <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{desc}</p>
+            ) : null;
+          })()}
         </div>
         <div className="shrink-0 flex items-center gap-1.5">
           {/* Add-widget toolbar — visible only in edit mode */}

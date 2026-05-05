@@ -106,6 +106,7 @@ function transformSpecTranslations(data: Record<string, unknown>): Record<string
   if (data.apps) appNs.apps = data.apps;
   if (data.messages) appNs.messages = data.messages;
   if (data.validationMessages) appNs.validationMessages = data.validationMessages;
+  if (data.dashboards) appNs.dashboards = data.dashboards;
 
   return { app: appNs };
 }

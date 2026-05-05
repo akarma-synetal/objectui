@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Dashboard i18n convention.** `useObjectLabel` (`@object-ui/i18n`) now
+  exposes `dashboardLabel`, `dashboardDescription`, `dashboardActionLabel`,
+  `widgetTitle`, and `widgetDescription` helpers that auto-resolve translations
+  via the convention `{ns}.dashboards.{dashboardName}.label|description|`
+  `actions.{actionUrl}.label|widgets.{widgetId}.title|description` — mirroring
+  the existing `objects.*`/`fields.*`/`apps.*` patterns. `DashboardRenderer`
+  (`@object-ui/plugin-dashboard`) and `DashboardView` (`@object-ui/app-shell`)
+  use these hooks for the page header, header action buttons, and widget
+  titles/descriptions, so dashboard metadata can keep English fallbacks while
+  translation packs supply localized text. The `apps/console` translation
+  loader (`loadLanguage.ts`) now passes the `dashboards` namespace through
+  to i18next so spec-format `TranslationData` payloads are picked up. Adds
+  8 unit tests covering the new helpers.
+
 ### Fixed
 
 - **`@object-ui/app-shell` DashboardView modal handler**: Header `modal`

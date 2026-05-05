@@ -128,4 +128,126 @@ describe('useObjectLabel', () => {
       expect(result.current.fieldLabel('opportunity', 'stage', 'Stage')).toBe('阶段');
     });
   });
+
+  describe('dashboardLabel / dashboardDescription', () => {
+    it('returns plain label / description when no translation exists', () => {
+      const wrapper = createWrapper('en');
+      const { result } = renderHook(() => useObjectLabel(), { wrapper });
+
+      expect(
+        result.current.dashboardLabel({ name: 'sales_dashboard', label: 'Sales Performance' }),
+      ).toBe('Sales Performance');
+      expect(
+        result.current.dashboardDescription({
+          name: 'sales_dashboard',
+          description: 'Pipeline analytics',
+        }),
+      ).toBe('Pipeline analytics');
+    });
+
+    it('returns translated label / description when present', () => {
+      const wrapper = createWrapper('zh', {
+        crm: {
+          dashboards: {
+            sales_dashboard: {
+              label: '销售业绩',
+              description: '管道分析、赢率趋势及代表绩效',
+            },
+          },
+        },
+      });
+      const { result } = renderHook(() => useObjectLabel(), { wrapper });
+
+      expect(
+        result.current.dashboardLabel({ name: 'sales_dashboard', label: 'Sales Performance' }),
+      ).toBe('销售业绩');
+      expect(
+        result.current.dashboardDescription({
+          name: 'sales_dashboard',
+          description: 'Pipeline analytics',
+        }),
+      ).toBe('管道分析、赢率趋势及代表绩效');
+    });
+
+    it('falls back to dashboard.name when no label provided', () => {
+      const wrapper = createWrapper('en');
+      const { result } = renderHook(() => useObjectLabel(), { wrapper });
+
+      expect(result.current.dashboardLabel({ name: 'sales_dashboard' })).toBe('sales_dashboard');
+    });
+
+    it('returns undefined description when neither metadata nor translation provides one', () => {
+      const wrapper = createWrapper('en');
+      const { result } = renderHook(() => useObjectLabel(), { wrapper });
+
+      expect(result.current.dashboardDescription({ name: 'sales_dashboard' })).toBeUndefined();
+    });
+  });
+
+  describe('dashboardActionLabel / widgetTitle / widgetDescription', () => {
+    const translations = {
+      crm: {
+        dashboards: {
+          sales_dashboard: {
+            actions: {
+              create_opportunity: { label: '新建商机' },
+            },
+            widgets: {
+              total_pipeline: {
+                title: '总管道',
+                description: '所有未关闭商机的金额合计',
+              },
+            },
+          },
+        },
+      },
+    };
+
+    it('returns translated header-action label keyed by actionUrl', () => {
+      const wrapper = createWrapper('zh', translations);
+      const { result } = renderHook(() => useObjectLabel(), { wrapper });
+
+      expect(
+        result.current.dashboardActionLabel('sales_dashboard', 'create_opportunity', 'New Opportunity'),
+      ).toBe('新建商机');
+    });
+
+    it('falls back to provided English label when no translation exists', () => {
+      const wrapper = createWrapper('en');
+      const { result } = renderHook(() => useObjectLabel(), { wrapper });
+
+      expect(
+        result.current.dashboardActionLabel('sales_dashboard', 'create_opportunity', 'New Opportunity'),
+      ).toBe('New Opportunity');
+    });
+
+    it('returns translated widget title and description', () => {
+      const wrapper = createWrapper('zh', translations);
+      const { result } = renderHook(() => useObjectLabel(), { wrapper });
+
+      expect(result.current.widgetTitle('sales_dashboard', 'total_pipeline', 'Total Pipeline')).toBe(
+        '总管道',
+      );
+      expect(
+        result.current.widgetDescription(
+          'sales_dashboard',
+          'total_pipeline',
+          'Sum of open opportunity value',
+        ),
+      ).toBe('所有未关闭商机的金额合计');
+    });
+
+    it('falls back to plain title / description when key is missing', () => {
+      const wrapper = createWrapper('en');
+      const { result } = renderHook(() => useObjectLabel(), { wrapper });
+
+      expect(result.current.widgetTitle('sales_dashboard', 'total_pipeline', 'Total Pipeline')).toBe(
+        'Total Pipeline',
+      );
+      expect(
+        result.current.widgetDescription('sales_dashboard', 'total_pipeline', 'Sum of open value'),
+      ).toBe('Sum of open value');
+      expect(result.current.widgetDescription('sales_dashboard', 'total_pipeline')).toBeUndefined();
+    });
+  });
 });
