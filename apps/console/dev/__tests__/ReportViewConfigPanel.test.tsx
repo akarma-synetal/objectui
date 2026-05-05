@@ -124,7 +124,7 @@ describe('ReportView — Inline Config Panel', () => {
       fireEvent.click(screen.getByTestId('report-edit-button'));
     });
     // ConfigPanelRenderer renders a breadcrumb with "Report" text when open
-    expect(screen.getByText('Report')).toBeInTheDocument();
+    expect(await screen.findByText('Report')).toBeInTheDocument();
   });
 
   it('should close config panel via close button', async () => {
