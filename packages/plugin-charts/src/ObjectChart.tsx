@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useContext, useCallback } from 'react';
+import React, { useState, useEffect, useContext, useCallback, useMemo, useRef } from 'react';
 import { useDataScope, SchemaRendererContext } from '@object-ui/react';
 import { ChartRenderer } from './ChartRenderer';
 import { ComponentRegistry, extractRecords } from '@object-ui/core';
@@ -193,10 +193,29 @@ export const ObjectChart = (props: any) => {
   const dataSource = props.dataSource || context?.dataSource;
   const boundData = useDataScope(schema.bind);
   const { fieldOptionLabel } = useSafeFieldLabel();
+  // Keep a stable ref to fieldOptionLabel — the i18n hook returns a fresh
+  // function reference on every render, which would otherwise invalidate
+  // fetchData's useCallback identity and trigger an infinite refetch loop.
+  const fieldOptionLabelRef = useRef(fieldOptionLabel);
+  useEffect(() => {
+    fieldOptionLabelRef.current = fieldOptionLabel;
+  }, [fieldOptionLabel]);
   
   const [fetchedData, setFetchedData] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Stable JSON keys for aggregate/filter so that callers passing a fresh
+  // object literal on each render (e.g. DashboardRenderer.getComponentSchema)
+  // do not trigger infinite refetch loops.
+  const aggregateKey = useMemo(
+    () => (schema.aggregate ? JSON.stringify(schema.aggregate) : ''),
+    [schema.aggregate],
+  );
+  const filterKey = useMemo(
+    () => (schema.filter ? JSON.stringify(schema.filter) : ''),
+    [schema.filter],
+  );
 
   const fetchData = useCallback(async (ds: any, mounted: { current: boolean }) => {
       if (!ds || !schema.objectName) return;
@@ -244,7 +263,7 @@ export const ObjectChart = (props: any) => {
                     groupByField,
                     objectSchema,
                     ds,
-                    (value, fallback) => fieldOptionLabel(schema.objectName, groupByField, value, fallback),
+                    (value, fallback) => fieldOptionLabelRef.current(schema.objectName, groupByField, value, fallback),
                   );
               } catch {
                   // Schema fetch failed — continue with raw values
@@ -262,7 +281,8 @@ export const ObjectChart = (props: any) => {
       } finally {
           if (mounted.current) setLoading(false);
       }
-  }, [schema.objectName, schema.aggregate, schema.filter, schema.xAxisKey, fieldOptionLabel]);
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [schema.objectName, aggregateKey, filterKey, schema.xAxisKey]);
 
   useEffect(() => {
     const mounted = { current: true };
@@ -271,7 +291,8 @@ export const ObjectChart = (props: any) => {
         fetchData(dataSource, mounted);
     }
     return () => { mounted.current = false; };
-  }, [schema.objectName, dataSource, boundData, schema.data, schema.filter, schema.aggregate, fetchData]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [schema.objectName, dataSource, boundData, schema.data, filterKey, aggregateKey, fetchData]);
 
   const rawData = boundData || schema.data || fetchedData;
   const finalData = Array.isArray(rawData) ? rawData : [];

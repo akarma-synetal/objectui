@@ -6,7 +6,7 @@
  * LICENSE file in the root directory of this source tree.
  */
 
-import React, { useState, useEffect, useContext, useCallback } from 'react';
+import React, { useState, useEffect, useContext, useCallback, useMemo } from 'react';
 import { SchemaRendererContext } from '@object-ui/react';
 import { MetricWidget } from './MetricWidget';
 
@@ -74,6 +74,12 @@ export const ObjectMetricWidget: React.FC<ObjectMetricWidgetProps> = ({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Stable JSON keys to prevent infinite refetch loops when callers
+  // pass fresh `aggregate` / `filter` object references each render
+  // (e.g. DashboardRenderer.getComponentSchema rebuilds these on every render).
+  const aggregateKey = useMemo(() => (aggregate ? JSON.stringify(aggregate) : ''), [aggregate]);
+  const filterKey = useMemo(() => (filter ? JSON.stringify(filter) : ''), [filter]);
+
   const fetchMetric = useCallback(async (ds: any, mounted: { current: boolean }) => {
     if (!ds || !objectName) return;
     if (mounted.current) {
@@ -123,7 +129,8 @@ export const ObjectMetricWidget: React.FC<ObjectMetricWidgetProps> = ({
     } finally {
       if (mounted.current) setLoading(false);
     }
-  }, [objectName, aggregate, filter]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [objectName, aggregateKey, filterKey]);
 
   useEffect(() => {
     const mounted = { current: true };
