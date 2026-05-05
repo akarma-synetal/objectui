@@ -25,42 +25,6 @@ function toKebab(name: string): string {
     .toLowerCase();
 }
 
-/**
- * Aliases for icon names that exist in other icon sets (FontAwesome, Material,
- * Bootstrap…) but use a different name in Lucide. Mapped to the closest
- * Lucide equivalent so existing metadata authored against FA stays portable.
- */
-const ICON_ALIASES: Record<string, string> = {
-  bullseye: 'target',
-  bullhorn: 'megaphone',
-  tachometer: 'gauge',
-  'tachometer-alt': 'gauge',
-  dashboard: 'layout-dashboard',
-  'life-ring': 'life-buoy',
-  tasks: 'list-checks',
-  'file-invoice': 'receipt',
-  'file-signature': 'file-pen-line',
-  'file-pdf': 'file-text',
-  'check-square': 'square-check',
-  'arrow-up-right-from-square': 'external-link',
-  'sign-out-alt': 'log-out',
-  'sign-in-alt': 'log-in',
-  'cog': 'settings',
-  'gears': 'settings',
-  'envelope': 'mail',
-  'phone-alt': 'phone',
-  'map-marker-alt': 'map-pin',
-  'edit': 'pencil',
-  'trash-alt': 'trash-2',
-  'plus-circle': 'circle-plus',
-  'minus-circle': 'circle-minus',
-  'times-circle': 'circle-x',
-  'check-circle': 'circle-check',
-  'info-circle': 'info',
-  'question-circle': 'circle-help',
-  'exclamation-triangle': 'triangle-alert',
-};
-
 const cache = new Map<string, React.ElementType>();
 
 /**
@@ -78,7 +42,7 @@ export function getIcon(name?: string): React.ElementType {
   const cached = cache.get(name);
   if (cached) return cached;
 
-  const kebab = ICON_ALIASES[toKebab(name)] ?? toKebab(name);
+  const kebab = toKebab(name);
   const Wrapped: React.FC<any> = (props) =>
     React.createElement(DynamicIcon as any, {
       name: kebab,
