@@ -513,7 +513,7 @@ export function AppSidebar({ activeAppName, onAppChange }: { activeAppName: stri
                   className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
                 >
                   <Avatar className="h-8 w-8 rounded-lg">
-                    <AvatarImage src={user?.image ?? '/avatars/user.jpg'} alt={user?.name ?? 'User'} />
+                    <AvatarImage src={user?.image} alt={user?.name ?? 'User'} />
                     <AvatarFallback className="rounded-lg bg-primary text-primary-foreground">
                       {getUserInitials(user)}
                     </AvatarFallback>
@@ -534,7 +534,7 @@ export function AppSidebar({ activeAppName, onAppChange }: { activeAppName: stri
                 <DropdownMenuLabel className="p-0 font-normal">
                   <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
                     <Avatar className="h-8 w-8 rounded-lg">
-                      <AvatarImage src={user?.image ?? '/avatars/user.jpg'} alt={user?.name ?? 'User'} />
+                      <AvatarImage src={user?.image} alt={user?.name ?? 'User'} />
                       <AvatarFallback className="rounded-lg bg-primary text-primary-foreground">
                         {getUserInitials(user)}
                       </AvatarFallback>

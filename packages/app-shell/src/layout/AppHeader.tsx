@@ -415,7 +415,7 @@ export function AppHeader({
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0 rounded-full">
               <Avatar className="h-7 w-7 rounded-full">
-                <AvatarImage src={user?.image ?? '/avatars/user.jpg'} alt={user?.name ?? 'User'} />
+                <AvatarImage src={user?.image} alt={user?.name ?? 'User'} />
                 <AvatarFallback className="rounded-full bg-primary text-primary-foreground text-xs">
                   {getUserInitials(user)}
                 </AvatarFallback>
@@ -427,7 +427,7 @@ export function AppHeader({
             <DropdownMenuLabel className="p-0 font-normal">
               <div className="flex items-center gap-2 px-2 py-2">
                 <Avatar className="h-8 w-8 rounded-lg">
-                  <AvatarImage src={user?.image ?? '/avatars/user.jpg'} alt={user?.name ?? 'User'} />
+                  <AvatarImage src={user?.image} alt={user?.name ?? 'User'} />
                   <AvatarFallback className="rounded-lg bg-primary text-primary-foreground">
                     {getUserInitials(user)}
                   </AvatarFallback>

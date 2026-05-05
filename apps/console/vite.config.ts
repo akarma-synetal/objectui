@@ -161,131 +161,47 @@ export default defineConfig({
     },
     rollupOptions: {
       output: {
-        manualChunks(id) {
-          // Vendor: React ecosystem
-          if (id.includes('node_modules/react/') ||
-              id.includes('node_modules/react-dom/') ||
-              id.includes('node_modules/react-router') ||
-              id.includes('node_modules/scheduler/')) {
-            return 'vendor-react';
-          }
-          // Vendor: Radix UI primitives
-          if (id.includes('node_modules/@radix-ui/')) {
-            return 'vendor-radix';
-          }
-          // Vendor: @objectstack/* SDK & spec
-          // Match both regular and pnpm-virtualised paths (`.pnpm/@objectstack+client@...`).
-          if (
-            id.includes('node_modules/@objectstack/') ||
-            id.includes('/@objectstack+') ||
-            id.includes('\\@objectstack+')
-          ) {
-            return 'vendor-objectstack';
-          }
-          // Vendor: Lucide icons — only bundle the runtime helpers; let
-          // `lucide-react/dynamic` split each icon into its own chunk.
-          if (id.includes('node_modules/lucide-react/dist/lucide-react') ||
-              id.includes('node_modules/lucide-react/dist/esm/Icon') ||
-              id.includes('node_modules/lucide-react/dist/esm/createLucideIcon') ||
-              id.includes('node_modules/lucide-react/dist/esm/defaultAttributes') ||
-              id.includes('node_modules/lucide-react/dist/esm/shared')) {
-            return 'vendor-icons-core';
-          }
-          // Vendor: UI utilities (cva, clsx, tailwind-merge, sonner)
-          if (id.includes('node_modules/class-variance-authority/') ||
-              id.includes('node_modules/clsx/') ||
-              id.includes('node_modules/tailwind-merge/') ||
-              id.includes('node_modules/sonner/')) {
-            return 'vendor-ui-utils';
-          }
-          // Zod (validation)
-          if (id.includes('node_modules/zod/')) {
-            return 'vendor-zod';
-          }
-          // Recharts (charts)
-          if (id.includes('node_modules/recharts/') ||
-              id.includes('node_modules/d3-') ||
-              id.includes('node_modules/victory-')) {
-            return 'vendor-charts';
-          }
-          // DnD Kit
-          if (id.includes('node_modules/@dnd-kit/')) {
-            return 'vendor-dndkit';
-          }
-          // i18next
-          if (id.includes('node_modules/i18next') ||
-              id.includes('node_modules/react-i18next/')) {
-            return 'vendor-i18n';
-          }
-          // @object-ui/core + @object-ui/react (framework)
-          if (id.includes('/packages/core/') ||
-              id.includes('/packages/react/') ||
-              id.includes('/packages/types/')) {
-            return 'framework';
-          }
-          // @object-ui/components + @object-ui/fields (UI atoms)
-          if (id.includes('/packages/components/') ||
-              id.includes('/packages/fields/')) {
-            return 'ui-components';
-          }
-          // @object-ui/layout
-          if (id.includes('/packages/layout/')) {
-            return 'ui-layout';
-          }
-          // @object-ui/data-objectstack adapter
-          if (id.includes('/packages/data-objectstack/')) {
-            return 'data-adapter';
-          }
-          // Infrastructure: auth, permissions, tenant, i18n
-          if (id.includes('/packages/auth/') ||
-              id.includes('/packages/permissions/') ||
-              id.includes('/packages/tenant/') ||
-              id.includes('/packages/i18n/')) {
-            return 'infrastructure';
-          }
-          // Plugins: split each into its own chunk for fine-grained code-splitting.
-          // (Was previously merged into a `plugins-core` 1.5MB monolith that
-          // forced form-only or grid-only pages to download all three.)
-          if (id.includes('/packages/plugin-grid/')) {
-            return 'plugin-grid';
-          }
-          if (id.includes('/packages/plugin-form/')) {
-            return 'plugin-form';
-          }
-          if (id.includes('/packages/plugin-view/')) {
-            return 'plugin-view';
-          }
-          // Plugins: detail, list, dashboard, report
-          if (id.includes('/packages/plugin-detail/') ||
-              id.includes('/packages/plugin-list/') ||
-              id.includes('/packages/plugin-dashboard/') ||
-              id.includes('/packages/plugin-report/')) {
-            return 'plugins-views';
-          }
-          // Heavy / lazy-loaded plugins — keep one chunk per plugin so the
-          // dynamic `import()` boundary in main.tsx can pull only what's used.
-          if (id.includes('/packages/plugin-map/')) {
-            return 'plugin-map';
-          }
-          if (id.includes('/packages/plugin-charts/')) {
-            return 'plugin-charts';
-          }
-          if (id.includes('/packages/plugin-gantt/')) {
-            return 'plugin-gantt';
-          }
-          if (id.includes('/packages/plugin-markdown/')) {
-            return 'plugin-markdown';
-          }
-          if (id.includes('/packages/plugin-timeline/')) {
-            return 'plugin-timeline';
-          }
-          if (id.includes('/packages/plugin-calendar/')) {
-            return 'plugin-calendar';
-          }
-          if (id.includes('/packages/plugin-kanban/')) {
-            return 'plugin-kanban';
-          }
-        }
+        // Use rolldown's `advancedChunks.groups` instead of legacy
+        // `manualChunks`. Rolldown's manualChunks function is unreliable for
+        // shared modules — it often merges them into the first importer's
+        // chunk regardless of the function's return value. The `groups` API
+        // explicitly partitions modules with priority/test/name semantics.
+        advancedChunks: {
+          groups: [
+            { name: 'vendor-react', test: /[\\/]node_modules[\\/](react|react-dom|react-router|scheduler)[\\/]/, priority: 100 },
+            { name: 'vendor-radix', test: /[\\/]node_modules[\\/]@radix-ui[\\/]/, priority: 95 },
+            { name: 'vendor-objectstack', test: /([\\/]node_modules[\\/]@objectstack[\\/]|[\\/]@objectstack\+)/, priority: 95 },
+            { name: 'vendor-icons-core', test: /[\\/]node_modules[\\/]lucide-react[\\/]dist[\\/](lucide-react|esm[\\/](Icon|createLucideIcon|defaultAttributes|shared))/, priority: 90 },
+            { name: 'vendor-ui-utils', test: /[\\/]node_modules[\\/](class-variance-authority|clsx|tailwind-merge|sonner)[\\/]/, priority: 90 },
+            { name: 'vendor-zod', test: /[\\/]node_modules[\\/]zod[\\/]/, priority: 90 },
+            { name: 'vendor-charts', test: /[\\/]node_modules[\\/](recharts|d3-|victory-)/, priority: 90 },
+            { name: 'vendor-dndkit', test: /[\\/]node_modules[\\/]@dnd-kit[\\/]/, priority: 90 },
+            { name: 'vendor-i18n', test: /[\\/]node_modules[\\/](i18next|react-i18next)[\\/]/, priority: 90 },
+            // Workspace packages — match by realpath, since pnpm may resolve
+            // through node_modules/@object-ui/<pkg> symlinks to packages/<pkg>.
+            { name: 'framework', test: /[\\/]packages[\\/](core|react|types)[\\/]/, priority: 80 },
+            { name: 'ui-components', test: /[\\/]packages[\\/](components|fields)[\\/]/, priority: 80 },
+            { name: 'ui-layout', test: /[\\/]packages[\\/]layout[\\/]/, priority: 80 },
+            { name: 'data-adapter', test: /[\\/]packages[\\/]data-objectstack[\\/]/, priority: 80 },
+            { name: 'infrastructure', test: /[\\/]packages[\\/](auth|permissions|tenant|i18n)[\\/]/, priority: 80 },
+            // Plugins — one chunk per plugin so dynamic imports cleave cleanly.
+            { name: 'plugin-grid', test: /[\\/]packages[\\/]plugin-grid[\\/]/, priority: 70 },
+            { name: 'plugin-form', test: /[\\/]packages[\\/]plugin-form[\\/]/, priority: 70 },
+            { name: 'plugin-view', test: /[\\/]packages[\\/]plugin-view[\\/]/, priority: 70 },
+            { name: 'plugins-views', test: /[\\/]packages[\\/]plugin-(detail|list|dashboard|report)[\\/]/, priority: 70 },
+            { name: 'plugin-map', test: /[\\/]packages[\\/]plugin-map[\\/]/, priority: 70 },
+            { name: 'plugin-charts', test: /[\\/]packages[\\/]plugin-charts[\\/]/, priority: 70 },
+            { name: 'plugin-gantt', test: /[\\/]packages[\\/]plugin-gantt[\\/]/, priority: 70 },
+            { name: 'plugin-markdown', test: /[\\/]packages[\\/]plugin-markdown[\\/]/, priority: 70 },
+            { name: 'plugin-timeline', test: /[\\/]packages[\\/]plugin-timeline[\\/]/, priority: 70 },
+            { name: 'plugin-calendar', test: /[\\/]packages[\\/]plugin-calendar[\\/]/, priority: 70 },
+            { name: 'plugin-kanban', test: /[\\/]packages[\\/]plugin-kanban[\\/]/, priority: 70 },
+            { name: 'plugin-chatbot', test: /[\\/]packages[\\/]plugin-chatbot[\\/]/, priority: 70 },
+            // react-markdown / remark / micromark family — heavy markdown
+            // pipeline pulled in only by markdown/chatbot plugins.
+            { name: 'vendor-markdown', test: /[\\/]node_modules[\\/](react-markdown|remark-|rehype-|micromark|mdast-|hast-|unified|unist-|vfile|bail|trough|character-entities|decode-named-character-reference|devlop|estree-|comma-separated-tokens|space-separated-tokens|property-information|html-url-attributes|zwitch)/, priority: 85 },
+          ],
+        },
       }
     }
   },

@@ -21,7 +21,7 @@
 
 import React from 'react';
 import { Database } from 'lucide-react';
-import { DynamicIcon } from 'lucide-react/dynamic';
+import { DynamicIcon } from 'lucide-react/dynamic.mjs';
 
 /** Convert PascalCase / camelCase / mixed names to kebab-case for DynamicIcon. */
 export function toKebabIconName(name: string): string {
