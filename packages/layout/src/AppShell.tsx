@@ -34,10 +34,9 @@ export interface AppShellProps {
 }
 
 /**
- * Convert a hex color (#RRGGBB) to HSL string "H S% L%"
- * for use in Tailwind CSS custom properties.
+ * Convert a hex color (#RRGGBB) to a parsed HSL triple.
  */
-function hexToHSL(hex: string): string | null {
+function hexToHSLParts(hex: string): { h: number; s: number; l: number } | null {
   const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
   if (!result) return null;
 
@@ -61,7 +60,33 @@ function hexToHSL(hex: string): string | null {
     }
   }
 
-  return `${Math.round(h * 360)} ${Math.round(s * 100)}% ${Math.round(l * 100)}%`;
+  return { h: h * 360, s: s * 100, l: l * 100 };
+}
+
+/**
+ * Convert a hex color (#RRGGBB) to HSL string "H S% L%"
+ * for use in Tailwind CSS custom properties.
+ */
+function hexToHSL(hex: string): string | null {
+  const parts = hexToHSLParts(hex);
+  if (!parts) return null;
+  return `${Math.round(parts.h)} ${Math.round(parts.s)}% ${Math.round(parts.l)}%`;
+}
+
+/**
+ * Compute a dark-mode-friendly variant of a brand color. Raises lightness
+ * so brand-tinted text/icons stay readable against dark backgrounds while
+ * preserving the original hue. No-op when the source is already light enough.
+ */
+function hexToDarkModeHSL(hex: string): string | null {
+  const parts = hexToHSLParts(hex);
+  if (!parts) return null;
+  // Target a minimum lightness of ~65% on dark surfaces (WCAG-friendly for
+  // body text and accents on near-black backgrounds). Slightly desaturate
+  // very saturated brand colors so they don't vibrate on dark.
+  const l = Math.max(parts.l, 65);
+  const s = parts.s > 80 ? Math.max(parts.s - 10, 70) : parts.s;
+  return `${Math.round(parts.h)} ${Math.round(s)}% ${Math.round(l)}%`;
 }
 
 /**
@@ -92,52 +117,81 @@ export function useAppShellBranding(branding?: AppShellBranding, title?: string)
   useEffect(() => {
     const root = document.documentElement;
 
-    // Primary color
-    // Per ObjectStack spec, AppSchema.branding.primaryColor is a hex code.
-    // We translate it to the Shadcn theme tokens (`--primary` + foreground)
-    // so that all `bg-primary` / `text-primary` / `ring-primary` consumers
-    // throughout the UI inherit the brand color automatically.
-    if (branding?.primaryColor) {
-      const hsl = hexToHSL(branding.primaryColor);
-      if (hsl) {
-        // Backward-compat alias (may be removed once no consumers depend on it)
-        root.style.setProperty('--brand-primary', branding.primaryColor);
-        root.style.setProperty('--brand-primary-hsl', hsl);
+    const isDark = () => root.classList.contains('dark');
 
-        // Override Shadcn theme tokens — this is what makes the brand color
-        // actually visible on buttons, focus rings, sidebar highlights, etc.
-        root.style.setProperty('--primary', hsl);
-        root.style.setProperty('--primary-foreground', foregroundForHex(branding.primaryColor));
-        root.style.setProperty('--ring', hsl);
-        root.style.setProperty('--sidebar-primary', hsl);
-        root.style.setProperty('--sidebar-ring', hsl);
-      }
-    } else {
-      root.style.removeProperty('--brand-primary');
-      root.style.removeProperty('--brand-primary-hsl');
-      root.style.removeProperty('--primary');
-      root.style.removeProperty('--primary-foreground');
-      root.style.removeProperty('--ring');
-      root.style.removeProperty('--sidebar-primary');
-      root.style.removeProperty('--sidebar-ring');
-    }
+    const apply = () => {
+      // Primary color
+      // Per ObjectStack spec, AppSchema.branding.primaryColor is a hex code.
+      // We translate it to the Shadcn theme tokens (`--primary` + foreground)
+      // so that all `bg-primary` / `text-primary` / `ring-primary` consumers
+      // throughout the UI inherit the brand color automatically.
+      if (branding?.primaryColor) {
+        const hsl = hexToHSL(branding.primaryColor);
+        const hslDark = hexToDarkModeHSL(branding.primaryColor);
+        const effective = isDark() ? hslDark || hsl : hsl;
+        if (effective) {
+          // Backward-compat alias (may be removed once no consumers depend on it)
+          root.style.setProperty('--brand-primary', branding.primaryColor);
+          root.style.setProperty('--brand-primary-hsl', hsl || effective);
 
-    // Accent color
-    if (branding?.accentColor) {
-      const hsl = hexToHSL(branding.accentColor);
-      if (hsl) {
-        root.style.setProperty('--brand-accent', branding.accentColor);
-        root.style.setProperty('--brand-accent-hsl', hsl);
-        // Map accent to Shadcn `--accent` so secondary highlights pick it up.
-        root.style.setProperty('--accent', hsl);
-        root.style.setProperty('--accent-foreground', foregroundForHex(branding.accentColor));
+          // Override Shadcn theme tokens — this is what makes the brand color
+          // actually visible on buttons, focus rings, sidebar highlights, etc.
+          // In dark mode we use a brighter variant for readable contrast.
+          root.style.setProperty('--primary', effective);
+          root.style.setProperty(
+            '--primary-foreground',
+            isDark() ? '222 47% 11%' : foregroundForHex(branding.primaryColor)
+          );
+          root.style.setProperty('--ring', effective);
+          root.style.setProperty('--sidebar-primary', effective);
+          root.style.setProperty('--sidebar-ring', effective);
+        }
+      } else {
+        root.style.removeProperty('--brand-primary');
+        root.style.removeProperty('--brand-primary-hsl');
+        root.style.removeProperty('--primary');
+        root.style.removeProperty('--primary-foreground');
+        root.style.removeProperty('--ring');
+        root.style.removeProperty('--sidebar-primary');
+        root.style.removeProperty('--sidebar-ring');
       }
-    } else {
-      root.style.removeProperty('--brand-accent');
-      root.style.removeProperty('--brand-accent-hsl');
-      root.style.removeProperty('--accent');
-      root.style.removeProperty('--accent-foreground');
-    }
+
+      // Accent color
+      if (branding?.accentColor) {
+        const hsl = hexToHSL(branding.accentColor);
+        const hslDark = hexToDarkModeHSL(branding.accentColor);
+        const effective = isDark() ? hslDark || hsl : hsl;
+        if (effective) {
+          root.style.setProperty('--brand-accent', branding.accentColor);
+          root.style.setProperty('--brand-accent-hsl', hsl || effective);
+          // Map accent to Shadcn `--accent` so secondary highlights pick it up.
+          root.style.setProperty('--accent', effective);
+          root.style.setProperty(
+            '--accent-foreground',
+            isDark() ? '222 47% 11%' : foregroundForHex(branding.accentColor)
+          );
+        }
+      } else {
+        root.style.removeProperty('--brand-accent');
+        root.style.removeProperty('--brand-accent-hsl');
+        root.style.removeProperty('--accent');
+        root.style.removeProperty('--accent-foreground');
+      }
+    };
+
+    apply();
+
+    // Re-apply when the theme class on <html> changes (light/dark toggle),
+    // so the brand color stays readable across modes without a remount.
+    const observer = new MutationObserver((mutations) => {
+      for (const m of mutations) {
+        if (m.type === 'attributes' && m.attributeName === 'class') {
+          apply();
+          break;
+        }
+      }
+    });
+    observer.observe(root, { attributes: true, attributeFilter: ['class'] });
 
     // Favicon
     if (branding?.favicon) {
@@ -154,6 +208,7 @@ export function useAppShellBranding(branding?: AppShellBranding, title?: string)
     }
 
     return () => {
+      observer.disconnect();
       root.style.removeProperty('--brand-primary');
       root.style.removeProperty('--brand-primary-hsl');
       root.style.removeProperty('--brand-accent');

@@ -453,15 +453,15 @@ const SEMANTIC_COLOR_MAP: Record<string, string> = {
 
 // Color to Tailwind class mapping for custom Badge styling
 const BADGE_COLOR_MAP: Record<string, string> = {
-  gray: 'bg-gray-100 text-gray-800 border-gray-300',
-  red: 'bg-red-100 text-red-800 border-red-300',
-  orange: 'bg-orange-100 text-orange-800 border-orange-300',
-  yellow: 'bg-yellow-100 text-yellow-800 border-yellow-300',
-  green: 'bg-green-100 text-green-800 border-green-300',
-  blue: 'bg-blue-100 text-blue-800 border-blue-300',
-  indigo: 'bg-indigo-100 text-indigo-800 border-indigo-300',
-  purple: 'bg-purple-100 text-purple-800 border-purple-300',
-  pink: 'bg-pink-100 text-pink-800 border-pink-300',
+  gray: 'bg-gray-100 text-gray-800 border-gray-300 dark:bg-gray-800/60 dark:text-gray-200 dark:border-gray-700',
+  red: 'bg-red-100 text-red-800 border-red-300 dark:bg-red-950/50 dark:text-red-300 dark:border-red-900',
+  orange: 'bg-orange-100 text-orange-800 border-orange-300 dark:bg-orange-950/50 dark:text-orange-300 dark:border-orange-900',
+  yellow: 'bg-yellow-100 text-yellow-800 border-yellow-300 dark:bg-yellow-950/50 dark:text-yellow-300 dark:border-yellow-900',
+  green: 'bg-green-100 text-green-800 border-green-300 dark:bg-green-950/50 dark:text-green-300 dark:border-green-900',
+  blue: 'bg-blue-100 text-blue-800 border-blue-300 dark:bg-blue-950/50 dark:text-blue-300 dark:border-blue-900',
+  indigo: 'bg-indigo-100 text-indigo-800 border-indigo-300 dark:bg-indigo-950/50 dark:text-indigo-300 dark:border-indigo-900',
+  purple: 'bg-purple-100 text-purple-800 border-purple-300 dark:bg-purple-950/50 dark:text-purple-300 dark:border-purple-900',
+  pink: 'bg-pink-100 text-pink-800 border-pink-300 dark:bg-pink-950/50 dark:text-pink-300 dark:border-pink-900',
 };
 
 // Color palette used by the deterministic fallback when no schema/semantic
@@ -746,7 +746,7 @@ export function LookupCellRenderer({ value, field }: CellRendererProps): React.R
           return (
             <span
               key={idx}
-              className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-800"
+              className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-800 dark:bg-gray-800/60 dark:text-gray-200"
             >
               {label}
             </span>
