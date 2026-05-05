@@ -9,6 +9,52 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Sidebar/breadcrumb/chart/table i18n convention.** Convention-based i18n
+  was extended across the dashboard surface so translation packs can localise
+  every label without metadata edits:
+  - `useObjectLabel` (`@object-ui/i18n`) now exposes `pageLabel` and
+    `reportLabel` to mirror `dashboardLabel` (`{ns}.pages.{name}.label`,
+    `{ns}.reports.{name}.label`). The app-namespace discovery used by
+    `resolve()` recognises `pages` and `reports` buckets.
+  - `useSafeFieldLabel` now also exposes `fieldOptionLabel` for plugin
+    components rendered outside an `I18nProvider`.
+  - `NavigationRenderer` (`@object-ui/layout`) accepts a new
+    `resolveDashboardLabel` callback alongside `resolveObjectLabel`, used to
+    translate dashboard-type sidebar items via the convention. Pin/unpin
+    `aria-label`s and the drag-handle `aria-label` are now keyed
+    (`console.nav.pinItem`, `console.nav.unpinItem`,
+    `console.nav.dragToReorder`); the inline "Favorites" group label uses
+    `console.nav.favorites`.
+  - `UnifiedSidebar` (`@object-ui/app-shell`) wires
+    `resolveDashboardLabel={dashboardLabel}` and replaces the hard-coded
+    "Area"/"Recent"/"Favorites"/"Starred" group labels and
+    "Remove … from favorites" `aria-label`s with `t('sidebar.*')` keys
+    (new `sidebar.area/recent/favorites/starred/removeFromFavorites`).
+  - `AppHeader` (`@object-ui/app-shell`) breadcrumb dashboard/page/report
+    segments now look up the metadata definition and call `dashboardLabel`,
+    `pageLabel`, or `reportLabel` instead of `humanizeSlug(slug)`.
+  - `DashboardView` (`@object-ui/app-shell`) "Edit" button uses
+    `t('common.edit')`.
+  - `ChartRenderer` (`@object-ui/plugin-charts`) accepts `series[].label`
+    and uses it for the auto-generated `ChartConfig`. `DashboardRenderer`
+    (`@object-ui/plugin-dashboard`) populates each chart series with
+    `label: fieldLabel(widget.object, dataKey)` so axis/legend titles
+    follow the field-label convention.
+  - `ObjectChart`'s `resolveGroupByLabels` accepts an optional
+    `translateOption` callback. The component injects one bound to
+    `fieldOptionLabel(objectName, groupBy, value, fallback)` so chart
+    legend categories (e.g. opportunity stages) translate via the
+    `fieldOptions.*` convention.
+  - `ObjectDataTable` (`@object-ui/plugin-dashboard`) translates
+    auto-derived column headers via `fieldLabel(objectName, accessorKey)`,
+    fetches the object schema, and rewrites select/picklist cell values via
+    `fieldOptionLabel` before delegating to `data-table`.
+  - `data-table` (`@object-ui/components`) formats ISO date / datetime
+    cell values with `Intl.DateTimeFormat(language)` so dates render in
+    the active locale (e.g. `2026年6月4日 21:35` for `zh-CN`).
+  - 13 widget-data tests updated to assert the new `series[].label`
+    fallback.
+
 - **Dashboard i18n convention.** `useObjectLabel` (`@object-ui/i18n`) now
   exposes `dashboardLabel`, `dashboardDescription`, `dashboardActionLabel`,
   `widgetTitle`, and `widgetDescription` helpers that auto-resolve translations

@@ -4,6 +4,7 @@ import { useDataScope, SchemaRendererContext } from '@object-ui/react';
 import { ChartRenderer } from './ChartRenderer';
 import { ComponentRegistry, extractRecords } from '@object-ui/core';
 import { AlertCircle } from 'lucide-react';
+import { useSafeFieldLabel } from '@object-ui/i18n';
 
 /**
  * Humanize a snake_case or kebab-case string into Title Case.
@@ -76,16 +77,23 @@ export async function resolveGroupByLabels(
   groupByField: string,
   objectSchema: any,
   dataSource?: any,
+  translateOption?: (value: string, fallbackLabel: string) => string,
 ): Promise<any[]> {
   if (!data.length || !groupByField) return data;
+
+  const t = translateOption || ((_v: string, fallback: string) => fallback);
 
   const fieldDef = objectSchema?.fields?.[groupByField];
   if (!fieldDef) {
     // No metadata available — apply humanizeLabel as fallback
-    return data.map(row => ({
-      ...row,
-      [groupByField]: humanizeLabel(String(row[groupByField] ?? '')),
-    }));
+    return data.map(row => {
+      const raw = String(row[groupByField] ?? '');
+      const humanized = humanizeLabel(raw);
+      return {
+        ...row,
+        [groupByField]: t(raw, humanized),
+      };
+    });
   }
 
   const fieldType = fieldDef.type;
@@ -94,10 +102,14 @@ export async function resolveGroupByLabels(
   if (fieldType === 'select' || fieldType === 'picklist' || fieldType === 'dropdown') {
     const options: Array<{ value: string; label: string } | string> = fieldDef.options || [];
     if (options.length === 0) {
-      return data.map(row => ({
-        ...row,
-        [groupByField]: humanizeLabel(String(row[groupByField] ?? '')),
-      }));
+      return data.map(row => {
+        const raw = String(row[groupByField] ?? '');
+        const humanized = humanizeLabel(raw);
+        return {
+          ...row,
+          [groupByField]: t(raw, humanized),
+        };
+      });
     }
 
     // Build value→label map (options can be {value,label} objects or plain strings)
@@ -112,9 +124,10 @@ export async function resolveGroupByLabels(
 
     return data.map(row => {
       const rawValue = String(row[groupByField] ?? '');
+      const fallback = labelMap[rawValue] || humanizeLabel(rawValue);
       return {
         ...row,
-        [groupByField]: labelMap[rawValue] || humanizeLabel(rawValue),
+        [groupByField]: t(rawValue, fallback),
       };
     });
   }
@@ -179,6 +192,7 @@ export const ObjectChart = (props: any) => {
   const context = useContext(SchemaRendererContext);
   const dataSource = props.dataSource || context?.dataSource;
   const boundData = useDataScope(schema.bind);
+  const { fieldOptionLabel } = useSafeFieldLabel();
   
   const [fetchedData, setFetchedData] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
@@ -225,7 +239,13 @@ export const ObjectChart = (props: any) => {
           if (groupByField && typeof ds.getObjectSchema === 'function') {
               try {
                   const objectSchema = await ds.getObjectSchema(schema.objectName);
-                  data = await resolveGroupByLabels(data, groupByField, objectSchema, ds);
+                  data = await resolveGroupByLabels(
+                    data,
+                    groupByField,
+                    objectSchema,
+                    ds,
+                    (value, fallback) => fieldOptionLabel(schema.objectName, groupByField, value, fallback),
+                  );
               } catch {
                   // Schema fetch failed — continue with raw values
               }
@@ -242,7 +262,7 @@ export const ObjectChart = (props: any) => {
       } finally {
           if (mounted.current) setLoading(false);
       }
-  }, [schema.objectName, schema.aggregate, schema.filter, schema.xAxisKey]);
+  }, [schema.objectName, schema.aggregate, schema.filter, schema.xAxisKey, fieldOptionLabel]);
 
   useEffect(() => {
     const mounted = { current: true };

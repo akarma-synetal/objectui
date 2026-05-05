@@ -581,6 +581,12 @@ const en = {
       reports: 'Reports',
       system: 'System',
     },
+    nav: {
+      pinItem: 'Pin {{name}}',
+      unpinItem: 'Unpin {{name}}',
+      dragToReorder: 'Drag to reorder',
+      favorites: 'Favorites',
+    },
     loadingSteps: {
       connecting: 'Connecting to data source',
       loadingConfig: 'Loading configuration',
@@ -872,6 +878,11 @@ const en = {
     help: 'Help',
     helpTooltip: 'Help & Documentation',
     activityFeed: 'Activity feed',
+    area: 'Area',
+    recent: 'Recent',
+    favorites: 'Favorites',
+    starred: 'Starred',
+    removeFromFavorites: 'Remove {{name}} from favorites',
   },
   home: {
     title: 'Home',

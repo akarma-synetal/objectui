@@ -581,6 +581,12 @@ const zh = {
       reports: '报告',
       system: '系统',
     },
+    nav: {
+      pinItem: '固定 {{name}}',
+      unpinItem: '取消固定 {{name}}',
+      dragToReorder: '拖动以重新排序',
+      favorites: '收藏',
+    },
     loadingSteps: {
       connecting: '正在连接数据源',
       loadingConfig: '正在加载配置',
@@ -872,6 +878,11 @@ const zh = {
     help: '帮助',
     helpTooltip: '帮助与文档',
     activityFeed: '活动动态',
+    area: '区域',
+    recent: '最近使用',
+    favorites: '收藏',
+    starred: '已收藏',
+    removeFromFavorites: '从收藏中移除 {{name}}',
   },
   home: {
     title: '首页',

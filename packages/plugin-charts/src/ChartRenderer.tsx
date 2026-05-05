@@ -47,7 +47,7 @@ export interface ChartRendererProps {
     data?: Array<Record<string, any>>;
     config?: Record<string, any>;
     xAxisKey?: string;
-    series?: Array<{ dataKey: string }>;
+    series?: Array<{ dataKey: string; label?: string }>;
   };
 }
 
@@ -82,7 +82,7 @@ export const ChartRenderer: React.FC<ChartRendererProps> = ({ schema }) => {
        const colors = (schema as any).colors || ['hsl(var(--chart-1))', 'hsl(var(--chart-2))', 'hsl(var(--chart-3))']; 
        const newConfig: ChartConfig = {};
        series.forEach((s: any, idx: number) => {
-         newConfig[s.dataKey] = { label: s.dataKey, color: colors[idx % colors.length] };
+         newConfig[s.dataKey] = { label: s.label || s.dataKey, color: colors[idx % colors.length] };
        });
        config = newConfig;
     }

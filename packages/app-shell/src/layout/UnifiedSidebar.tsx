@@ -129,7 +129,7 @@ export function UnifiedSidebar({ activeAppName }: UnifiedSidebarProps) {
   const { isMobile } = useSidebar();
   const location = useLocation();
   const { t } = useObjectTranslation();
-  const { objectLabel: resolveNavObjectLabel } = useObjectLabel();
+  const { objectLabel: resolveNavObjectLabel, dashboardLabel: resolveNavDashboardLabel } = useObjectLabel();
   const { context, currentAppName } = useNavigationContext();
 
   // Swipe-from-left-edge gesture to open sidebar on mobile
@@ -235,7 +235,7 @@ export function UnifiedSidebar({ activeAppName }: UnifiedSidebarProps) {
              <SidebarGroup>
                <SidebarGroupLabel className="flex items-center gap-1.5">
                  <Layers className="h-3.5 w-3.5" />
-                 Area
+                 {t('sidebar.area', { defaultValue: 'Area' })}
                </SidebarGroupLabel>
                <SidebarGroupContent>
                  <SidebarMenu>
@@ -271,6 +271,7 @@ export function UnifiedSidebar({ activeAppName }: UnifiedSidebarProps) {
              enableReorder
              onReorder={handleReorder}
              resolveObjectLabel={(objectName, fallback) => resolveNavObjectLabel({ name: objectName, label: fallback })}
+             resolveDashboardLabel={(dashboardName, fallback) => resolveNavDashboardLabel({ name: dashboardName, label: fallback })}
              t={t}
            />
 
@@ -283,7 +284,7 @@ export function UnifiedSidebar({ activeAppName }: UnifiedSidebarProps) {
                >
                  <ChevronRight className={`h-3 w-3 transition-transform duration-150 ${recentExpanded ? 'rotate-90' : ''}`} />
                  <Clock className="h-3.5 w-3.5" />
-                 Recent
+                 {t('sidebar.recent', { defaultValue: 'Recent' })}
                </SidebarGroupLabel>
                {recentExpanded && (
                <SidebarGroupContent>
@@ -311,7 +312,7 @@ export function UnifiedSidebar({ activeAppName }: UnifiedSidebarProps) {
              <SidebarGroup>
                <SidebarGroupLabel className="flex items-center gap-1.5">
                  <Star className="h-3.5 w-3.5" />
-                 Favorites
+                 {t('sidebar.favorites', { defaultValue: 'Favorites' })}
                </SidebarGroupLabel>
                <SidebarGroupContent>
                  <SidebarMenu>
@@ -328,7 +329,7 @@ export function UnifiedSidebar({ activeAppName }: UnifiedSidebarProps) {
                        <SidebarMenuAction
                          showOnHover
                          onClick={(e: any) => { e.stopPropagation(); removeFavorite(item.id); }}
-                         aria-label={`Remove ${item.label} from favorites`}
+                         aria-label={t('sidebar.removeFromFavorites', { defaultValue: 'Remove {{name}} from favorites', name: item.label })}
                        >
                          <StarOff className="h-3 w-3" />
                        </SidebarMenuAction>
@@ -368,7 +369,7 @@ export function UnifiedSidebar({ activeAppName }: UnifiedSidebarProps) {
              <SidebarGroup>
                <SidebarGroupLabel className="flex items-center gap-1.5">
                  <Star className="h-3.5 w-3.5" />
-                 Starred
+                 {t('sidebar.starred', { defaultValue: 'Starred' })}
                </SidebarGroupLabel>
                <SidebarGroupContent>
                  <SidebarMenu>
@@ -385,7 +386,7 @@ export function UnifiedSidebar({ activeAppName }: UnifiedSidebarProps) {
                        <SidebarMenuAction
                          showOnHover
                          onClick={(e: any) => { e.stopPropagation(); removeFavorite(item.id); }}
-                         aria-label={`Remove ${item.label} from favorites`}
+                         aria-label={t('sidebar.removeFromFavorites', { defaultValue: 'Remove {{name}} from favorites', name: item.label })}
                        >
                          <StarOff className="h-3 w-3" />
                        </SidebarMenuAction>

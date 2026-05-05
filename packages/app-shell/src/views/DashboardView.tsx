@@ -497,7 +497,7 @@ export function DashboardView({ dataSource }: { dataSource?: any }) {
             data-testid="dashboard-edit-button"
           >
             <Pencil className="h-3.5 w-3.5" />
-            Edit
+            {t('common.edit', { defaultValue: 'Edit' })}
           </button>
         </div>
       </div>

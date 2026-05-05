@@ -93,9 +93,10 @@ function useTableTranslation() {
           }
           return value;
         },
+        language: result.language || 'en',
       };
     }
-    return { t: result.t };
+    return { t: result.t, language: result.language || 'en' };
   } catch {
     return {
       t: (key: string, options?: Record<string, unknown>) => {
@@ -107,6 +108,7 @@ function useTableTranslation() {
         }
         return value;
       },
+      language: 'en',
     };
   }
 }
@@ -172,7 +174,30 @@ const DataTableRenderer = ({ schema }: { schema: DataTableSchema }) => {
   } = schema;
 
   // i18n support for pagination labels
-  const { t } = useTableTranslation();
+  const { t, language } = useTableTranslation();
+
+  /**
+   * Format a cell value for display. ISO date / datetime strings are
+   * formatted using the current i18n locale so that calendar dates render
+   * naturally per language (e.g. zh-CN → 2024/12/15, en-US → 12/15/2024).
+   * Non-date values are returned untouched.
+   */
+  const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}(?:T\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?(?:Z|[+-]\d{2}:?\d{2})?)?$/;
+  const formatCellValue = React.useCallback((value: unknown): unknown => {
+    if (typeof value !== 'string' || value.length < 8) return value;
+    if (!ISO_DATE_RE.test(value)) return value;
+    const ts = Date.parse(value);
+    if (Number.isNaN(ts)) return value;
+    const hasTime = value.includes('T');
+    try {
+      const fmt = new Intl.DateTimeFormat(language, hasTime
+        ? { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }
+        : { year: 'numeric', month: 'short', day: 'numeric' });
+      return fmt.format(new Date(ts));
+    } catch {
+      return value;
+    }
+  }, [language]);
 
   // Ensure data is always an array – provider config objects or null/undefined
   // must not reach array operations like .filter() / .some()
@@ -970,7 +995,7 @@ const DataTableRenderer = ({ schema }: { schema: DataTableSchema }) => {
                             ) : typeof col.cell === 'function' ? (
                               col.cell(cellValue, row)
                             ) : (
-                              cellValue != null && typeof cellValue === 'object' ? String(cellValue) : cellValue
+                              cellValue != null && typeof cellValue === 'object' ? String(cellValue) : formatCellValue(cellValue) as any
                             )}
                           </TableCell>
                         );

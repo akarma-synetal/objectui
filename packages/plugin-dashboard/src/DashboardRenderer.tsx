@@ -103,7 +103,7 @@ export const DashboardRenderer = forwardRef<HTMLDivElement, DashboardRendererPro
     // ── i18n: convention-based label resolution for dashboard / widget /
     // action text. The dashboard name (`schema.name`) keys all lookups; when
     // it's missing we silently degrade to the raw English fallbacks.
-    const { dashboardLabel, dashboardDescription, dashboardActionLabel, widgetTitle, widgetDescription } = useObjectLabel();
+    const { dashboardLabel, dashboardDescription, dashboardActionLabel, widgetTitle, widgetDescription, fieldLabel } = useObjectLabel();
     const dashName = (schema as any).name as string | undefined;
 
     /**
@@ -301,13 +301,17 @@ export const DashboardRenderer = forwardRef<HTMLDivElement, DashboardRendererPro
                         groupBy: widget.categoryField || providerAgg.groupBy,
                     } : undefined;
                     const effectiveYField = effectiveAggregate?.field || yField;
+                    const objectForLabel = widget.object || widgetData.object;
                     return {
                         type: 'object-chart',
                         chartType: resolvedWidgetType,
-                        objectName: widget.object || widgetData.object,
+                        objectName: objectForLabel,
                         aggregate: effectiveAggregate,
                         xAxisKey: xAxisKey,
-                        series: [{ dataKey: effectiveYField }],
+                        series: [{
+                            dataKey: effectiveYField,
+                            label: objectForLabel ? fieldLabel(objectForLabel, effectiveYField, effectiveYField) : effectiveYField,
+                        }],
                         colors: CHART_COLORS,
                         className: "h-[200px] sm:h-[250px] md:h-[300px]"
                     };
@@ -321,13 +325,14 @@ export const DashboardRenderer = forwardRef<HTMLDivElement, DashboardRendererPro
                         function: widget.aggregate,
                         groupBy: widget.categoryField || 'name',
                     } : undefined;
+                    const yKey = widget.valueField || 'value';
                     return {
                         type: 'object-chart',
                         chartType: resolvedWidgetType,
                         objectName: widget.object,
                         aggregate,
                         xAxisKey: xAxisKey,
-                        series: [{ dataKey: widget.valueField || 'value' }],
+                        series: [{ dataKey: yKey, label: fieldLabel(widget.object, yKey, yKey) }],
                         colors: CHART_COLORS,
                         className: "h-[200px] sm:h-[250px] md:h-[300px]"
                     };
@@ -340,7 +345,10 @@ export const DashboardRenderer = forwardRef<HTMLDivElement, DashboardRendererPro
                     chartType: resolvedWidgetType,
                     data: dataItems,
                     xAxisKey: xAxisKey,
-                    series: [{ dataKey: yField }],
+                    series: [{
+                        dataKey: yField,
+                        label: widget.object ? fieldLabel(widget.object, yField, yField) : yField,
+                    }],
                     colors: CHART_COLORS,
                     className: "h-[200px] sm:h-[250px] md:h-[300px]"
                 };

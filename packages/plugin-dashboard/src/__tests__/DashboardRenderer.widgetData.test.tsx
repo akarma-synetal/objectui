@@ -57,7 +57,7 @@ describe('DashboardRenderer widget data extraction', () => {
     expect(chartSchema.data).toHaveLength(2);
     expect(chartSchema.data[0]).toEqual({ name: 'A', value: 100 });
     expect(chartSchema.xAxisKey).toBe('name');
-    expect(chartSchema.series).toEqual([{ dataKey: 'value' }]);
+    expect(chartSchema.series).toEqual([{ dataKey: 'value' , label: 'value' }]);
   });
 
   it('should extract chart data from widget.data.items (backward compat)', () => {
@@ -336,7 +336,7 @@ describe('DashboardRenderer widget data extraction', () => {
       groupBy: 'account',
     });
     expect(chartSchema.xAxisKey).toBe('account');
-    expect(chartSchema.series).toEqual([{ dataKey: 'amount' }]);
+    expect(chartSchema.series).toEqual([{ dataKey: 'amount' , label: 'amount' }]);
     // Must NOT have an empty data array – data comes from the object source
     expect(chartSchema.data).toBeUndefined();
   });
@@ -477,7 +477,7 @@ describe('DashboardRenderer widget data extraction', () => {
     const chartSchema = schemas.find(s => s.type === 'object-chart');
 
     expect(chartSchema).toBeDefined();
-    expect(chartSchema.series).toEqual([{ dataKey: 'revenue' }]);
+    expect(chartSchema.series).toEqual([{ dataKey: 'revenue' , label: 'revenue' }]);
   });
 
   it('should auto-adapt series dataKey from aggregate.field even when yField differs', () => {
@@ -510,7 +510,7 @@ describe('DashboardRenderer widget data extraction', () => {
 
     expect(chartSchema).toBeDefined();
     // Even though yField is 'total', the series should use aggregate.field ('amount')
-    expect(chartSchema.series).toEqual([{ dataKey: 'amount' }]);
+    expect(chartSchema.series).toEqual([{ dataKey: 'amount' , label: 'amount' }]);
   });
 
   it('should produce object-chart schema for area chart with provider: object aggregate', () => {
@@ -550,7 +550,7 @@ describe('DashboardRenderer widget data extraction', () => {
       groupBy: 'stage',
     });
     expect(chartSchema.xAxisKey).toBe('stage');
-    expect(chartSchema.series).toEqual([{ dataKey: 'expected_revenue' }]);
+    expect(chartSchema.series).toEqual([{ dataKey: 'expected_revenue' , label: 'expected_revenue' }]);
     expect(chartSchema.data).toBeUndefined();
   });
 
@@ -587,7 +587,7 @@ describe('DashboardRenderer widget data extraction', () => {
     expect(chartSchema.objectName).toBe('opportunity');
     expect(chartSchema.aggregate.function).toBe('count');
     expect(chartSchema.xAxisKey).toBe('lead_source');
-    expect(chartSchema.series).toEqual([{ dataKey: 'count' }]);
+    expect(chartSchema.series).toEqual([{ dataKey: 'count' , label: 'count' }]);
     expect(chartSchema.data).toBeUndefined();
   });
 
@@ -622,7 +622,7 @@ describe('DashboardRenderer widget data extraction', () => {
     expect(chartSchema).toBeDefined();
     expect(chartSchema.chartType).toBe('line');
     expect(chartSchema.aggregate.function).toBe('avg');
-    expect(chartSchema.series).toEqual([{ dataKey: 'amount' }]);
+    expect(chartSchema.series).toEqual([{ dataKey: 'amount' , label: 'amount' }]);
   });
 
   it('should produce object-chart schema for cross-object widget (order)', () => {
@@ -658,7 +658,7 @@ describe('DashboardRenderer widget data extraction', () => {
     expect(chartSchema.objectName).toBe('order');
     expect(chartSchema.aggregate.function).toBe('max');
     expect(chartSchema.xAxisKey).toBe('status');
-    expect(chartSchema.series).toEqual([{ dataKey: 'amount' }]);
+    expect(chartSchema.series).toEqual([{ dataKey: 'amount' , label: 'amount' }]);
   });
 
   it('should render without errors when widgets array is empty', () => {
@@ -796,7 +796,7 @@ describe('DashboardRenderer widget data extraction', () => {
     expect(chartSchema.chartType).toBe('scatter');
     expect(chartSchema.data).toHaveLength(2);
     expect(chartSchema.xAxisKey).toBe('x');
-    expect(chartSchema.series).toEqual([{ dataKey: 'y' }]);
+    expect(chartSchema.series).toEqual([{ dataKey: 'y' , label: 'y' }]);
   });
 
   it('should produce object-chart schema for scatter chart with provider: object', () => {
@@ -899,7 +899,7 @@ describe('DashboardRenderer widget data extraction', () => {
 
     expect(chartSchema).toBeDefined();
     // widget.valueField should override options.yField
-    expect(chartSchema.series).toEqual([{ dataKey: 'expected_revenue' }]);
+    expect(chartSchema.series).toEqual([{ dataKey: 'expected_revenue' , label: 'expected_revenue' }]);
   });
 
   it('should construct object-chart from widget-level fields when no data provider exists', () => {
@@ -928,7 +928,7 @@ describe('DashboardRenderer widget data extraction', () => {
     expect(chartSchema.chartType).toBe('bar');
     expect(chartSchema.objectName).toBe('opportunity');
     expect(chartSchema.xAxisKey).toBe('stage');
-    expect(chartSchema.series).toEqual([{ dataKey: 'amount' }]);
+    expect(chartSchema.series).toEqual([{ dataKey: 'amount' , label: 'amount' }]);
     expect(chartSchema.aggregate).toEqual({
       field: 'amount',
       function: 'sum',
@@ -1032,7 +1032,7 @@ describe('DashboardRenderer widget data extraction', () => {
     expect(chartSchema).toBeDefined();
     // widget.valueField ('expected_revenue') should override aggregate.field ('amount')
     expect(chartSchema.aggregate.field).toBe('expected_revenue');
-    expect(chartSchema.series).toEqual([{ dataKey: 'expected_revenue' }]);
+    expect(chartSchema.series).toEqual([{ dataKey: 'expected_revenue' , label: 'expected_revenue' }]);
   });
 
   it('should override data provider aggregate.function with widget.aggregate', () => {
@@ -1173,7 +1173,7 @@ describe('DashboardRenderer widget data extraction', () => {
       function: 'avg',
       groupBy: 'industry',
     });
-    expect(chartSchema.series).toEqual([{ dataKey: 'revenue' }]);
+    expect(chartSchema.series).toEqual([{ dataKey: 'revenue' , label: 'revenue' }]);
   });
 
   // ---- Pivot widget: object binding without explicit data provider ----------

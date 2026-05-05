@@ -10,6 +10,7 @@ import React, { useState, useEffect, useContext, useMemo } from 'react';
 import { useDataScope, SchemaRendererContext, SchemaRenderer } from '@object-ui/react';
 import { extractRecords } from '@object-ui/core';
 import { Skeleton, cn } from '@object-ui/components';
+import { useSafeFieldLabel } from '@object-ui/i18n';
 
 export interface ObjectDataTableProps {
   schema: {
@@ -82,8 +83,10 @@ export const ObjectDataTable: React.FC<ObjectDataTableProps> = ({ schema, dataSo
   const context = useContext(SchemaRendererContext);
   const dataSource = propDataSource || context?.dataSource;
   const boundData = useDataScope(schema.bind);
+  const { fieldLabel, fieldOptionLabel } = useSafeFieldLabel();
 
   const [fetchedData, setFetchedData] = useState<any[]>([]);
+  const [objectSchema, setObjectSchema] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -128,24 +131,79 @@ export const ObjectDataTable: React.FC<ObjectDataTableProps> = ({ schema, dataSo
     return () => { isMounted = false; };
   }, [schema.objectName, dataSource, boundData, schema.data, schema.filter]);
 
+  // Fetch object schema for column-header translation and select-option cell labels.
+  useEffect(() => {
+    let isMounted = true;
+    if (!dataSource || !schema.objectName || typeof dataSource.getObjectSchema !== 'function') {
+      return;
+    }
+    dataSource.getObjectSchema(schema.objectName)
+      .then((s: any) => { if (isMounted) setObjectSchema(s); })
+      .catch(() => { /* schema lookup failure is non-fatal */ });
+    return () => { isMounted = false; };
+  }, [schema.objectName, dataSource]);
+
   // Resolve data: bound data > static schema data > fetched data
   const rawData = boundData || schema.data || fetchedData;
   const finalData = Array.isArray(rawData) ? rawData : [];
 
-  // Auto-derive columns from data keys when none are provided
+  // Auto-derive columns from data keys when none are provided. When `objectName`
+  // is set, prefer translated field labels via the convention-based hook so that
+  // headers automatically pick up i18n bundles.
   const derivedColumns = useMemo(() => {
+    const objectName = schema.objectName;
+    const buildHeader = (k: string) => {
+      const humanized = k.charAt(0).toUpperCase() + k.slice(1).replace(/([A-Z])/g, ' $1');
+      return objectName ? fieldLabel(objectName, k, humanized) : humanized;
+    };
     if (schema.columns && schema.columns.length > 0) {
-      return normalizeColumns(schema.columns);
+      const normalized = normalizeColumns(schema.columns);
+      if (!objectName) return normalized;
+      return normalized.map((col) => ({
+        ...col,
+        header: fieldLabel(objectName, col.accessorKey, col.header),
+      }));
     }
     if (finalData.length === 0) return [];
-    // Exclude internal/private fields (prefixed with '_') from auto-derived columns
     const keys = Object.keys(finalData[0]).filter(k => !k.startsWith('_'));
-    // Convert camelCase keys to human-readable headers (e.g. firstName → First Name)
-    return keys.map(k => ({
-      header: k.charAt(0).toUpperCase() + k.slice(1).replace(/([A-Z])/g, ' $1'),
-      accessorKey: k,
-    }));
-  }, [schema.columns, finalData]);
+    return keys.map(k => ({ header: buildHeader(k), accessorKey: k }));
+  }, [schema.columns, schema.objectName, finalData, fieldLabel]);
+
+  // Translate select/picklist cell values when an objectSchema is available.
+  // Skips cells whose raw value is missing, and falls back to the metadata
+  // option label (or the raw value) when no translation is registered.
+  const localizedData = useMemo(() => {
+    const objectName = schema.objectName;
+    if (!objectName || !objectSchema?.fields || finalData.length === 0) {
+      return finalData;
+    }
+    const selectFields: Record<string, Record<string, string>> = {};
+    for (const col of derivedColumns) {
+      const fieldDef = objectSchema.fields[col.accessorKey];
+      if (!fieldDef) continue;
+      const ft = fieldDef.type;
+      if (ft !== 'select' && ft !== 'picklist' && ft !== 'dropdown') continue;
+      const opts: Array<{ value: string; label: string } | string> = fieldDef.options || [];
+      const map: Record<string, string> = {};
+      for (const opt of opts) {
+        if (typeof opt === 'string') map[opt] = opt;
+        else if (opt && typeof opt === 'object') map[String(opt.value)] = opt.label || String(opt.value);
+      }
+      selectFields[col.accessorKey] = map;
+    }
+    if (Object.keys(selectFields).length === 0) return finalData;
+    return finalData.map((row: any) => {
+      const next: any = { ...row };
+      for (const [field, labelMap] of Object.entries(selectFields)) {
+        const raw = row[field];
+        if (raw == null || raw === '') continue;
+        const rawStr = String(raw);
+        const fallback = labelMap[rawStr] || rawStr;
+        next[field] = fieldOptionLabel(objectName, field, rawStr, fallback);
+      }
+      return next;
+    });
+  }, [finalData, derivedColumns, objectSchema, schema.objectName, fieldOptionLabel]);
 
   // Loading skeleton
   if (loading && finalData.length === 0) {
@@ -218,7 +276,7 @@ export const ObjectDataTable: React.FC<ObjectDataTableProps> = ({ schema, dataSo
   const tableSchema = {
     ...schema,
     type: 'data-table',
-    data: finalData,
+    data: localizedData,
     columns: derivedColumns,
   };
 

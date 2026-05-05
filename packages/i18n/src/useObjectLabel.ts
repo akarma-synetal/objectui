@@ -62,7 +62,8 @@ export function useObjectLabel() {
     if (!bundle) return [];
     return Object.keys(bundle).filter(
       (key) => !BUILTIN_KEYS.has(key) && bundle[key] && typeof bundle[key] === 'object'
-        && (bundle[key].objects || bundle[key].fields || bundle[key].apps || bundle[key].dashboards),
+        && (bundle[key].objects || bundle[key].fields || bundle[key].apps
+          || bundle[key].dashboards || bundle[key].pages || bundle[key].reports),
     );
   };
 
@@ -132,6 +133,26 @@ export function useObjectLabel() {
     return base !== dashboardName
       ? [`dashboards.${dashboardName}.${tail}`, `dashboards.${base}.${tail}`]
       : [`dashboards.${dashboardName}.${tail}`];
+  };
+
+  /**
+   * Build suffix candidates for a page-scoped key.
+   */
+  const pageSuffixes = (pageName: string, tail: string): string[] => {
+    const base = stripNamespace(pageName);
+    return base !== pageName
+      ? [`pages.${pageName}.${tail}`, `pages.${base}.${tail}`]
+      : [`pages.${pageName}.${tail}`];
+  };
+
+  /**
+   * Build suffix candidates for a report-scoped key.
+   */
+  const reportSuffixes = (reportName: string, tail: string): string[] => {
+    const base = stripNamespace(reportName);
+    return base !== reportName
+      ? [`reports.${reportName}.${tail}`, `reports.${base}.${tail}`]
+      : [`reports.${reportName}.${tail}`];
   };
 
   return {
@@ -241,6 +262,20 @@ export function useObjectLabel() {
       const resolved = resolve(dashboardSuffixes(dashboardName, `widgets.${widgetId}.description`), fb);
       return resolved || undefined;
     },
+
+    /**
+     * Resolve translated page label, falling back to pageDef.label.
+     * Convention: `{ns}.pages.{pageName}.label`.
+     */
+    pageLabel: (pageDef: { name: string; label?: string }) =>
+      resolve(pageSuffixes(pageDef.name, 'label'), pageDef.label ?? pageDef.name),
+
+    /**
+     * Resolve translated report label, falling back to reportDef.label.
+     * Convention: `{ns}.reports.{reportName}.label`.
+     */
+    reportLabel: (reportDef: { name: string; label?: string }) =>
+      resolve(reportSuffixes(reportDef.name, 'label'), reportDef.label ?? reportDef.name),
   };
 }
 
@@ -251,8 +286,8 @@ export function useObjectLabel() {
  */
 export function useSafeFieldLabel() {
   try {
-    const { fieldLabel, translateOptions } = useObjectLabel();
-    return { fieldLabel, translateOptions };
+    const { fieldLabel, translateOptions, fieldOptionLabel } = useObjectLabel();
+    return { fieldLabel, translateOptions, fieldOptionLabel };
   } catch {
     return {
       fieldLabel: (_objectName: string, _fieldName: string, fallback: string) => fallback,
@@ -261,6 +296,7 @@ export function useSafeFieldLabel() {
         _fieldName: string,
         options: Array<{ value: string; label: string; [key: string]: any }>
       ) => options,
+      fieldOptionLabel: (_objectName: string, _fieldName: string, _optionValue: string, fallback: string) => fallback,
     };
   }
 }

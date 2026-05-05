@@ -132,6 +132,15 @@ export interface NavigationRendererProps {
   resolveObjectLabel?: (objectName: string, fallbackLabel: string) => string;
 
   /**
+   * Optional label resolver for dashboard-type navigation items.
+   * Called with `(dashboardName, fallbackLabel)` for items where
+   * `item.type === 'dashboard'` and `item.label` is a plain string.
+   * Mirrors `resolveObjectLabel` for the convention-based i18n hook
+   * `useObjectLabel().dashboardLabel`.
+   */
+  resolveDashboardLabel?: (dashboardName: string, fallbackLabel: string) => string;
+
+  /**
    * Optional i18n translation function for resolving I18nLabel objects
    * (`{ key, defaultValue }`). When provided, labels are translated
    * through i18next; otherwise falls back to `defaultValue`.
@@ -179,17 +188,24 @@ export function resolveLabel(
  * 1. i18n translation for I18nLabel objects (when `t` is provided)
  * 2. Convention-based i18n for object-type items with plain string labels
  *    (when `resolveObjectLabel` is provided)
+ * 3. Convention-based i18n for dashboard-type items with plain string labels
+ *    (when `resolveDashboardLabel` is provided)
  */
 function resolveItemLabel(
   item: NavigationItem,
   resolver?: (objectName: string, fallbackLabel: string) => string,
   t?: (key: string, options?: any) => string,
+  dashboardResolver?: (dashboardName: string, fallbackLabel: string) => string,
 ): string {
   const base = resolveLabel(item.label, t);
-  // Only apply convention-based resolution for object-type items with plain string labels.
+  // Only apply convention-based resolution for items with plain string labels.
   // I18nLabel objects (with explicit key/defaultValue) already have their own translation keys.
-  if (resolver && item.type === 'object' && item.objectName && typeof item.label === 'string') {
+  if (typeof item.label !== 'string') return base;
+  if (resolver && item.type === 'object' && item.objectName) {
     return resolver(item.objectName, base);
+  }
+  if (dashboardResolver && item.type === 'dashboard' && (item as any).dashboardName) {
+    return dashboardResolver((item as any).dashboardName, base);
   }
   return base;
 }
@@ -281,6 +297,7 @@ function SortableNavigationItem({
   onPinToggle,
   enableReorder,
   resolveObjectLabel,
+  resolveDashboardLabel,
   t: tProp,
 }: {
   item: NavigationItem;
@@ -292,6 +309,7 @@ function SortableNavigationItem({
   onPinToggle?: (itemId: string, pinned: boolean) => void;
   enableReorder?: boolean;
   resolveObjectLabel?: (objectName: string, fallbackLabel: string) => string;
+  resolveDashboardLabel?: (dashboardName: string, fallbackLabel: string) => string;
   t?: (key: string, options?: any) => string;
 }) {
   const {
@@ -322,6 +340,7 @@ function SortableNavigationItem({
         onPinToggle={onPinToggle}
         dragListeners={enableReorder ? listeners : undefined}
         resolveObjectLabel={resolveObjectLabel}
+        resolveDashboardLabel={resolveDashboardLabel}
         t={tProp}
       />
     </div>
@@ -342,6 +361,7 @@ function NavigationItemRenderer({
   onPinToggle,
   dragListeners,
   resolveObjectLabel,
+  resolveDashboardLabel,
   t: tProp,
 }: {
   item: NavigationItem;
@@ -353,6 +373,7 @@ function NavigationItemRenderer({
   onPinToggle?: (itemId: string, pinned: boolean) => void;
   dragListeners?: Record<string, any>;
   resolveObjectLabel?: (objectName: string, fallbackLabel: string) => string;
+  resolveDashboardLabel?: (dashboardName: string, fallbackLabel: string) => string;
   t?: (key: string, options?: any) => string;
 }) {
   const location = useLocation();
@@ -400,6 +421,7 @@ function NavigationItemRenderer({
                     enablePinning={enablePinning}
                     onPinToggle={onPinToggle}
                     resolveObjectLabel={resolveObjectLabel}
+                    resolveDashboardLabel={resolveDashboardLabel}
                     t={tProp}
                   />
                 ))}
@@ -414,19 +436,24 @@ function NavigationItemRenderer({
   // --- Action ---
   if (item.type === 'action') {
     const Icon = resolveIcon(item.icon);
+    const actionLabel = resolveLabel(item.label, tProp);
     return (
       <SidebarMenuItem>
         {dragListeners && (
-          <span className="absolute left-0.5 top-1/2 -translate-y-1/2 cursor-grab text-muted-foreground" aria-label="Drag to reorder" {...dragListeners}>
+          <span
+            className="absolute left-0.5 top-1/2 -translate-y-1/2 cursor-grab text-muted-foreground"
+            aria-label={tProp ? tProp('console.nav.dragToReorder', { defaultValue: 'Drag to reorder' }) : 'Drag to reorder'}
+            {...dragListeners}
+          >
             <GripVertical className="h-3.5 w-3.5" />
           </span>
         )}
         <SidebarMenuButton
-          tooltip={resolveLabel(item.label, tProp)}
+          tooltip={actionLabel}
           onClick={() => onAction?.(item)}
         >
           <Icon className="h-4 w-4" />
-          <span>{resolveLabel(item.label, tProp)}</span>
+          <span>{actionLabel}</span>
           {item.badge != null && (
             <Badge variant={item.badgeVariant ?? 'default'} className="ml-auto text-[10px] px-1.5 py-0">
               {item.badge}
@@ -437,7 +464,14 @@ function NavigationItemRenderer({
           <SidebarMenuAction
             showOnHover
             onClick={() => onPinToggle(item.id, !item.pinned)}
-            aria-label={item.pinned ? `Unpin ${resolveLabel(item.label, tProp)}` : `Pin ${resolveLabel(item.label, tProp)}`}
+            aria-label={
+              tProp
+                ? tProp(item.pinned ? 'console.nav.unpinItem' : 'console.nav.pinItem', {
+                    defaultValue: item.pinned ? `Unpin ${actionLabel}` : `Pin ${actionLabel}`,
+                    name: actionLabel,
+                  })
+                : (item.pinned ? `Unpin ${actionLabel}` : `Pin ${actionLabel}`)
+            }
           >
             {item.pinned ? (
               <PinOff className="h-3.5 w-3.5" />
@@ -454,7 +488,7 @@ function NavigationItemRenderer({
   const Icon = resolveIcon(item.icon);
   const { href, external } = resolveHref(item, basePath);
   const isActive = href !== '#' && location.pathname.startsWith(href);
-  const itemLabel = resolveItemLabel(item, resolveObjectLabel, tProp);
+  const itemLabel = resolveItemLabel(item, resolveObjectLabel, tProp, resolveDashboardLabel);
 
   const content = (
     <>
@@ -471,7 +505,11 @@ function NavigationItemRenderer({
   return (
     <SidebarMenuItem>
       {dragListeners && (
-        <span className="absolute left-0.5 top-1/2 -translate-y-1/2 cursor-grab text-muted-foreground" aria-label="Drag to reorder" {...dragListeners}>
+        <span
+          className="absolute left-0.5 top-1/2 -translate-y-1/2 cursor-grab text-muted-foreground"
+          aria-label={tProp ? tProp('console.nav.dragToReorder', { defaultValue: 'Drag to reorder' }) : 'Drag to reorder'}
+          {...dragListeners}
+        >
           <GripVertical className="h-3.5 w-3.5" />
         </span>
       )}
@@ -490,7 +528,14 @@ function NavigationItemRenderer({
         <SidebarMenuAction
           showOnHover
           onClick={() => onPinToggle(item.id, !item.pinned)}
-          aria-label={item.pinned ? `Unpin ${itemLabel}` : `Pin ${itemLabel}`}
+          aria-label={
+            tProp
+              ? tProp(item.pinned ? 'console.nav.unpinItem' : 'console.nav.pinItem', {
+                  defaultValue: item.pinned ? `Unpin ${itemLabel}` : `Pin ${itemLabel}`,
+                  name: itemLabel,
+                })
+              : (item.pinned ? `Unpin ${itemLabel}` : `Pin ${itemLabel}`)
+          }
         >
           {item.pinned ? (
             <PinOff className="h-3.5 w-3.5" />
@@ -548,6 +593,7 @@ export function NavigationRenderer({
   enableReorder,
   onReorder,
   resolveObjectLabel,
+  resolveDashboardLabel,
   t: tProp,
 }: NavigationRendererProps) {
   // --- Search filtering ---
@@ -595,6 +641,7 @@ export function NavigationRenderer({
     enablePinning,
     onPinToggle,
     resolveObjectLabel,
+    resolveDashboardLabel,
     t: tProp,
   };
 
@@ -605,7 +652,7 @@ export function NavigationRenderer({
     <SidebarGroup>
       <SidebarGroupLabel className="flex items-center gap-1.5">
         <Star className="h-3.5 w-3.5" />
-        Favorites
+        {tProp ? tProp('console.nav.favorites', { defaultValue: 'Favorites' }) : 'Favorites'}
       </SidebarGroupLabel>
       <SidebarGroupContent>
         <SidebarMenu>

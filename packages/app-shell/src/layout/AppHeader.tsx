@@ -115,8 +115,8 @@ export function AppHeader({
   } = useAuth();
   const dataSource = useAdapter();
   const { t } = useObjectTranslation();
-  const { objectLabel } = useObjectLabel();
-  const { apps: metadataApps } = useMetadata();
+  const { objectLabel, dashboardLabel, pageLabel, reportLabel } = useObjectLabel();
+  const { apps: metadataApps, dashboards: metadataDashboards, pages: metadataPages, reports: metadataReports } = useMetadata();
   const { currentAppName, recordTitle } = useNavigationContext();
 
   const [apiPresenceUsers, setApiPresenceUsers] = useState<PresenceUser[] | null>(null);
@@ -201,13 +201,28 @@ export function AppHeader({
   if (isApp) {
     if (routeType === 'dashboard') {
       extraSegments.push({ label: t('console.breadcrumb.dashboards'), href: baseHref });
-      if (pathParts[3]) extraSegments.push({ label: humanizeSlug(pathParts[3]) });
+      if (pathParts[3]) {
+        const dashboardName = pathParts[3];
+        const dashboardDef = (metadataDashboards || []).find((d: any) => d.name === dashboardName);
+        const fallback = dashboardDef?.label || humanizeSlug(dashboardName);
+        extraSegments.push({ label: dashboardLabel({ name: dashboardName, label: fallback }) });
+      }
     } else if (routeType === 'page') {
       extraSegments.push({ label: t('console.breadcrumb.pages'), href: baseHref });
-      if (pathParts[3]) extraSegments.push({ label: humanizeSlug(pathParts[3]) });
+      if (pathParts[3]) {
+        const pageName = pathParts[3];
+        const pageDef = (metadataPages || []).find((p: any) => p.name === pageName);
+        const fallback = pageDef?.label || humanizeSlug(pageName);
+        extraSegments.push({ label: pageLabel({ name: pageName, label: fallback }) });
+      }
     } else if (routeType === 'report') {
       extraSegments.push({ label: t('console.breadcrumb.reports'), href: baseHref });
-      if (pathParts[3]) extraSegments.push({ label: humanizeSlug(pathParts[3]) });
+      if (pathParts[3]) {
+        const reportName = pathParts[3];
+        const reportDef = (metadataReports || []).find((r: any) => r.name === reportName);
+        const fallback = reportDef?.label || humanizeSlug(reportName);
+        extraSegments.push({ label: reportLabel({ name: reportName, label: fallback }) });
+      }
     } else if (routeType === 'system') {
       extraSegments.push({ label: t('console.breadcrumb.system') });
       if (pathParts[3]) extraSegments.push({ label: humanizeSlug(pathParts[3]) });
