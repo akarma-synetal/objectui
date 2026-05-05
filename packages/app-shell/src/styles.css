@@ -1,0 +1,16 @@
+/**
+ * @object-ui/app-shell shared Tailwind v4 styles.
+ *
+ * Import once per consumer right after `@import 'tailwindcss';`:
+ *
+ *   @import 'tailwindcss';
+ *   @import '@object-ui/app-shell/styles.css';
+ *
+ * Centralizing here keeps every host app (console, runner, starter, custom
+ * shells) on the same theming/variant contract.
+ */
+
+/* Bind Tailwind's `dark:` variant to the `.dark` class on <html> (or any
+ * ancestor) instead of the OS `prefers-color-scheme`. Required so the
+ * in-app theme toggle fully controls light/dark UI under Tailwind v4. */
+@custom-variant dark (&:where(.dark, .dark *));

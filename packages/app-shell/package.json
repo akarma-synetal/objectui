@@ -21,7 +21,8 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js",
       "default": "./dist/index.js"
-    }
+    },
+    "./styles.css": "./src/styles.css"
   },
   "scripts": {
     "build": "tsc",
@@ -90,6 +91,7 @@
   },
   "files": [
     "dist",
+    "src/styles.css",
     "README.md",
     "CHANGELOG.md",
     "LICENSE"
