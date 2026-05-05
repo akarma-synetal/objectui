@@ -81,6 +81,15 @@ export function ConditionalAuthWrapper({ children, authUrl }: ConditionalAuthWra
         }
       })) as DiscoveryInfo | null;
 
+      // Defensive: an empty/undefined discovery means the server didn't actually
+      // respond with usable data (e.g. a cached rejection that resolved as null,
+      // or an upstream adapter swallowed the error). Treat it as a connectivity
+      // failure so the user sees the error UI instead of being silently dropped
+      // onto a "auth enabled" code path against a non-existent server.
+      if (!discovery) {
+        throw new Error('empty discovery response');
+      }
+
       if (discovery?.mode === 'preview') {
         setPreviewMode({
           autoLogin: discovery.previewMode?.autoLogin ?? true,

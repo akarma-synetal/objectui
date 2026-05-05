@@ -4,6 +4,7 @@
  * Wraps i18next with Object UI defaults and built-in locale support.
  */
 import i18next, { type i18n as I18nInstance } from 'i18next';
+import { initReactI18next } from 'react-i18next';
 import { builtInLocales, isRTL } from './locales/index';
 import type { TranslationKeys } from './locales/en';
 
@@ -66,7 +67,12 @@ export function createI18n(config: I18nConfig = {}): I18nInstance {
 
   const instance = i18next.createInstance();
 
-  instance.init({
+  // IMPORTANT: disable react-i18next Suspense. Otherwise `useTranslation()`
+  // calls during bootstrap throw a Suspense promise (the i18n instance is
+  // technically still "initializing" on the very first render in StrictMode),
+  // which unmounts the entire App subtree — including ConditionalAuthWrapper,
+  // so the discovery fetch never runs and the splash never appears.
+  instance.use(initReactI18next).init({
     lng,
     fallbackLng: fallbackLanguage,
     resources: mergedResources,
@@ -75,6 +81,9 @@ export function createI18n(config: I18nConfig = {}): I18nInstance {
       ...interpolation,
     },
     returnNull: false,
+    react: {
+      useSuspense: false,
+    },
   });
 
   return instance;

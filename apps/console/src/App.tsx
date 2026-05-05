@@ -44,14 +44,20 @@ const CreateAppPage = lazy(() => import('@object-ui/plugin-designer').then(m => 
 const BASENAME = import.meta.env.BASE_URL?.replace(/\/$/, '') || '/';
 const AUTH_URL = `${import.meta.env.VITE_SERVER_URL || ''}/api/v1/auth`;
 
+// IMPORTANT: keep Wrapper at module scope. Defining it inside App() would
+// give it a fresh component identity on every App render, which causes React
+// to unmount and remount the entire ConditionalAuthWrapper subtree (including
+// its discovery fetch effect) every time a parent (e.g. I18nProvider) updates
+// state — the splash would never get past "loading".
+const BypassWrapper = ({ children }: { children: ReactNode }) => (
+  <AuthProvider authUrl={AUTH_URL} enabled={false}>{children}</AuthProvider>
+);
+const AuthWrapper = ({ children }: { children: ReactNode }) => (
+  <ConditionalAuthWrapper authUrl={AUTH_URL}>{children}</ConditionalAuthWrapper>
+);
+const Wrapper = DEV_AUTH_BYPASS ? BypassWrapper : AuthWrapper;
+
 export function App() {
-  const Wrapper = DEV_AUTH_BYPASS
-    ? ({ children }: { children: ReactNode }) => (
-        <AuthProvider authUrl={AUTH_URL} enabled={false}>{children}</AuthProvider>
-      )
-    : ({ children }: { children: ReactNode }) => (
-        <ConditionalAuthWrapper authUrl={AUTH_URL}>{children}</ConditionalAuthWrapper>
-      );
   return (
     <Wrapper>
       <PreviewBanner />
