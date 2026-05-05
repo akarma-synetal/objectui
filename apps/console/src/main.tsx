@@ -46,7 +46,7 @@ ComponentRegistry.registerLazy('chart', () => import('@object-ui/plugin-charts')
 });
 // Additional chart variants registered by @object-ui/plugin-charts so the
 // renderer can lazy-load when any chart type appears in a schema.
-for (const variant of ['bar-chart', 'pie-chart', 'donut-chart', 'radar-chart', 'scatter-chart', 'line-chart', 'area-chart', 'advanced-chart', 'chart:bar']) {
+for (const variant of ['object-chart', 'bar-chart', 'pie-chart', 'donut-chart', 'radar-chart', 'scatter-chart', 'line-chart', 'area-chart', 'advanced-chart', 'chart:bar']) {
   ComponentRegistry.registerLazy(variant, () => import('@object-ui/plugin-charts'), {
     namespace: 'plugin-charts',
     category: 'chart',
