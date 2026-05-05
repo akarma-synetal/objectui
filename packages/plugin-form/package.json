@@ -37,7 +37,7 @@
     "msw": "^2.14.2",
     "typescript": "^6.0.3",
     "vite": "^8.0.10",
-    "vite-plugin-dts": "^4.5.4"
+    "vite-plugin-dts": "^5.0.0"
   },
   "keywords": [
     "objectui",
