@@ -1231,21 +1231,21 @@ export const ObjectGrid: React.FC<ObjectGridProps> = ({
     const dateKeys = ['date', 'due', 'created', 'updated', 'deadline', 'start', 'end', 'expires'];
     const percentKeys = ['probability', 'percent', 'rate', 'ratio', 'confidence', 'score'];
 
-    // Stage badge color mapping for common pipeline stages
+    // Stage badge color mapping for common pipeline stages — soft pill style.
     const stageBadgeColor = (value: string): string => {
       const v = (value || '').toLowerCase();
       if (v.includes('won') || v.includes('completed') || v.includes('done') || v.includes('active'))
-        return 'bg-green-100 text-green-800 border-green-300 dark:bg-green-950/50 dark:text-green-300 dark:border-green-900';
+        return 'bg-green-50 text-green-700 border-green-200 dark:bg-green-950/40 dark:text-green-300 dark:border-green-900/60';
       if (v.includes('lost') || v.includes('cancelled') || v.includes('rejected') || v.includes('closed lost'))
-        return 'bg-red-100 text-red-800 border-red-300 dark:bg-red-950/50 dark:text-red-300 dark:border-red-900';
+        return 'bg-red-50 text-red-700 border-red-200 dark:bg-red-950/40 dark:text-red-300 dark:border-red-900/60';
       if (v.includes('negotiation') || v.includes('review') || v.includes('in progress'))
-        return 'bg-yellow-100 text-yellow-800 border-yellow-300 dark:bg-yellow-950/50 dark:text-yellow-300 dark:border-yellow-900';
+        return 'bg-yellow-50 text-yellow-800 border-yellow-200 dark:bg-yellow-950/40 dark:text-yellow-300 dark:border-yellow-900/60';
       if (v.includes('proposal') || v.includes('pending'))
-        return 'bg-blue-100 text-blue-800 border-blue-300 dark:bg-blue-950/50 dark:text-blue-300 dark:border-blue-900';
+        return 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-900/60';
       if (v.includes('qualification') || v.includes('qualified'))
-        return 'bg-indigo-100 text-indigo-800 border-indigo-300 dark:bg-indigo-950/50 dark:text-indigo-300 dark:border-indigo-900';
+        return 'bg-indigo-50 text-indigo-700 border-indigo-200 dark:bg-indigo-950/40 dark:text-indigo-300 dark:border-indigo-900/60';
       if (v.includes('prospecting') || v.includes('new') || v.includes('open'))
-        return 'bg-purple-100 text-purple-800 border-purple-300 dark:bg-purple-950/50 dark:text-purple-300 dark:border-purple-900';
+        return 'bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-950/40 dark:text-purple-300 dark:border-purple-900/60';
       return 'bg-muted text-muted-foreground border-border';
     };
 

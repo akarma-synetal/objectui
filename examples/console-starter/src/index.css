@@ -1,5 +1,9 @@
 @import 'tailwindcss';
 
+/* Class-based dark variant: follow `.dark` on <html>/ancestor instead of
+   the OS `prefers-color-scheme`, so the in-app theme toggle controls UI. */
+@custom-variant dark (&:where(.dark, .dark *));
+
 @source '../src/**/*.{ts,tsx}';
 @source '../../../packages/app-shell/src/**/*.{ts,tsx}';
 @source '../../../packages/auth/src/**/*.{ts,tsx}';

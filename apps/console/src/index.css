@@ -1,5 +1,10 @@
 @import 'tailwindcss';
 
+/* Treat the `dark:` Tailwind variant as class-based, so it follows
+   `.dark` on <html> rather than the OS `prefers-color-scheme`.
+   This lets the in-app theme toggle fully control light/dark UI. */
+@custom-variant dark (&:where(.dark, .dark *));
+
 /* Scan sources for Tailwind classes */
 @source '../src/**/*.{ts,tsx}';
 @source '../../../packages/app-shell/src/**/*.{ts,tsx}';
