@@ -1,5 +1,11 @@
 # @object-ui/console
 
+## 3.3.2
+
+### Patch Changes
+
+- 89a7b21: fix i18n
+
 ## 3.3.1
 
 ### Patch Changes

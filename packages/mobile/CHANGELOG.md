@@ -1,5 +1,11 @@
 # @object-ui/mobile
 
+## 3.3.2
+
+### Patch Changes
+
+- @object-ui/types@3.3.2
+
 ## 3.3.1
 
 ### Patch Changes
