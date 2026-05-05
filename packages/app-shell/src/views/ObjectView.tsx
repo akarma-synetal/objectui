@@ -318,33 +318,66 @@ export function ObjectView({ dataSource, objects, onEdit }: any) {
       );
     }
 
+    // Refresh trigger — bumped after view CRUD or external data mutations.
+    const [refreshKey, setRefreshKey] = useState(0);
+
+    // ─── User-defined views (sys_view) ──────────────────────────────────
+    // Saved views created via the ViewConfigPanel ("Add View") are persisted
+    // to the `sys_view` object. We fetch them here and merge into `views` so
+    // the ViewTabBar can render them alongside metadata-defined listViews.
+    const [savedViews, setSavedViews] = useState<any[]>([]);
+    useEffect(() => {
+        let cancelled = false;
+        if (!dataSource?.find || !objectName) {
+            setSavedViews([]);
+            return;
+        }
+        dataSource
+            .find('sys_view', {
+                $filter: ['objectName', '=', objectName],
+                $orderby: [{ field: 'created_at', order: 'asc' }],
+                $top: 200,
+            })
+            .then((res: any) => {
+                if (cancelled) return;
+                const rows: any[] = Array.isArray(res)
+                    ? res
+                    : Array.isArray(res?.data) ? res.data
+                    : Array.isArray(res?.records) ? res.records
+                    : Array.isArray(res?.value) ? res.value
+                    : [];
+                // Defensive client-side filter: only keep rows that look like
+                // sys_view records for *this* object. Adapters that don't
+                // honour $filter (or test mocks that ignore it) won't pollute
+                // the view list with arbitrary records.
+                const filtered = rows.filter(r => r && r.objectName === objectName);
+                setSavedViews(filtered);
+            })
+            .catch((err: any) => {
+                console.error('[ObjectView] Failed to load sys_view records:', err);
+                if (!cancelled) setSavedViews([]);
+            });
+        return () => { cancelled = true; };
+    }, [dataSource, objectName, refreshKey]);
+
     // Resolve Views from objectDef.listViews (camelCase per @objectstack/spec)
     const views = useMemo(() => {
-        const definedViews = objectDef.listViews || objectDef.list_views || {};
-        const viewList = Object.entries(definedViews).map(([key, value]: [string, any]) => ({
-            id: key,
-            ...value,
-            type: value.type || 'grid'
-        }));
-
-        if (viewList.length === 0) {
-            // Default column resolution priority:
-            //   1. `compactLayout` (curated primary business fields).
-            //   2. Business fields only — exclude system-managed identifiers/audit
-            //      columns (id, created_at, updated_at, …) and fields explicitly
-            //      marked hidden/readonly on the schema. First 5 kept for compactness.
-            const SYSTEM_FIELDS = new Set([
-                'id', 'created_at', 'createdAt', 'updated_at', 'updatedAt',
-                'deleted_at', 'deletedAt', 'created_by', 'createdBy',
-                'updated_by', 'updatedBy', '_version', '_rev',
-            ]);
-            let defaultColumns: string[] = [];
+        // Default column resolution priority:
+        //   1. `compactLayout` (curated primary business fields).
+        //   2. Business fields only — exclude system-managed identifiers/audit
+        //      columns (id, created_at, updated_at, …) and fields explicitly
+        //      marked hidden/readonly on the schema. First 5 kept for compactness.
+        const SYSTEM_FIELDS = new Set([
+            'id', 'created_at', 'createdAt', 'updated_at', 'updatedAt',
+            'deleted_at', 'deletedAt', 'created_by', 'createdBy',
+            'updated_by', 'updatedBy', '_version', '_rev',
+        ]);
+        const resolveDefaultColumns = (): string[] => {
             if (Array.isArray(objectDef.compactLayout) && objectDef.compactLayout.length > 0) {
-                defaultColumns = objectDef.compactLayout.filter(
-                    (n: string) => objectDef.fields?.[n],
-                );
-            } else if (objectDef.fields) {
-                defaultColumns = Object.entries(objectDef.fields)
+                return objectDef.compactLayout.filter((n: string) => objectDef.fields?.[n]);
+            }
+            if (objectDef.fields) {
+                return Object.entries(objectDef.fields)
                     .filter(([name, f]: [string, any]) => {
                         if (!f) return false;
                         if (f.hidden) return false;
@@ -354,15 +387,65 @@ export function ObjectView({ dataSource, objects, onEdit }: any) {
                     .map(([name]) => name)
                     .slice(0, 5);
             }
+            return [];
+        };
+
+        const definedViews = objectDef.listViews || objectDef.list_views || {};
+        const viewList = Object.entries(definedViews).map(([key, value]: [string, any]) => ({
+            id: key,
+            ...value,
+            type: value.type || 'grid'
+        }));
+
+        if (viewList.length === 0) {
             viewList.push({
                 id: 'all',
                 label: t('console.objectView.allRecords'),
                 type: 'grid',
-                columns: defaultColumns,
+                columns: resolveDefaultColumns(),
             });
         }
+
+        // Merge user-defined views (sys_view) after metadata-defined views.
+        // Dedup by id so a saved view that shadows a metadata view wins.
+        const metaIds = new Set(viewList.map(v => v.id));
+        for (const sv of savedViews) {
+            const id = sv.id || sv._id;
+            if (!id) continue;
+            const normalized: any = {
+                label: sv.label || sv.name || id,
+                type: sv.type || 'grid',
+                columns: sv.columns,
+                filter: sv.filter,
+                sort: sv.sort,
+                showSearch: sv.showSearch,
+                showFilters: sv.showFilters,
+                showSort: sv.showSort,
+                ...sv,
+                id,
+            };
+            if (metaIds.has(id)) {
+                const idx = viewList.findIndex(v => v.id === id);
+                viewList[idx] = { ...viewList[idx], ...normalized };
+            } else {
+                viewList.push(normalized);
+            }
+        }
+
+        // Apply default columns to any grid-like view that has no explicit
+        // columns (e.g. saved views created via "Add View" before the user
+        // configured fields). Without this, the grid renders an empty header
+        // row and the data fetch omits a `select` clause.
+        const GRID_LIKE = new Set(['grid', 'list', 'table']);
+        for (const v of viewList) {
+            if (!GRID_LIKE.has(v.type)) continue;
+            if (!Array.isArray(v.columns) || v.columns.length === 0) {
+                v.columns = resolveDefaultColumns();
+            }
+        }
+
         return viewList;
-    }, [objectDef]);
+    }, [objectDef, savedViews, t]);
 
     // Active View State — merge saved draft if available for this view
     const activeViewId = viewId || searchParams.get('view') || views[0]?.id;
@@ -408,8 +491,7 @@ export function ObjectView({ dataSource, objects, onEdit }: any) {
         }
     }, [views, handleViewChange]);
 
-    // Action system for toolbar operations
-    const [refreshKey, setRefreshKey] = useState(0);
+    // Action system for toolbar operations — refreshKey moved up (declared earlier).
     const actions = useObjectActions({
         objectName: objectDef.name,
         objectLabel: objectDef.label,
