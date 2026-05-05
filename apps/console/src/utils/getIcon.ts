@@ -1,23 +1,33 @@
 /**
  * Icon utilities
  *
- * Helpers for resolving Lucide icons by name.
+ * Synchronous accessor that returns a lazy-loaded Lucide icon React
+ * component.  Wraps lucide-react's `DynamicIcon` so we don't bloat the
+ * vendor bundle by statically importing the entire icon namespace.
  */
 
-import * as LucideIcons from 'lucide-react';
+import React from 'react';
 import { Database } from 'lucide-react';
+import { DynamicIcon } from 'lucide-react/dynamic';
 
-/**
- * Resolve a Lucide icon by name (kebab-case or PascalCase)
- * Falls back to Database icon if not found
- */
+function toKebab(name: string): string {
+  if (name.includes('-')) return name.toLowerCase();
+  return name
+    .replace(/([a-z0-9])([A-Z])/g, '$1-$2')
+    .replace(/([A-Z]+)([A-Z][a-z])/g, '$1-$2')
+    .toLowerCase();
+}
+
+const cache = new Map<string, React.ElementType>();
+
 export function getIcon(name?: string): React.ElementType {
   if (!name) return Database;
-  if ((LucideIcons as any)[name]) return (LucideIcons as any)[name];
-  const pascal = name
-    .split('-')
-    .map(p => p.charAt(0).toUpperCase() + p.slice(1))
-    .join('');
-  if ((LucideIcons as any)[pascal]) return (LucideIcons as any)[pascal];
-  return Database;
+  const cached = cache.get(name);
+  if (cached) return cached;
+  const kebab = toKebab(name);
+  const Wrapped: React.FC<any> = (props) =>
+    React.createElement(DynamicIcon as any, { name: kebab, fallback: Database, ...props });
+  Wrapped.displayName = `LucideIcon(${name})`;
+  cache.set(name, Wrapped);
+  return Wrapped;
 }

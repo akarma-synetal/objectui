@@ -7,7 +7,6 @@
  */
 
 import * as React from 'react';
-import * as LucideIcons from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -20,18 +19,7 @@ import { ChevronDown, Check } from 'lucide-react';
 import { useMetadata } from '../providers/MetadataProvider';
 import { resolveI18nLabel } from '../utils';
 import { useObjectTranslation, useObjectLabel } from '@object-ui/i18n';
-
-function getIcon(name?: string): React.ComponentType<any> {
-  if (!name) return LucideIcons.Database;
-  const lookup = (key: string) => {
-    try {
-      const icon = (LucideIcons as Record<string, unknown>)[key];
-      return typeof icon === 'function' ? (icon as React.ComponentType<any>) : undefined;
-    } catch { return undefined; }
-  };
-  const pascalName = name.split(/[-_]/).map(p => p.charAt(0).toUpperCase() + p.slice(1)).join('');
-  return lookup(name) ?? lookup(pascalName) ?? LucideIcons.Database;
-}
+import { getIcon } from '../utils/getIcon';
 
 export interface AppSwitcherProps {
   activeAppName: string;

@@ -15,7 +15,7 @@
 
 import * as React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import * as LucideIcons from 'lucide-react';
+import { getIcon } from '../utils/getIcon';
 import {
   Sidebar,
   SidebarContent,
@@ -113,30 +113,10 @@ function useNavOrder(appName: string) {
 }
 
 /**
- * Resolve a Lucide icon component by name string.
- * Safely handles both exact names and kebab-case → PascalCase conversion.
- * The try/catch guards against strict module proxy environments (e.g. vitest mocks).
+ * Lazy-resolved Lucide icon — see ../utils/getIcon for impl.
+ * The local symbol is kept for backwards compat with existing call sites
+ * within this file.
  */
-function getIcon(name?: string): React.ComponentType<any> {
-  if (!name) return LucideIcons.Database;
-
-  const lookup = (key: string): React.ComponentType<any> | undefined => {
-    try {
-      const icon = (LucideIcons as Record<string, unknown>)[key];
-      return typeof icon === 'function' ? (icon as React.ComponentType<any>) : undefined;
-    } catch {
-      return undefined;
-    }
-  };
-
-  // Try exact match first, then convert kebab-case / lowercase to PascalCase
-  const pascalName = name
-    .split(/[-_]/)
-    .map(part => part.charAt(0).toUpperCase() + part.slice(1))
-    .join('');
-
-  return lookup(name) ?? lookup(pascalName) ?? LucideIcons.Database;
-}
 
 interface UnifiedSidebarProps {
   /** When in app context, the active app name */

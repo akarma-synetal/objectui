@@ -9,17 +9,18 @@
  * - ListView delegation for non-grid view types (kanban, calendar, chart, etc.)
  */
 
-import { useMemo, useState, useCallback, useEffect, type ComponentType } from 'react';
+import { useMemo, useState, useCallback, useEffect, lazy, Suspense, type ComponentType } from 'react';
 import { useParams, useSearchParams, useNavigate } from 'react-router-dom';
-import { ObjectChart } from '@object-ui/plugin-charts';
+const ObjectChart = lazy(() =>
+  import('@object-ui/plugin-charts').then((m) => ({ default: m.ObjectChart })),
+);
 import { ListView } from '@object-ui/plugin-list';
 import { DetailView, RecordChatterPanel } from '@object-ui/plugin-detail';
 import { ObjectView as PluginObjectView, ViewTabBar } from '@object-ui/plugin-view';
 import type { ViewTabItem } from '@object-ui/plugin-view';
-// Import plugins for side-effects (registration)
-import '@object-ui/plugin-grid';
-import '@object-ui/plugin-kanban';
-import '@object-ui/plugin-calendar';
+// Plugin registration is handled by the host app (e.g. apps/console/src/main.tsx
+// uses ComponentRegistry.registerLazy so heavy plugins stay code-split).
+// Do NOT add eager `import '@object-ui/plugin-*'` side-effect imports here.
 import { Button, Empty, EmptyTitle, EmptyDescription, NavigationOverlay, DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@object-ui/components';
 import { Plus, Table as TableIcon, Settings2, Wrench, KanbanSquare, Calendar, LayoutGrid, Activity, GanttChart, MapPin, BarChart3 } from 'lucide-react';
 import { getIcon } from '../utils/getIcon';
@@ -663,21 +664,22 @@ export function ObjectView({ dataSource, objects, onEdit }: any) {
         if (viewDef.type === 'chart') {
             const chartConfig = viewDef.chart || {};
             return (
-                <ObjectChart 
-                    key={key}
-                    dataSource={ds}
-                    schema={{
-                        type: 'object-chart',
-                        objectName: objectDef.name,
-                        chartType: chartConfig.chartType,
-                        xAxisField: chartConfig.xAxisField,
-                        yAxisFields: chartConfig.yAxisFields,
-                        aggregation: chartConfig.aggregation,
-                        series: chartConfig.series,
-                        config: chartConfig.config,
-                        filter: chartConfig.filter,
-                    } as any}
-                />
+                <Suspense key={key} fallback={<div className="p-4 text-sm text-muted-foreground">Loading chart…</div>}>
+                    <ObjectChart 
+                        dataSource={ds}
+                        schema={{
+                            type: 'object-chart',
+                            objectName: objectDef.name,
+                            chartType: chartConfig.chartType,
+                            xAxisField: chartConfig.xAxisField,
+                            yAxisFields: chartConfig.yAxisFields,
+                            aggregation: chartConfig.aggregation,
+                            series: chartConfig.series,
+                            config: chartConfig.config,
+                            filter: chartConfig.filter,
+                        } as any}
+                    />
+                </Suspense>
             );
         }
 

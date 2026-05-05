@@ -21,7 +21,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import * as LucideIcons from 'lucide-react';
+import { Layers } from 'lucide-react';
 import {
   Sidebar,
   SidebarHeader,
@@ -141,7 +141,7 @@ function AreaSwitcher({
   return (
     <SidebarGroup>
       <SidebarGroupLabel className="flex items-center gap-1.5">
-        <LucideIcons.Layers className="h-3.5 w-3.5" />
+        <Layers className="h-3.5 w-3.5" />
         Area
       </SidebarGroupLabel>
       <SidebarGroupContent>

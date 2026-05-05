@@ -6,7 +6,7 @@
  * LICENSE file in the root directory of this source tree.
  */
 
-import React, { forwardRef, useContext, useMemo, Component } from 'react';
+import React, { forwardRef, useContext, useMemo, useEffect, useReducer, useState, Component } from 'react';
 import {
   SchemaNode,
   ComponentRegistry,
@@ -106,6 +106,12 @@ export const SchemaRenderer = forwardRef<any, { schema: SchemaNode } & Record<st
   const context = useContext(SchemaRendererContext);
   const dataSource = context?.dataSource || {};
 
+  // Re-render trigger when the global ComponentRegistry mutates (e.g. a
+  // lazy-loaded plugin finishes registering its components).
+  const [, forceUpdate] = useReducer((n: number) => n + 1, 0);
+  useEffect(() => ComponentRegistry.subscribe(forceUpdate), []);
+  const [lazyError, setLazyError] = useState<Error | null>(null);
+
   // Evaluate schema expressions against the data source
   const evaluatedSchema = useMemo(() => {
     if (!schema || typeof schema === 'string') return schema;
@@ -184,11 +190,36 @@ export const SchemaRenderer = forwardRef<any, { schema: SchemaNode } & Record<st
   const Component = ComponentRegistry.get(evaluatedSchema.type);
 
   if (!Component) {
+    // If a lazy loader is registered for this type, kick it off — the
+    // registry will notify us via subscribe() once the plugin module's
+    // top-level register() side-effects have run.
+    if (!lazyError && ComponentRegistry.hasLazy(evaluatedSchema.type)) {
+      const pending = ComponentRegistry.loadLazy(evaluatedSchema.type);
+      if (pending) {
+        pending.catch((err: unknown) => {
+          setLazyError(err instanceof Error ? err : new Error(String(err)));
+        });
+        return (
+          <div
+            className="p-2 text-sm text-muted-foreground animate-pulse"
+            role="status"
+            aria-live="polite"
+            data-lazy-loading={evaluatedSchema.type}
+          >
+            Loading <code>{evaluatedSchema.type}</code>…
+          </div>
+        );
+      }
+    }
+
     debugLog('schema', 'Component not found in registry', { type: evaluatedSchema.type });
     const errorInfo = ERROR_CODES['OBJUI-001'];
     return (
       <div className="p-4 border border-red-500 rounded text-red-500 bg-red-50 my-2" role="alert">
         <p className="font-medium">Unknown component type: <strong>{evaluatedSchema.type}</strong></p>
+        {lazyError && (
+          <p className="text-xs mt-1">Failed to load plugin: {lazyError.message}</p>
+        )}
         {(globalThis as any).process?.env?.NODE_ENV !== 'production' && (
           <p className="text-xs mt-1">💡 {errorInfo.suggestion} (OBJUI-001)</p>
         )}

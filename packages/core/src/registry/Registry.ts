@@ -58,8 +58,31 @@ export type ComponentConfig<T = any> = ComponentMeta & {
   component: ComponentRenderer<T>;
 };
 
+/**
+ * Lazy loader function used by `Registry.registerLazy`. The loader is invoked
+ * the first time a missing component type is requested through `getAsync`/the
+ * SchemaRenderer fallback path, and is expected to perform a dynamic
+ * `import()` of a plugin module whose top-level side-effects call
+ * `register()` for that type.
+ */
+export type LazyComponentLoader = () => Promise<unknown>;
+
+type LazyEntry = {
+  loader: LazyComponentLoader;
+  meta?: ComponentMeta;
+  /** Pending import promise — reused when multiple consumers race. */
+  pending?: Promise<unknown>;
+};
+
 export class Registry<T = any> {
   private components = new Map<string, ComponentConfig<T>>();
+  private lazyEntries = new Map<string, LazyEntry>();
+  /**
+   * Notifies subscribers that the registry has changed (new components
+   * registered). Used by SchemaRenderer to re-render after a lazy plugin
+   * load completes.
+   */
+  private listeners = new Set<() => void>();
 
   /**
    * Register a component with optional namespace support.
@@ -117,6 +140,84 @@ export class Registry<T = any> {
         component,
         ...meta
       });
+    }
+
+    // A real component is now available — clear any matching lazy stub so we
+    // don't keep holding the loader reference, and notify subscribers.
+    this.lazyEntries.delete(fullType);
+    this.lazyEntries.delete(type);
+    this.notify();
+  }
+
+  /**
+   * Register a lazy-loaded component. The `loader` is a function returning a
+   * dynamic `import()` whose target module performs `register()` calls for
+   * the given `type` as a top-level side effect.
+   *
+   * The loader will be invoked the first time `loadLazy(type)` is called (or
+   * the first time the SchemaRenderer encounters an unknown component that
+   * matches a registered lazy type). Subsequent registrations are idempotent.
+   *
+   * @example
+   * ComponentRegistry.registerLazy('object-map', () => import('@object-ui/plugin-map'), { namespace: 'plugin-map' });
+   */
+  registerLazy(type: string, loader: LazyComponentLoader, meta?: ComponentMeta) {
+    const fullType = meta?.namespace ? `${meta.namespace}:${type}` : type;
+    const entry: LazyEntry = { loader, meta };
+    this.lazyEntries.set(fullType, entry);
+    if (meta?.namespace && !meta?.skipFallback) {
+      this.lazyEntries.set(type, entry);
+    }
+  }
+
+  /**
+   * Returns true if `type` (or its namespaced form) has a registered lazy
+   * loader awaiting first use.
+   */
+  hasLazy(type: string, namespace?: string): boolean {
+    if (namespace) return this.lazyEntries.has(`${namespace}:${type}`);
+    return this.lazyEntries.has(type);
+  }
+
+  /**
+   * Trigger the lazy loader for `type`, if any. Resolves once the loader
+   * completes (whether or not the loaded module actually registered the
+   * expected type — caller should re-check the registry afterwards).
+   * Returns `undefined` if no lazy entry matches.
+   */
+  loadLazy(type: string, namespace?: string): Promise<unknown> | undefined {
+    const key = namespace ? `${namespace}:${type}` : type;
+    const entry = this.lazyEntries.get(key);
+    if (!entry) return undefined;
+    if (!entry.pending) {
+      entry.pending = entry.loader().catch((err) => {
+        // Allow retries on failure by clearing the cached promise.
+        entry.pending = undefined;
+        throw err;
+      });
+    }
+    return entry.pending;
+  }
+
+  /**
+   * Subscribe to registry changes (component registrations). Returns an
+   * unsubscribe function. Used by React renderers to re-render when a
+   * lazy-loaded plugin finishes registering its components.
+   */
+  subscribe(listener: () => void): () => void {
+    this.listeners.add(listener);
+    return () => {
+      this.listeners.delete(listener);
+    };
+  }
+
+  private notify() {
+    for (const listener of this.listeners) {
+      try {
+        listener();
+      } catch (err) {
+        console.error('[Registry] listener error', err);
+      }
     }
   }
 

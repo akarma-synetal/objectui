@@ -9,19 +9,19 @@
 import type { DashboardSchema, DashboardWidgetSchema } from '@object-ui/types';
 import { SchemaRenderer, useActionEngine } from '@object-ui/react';
 import type { ActionDef, ActionResult, ActionContext, ModalHandler } from '@object-ui/core';
-import { cn, Card, CardHeader, CardTitle, CardContent, Button } from '@object-ui/components';
+import { cn, Card, CardHeader, CardTitle, CardContent, Button, getLazyIcon } from '@object-ui/components';
 import { forwardRef, useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import * as LucideIcons from 'lucide-react';
 import { RefreshCw } from 'lucide-react';
 import { isObjectProvider } from './utils';
 
-/** Resolve a Lucide icon by name (PascalCase or kebab-case). */
+/**
+ * Resolve a Lucide icon by name (PascalCase or kebab-case).
+ * Delegates to the shared lazy resolver so each icon ships as its own
+ * micro-chunk instead of pulling in the full lucide-react namespace.
+ */
 function resolveLucideIcon(name?: string): React.ElementType | null {
   if (!name) return null;
-  const icons = LucideIcons as unknown as Record<string, React.ElementType>;
-  if (icons[name]) return icons[name];
-  const pascal = name.split('-').map(p => p.charAt(0).toUpperCase() + p.slice(1)).join('');
-  return icons[pascal] ?? null;
+  return getLazyIcon(name);
 }
 
 /** Resolve an I18nLabel (string or {key, defaultValue}) to a plain string. */

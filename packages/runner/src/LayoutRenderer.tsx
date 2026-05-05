@@ -8,7 +8,16 @@
 
 import React from 'react';
 import type { AppSchema } from '@object-ui/types';
-import * as LucideIcons from 'lucide-react';
+import {
+  Bell,
+  Box,
+  ChevronDown,
+  Circle,
+  Menu,
+  Moon,
+  Search,
+  Sun,
+} from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -23,7 +32,8 @@ import {
   AvatarFallback,
   Collapsible,
   CollapsibleContent,
-  CollapsibleTrigger
+  CollapsibleTrigger,
+  getLazyIcon,
 } from '@object-ui/components';
 
 interface LayoutRendererProps {
@@ -34,17 +44,11 @@ interface LayoutRendererProps {
 }
 
 // Helper to resolve icon from string name (e.g. "bar-chart" -> "BarChart")
+// Delegates to the shared lazy icon resolver so we don't ship the entire
+// lucide-react namespace for the few icons rendered by user schemas.
 const getIcon = (name?: string) => {
   if (!name) return null;
-  
-  // 1. Try direct match (e.g. "Home")
-  if ((LucideIcons as any)[name]) return (LucideIcons as any)[name];
-
-  // 2. Try PascalCase (e.g. "bar-chart" -> "BarChart")
-  const pascalName = name.split('-').map(part => part.charAt(0).toUpperCase() + part.slice(1)).join('');
-  if ((LucideIcons as any)[pascalName]) return (LucideIcons as any)[pascalName];
-
-  return LucideIcons.Circle; // Fallback
+  return getLazyIcon(name);
 };
 
 const NavItem = ({ item, currentPath, isSidebarOpen, onNavigate, level = 0 }: any) => {
@@ -69,7 +73,7 @@ const NavItem = ({ item, currentPath, isSidebarOpen, onNavigate, level = 0 }: an
                     </span>
                  </div>
                  {isSidebarOpen && (
-                     <LucideIcons.ChevronDown className={`h-4 w-4 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+                     <ChevronDown className={`h-4 w-4 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
                  )}
             </CollapsibleTrigger>
             <CollapsibleContent className="space-y-1 overflow-hidden data-[state=closed]:animate-collapsible-up data-[state=open]:animate-collapsible-down">
@@ -164,7 +168,7 @@ export const LayoutRenderer = ({ app, children, currentPath, onNavigate }: Layou
               <LogoIcon className="h-6 w-6" />
             ) : app.logo ? (
               <img src={app.logo} alt={app.title} className="h-6 w-auto" />
-            ) : <LucideIcons.Box className="h-6 w-6" />}
+            ) : <Box className="h-6 w-6" />}
             
             <span className={`ml-2 whitespace-nowrap overflow-hidden transition-all duration-300 ${isSidbarOpen ? 'opacity-100 w-auto' : 'opacity-0 w-0 hidden'}`}>
                 {app.title || app.name || 'Object UI'}
@@ -199,12 +203,12 @@ export const LayoutRenderer = ({ app, children, currentPath, onNavigate }: Layou
                 onClick={() => setSidebarOpen(!isSidbarOpen)}
                 className="p-2 -ml-2 text-muted-foreground hover:bg-muted hover:text-foreground rounded-md transition-colors"
              >
-                <LucideIcons.Menu className="h-5 w-5" />
+                <Menu className="h-5 w-5" />
              </button>
 
              {/* Breadcrumbs placeholder or Search */}
              <div className="relative hidden md:block w-96">
-                <LucideIcons.Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                 <input 
                   type="text" 
                   placeholder="Search..." 
@@ -219,7 +223,7 @@ export const LayoutRenderer = ({ app, children, currentPath, onNavigate }: Layou
                className="p-2 text-muted-foreground hover:text-foreground transition-colors rounded-md hover:bg-muted"
                title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
              >
-               {theme === 'dark' ? <LucideIcons.Sun className="h-5 w-5" /> : <LucideIcons.Moon className="h-5 w-5" />}
+               {theme === 'dark' ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
              </button>
 
              {/* Global Actions */}
@@ -252,7 +256,7 @@ export const LayoutRenderer = ({ app, children, currentPath, onNavigate }: Layou
 
              {(!app.actions || !app.actions.some(a => a.type === 'button')) && (
                  <button className="relative p-2 text-muted-foreground hover:text-foreground transition-colors">
-                    <LucideIcons.Bell className="h-5 w-5" />
+                    <Bell className="h-5 w-5" />
                     <span className="absolute top-1.5 right-1.5 h-2 w-2 bg-red-600 rounded-full border-2 border-background"></span>
                  </button>
              )}

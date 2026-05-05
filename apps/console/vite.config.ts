@@ -151,6 +151,10 @@ export default defineConfig({
     target: 'esnext',
     sourcemap: false,
     cssCodeSplit: true,
+    // Don't pre-emit `<link rel="modulepreload">` for every chunk; it
+    // negates lazy-loading by pulling all 1700+ icon chunks and heavy
+    // plugin chunks during the initial HTML parse.
+    modulePreload: false,
     commonjsOptions: {
       include: [/node_modules/, /packages/],
       transformMixedEsModules: true
@@ -170,12 +174,22 @@ export default defineConfig({
             return 'vendor-radix';
           }
           // Vendor: @objectstack/* SDK & spec
-          if (id.includes('node_modules/@objectstack/')) {
+          // Match both regular and pnpm-virtualised paths (`.pnpm/@objectstack+client@...`).
+          if (
+            id.includes('node_modules/@objectstack/') ||
+            id.includes('/@objectstack+') ||
+            id.includes('\\@objectstack+')
+          ) {
             return 'vendor-objectstack';
           }
-          // Vendor: Lucide icons
-          if (id.includes('node_modules/lucide-react/')) {
-            return 'vendor-icons';
+          // Vendor: Lucide icons — only bundle the runtime helpers; let
+          // `lucide-react/dynamic` split each icon into its own chunk.
+          if (id.includes('node_modules/lucide-react/dist/lucide-react') ||
+              id.includes('node_modules/lucide-react/dist/esm/Icon') ||
+              id.includes('node_modules/lucide-react/dist/esm/createLucideIcon') ||
+              id.includes('node_modules/lucide-react/dist/esm/defaultAttributes') ||
+              id.includes('node_modules/lucide-react/dist/esm/shared')) {
+            return 'vendor-icons-core';
           }
           // Vendor: UI utilities (cva, clsx, tailwind-merge, sonner)
           if (id.includes('node_modules/class-variance-authority/') ||
@@ -229,11 +243,17 @@ export default defineConfig({
               id.includes('/packages/i18n/')) {
             return 'infrastructure';
           }
-          // Plugins: grid, form, view (core views — always needed)
-          if (id.includes('/packages/plugin-grid/') ||
-              id.includes('/packages/plugin-form/') ||
-              id.includes('/packages/plugin-view/')) {
-            return 'plugins-core';
+          // Plugins: split each into its own chunk for fine-grained code-splitting.
+          // (Was previously merged into a `plugins-core` 1.5MB monolith that
+          // forced form-only or grid-only pages to download all three.)
+          if (id.includes('/packages/plugin-grid/')) {
+            return 'plugin-grid';
+          }
+          if (id.includes('/packages/plugin-form/')) {
+            return 'plugin-form';
+          }
+          if (id.includes('/packages/plugin-view/')) {
+            return 'plugin-view';
           }
           // Plugins: detail, list, dashboard, report
           if (id.includes('/packages/plugin-detail/') ||
@@ -241,6 +261,29 @@ export default defineConfig({
               id.includes('/packages/plugin-dashboard/') ||
               id.includes('/packages/plugin-report/')) {
             return 'plugins-views';
+          }
+          // Heavy / lazy-loaded plugins — keep one chunk per plugin so the
+          // dynamic `import()` boundary in main.tsx can pull only what's used.
+          if (id.includes('/packages/plugin-map/')) {
+            return 'plugin-map';
+          }
+          if (id.includes('/packages/plugin-charts/')) {
+            return 'plugin-charts';
+          }
+          if (id.includes('/packages/plugin-gantt/')) {
+            return 'plugin-gantt';
+          }
+          if (id.includes('/packages/plugin-markdown/')) {
+            return 'plugin-markdown';
+          }
+          if (id.includes('/packages/plugin-timeline/')) {
+            return 'plugin-timeline';
+          }
+          if (id.includes('/packages/plugin-calendar/')) {
+            return 'plugin-calendar';
+          }
+          if (id.includes('/packages/plugin-kanban/')) {
+            return 'plugin-kanban';
           }
         }
       }

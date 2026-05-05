@@ -10,16 +10,11 @@ import { ComponentRegistry } from '@object-ui/core';
 import type { StatisticSchema } from '@object-ui/types';
 import { cn } from '../../lib/utils';
 import { TrendingUp, TrendingDown, Minus } from 'lucide-react';
-import * as LucideIcons from 'lucide-react';
+import { getLazyIcon } from '../../lib/lazy-icon';
 
-// Helper to resolve icon
-const getIcon = (name: string) => {
-    if (!name) return null;
-    const pascalName = name.split('-').map(part => part.charAt(0).toUpperCase() + part.slice(1)).join('');
-    // Dynamic icon lookup from Lucide
-    const Icon = LucideIcons[pascalName] || LucideIcons[name];
-    return Icon;
-};
+// Helper to resolve icon — uses the shared lazy resolver so each icon ships
+// as its own micro-chunk instead of the full lucide-react namespace.
+const getIcon = (name: string) => (name ? getLazyIcon(name) : null);
 
 const StatisticRenderer = ({ schema }: { schema: StatisticSchema }) => {
   const Icon = schema.icon ? getIcon(schema.icon) : null;

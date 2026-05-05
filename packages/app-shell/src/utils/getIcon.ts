@@ -2,22 +2,53 @@
  * Icon utilities
  *
  * Helpers for resolving Lucide icons by name.
+ *
+ * Implementation: instead of statically importing every icon (~1500
+ * components, ~568 KB raw / 140 KB gz), we wrap lucide-react's built-in
+ * `DynamicIcon` so each icon is fetched as its own tiny chunk on first use.
+ *
+ * The exported `getIcon(name)` API stays synchronous and returns a React
+ * component, preserving call sites that do `const Icon = getIcon(name); <Icon />`.
  */
 
-import * as LucideIcons from 'lucide-react';
+import React from 'react';
 import { Database } from 'lucide-react';
+import { DynamicIcon } from 'lucide-react/dynamic';
+
+/** Convert PascalCase / camelCase / mixed names to kebab-case for DynamicIcon. */
+function toKebab(name: string): string {
+  if (name.includes('-')) return name.toLowerCase();
+  return name
+    .replace(/([a-z0-9])([A-Z])/g, '$1-$2')
+    .replace(/([A-Z]+)([A-Z][a-z])/g, '$1-$2')
+    .toLowerCase();
+}
+
+const cache = new Map<string, React.ElementType>();
 
 /**
- * Resolve a Lucide icon by name (kebab-case or PascalCase)
- * Falls back to Database icon if not found
+ * Resolve a Lucide icon by name (kebab-case or PascalCase).
+ *
+ * Returns a React component that lazy-loads the underlying SVG icon on
+ * mount. Falls back to the `Database` icon (statically imported) when no
+ * `name` is given.
+ *
+ * The returned component is memoised per `name` so repeated calls with the
+ * same name yield the same component reference (stable for React.memo).
  */
 export function getIcon(name?: string): React.ElementType {
   if (!name) return Database;
-  if ((LucideIcons as any)[name]) return (LucideIcons as any)[name];
-  const pascal = name
-    .split('-')
-    .map(p => p.charAt(0).toUpperCase() + p.slice(1))
-    .join('');
-  if ((LucideIcons as any)[pascal]) return (LucideIcons as any)[pascal];
-  return Database;
+  const cached = cache.get(name);
+  if (cached) return cached;
+
+  const kebab = toKebab(name);
+  const Wrapped: React.FC<any> = (props) =>
+    React.createElement(DynamicIcon as any, {
+      name: kebab,
+      fallback: Database,
+      ...props,
+    });
+  Wrapped.displayName = `LucideIcon(${name})`;
+  cache.set(name, Wrapped);
+  return Wrapped;
 }

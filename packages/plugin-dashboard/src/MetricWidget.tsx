@@ -1,8 +1,7 @@
 import React, { useMemo } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@object-ui/components';
+import { Card, CardContent, CardHeader, CardTitle, getLazyIcon } from '@object-ui/components';
 import { cn } from '@object-ui/components';
 import { ArrowDownIcon, ArrowUpIcon, MinusIcon, AlertCircle, Loader2 } from 'lucide-react';
-import * as LucideIcons from 'lucide-react';
 
 /** Resolve an I18nLabel (string or {key, defaultValue}) to a plain string. */
 function resolveLabel(label: string | { key?: string; defaultValue?: string } | undefined): string | undefined {
@@ -65,11 +64,12 @@ export const MetricWidget = ({
 }: MetricWidgetProps) => {
   const iconClasses = VARIANT_ICON_CLASSES[colorVariant] || VARIANT_ICON_CLASSES.default;
 
-  // Resolve icon if it's a string
+  // Resolve icon if it's a string — uses lazy resolver so we don't pull
+  // the entire lucide-react namespace into the bundle.
   const resolvedIcon = useMemo(() => {
     if (typeof icon === 'string') {
-        const IconComponent = (LucideIcons as any)[icon];
-        return IconComponent ? <IconComponent className="h-4 w-4" /> : null;
+      const IconComponent = getLazyIcon(icon);
+      return IconComponent ? <IconComponent className="h-4 w-4" /> : null;
     }
     return icon;
   }, [icon]);

@@ -9,7 +9,6 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import * as LucideIcons from 'lucide-react';
 import {
   CommandDialog,
   CommandEmpty,
@@ -34,18 +33,7 @@ import { useTheme } from './ThemeProvider';
 import { useExpressionContext, evaluateVisibility } from '../providers/ExpressionProvider';
 import { useObjectTranslation } from '@object-ui/i18n';
 import { resolveI18nLabel } from '../utils';
-
-/** Resolve a Lucide icon by name (kebab-case or PascalCase) */
-function getIcon(name?: string): React.ElementType {
-  if (!name) return Database;
-  if ((LucideIcons as any)[name]) return (LucideIcons as any)[name];
-  const pascal = name
-    .split('-')
-    .map(p => p.charAt(0).toUpperCase() + p.slice(1))
-    .join('');
-  if ((LucideIcons as any)[pascal]) return (LucideIcons as any)[pascal];
-  return Database;
-}
+import { getIcon } from '../utils/getIcon';
 
 interface CommandPaletteProps {
   apps: any[];

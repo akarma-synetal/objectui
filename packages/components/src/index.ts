@@ -39,6 +39,7 @@ import './renderers';
 export { cn } from './lib/utils';
 export { renderChildren } from './lib/utils';
 export { cva } from 'class-variance-authority';
+export { getLazyIcon, LazyIcon, toKebabIconName } from './lib/lazy-icon';
 
 // Export placeholder registration
 export { registerPlaceholders } from './renderers/placeholders';

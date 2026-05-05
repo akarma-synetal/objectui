@@ -24,7 +24,15 @@
 
 import React, { useState, useMemo } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import * as LucideIcons from 'lucide-react';
+import {
+  ChevronRight,
+  FileText,
+  GripVertical,
+  Pin,
+  PinOff,
+  Star,
+} from 'lucide-react';
+import { getLazyIcon } from '@object-ui/components';
 import {
   DndContext,
   closestCenter,
@@ -135,36 +143,14 @@ export interface NavigationRendererProps {
 // Icon Helper
 // ---------------------------------------------------------------------------
 
-const iconCache = new Map<string, React.ComponentType<any>>();
-
 /**
  * Resolve a Lucide icon component by name string.
- * Supports PascalCase, camelCase, and kebab-case.
+ * Delegates to the shared `getLazyIcon` utility (lucide-react `DynamicIcon`
+ * under the hood) so each icon ships as a separate micro-chunk.
  */
 export function resolveIcon(name?: string): React.ComponentType<any> {
-  if (!name) return LucideIcons.FileText;
-
-  const cached = iconCache.get(name);
-  if (cached) return cached;
-
-  // Direct match
-  if ((LucideIcons as any)[name]) {
-    iconCache.set(name, (LucideIcons as any)[name]);
-    return (LucideIcons as any)[name];
-  }
-
-  // kebab-case → PascalCase
-  const pascal = name
-    .split('-')
-    .filter(Boolean)
-    .map((p) => p.charAt(0).toUpperCase() + p.slice(1))
-    .join('');
-  if ((LucideIcons as any)[pascal]) {
-    iconCache.set(name, (LucideIcons as any)[pascal]);
-    return (LucideIcons as any)[pascal];
-  }
-
-  return LucideIcons.FileText;
+  if (!name) return FileText as any;
+  return getLazyIcon(name) as any;
 }
 
 // ---------------------------------------------------------------------------
@@ -395,7 +381,7 @@ function NavigationItemRenderer({
           <SidebarGroupLabel asChild>
             <CollapsibleTrigger className="flex w-full items-center justify-between">
               {resolveLabel(item.label, tProp)}
-              <LucideIcons.ChevronRight
+              <ChevronRight
                 className={`ml-auto h-4 w-4 transition-transform ${isOpen ? 'rotate-90' : ''}`}
               />
             </CollapsibleTrigger>
@@ -432,7 +418,7 @@ function NavigationItemRenderer({
       <SidebarMenuItem>
         {dragListeners && (
           <span className="absolute left-0.5 top-1/2 -translate-y-1/2 cursor-grab text-muted-foreground" aria-label="Drag to reorder" {...dragListeners}>
-            <LucideIcons.GripVertical className="h-3.5 w-3.5" />
+            <GripVertical className="h-3.5 w-3.5" />
           </span>
         )}
         <SidebarMenuButton
@@ -454,9 +440,9 @@ function NavigationItemRenderer({
             aria-label={item.pinned ? `Unpin ${resolveLabel(item.label, tProp)}` : `Pin ${resolveLabel(item.label, tProp)}`}
           >
             {item.pinned ? (
-              <LucideIcons.PinOff className="h-3.5 w-3.5" />
+              <PinOff className="h-3.5 w-3.5" />
             ) : (
-              <LucideIcons.Pin className="h-3.5 w-3.5" />
+              <Pin className="h-3.5 w-3.5" />
             )}
           </SidebarMenuAction>
         )}
@@ -486,7 +472,7 @@ function NavigationItemRenderer({
     <SidebarMenuItem>
       {dragListeners && (
         <span className="absolute left-0.5 top-1/2 -translate-y-1/2 cursor-grab text-muted-foreground" aria-label="Drag to reorder" {...dragListeners}>
-          <LucideIcons.GripVertical className="h-3.5 w-3.5" />
+          <GripVertical className="h-3.5 w-3.5" />
         </span>
       )}
       <SidebarMenuButton asChild isActive={isActive} tooltip={itemLabel}>
@@ -507,9 +493,9 @@ function NavigationItemRenderer({
           aria-label={item.pinned ? `Unpin ${itemLabel}` : `Pin ${itemLabel}`}
         >
           {item.pinned ? (
-            <LucideIcons.PinOff className="h-3.5 w-3.5" />
+            <PinOff className="h-3.5 w-3.5" />
           ) : (
-            <LucideIcons.Pin className="h-3.5 w-3.5" />
+            <Pin className="h-3.5 w-3.5" />
           )}
         </SidebarMenuAction>
       )}
@@ -618,7 +604,7 @@ export function NavigationRenderer({
   const favoritesSection = pinnedItems.length > 0 && enablePinning ? (
     <SidebarGroup>
       <SidebarGroupLabel className="flex items-center gap-1.5">
-        <LucideIcons.Star className="h-3.5 w-3.5" />
+        <Star className="h-3.5 w-3.5" />
         Favorites
       </SidebarGroupLabel>
       <SidebarGroupContent>

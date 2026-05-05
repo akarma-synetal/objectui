@@ -7,10 +7,9 @@
  */
 
 import React from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@object-ui/components';
+import { Card, CardContent, CardHeader, CardTitle, getLazyIcon } from '@object-ui/components';
 import { cn } from '@object-ui/components';
 import { ArrowDownIcon, ArrowUpIcon, MinusIcon, AlertCircle, Loader2 } from 'lucide-react';
-import * as LucideIcons from 'lucide-react';
 
 /** Resolve an I18nLabel (string or {key, defaultValue}) to a plain string. */
 function resolveLabel(label: string | { key?: string; defaultValue?: string } | undefined): string | undefined {
@@ -49,8 +48,8 @@ export const MetricCard: React.FC<MetricCardProps> = ({
   error,
   ...props
 }) => {
-  // Resolve icon from lucide-react
-  const IconComponent = icon && (LucideIcons as any)[icon];
+  // Resolve icon via lazy resolver — each icon ships as its own micro-chunk
+  const IconComponent = icon ? getLazyIcon(icon) : null;
 
   return (
     <Card className={cn("h-full", className)} {...props}>

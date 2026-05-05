@@ -11,7 +11,8 @@
 
 import * as React from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import * as LucideIcons from 'lucide-react';
+import { Layers } from 'lucide-react';
+import { getIcon as resolveIcon } from '../utils/getIcon';
 import {
   Sidebar,
   SidebarHeader,
@@ -129,29 +130,10 @@ function useNavOrder(appName: string) {
 
 /**
  * Resolve a Lucide icon component by name string.
- * Supports camelCase, PascalCase, and kebab-case icon names.
+ * Delegates to the shared lazy `getIcon` helper which returns a wrapper
+ * around lucide-react `DynamicIcon` so individual icons are code-split.
  */
-function getIcon(name?: string): React.ComponentType<any> {
-  if (!name) return LucideIcons.Database;
-
-  // 1. Direct match (PascalCase or camelCase)
-  if ((LucideIcons as any)[name]) {
-    return (LucideIcons as any)[name];
-  }
-
-  // 2. Try converting kebab-case to PascalCase (e.g. "shopping-cart" -> "ShoppingCart")
-  const pascalName = name
-    .split('-')
-    .map(part => part.charAt(0).toUpperCase() + part.slice(1))
-    .join('');
-    
-  if ((LucideIcons as any)[pascalName]) {
-      return (LucideIcons as any)[pascalName];
-  }
-
-  // 3. Fallback
-  return LucideIcons.Database;
-}
+const getIcon = resolveIcon;
 
 export function AppSidebar({ activeAppName, onAppChange }: { activeAppName: string, onAppChange: (name: string) => void }) {
   const { isMobile } = useSidebar();
@@ -374,7 +356,7 @@ export function AppSidebar({ activeAppName, onAppChange }: { activeAppName: stri
            {areas.length > 1 && (
              <SidebarGroup>
                <SidebarGroupLabel className="flex items-center gap-1.5">
-                 <LucideIcons.Layers className="h-3.5 w-3.5" />
+                 <Layers className="h-3.5 w-3.5" />
                  Area
                </SidebarGroupLabel>
                <SidebarGroupContent>
