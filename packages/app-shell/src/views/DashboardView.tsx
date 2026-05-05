@@ -168,14 +168,26 @@ export function DashboardView({ dataSource }: { dataSource?: any }) {
   const modalHandler = useCallback<ModalHandler>(
     (schema) =>
       new Promise<ActionResult>((resolve) => {
-        // Normalize string schema (e.g. action.target = 'opportunity') to a
-        // ModalForm-compatible descriptor so header `modal` actions like
-        // { actionType: 'modal', actionUrl: 'opportunity' } open the create
-        // form for that object.
-        const normalized =
-          typeof schema === 'string'
-            ? { objectName: schema, mode: 'create' }
-            : schema;
+        // Normalize string schema (e.g. action.target = 'opportunity' or
+        // 'create_opportunity') to a ModalForm-compatible descriptor so header
+        // `modal` actions like { actionType: 'modal', actionUrl: 'create_opportunity' }
+        // open the create form for that object. Supports the conventional
+        // `<verb>_<object>` form (create_/new_/add_/edit_/update_) emitted by
+        // server-driven dashboard schemas.
+        let normalized: any;
+        if (typeof schema === 'string') {
+          const m = schema.match(/^(create|new|add|edit|update)_(.+)$/);
+          if (m) {
+            const verb = m[1];
+            const objectName = m[2];
+            const mode = verb === 'edit' || verb === 'update' ? 'edit' : 'create';
+            normalized = { objectName, mode };
+          } else {
+            normalized = { objectName: schema, mode: 'create' };
+          }
+        } else {
+          normalized = schema;
+        }
         setModalState({ schema: normalized, resolve });
       }),
     [],
