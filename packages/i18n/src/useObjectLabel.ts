@@ -218,6 +218,18 @@ export function useObjectLabel() {
     },
 
     /**
+     * Resolve translated label for a navigation group within an app.
+     * Convention: `{ns}.apps.{appName}.navigation.{groupId}.label`.
+     *
+     * Mirrors `objectLabel`/`dashboardLabel` so app metadata can keep
+     * English fallbacks while translation packs supply localised
+     * sidebar group labels (e.g. "Sales" → "销售") without explicit
+     * I18nLabel `{ key, defaultValue }` annotations.
+     */
+    navGroupLabel: (appName: string, groupId: string, fallback: string) =>
+      resolve(`apps.${appName}.navigation.${groupId}.label`, fallback),
+
+    /**
      * Resolve translated dashboard label, falling back to dashboardDef.label.
      * Convention: `{ns}.dashboards.{dashboardName}.label`.
      */

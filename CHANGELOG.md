@@ -9,6 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Sidebar group label i18n convention.** `useObjectLabel` (`@object-ui/i18n`)
+  now exposes `navGroupLabel(appName, groupId, fallback)`, resolving against
+  `{ns}.apps.{appName}.navigation.{groupId}.label` across discovered app
+  namespaces. `NavigationRenderer` (`@object-ui/layout`) accepts a new
+  `resolveGroupLabel` callback that is applied to `type: 'group'` items with a
+  plain string label. `UnifiedSidebar` (`@object-ui/app-shell`) wires it from
+  the active app, so apps can translate navigation group labels (e.g.
+  "Sales" → "销售") purely through translation packs without editing app
+  metadata.
+
 - **Sidebar/breadcrumb/chart/table i18n convention.** Convention-based i18n
   was extended across the dashboard surface so translation packs can localise
   every label without metadata edits:
