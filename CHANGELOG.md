@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **`@object-ui/app-shell` DashboardView modal handler**: Header `modal`
+  actions emitted with the conventional `<verb>_<object>` `actionUrl`
+  (e.g. `create_opportunity`, `edit_lead`) now correctly resolve to the
+  underlying object name and `mode`. Previously the string was passed
+  through verbatim as `objectName`, causing the form loader to request
+  `/api/v1/meta/object/create_opportunity` and fail with `[ObjectStack]
+  Not Found` when clicking the dashboard's "New Opportunity" button.
 - **`@object-ui/fields`**: Fixed flaky `RecordPickerDialog` test that asserted
   `renderGrid` slot props before async data fetch had completed. The test now
   awaits the final render with populated records before asserting.
