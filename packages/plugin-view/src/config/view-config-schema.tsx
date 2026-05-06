@@ -198,7 +198,18 @@ export interface ViewSchemaFactoryOptions {
     filterGroupValue: FilterGroup;
     /** Precomputed SortItem[] for the current draft.sort */
     sortItemsValue: SortItem[];
+    /**
+     * When true, only essential sections (general / toolbar / data) are
+     * included. Advanced sections — navigation, records, export/print,
+     * appearance, user actions, sharing, accessibility — are omitted so
+     * the panel stays focused on the most common configuration tasks.
+     * @default false
+     */
+    essentialOnly?: boolean;
 }
+
+/** Section keys considered "essential" — always shown in simple mode. */
+export const ESSENTIAL_SECTION_KEYS = ['general', 'toolbar', 'data'] as const;
 
 // ---------------------------------------------------------------------------
 // View-type visibility predicates
@@ -227,7 +238,7 @@ const supportsGenericGroupBy = (draft: Record<string, any>) => draft.type == nul
 // ---------------------------------------------------------------------------
 
 export function buildViewConfigSchema(opts: ViewSchemaFactoryOptions): ConfigPanelSchema {
-    const { t, fieldOptions, objectDef, updateField, filterGroupValue, sortItemsValue } = opts;
+    const { t, fieldOptions, objectDef, updateField, filterGroupValue, sortItemsValue, essentialOnly = false } = opts;
 
     // -- helpers for select options --
     const fieldSelectOptions = fieldOptions.map(f => ({ value: f.value, label: f.label }));
@@ -236,30 +247,36 @@ export function buildViewConfigSchema(opts: ViewSchemaFactoryOptions): ConfigPan
         ...fieldSelectOptions,
     ];
 
+    const allSections = [
+        // ── General Section (title/description/type) ─────────
+        buildGeneralSection(t, objectDef),
+        // ── Toolbar Section (search/filter/sort toggles) ─────
+        buildToolbarSection(t),
+        // ── Navigation Section (click mode, drawer, etc.) ────
+        buildNavigationSection(t, updateField),
+        // ── Records Section (selection, add record, etc.) ────
+        buildRecordsSection(t, updateField),
+        // ── Export & Print Section ───────────────────────────
+        buildExportPrintSection(t, updateField),
+        // ── Data Section ─────────────────────────────────────
+        buildDataSection(t, fieldOptions, fieldSelectWithNone, objectDef, updateField, filterGroupValue, sortItemsValue),
+        // ── Appearance Section ───────────────────────────────
+        buildAppearanceSection(t, fieldOptions, fieldSelectWithNone, updateField),
+        // ── User Actions Section ─────────────────────────────
+        buildUserActionsSection(t, updateField),
+        // ── Sharing Section ──────────────────────────────────
+        buildSharingSection(t, updateField),
+        // ── Accessibility Section ────────────────────────────
+        buildAccessibilitySection(t, updateField),
+    ];
+
+    const sections = essentialOnly
+        ? allSections.filter(s => (ESSENTIAL_SECTION_KEYS as readonly string[]).includes(s.key))
+        : allSections;
+
     return {
         breadcrumb: [t('console.objectView.page')], // second segment set dynamically in ViewConfigPanel
-        sections: [
-            // ── General Section (title/description/type) ─────────
-            buildGeneralSection(t, objectDef),
-            // ── Toolbar Section (search/filter/sort toggles) ─────
-            buildToolbarSection(t),
-            // ── Navigation Section (click mode, drawer, etc.) ────
-            buildNavigationSection(t, updateField),
-            // ── Records Section (selection, add record, etc.) ────
-            buildRecordsSection(t, updateField),
-            // ── Export & Print Section ───────────────────────────
-            buildExportPrintSection(t, updateField),
-            // ── Data Section ─────────────────────────────────────
-            buildDataSection(t, fieldOptions, fieldSelectWithNone, objectDef, updateField, filterGroupValue, sortItemsValue),
-            // ── Appearance Section ───────────────────────────────
-            buildAppearanceSection(t, fieldOptions, fieldSelectWithNone, updateField),
-            // ── User Actions Section ─────────────────────────────
-            buildUserActionsSection(t, updateField),
-            // ── Sharing Section ──────────────────────────────────
-            buildSharingSection(t, updateField),
-            // ── Accessibility Section ────────────────────────────
-            buildAccessibilitySection(t, updateField),
-        ],
+        sections,
     };
 }
 

@@ -8,4 +8,5 @@ export { ActionConfirmDialog } from './ActionConfirmDialog';
 export { ActionParamDialog } from './ActionParamDialog';
 export { MetadataToggle, MetadataPanel } from './MetadataInspector';
 export { ViewConfigPanel } from './ViewConfigPanel';
+export { CreateViewDialog } from './CreateViewDialog';
 export { DesignDrawer } from './DesignDrawer';

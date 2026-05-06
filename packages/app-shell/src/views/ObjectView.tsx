@@ -27,6 +27,7 @@ import { getIcon } from '../utils/getIcon';
 import type { ListViewSchema, ViewNavigationConfig, FeedItem } from '@object-ui/types';
 import { MetadataToggle, MetadataPanel, useMetadataInspector } from './MetadataInspector';
 import { ViewConfigPanel } from './ViewConfigPanel';
+import { CreateViewDialog } from './CreateViewDialog';
 import { useObjectActions } from '../hooks/useObjectActions';
 import { useObjectTranslation, useObjectLabel } from '@object-ui/i18n';
 import { usePermissions } from '@object-ui/permissions';
@@ -250,6 +251,8 @@ export function ObjectView({ dataSource, objects, onEdit }: any) {
     // Inline view config panel state (Airtable-style right sidebar)
     const [showViewConfigPanel, setShowViewConfigPanel] = useState(false);
     const [viewConfigPanelMode, setViewConfigPanelMode] = useState<'create' | 'edit'>('edit');
+    // Airtable-style "Create view" dialog (type picker + name input)
+    const [showCreateViewDialog, setShowCreateViewDialog] = useState(false);
     
     // Draft state for view config edits — cached locally, saved on demand
     const [viewDraft, setViewDraft] = useState<Record<string, any> | null>(null);
@@ -278,7 +281,31 @@ export function ObjectView({ dataSource, objects, onEdit }: any) {
     const handleViewCreate = useCallback(async (config: Record<string, any>) => {
         try {
             if (dataSource?.create) {
-                const payload = { objectName, ...config };
+                // Prefill sensible defaults so the saved view renders rows
+                // immediately even if the user didn't pick columns yet.
+                const objectDef = objects?.find?.((o: any) => o.name === objectName);
+                const SYSTEM_FIELDS = new Set([
+                    'id', 'created_at', 'createdAt', 'updated_at', 'updatedAt',
+                    'deleted_at', 'deletedAt', 'created_by', 'createdBy',
+                    'updated_by', 'updatedBy', '_version', '_rev',
+                ]);
+                let defaultColumns: string[] = [];
+                if (Array.isArray(objectDef?.compactLayout) && objectDef.compactLayout.length > 0) {
+                    defaultColumns = objectDef.compactLayout.filter((n: string) => objectDef.fields?.[n]);
+                } else if (objectDef?.fields) {
+                    defaultColumns = Object.entries(objectDef.fields)
+                        .filter(([name, f]: [string, any]) => f && !f.hidden && !SYSTEM_FIELDS.has(name))
+                        .map(([name]) => name)
+                        .slice(0, 5);
+                }
+                const incomingColumns = Array.isArray(config.columns) && config.columns.length > 0
+                    ? config.columns
+                    : defaultColumns;
+                const payload = {
+                    objectName,
+                    ...config,
+                    columns: incomingColumns,
+                };
                 await dataSource.create('sys_view', payload);
             }
             setShowViewConfigPanel(false);
@@ -287,7 +314,7 @@ export function ObjectView({ dataSource, objects, onEdit }: any) {
         } catch (err) {
             console.error('[ViewConfigPanel] Failed to create view:', err);
         }
-    }, [dataSource, objectName]);
+    }, [dataSource, objectName, objects]);
     
     // Record count tracking for footer
     const [recordCount, setRecordCount] = useState<number | undefined>(undefined);
@@ -421,6 +448,10 @@ export function ObjectView({ dataSource, objects, onEdit }: any) {
                 showSearch: sv.showSearch,
                 showFilters: sv.showFilters,
                 showSort: sv.showSort,
+                isPinned: sv.isPinned,
+                isDefault: sv.isDefault,
+                visibility: sv.visibility,
+                sortOrder: sv.sortOrder,
                 ...sv,
                 id,
             };
@@ -444,11 +475,32 @@ export function ObjectView({ dataSource, objects, onEdit }: any) {
             }
         }
 
+        // Stable sort: metadata views keep declared order; saved views are
+        // sorted by their persisted `sortOrder` (then created_at).
+        const indexOf = new Map(viewList.map((v, i) => [v.id, i]));
+        viewList.sort((a, b) => {
+            const aSaved = savedViews.find((sv: any) => (sv.id || sv._id) === a.id);
+            const bSaved = savedViews.find((sv: any) => (sv.id || sv._id) === b.id);
+            // Metadata-only views first, in their declared order.
+            if (!aSaved && !bSaved) return (indexOf.get(a.id) ?? 0) - (indexOf.get(b.id) ?? 0);
+            if (!aSaved) return -1;
+            if (!bSaved) return 1;
+            const ao = typeof aSaved.sortOrder === 'number' ? aSaved.sortOrder : Number.MAX_SAFE_INTEGER;
+            const bo = typeof bSaved.sortOrder === 'number' ? bSaved.sortOrder : Number.MAX_SAFE_INTEGER;
+            if (ao !== bo) return ao - bo;
+            return (aSaved.created_at || '').localeCompare(bSaved.created_at || '');
+        });
+
         return viewList;
     }, [objectDef, savedViews, t]);
 
-    // Active View State — merge saved draft if available for this view
-    const activeViewId = viewId || searchParams.get('view') || views[0]?.id;
+    // Active View State — merge saved draft if available for this view.
+    // Resolution priority: URL viewId → ?view= → user-marked default → first.
+    const defaultViewId = useMemo(() => {
+        const def = views.find((v: any) => v.isDefault);
+        return def?.id;
+    }, [views]);
+    const activeViewId = viewId || searchParams.get('view') || defaultViewId || views[0]?.id;
     const baseView = views.find((v: any) => v.id === activeViewId) || views[0];
     const activeView = viewDraft && viewDraft.id === baseView?.id
         ? { ...baseView, ...viewDraft }
@@ -478,8 +530,7 @@ export function ObjectView({ dataSource, objects, onEdit }: any) {
 
     // ViewSwitcher callbacks — wired to both PluginObjectView instances
     const handleCreateView = useCallback(() => {
-        setViewConfigPanelMode('create');
-        setShowViewConfigPanel(true);
+        setShowCreateViewDialog(true);
     }, []);
 
     const handleViewAction = useCallback((actionType: string, viewType: string) => {
@@ -490,6 +541,127 @@ export function ObjectView({ dataSource, objects, onEdit }: any) {
             setShowViewConfigPanel(true);
         }
     }, [views, handleViewChange]);
+
+    // ─── ViewTabBar CRUD callbacks (Phase 2) ────────────────────────────
+    /** Returns true if the view is backed by a sys_view record (mutable). */
+    const isSavedView = useCallback((vid: string) => {
+        return savedViews.some((sv: any) => (sv.id || sv._id) === vid);
+    }, [savedViews]);
+
+    const handleRenameView = useCallback(async (vid: string, newName: string) => {
+        if (!dataSource?.update) return;
+        if (!isSavedView(vid)) {
+            toast.error(t('console.objectView.cannotEditMetaView') || 'Built-in views cannot be renamed.');
+            return;
+        }
+        try {
+            await dataSource.update('sys_view', vid, { label: newName });
+            setRefreshKey(k => k + 1);
+        } catch (err) {
+            console.error('[ViewTabBar] Failed to rename view:', err);
+            toast.error('Failed to rename view');
+        }
+    }, [dataSource, isSavedView, t]);
+
+    const handleDeleteView = useCallback(async (vid: string) => {
+        if (!dataSource?.delete) return;
+        if (!isSavedView(vid)) {
+            toast.error(t('console.objectView.cannotDeleteMetaView') || 'Built-in views cannot be deleted.');
+            return;
+        }
+        try {
+            await dataSource.delete('sys_view', vid);
+            // If we deleted the active view, fall back to the first remaining view.
+            if (vid === activeViewId) {
+                const fallback = views.find((v: any) => v.id !== vid);
+                if (fallback) navigate(viewId ? `../${fallback.id}` : `view/${fallback.id}`, viewId ? { relative: 'path' } : undefined);
+            }
+            setRefreshKey(k => k + 1);
+        } catch (err) {
+            console.error('[ViewTabBar] Failed to delete view:', err);
+            toast.error('Failed to delete view');
+        }
+    }, [dataSource, isSavedView, activeViewId, views, viewId, navigate, t]);
+
+    const handleDuplicateView = useCallback(async (vid: string) => {
+        if (!dataSource?.create) return;
+        const source = views.find((v: any) => v.id === vid);
+        if (!source) return;
+        try {
+            const { id: _omit, created_at, updated_at, ...rest } = source as any;
+            const payload = {
+                ...rest,
+                objectName,
+                id: `view_${Date.now()}`,
+                label: `${source.label || vid} (Copy)`,
+                isDefault: false,
+                isPinned: false,
+            };
+            await dataSource.create('sys_view', payload);
+            setRefreshKey(k => k + 1);
+        } catch (err) {
+            console.error('[ViewTabBar] Failed to duplicate view:', err);
+            toast.error('Failed to duplicate view');
+        }
+    }, [dataSource, views, objectName]);
+
+    const handlePinView = useCallback(async (vid: string, pinned: boolean) => {
+        if (!dataSource?.update) return;
+        if (!isSavedView(vid)) {
+            toast.error(t('console.objectView.cannotEditMetaView') || 'Built-in views cannot be pinned.');
+            return;
+        }
+        try {
+            await dataSource.update('sys_view', vid, { isPinned: pinned });
+            setRefreshKey(k => k + 1);
+        } catch (err) {
+            console.error('[ViewTabBar] Failed to pin view:', err);
+        }
+    }, [dataSource, isSavedView, t]);
+
+    const handleSetDefaultView = useCallback(async (vid: string) => {
+        if (!dataSource?.update) return;
+        try {
+            // Clear `isDefault` on all other saved views, then set this one.
+            const updates = savedViews
+                .filter((sv: any) => (sv.id || sv._id) !== vid && sv.isDefault)
+                .map((sv: any) => dataSource.update('sys_view', sv.id || sv._id, { isDefault: false }));
+            if (isSavedView(vid)) {
+                updates.push(dataSource.update('sys_view', vid, { isDefault: true }));
+            }
+            await Promise.all(updates);
+            setRefreshKey(k => k + 1);
+        } catch (err) {
+            console.error('[ViewTabBar] Failed to set default view:', err);
+            toast.error('Failed to set default view');
+        }
+    }, [dataSource, savedViews, isSavedView]);
+
+    const handleReorderViews = useCallback(async (orderedIds: string[]) => {
+        if (!dataSource?.update) return;
+        // Persist a `sortOrder` on each saved view following the new ordering.
+        // Metadata views are skipped (they keep their declared order).
+        const savedIdSet = new Set(savedViews.map((sv: any) => sv.id || sv._id));
+        const updates = orderedIds
+            .filter(id => savedIdSet.has(id))
+            .map((id, idx) => dataSource.update('sys_view', id, { sortOrder: idx }));
+        try {
+            await Promise.all(updates);
+            setRefreshKey(k => k + 1);
+        } catch (err) {
+            console.error('[ViewTabBar] Failed to reorder views:', err);
+        }
+    }, [dataSource, savedViews]);
+
+    const handleConfigView = useCallback((vid: string) => {
+        if (vid !== activeViewId) handleViewChange(vid);
+        setViewConfigPanelMode('edit');
+        setShowViewConfigPanel(true);
+    }, [activeViewId, handleViewChange]);
+
+    const handleAddView = useCallback(() => {
+        setShowCreateViewDialog(true);
+    }, []);
 
     // Action system for toolbar operations — refreshKey moved up (declared earlier).
     const actions = useObjectActions({
@@ -994,7 +1166,7 @@ export function ObjectView({ dataSource, objects, onEdit }: any) {
                           <Settings2 className="h-4 w-4 mr-2" />
                           {t('console.objectView.editView')}
                         </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => { setViewConfigPanelMode('create'); setShowViewConfigPanel(true); }}>
+                        <DropdownMenuItem onClick={() => setShowCreateViewDialog(true)}>
                           <Plus className="h-4 w-4 mr-2" />
                           {t('console.objectView.addView')}
                         </DropdownMenuItem>
@@ -1004,21 +1176,43 @@ export function ObjectView({ dataSource, objects, onEdit }: any) {
                  </div>
              </div>
 
-             {/* View Tabs — read-only view switcher (design features like drag/add are in ViewConfigPanel) */}
+             {/* View Tabs — Airtable-style switcher with rename / delete /
+                 duplicate / pin / set-default / drag-reorder. Built-in views
+                 (sourced from objectDef.listViews) only support switching;
+                 mutating callbacks short-circuit with a toast. */}
              {views.length > 1 && (
                <div className="border-b px-3 sm:px-4 bg-background overflow-x-auto shrink-0">
                  <ViewTabBar
-                   views={views.map((view: { id: string; label: string; type: string; filter?: any[]; sort?: any[] }) => ({
-                     id: view.id,
-                     label: view.label,
-                     type: view.type,
-                     hasActiveFilters: Array.isArray((view as any).filter) && (view as any).filter.length > 0,
-                     hasActiveSort: Array.isArray((view as any).sort) && (view as any).sort.length > 0,
-                   } as ViewTabItem))}
+                   views={views.map((view: any) => {
+                     const saved = savedViews.find((sv: any) => (sv.id || sv._id) === view.id);
+                     return {
+                       id: view.id,
+                       label: view.label,
+                       type: view.type,
+                       hasActiveFilters: Array.isArray(view.filter) && view.filter.length > 0,
+                       hasActiveSort: Array.isArray(view.sort) && view.sort.length > 0,
+                       isDefault: !!(saved?.isDefault ?? view.isDefault),
+                       isPinned: !!(saved?.isPinned ?? view.isPinned),
+                       visibility: saved?.visibility ?? view.visibility,
+                     } as ViewTabItem;
+                   })}
                    activeViewId={activeViewId}
                    onViewChange={handleViewChange}
                    viewTypeIcons={VIEW_TYPE_ICONS}
-                   config={{ reorderable: false }}
+                   config={{
+                     reorderable: isAdmin,
+                     showAddButton: isAdmin,
+                     showPinnedSection: true,
+                     showVisibilityGroups: true,
+                   }}
+                   onAddView={isAdmin ? handleAddView : undefined}
+                   onRenameView={isAdmin ? handleRenameView : undefined}
+                   onDeleteView={isAdmin ? handleDeleteView : undefined}
+                   onDuplicateView={isAdmin ? handleDuplicateView : undefined}
+                   onPinView={isAdmin ? handlePinView : undefined}
+                   onSetDefaultView={isAdmin ? handleSetDefaultView : undefined}
+                   onReorderViews={isAdmin ? handleReorderViews : undefined}
+                   onConfigView={isAdmin ? handleConfigView : undefined}
                  />
                </div>
              )}
@@ -1114,8 +1308,15 @@ export function ObjectView({ dataSource, objects, onEdit }: any) {
                         onSave={handleViewConfigSave}
                         onViewUpdate={handleViewUpdate}
                         onCreate={handleViewCreate}
+                        essentialOnlyDefault
                     />
                 </div>
+                <CreateViewDialog
+                    open={showCreateViewDialog && isAdmin}
+                    onOpenChange={setShowCreateViewDialog}
+                    existingLabels={views.map((v: any) => v.label).filter(Boolean)}
+                    onCreate={(cfg) => handleViewCreate(cfg)}
+                />
              </div>
 
              {/* Record Detail Overlay — navigation mode driven by objectDef.navigation */}

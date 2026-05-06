@@ -27,13 +27,14 @@ export type { SharedViewLinkProps } from './SharedViewLink';
 // Declarative view config-panel builder (filters/sort/columns).
 // Hosts (e.g. designer panels, console ViewConfigPanel) consume this to build
 // a uniform ConfigPanelSchema for any object view.
-export { buildViewConfigSchema } from './config/view-config-schema';
+export { buildViewConfigSchema, ESSENTIAL_SECTION_KEYS } from './config/view-config-schema';
 export type { ViewSchemaFactoryOptions } from './config/view-config-schema';
 export {
   deriveFieldOptions,
   toFilterGroup,
   toSortItems,
   VIEW_TYPE_LABELS,
+  VIEW_TYPE_OPTIONS,
 } from './config/view-config-utils';
 export type { FieldOption } from './config/view-config-utils';
 

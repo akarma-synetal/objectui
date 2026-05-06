@@ -10,8 +10,8 @@
  * the draft via onSave; Discard resets to the original activeView.
  */
 
-import { useMemo, useEffect, useRef, useCallback } from 'react';
-import { ConfigPanelRenderer, useConfigDraft } from '@object-ui/components';
+import { useMemo, useEffect, useRef, useCallback, useState } from 'react';
+import { ConfigPanelRenderer, useConfigDraft, Button } from '@object-ui/components';
 import { useObjectTranslation } from '@object-ui/i18n';
 import {
   buildViewConfigSchema,
@@ -65,9 +65,17 @@ export interface ViewConfigPanelProps {
     onSave?: (draft: Record<string, any>) => void;
     /** Called when create-mode view is created */
     onCreate?: (config: Record<string, any>) => void;
+    /**
+     * Initial value for the "essentials only" toggle. When true, advanced
+     * sections (navigation, records, export, appearance, user actions,
+     * sharing, accessibility) are hidden until the user clicks "Show all
+     * properties". Once the user toggles, the choice is persisted in
+     * localStorage and overrides this default. Default: false (full schema).
+     */
+    essentialOnlyDefault?: boolean;
 }
 
-export function ViewConfigPanel({ open, onClose, mode = 'edit', activeView, objectDef, onViewUpdate, onSave, onCreate }: ViewConfigPanelProps) {
+export function ViewConfigPanel({ open, onClose, mode = 'edit', activeView, objectDef, onViewUpdate, onSave, onCreate, essentialOnlyDefault = false }: ViewConfigPanelProps) {
     const { t } = useObjectTranslation();
     const panelRef = useRef<HTMLDivElement>(null);
 
@@ -114,6 +122,27 @@ export function ViewConfigPanel({ open, onClose, mode = 'edit', activeView, obje
     const filterGroupValue = useMemo(() => toFilterGroup(draft.filter), [draft.filter]);
     const sortItemsValue = useMemo(() => toSortItems(draft.sort), [draft.sort]);
 
+    // Essentials-only toggle — defaults to `essentialOnlyDefault` (set by the
+    // consumer; app-shell passes true so end users see a focused panel).
+    // User clicks on the header toggle persist their choice to localStorage,
+    // which then overrides the default on subsequent mounts.
+    const PREF_KEY = 'object-ui:view-config-panel:essentialOnly';
+    const [essentialOnly, setEssentialOnly] = useState<boolean>(() => {
+        try {
+            const v = typeof window !== 'undefined' ? window.localStorage.getItem(PREF_KEY) : null;
+            return v === null ? essentialOnlyDefault : v === '1';
+        } catch {
+            return essentialOnlyDefault;
+        }
+    });
+    const [hasUserToggled, setHasUserToggled] = useState(false);
+    useEffect(() => {
+        if (!hasUserToggled) return;
+        try {
+            if (typeof window !== 'undefined') window.localStorage.setItem(PREF_KEY, essentialOnly ? '1' : '0');
+        } catch { /* ignore */ }
+    }, [essentialOnly, hasUserToggled]);
+
     // Build schema
     const schema = useMemo(
         () => buildViewConfigSchema({
@@ -123,8 +152,9 @@ export function ViewConfigPanel({ open, onClose, mode = 'edit', activeView, obje
             updateField,
             filterGroupValue,
             sortItemsValue,
+            essentialOnly,
         }),
-        [t, fieldOptions, objectDef, updateField, filterGroupValue, sortItemsValue],
+        [t, fieldOptions, objectDef, updateField, filterGroupValue, sortItemsValue, essentialOnly],
     );
 
     // Override breadcrumb with dynamic view type
@@ -186,6 +216,23 @@ export function ViewConfigPanel({ open, onClose, mode = 'edit', activeView, obje
             saveTestId="view-config-save"
             discardTestId="view-config-discard"
             className="transition-all overflow-hidden"
+            headerExtra={
+                <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 px-2 text-[11px] text-muted-foreground hover:text-foreground"
+                    data-testid="view-config-toggle-essential"
+                    onClick={() => { setEssentialOnly(v => !v); setHasUserToggled(true); }}
+                    title={essentialOnly
+                        ? t('console.objectView.showAllProperties')
+                        : t('console.objectView.showEssentialsOnly')}
+                >
+                    {essentialOnly
+                        ? t('console.objectView.showAllProperties')
+                        : t('console.objectView.showEssentialsOnly')}
+                </Button>
+            }
         />
     );
 }

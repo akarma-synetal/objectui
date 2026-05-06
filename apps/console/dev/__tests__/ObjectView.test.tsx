@@ -154,6 +154,10 @@ describe('ObjectView Component', () => {
         vi.clearAllMocks();
         mockSearchParams = new URLSearchParams(); // Reset params
         mockAuthUser = null; // Default to non-admin
+        // Force the right-panel "essentials only" preference off so tests
+        // can interact with advanced sections (records / exportPrint /
+        // navigation / userActions / sharing / accessibility / appearance).
+        try { window.localStorage.setItem('object-ui:view-config-panel:essentialOnly', '0'); } catch { /* ignore */ }
     });
 
     it('renders error when object is not found', () => {
@@ -251,7 +255,7 @@ describe('ObjectView Component', () => {
         expect(screen.queryByTitle('console.objectView.designTools')).not.toBeInTheDocument();
     });
 
-    it('opens config panel in create mode when Add View is clicked from nested view route', () => {
+    it('opens create-view dialog when Add View is clicked from nested view route', () => {
         mockAuthUser = { id: 'u1', name: 'Admin', role: 'admin' };
         mockUseParams.mockReturnValue({ objectName: 'opportunity', viewId: 'pipeline' });
 
@@ -264,12 +268,12 @@ describe('ObjectView Component', () => {
         const addViewBtn = screen.getByText('console.objectView.addView');
         fireEvent.click(addViewBtn);
 
-        // Should open config panel instead of navigating
+        // Should open create-view dialog (Airtable-style type picker) instead of navigating
         expect(mockNavigate).not.toHaveBeenCalledWith('../../views/new', { relative: 'path' });
-        expect(screen.getByTestId('view-config-panel')).toBeInTheDocument();
+        expect(screen.getByTestId('create-view-dialog')).toBeInTheDocument();
     });
 
-    it('opens config panel in create mode when Add View is clicked from root object route', () => {
+    it('opens create-view dialog when Add View is clicked from root object route', () => {
         mockAuthUser = { id: 'u1', name: 'Admin', role: 'admin' };
         mockUseParams.mockReturnValue({ objectName: 'opportunity' });
 
@@ -281,9 +285,9 @@ describe('ObjectView Component', () => {
         const addViewBtn = screen.getByText('console.objectView.addView');
         fireEvent.click(addViewBtn);
 
-        // Should open config panel instead of navigating
+        // Should open create-view dialog instead of navigating
         expect(mockNavigate).not.toHaveBeenCalledWith('views/new', { relative: 'path' });
-        expect(screen.getByTestId('view-config-panel')).toBeInTheDocument();
+        expect(screen.getByTestId('create-view-dialog')).toBeInTheDocument();
     });
 
     it('does not show breadcrumb in ObjectView (removed to avoid duplication with AppHeader)', () => {
@@ -938,8 +942,8 @@ describe('ObjectView Component', () => {
         fireEvent.click(screen.getByTitle('console.objectView.designTools'));
         fireEvent.click(screen.getByText('console.objectView.addView'));
 
-        // ViewConfigPanel should be open in create mode
-        expect(screen.getByTestId('view-config-panel')).toBeInTheDocument();
+        // CreateViewDialog should open (Airtable-style type picker + name input)
+        expect(screen.getByTestId('create-view-dialog')).toBeInTheDocument();
     });
 
     it('does not expose view actions for non-admin users', () => {
