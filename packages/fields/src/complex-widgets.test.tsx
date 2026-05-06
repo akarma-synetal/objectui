@@ -566,5 +566,51 @@ describe('Complex & Relationship Widgets', () => {
              // Check for remove button existence implies it rendered correctly
              // Typically icon X or Trash.
         });
+
+        it('renders the camera button when capture is explicitly enabled', () => {
+            render(
+                <FileField
+                    {...baseProps}
+                    field={{ ...baseProps.field, capture: 'environment' } as any}
+                    value={null}
+                />,
+            );
+            expect(screen.getByTestId('file-field-camera-button')).toBeInTheDocument();
+            expect(screen.getByText(/Take photo/i)).toBeInTheDocument();
+            const cameraInput = screen.getByTestId('file-field-camera-input') as HTMLInputElement;
+            expect(cameraInput).toHaveAttribute('capture', 'environment');
+            expect(cameraInput).toHaveAttribute('accept', 'image/*');
+        });
+
+        it('uses "Take selfie" label when capture is "user"', () => {
+            render(
+                <FileField
+                    {...baseProps}
+                    field={{ ...baseProps.field, capture: 'user' } as any}
+                    value={null}
+                />,
+            );
+            expect(screen.getByText(/Take selfie/i)).toBeInTheDocument();
+            const cameraInput = screen.getByTestId('file-field-camera-input') as HTMLInputElement;
+            expect(cameraInput).toHaveAttribute('capture', 'user');
+        });
+
+        it('does not render the camera button when capture is explicitly false', () => {
+            render(
+                <FileField
+                    {...baseProps}
+                    field={{ ...baseProps.field, capture: false } as any}
+                    value={null}
+                />,
+            );
+            expect(screen.queryByTestId('file-field-camera-button')).not.toBeInTheDocument();
+            expect(screen.queryByTestId('file-field-camera-input')).not.toBeInTheDocument();
+        });
+
+        it('does not render the camera button on a non-touch device by default', () => {
+            // jsdom defaults to maxTouchPoints=0 and a non-mobile UA, so capture is auto-disabled.
+            render(<FileField {...baseProps} value={null} />);
+            expect(screen.queryByTestId('file-field-camera-button')).not.toBeInTheDocument();
+        });
     });
 });

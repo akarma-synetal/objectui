@@ -133,7 +133,20 @@ describe('Remaining Field Widgets', () => {
       expect(imgs).toHaveLength(2);
       expect(imgs[0]).toHaveAttribute('src', 'http://example.com/1.jpg');
     });
-    
+
+    it('renders a Crop button per image when crop is enabled (default)', () => {
+      render(<ImageField {...baseProps} value={images} field={{ ...baseProps.field, multiple: true } as any} />);
+      // Two crop buttons (one per image) with stable test ids — opacity is hover-controlled
+      // but the buttons are still present in the DOM for a11y/keyboard users.
+      expect(screen.getByTestId('image-field-crop-0')).toBeInTheDocument();
+      expect(screen.getByTestId('image-field-crop-1')).toBeInTheDocument();
+    });
+
+    it('hides the Crop button when field.crop = false', () => {
+      render(<ImageField {...baseProps} value={images} field={{ ...baseProps.field, multiple: true, crop: false } as any} />);
+      expect(screen.queryByTestId('image-field-crop-0')).not.toBeInTheDocument();
+    });
+
     // Complex interaction omitted for brevity, focusing on render contracts
   });
 

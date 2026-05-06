@@ -30,6 +30,26 @@ export { MobileProvider, type MobileProviderProps } from './MobileProvider';
 export { ResponsiveContainer, type ResponsiveContainerProps } from './ResponsiveContainer';
 export { generatePWAManifest } from './pwa';
 export { registerServiceWorker, type ServiceWorkerConfig } from './serviceWorker';
+export {
+  createOfflineQueue,
+  IndexedDbOfflineQueue,
+  MemoryOfflineQueue,
+  generateOpId,
+  type OfflineOperation,
+  type OfflineQueueBackend,
+} from './offlineQueue';
+export {
+  createOfflineDataSource,
+  type OfflineDataSource,
+  type OfflineDataSourceOptions,
+  type QueueableDataSource,
+} from './createOfflineDataSource';
+export { useOfflineSync, type OfflineSyncState } from './useOfflineSync';
+export {
+  getServiceWorkerSource,
+  requestBackgroundSync,
+  type ServiceWorkerSourceOptions,
+} from './serviceWorkerSource';
 export { BREAKPOINTS, resolveResponsiveValue } from './breakpoints';
 
 // Re-export types for convenience

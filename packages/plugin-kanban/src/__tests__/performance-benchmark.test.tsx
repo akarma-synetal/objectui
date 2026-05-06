@@ -63,6 +63,7 @@ vi.mock('@object-ui/components', () => ({
   CardDescription: ({ children, ...props }: any) => <div {...props}>{children}</div>,
   CardContent: ({ children, ...props }: any) => <div {...props}>{children}</div>,
   ScrollArea: ({ children, ...props }: any) => <div {...props}>{children}</div>,
+  useResizeObserver: () => ({ width: 0, height: 0 }),
 }));
 
 // Mock @object-ui/react
@@ -170,6 +171,9 @@ async function setupMocksAndImport() {
     CardDescription: ({ children, ...props }: any) => React.createElement('div', props, children),
     CardContent: ({ children, ...props }: any) => React.createElement('div', props, children),
     ScrollArea: ({ children, ...props }: any) => React.createElement('div', props, children),
+    Button: ({ children, ...props }: any) => React.createElement('button', props, children),
+    Input: (props: any) => React.createElement('input', props),
+    useResizeObserver: () => ({ width: 0, height: 0 }),
   }));
 
   vi.doMock('@object-ui/react', () => ({

@@ -121,6 +121,31 @@ export function LookupField({ value, onChange, field, readonly, ...props }: Fiel
   const lookupPageSize: number | undefined = fieldMeta?.lookup_page_size;
   const lookupFilters: import('@object-ui/types').LookupFilterDef[] | undefined = fieldMeta?.lookup_filters;
 
+  /**
+   * Dependent lookups — restrict candidates based on values of *other* fields
+   * in the same form. Two shapes are accepted:
+   *
+   * 1. `depends_on: ['country']` → shorthand. The dependent field value is sent
+   *    as both the filter field and the source field (i.e. `country = ${country}`).
+   * 2. `depends_on: [{ field: 'country', param: 'country_id' }]` → explicit.
+   *    The remote field name (`param`) can differ from the local field name.
+   *
+   * When any dependency is empty, the lookup is gated and the user sees a
+   * helpful "Select {field} first" hint instead of unfiltered records.
+   */
+  const dependsOn = useMemo<Array<{ field: string; param: string }>>(() => {
+    const raw = fieldMeta?.depends_on ?? fieldMeta?.dependsOn;
+    if (!raw) return [];
+    if (Array.isArray(raw)) {
+      return raw.map((d: any) =>
+        typeof d === 'string' ? { field: d, param: d } : { field: d.field, param: d.param ?? d.field },
+      );
+    }
+    return [];
+  }, [fieldMeta?.depends_on, fieldMeta?.dependsOn]);
+
+  // Resolve dependent field values from explicit prop or SchemaRendererContext.data
+  const dependentValuesProp = (props as any).dependentValues as Record<string, any> | undefined;
   // Derive filter columns from lookup_columns that have type info
   const filterColumns = useMemo<RecordPickerFilterColumn[] | undefined>(() => {
     if (!lookupColumns) return undefined;
@@ -145,6 +170,24 @@ export function LookupField({ value, onChange, field, readonly, ...props }: Fiel
   const contextDataSource = ctx?.dataSource ?? null;
   const dataSource: DataSource | null =
     (props as any).dataSource ?? lookupField?.dataSource ?? fieldMeta?.dataSource ?? contextDataSource;
+
+  /** Resolve dependent values from the explicit prop (preferred), the form-data
+   *  context provided by @object-ui/react, or finally `ctx.data` (record scope). */
+  const resolvedDependentValues: Record<string, any> = useMemo(() => {
+    if (dependentValuesProp) return dependentValuesProp;
+    return (ctx?.formValues ?? ctx?.data ?? {}) as Record<string, any>;
+  }, [dependentValuesProp, ctx?.formValues, ctx?.data]);
+
+  /** True when at least one dependency is missing (empty). The picker is gated
+   *  in that state so we never issue an unfiltered query that ignores the
+   *  user's earlier choices. */
+  const dependenciesMissing = useMemo(() => {
+    if (dependsOn.length === 0) return false;
+    return dependsOn.some(({ field }) => {
+      const v = resolvedDependentValues[field];
+      return v === undefined || v === null || v === '' || (Array.isArray(v) && v.length === 0);
+    });
+  }, [dependsOn, resolvedDependentValues]);
 
   const hasDataSource = dataSource != null && typeof dataSource.find === 'function' && !!referenceTo;
 
@@ -178,6 +221,12 @@ export function LookupField({ value, onChange, field, readonly, ...props }: Fiel
   const fetchLookupData = useCallback(
     async (search?: string) => {
       if (!dataSource || !referenceTo) return;
+      // Don't issue a request that ignores configured dependencies.
+      if (dependenciesMissing) {
+        setFetchedOptions([]);
+        setTotalCount(0);
+        return;
+      }
 
       setLoading(true);
       setError(null);
@@ -188,6 +237,21 @@ export function LookupField({ value, onChange, field, readonly, ...props }: Fiel
         };
         if (search && search.trim()) {
           params.$search = search.trim();
+        }
+
+        // Build a dependent-lookup filter chain: AND of `param eq value`.
+        // QueryParams.$filter is a Record<string, any> — adapters convert to
+        // the underlying query language (OData, ObjectQL, etc).
+        if (dependsOn.length > 0) {
+          const filterEntries: Record<string, any> = {};
+          for (const { field, param } of dependsOn) {
+            const v = resolvedDependentValues[field];
+            if (v === undefined || v === null || v === '') continue;
+            filterEntries[param] = typeof v === 'number' ? v : String(v);
+          }
+          if (Object.keys(filterEntries).length > 0) {
+            params.$filter = filterEntries;
+          }
         }
 
         const result = await dataSource.find(referenceTo, params);
@@ -204,8 +268,23 @@ export function LookupField({ value, onChange, field, readonly, ...props }: Fiel
         setLoading(false);
       }
     },
-    [dataSource, referenceTo, displayField, idField, descriptionField],
+    [dataSource, referenceTo, displayField, idField, descriptionField, dependenciesMissing, dependsOn, resolvedDependentValues],
   );
+
+  // Re-fetch when dependent values change while the picker is open. This keeps
+  // a "City" dropdown reactive when the user changes "Country" without closing.
+  const dependencySignature = useMemo(
+    () => dependsOn.map(d => `${d.param}=${resolvedDependentValues[d.field] ?? ''}`).join('|'),
+    [dependsOn, resolvedDependentValues],
+  );
+  useEffect(() => {
+    if (isOpen && hasDataSource && dependsOn.length > 0) {
+      fetchLookupData(searchQuery || undefined);
+      // Clear local selection if it no longer satisfies the new filter chain —
+      // out of scope here; consumer should validate on submit.
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dependencySignature]);
 
   // Fetch data when dialog opens.
   // We intentionally depend only on `isOpen` so the effect fires once per
@@ -384,17 +463,24 @@ export function LookupField({ value, onChange, field, readonly, ...props }: Fiel
 
       {/* Level 1: Quick-select Popover (inline typeahead) */}
       <div className="flex items-center gap-1.5">
-      <Popover open={isOpen} onOpenChange={setIsOpen}>
+      <Popover open={isOpen} onOpenChange={(o) => !dependenciesMissing && setIsOpen(o)}>
         <PopoverTrigger asChild>
           <Button 
             variant="outline" 
             className="min-w-0 flex-1 justify-start text-left font-normal"
             type="button"
+            disabled={dependenciesMissing || (props as any).disabled}
+            data-testid={dependenciesMissing ? 'lookup-trigger-gated' : undefined}
+            title={dependenciesMissing
+              ? `Select ${dependsOn.map(d => d.field).join(', ')} first`
+              : undefined}
           >
             <Search className="mr-2 size-4" />
-            {selectedOptions.length === 0 
-              ? lookupField?.placeholder || t('common.select')
-              : multiple ? t('table.selected', { count: selectedOptions.length }) : t('common.select')
+            {dependenciesMissing
+              ? `Select ${dependsOn.map(d => d.field).join(', ')} first`
+              : selectedOptions.length === 0 
+                ? lookupField?.placeholder || t('common.select')
+                : multiple ? t('table.selected', { count: selectedOptions.length }) : t('common.select')
             }
           </Button>
         </PopoverTrigger>

@@ -1,7 +1,14 @@
-import React, { useRef } from 'react';
+import React, { useRef, useState, useCallback, lazy, Suspense } from 'react';
 import { Button, EmptyValue } from '@object-ui/components';
-import { Upload, X, Image as ImageIcon } from 'lucide-react';
+import { useUpload } from '@object-ui/providers';
+import { Upload, X, Image as ImageIcon, Crop as CropIcon, Loader2 } from 'lucide-react';
 import { FieldWidgetProps } from './types';
+
+// Lazy-load the cropper so the dialog (canvas + crop logic) is not in the initial
+// ImageField bundle. Consumers that never crop pay zero cost.
+const ImageCropperDialog = lazy(() =>
+  import('./ImageCropperDialog').then((m) => ({ default: m.ImageCropperDialog })),
+);
 
 /**
  * ImageField - Image upload widget with preview thumbnails
@@ -12,6 +19,13 @@ export function ImageField({ value, onChange, field, readonly, ...props }: Field
   const imageField = (field || (props as any).schema) as any;
   const multiple = imageField?.multiple || false;
   const accept = imageField?.accept ? imageField.accept.join(',') : 'image/*';
+  /**
+   * Set `field.crop = false` to opt out of inline cropping. Defaults to enabled.
+   */
+  const cropEnabled = imageField?.crop !== false;
+  const [cropTarget, setCropTarget] = useState<{ index: number; src: string; name: string } | null>(null);
+  const { upload } = useUpload();
+  const [uploading, setUploading] = useState(false);
 
   if (readonly) {
     if (!value) return <EmptyValue />;
@@ -33,23 +47,34 @@ export function ImageField({ value, onChange, field, readonly, ...props }: Field
 
   const images = value ? (Array.isArray(value) ? value : [value]) : [];
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFiles = Array.from(e.target.files || []);
     if (selectedFiles.length === 0) return;
 
-    const imageObjects = selectedFiles.map(file => ({
-      name: file.name,
-      original_name: file.name,
-      size: file.size,
-      mime_type: file.type,
-      // In a real implementation, this would upload the image and return a URL
-      url: URL.createObjectURL(file),
-    }));
+    setUploading(true);
+    try {
+      const imageObjects = await Promise.all(
+        selectedFiles.map(async (file) => {
+          const result = await upload(file);
+          return {
+            name: result.name,
+            original_name: file.name,
+            size: result.size,
+            mime_type: result.mimeType,
+            url: result.url,
+          };
+        }),
+      );
 
-    if (multiple) {
-      onChange([...images, ...imageObjects]);
-    } else {
-      onChange(imageObjects[0]);
+      if (multiple) {
+        onChange([...images, ...imageObjects]);
+      } else {
+        onChange(imageObjects[0]);
+      }
+    } finally {
+      setUploading(false);
+      // Reset input so picking the same file again still triggers change.
+      if (inputRef.current) inputRef.current.value = '';
     }
   };
 
@@ -61,6 +86,43 @@ export function ImageField({ value, onChange, field, readonly, ...props }: Field
       onChange(null);
     }
   };
+
+  const handleCropConfirm = useCallback(
+    async (blob: Blob, name: string) => {
+      if (!cropTarget) return;
+      setUploading(true);
+      try {
+        const result = await upload(blob);
+        const next = {
+          name: result.name || name,
+          original_name: name,
+          size: result.size,
+          mime_type: result.mimeType,
+          url: result.url,
+        };
+        if (multiple) {
+          const updated = [...images];
+          updated[cropTarget.index] = next;
+          onChange(updated);
+        } else {
+          onChange(next);
+        }
+      } finally {
+        setUploading(false);
+        setCropTarget(null);
+      }
+    },
+    [cropTarget, images, multiple, onChange, upload],
+  );
+
+  const openCropper = useCallback(
+    (index: number) => {
+      const img = images[index];
+      if (!img?.url) return;
+      setCropTarget({ index, src: img.url, name: img.name || `image-${index}.png` });
+    },
+    [images],
+  );
 
   return (
     <div className={props.className}>
@@ -83,15 +145,30 @@ export function ImageField({ value, onChange, field, readonly, ...props }: Field
                   alt={img.name || `Image ${idx + 1}`}
                   className="size-20 rounded-md object-cover border border-gray-200"
                 />
-                <Button
-                  type="button"
-                  variant="destructive"
-                  size="sm"
-                  onClick={() => handleRemove(idx)}
-                  className="absolute top-1 right-1 h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
-                >
-                  <X className="size-3" />
-                </Button>
+                <div className="absolute top-1 right-1 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                  {cropEnabled && (
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => openCropper(idx)}
+                      className="h-6 w-6 p-0"
+                      aria-label={`Crop image ${idx + 1}`}
+                      data-testid={`image-field-crop-${idx}`}
+                    >
+                      <CropIcon className="size-3" />
+                    </Button>
+                  )}
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    size="sm"
+                    onClick={() => handleRemove(idx)}
+                    className="h-6 w-6 p-0"
+                  >
+                    <X className="size-3" />
+                  </Button>
+                </div>
               </div>
             ))}
           </div>
@@ -102,11 +179,29 @@ export function ImageField({ value, onChange, field, readonly, ...props }: Field
           variant="outline"
           onClick={() => inputRef.current?.click()}
           className="w-full"
+          disabled={uploading}
+          data-testid="image-field-upload-button"
         >
-          <ImageIcon className="size-4 mr-2" />
-          {images.length > 0 ? 'Add More Images' : 'Upload Image'}
+          {uploading ? (
+            <Loader2 className="size-4 mr-2 animate-spin" />
+          ) : (
+            <ImageIcon className="size-4 mr-2" />
+          )}
+          {uploading ? 'Uploading…' : images.length > 0 ? 'Add More Images' : 'Upload Image'}
         </Button>
       </div>
+
+      {cropEnabled && cropTarget && (
+        <Suspense fallback={null}>
+          <ImageCropperDialog
+            open
+            onOpenChange={(o) => !o && setCropTarget(null)}
+            src={cropTarget.src}
+            outputName={cropTarget.name}
+            onConfirm={handleCropConfirm}
+          />
+        </Suspense>
+      )}
     </div>
   );
 }

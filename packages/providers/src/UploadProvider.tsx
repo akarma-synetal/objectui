@@ -1,0 +1,299 @@
+/**
+ * UploadProvider — pluggable file upload context for ObjectUI.
+ *
+ * Why: `FileField` and `ImageField` historically used `URL.createObjectURL(file)`
+ * which only works for the lifetime of the browser tab and never persists the
+ * file anywhere. Production deployments need to push the bytes to S3, Azure
+ * Blob, or another object store and replace the temporary blob URL with a
+ * canonical one.
+ *
+ * Design:
+ * - `UploadProvider` exposes an `upload(file, opts)` function via context.
+ * - Apps inject an adapter (`createS3Adapter`, `createAzureBlobAdapter`, or any
+ *   custom one implementing `UploadAdapter`).
+ * - The default adapter (`createObjectUrlAdapter`) preserves the legacy
+ *   "blob: URL" behaviour so the field widgets keep working when no provider
+ *   is mounted.
+ * - Upload progress and resumable retries are first-class concerns: each
+ *   adapter implementation can chunk + resume; the public API surfaces
+ *   `onProgress` and an `abortSignal`.
+ */
+import React, {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  type ReactNode,
+} from 'react';
+
+export interface UploadResult {
+  /** Canonical, shareable URL (e.g. https://my-bucket.s3.amazonaws.com/avatars/abc.png). */
+  url: string;
+  /** Stored object name / key. */
+  name: string;
+  size: number;
+  mimeType: string;
+  /** Adapter-specific metadata (etag, version, etc.). */
+  meta?: Record<string, unknown>;
+}
+
+export interface UploadOptions {
+  /** Logical folder / key prefix (e.g. "avatars/"). */
+  path?: string;
+  /** Progress callback in 0–1. */
+  onProgress?: (ratio: number) => void;
+  /** External abort signal — cancels the upload (and any retry attempts). */
+  signal?: AbortSignal;
+  /** Number of retry attempts on network failure. @default 3 */
+  maxRetries?: number;
+  /** Initial backoff in ms; exponential. @default 500 */
+  retryDelayMs?: number;
+}
+
+export interface UploadAdapter {
+  readonly name: string;
+  upload(file: File | Blob, opts?: UploadOptions): Promise<UploadResult>;
+}
+
+interface UploadContextValue {
+  upload: (file: File | Blob, opts?: UploadOptions) => Promise<UploadResult>;
+  adapter: UploadAdapter;
+}
+
+const UploadContext = createContext<UploadContextValue | null>(null);
+
+/**
+ * Default adapter — wraps the file in an object URL. Identical to the legacy
+ * field-widget behaviour; safe fallback when the app hasn't configured a real
+ * upload destination yet.
+ */
+export function createObjectUrlAdapter(): UploadAdapter {
+  return {
+    name: 'object-url',
+    async upload(file) {
+      const f = file as File;
+      const name = ('name' in f && f.name) || 'upload';
+      return {
+        url: URL.createObjectURL(file),
+        name,
+        size: file.size,
+        mimeType: file.type || 'application/octet-stream',
+      };
+    },
+  };
+}
+
+export interface S3AdapterOptions {
+  /**
+   * URL of an endpoint that returns `{ uploadUrl, publicUrl, headers? }`
+   * for a given `{ name, type, size }`. Implementations typically presign an
+   * S3 PUT URL server-side.
+   */
+  getPresignedUrl: (input: { name: string; type: string; size: number; path?: string }) => Promise<{
+    uploadUrl: string;
+    publicUrl: string;
+    headers?: Record<string, string>;
+  }>;
+  /** Override fetch (useful for tests and ServiceWorker offline queues). */
+  fetchImpl?: typeof fetch;
+}
+
+/**
+ * S3-style adapter — relies on the app to provide a presign endpoint so that
+ * AWS credentials never leak to the browser. Works with any S3-compatible
+ * object store (AWS S3, Cloudflare R2, MinIO, …).
+ */
+export function createS3Adapter(opts: S3AdapterOptions): UploadAdapter {
+  const fetchFn = opts.fetchImpl ?? fetch;
+  return {
+    name: 's3',
+    async upload(file, options = {}) {
+      const f = file as File;
+      const name = ('name' in f && f.name) || 'upload';
+      const presigned = await opts.getPresignedUrl({
+        name,
+        type: file.type || 'application/octet-stream',
+        size: file.size,
+        path: options.path,
+      });
+      await uploadWithProgress(fetchFn, presigned.uploadUrl, file, {
+        method: 'PUT',
+        headers: presigned.headers,
+        ...options,
+      });
+      return {
+        url: presigned.publicUrl,
+        name,
+        size: file.size,
+        mimeType: file.type || 'application/octet-stream',
+      };
+    },
+  };
+}
+
+export interface AzureBlobAdapterOptions {
+  /**
+   * URL of an endpoint that returns `{ uploadUrl, publicUrl }` — typically a
+   * short-lived SAS URL minted server-side.
+   */
+  getSasUrl: (input: { name: string; type: string; size: number; path?: string }) => Promise<{
+    uploadUrl: string;
+    publicUrl: string;
+  }>;
+  fetchImpl?: typeof fetch;
+}
+
+/**
+ * Azure Blob Storage adapter using SAS tokens. Single PUT — for files larger
+ * than ~256 MiB, callers should issue chunked SAS URLs (block list + commit)
+ * via their backend.
+ */
+export function createAzureBlobAdapter(opts: AzureBlobAdapterOptions): UploadAdapter {
+  const fetchFn = opts.fetchImpl ?? fetch;
+  return {
+    name: 'azure-blob',
+    async upload(file, options = {}) {
+      const f = file as File;
+      const name = ('name' in f && f.name) || 'upload';
+      const sas = await opts.getSasUrl({
+        name,
+        type: file.type || 'application/octet-stream',
+        size: file.size,
+        path: options.path,
+      });
+      await uploadWithProgress(fetchFn, sas.uploadUrl, file, {
+        method: 'PUT',
+        headers: {
+          'x-ms-blob-type': 'BlockBlob',
+          'Content-Type': file.type || 'application/octet-stream',
+        },
+        ...options,
+      });
+      return {
+        url: sas.publicUrl,
+        name,
+        size: file.size,
+        mimeType: file.type || 'application/octet-stream',
+      };
+    },
+  };
+}
+
+interface UploadFetchOptions extends UploadOptions {
+  method: string;
+  headers?: Record<string, string>;
+}
+
+/**
+ * Internal helper — performs a single PUT/POST with progress reporting,
+ * exponential-backoff retry, and abort propagation.
+ */
+async function uploadWithProgress(
+  fetchFn: typeof fetch,
+  url: string,
+  body: Blob,
+  options: UploadFetchOptions,
+): Promise<void> {
+  const maxRetries = options.maxRetries ?? 3;
+  const baseDelay = options.retryDelayMs ?? 500;
+  let attempt = 0;
+  // eslint-disable-next-line no-constant-condition
+  while (true) {
+    if (options.signal?.aborted) throw new DOMException('aborted', 'AbortError');
+    try {
+      // Fetch's standard progress reporting is limited; use XHR when we need
+      // per-byte progress. Falls back to fetch for environments without XHR
+      // (e.g. Cloudflare Workers used by Service Workers).
+      if (typeof XMLHttpRequest !== 'undefined' && options.onProgress) {
+        await xhrUpload(url, body, options);
+      } else {
+        const res = await fetchFn(url, {
+          method: options.method,
+          body,
+          headers: options.headers,
+          signal: options.signal,
+        });
+        if (!res.ok) throw new Error(`Upload failed with status ${res.status}`);
+        options.onProgress?.(1);
+      }
+      return;
+    } catch (err) {
+      if ((err as DOMException)?.name === 'AbortError') throw err;
+      if (attempt >= maxRetries) throw err;
+      const delay = baseDelay * Math.pow(2, attempt);
+      attempt++;
+      await new Promise((r) => setTimeout(r, delay));
+    }
+  }
+}
+
+function xhrUpload(url: string, body: Blob, options: UploadFetchOptions): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open(options.method, url);
+    if (options.headers) {
+      for (const [k, v] of Object.entries(options.headers)) xhr.setRequestHeader(k, v);
+    }
+    xhr.upload.onprogress = (e) => {
+      if (e.lengthComputable && options.onProgress) options.onProgress(e.loaded / e.total);
+    };
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        options.onProgress?.(1);
+        resolve();
+      } else {
+        reject(new Error(`Upload failed with status ${xhr.status}`));
+      }
+    };
+    xhr.onerror = () => reject(new Error('Network error during upload'));
+    xhr.onabort = () => reject(new DOMException('aborted', 'AbortError'));
+    if (options.signal) {
+      const abortHandler = () => xhr.abort();
+      if (options.signal.aborted) {
+        xhr.abort();
+      } else {
+        options.signal.addEventListener('abort', abortHandler, { once: true });
+      }
+    }
+    xhr.send(body);
+  });
+}
+
+export interface UploadProviderProps {
+  adapter?: UploadAdapter;
+  children: ReactNode;
+}
+
+export const UploadProvider: React.FC<UploadProviderProps> = ({ adapter, children }) => {
+  const adapterRef = useRef<UploadAdapter>(adapter ?? createObjectUrlAdapter());
+  useEffect(() => {
+    if (adapter) adapterRef.current = adapter;
+  }, [adapter]);
+
+  const upload = useCallback(
+    (file: File | Blob, opts?: UploadOptions) => adapterRef.current.upload(file, opts),
+    [],
+  );
+
+  const value = useMemo<UploadContextValue>(
+    () => ({ upload, adapter: adapterRef.current }),
+    [upload],
+  );
+  return <UploadContext.Provider value={value}>{children}</UploadContext.Provider>;
+};
+
+/**
+ * Hook returning the configured upload function. Falls back to a fresh
+ * object-URL adapter so widgets never crash when used outside a provider.
+ */
+export function useUpload(): UploadContextValue {
+  const ctx = useContext(UploadContext);
+  // Always call useMemo to honour the rules of hooks; cheap when ctx is set.
+  const fallback = useMemo<UploadContextValue>(() => {
+    const a = createObjectUrlAdapter();
+    return { upload: (f: File | Blob, o?: UploadOptions) => a.upload(f, o), adapter: a };
+  }, []);
+  return ctx ?? fallback;
+}

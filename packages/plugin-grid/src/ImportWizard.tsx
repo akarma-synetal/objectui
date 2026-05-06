@@ -3,14 +3,41 @@
  * Licensed under MIT. Phase 15 L1: CSV/Excel Import Wizard
  */
 
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import {
-  cn, Button, Badge, Progress,
+  cn, Button, Badge, Progress, Input,
   Dialog, DialogContent, DialogHeader, DialogFooter, DialogTitle, DialogDescription,
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@object-ui/components';
-import { Upload, FileSpreadsheet, CheckCircle2, AlertCircle, X, ArrowRight, ArrowLeft } from 'lucide-react';
+import { Upload, FileSpreadsheet, CheckCircle2, AlertCircle, X, ArrowRight, ArrowLeft, Save, Trash2 } from 'lucide-react';
+
+/** @internal — exported solely for unit tests. */
+export const __testables = {
+  get mappingToTemplatePayload() { return mappingToTemplatePayload; },
+  get applyTemplate() { return applyTemplate; },
+  get loadTemplates() { return loadTemplates; },
+  get saveTemplates() { return saveTemplates; },
+  get autoMapColumns() { return autoMapColumns; },
+};
+
+/** A reusable column-mapping template, persisted across sessions. Keys are
+ *  CSV header names (case-insensitive) so a template can apply across files
+ *  whose columns are reordered or sparsely present. */
+export interface ImportMappingTemplate {
+  id: string;
+  name: string;
+  /** Map of CSV header name → object field name. */
+  mapping: Record<string, string>;
+  updatedAt: number;
+}
+
+/** Minimal localStorage-shaped contract; injectable for tests. */
+export interface ImportTemplateStorage {
+  getItem(key: string): string | null;
+  setItem(key: string, value: string): void;
+  removeItem(key: string): void;
+}
 
 export interface ImportWizardProps {
   objectName: string;
@@ -23,6 +50,12 @@ export interface ImportWizardProps {
   onOpenChange?: (open: boolean) => void;
   /** Error handling strategy: 'skip' skips invalid rows, 'stop' aborts on first error. @default 'skip' */
   onErrorMode?: 'skip' | 'stop';
+  /** Override the storage key under which mapping templates are persisted.
+   *  Defaults to `objectui:import-templates:${objectName}`. */
+  templateStorageKey?: string;
+  /** Override the storage backend (defaults to window.localStorage). Use this
+   *  to disable persistence (`null`) or to inject an in-memory store in tests. */
+  templateStorage?: ImportTemplateStorage | null;
 }
 
 export interface ImportResult {
@@ -86,6 +119,54 @@ function autoMapColumns(headers: string[], fields: ImportWizardProps['fields']):
     if (match) mapping[idx] = match.name;
   });
   return mapping;
+}
+
+/** Resolve the storage backend, defaulting to window.localStorage when available. */
+function defaultTemplateStorage(): ImportTemplateStorage | null {
+  if (typeof window === 'undefined') return null;
+  try { return window.localStorage; } catch { return null; }
+}
+
+/** Load and persist named mapping templates. Header keys are stored
+ *  case-insensitively so templates apply across files with different casing. */
+function loadTemplates(storage: ImportTemplateStorage | null, key: string): ImportMappingTemplate[] {
+  if (!storage) return [];
+  try {
+    const raw = storage.getItem(key);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed.filter((t) => t && t.id && t.name && t.mapping) : [];
+  } catch { return []; }
+}
+
+function saveTemplates(storage: ImportTemplateStorage | null, key: string, templates: ImportMappingTemplate[]) {
+  if (!storage) return;
+  try { storage.setItem(key, JSON.stringify(templates)); } catch { /* quota etc */ }
+}
+
+/** Convert an index-based mapping back to a header-name template payload. */
+function mappingToTemplatePayload(headers: string[], mapping: Record<number, string>): Record<string, string> {
+  const payload: Record<string, string> = {};
+  Object.entries(mapping).forEach(([idx, fieldName]) => {
+    const header = headers[Number(idx)];
+    if (header) payload[header.trim().toLowerCase()] = fieldName;
+  });
+  return payload;
+}
+
+/** Apply a header-name template to current headers, producing an index map. */
+function applyTemplate(
+  template: ImportMappingTemplate,
+  headers: string[],
+  fields: ImportWizardProps['fields'],
+): Record<number, string> {
+  const validFieldNames = new Set(fields.map((f) => f.name));
+  const next: Record<number, string> = {};
+  headers.forEach((header, idx) => {
+    const fieldName = template.mapping[header.trim().toLowerCase()];
+    if (fieldName && validFieldNames.has(fieldName)) next[idx] = fieldName;
+  });
+  return next;
 }
 
 type MappedCol = { csvIdx: number; field: ImportWizardProps['fields'][0] };
@@ -152,13 +233,103 @@ const StepUpload: React.FC<{ onFileLoaded: (headers: string[], rows: string[][])
   );
 };
 
+// Template bar for save / load / delete of column-mapping templates.
+const TemplateBar: React.FC<{
+  templates: ImportMappingTemplate[];
+  selectedId: string | null;
+  onSelect: (id: string) => void;
+  onSaveAs: (name: string) => void;
+  onDelete: () => void;
+  disabled?: boolean;
+}> = ({ templates, selectedId, onSelect, onSaveAs, onDelete, disabled }) => {
+  const [savingName, setSavingName] = useState('');
+  const [showSave, setShowSave] = useState(false);
+  return (
+    <div
+      className="mb-3 flex flex-wrap items-center gap-2 rounded-md border bg-muted/30 p-2"
+      data-testid="import-template-bar"
+    >
+      <Save className="h-4 w-4 text-muted-foreground" />
+      <span className="text-xs font-medium text-muted-foreground">Mapping template:</span>
+      <Select
+        value={selectedId ?? '__none__'}
+        onValueChange={(v) => v !== '__none__' && onSelect(v)}
+      >
+        <SelectTrigger className="h-7 w-48 text-xs" data-testid="import-template-select">
+          <SelectValue placeholder={templates.length ? 'Choose template…' : 'No saved templates'} />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="__none__" disabled={templates.length === 0}>
+            {templates.length ? '— None —' : 'No saved templates'}
+          </SelectItem>
+          {templates.map((t) => (
+            <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      {!showSave ? (
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={() => setShowSave(true)}
+          disabled={disabled}
+          data-testid="import-template-save-btn"
+        >
+          Save current
+        </Button>
+      ) : (
+        <div className="flex items-center gap-1">
+          <Input
+            value={savingName}
+            onChange={(e) => setSavingName(e.target.value)}
+            placeholder="Template name"
+            className="h-7 w-40 text-xs"
+            data-testid="import-template-name-input"
+            autoFocus
+          />
+          <Button
+            type="button"
+            size="sm"
+            onClick={() => { if (savingName.trim()) { onSaveAs(savingName.trim()); setSavingName(''); setShowSave(false); } }}
+            disabled={!savingName.trim() || disabled}
+            data-testid="import-template-confirm-save"
+          >
+            Save
+          </Button>
+          <Button type="button" variant="ghost" size="sm" onClick={() => { setShowSave(false); setSavingName(''); }}>
+            Cancel
+          </Button>
+        </div>
+      )}
+      {selectedId && (
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          onClick={onDelete}
+          aria-label="Delete template"
+          data-testid="import-template-delete-btn"
+        >
+          <Trash2 className="h-3.5 w-3.5" />
+        </Button>
+      )}
+    </div>
+  );
+};
+
 // Step 2: Column Mapping
 const StepMapping: React.FC<{
   headers: string[];
   fields: ImportWizardProps['fields'];
   mapping: Record<number, string>;
   onMappingChange: (mapping: Record<number, string>) => void;
-}> = ({ headers, fields, mapping, onMappingChange }) => {
+  templates: ImportMappingTemplate[];
+  selectedTemplateId: string | null;
+  onSelectTemplate: (id: string) => void;
+  onSaveTemplate: (name: string) => void;
+  onDeleteTemplate: () => void;
+}> = ({ headers, fields, mapping, onMappingChange, templates, selectedTemplateId, onSelectTemplate, onSaveTemplate, onDeleteTemplate }) => {
   const usedFields = useMemo(() => new Set(Object.values(mapping)), [mapping]);
   const handleChange = useCallback((colIdx: number, fieldName: string) => {
     const next = { ...mapping };
@@ -167,7 +338,16 @@ const StepMapping: React.FC<{
   }, [mapping, onMappingChange]);
 
   return (
-    <div className="max-h-[360px] overflow-auto">
+    <div>
+      <TemplateBar
+        templates={templates}
+        selectedId={selectedTemplateId}
+        onSelect={onSelectTemplate}
+        onSaveAs={onSaveTemplate}
+        onDelete={onDeleteTemplate}
+        disabled={Object.keys(mapping).length === 0}
+      />
+      <div className="max-h-[320px] overflow-auto">
       <Table>
         <TableHeader>
           <TableRow>
@@ -202,6 +382,7 @@ const StepMapping: React.FC<{
           ))}
         </TableBody>
       </Table>
+      </div>
     </div>
   );
 };
@@ -209,30 +390,53 @@ const StepMapping: React.FC<{
 // Step 3: Preview & Import (shows first 10 rows with per-row validation errors)
 const StepPreview: React.FC<{
   headers: string[]; rows: string[][]; mapping: Record<number, string>; fields: ImportWizardProps['fields'];
-}> = ({ headers, rows, mapping, fields }) => {
+  /** Inline corrections keyed by row index → csv column index → fixed value. */
+  corrections: Record<number, Record<number, string>>;
+  onCorrect: (rowIdx: number, csvIdx: number, value: string) => void;
+}> = ({ headers, rows, mapping, fields, corrections, onCorrect }) => {
   const mappedCols = useMemo(() =>
     Object.entries(mapping).map(([idx, fieldName]) => ({
       csvIdx: Number(idx), header: headers[Number(idx)], field: fields.find((f) => f.name === fieldName)!,
     })), [mapping, headers, fields]);
   const previewRows = rows.slice(0, PREVIEW_ROW_COUNT);
 
-  const rowValidations = useMemo(() => previewRows.map((row, _rIdx) => {
+  /** Resolve the effective value for a cell, preferring an inline correction. */
+  const effectiveValue = useCallback((rIdx: number, csvIdx: number) => {
+    const fix = corrections[rIdx]?.[csvIdx];
+    return fix !== undefined ? fix : (previewRows[rIdx]?.[csvIdx] ?? '');
+  }, [corrections, previewRows]);
+
+  const rowValidations = useMemo(() => previewRows.map((_row, rIdx) => {
     const errs: Record<number, string> = {};
     for (const col of mappedCols) {
-      const raw = row[col.csvIdx] ?? '';
+      const raw = effectiveValue(rIdx, col.csvIdx);
       if (col.field.required && !raw) errs[col.csvIdx] = 'Required';
       else if (raw && !validateValue(raw, col.field.type)) errs[col.csvIdx] = `Invalid ${col.field.type}`;
     }
     return errs;
-  }), [previewRows, mappedCols]);
+  }), [previewRows, mappedCols, effectiveValue]);
 
   const errorCount = rowValidations.filter(e => Object.keys(e).length > 0).length;
+  const correctedCount = Object.keys(corrections).length;
 
   return (
     <div className="max-h-[360px] overflow-auto">
-      {errorCount > 0 && (
-        <p className="mb-2 flex items-center gap-1 text-xs text-destructive">
-          <AlertCircle className="h-3.5 w-3.5" /> {errorCount} row(s) with errors in preview
+      {(errorCount > 0 || correctedCount > 0) && (
+        <p
+          className="mb-2 flex items-center gap-2 text-xs"
+          data-testid="import-preview-status"
+        >
+          {errorCount > 0 && (
+            <span className="flex items-center gap-1 text-destructive">
+              <AlertCircle className="h-3.5 w-3.5" /> {errorCount} row(s) with errors
+            </span>
+          )}
+          {correctedCount > 0 && (
+            <span className="flex items-center gap-1 text-emerald-600">
+              <CheckCircle2 className="h-3.5 w-3.5" /> {correctedCount} row(s) corrected
+            </span>
+          )}
+          <span className="text-muted-foreground">— click a highlighted cell to fix it inline.</span>
         </p>
       )}
       <Table>
@@ -243,18 +447,39 @@ const StepPreview: React.FC<{
           </TableRow>
         </TableHeader>
         <TableBody>
-          {previewRows.map((row, rIdx) => {
+          {previewRows.map((_row, rIdx) => {
             const errs = rowValidations[rIdx];
             const hasError = Object.keys(errs).length > 0;
+            const wasCorrected = corrections[rIdx] !== undefined;
             return (
-              <TableRow key={rIdx} className={cn(hasError && 'bg-destructive/5')}>
+              <TableRow
+                key={rIdx}
+                className={cn(hasError && 'bg-destructive/5', !hasError && wasCorrected && 'bg-emerald-50 dark:bg-emerald-950/20')}
+                data-testid={`import-preview-row-${rIdx}`}
+              >
                 <TableCell className="text-xs text-muted-foreground">{rIdx + 1}</TableCell>
                 {mappedCols.map((col) => {
-                  const value = row[col.csvIdx] ?? '';
+                  const value = effectiveValue(rIdx, col.csvIdx);
                   const cellErr = errs[col.csvIdx];
+                  const wasFixed = corrections[rIdx]?.[col.csvIdx] !== undefined;
                   return (
-                    <TableCell key={col.csvIdx} className={cn(cellErr && 'text-destructive')} title={cellErr}>
-                      {value || <span className="text-muted-foreground/50">—</span>}
+                    <TableCell
+                      key={col.csvIdx}
+                      className={cn(cellErr && 'text-destructive', wasFixed && !cellErr && 'text-emerald-600')}
+                      title={cellErr}
+                    >
+                      <Input
+                        value={value}
+                        onChange={(e) => onCorrect(rIdx, col.csvIdx, e.target.value)}
+                        className={cn(
+                          'h-7 px-1 text-xs',
+                          cellErr && 'border-destructive',
+                          wasFixed && !cellErr && 'border-emerald-500',
+                        )}
+                        data-testid={`import-preview-cell-${rIdx}-${col.csvIdx}`}
+                        aria-invalid={cellErr ? 'true' : 'false'}
+                        aria-label={`${col.field.label} for row ${rIdx + 1}`}
+                      />
                     </TableCell>
                   );
                 })}
@@ -271,6 +496,7 @@ const StepPreview: React.FC<{
 // Main wizard component
 export const ImportWizard: React.FC<ImportWizardProps> = ({
   objectName, objectLabel, fields, dataSource, onComplete, onCancel, open, onOpenChange, onErrorMode = 'skip',
+  templateStorageKey, templateStorage,
 }) => {
   const [step, setStep] = useState<WizardStep>('upload');
   const [headers, setHeaders] = useState<string[]>([]);
@@ -279,7 +505,64 @@ export const ImportWizard: React.FC<ImportWizardProps> = ({
   const [importing, setImporting] = useState(false);
   const [progress, setProgress] = useState(0);
   const [result, setResult] = useState<ImportResult | null>(null);
+  const [corrections, setCorrections] = useState<Record<number, Record<number, string>>>({});
   const label = objectLabel ?? objectName;
+
+  // Template storage — resolved once; `null` opts out of persistence.
+  const storage = useMemo<ImportTemplateStorage | null>(
+    () => (templateStorage === undefined ? defaultTemplateStorage() : templateStorage),
+    [templateStorage],
+  );
+  const storageKey = templateStorageKey ?? `objectui:import-templates:${objectName}`;
+  const [templates, setTemplates] = useState<ImportMappingTemplate[]>(() => loadTemplates(storage, storageKey));
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null);
+
+  // Re-hydrate templates if the storage backend or key changes.
+  useEffect(() => { setTemplates(loadTemplates(storage, storageKey)); }, [storage, storageKey]);
+
+  const handleSelectTemplate = useCallback((id: string) => {
+    const tpl = templates.find((t) => t.id === id);
+    if (!tpl) return;
+    setSelectedTemplateId(id);
+    setMapping(applyTemplate(tpl, headers, fields));
+  }, [templates, headers, fields]);
+
+  const handleSaveTemplate = useCallback((name: string) => {
+    const tpl: ImportMappingTemplate = {
+      id: `tpl-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`,
+      name,
+      mapping: mappingToTemplatePayload(headers, mapping),
+      updatedAt: Date.now(),
+    };
+    const next = [...templates, tpl];
+    setTemplates(next);
+    setSelectedTemplateId(tpl.id);
+    saveTemplates(storage, storageKey, next);
+  }, [templates, headers, mapping, storage, storageKey]);
+
+  const handleDeleteTemplate = useCallback(() => {
+    if (!selectedTemplateId) return;
+    const next = templates.filter((t) => t.id !== selectedTemplateId);
+    setTemplates(next);
+    setSelectedTemplateId(null);
+    saveTemplates(storage, storageKey, next);
+  }, [templates, selectedTemplateId, storage, storageKey]);
+
+  const handleCorrect = useCallback((rowIdx: number, csvIdx: number, value: string) => {
+    setCorrections((prev) => {
+      const next = { ...prev };
+      const row = { ...(next[rowIdx] ?? {}) };
+      const original = rows[rowIdx]?.[csvIdx] ?? '';
+      if (value === original) {
+        delete row[csvIdx];
+      } else {
+        row[csvIdx] = value;
+      }
+      if (Object.keys(row).length === 0) delete next[rowIdx];
+      else next[rowIdx] = row;
+      return next;
+    });
+  }, [rows]);
 
   const missingRequired = useMemo(() => {
     const mapped = new Set(Object.values(mapping));
@@ -287,7 +570,7 @@ export const ImportWizard: React.FC<ImportWizardProps> = ({
   }, [fields, mapping]);
 
   const handleFileLoaded = useCallback((h: string[], r: string[][]) => {
-    setHeaders(h); setRows(r); setMapping(autoMapColumns(h, fields)); setStep('mapping');
+    setHeaders(h); setRows(r); setMapping(autoMapColumns(h, fields)); setCorrections({}); setStep('mapping');
   }, [fields]);
 
   const handleImport = useCallback(async () => {
@@ -299,7 +582,15 @@ export const ImportWizard: React.FC<ImportWizardProps> = ({
     }));
 
     for (let i = 0; i < rows.length; i++) {
-      const { record, errors: rowErrors } = validateRow(rows[i], mappedCols, i + 1);
+      // Apply inline corrections (only available for the visible preview rows)
+      // before validation so users can fix issues without re-uploading the file.
+      const original = rows[i];
+      const fixes = corrections[i];
+      const effectiveRow = fixes
+        ? original.map((v, idx) => (fixes[idx] !== undefined ? fixes[idx] : v))
+        : original;
+
+      const { record, errors: rowErrors } = validateRow(effectiveRow, mappedCols, i + 1);
       if (rowErrors.length > 0) {
         skippedRows++;
         errors.push(...rowErrors);
@@ -317,10 +608,11 @@ export const ImportWizard: React.FC<ImportWizardProps> = ({
     }
     const importResult: ImportResult = { totalRows: rows.length, importedRows, skippedRows, errors };
     setResult(importResult); setImporting(false); onComplete?.(importResult);
-  }, [rows, mapping, fields, dataSource, objectName, onComplete, onErrorMode]);
+  }, [rows, mapping, fields, dataSource, objectName, onComplete, onErrorMode, corrections]);
 
   const reset = useCallback(() => {
     setStep('upload'); setHeaders([]); setRows([]); setMapping({}); setProgress(0); setResult(null);
+    setCorrections({}); setSelectedTemplateId(null);
   }, []);
 
   const handleClose = useCallback(() => { reset(); onOpenChange?.(false); onCancel?.(); }, [reset, onOpenChange, onCancel]);
@@ -354,8 +646,29 @@ export const ImportWizard: React.FC<ImportWizardProps> = ({
         {!result ? (
           <>
             {step === 'upload' && <StepUpload onFileLoaded={handleFileLoaded} />}
-            {step === 'mapping' && <StepMapping headers={headers} fields={fields} mapping={mapping} onMappingChange={setMapping} />}
-            {step === 'preview' && <StepPreview headers={headers} rows={rows} mapping={mapping} fields={fields} />}
+            {step === 'mapping' && (
+              <StepMapping
+                headers={headers}
+                fields={fields}
+                mapping={mapping}
+                onMappingChange={setMapping}
+                templates={templates}
+                selectedTemplateId={selectedTemplateId}
+                onSelectTemplate={handleSelectTemplate}
+                onSaveTemplate={handleSaveTemplate}
+                onDeleteTemplate={handleDeleteTemplate}
+              />
+            )}
+            {step === 'preview' && (
+              <StepPreview
+                headers={headers}
+                rows={rows}
+                mapping={mapping}
+                fields={fields}
+                corrections={corrections}
+                onCorrect={handleCorrect}
+              />
+            )}
             {importing && (
               <div className="flex flex-col gap-1">
                 <Progress value={progress} className="h-2" />

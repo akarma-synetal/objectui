@@ -17,3 +17,6 @@ export type { PropertyEditorProps, PropertyField } from './PropertyEditor';
 
 export { VersionHistory } from './VersionHistory';
 export type { VersionHistoryProps, VersionEntry } from './VersionHistory';
+
+export { HistoryPanel } from './HistoryPanel';
+export type { HistoryPanelProps } from './HistoryPanel';

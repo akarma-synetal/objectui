@@ -26,24 +26,31 @@ import {
   SelectItem, 
   SelectTrigger, 
   SelectValue,
-  Separator
+  Separator,
+  useResizeObserver
 } from "@object-ui/components"
 
 const HEADER_HEIGHT = 50;
 const COLUMN_WIDTH = 100; // Time column width
 
-function getResponsiveColumnWidth() {
-  const w = typeof window !== 'undefined' ? window.innerWidth : 1024;
-  if (w < 640) return 35;
-  if (w < 1024) return 50;
+/**
+ * Container-aware sizing helpers — replace the legacy viewport (`window.innerWidth`)
+ * checks so the Gantt adapts to whatever slot it sits in (cards, sidebars, popups…).
+ */
+function columnWidthForContainer(width: number) {
+  if (width < 640) return 35;
+  if (width < 1024) return 50;
   return 60;
 }
 
-function getResponsiveTaskListWidth() {
-  const w = typeof window !== 'undefined' ? window.innerWidth : 1024;
-  if (w < 640) return 120;
-  if (w < 1024) return 200;
+function taskListWidthForContainer(width: number) {
+  if (width < 640) return 120;
+  if (width < 1024) return 200;
   return 300;
+}
+
+function rowHeightForContainer(width: number) {
+  return width < 640 ? 32 : 40;
 }
 
 export interface GanttTask {
@@ -86,21 +93,14 @@ export function GanttView({
   inlineEdit = false,
 }: GanttViewProps) {
   const [currentDate, setCurrentDate] = React.useState(new Date());
-  const [rowHeight, setRowHeight] = React.useState(
-    typeof window !== 'undefined' && window.innerWidth < 640 ? 32 : 40
-  );
-  const [columnWidth, setColumnWidth] = React.useState(getResponsiveColumnWidth());
+  const containerRef = React.useRef<HTMLDivElement>(null);
+  const { width: containerWidth } = useResizeObserver(containerRef);
+  const effectiveWidth = containerWidth || (typeof window !== 'undefined' ? window.innerWidth : 1024);
+  const rowHeight = rowHeightForContainer(effectiveWidth);
+  const columnWidth = columnWidthForContainer(effectiveWidth);
+  const taskListWidth = taskListWidthForContainer(effectiveWidth);
   const [editingTask, setEditingTask] = React.useState<string | number | null>(null);
   const [editValues, setEditValues] = React.useState<Record<string, string>>({});
-
-  React.useEffect(() => {
-    const handleResize = () => {
-      setRowHeight(window.innerWidth < 640 ? 32 : 40);
-      setColumnWidth(getResponsiveColumnWidth());
-    };
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
   
   // Calculate timeline range
   const timelineRange = React.useMemo(() => {
@@ -145,7 +145,7 @@ export function GanttView({
     return cols;
   }, [timelineRange]);
 
-  const taskListWidth = getResponsiveTaskListWidth();
+  const taskListWidth_LEGACY_REMOVED = null; // taskListWidth now derived from useResizeObserver above
   
   const headerRef = React.useRef<HTMLDivElement>(null);
   const listRef = React.useRef<HTMLDivElement>(null);
@@ -177,7 +177,7 @@ export function GanttView({
   };
 
   return (
-    <div className={cn("flex flex-col h-full bg-background border rounded-lg overflow-hidden min-w-0", className)}>
+    <div ref={containerRef} className={cn("flex flex-col h-full bg-background border rounded-lg overflow-hidden min-w-0", className)}>
       {/* Toolbar */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 p-2 border-b bg-card">
         <div className="flex items-center gap-2">

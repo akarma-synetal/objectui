@@ -25,7 +25,7 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable"
 import { CSS } from "@dnd-kit/utilities"
-import { Badge, Card, CardHeader, CardTitle, CardDescription, CardContent, ScrollArea, Button, Input } from "@object-ui/components"
+import { Badge, Card, CardHeader, CardTitle, CardDescription, CardContent, ScrollArea, Button, Input, useResizeObserver } from "@object-ui/components"
 import { useHasDndProvider, useDnd } from "@object-ui/react"
 import { Plus } from "lucide-react"
 
@@ -232,6 +232,7 @@ function KanbanColumnView({
   quickAdd,
   onQuickAdd,
   conditionalFormatting,
+  columnStyle,
 }: {
   column: KanbanColumn
   cards: KanbanCard[]
@@ -239,6 +240,8 @@ function KanbanColumnView({
   quickAdd?: boolean
   onQuickAdd?: (columnId: string, title: string) => void
   conditionalFormatting?: ConditionalFormattingRule[]
+  /** Container-aware width override from useResizeObserver in KanbanBoardInner. */
+  columnStyle?: React.CSSProperties
 }) {
   const safeCards = cards || [];
   const { setNodeRef } = useSortable({
@@ -250,13 +253,21 @@ function KanbanColumnView({
 
   const isLimitExceeded = column.limit && safeCards.length >= column.limit
 
+  // When the parent passes inline width, drop the viewport-relative classes
+  // so they don't fight with the container-derived value.
+  const widthClasses = columnStyle && columnStyle.width != null
+    ? "flex-shrink-0"
+    : "w-[85vw] sm:w-80 flex-shrink-0";
+
   return (
     <div
       ref={setNodeRef}
       role="group"
       aria-label={column.title}
+      style={columnStyle}
       className={cn(
-        "flex flex-col w-[85vw] sm:w-80 flex-shrink-0 rounded-lg border border-border bg-card/20 backdrop-blur-sm shadow-xl snap-start max-h-full min-h-0",
+        "flex flex-col rounded-lg border border-border bg-card/20 backdrop-blur-sm shadow-xl snap-start max-h-full min-h-0",
+        widthClasses,
         column.className
       )}
     >
@@ -322,6 +333,21 @@ export default function KanbanBoard({ columns, onCardMove, onCardClick, classNam
 
 function KanbanBoardInner({ columns, onCardMove, onCardClick, className, dnd, quickAdd, onQuickAdd, coverImageField: _coverImageField, conditionalFormatting, swimlaneField }: KanbanBoardProps & { dnd: ReturnType<typeof useDnd> | null }) {
   const [activeCard, setActiveCard] = React.useState<KanbanCard | null>(null)
+
+  /**
+   * Container-aware column sizing — replaces hard-coded `w-[85vw] sm:w-80`
+   * (viewport-relative) with a width derived from the board's own slot.
+   * That way an embedded Kanban (in a panel, drawer, or pop-out window)
+   * scales correctly without overflowing or wasting space.
+   */
+  const boardRef = React.useRef<HTMLDivElement>(null);
+  const { width: boardWidth } = useResizeObserver(boardRef);
+  const columnInlineStyle = React.useMemo<React.CSSProperties>(() => {
+    if (!boardWidth) return {};
+    if (boardWidth < 480) return { width: Math.max(boardWidth - 32, 220) }; // 1-up
+    if (boardWidth < 720) return { width: 280 };
+    return { width: 320 };
+  }, [boardWidth]);
 
   // Persist collapsed swimlane state per swimlaneField
   const storageKey = swimlaneField ? `objectui:kanban-collapsed:${swimlaneField}` : null
@@ -508,6 +534,7 @@ function KanbanBoardInner({ columns, onCardMove, onCardClick, className, dnd, qu
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
     >
+      <div ref={boardRef} className="flex flex-col min-w-0 min-h-0 h-full">
       <div className="flex sm:hidden items-center justify-between px-3 pb-2 text-xs text-muted-foreground">
         <span>{boardColumns.length} columns</span>
         <span>← Swipe to navigate →</span>
@@ -582,10 +609,12 @@ function KanbanBoardInner({ columns, onCardMove, onCardClick, className, dnd, qu
               quickAdd={quickAdd}
               onQuickAdd={onQuickAdd}
               conditionalFormatting={conditionalFormatting}
+              columnStyle={columnInlineStyle}
             />
           ))}
         </div>
       )}
+      </div>
 
       <DragOverlay>
         <div aria-live="assertive" aria-label={activeCard ? `Dragging ${activeCard.title}` : undefined}>

@@ -29,7 +29,7 @@ pnpm add @object-ui/types
 Object UI follows a strict **"Protocol First"** approach with a clear inheritance hierarchy:
 
 ```
-@objectstack/spec (v3.3.0)          ← The "Highest Law" - Universal protocol
+@objectstack/spec (v4.0.x)          ← The "Highest Law" - Universal protocol
     ↓
 UIComponent                         ← Base interface for all UI components
     ↓
@@ -307,7 +307,7 @@ We follow these constraints for this package:
 
 - **Node.js:** ≥ 18
 - **TypeScript:** ≥ 5.0 (strict mode)
-- **`@objectstack/spec`:** ^3.3.0
+- **`@objectstack/spec`:** ^4.0.4
 - **`@objectstack/client`:** ^3.3.0
 - **Tailwind CSS:** ≥ 3.4 (for packages with UI)
 

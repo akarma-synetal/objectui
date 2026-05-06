@@ -83,9 +83,13 @@ pnpm changeset publish         # Publish to npm (CI only)
 
 ## Current Release
 
-- **Version:** v3.3.0 (first official release)
-- **Spec:** `@objectstack/spec` v3.3.0
-- **Client:** `@objectstack/client` v3.3.0
-- **Node.js:** ≥ 18
+- **Version:** v3.3.2 (latest published patch; v3.3.0 was the first official release of the 39-package set)
+- **Spec:** `@objectstack/spec` ^4.0.4 (upgraded from 3.3.x — UI sub-export remains backward compatible)
+- **Client:** `@objectstack/client` ^4.0.4
+- **Node.js:** ≥ 20 (see root `engines.node`)
+- **pnpm:** ≥ 9 (the workspace pins `pnpm@10.31.0` via `packageManager`)
 - **React:** 18.x or 19.x
 - **TypeScript:** ≥ 5.0 (strict mode)
+
+> Pending unreleased work is queued in `.changeset/` (currently: `mobile-ux-round2.md`
+> patches `plugin-kanban`, `plugin-calendar`, `plugin-timeline`).

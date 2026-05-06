@@ -19,9 +19,21 @@
 
 ---
 
-## 🎉 What's New in v3.3.0
+## 🎉 What's New (v3.3.x line)
 
-**v3.3.0 is the first official release** — all 39 packages under `packages/*` are published to npm, aligned with `@objectstack/spec` v3.3.0 and `@objectstack/client` v3.3.0.
+**v3.3.0 was the first official release** — all 39 packages under `packages/*` are published to npm. The current published patch is **v3.3.2** and the workspace now consumes **`@objectstack/spec` ^4.0.4** and **`@objectstack/client` ^4.0.4** (the UI sub-export remains backward compatible with the 3.3.x renderer).
+
+> Unreleased work is queued in `.changeset/` and visible in `CHANGELOG.md`'s
+> `[Unreleased]` section — see "Recent Highlights" below.
+
+### Recent Highlights (post-3.3.2, queued for next release)
+
+- 📱 **Mobile UX rounds 1 & 2** — kanban readability, calendar default view on phones, timeline marker clipping, list/sidebar/record-detail polish (`apps/console`, `plugin-kanban`, `plugin-calendar`, `plugin-timeline`).
+- 🪟 **Manage Views dialog** (`@object-ui/plugin-view`) replaces inline tab drag for view CRUD.
+- 🧭 **App-shell view-tab strip** now renders for single-view objects too; broken DropdownMenu propagation fixed.
+- ⚡ **View metadata merging + request coalescing** — duplicate `find()` queries from concurrent renderers are deduped.
+- 🌐 **Convention-based i18n for sidebars, breadcrumbs, charts, tables, dashboards** — translation packs can localize every label without editing metadata.
+- 🛠️ **MetadataProvider lazy loading** — Console no longer fetches the entire `app/object/dashboard/report/page` graph on boot.
 
 ### Highlights
 
@@ -54,7 +66,7 @@ registerField('number');
 - **Parallel package builds** with intelligent caching
 - **Instant rebuilds** for unchanged packages
 
-👉 See [CHANGELOG.md](./CHANGELOG.md) for the full 3.3.0 release notes.
+👉 See [CHANGELOG.md](./CHANGELOG.md) for the full 3.3.x release notes and the `[Unreleased]` section.
 
 ---
 

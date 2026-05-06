@@ -13,7 +13,7 @@ package-level changelog, see the monorepo
 
 v3.3.0 is the **first official release** of ObjectUI published for third-party
 consumption. All 39 packages under `packages/*` are now published to npm with
-complete release metadata and aligned with `@objectstack/spec` v3.3.0 and
+complete release metadata and aligned with `@objectstack/spec` ^4.0.4 and
 `@objectstack/client` v3.3.0.
 
 ### Highlights
@@ -52,7 +52,7 @@ If you were pinning to the earlier `0.x` prerelease tags:
 | Package | Version |
 | --- | --- |
 | `@object-ui/*` | `3.3.0` |
-| `@objectstack/spec` | `3.3.0` |
+| `@objectstack/spec` | `^4.0.4` |
 | `@objectstack/client` | `3.3.0` |
 | React | `18.x` or `19.x` |
 | Node.js | `≥ 18` |

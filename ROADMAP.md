@@ -1,11 +1,31 @@
 # ObjectUI Development Roadmap
 
-> **Last Updated:** April 17, 2026
-> **Current Version:** v3.3.0 (first official release — all 39 packages published on npm)
-> **Spec Version:** @objectstack/spec v3.3.0
-> **Client Version:** @objectstack/client v3.3.0
+> **Last Updated:** May 6, 2026
+> **Current Published Version:** v3.3.2 (v3.3.0 was the first official release of all 39 packages)
+> **Spec Version:** @objectstack/spec ^4.0.4 (UI sub-export remains backward compatible with the 3.3.x renderer)
+> **Client Version:** @objectstack/client ^4.0.4
 > **Target UX Benchmark:** 🎯 Airtable parity
-> **Current Priority:** AppShell Navigation · Designer Interaction · **View Config Live Preview Sync ✅** · Dashboard Config Panel · Airtable UX Polish · **Flow Designer ✅** · **App Creation & Editing Flow ✅** · **System Settings & App Management ✅** · **Right-Side Visual Editor Drawer ✅** · **Object Manager & Field Designer ✅** · **AI SDUI Chatbot (service-ai + vercel/ai) ✅** · **Unified Home Dashboard ✅** · **Unified Copilot Skills Architecture ✅**
+> **Current Priority (next release window — end-user features first):**
+> 1. **Mobile UX polish (round 3)** — finish Gantt/Map/Form mobile passes, dynamic widget widths (P1.9)
+> 2. **Forms & data collection** — camera capture, image cropping, S3/Azure upload, dependent lookups (P1.2)
+> 3. **Console — Import/Export** — field mapping UI, validation preview, async streaming export (P1.3)
+> 4. **Cross-session undo persistence + visual undo timeline** (P1.4)
+> 5. **Documentation refresh** — `content/docs/*` aligned with v4 spec & v3.3.2 package surface
+>
+> **Deferred (revisit after the end-user track ships):**
+> - 🛑 **Console — Automation builder** (P1.6) — wait/timer UI, BPMN interop, execution dashboard. The v4 spec primitives are ready, but the visual builder is a power-user/admin surface; we are prioritising end-user CRUD/forms/views first.
+> - 🛑 **Spec v4 native opt-ins** for the platform layer (CLI v4 plugin options, multi-tenant v4 resolver) — engine-level work, no immediate end-user impact.
+
+> **Recently Completed (queued in `.changeset/` for next release):**
+> - 📱 Mobile UX rounds 1 & 2 — Kanban readability, Calendar mobile default, Timeline dot clipping, list/sidebar/record-detail polish
+> - 🪟 `plugin-view` Manage Views dialog (replaces inline tab drag)
+> - 🧭 App-shell view-tab strip for single-view objects + DropdownMenu propagation fix
+> - ⚡ View metadata merging + request coalescing for duplicate `find()` queries
+> - 🌐 Convention-based i18n for sidebars/breadcrumbs/charts/tables/dashboards
+> - 🛠️ Lazy `MetadataProvider` (no full app/object/dashboard graph fetch at boot)
+> - 🎨 Soft pill badge palette + class-based dark-mode variant centralisation
+
+> **Previously Shipped Foundations:** AppShell Navigation · Designer Interaction · **View Config Live Preview Sync ✅** · Dashboard Config Panel · Airtable UX Polish · **Flow Designer ✅** · **App Creation & Editing Flow ✅** · **System Settings & App Management ✅** · **Right-Side Visual Editor Drawer ✅** · **Object Manager & Field Designer ✅** · **AI SDUI Chatbot (service-ai + vercel/ai) ✅** · **Unified Home Dashboard ✅** · **Unified Copilot Skills Architecture ✅**
 
 ---
 
@@ -46,6 +66,32 @@ ObjectUI is a universal Server-Driven UI (SDUI) engine built on React + Tailwind
 | **Kernel Enhancements** | `PluginBuildOptions`, `PluginPublishOptions`, `PluginValidateOptions`, `MetadataCategory`, `NamespaceConflictError` | Plugin development tooling (P2.4) |
 
 **UI Sub-Export:** No breaking changes — `@objectstack/spec/ui` types are identical between v3.0.8 and v3.0.9.
+
+---
+
+## 🔄 Spec v4.0.x Upgrade Summary
+
+> Upgraded `@objectstack/*` from `^3.3.1` → `^4.0.1` (currently `^4.0.4`) — see commit `e2cc613a`. ObjectUI packages remain on the `3.3.x` line because the **`@objectstack/spec/ui` sub-export is backward compatible**; the v4 changes land in Automation, Kernel, Data, Multi-Tenant, and API contracts (no UI breaking changes consumed yet).
+
+**What this unlocks for ObjectUI (still TODO to surface in renderers):**
+
+| Area | New in v4 | Where to surface |
+|------|-----------|------------------|
+| **Automation** | Refined `WaitEventConfig`, `ExecutionLog`/`Checkpoint` v4 shape, retry policy v4 (`backoffMultiplier`, `jitter`) | `plugin-workflow`, Automation builder (P1.6) |
+| **Multi-Tenant** | Updated `TursoMultiTenantConfig`, `TenantResolverStrategy` v4 | `@object-ui/tenant`, `apps/console` tenant switch |
+| **Data Export** | v4 `ExportJobStatus`/`CreateExportJobRequest` (streaming) | Console Import/Export (P1.3) |
+| **Plugin Kernel** | `PluginBuildOptions`, `PluginPublishOptions`, `PluginValidateOptions`, `MetadataCategory`, `NamespaceConflictError` | `@object-ui/cli`, `@object-ui/create-plugin` (P2.4) |
+| **Cloud Contracts** | `IAppLifecycleService`, `IDeployPipelineService`, `IProvisioningService` (refined) | `apps/console` deployment surface (P2.4) |
+
+**Migration applied:**
+- Bumped every direct dependency from `^3.3.1` → `^4.0.1` (later patched to `^4.0.4`).
+- Fixed MSW discovery endpoint to match v4 protocol broker (commit `e2cc613a`).
+- No UI metadata changes required — schemas authored against `@objectstack/spec/ui` keep working unchanged.
+
+**Pending:**
+- [ ] Surface v4 wait/timer executor in Automation builder UI (P1.6)
+- [ ] Surface v4 streaming export status in Import/Export modal (P1.3)
+- [ ] Adopt v4 `PluginBuildOptions`/`PluginPublishOptions` in `@object-ui/cli` (P2.4)
 
 ---
 
@@ -607,8 +653,12 @@ ObjectUI is a universal Server-Driven UI (SDUI) engine built on React + Tailwind
 - [x] Fix Map container overflow containment via `cn()` merge
 - [x] Fix Timeline container `min-w-0` to prevent overflow
 - [x] Fix ListView container `min-w-0 overflow-hidden` to prevent overflow
-- [ ] Mobile/tablet end-to-end testing for all view types
-- [ ] Dynamic width calculation for Gantt task list and Kanban columns based on container width
+- [x] **Mobile UX round 1** — list/sidebar/record-detail polish in `apps/console`; soft pill badge palette; DropdownMenu propagation fix
+- [x] **Mobile UX round 2** — Kanban readability (drop `font-mono`, derive description/badges, ScrollArea height fix); Calendar mobile default view (force `month` < 768px); Timeline marker `ml-3` to prevent dot clipping
+- [ ] Mobile/tablet end-to-end Playwright matrix for Grid / Kanban / Calendar / Timeline / Gallery / Map / Gantt
+- [ ] **Mobile UX round 3** — Gantt mobile pass (collapsible task list, gesture zoom), Map mobile pass (bottom-sheet record card, geolocation prompt), Form mobile pass (sticky save bar, field stepper)
+- [ ] Dynamic width calculation for Gantt task list and Kanban columns based on `useResizeObserver(containerRef)`
+- [ ] Mobile-only "compact card" density for ListView/DetailView
 
 ### P1.11 App Creation & Editing Flow (Airtable Interface Designer UX)
 
@@ -985,6 +1035,50 @@ Enterprise-grade visual designers for managing object definitions and configurin
 - [x] Full translations for all 10 locales (en, zh, ja, ko, de, fr, es, pt, ru, ar)
 - [x] 50 new translation keys per locale (objectManager + fieldDesigner sections)
 - [x] Fallback translations in `useDesignerTranslation` for standalone usage
+
+### P1.17 View Management UX & Performance (Post-3.3.2, queued for next release) ✅
+
+> **Status:** Code complete on `main`; queued in `.changeset/` and `[Unreleased]` for the next published patch.
+
+**View Management:**
+- [x] **Manage Views dialog** (`@object-ui/plugin-view`) — full view CRUD UI replacing inline tab drag (commit `35f57ecf`)
+- [x] Tab-drag UX retired in favour of Manage Views dialog (commit `3371239c`)
+- [x] Drag handle hidden until tab hover (commit `0bcded75`); entire tab body becomes drag activator (commit `f9eab1b6`)
+- [x] **CreateViewDialog** — Airtable-style + simplified config panel (commits `248a835c`, `30904b16`); requires type-specific fields (commit `88da56a1`)
+- [x] Visible chevron menu + Airtable-light config panel on view tabs (commit `1a87e678`)
+- [x] Airtable-parity create / edit / delete view UX (commit `d822d195`)
+- [x] User-defined `sys_view` records load alongside metadata views in `ObjectView` (commit `b54cb5be`)
+- [x] App-shell renders view-tab strip even for single-view objects (commit `675ffcb7`)
+- [x] App-shell `Design Tools` dropdown next to primary "New" button retired (commit `9d964416`)
+
+**Data Layer Performance:**
+- [x] **View metadata merging + request coalescing** — duplicate concurrent `find()` queries from multiple renderers are deduped (commit `38eb96bd`)
+- [x] `plugin-list` `$select` projection now includes view-specific fields (commit `b2d2489f`)
+- [x] Stable dependency keys prevent infinite refetch loops (commit `647782a9`)
+- [x] **Lazy `MetadataProvider`** — Console no longer pre-fetches the full app/object/dashboard/report/page graph at boot (CHANGELOG `[Unreleased]`)
+
+**Title Resolution:**
+- [x] Kanban card titles resolve via `objectDef.titleFormat` fallback (commit `ad40a718`)
+- [x] Calendar event titles resolve via `objectDef.titleFormat` fallback (commit `643f661b`)
+
+**i18n (Convention-Based):**
+- [x] Sidebar group / dashboard / page / report label conventions in `useObjectLabel` + `NavigationRenderer` + `UnifiedSidebar`
+- [x] `AppHeader` breadcrumb dashboard/page/report segments use convention lookups
+- [x] `ChartRenderer` accepts `series[].label`; `DashboardRenderer` populates from `fieldLabel(widget.object, dataKey)`
+- [x] `ObjectChart` `resolveGroupByLabels` translates legend categories via `fieldOptionLabel`
+- [x] `ObjectDataTable` translates auto-derived column headers + select/picklist cell values
+- [x] `data-table` formats ISO date / datetime cell values with `Intl.DateTimeFormat(language)`
+- [x] Dashboard label / description / actionLabel / widget title / widget description conventions
+- [x] `loadLanguage.ts` includes `dashboards` namespace
+
+**Mobile UX (Round 1 + Round 2):**
+- [x] Mobile UX round 1 — list / sidebar / record-detail polish; soft pill badge palette; DropdownMenu propagation fix (commits `a919454d`, `a409010a`)
+- [x] Mobile UX round 2 — Kanban readability + ScrollArea height fix; Calendar mobile default `month`; Timeline `ml-3` marker dot fix (commit `eee295da`)
+
+**Theming Foundation:**
+- [x] Class-based dark mode variant centralised in app-shell styles (commit `4944d02c`)
+- [x] Refactor: class-based dark mode + soft pill badge colors (commit `dbbd2cd2`)
+- [x] Build: circular CSS import in `components` & `runner` broken (commit `1bae8f8a`)
 
 ---
 

@@ -52,6 +52,8 @@ export * from './custom';
 export { useConfigDraft } from './hooks/use-config-draft';
 export type { UseConfigDraftOptions, UseConfigDraftReturn } from './hooks/use-config-draft';
 export { useIsMobile } from './hooks/use-mobile';
+export { useResizeObserver } from './hooks/use-resize-observer';
+export type { ElementSize } from './hooks/use-resize-observer';
 
 // Export config panel types
 export type {

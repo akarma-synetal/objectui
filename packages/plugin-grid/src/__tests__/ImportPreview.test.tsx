@@ -20,6 +20,8 @@ vi.mock('lucide-react', () => ({
   X: () => <span>×</span>,
   ArrowRight: () => <span>→</span>,
   ArrowLeft: () => <span>←</span>,
+  Save: () => <span>Save</span>,
+  Trash2: () => <span>Trash</span>,
 }));
 
 // Mock @object-ui/components with table primitives
@@ -41,6 +43,9 @@ vi.mock('@object-ui/components', () => ({
   SelectItem: ({ children, value }: any) => <option value={value}>{children}</option>,
   SelectTrigger: ({ children }: any) => <div>{children}</div>,
   SelectValue: () => <span />,
+  Input: ({ value, onChange, ...props }: any) => (
+    <input value={value ?? ''} onChange={onChange} {...props} />
+  ),
   Table: ({ children }: any) => <table>{children}</table>,
   TableBody: ({ children }: any) => <tbody>{children}</tbody>,
   TableCell: ({ children, className, title }: any) => <td className={className} title={title}>{children}</td>,

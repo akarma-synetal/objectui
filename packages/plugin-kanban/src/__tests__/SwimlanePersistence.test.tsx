@@ -57,6 +57,7 @@ vi.mock('@object-ui/components', () => ({
   ScrollArea: ({ children, ...props }: any) => <div {...props}>{children}</div>,
   Button: ({ children, ...props }: any) => <button {...props}>{children}</button>,
   Input: (props: any) => <input {...props} />,
+  useResizeObserver: () => ({ width: 0, height: 0 }),
 }));
 
 vi.mock('@object-ui/react', () => {

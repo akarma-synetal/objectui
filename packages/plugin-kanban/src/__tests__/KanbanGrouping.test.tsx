@@ -61,6 +61,7 @@ vi.mock('@object-ui/components', () => ({
   NavigationOverlay: ({ children, selectedRecord }: any) => (
     selectedRecord ? <div data-testid="navigation-overlay">{children(selectedRecord)}</div> : null
   ),
+  useResizeObserver: () => ({ width: 0, height: 0 }),
 }));
 
 vi.mock('@object-ui/react', () => {

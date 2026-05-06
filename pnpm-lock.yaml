@@ -1121,6 +1121,9 @@ importers:
       '@object-ui/i18n':
         specifier: workspace:*
         version: link:../i18n
+      '@object-ui/providers':
+        specifier: workspace:*
+        version: link:../providers
       '@object-ui/react':
         specifier: workspace:*
         version: link:../react

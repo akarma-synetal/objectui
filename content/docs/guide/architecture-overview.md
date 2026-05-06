@@ -13,7 +13,7 @@ ObjectUI enforces a strict separation across three layers. Each layer has clear 
 
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
-│  Layer 1: @objectstack/spec v3.3.0 (The Protocol)                  │
+│  Layer 1: @objectstack/spec ^4.0.4 (The Protocol)                  │
 │  Pure TypeScript type definitions — 12 export modules               │
 │  ❌ No runtime code. No React. No dependencies.                    │
 └──────────────────────────────┬──────────────────────────────────────┘
@@ -32,7 +32,7 @@ ObjectUI enforces a strict separation across three layers. Each layer has clear 
 
 ### Layer 1 — `@objectstack/spec` (The Protocol)
 
-The upstream JSON specification for all ObjectStack products. ObjectUI **imports** these types but never redefines them. Located externally; consumed as `@objectstack/spec ^3.0.0`.
+The upstream JSON specification for all ObjectStack products. ObjectUI **imports** these types but never redefines them. Located externally; consumed as `@objectstack/spec ^4.0.0`.
 
 ### Layer 2 — `@object-ui/types` (The Bridge)
 

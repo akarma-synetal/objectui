@@ -1,6 +1,7 @@
 import React, { useRef, useState, useCallback } from 'react';
 import { Button, EmptyValue } from '@object-ui/components';
-import { Upload, X, File as FileIcon, ImageIcon } from 'lucide-react';
+import { useUpload } from '@object-ui/providers';
+import { Upload, X, File as FileIcon, ImageIcon, Camera, Loader2 } from 'lucide-react';
 import { FieldWidgetProps } from './types';
 
 /**
@@ -10,20 +11,37 @@ import { FieldWidgetProps } from './types';
  */
 export function FileField({ value, onChange, field, readonly, ...props }: FieldWidgetProps<any>) {
   const inputRef = useRef<HTMLInputElement>(null);
+  const cameraRef = useRef<HTMLInputElement>(null);
   const fileField = (field || (props as any).schema) as any;
   const multiple = fileField?.multiple || false;
   const accept = fileField?.accept ? fileField.accept.join(',') : undefined;
   const maxSize = fileField?.maxSize as number | undefined; // bytes
+  /**
+   * Camera capture mode for mobile devices.
+   * - `'environment'` (back camera): photos of receipts, documents, products
+   * - `'user'` (front camera): selfies, profile pictures
+   * - `false`: disable the camera button entirely
+   * @default 'environment' when accept includes image/* on a touch device
+   */
+  const captureMode = (fileField?.capture ?? null) as 'environment' | 'user' | false | null;
+  const acceptsImages = !accept || accept.split(',').some((t: string) =>
+    t.trim().startsWith('image/') || t.trim() === 'image/*' || t.trim().startsWith('.jp') || t.trim().startsWith('.png') || t.trim().startsWith('.gif') || t.trim().startsWith('.webp'),
+  );
+  // Auto-enable camera button on touch devices when image upload is permitted, unless explicitly disabled.
+  const isTouchDevice = typeof navigator !== 'undefined' && (navigator.maxTouchPoints > 0 || /Mobi|Android/i.test(navigator.userAgent));
+  const cameraEnabled = captureMode === false ? false : (captureMode ?? (acceptsImages && isTouchDevice ? 'environment' : null));
   const [isDragOver, setIsDragOver] = useState(false);
   const [errors, setErrors] = useState<string[]>([]);
+  const { upload } = useUpload();
+  const [uploadProgress, setUploadProgress] = useState<Record<string, number>>({});
+  const [uploading, setUploading] = useState(false);
 
   const files = value ? (Array.isArray(value) ? value : [value]) : [];
 
-  const processFiles = useCallback((selectedFiles: File[]) => {
+  const processFiles = useCallback(async (selectedFiles: File[]) => {
     if (selectedFiles.length === 0) return;
     const newErrors: string[] = [];
 
-    // Validate file sizes
     const validFiles = selectedFiles.filter(file => {
       if (maxSize && file.size > maxSize) {
         const maxMB = (maxSize / (1024 * 1024)).toFixed(1);
@@ -36,21 +54,42 @@ export function FileField({ value, onChange, field, readonly, ...props }: FieldW
 
     if (validFiles.length === 0) return;
 
-    const fileObjects = validFiles.map(file => ({
-      name: file.name,
-      original_name: file.name,
-      size: file.size,
-      mime_type: file.type,
-      // In a real implementation, this would upload the file and return a URL
-      url: URL.createObjectURL(file),
-    }));
+    setUploading(true);
+    try {
+      const fileObjects = await Promise.all(
+        validFiles.map(async (file) => {
+          try {
+            const result = await upload(file, {
+              onProgress: (ratio) =>
+                setUploadProgress((prev) => ({ ...prev, [file.name]: ratio })),
+            });
+            return {
+              name: result.name,
+              original_name: file.name,
+              size: result.size,
+              mime_type: result.mimeType,
+              url: result.url,
+            };
+          } catch (err) {
+            newErrors.push(`Failed to upload "${file.name}": ${(err as Error).message}`);
+            setErrors([...newErrors]);
+            return null;
+          }
+        }),
+      );
+      const successful = fileObjects.filter(Boolean) as any[];
+      if (successful.length === 0) return;
 
-    if (multiple) {
-      onChange([...files, ...fileObjects]);
-    } else {
-      onChange(fileObjects[0]);
+      if (multiple) {
+        onChange([...files, ...successful]);
+      } else {
+        onChange(successful[0]);
+      }
+    } finally {
+      setUploading(false);
+      setUploadProgress({});
     }
-  }, [files, multiple, onChange, maxSize]);
+  }, [files, multiple, onChange, maxSize, upload]);
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -128,6 +167,18 @@ export function FileField({ value, onChange, field, readonly, ...props }: FieldW
         onChange={handleFileChange}
         className="hidden"
       />
+      {cameraEnabled && (
+        <input
+          ref={cameraRef}
+          type="file"
+          accept="image/*"
+          capture={cameraEnabled}
+          onChange={handleFileChange}
+          className="hidden"
+          aria-label="Camera capture"
+          data-testid="file-field-camera-input"
+        />
+      )}
       
       <div className="space-y-2">
         {/* Drag-and-drop zone */}
@@ -159,10 +210,42 @@ export function FileField({ value, onChange, field, readonly, ...props }: FieldW
               {isDragOver ? 'Drop files here' : 'Drag & drop files here'}
             </p>
             <p className="text-xs text-muted-foreground mt-1">
-              or click to browse
+              or click to browse{cameraEnabled ? ' • use the camera button below' : ''}
             </p>
           </div>
         </div>
+
+        {cameraEnabled && (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="w-full"
+            onClick={(e) => {
+              e.stopPropagation();
+              cameraRef.current?.click();
+            }}
+            data-testid="file-field-camera-button"
+          >
+            <Camera className="size-4 mr-2" />
+            {cameraEnabled === 'user' ? 'Take selfie' : 'Take photo'}
+          </Button>
+        )}
+
+        {/* Upload progress indicator */}
+        {uploading && (
+          <div className="flex items-center gap-2 text-xs text-muted-foreground" data-testid="file-field-uploading">
+            <Loader2 className="size-3 animate-spin" />
+            <span>
+              Uploading…
+              {Object.keys(uploadProgress).length > 0 &&
+                ` (${Math.round(
+                  (Object.values(uploadProgress).reduce((s, v) => s + v, 0) /
+                    Object.keys(uploadProgress).length) * 100,
+                )}%)`}
+            </span>
+          </div>
+        )}
 
         {/* Validation errors */}
         {errors.length > 0 && (

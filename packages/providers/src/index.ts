@@ -7,6 +7,13 @@
 export { DataSourceProvider, useDataSource } from './DataSourceProvider';
 export { MetadataProvider, useMetadata } from './MetadataProvider';
 export { ThemeProvider, useTheme } from './ThemeProvider';
+export {
+  UploadProvider,
+  useUpload,
+  createObjectUrlAdapter,
+  createS3Adapter,
+  createAzureBlobAdapter,
+} from './UploadProvider';
 
 export type {
   DataSourceProviderProps,
@@ -14,3 +21,12 @@ export type {
   ThemeProviderProps,
   Theme,
 } from './types';
+
+export type {
+  UploadAdapter,
+  UploadOptions,
+  UploadResult,
+  UploadProviderProps,
+  S3AdapterOptions,
+  AzureBlobAdapterOptions,
+} from './UploadProvider';

@@ -1372,6 +1372,8 @@ export * from './widgets/LookupField';
 export * from './widgets/RecordPickerDialog';
 export * from './widgets/FileField';
 export * from './widgets/ImageField';
+export { ImageCropperDialog } from './widgets/ImageCropperDialog';
+export type { ImageCropperDialogProps } from './widgets/ImageCropperDialog';
 export * from './widgets/LocationField';
 export * from './widgets/FormulaField';
 export * from './widgets/SummaryField';
