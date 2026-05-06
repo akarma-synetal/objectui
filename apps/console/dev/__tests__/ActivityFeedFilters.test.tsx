@@ -34,7 +34,7 @@ vi.mock('lucide-react', async (importOriginal) => {
     Pencil: () => <span>✏</span>,
     Trash2: () => <span>🗑</span>,
     MessageSquare: () => <span>💬</span>,
-    Filter: () => <span>Filter</span>,
+    Filter: () => <span data-testid="filter-icon">⚙</span>,
   };
 });
 
