@@ -1315,6 +1315,7 @@ export function ObjectView({ dataSource, objects, onEdit }: any) {
                     open={showCreateViewDialog && isAdmin}
                     onOpenChange={setShowCreateViewDialog}
                     existingLabels={views.map((v: any) => v.label).filter(Boolean)}
+                    objectDef={objectDef}
                     onCreate={(cfg) => handleViewCreate(cfg)}
                 />
              </div>

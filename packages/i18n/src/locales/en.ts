@@ -743,6 +743,7 @@ const en = {
       imageField: 'Image field',
       dateField: 'Date field',
       selectField: 'Select field...',
+      noEligibleFieldForType: 'No eligible field of this type. Add one to the object first.',
       gridOptionsHint: 'Grid view uses the columns configured above.',
       groupBy: 'Group by',
       prefixField: 'Prefix field',

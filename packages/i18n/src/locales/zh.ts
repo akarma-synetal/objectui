@@ -743,6 +743,7 @@ const zh = {
       imageField: '图片字段',
       dateField: '日期字段',
       selectField: '选择字段...',
+      noEligibleFieldForType: '没有符合条件的字段。请先在对象上添加该类型字段。',
       gridOptionsHint: '网格视图使用上方配置的列。',
       groupBy: '分组依据',
       prefixField: '前缀字段',
