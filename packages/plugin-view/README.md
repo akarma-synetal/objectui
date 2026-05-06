@@ -373,10 +373,13 @@ MIT — see [LICENSE](./LICENSE).
 In addition to the renderer, the package ships two components that wrap an
 object's set of saved views (Airtable / Notion-style):
 
-- **`<ViewTabBar>`** — a horizontal strip of view tabs. Supports drag-reorder
-  on the visible tabs, an overflow `… N more` dropdown when there are too many
-  views to fit, an inline `+` button, a per-tab chevron menu (rename, pin,
-  duplicate, set default, delete) and right-click context menu.
+- **`<ViewTabBar>`** — a horizontal strip of view tabs. Per-tab chevron menu
+  exposes rename, pin, duplicate, set default, delete, and "Manage all
+  views…". An overflow `… N more` dropdown surfaces the remaining views and
+  links to the management dialog. (In-place tab drag is intentionally
+  disabled — reordering happens in `<ManageViewsDialog>` to avoid the
+  ambiguity of "does dragging the visible tab change the global order or
+  just the visible subset?".)
 - **`<ManageViewsDialog>`** — a Shadcn `Dialog` containing a vertical sortable
   list of **every** view (visible + overflow + metadata-defined). Supports
   drag-reorder, search, inline rename, pin / set-default toggles, and a per-row

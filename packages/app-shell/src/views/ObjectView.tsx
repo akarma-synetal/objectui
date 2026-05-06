@@ -1264,7 +1264,7 @@ export function ObjectView({ dataSource, objects, onEdit }: any) {
                    onViewChange={handleViewChange}
                    viewTypeIcons={VIEW_TYPE_ICONS}
                    config={{
-                     reorderable: isAdmin,
+                     reorderable: false,
                      showAddButton: isAdmin,
                      showPinnedSection: true,
                      showVisibilityGroups: true,
@@ -1275,7 +1275,6 @@ export function ObjectView({ dataSource, objects, onEdit }: any) {
                    onDuplicateView={isAdmin ? handleDuplicateView : undefined}
                    onPinView={isAdmin ? handlePinView : undefined}
                    onSetDefaultView={isAdmin ? handleSetDefaultView : undefined}
-                   onReorderViews={isAdmin ? handleReorderViews : undefined}
                    onConfigView={isAdmin ? handleConfigView : undefined}
                    onManageViews={isAdmin ? () => setManageViewsOpen(true) : undefined}
                  />
