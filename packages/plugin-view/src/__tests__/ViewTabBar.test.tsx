@@ -8,6 +8,7 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { ViewTabBar, type ViewTabItem, type ViewTabBarProps } from '../ViewTabBar';
 
 const createViews = (count: number): ViewTabItem[] =>
@@ -652,7 +653,7 @@ describe('ViewTabBar', () => {
   });
 
   // ============================
-  // Config View Gear Icon
+  // Config View Action (in actions dropdown menu)
   // ============================
   describe('Config View Gear Icon', () => {
     it('should show gear icon on active tab when onConfigView is provided', () => {
@@ -662,7 +663,9 @@ describe('ViewTabBar', () => {
           onConfigView={vi.fn()}
         />
       );
-      expect(screen.getByTestId('view-tab-config-view-0')).toBeDefined();
+      // Config is exposed via the per-tab actions dropdown menu;
+      // the trigger button is only rendered when at least one action callback is wired.
+      expect(screen.getByTestId('view-tab-actions-view-0')).toBeDefined();
     });
 
     it('should not show gear icon on inactive tabs', () => {
@@ -672,16 +675,19 @@ describe('ViewTabBar', () => {
           onConfigView={vi.fn()}
         />
       );
-      expect(screen.queryByTestId('view-tab-config-view-1')).toBeNull();
-      expect(screen.queryByTestId('view-tab-config-view-2')).toBeNull();
+      // The actions menu trigger is only rendered on the active tab.
+      expect(screen.queryByTestId('view-tab-actions-view-1')).toBeNull();
+      expect(screen.queryByTestId('view-tab-actions-view-2')).toBeNull();
     });
 
     it('should not show gear icon when onConfigView is not provided', () => {
       render(<ViewTabBar {...defaultProps} />);
-      expect(screen.queryByTestId('view-tab-config-view-0')).toBeNull();
+      // With no per-tab action callbacks at all, the trigger button isn't rendered.
+      expect(screen.queryByTestId('view-tab-actions-view-0')).toBeNull();
     });
 
-    it('should call onConfigView with viewId when gear icon is clicked', () => {
+    it('should call onConfigView with viewId when gear icon is clicked', async () => {
+      const user = userEvent.setup();
       const onConfigView = vi.fn();
       render(
         <ViewTabBar
@@ -689,11 +695,14 @@ describe('ViewTabBar', () => {
           onConfigView={onConfigView}
         />
       );
-      fireEvent.click(screen.getByTestId('view-tab-config-view-0'));
+      // Open the actions dropdown, then click the "Edit view config" item.
+      await user.click(screen.getByTestId('view-tab-actions-view-0'));
+      await user.click(await screen.findByTestId('view-tab-menu-config-view-0'));
       expect(onConfigView).toHaveBeenCalledWith('view-0');
     });
 
-    it('should not trigger onViewChange when gear icon is clicked', () => {
+    it('should not trigger onViewChange when gear icon is clicked', async () => {
+      const user = userEvent.setup();
       const onViewChange = vi.fn();
       render(
         <ViewTabBar
@@ -703,7 +712,8 @@ describe('ViewTabBar', () => {
         />
       );
       onViewChange.mockClear();
-      fireEvent.click(screen.getByTestId('view-tab-config-view-0'));
+      await user.click(screen.getByTestId('view-tab-actions-view-0'));
+      await user.click(await screen.findByTestId('view-tab-menu-config-view-0'));
       expect(onViewChange).not.toHaveBeenCalled();
     });
   });

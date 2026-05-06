@@ -146,7 +146,7 @@ describe('SelectCellRenderer', () => {
       />
     );
     expect(screen.getByText('In Progress')).toBeInTheDocument();
-    expect(container.querySelector('[class*="bg-blue-100"]')).toBeInTheDocument();
+    expect(container.querySelector('[class*="bg-blue-50"]')).toBeInTheDocument();
   });
 
   it('should fall back to a deterministic palette color when no color configured and no semantic match', () => {
@@ -166,11 +166,11 @@ describe('SelectCellRenderer', () => {
     );
     expect(screen.getByText('Unknown')).toBeInTheDocument();
     const palette = ['blue', 'green', 'purple', 'orange', 'pink', 'indigo', 'yellow', 'red'];
-    const matched = palette.some((c) => container.querySelector(`[class*="bg-${c}-100"]`));
+    const matched = palette.some((c) => container.querySelector(`[class*="bg-${c}-50"]`));
     expect(matched).toBe(true);
 
     // Same value → same color across renders (deterministic).
-    const firstClass = container.querySelector('[data-slot="badge"], [class*="bg-"][class*="-100"]')?.className;
+    const firstClass = container.querySelector('[data-slot="badge"], [class*="bg-"][class*="-50"]')?.className;
     rerender(
       <SelectCellRenderer
         value="Unknown"
@@ -181,7 +181,7 @@ describe('SelectCellRenderer', () => {
         } as any}
       />
     );
-    const secondClass = container.querySelector('[data-slot="badge"], [class*="bg-"][class*="-100"]')?.className;
+    const secondClass = container.querySelector('[data-slot="badge"], [class*="bg-"][class*="-50"]')?.className;
     expect(secondClass).toBe(firstClass);
   });
 
@@ -193,7 +193,7 @@ describe('SelectCellRenderer', () => {
       />
     );
     expect(screen.getByText('Critical')).toBeInTheDocument();
-    expect(container.querySelector('[class*="bg-red-100"]')).toBeInTheDocument();
+    expect(container.querySelector('[class*="bg-red-50"]')).toBeInTheDocument();
   });
 
   it('should auto-detect priority semantic colors (High → orange)', () => {
@@ -203,7 +203,7 @@ describe('SelectCellRenderer', () => {
         field={{ name: 'priority', type: 'select', options: [] } as any}
       />
     );
-    expect(container.querySelector('[class*="bg-orange-100"]')).toBeInTheDocument();
+    expect(container.querySelector('[class*="bg-orange-50"]')).toBeInTheDocument();
   });
 
   it('should auto-detect priority semantic colors (Medium → yellow)', () => {
@@ -213,7 +213,7 @@ describe('SelectCellRenderer', () => {
         field={{ name: 'priority', type: 'select', options: [] } as any}
       />
     );
-    expect(container.querySelector('[class*="bg-yellow-100"]')).toBeInTheDocument();
+    expect(container.querySelector('[class*="bg-yellow-50"]')).toBeInTheDocument();
   });
 
   it('should auto-detect priority semantic colors (Low → gray)', () => {
@@ -223,7 +223,7 @@ describe('SelectCellRenderer', () => {
         field={{ name: 'priority', type: 'select', options: [] } as any}
       />
     );
-    expect(container.querySelector('[class*="bg-gray-100"]')).toBeInTheDocument();
+    expect(container.querySelector('[class*="bg-gray-50"]')).toBeInTheDocument();
   });
 
   it('should auto-detect status semantic colors (Paid → green)', () => {
@@ -233,7 +233,7 @@ describe('SelectCellRenderer', () => {
         field={{ name: 'status', type: 'select', options: [] } as any}
       />
     );
-    expect(container.querySelector('[class*="bg-green-100"]')).toBeInTheDocument();
+    expect(container.querySelector('[class*="bg-green-50"]')).toBeInTheDocument();
   });
 
   it('should auto-detect status semantic colors (Pending → yellow)', () => {
@@ -243,7 +243,7 @@ describe('SelectCellRenderer', () => {
         field={{ name: 'status', type: 'select', options: [] } as any}
       />
     );
-    expect(container.querySelector('[class*="bg-yellow-100"]')).toBeInTheDocument();
+    expect(container.querySelector('[class*="bg-yellow-50"]')).toBeInTheDocument();
   });
 
   it('should auto-detect status semantic colors (Shipped → blue)', () => {
@@ -253,7 +253,7 @@ describe('SelectCellRenderer', () => {
         field={{ name: 'status', type: 'select', options: [] } as any}
       />
     );
-    expect(container.querySelector('[class*="bg-blue-100"]')).toBeInTheDocument();
+    expect(container.querySelector('[class*="bg-blue-50"]')).toBeInTheDocument();
   });
 
   it('should auto-detect status semantic colors (Draft → gray)', () => {
@@ -263,7 +263,7 @@ describe('SelectCellRenderer', () => {
         field={{ name: 'status', type: 'select', options: [] } as any}
       />
     );
-    expect(container.querySelector('[class*="bg-gray-100"]')).toBeInTheDocument();
+    expect(container.querySelector('[class*="bg-gray-50"]')).toBeInTheDocument();
   });
 
   it('should auto-detect status semantic colors (Cancelled → red)', () => {
@@ -273,7 +273,7 @@ describe('SelectCellRenderer', () => {
         field={{ name: 'status', type: 'select', options: [] } as any}
       />
     );
-    expect(container.querySelector('[class*="bg-red-100"]')).toBeInTheDocument();
+    expect(container.querySelector('[class*="bg-red-50"]')).toBeInTheDocument();
   });
 
   it('should auto-detect status semantic colors (Delivered → purple)', () => {
@@ -283,7 +283,7 @@ describe('SelectCellRenderer', () => {
         field={{ name: 'status', type: 'select', options: [] } as any}
       />
     );
-    expect(container.querySelector('[class*="bg-purple-100"]')).toBeInTheDocument();
+    expect(container.querySelector('[class*="bg-purple-50"]')).toBeInTheDocument();
   });
 
   it('should auto-detect status semantic colors with snake_case (in_progress → blue)', () => {
@@ -293,7 +293,7 @@ describe('SelectCellRenderer', () => {
         field={{ name: 'status', type: 'select', options: [] } as any}
       />
     );
-    expect(container.querySelector('[class*="bg-blue-100"]')).toBeInTheDocument();
+    expect(container.querySelector('[class*="bg-blue-50"]')).toBeInTheDocument();
   });
 
   it('should auto-detect status semantic colors with hyphen (in-progress → blue)', () => {
@@ -303,7 +303,7 @@ describe('SelectCellRenderer', () => {
         field={{ name: 'status', type: 'select', options: [] } as any}
       />
     );
-    expect(container.querySelector('[class*="bg-blue-100"]')).toBeInTheDocument();
+    expect(container.querySelector('[class*="bg-blue-50"]')).toBeInTheDocument();
   });
 
   it('should auto-detect status semantic colors with spaces (in progress → blue)', () => {
@@ -313,7 +313,7 @@ describe('SelectCellRenderer', () => {
         field={{ name: 'status', type: 'select', options: [] } as any}
       />
     );
-    expect(container.querySelector('[class*="bg-blue-100"]')).toBeInTheDocument();
+    expect(container.querySelector('[class*="bg-blue-50"]')).toBeInTheDocument();
   });
 
   it('should render dash for null/empty value', () => {
@@ -356,7 +356,7 @@ describe('SelectCellRenderer', () => {
       />
     );
     // Explicit purple should override auto-detected orange
-    expect(container.querySelector('[class*="bg-purple-100"]')).toBeInTheDocument();
+    expect(container.querySelector('[class*="bg-purple-50"]')).toBeInTheDocument();
   });
 });
 

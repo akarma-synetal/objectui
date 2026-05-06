@@ -155,8 +155,8 @@ describe('Mobile Card View: Stage colored badge', () => {
     await waitFor(() => {
       const badges = screen.getAllByText('Closed Won');
       const badge = badges[0];
-      expect(badge.className).toContain('bg-green-100');
-      expect(badge.className).toContain('text-green-800');
+      expect(badge.className).toContain('bg-green-50');
+      expect(badge.className).toContain('text-green-700');
     });
   });
 
@@ -165,7 +165,7 @@ describe('Mobile Card View: Stage colored badge', () => {
 
     await waitFor(() => {
       const badge = screen.getByText('Negotiation');
-      expect(badge.className).toContain('bg-yellow-100');
+      expect(badge.className).toContain('bg-yellow-50');
       expect(badge.className).toContain('text-yellow-800');
     });
   });
@@ -175,8 +175,8 @@ describe('Mobile Card View: Stage colored badge', () => {
 
     await waitFor(() => {
       const badge = screen.getByText('Proposal');
-      expect(badge.className).toContain('bg-blue-100');
-      expect(badge.className).toContain('text-blue-800');
+      expect(badge.className).toContain('bg-blue-50');
+      expect(badge.className).toContain('text-blue-700');
     });
   });
 });

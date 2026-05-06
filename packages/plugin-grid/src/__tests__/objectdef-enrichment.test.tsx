@@ -156,10 +156,10 @@ describe('ListColumn[] columns with objectDef enrichment', () => {
 
     // Verify colored badge rendering
     const closedWonBadge = screen.getByText('Closed Won');
-    expect(closedWonBadge).toHaveClass('bg-green-100');
+    expect(closedWonBadge).toHaveClass('bg-green-50');
 
     const closedLostBadge = screen.getByText('Closed Lost');
-    expect(closedLostBadge).toHaveClass('bg-red-100');
+    expect(closedLostBadge).toHaveClass('bg-red-50');
   });
 
   it('should render currency fields with proper formatting from objectDef', async () => {
@@ -238,11 +238,11 @@ describe('String[] columns with DataSource schema fetch', () => {
 
     // Stage badge should have color from objectDef options
     const closedWonBadge = screen.getByText('Closed Won');
-    expect(closedWonBadge).toHaveClass('bg-green-100');
+    expect(closedWonBadge).toHaveClass('bg-green-50');
 
     // Forecast category should also render with colored badges
     const commitBadge = screen.getByText('Commit');
-    expect(commitBadge).toHaveClass('bg-purple-100');
+    expect(commitBadge).toHaveClass('bg-purple-50');
   });
 
   it('should use objectDef labels for string[] column headers', async () => {
@@ -304,12 +304,12 @@ describe('ListColumn[] with DataSource objectDef merge', () => {
     // Stage badges should have colors from objectDef
     await waitFor(() => {
       const closedWonBadge = screen.getByText('Closed Won');
-      expect(closedWonBadge).toHaveClass('bg-green-100');
+      expect(closedWonBadge).toHaveClass('bg-green-50');
     });
 
     // Forecast badges should have colors from objectDef
     const commitBadge = screen.getByText('Commit');
-    expect(commitBadge).toHaveClass('bg-purple-100');
+    expect(commitBadge).toHaveClass('bg-purple-50');
   });
 
   it('should prefer explicit ListColumn options over objectDef options', async () => {
@@ -349,7 +349,7 @@ describe('ListColumn[] with DataSource objectDef merge', () => {
     });
 
     const wonBadge = screen.getByText('Won!');
-    expect(wonBadge).toHaveClass('bg-blue-100');
+    expect(wonBadge).toHaveClass('bg-blue-50');
   });
 });
 
@@ -396,7 +396,7 @@ describe('Inline data with DataSource schema fetch', () => {
 
     // Stage badge should have color from objectSchema
     const closedWonBadge = screen.getByText('Closed Won');
-    expect(closedWonBadge).toHaveClass('bg-green-100');
+    expect(closedWonBadge).toHaveClass('bg-green-50');
 
     // find() should NOT have been called (data is inline)
     expect(mockDataSource.find).not.toHaveBeenCalled();
@@ -479,10 +479,10 @@ describe('Inline data with DataSource schema fetch', () => {
     });
 
     const pendingBadge = screen.getByText('Pending');
-    expect(pendingBadge).toHaveClass('bg-yellow-100');
+    expect(pendingBadge).toHaveClass('bg-yellow-50');
 
     const shippedBadge = screen.getByText('Shipped');
-    expect(shippedBadge).toHaveClass('bg-blue-100');
+    expect(shippedBadge).toHaveClass('bg-blue-50');
 
     // find() should NOT be called
     expect(mockDataSource.find).not.toHaveBeenCalled();
@@ -552,7 +552,7 @@ describe('Inline data with DataSource schema fetch', () => {
     // Stage should render with colored badge from objectSchema select options
     await waitFor(() => {
       const closedWonBadge = screen.getByText('Closed Won');
-      expect(closedWonBadge).toHaveClass('bg-green-100');
+      expect(closedWonBadge).toHaveClass('bg-green-50');
     });
 
     // Amount should be formatted as currency from objectSchema type

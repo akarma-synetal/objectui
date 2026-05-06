@@ -444,12 +444,18 @@ export const ViewTabBar: React.FC<ViewTabBarProps> = ({
                 data-testid={`view-tab-actions-${view.id}`}
                 className="ml-0.5 h-4 w-4 flex items-center justify-center rounded hover:bg-accent shrink-0 opacity-70 hover:opacity-100 transition-opacity"
                 onClick={(e) => e.stopPropagation()}
+                onPointerDown={(e) => e.stopPropagation()}
+                onMouseDown={(e) => e.stopPropagation()}
                 aria-label={`View actions for ${view.label}`}
               >
                 <ChevronDown className="h-3 w-3" />
               </button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" className="min-w-[180px]">
+            <DropdownMenuContent
+              align="start"
+              className="min-w-[180px]"
+              onClick={(e) => e.stopPropagation()}
+            >
               {onConfigView && (
                 <DropdownMenuItem
                   data-testid={`view-tab-menu-config-${view.id}`}

@@ -60,7 +60,7 @@ beforeEach(() => {
 // ---------------------------------------------------------------------------
 
 describe('MetadataProvider — lazy loading (Phase 1)', () => {
-  it('fetches only the app list on initial mount', async () => {
+  it('fetches only the eager types (app, view) on initial mount', async () => {
     const { adapter, meta } = createMockAdapter();
     const sink = { value: null as any };
 
@@ -73,16 +73,18 @@ describe('MetadataProvider — lazy loading (Phase 1)', () => {
     await flushAll();
     await waitFor(() => expect(sink.value.loading).toBe(false));
 
-    // Only `app` should have been fetched at this point.
-    const calledTypes = meta.getItems.mock.calls.map((c: any[]) => c[0]);
-    expect(calledTypes).toEqual(['app']);
+    // Only `app` and `view` should have been fetched at this point.
+    // `view` is eager because the provider merges View metadata into
+    // `objectDef.listViews` synchronously on first paint.
+    const calledTypes = meta.getItems.mock.calls.map((c: any[]) => c[0]).sort();
+    expect(calledTypes).toEqual(['app', 'view']);
     expect(sink.value.apps).toEqual([{ name: 'app-1' }]);
 
     // Lazy buckets are still empty arrays — no fetch yet.
-    expect(meta.getItems).toHaveBeenCalledTimes(1);
+    expect(meta.getItems).toHaveBeenCalledTimes(2);
   });
 
-  it('lazily fetches other types only when accessed via the legacy getter', async () => {
+  it('lazily fetches non-eager types only when accessed via the legacy getter', async () => {
     const { adapter, meta } = createMockAdapter();
     const sink = { value: null as any };
 
@@ -93,7 +95,7 @@ describe('MetadataProvider — lazy loading (Phase 1)', () => {
     );
     await flushAll();
     await waitFor(() => expect(sink.value.loading).toBe(false));
-    expect(meta.getItems).toHaveBeenCalledTimes(1);
+    expect(meta.getItems).toHaveBeenCalledTimes(2); // app + view (eager)
 
     // Read `objects` via the legacy property (auto-triggers ensureType).
     let firstRead: any[] = [];
@@ -109,10 +111,10 @@ describe('MetadataProvider — lazy loading (Phase 1)', () => {
     );
     await waitFor(() => expect(sink.value.objects).toEqual([{ name: 'object-1' }]));
 
-    // Still only two list fetches in total — `dashboard / report / page` untouched.
-    expect(meta.getItems).toHaveBeenCalledTimes(2);
+    // Three list fetches in total — `dashboard / report / page` untouched.
+    expect(meta.getItems).toHaveBeenCalledTimes(3);
     const types = meta.getItems.mock.calls.map((c: any[]) => c[0]).sort();
-    expect(types).toEqual(['app', 'object']);
+    expect(types).toEqual(['app', 'object', 'view']);
   });
 
   it('deduplicates concurrent ensureType calls into a single network request', async () => {
@@ -224,9 +226,10 @@ describe('MetadataProvider — lazy loading (Phase 1)', () => {
       await sink.value.refresh();
     });
 
-    // refresh() should re-fetch `app` and `object` (loaded), not the idle types.
+    // refresh() should re-fetch all loaded buckets: eager `app` + eager `view`
+    // + lazily-loaded `object`. Idle buckets (dashboard/report/page) stay untouched.
     const refreshed = meta.getItems.mock.calls.map((c: any[]) => c[0]).sort();
-    expect(refreshed).toEqual(['app', 'object']);
+    expect(refreshed).toEqual(['app', 'object', 'view']);
   });
 });
 
