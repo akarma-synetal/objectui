@@ -1,5 +1,10 @@
 @import 'tailwindcss';
-@import '@object-ui/app-shell/styles.css';
+
+/* Class-based dark variant: follow `.dark` on <html>/ancestor instead of
+   the OS `prefers-color-scheme`. Inlined here because @object-ui/runner
+   does not depend on @object-ui/app-shell, so we cannot @import its
+   shared styles entry. Keep in sync with packages/app-shell/src/styles.css. */
+@custom-variant dark (&:where(.dark, .dark *));
 
 /* Scan sources for Tailwind classes */
 @source './src/**/*.{ts,tsx}';

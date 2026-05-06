@@ -1,5 +1,13 @@
 @import 'tailwindcss';
-@import '@object-ui/app-shell/styles.css';
+
+/* Class-based dark variant: follow `.dark` on <html>/ancestor instead of
+   the OS `prefers-color-scheme`, so the in-app theme toggle controls UI.
+   NOTE: kept inline (instead of `@import '@object-ui/app-shell/styles.css'`)
+   because `@object-ui/components` cannot depend on `@object-ui/app-shell`
+   without introducing a circular dependency (app-shell already depends on
+   components). Host apps (console, runner, starter) still import the
+   centralized app-shell styles directly from their own index.css. */
+@custom-variant dark (&:where(.dark, .dark *));
 
 /* Scan sources for Tailwind classes */
 @source '../src/**/*.{ts,tsx}';
