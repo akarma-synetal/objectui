@@ -43,7 +43,7 @@
     "@types/react-dom": "19.2.3",
     "@vitejs/plugin-react": "^6.0.1",
     "vite": "^8.0.10",
-    "vite-plugin-dts": "^4.5.4",
+    "vite-plugin-dts": "^5.0.0",
     "vitest": "^4.1.5"
   },
   "description": "AI-driven UI plugin for Object UI — schema generation, conversational assistants and Vercel AI SDK integration",
