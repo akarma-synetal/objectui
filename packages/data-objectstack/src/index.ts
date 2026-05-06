@@ -89,6 +89,20 @@ export type BatchProgressListener = (event: BatchProgressEvent) => void;
 export type { FileUploadResult } from '@object-ui/types';
 
 /**
+ * Deterministic JSON.stringify with sorted object keys, used to build cache
+ * keys for in-flight request coalescing. Produces identical output for
+ * `{ a: 1, b: 2 }` and `{ b: 2, a: 1 }` so callers that build params in
+ * different orders still hit the same key.
+ */
+function stableStringify(value: unknown): string {
+  if (value === null || typeof value !== 'object') return JSON.stringify(value);
+  if (Array.isArray(value)) return `[${value.map(stableStringify).join(',')}]`;
+  const obj = value as Record<string, unknown>;
+  const keys = Object.keys(obj).sort();
+  return `{${keys.map(k => `${JSON.stringify(k)}:${stableStringify(obj[k])}`).join(',')}}`;
+}
+
+/**
  * ObjectStack Data Source Adapter
  * 
  * Bridges the ObjectStack Client SDK with the ObjectUI DataSource interface.
@@ -132,6 +146,11 @@ export class ObjectStackAdapter<T = unknown> implements DataSource<T> {
   private baseUrl: string;
   private token?: string;
   private fetchImpl: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
+  // In-flight find() requests keyed by resource + serialized params.
+  // Coalesces concurrent identical reads (e.g. React StrictMode double-mount,
+  // multiple sibling components requesting the same dataset on first paint)
+  // into a single network round trip.
+  private inflightFinds = new Map<string, Promise<QueryResult<T>>>();
 
   constructor(config: {
     baseUrl: string;
@@ -323,22 +342,38 @@ export class ObjectStackAdapter<T = unknown> implements DataSource<T> {
    * Converts OData-style params to ObjectStack query options.
    */
   async find(resource: string, params?: QueryParams): Promise<QueryResult<T>> {
-    await this.connect();
+    const key = `${resource}::${stableStringify(params)}`;
+    const existing = this.inflightFinds.get(key);
+    if (existing) return existing;
 
-    // When $expand is requested, use a raw GET request to the REST API with
-    // `populate` as a URL query param. The server's REST plugin routes
-    // GET /data/:object to protocol.findData({ object, query: req.query }),
-    // which parses `populate` (comma-separated) into an array for lookup expansion.
-    // We use a raw request because the client SDK's data.find() QueryOptions
-    // interface does not include populate/expand fields.
-    if (params?.$expand && params.$expand.length > 0) {
-      const result = await this.rawFindWithPopulate(resource, params);
+    const promise = (async () => {
+      await this.connect();
+
+      // When $expand is requested, use a raw GET request to the REST API with
+      // `populate` as a URL query param. The server's REST plugin routes
+      // GET /data/:object to protocol.findData({ object, query: req.query }),
+      // which parses `populate` (comma-separated) into an array for lookup expansion.
+      // We use a raw request because the client SDK's data.find() QueryOptions
+      // interface does not include populate/expand fields.
+      if (params?.$expand && params.$expand.length > 0) {
+        const result = await this.rawFindWithPopulate(resource, params);
+        return this.normalizeQueryResult(result, params);
+      }
+
+      const queryOptions = this.convertQueryParams(params);
+      const result: unknown = await this.client.data.find<T>(resource, queryOptions);
       return this.normalizeQueryResult(result, params);
-    }
+    })();
 
-    const queryOptions = this.convertQueryParams(params);
-    const result: unknown = await this.client.data.find<T>(resource, queryOptions);
-    return this.normalizeQueryResult(result, params);
+    this.inflightFinds.set(key, promise);
+    promise.finally(() => {
+      // Only clear if the entry still points at this promise; a later call
+      // that started after settle may have already replaced it.
+      if (this.inflightFinds.get(key) === promise) {
+        this.inflightFinds.delete(key);
+      }
+    });
+    return promise;
   }
 
   /**

@@ -41,7 +41,7 @@ interface MetadataProviderProps {
 // ---------------------------------------------------------------------------
 
 const DEFAULT_TTL_MS = 5 * 60 * 1000;
-const EAGER_TYPES = ['app'] as const;
+const EAGER_TYPES = ['app', 'view'] as const;
 
 const TYPE_BY_STATE_KEY: Record<keyof Omit<MetadataState, 'loading' | 'error'>, string> = {
   apps: 'app',
@@ -101,6 +101,42 @@ function isNamedItem(item: unknown): item is { name: string } {
     'name' in item &&
     typeof (item as { name: unknown }).name === 'string'
   );
+}
+
+/**
+ * Merge `view` metadata (the @objectstack/spec View container, keyed by
+ * target object name) into object definitions so that `objectDef.listViews`
+ * is populated for the renderer (`@object-ui/plugin-view`) which expects it.
+ *
+ * Each View has shape `{ list?, form?, listViews?, formViews? }`. We collapse:
+ *   - `view.list`      → `listViews[view.list.name || 'default']`
+ *   - `view.listViews` → spread into `listViews`
+ *
+ * Existing `obj.listViews` / `obj.list_views` win to preserve overrides.
+ */
+function mergeViewsIntoObjects(objects: any[], views: any[]): any[] {
+  if (!objects.length || !views.length) return objects;
+  const byObject: Record<string, Record<string, any>> = {};
+  for (const view of views) {
+    const objName = view?.name || view?.list?.data?.object || view?.form?.data?.object;
+    if (!objName) continue;
+    const bucket = (byObject[objName] ||= {});
+    if (view.list) {
+      const k = view.list.name || 'default';
+      bucket[k] = view.list;
+    }
+    if (view.listViews && typeof view.listViews === 'object') {
+      for (const [k, v] of Object.entries(view.listViews as Record<string, any>)) {
+        bucket[k] = v;
+      }
+    }
+  }
+  return objects.map(obj => {
+    const extra = byObject[obj.name];
+    if (!extra) return obj;
+    const existing = obj.listViews || obj.list_views || {};
+    return { ...obj, listViews: { ...extra, ...existing } };
+  });
 }
 
 function emptyEntry(): TypeCacheEntry {
@@ -364,7 +400,9 @@ export function MetadataProvider({ children, adapter, ttlMs = DEFAULT_TTL_MS }: 
     const base: MetadataContextValue = {
       apps: getEntry('app').items,
       get objects() {
-        return readType(TYPE_BY_STATE_KEY.objects);
+        const objs = readType(TYPE_BY_STATE_KEY.objects);
+        const views = readType('view');
+        return views.length ? mergeViewsIntoObjects(objs, views) : objs;
       },
       get dashboards() {
         return readType(TYPE_BY_STATE_KEY.dashboards);
