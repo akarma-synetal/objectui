@@ -208,16 +208,24 @@ export interface ViewSchemaFactoryOptions {
     essentialOnly?: boolean;
 }
 
-/** Section keys considered "essential" — always shown in simple mode. */
+/** Section keys considered "essential" — rendered in simple mode.
+ * Airtable parity: the top 3 (general / data / appearance) are the daily-use
+ * categories and are surfaced expanded by default; the rest are kept available
+ * but render collapsed so the panel feels lightweight at first glance.
+ */
 export const ESSENTIAL_SECTION_KEYS = [
-    'general',     // Page (title / description / type)
-    'data',        // Data (filter / sort / columns / type-specific config)
-    'appearance',  // Appearance (color / density / visualizations)
-    'toolbar',     // User actions (search / filter / sort toggles)
-    'userActions', // User actions extras
+    'general',     // Title / description / icon / view type
+    'data',        // Filter / sort / group / columns / type-specific config
+    'appearance',  // Row density / color field / conditional formatting
+    'toolbar',     // Search / filter / sort toggles
+    'userActions', // Inline edit / add-delete records
     'navigation',  // Open record behavior
-    'exportPrint', // Advanced (export / print)
+    'exportPrint', // Export / print
 ] as const;
+
+/** Subset of essential sections that are expanded by default — the rest stay
+ * collapsed to keep the panel scannable. */
+export const PRIMARY_SECTION_KEYS = ['general', 'data', 'appearance'] as const;
 
 // ---------------------------------------------------------------------------
 // View-type visibility predicates
@@ -279,7 +287,17 @@ export function buildViewConfigSchema(opts: ViewSchemaFactoryOptions): ConfigPan
     ];
 
     const sections = essentialOnly
-        ? allSections.filter(s => (ESSENTIAL_SECTION_KEYS as readonly string[]).includes(s.key))
+        ? allSections
+              .filter(s => (ESSENTIAL_SECTION_KEYS as readonly string[]).includes(s.key))
+              .map(s => {
+                  // Force non-primary sections to render collapsed so the panel
+                  // looks Airtable-light at first glance. Power users can still
+                  // expand them as needed.
+                  if (!(PRIMARY_SECTION_KEYS as readonly string[]).includes(s.key)) {
+                      return { ...s, collapsible: true, defaultCollapsed: true };
+                  }
+                  return s;
+              })
         : allSections;
 
     return {

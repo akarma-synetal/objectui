@@ -38,6 +38,9 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubTrigger,
+  DropdownMenuSubContent,
   Input,
   Button,
   Tooltip,
@@ -62,6 +65,7 @@ import {
   GripVertical,
   LayoutGrid,
   Settings2,
+  ChevronDown,
 } from 'lucide-react';
 import {
   DndContext,
@@ -351,12 +355,21 @@ export const ViewTabBar: React.FC<ViewTabBarProps> = ({
       listeners: Record<string, Function> | undefined;
       attributes: Record<string, unknown>;
     }) => (
-      <button
+      <div
         data-testid={`view-tab-${view.id}`}
+        role="tab"
+        tabIndex={0}
+        aria-selected={isActive}
         onClick={() => !isRenaming && onViewChange(view.id)}
         onDoubleClick={() => startRename(view.id)}
+        onKeyDown={(e: React.KeyboardEvent<HTMLDivElement>) => {
+          if (!isRenaming && (e.key === 'Enter' || e.key === ' ')) {
+            e.preventDefault();
+            onViewChange(view.id);
+          }
+        }}
         className={cn(
-          'inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium border-b-2 transition-colors whitespace-nowrap relative',
+          'inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium border-b-2 transition-colors whitespace-nowrap relative cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring',
           isActive
             ? 'border-primary text-primary'
             : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border'
@@ -412,18 +425,109 @@ export const ViewTabBar: React.FC<ViewTabBarProps> = ({
         {view.isDefault && (
           <Star className="h-3 w-3 text-amber-500 fill-amber-500 shrink-0" />
         )}
-        {isActive && onConfigView && (
-          <button
-            type="button"
-            data-testid={`view-tab-config-${view.id}`}
-            className="ml-0.5 h-4 w-4 flex items-center justify-center rounded hover:bg-accent shrink-0 opacity-60 hover:opacity-100 transition-opacity"
-            onClick={(e) => { e.stopPropagation(); onConfigView(view.id); }}
-            aria-label={`Configure ${view.label}`}
-          >
-            <Settings2 className="h-3 w-3" />
-          </button>
+        {isActive && (onConfigView || onRenameView || onDuplicateView || onDeleteView) && (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                type="button"
+                data-testid={`view-tab-actions-${view.id}`}
+                className="ml-0.5 h-4 w-4 flex items-center justify-center rounded hover:bg-accent shrink-0 opacity-70 hover:opacity-100 transition-opacity"
+                onClick={(e) => e.stopPropagation()}
+                aria-label={`View actions for ${view.label}`}
+              >
+                <ChevronDown className="h-3 w-3" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="min-w-[180px]">
+              {onConfigView && (
+                <DropdownMenuItem
+                  data-testid={`view-tab-menu-config-${view.id}`}
+                  onClick={() => onConfigView(view.id)}
+                >
+                  <Settings2 className="h-4 w-4 mr-2" /> Edit view config
+                </DropdownMenuItem>
+              )}
+              {onRenameView && (
+                <DropdownMenuItem
+                  data-testid={`view-tab-menu-rename-${view.id}`}
+                  onClick={() => startRename(view.id)}
+                >
+                  <Pencil className="h-4 w-4 mr-2" /> Rename
+                </DropdownMenuItem>
+              )}
+              {onDuplicateView && (
+                <DropdownMenuItem
+                  data-testid={`view-tab-menu-duplicate-${view.id}`}
+                  onClick={() => onDuplicateView(view.id)}
+                >
+                  <Copy className="h-4 w-4 mr-2" /> Duplicate view
+                </DropdownMenuItem>
+              )}
+              {onShareView && (
+                <DropdownMenuItem
+                  data-testid={`view-tab-menu-share-${view.id}`}
+                  onClick={() => onShareView(view.id)}
+                >
+                  <Share2 className="h-4 w-4 mr-2" /> Share view
+                </DropdownMenuItem>
+              )}
+              {onSetDefaultView && (
+                <DropdownMenuItem
+                  data-testid={`view-tab-menu-default-${view.id}`}
+                  onClick={() => onSetDefaultView(view.id)}
+                >
+                  <Star className="h-4 w-4 mr-2" /> Set as default
+                </DropdownMenuItem>
+              )}
+              {onPinView && (
+                <DropdownMenuItem
+                  data-testid={`view-tab-menu-pin-${view.id}`}
+                  onClick={() => onPinView(view.id, !view.isPinned)}
+                >
+                  {view.isPinned
+                    ? <><PinOff className="h-4 w-4 mr-2" /> Unpin view</>
+                    : <><Pin className="h-4 w-4 mr-2" /> Pin view</>}
+                </DropdownMenuItem>
+              )}
+              {onChangeViewType && availableViewTypes && availableViewTypes.length > 0 && (
+                <DropdownMenuSub>
+                  <DropdownMenuSubTrigger data-testid={`view-tab-menu-change-type-${view.id}`}>
+                    <LayoutGrid className="h-4 w-4 mr-2" /> Change view type
+                  </DropdownMenuSubTrigger>
+                  <DropdownMenuSubContent>
+                    {availableViewTypes.map((vt) => {
+                      const TypeIcon = viewTypeIcons[vt.type] || DefaultIcon;
+                      return (
+                        <DropdownMenuItem
+                          key={vt.type}
+                          data-testid={`view-tab-menu-type-${view.id}-${vt.type}`}
+                          disabled={vt.type === view.type}
+                          onClick={() => onChangeViewType(view.id, vt.type)}
+                        >
+                          <TypeIcon className="h-4 w-4 mr-2" />
+                          <span>{vt.label}</span>
+                        </DropdownMenuItem>
+                      );
+                    })}
+                  </DropdownMenuSubContent>
+                </DropdownMenuSub>
+              )}
+              {onDeleteView && (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    data-testid={`view-tab-menu-delete-${view.id}`}
+                    onClick={() => onDeleteView(view.id)}
+                    className="text-destructive focus:text-destructive"
+                  >
+                    <Trash2 className="h-4 w-4 mr-2" /> Delete view
+                  </DropdownMenuItem>
+                </>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
         )}
-      </button>
+      </div>
     );
 
     const wrapWithContextMenu = (tabContent: React.ReactElement) => {

@@ -531,8 +531,12 @@ export function ObjectView({ dataSource, objects, onEdit }: any) {
         // The plugin ObjectView returns the view ID directly via onViewChange
         const matchedView = views.find((v: any) => v.id === newViewId);
         if (!matchedView) return;
-        // Auto-close the config panel when switching views
-        setShowViewConfigPanel(false);
+        // Auto-close the config panel only when actually switching to a
+        // different view. Same-view clicks (e.g., bubbling from the actions
+        // dropdown menu item) must not stomp on a freshly-opened panel.
+        if (matchedView.id !== activeViewId) {
+            setShowViewConfigPanel(false);
+        }
         if (viewId) {
              navigate(`../${matchedView.id}`, { relative: "path" });
         } else {
