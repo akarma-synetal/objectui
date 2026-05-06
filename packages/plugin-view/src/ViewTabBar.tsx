@@ -354,6 +354,7 @@ export const ViewTabBar: React.FC<ViewTabBarProps> = ({
     const buildTabContent = (dragHandleProps?: {
       listeners: Record<string, Function> | undefined;
       attributes: Record<string, unknown>;
+      isDragging?: boolean;
     }) => (
       <div
         data-testid={`view-tab-${view.id}`}
@@ -369,7 +370,7 @@ export const ViewTabBar: React.FC<ViewTabBarProps> = ({
           }
         }}
         className={cn(
-          'inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium border-b-2 transition-colors whitespace-nowrap relative cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring',
+          'group/tab inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium border-b-2 transition-colors whitespace-nowrap relative cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring',
           isActive
             ? 'border-primary text-primary'
             : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border'
@@ -378,7 +379,12 @@ export const ViewTabBar: React.FC<ViewTabBarProps> = ({
         {reorderable && onReorderViews && (
           <span
             data-testid={`view-tab-drag-handle-${view.id}`}
-            className="cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground"
+            aria-label="Drag to reorder view"
+            className={cn(
+              'cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground transition-opacity',
+              'opacity-0 group-hover/tab:opacity-100 focus-visible:opacity-100',
+              dragHandleProps?.isDragging && 'opacity-100'
+            )}
             {...(dragHandleProps?.listeners ?? {})}
             {...(dragHandleProps?.attributes ?? {})}
           >
@@ -640,7 +646,7 @@ export const ViewTabBar: React.FC<ViewTabBarProps> = ({
           <SortableTab id={view.id}>
             {({ setNodeRef, style, listeners, attributes, isDragging }) => (
               <div ref={setNodeRef} style={style} className={cn('flex', isDragging && 'z-10')}>
-                {wrapWithContextMenu(buildTabContent({ listeners, attributes }))}
+                {wrapWithContextMenu(buildTabContent({ listeners, attributes, isDragging }))}
               </div>
             )}
           </SortableTab>
