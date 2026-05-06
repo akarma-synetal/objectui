@@ -88,8 +88,8 @@ import type { ViewTabBarConfig } from '@object-ui/types';
 /** Visibility group sort order: private → team → organization → public */
 const VISIBILITY_ORDER: Record<string, number> = { private: 0, team: 1, organization: 2, public: 3 };
 
-/** Minimum drag distance in pixels to activate reorder */
-const DRAG_ACTIVATION_DISTANCE = 5;
+/** Minimum drag distance in pixels to activate reorder (large enough to avoid blocking clicks) */
+const DRAG_ACTIVATION_DISTANCE = 8;
 
 /** A single view definition for the tab bar */
 export interface ViewTabItem {
@@ -183,7 +183,7 @@ const SortableTab: React.FC<{
     transform,
     transition,
     isDragging,
-  } = useSortable({ id, disabled });
+  } = useSortable({ id, disabled, attributes: { role: 'tab', roleDescription: 'view tab', tabIndex: 0 } });
 
   const style: React.CSSProperties = {
     transform: CSS.Transform.toString(transform),
@@ -369,8 +369,11 @@ export const ViewTabBar: React.FC<ViewTabBarProps> = ({
             onViewChange(view.id);
           }
         }}
+        {...(dragHandleProps?.listeners ?? {})}
+        {...(dragHandleProps?.attributes ?? {})}
         className={cn(
-          'group/tab inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium border-b-2 transition-colors whitespace-nowrap relative cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring',
+          'group/tab inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium border-b-2 transition-colors whitespace-nowrap relative outline-none focus-visible:ring-2 focus-visible:ring-ring',
+          dragHandleProps?.isDragging ? 'cursor-grabbing' : 'cursor-pointer',
           isActive
             ? 'border-primary text-primary'
             : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border'
@@ -379,14 +382,12 @@ export const ViewTabBar: React.FC<ViewTabBarProps> = ({
         {reorderable && onReorderViews && (
           <span
             data-testid={`view-tab-drag-handle-${view.id}`}
-            aria-label="Drag to reorder view"
+            aria-hidden="true"
             className={cn(
-              'cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground transition-opacity',
-              'opacity-0 group-hover/tab:opacity-100 focus-visible:opacity-100',
+              'text-muted-foreground transition-opacity pointer-events-none',
+              'opacity-0 group-hover/tab:opacity-100',
               dragHandleProps?.isDragging && 'opacity-100'
             )}
-            {...(dragHandleProps?.listeners ?? {})}
-            {...(dragHandleProps?.attributes ?? {})}
           >
             <GripVertical className="h-3 w-3" />
           </span>
