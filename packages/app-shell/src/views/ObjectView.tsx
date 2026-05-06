@@ -21,7 +21,7 @@ import type { ViewTabItem } from '@object-ui/plugin-view';
 // Plugin registration is handled by the host app (e.g. apps/console/src/main.tsx
 // uses ComponentRegistry.registerLazy so heavy plugins stay code-split).
 // Do NOT add eager `import '@object-ui/plugin-*'` side-effect imports here.
-import { Button, Empty, EmptyTitle, EmptyDescription, NavigationOverlay, Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@object-ui/components';
+import { Button, Empty, EmptyTitle, EmptyDescription, NavigationOverlay } from '@object-ui/components';
 import { Plus, Table as TableIcon, KanbanSquare, Calendar, LayoutGrid, Activity, GanttChart, MapPin, BarChart3 } from 'lucide-react';
 import { getIcon } from '../utils/getIcon';
 import type { ListViewSchema, ViewNavigationConfig, FeedItem } from '@object-ui/types';
@@ -1171,34 +1171,25 @@ export function ObjectView({ dataSource, objects, onEdit }: any) {
             handlers={{ api: apiHandler, flow: flowHandler, script: serverActionHandler, modal: serverActionHandler }}
         >
         <div className="h-full flex flex-col bg-background min-w-0 overflow-hidden">
-             {/* 1. Compact page header — identity + primary actions in a single
-                  thin bar. Description moves to a Tooltip on the icon to recover
-                  vertical space; the breadcrumb above already provides context. */}
-             <div className="flex justify-between items-center py-1 px-3 sm:px-4 border-b shrink-0 bg-background z-10">
-                 <div className="flex items-center gap-2 min-w-0 flex-1">
-                    <TooltipProvider delayDuration={200}>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <div className="bg-primary/10 p-1 rounded shrink-0 cursor-default">
-                            {(() => { const I = getIcon((objectDef as any)?.icon); return <I className="h-3.5 w-3.5 text-primary" />; })()}
-                          </div>
-                        </TooltipTrigger>
+             {/* 1. Header with breadcrumb + description */}
+             <div className="flex justify-between items-center py-2.5 sm:py-3 px-3 sm:px-4 border-b shrink-0 bg-background z-10">
+                 <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
+                    <div className="bg-primary/10 p-1.5 sm:p-2 rounded-md shrink-0">
+                        {(() => { const I = getIcon((objectDef as any)?.icon); return <I className="h-4 w-4 text-primary" />; })()}
+                    </div>
+                    <div className="min-w-0">
+                        <h1 className="text-base sm:text-lg font-semibold tracking-tight text-foreground truncate">{objectLabel(objectDef)}</h1>
                         {objectDef.description && (
-                          <TooltipContent side="bottom" align="start" className="max-w-xs">
-                            <p className="font-medium">{objectLabel(objectDef)}</p>
-                            <p className="text-xs text-muted-foreground mt-0.5">{objectDesc(objectDef)}</p>
-                          </TooltipContent>
+                            <p className="text-xs text-muted-foreground truncate hidden sm:block max-w-md">{objectDesc(objectDef)}</p>
                         )}
-                      </Tooltip>
-                    </TooltipProvider>
-                    <h1 className="text-sm font-semibold tracking-tight text-foreground truncate">{objectLabel(objectDef)}</h1>
+                    </div>
                  </div>
-
-                 <div className="flex items-center gap-1.5 shrink-0">
+                 
+                 <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
                     {/* Primary action - always visible */}
                     {can(objectDef.name, 'create') && (
-                    <Button size="sm" onClick={actions.create} className="shadow-none gap-1.5 h-7">
-                        <Plus className="h-3.5 w-3.5" />
+                    <Button size="sm" onClick={actions.create} className="shadow-none gap-1.5 sm:gap-2 h-8 sm:h-9">
+                        <Plus className="h-4 w-4" /> 
                         <span className="hidden sm:inline">{t('console.objectView.new')}</span>
                     </Button>
                     )}

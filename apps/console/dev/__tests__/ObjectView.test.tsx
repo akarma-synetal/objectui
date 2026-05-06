@@ -261,7 +261,7 @@ describe('ObjectView Component', () => {
         expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Opportunity');
     });
 
-    it('shows object description in icon tooltip when present', () => {
+    it('shows object description when present', () => {
         const objectsWithDesc = [
             {
                 ...mockObjects[0],
@@ -269,13 +269,10 @@ describe('ObjectView Component', () => {
             },
         ];
         mockUseParams.mockReturnValue({ objectName: 'opportunity' });
-
+        
         render(<ObjectView dataSource={mockDataSource} objects={objectsWithDesc} onEdit={vi.fn()} />);
-
-        // Title remains visible inline; description moved to a Tooltip on the
-        // object icon (Radix renders it lazily into a portal, so we just verify
-        // the page renders without error and the title is shown).
-        expect(screen.getAllByText('Opportunity').length).toBeGreaterThan(0);
+        
+        expect(screen.getByText('Track sales pipeline and deals')).toBeInTheDocument();
     });
 
     it('toggles ViewConfigPanel when "Edit View" is clicked by admin', () => {
