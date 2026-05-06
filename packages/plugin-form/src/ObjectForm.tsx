@@ -17,6 +17,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import type { ObjectFormSchema, FormField, FormSchema, DataSource } from '@object-ui/types';
 import { SchemaRenderer, useSafeFieldLabel } from '@object-ui/react';
 import { mapFieldTypeToFormType, buildValidationRules, evaluateCondition, formatFileSize } from '@object-ui/fields';
+import { useIsMobile } from '@object-ui/components';
 import { TabbedForm } from './TabbedForm';
 import { WizardForm } from './WizardForm';
 import { SplitForm } from './SplitForm';
@@ -205,6 +206,7 @@ const SimpleObjectForm: React.FC<ObjectFormProps> = ({
   dataSource,
 }) => {
   const { fieldLabel } = useSafeFieldLabel();
+  const isMobile = useIsMobile();
 
   const [objectSchema, setObjectSchema] = useState<any>(null);
   const [formFields, setFormFields] = useState<FormField[]>([]);
@@ -585,10 +587,63 @@ const SimpleObjectForm: React.FC<ObjectFormProps> = ({
     ? applyAutoLayout(formFields, objectSchema, schema.columns, schema.mode)
     : { fields: formFields, columns: schema.columns };
 
+  // ----- Mobile UX (round 3) -----
+  // 1) Propagate fullscreen-textarea opt-in to each textarea field so the
+  //    field widget can render its expand affordance + dialog.
+  const mobileOpts = schema.mobile;
+  const fieldsWithMobile = mobileOpts?.fullscreenLongText
+    ? autoLayoutResult.fields.map((f) => {
+        const t = f.type as string | undefined;
+        const isTextarea = t === 'textarea' || t === 'field:textarea' ||
+          t === 'string-multiline' || t === 'field:markdown' || t === 'field:html';
+        return isTextarea ? ({ ...f, mobile_fullscreen: true } as FormField) : f;
+      })
+    : autoLayoutResult.fields;
+
+  // 2) Auto-stepper: when explicitly enabled, OR when set to 'auto' on a
+  //    long form on a small viewport, route the flat field list through
+  //    WizardForm with one (or a few) fields per step.
+  const stepperMode = mobileOpts?.stepper;
+  const stepperMin = mobileOpts?.stepperMinFields ?? 8;
+  const fieldsPerStep = Math.max(1, mobileOpts?.stepperFieldsPerStep ?? 1);
+  const wantsStepper =
+    !schema.formType &&
+    !hasSections &&
+    fieldsWithMobile.length >= 2 &&
+    (
+      stepperMode === true ||
+      (stepperMode === 'auto' && isMobile && fieldsWithMobile.length >= stepperMin)
+    );
+
+  if (wantsStepper) {
+    const visibleFields = fieldsWithMobile;
+    const syntheticSections = [] as Array<{ name: string; label?: string; fields: FormField[] }>;
+    for (let i = 0; i < visibleFields.length; i += fieldsPerStep) {
+      const chunk = visibleFields.slice(i, i + fieldsPerStep);
+      syntheticSections.push({
+        name: `step-${Math.floor(i / fieldsPerStep) + 1}`,
+        label: chunk[0]?.label || chunk[0]?.name || `Step ${Math.floor(i / fieldsPerStep) + 1}`,
+        fields: chunk,
+      });
+    }
+    return (
+      <WizardForm
+        schema={{
+          ...schema,
+          formType: 'wizard',
+          sections: syntheticSections,
+          showStepIndicator: true,
+        } as any}
+        dataSource={dataSource}
+        className={schema.className}
+      />
+    );
+  }
+
   // Default flat form (no sections)
   const formSchema: FormSchema = {
     type: 'form',
-    fields: autoLayoutResult.fields,
+    fields: fieldsWithMobile,
     layout: formLayout,
     columns: autoLayoutResult.columns,
     submitLabel: schema.submitText || (schema.mode === 'create' ? 'Create' : 'Update'),
@@ -600,10 +655,14 @@ const SimpleObjectForm: React.FC<ObjectFormProps> = ({
     onSubmit: handleSubmit,
     onCancel: handleCancel,
     className: schema.className,
+    mobileStickyActions: Boolean(mobileOpts?.stickyActions),
   };
 
   return (
-    <div className="w-full">
+    <div
+      className={mobileOpts?.stickyActions ? 'w-full pb-20 md:pb-0' : 'w-full'}
+      data-mobile-form={mobileOpts ? 'true' : undefined}
+    >
       <SchemaRenderer schema={formSchema} />
     </div>
   );

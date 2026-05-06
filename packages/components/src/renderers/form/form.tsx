@@ -24,7 +24,8 @@ import {
 } from '../../ui/select';
 import { renderChildren } from '../../lib/utils';
 import { Alert, AlertDescription } from '../../ui/alert';
-import { AlertCircle, ChevronDown, ChevronRight, Loader2 } from 'lucide-react';
+import { AlertCircle, ChevronDown, ChevronRight, Loader2, Maximize2, Check, X } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '../../ui/dialog';
 import { cn } from '../../lib/utils';
 import React from 'react';
 import { SchemaRendererContext } from '@object-ui/react';
@@ -65,6 +66,82 @@ const useSafeFormTranslation = createSafeTranslation(
   { 'common.selectOption': 'Select an option' },
   'common.selectOption',
 );
+
+/**
+ * FullscreenTextarea — `<Textarea>` with a top-right "expand" button that
+ * opens a fullscreen edit dialog. Mobile UX (round 3) — driven by the form
+ * field's `mobile_fullscreen: true` flag (propagated from
+ * `ObjectFormSchema.mobile.fullscreenLongText`).
+ */
+function FullscreenTextarea({
+  value,
+  onChange,
+  placeholder,
+  className,
+  label,
+  ...rest
+}: {
+  value?: string;
+  onChange?: (v: string) => void;
+  placeholder?: string;
+  className?: string;
+  label?: string;
+  [key: string]: any;
+}) {
+  const [open, setOpen] = React.useState(false);
+  const [draft, setDraft] = React.useState(value ?? '');
+  const safeOnChange = (v: string) => onChange && onChange(v);
+  const openDialog = () => { setDraft(value ?? ''); setOpen(true); };
+  const commit = () => { safeOnChange(draft); setOpen(false); };
+  return (
+    <div className="relative">
+      <Textarea
+        placeholder={placeholder}
+        className={cn('pr-10', className)}
+        value={value ?? ''}
+        onChange={(e) => safeOnChange(e.target.value)}
+        {...rest}
+      />
+      <button
+        type="button"
+        onClick={openDialog}
+        className="absolute top-1.5 right-1.5 inline-flex items-center justify-center size-7 rounded-md bg-background/80 text-muted-foreground hover:text-foreground hover:bg-background border shadow-sm"
+        aria-label={`Edit ${label ?? 'text'} fullscreen`}
+        data-testid="form-textarea-fullscreen-toggle"
+      >
+        <Maximize2 className="size-3.5" />
+      </button>
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent
+          className="sm:max-w-3xl h-[100dvh] sm:h-[80vh] max-h-[100dvh] sm:max-h-[80vh] flex flex-col p-0 gap-0"
+          data-testid="form-textarea-fullscreen-dialog"
+        >
+          <DialogHeader className="p-4 border-b">
+            <DialogTitle className="text-base">{label ?? 'Edit text'}</DialogTitle>
+          </DialogHeader>
+          <div className="flex-1 min-h-0 p-4">
+            <Textarea
+              autoFocus
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              placeholder={placeholder}
+              className="h-full min-h-full resize-none text-base"
+              data-testid="form-textarea-fullscreen-input"
+            />
+          </div>
+          <DialogFooter className="p-3 border-t flex-row justify-end gap-2">
+            <Button type="button" variant="ghost" onClick={() => setOpen(false)}>
+              <X className="size-4 mr-1" /> Cancel
+            </Button>
+            <Button type="button" onClick={commit} data-testid="form-textarea-fullscreen-save">
+              <Check className="size-4 mr-1" /> Done
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
 
 // Form renderer component - Airtable-style feature-complete form
 ComponentRegistry.register('form',
@@ -455,7 +532,14 @@ ComponentRegistry.register('form',
 
           {/* Form Actions */}
           {(schema.showActions !== false) && (
-            <div className={`flex flex-col sm:flex-row gap-2 ${layout === 'horizontal' ? 'sm:justify-end' : 'sm:justify-start'} mt-6`}>
+            <div
+              className={cn(
+                `flex flex-col sm:flex-row gap-2 ${layout === 'horizontal' ? 'sm:justify-end' : 'sm:justify-start'} mt-6`,
+                schema.mobileStickyActions &&
+                  'sticky bottom-0 z-10 -mx-4 px-4 py-3 bg-background/95 supports-[backdrop-filter]:bg-background/80 backdrop-blur border-t md:static md:mx-0 md:px-0 md:py-0 md:bg-transparent md:border-0 md:backdrop-blur-none',
+              )}
+              data-testid={schema.mobileStickyActions ? 'form-mobile-sticky-actions' : undefined}
+            >
               {showCancel && (
                 <Button
                   type="button"
@@ -592,8 +676,21 @@ function renderFieldComponent(type: string, props: RenderFieldProps) {
       }
       return <Input type={inputType || 'text'} placeholder={placeholder} className="min-h-[44px] sm:min-h-0" {...fieldProps} value={fieldProps.value ?? ''} />;
       
-    case 'textarea':
-      return <Textarea placeholder={placeholder} className="min-h-[44px] sm:min-h-0" {...fieldProps} value={fieldProps.value ?? ''} />;
+    case 'textarea': {
+      const { mobile_fullscreen, fullscreen, label, ...rest } = fieldProps as any;
+      if (mobile_fullscreen || fullscreen) {
+        return (
+          <FullscreenTextarea
+            placeholder={placeholder}
+            label={label}
+            className="min-h-[44px] sm:min-h-0"
+            {...rest}
+            value={rest.value ?? ''}
+          />
+        );
+      }
+      return <Textarea placeholder={placeholder} className="min-h-[44px] sm:min-h-0" {...rest} value={rest.value ?? ''} />;
+    }
     
     case 'checkbox': {
       // For checkbox, we need to handle the value differently

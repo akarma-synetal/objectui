@@ -935,6 +935,41 @@ export interface ObjectFormSchema extends BaseSchema {
    * @default true
    */
   modalCloseButton?: boolean;
+
+  // ─── Mobile UX (round 3) ────────────────────────────────
+
+  /**
+   * Mobile-specific form behavior. All options are opt-in; on desktop the
+   * form renders unchanged. `auto` values activate only when the viewport
+   * matches `(max-width: 767px)`.
+   *
+   * @example
+   * ```ts
+   * mobile: {
+   *   stickyActions: true,        // pin Submit/Cancel to the bottom of the viewport
+   *   stepper: 'auto',            // long forms render one field at a time on phones
+   *   stepperMinFields: 8,        // … but only past this many fields
+   *   fullscreenLongText: true,   // textarea/rich-text get an "expand" button
+   * }
+   * ```
+   */
+  mobile?: {
+    /** Render Submit/Cancel as a sticky bottom action bar on mobile. */
+    stickyActions?: boolean;
+    /**
+     * One-field-at-a-time stepper on small screens.
+     * - `false` (default): never use the stepper.
+     * - `true`: always use it on mobile.
+     * - `'auto'`: only when the form has > `stepperMinFields` fields.
+     */
+    stepper?: boolean | 'auto';
+    /** Threshold for `stepper: 'auto'`. @default 8 */
+    stepperMinFields?: number;
+    /** How many fields to show per step when stepper is active. @default 1 */
+    stepperFieldsPerStep?: number;
+    /** Show a fullscreen-edit affordance for textarea / rich-text fields. */
+    fullscreenLongText?: boolean;
+  };
 }
 
 /**

@@ -942,6 +942,14 @@ export interface FormSchema extends BaseSchema {
    */
   showActions?: boolean;
   /**
+   * Mobile UX (round 3): when true, the form's Submit/Cancel action row
+   * becomes `position: sticky; bottom: 0` on small viewports — keeping the
+   * primary action reachable on long mobile forms without an extra scroll.
+   *
+   * No-op on desktop (≥ md). Pairs with `ObjectFormSchema.mobile.stickyActions`.
+   */
+  mobileStickyActions?: boolean;
+  /**
    * Field container CSS class
    */
   fieldContainerClass?: string;
