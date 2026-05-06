@@ -133,7 +133,7 @@ function getCalendarConfig(schema: ObjectGridSchema | CalendarSchema): CalendarC
       return {
           startDateField: (schema as any).startDateField || (schema as any).dateField,
           endDateField: (schema as any).endDateField || (schema as any).endField,
-          titleField: (schema as any).titleField || 'name',
+          titleField: (schema as any).titleField,
           colorField: (schema as any).colorField,
           allDayField: (schema as any).allDayField
       } as CalendarConfig;
@@ -310,11 +310,55 @@ export const ObjectCalendar: React.FC<ObjectCalendarProps> = ({
     }
 
     const { startDateField, endDateField, titleField, colorField } = calendarConfig;
+    const titleFormat: string | undefined = objectSchema?.titleFormat;
+    const nameFieldKey: string | undefined = objectSchema?.NAME_FIELD_KEY;
+    const TITLE_FALLBACK_FIELDS = [
+      'name', 'full_name', 'fullName', 'title', 'subject',
+      'label', 'display_name', 'displayName',
+    ];
+
+    const renderFromTemplate = (template: string, item: Record<string, any>) => {
+      let anyResolved = false;
+      const out = template.replace(/\{(.+?)\}/g, (_m, key) => {
+        const v = item[key.trim()];
+        if (v !== undefined && v !== null && v !== '') {
+          anyResolved = true;
+          return String(v);
+        }
+        return '';
+      }).replace(/\s+-\s+(?=$|\s*$)/, '').trim();
+      return anyResolved ? out : '';
+    };
+
+    const resolveTitle = (record: Record<string, any>): string => {
+      let resolved: any = undefined;
+      if (titleField) {
+        resolved = record[titleField];
+        if (typeof resolved === 'string') resolved = resolved.trim();
+      }
+      if (!resolved && titleFormat) {
+        const rendered = renderFromTemplate(titleFormat, record);
+        if (rendered) resolved = rendered;
+      }
+      if (!resolved && nameFieldKey) {
+        const v = record[nameFieldKey];
+        if (typeof v === 'string') resolved = v.trim();
+        else if (v) resolved = v;
+      }
+      if (!resolved) {
+        for (const f of TITLE_FALLBACK_FIELDS) {
+          const v = record[f];
+          const s = typeof v === 'string' ? v.trim() : v;
+          if (s) { resolved = s; break; }
+        }
+      }
+      return resolved || 'Untitled';
+    };
 
     return data.map((record, index) => {
       const startDate = record[startDateField];
       const endDate = endDateField ? record[endDateField] : null;
-      const title = record[titleField] || 'Untitled';
+      const title = resolveTitle(record);
       const color = colorField ? record[colorField] : undefined;
 
       return {
@@ -327,7 +371,7 @@ export const ObjectCalendar: React.FC<ObjectCalendarProps> = ({
         data: record,
       };
     }).filter(event => !isNaN(event.start.getTime())); // Filter out invalid dates
-  }, [data, calendarConfig]);
+  }, [data, calendarConfig, objectSchema]);
 
   // Get days in current month view - REMOVED (Handled by CalendarView)
   
