@@ -913,6 +913,46 @@ describe('ObjectView Component', () => {
         expect(screen.queryByTestId('view-tab-add')).not.toBeInTheDocument();
     });
 
+    // --- Single-view objects (no listViews defined) ---
+    // Regression: contact-style objects without an explicit listViews map
+    // used to hide the entire view-tab strip because the gate was
+    // `views.length > 1`. After retiring the Design Tools dropdown,
+    // single-view objects had NO entry point to add a view at all
+    // (https://… contact app, see plan.md). The strip should now render
+    // for any object with at least one view.
+
+    it('renders the view-tab strip with + button for admins on single-view objects', () => {
+        mockAuthUser = { id: 'u1', name: 'Admin', role: 'admin' };
+        mockUseParams.mockReturnValue({ objectName: 'simple' });
+        const singleViewObjects = [{
+            name: 'simple',
+            label: 'Simple',
+            fields: { title: { label: 'Title' } },
+            // No listViews -> ObjectView injects the implicit { id: 'all' }.
+        }];
+
+        render(<ObjectView dataSource={mockDataSource} objects={singleViewObjects} onEdit={vi.fn()} />);
+
+        // Add-view button must be present so the user can create a second view.
+        expect(screen.getByTestId('view-tab-add')).toBeInTheDocument();
+        // Chevron actions menu for the implicit view must also be reachable.
+        expect(screen.getByTestId('view-tab-actions-all')).toBeInTheDocument();
+    });
+
+    it('hides the + button for non-admins on single-view objects', () => {
+        mockAuthUser = { id: 'u2', name: 'Viewer', role: 'viewer' };
+        mockUseParams.mockReturnValue({ objectName: 'simple' });
+        const singleViewObjects = [{
+            name: 'simple',
+            label: 'Simple',
+            fields: { title: { label: 'Title' } },
+        }];
+
+        render(<ObjectView dataSource={mockDataSource} objects={singleViewObjects} onEdit={vi.fn()} />);
+
+        expect(screen.queryByTestId('view-tab-add')).not.toBeInTheDocument();
+    });
+
     it('opens ViewConfigPanel in edit mode via view action settings callback', () => {
         mockAuthUser = { id: 'u1', name: 'Admin', role: 'admin' };
         mockUseParams.mockReturnValue({ objectName: 'opportunity' });

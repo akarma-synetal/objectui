@@ -1218,7 +1218,7 @@ export function ObjectView({ dataSource, objects, onEdit }: any) {
                  duplicate / pin / set-default / drag-reorder. Built-in views
                  (sourced from objectDef.listViews) only support switching;
                  mutating callbacks short-circuit with a toast. */}
-             {views.length > 1 && (() => {
+             {views.length >= 1 && (() => {
                const viewTabItems: ViewTabItem[] = views.map((view: any) => {
                  const saved = savedViews.find((sv: any) => (sv.id || sv._id) === view.id);
                  return {
