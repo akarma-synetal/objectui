@@ -694,6 +694,39 @@ export const ListView = React.forwardRef<ListViewHandle, ListViewProps>(({
           const required = new Set<string>(['id']);
           for (const c of cols) required.add(c);
           for (const e of expandFields) required.add(e);
+
+          // View-specific runtime fields. Each non-grid view binds to one
+          // or more record fields (groupBy for kanban, dates for calendar/
+          // timeline/gantt, image/title for gallery). Without these in the
+          // projection the view renders correctly-shaped records but with
+          // blank values — e.g. a kanban grouped by `industry` puts every
+          // card into the implicit "no value" column.
+          const collectViewFields = (v: any) => {
+            if (!v) return;
+            const candidates = [
+              v.groupField, v.groupBy,
+              v.titleField, v.cardTitle,
+              v.startDateField, v.endDateField, v.dateField, v.endField,
+              v.colorField, v.allDayField,
+              v.coverField, v.imageField, v.subtitleField,
+              v.swimlaneField,
+              ...(Array.isArray(v.cardFields) ? v.cardFields : []),
+            ];
+            for (const f of candidates) {
+              if (typeof f === 'string' && f) required.add(f);
+            }
+          };
+          collectViewFields(schema.kanban);
+          collectViewFields(schema.options?.kanban);
+          collectViewFields(schema.calendar);
+          collectViewFields(schema.options?.calendar);
+          collectViewFields(schema.gallery);
+          collectViewFields(schema.options?.gallery);
+          collectViewFields(schema.timeline);
+          collectViewFields(schema.options?.timeline);
+          collectViewFields(schema.gantt);
+          collectViewFields(schema.options?.gantt);
+
           return Array.from(required);
         })();
 
