@@ -283,8 +283,21 @@ export const ViewTabBar: React.FC<ViewTabBarProps> = ({
   }, [views, showPinnedSection, showVisibilityGroups]);
 
   // --- Overflow ---
-  const visibleViews = sortedViews.slice(0, maxVisibleTabs);
-  const overflowViews = sortedViews.slice(maxVisibleTabs);
+  // Ensure the active view is always visible (Airtable parity) — promote it
+  // from overflow into the visible set so users never lose track of where
+  // they are after creating/duplicating a view.
+  const { visibleViews, overflowViews } = useMemo(() => {
+    const head = sortedViews.slice(0, maxVisibleTabs);
+    const tail = sortedViews.slice(maxVisibleTabs);
+    const activeInTail = tail.findIndex(v => v.id === activeViewId);
+    if (activeInTail === -1) return { visibleViews: head, overflowViews: tail };
+    const promoted = tail[activeInTail];
+    const newHead = head.length > 0 ? [...head.slice(0, -1), promoted] : [promoted];
+    const demoted = head.length > 0 ? head[head.length - 1] : null;
+    const newTail = tail.filter((_, i) => i !== activeInTail);
+    if (demoted) newTail.unshift(demoted);
+    return { visibleViews: newHead, overflowViews: newTail };
+  }, [sortedViews, maxVisibleTabs, activeViewId]);
 
   // --- Drag-reorder sensors ---
   const sensors = useSensors(

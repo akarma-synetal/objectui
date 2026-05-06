@@ -280,6 +280,7 @@ export function ObjectView({ dataSource, objects, onEdit }: any) {
     /** Create a new view via the config panel */
     const handleViewCreate = useCallback(async (config: Record<string, any>) => {
         try {
+            let createdId: string | undefined;
             if (dataSource?.create) {
                 // Prefill sensible defaults so the saved view renders rows
                 // immediately even if the user didn't pick columns yet.
@@ -306,15 +307,26 @@ export function ObjectView({ dataSource, objects, onEdit }: any) {
                     ...config,
                     columns: incomingColumns,
                 };
-                await dataSource.create('sys_view', payload);
+                const created = await dataSource.create('sys_view', payload);
+                createdId = created?.id ?? created?._id;
             }
             setShowViewConfigPanel(false);
             setViewConfigPanelMode('edit');
             setRefreshKey(k => k + 1);
+            // Auto-activate the newly created view (Airtable parity).
+            // Routing falls back to the default view if `createdId` doesn't
+            // resolve yet — re-render after refresh will pick it up.
+            if (createdId) {
+                if (viewId) {
+                    navigate(`../${createdId}`, { relative: 'path' });
+                } else {
+                    navigate(`view/${createdId}`);
+                }
+            }
         } catch (err) {
             console.error('[ViewConfigPanel] Failed to create view:', err);
         }
-    }, [dataSource, objectName, objects]);
+    }, [dataSource, objectName, objects, navigate, viewId]);
     
     // Record count tracking for footer
     const [recordCount, setRecordCount] = useState<number | undefined>(undefined);
@@ -563,12 +575,42 @@ export function ObjectView({ dataSource, objects, onEdit }: any) {
         }
     }, [dataSource, isSavedView, t]);
 
+    // Promise-based confirm/param dialogs — declared early so destructive
+    // handlers (delete, etc.) can `await confirmHandler(...)` for a proper
+    // Airtable-style confirmation flow.
+    const [confirmState, setConfirmState] = useState<ConfirmDialogState>({ open: false, message: '' });
+    const [paramState, setParamState] = useState<ParamDialogState>({ open: false, params: [] });
+
+    const confirmHandler = useCallback((message: string, options?: { title?: string; confirmText?: string; cancelText?: string }) => {
+        return new Promise<boolean>((resolve) => {
+            setConfirmState({ open: true, message, options, resolve });
+        });
+    }, []);
+
+    const paramCollectionHandler = useCallback((params: ActionParamDef[]) => {
+        return new Promise<Record<string, any> | null>((resolve) => {
+            setParamState({ open: true, params, resolve });
+        });
+    }, []);
+
     const handleDeleteView = useCallback(async (vid: string) => {
         if (!dataSource?.delete) return;
         if (!isSavedView(vid)) {
             toast.error(t('console.objectView.cannotDeleteMetaView') || 'Built-in views cannot be deleted.');
             return;
         }
+        const targetView = views.find((v: any) => v.id === vid);
+        const viewLabel = targetView?.label || vid;
+        const confirmed = await confirmHandler(
+            t('console.objectView.deleteViewConfirm', { name: viewLabel }) ||
+                `Are you sure you want to delete the view "${viewLabel}"? This cannot be undone.`,
+            {
+                title: t('console.objectView.deleteViewTitle') || 'Delete view',
+                confirmText: t('console.objectView.delete') || 'Delete',
+                cancelText: t('console.objectView.cancel') || 'Cancel',
+            },
+        );
+        if (!confirmed) return;
         try {
             await dataSource.delete('sys_view', vid);
             // If we deleted the active view, fall back to the first remaining view.
@@ -581,7 +623,7 @@ export function ObjectView({ dataSource, objects, onEdit }: any) {
             console.error('[ViewTabBar] Failed to delete view:', err);
             toast.error('Failed to delete view');
         }
-    }, [dataSource, isSavedView, activeViewId, views, viewId, navigate, t]);
+    }, [dataSource, isSavedView, activeViewId, views, viewId, navigate, t, confirmHandler]);
 
     const handleDuplicateView = useCallback(async (vid: string) => {
         if (!dataSource?.create) return;
@@ -589,21 +631,28 @@ export function ObjectView({ dataSource, objects, onEdit }: any) {
         if (!source) return;
         try {
             const { id: _omit, created_at, updated_at, ...rest } = source as any;
+            const newId = `view_${Date.now()}`;
             const payload = {
                 ...rest,
                 objectName,
-                id: `view_${Date.now()}`,
+                id: newId,
                 label: `${source.label || vid} (Copy)`,
                 isDefault: false,
                 isPinned: false,
             };
             await dataSource.create('sys_view', payload);
             setRefreshKey(k => k + 1);
+            // Auto-activate the duplicate (Airtable parity).
+            if (viewId) {
+                navigate(`../${newId}`, { relative: 'path' });
+            } else {
+                navigate(`view/${newId}`);
+            }
         } catch (err) {
             console.error('[ViewTabBar] Failed to duplicate view:', err);
             toast.error('Failed to duplicate view');
         }
-    }, [dataSource, views, objectName]);
+    }, [dataSource, views, objectName, navigate, viewId]);
 
     const handlePinView = useCallback(async (vid: string, pinned: boolean) => {
         if (!dataSource?.update) return;
@@ -676,21 +725,6 @@ export function ObjectView({ dataSource, objects, onEdit }: any) {
     const currentUser = user
         ? { id: user.id, name: user.name, avatar: user.image }
         : FALLBACK_USER;
-
-    const [confirmState, setConfirmState] = useState<ConfirmDialogState>({ open: false, message: '' });
-    const [paramState, setParamState] = useState<ParamDialogState>({ open: false, params: [] });
-
-    const confirmHandler = useCallback((message: string, options?: { title?: string; confirmText?: string; cancelText?: string }) => {
-        return new Promise<boolean>((resolve) => {
-            setConfirmState({ open: true, message, options, resolve });
-        });
-    }, []);
-
-    const paramCollectionHandler = useCallback((params: ActionParamDef[]) => {
-        return new Promise<Record<string, any> | null>((resolve) => {
-            setParamState({ open: true, params, resolve });
-        });
-    }, []);
 
     const toastHandler = useCallback((message: string, options?: { type?: string }) => {
         if (options?.type === 'error') toast.error(message);
