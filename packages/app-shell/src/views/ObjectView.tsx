@@ -1308,7 +1308,6 @@ export function ObjectView({ dataSource, objects, onEdit }: any) {
                         onSave={handleViewConfigSave}
                         onViewUpdate={handleViewUpdate}
                         onCreate={handleViewCreate}
-                        essentialOnlyDefault
                     />
                 </div>
                 <CreateViewDialog

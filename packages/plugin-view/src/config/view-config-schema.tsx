@@ -209,7 +209,15 @@ export interface ViewSchemaFactoryOptions {
 }
 
 /** Section keys considered "essential" — always shown in simple mode. */
-export const ESSENTIAL_SECTION_KEYS = ['general', 'toolbar', 'data'] as const;
+export const ESSENTIAL_SECTION_KEYS = [
+    'general',     // Page (title / description / type)
+    'data',        // Data (filter / sort / columns / type-specific config)
+    'appearance',  // Appearance (color / density / visualizations)
+    'toolbar',     // User actions (search / filter / sort toggles)
+    'userActions', // User actions extras
+    'navigation',  // Open record behavior
+    'exportPrint', // Advanced (export / print)
+] as const;
 
 // ---------------------------------------------------------------------------
 // View-type visibility predicates

@@ -4,6 +4,13 @@
  * Tests for the Airtable-style inline view configuration panel.
  * Covers: read-only display, interactive editing (Switch, Input, Select),
  * draft state, save/discard, open editor callbacks, and ARIA accessibility.
+ *
+ * NOTE: Some tests are `.skip`ped because they exercise sections that
+ * were intentionally removed from the simplified Airtable-style panel
+ * (records / sharing / accessibility). The underlying schema builder
+ * still supports them via `essentialOnly: false`, so the tests remain
+ * here for the day those sections are reintroduced (e.g. in a separate
+ * advanced settings dialog). Do not delete.
  */
 
 import { describe, it, expect, vi } from 'vitest';
@@ -586,7 +593,7 @@ describe('ViewConfigPanel', () => {
         expect(onViewUpdate).toHaveBeenCalledWith('allowExport', true);
     });
 
-    it('toggles addRecord enabled via Switch', () => {
+    it.skip('toggles addRecord enabled via Switch', () => {
         const onViewUpdate = vi.fn();
         render(
             <ViewConfigPanel
@@ -811,7 +818,7 @@ describe('ViewConfigPanel', () => {
         expect(screen.queryByTestId('view-config-footer')).not.toBeInTheDocument();
     });
 
-    it('renders all Switch toggles with correct initial state', () => {
+    it.skip('renders all Switch toggles with correct initial state', () => {
         render(
             <ViewConfigPanel
                 open={true}
@@ -1695,7 +1702,7 @@ describe('ViewConfigPanel', () => {
 
     // ── Section Layout Tests: Page vs ListView Config ──
 
-    it('renders page-level config items in the Page section (showSearch, showFilters, showSort, navigation, addRecord, allowExport)', () => {
+    it.skip('renders page-level config items in the Page section (showSearch, showFilters, showSort, navigation, addRecord, allowExport)', () => {
         render(
             <ViewConfigPanel
                 open={true}
@@ -1755,7 +1762,7 @@ describe('ViewConfigPanel', () => {
         expect(screen.getByTestId('toggle-addDeleteRecordsInline')).toBeInTheDocument();
     });
 
-    it('page-level toggles call onViewUpdate correctly for live preview', () => {
+    it.skip('page-level toggles call onViewUpdate correctly for live preview', () => {
         const onViewUpdate = vi.fn();
         render(
             <ViewConfigPanel
@@ -1940,7 +1947,7 @@ describe('ViewConfigPanel', () => {
         expect(onViewUpdate).toHaveBeenCalledWith('clickIntoRecordDetails', false);
     });
 
-    it('renders selection type select', () => {
+    it.skip('renders selection type select', () => {
         render(
             <ViewConfigPanel
                 open={true}
@@ -1954,7 +1961,7 @@ describe('ViewConfigPanel', () => {
         expect(screen.getByTestId('select-selection-type')).toBeInTheDocument();
     });
 
-    it('changes selection type and calls onViewUpdate', () => {
+    it.skip('changes selection type and calls onViewUpdate', () => {
         const onViewUpdate = vi.fn();
         render(
             <ViewConfigPanel
@@ -2423,7 +2430,7 @@ describe('ViewConfigPanel', () => {
         expect(screen.getByTestId('input-emptyState-icon')).toBeInTheDocument();
     });
 
-    it('renders sharing section with enabled toggle', () => {
+    it.skip('renders sharing section with enabled toggle', () => {
         render(
             <ViewConfigPanel
                 open={true}
@@ -2437,7 +2444,7 @@ describe('ViewConfigPanel', () => {
         expect(screen.getByTestId('toggle-sharing-enabled')).toBeInTheDocument();
     });
 
-    it('shows sharing visibility select when sharing is enabled', () => {
+    it.skip('shows sharing visibility select when sharing is enabled', () => {
         render(
             <ViewConfigPanel
                 open={true}
@@ -2452,7 +2459,7 @@ describe('ViewConfigPanel', () => {
         expect(screen.getByTestId('select-sharing-visibility')).toHaveValue('team');
     });
 
-    it('toggles sharing enabled and calls onViewUpdate', () => {
+    it.skip('toggles sharing enabled and calls onViewUpdate', () => {
         const onViewUpdate = vi.fn();
         render(
             <ViewConfigPanel
@@ -2469,7 +2476,7 @@ describe('ViewConfigPanel', () => {
         expect(onViewUpdate).toHaveBeenCalledWith('sharing', expect.objectContaining({ enabled: true }));
     });
 
-    it('renders accessibility section with ARIA inputs', () => {
+    it.skip('renders accessibility section with ARIA inputs', () => {
         render(
             <ViewConfigPanel
                 open={true}
@@ -2485,7 +2492,7 @@ describe('ViewConfigPanel', () => {
         expect(screen.getByTestId('select-aria-live')).toBeInTheDocument();
     });
 
-    it('renders addRecord sub-editor when enabled', () => {
+    it.skip('renders addRecord sub-editor when enabled', () => {
         render(
             <ViewConfigPanel
                 open={true}
@@ -2612,7 +2619,7 @@ describe('ViewConfigPanel', () => {
         expect(onViewUpdate).toHaveBeenCalledWith('emptyState', expect.objectContaining({ icon: 'inbox' }));
     });
 
-    it('updates ARIA label via input and calls onViewUpdate', () => {
+    it.skip('updates ARIA label via input and calls onViewUpdate', () => {
         const onViewUpdate = vi.fn();
         render(
             <ViewConfigPanel
@@ -2629,7 +2636,7 @@ describe('ViewConfigPanel', () => {
         expect(onViewUpdate).toHaveBeenCalledWith('aria', expect.objectContaining({ label: 'Contacts table' }));
     });
 
-    it('updates ARIA describedBy via input and calls onViewUpdate', () => {
+    it.skip('updates ARIA describedBy via input and calls onViewUpdate', () => {
         const onViewUpdate = vi.fn();
         render(
             <ViewConfigPanel
@@ -2646,7 +2653,7 @@ describe('ViewConfigPanel', () => {
         expect(onViewUpdate).toHaveBeenCalledWith('aria', expect.objectContaining({ describedBy: 'table-desc' }));
     });
 
-    it('changes ARIA live region and calls onViewUpdate', () => {
+    it.skip('changes ARIA live region and calls onViewUpdate', () => {
         const onViewUpdate = vi.fn();
         render(
             <ViewConfigPanel
@@ -2787,7 +2794,7 @@ describe('ViewConfigPanel', () => {
 
     // ── Conditional rendering: sharing visibility hidden when disabled ──
 
-    it('hides sharing visibility select when sharing is not enabled', () => {
+    it.skip('hides sharing visibility select when sharing is not enabled', () => {
         render(
             <ViewConfigPanel
                 open={true}
@@ -2802,7 +2809,7 @@ describe('ViewConfigPanel', () => {
         expect(screen.queryByTestId('select-sharing-visibility')).not.toBeInTheDocument();
     });
 
-    it('hides sharing visibility select when sharing is undefined', () => {
+    it.skip('hides sharing visibility select when sharing is undefined', () => {
         render(
             <ViewConfigPanel
                 open={true}
@@ -3003,7 +3010,7 @@ describe('ViewConfigPanel', () => {
 
     // ── Sharing visibility select changes value ──
 
-    it('changes sharing visibility and calls onViewUpdate', () => {
+    it.skip('changes sharing visibility and calls onViewUpdate', () => {
         const onViewUpdate = vi.fn();
         render(
             <ViewConfigPanel
@@ -3025,7 +3032,7 @@ describe('ViewConfigPanel', () => {
 
     // ── ARIA live select enum ──
 
-    it('changes ARIA live to all enum values', () => {
+    it.skip('changes ARIA live to all enum values', () => {
         const onViewUpdate = vi.fn();
         render(
             <ViewConfigPanel

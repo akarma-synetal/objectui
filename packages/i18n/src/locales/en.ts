@@ -715,8 +715,6 @@ const en = {
       cancel: 'Cancel',
       create: 'Create',
       duplicateViewName: 'A view with this name already exists.',
-      showAllProperties: 'Show all properties',
-      showEssentialsOnly: 'Show essentials only',
       viewTypeGrid: 'Grid',
       viewTypeGridDesc: 'A spreadsheet-style table of records.',
       viewTypeKanban: 'Kanban',

@@ -715,8 +715,6 @@ const zh = {
       cancel: '取消',
       create: '创建',
       duplicateViewName: '已存在同名视图。',
-      showAllProperties: '显示全部属性',
-      showEssentialsOnly: '只显示常用属性',
       viewTypeGrid: '表格',
       viewTypeGridDesc: '电子表格风格的记录表格。',
       viewTypeKanban: '看板',
