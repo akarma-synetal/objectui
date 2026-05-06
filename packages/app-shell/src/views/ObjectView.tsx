@@ -16,7 +16,7 @@ const ObjectChart = lazy(() =>
 );
 import { ListView } from '@object-ui/plugin-list';
 import { DetailView, RecordChatterPanel } from '@object-ui/plugin-detail';
-import { ObjectView as PluginObjectView, ViewTabBar } from '@object-ui/plugin-view';
+import { ObjectView as PluginObjectView, ViewTabBar, ManageViewsDialog } from '@object-ui/plugin-view';
 import type { ViewTabItem } from '@object-ui/plugin-view';
 // Plugin registration is handled by the host app (e.g. apps/console/src/main.tsx
 // uses ComponentRegistry.registerLazy so heavy plugins stay code-split).
@@ -253,6 +253,8 @@ export function ObjectView({ dataSource, objects, onEdit }: any) {
     const [viewConfigPanelMode, setViewConfigPanelMode] = useState<'create' | 'edit'>('edit');
     // Airtable-style "Create view" dialog (type picker + name input)
     const [showCreateViewDialog, setShowCreateViewDialog] = useState(false);
+    // Manage Views dialog (vertical sortable list of all views)
+    const [manageViewsOpen, setManageViewsOpen] = useState(false);
     
     // Draft state for view config edits — cached locally, saved on demand
     const [viewDraft, setViewDraft] = useState<Record<string, any> | null>(null);
@@ -487,13 +489,26 @@ export function ObjectView({ dataSource, objects, onEdit }: any) {
             }
         }
 
-        // Stable sort: metadata views keep declared order; saved views are
-        // sorted by their persisted `sortOrder` (then created_at).
+        // Stable sort: respect a per-user view-order preference (for both
+        // metadata and saved views). Falls back to: metadata views first
+        // in declared order, then saved views by `sortOrder` / created_at.
         const indexOf = new Map(viewList.map((v, i) => [v.id, i]));
+        let userOrder: string[] = [];
+        try {
+            const raw = typeof window !== 'undefined'
+                ? window.localStorage?.getItem(`viewOrder:${objectDef.name}`)
+                : null;
+            if (raw) userOrder = JSON.parse(raw);
+        } catch { /* ignore */ }
+        const userOrderIndex = new Map(userOrder.map((id, i) => [id, i]));
         viewList.sort((a, b) => {
+            const aUser = userOrderIndex.get(a.id);
+            const bUser = userOrderIndex.get(b.id);
+            if (aUser !== undefined && bUser !== undefined) return aUser - bUser;
+            if (aUser !== undefined) return -1;
+            if (bUser !== undefined) return 1;
             const aSaved = savedViews.find((sv: any) => (sv.id || sv._id) === a.id);
             const bSaved = savedViews.find((sv: any) => (sv.id || sv._id) === b.id);
-            // Metadata-only views first, in their declared order.
             if (!aSaved && !bSaved) return (indexOf.get(a.id) ?? 0) - (indexOf.get(b.id) ?? 0);
             if (!aSaved) return -1;
             if (!bSaved) return 1;
@@ -691,20 +706,29 @@ export function ObjectView({ dataSource, objects, onEdit }: any) {
     }, [dataSource, savedViews, isSavedView]);
 
     const handleReorderViews = useCallback(async (orderedIds: string[]) => {
-        if (!dataSource?.update) return;
-        // Persist a `sortOrder` on each saved view following the new ordering.
-        // Metadata views are skipped (they keep their declared order).
-        const savedIdSet = new Set(savedViews.map((sv: any) => sv.id || sv._id));
-        const updates = orderedIds
-            .filter(id => savedIdSet.has(id))
-            .map((id, idx) => dataSource.update('sys_view', id, { sortOrder: idx }));
+        // Persist order for ALL views (incl. metadata) in localStorage so the
+        // UI immediately reflects the new ordering, including reorderings
+        // that involve metadata-only views.
         try {
-            await Promise.all(updates);
-            setRefreshKey(k => k + 1);
-        } catch (err) {
-            console.error('[ViewTabBar] Failed to reorder views:', err);
+            if (typeof window !== 'undefined') {
+                window.localStorage?.setItem(`viewOrder:${objectName}`, JSON.stringify(orderedIds));
+            }
+        } catch { /* ignore */ }
+        // Best-effort: also persist `sortOrder` on each saved view so other
+        // sessions / users can pick up the order from the backend.
+        if (dataSource?.update) {
+            const savedIdSet = new Set(savedViews.map((sv: any) => sv.id || sv._id));
+            const updates = orderedIds
+                .filter(id => savedIdSet.has(id))
+                .map((id, idx) => dataSource.update('sys_view', id, { sortOrder: idx }));
+            try {
+                await Promise.all(updates);
+            } catch (err) {
+                console.error('[ViewTabBar] Failed to reorder views:', err);
+            }
         }
-    }, [dataSource, savedViews]);
+        setRefreshKey(k => k + 1);
+    }, [dataSource, savedViews, objectName]);
 
     const handleConfigView = useCallback((vid: string) => {
         if (vid !== activeViewId) handleViewChange(vid);
@@ -1218,22 +1242,24 @@ export function ObjectView({ dataSource, objects, onEdit }: any) {
                  duplicate / pin / set-default / drag-reorder. Built-in views
                  (sourced from objectDef.listViews) only support switching;
                  mutating callbacks short-circuit with a toast. */}
-             {views.length > 1 && (
+             {views.length > 1 && (() => {
+               const viewTabItems: ViewTabItem[] = views.map((view: any) => {
+                 const saved = savedViews.find((sv: any) => (sv.id || sv._id) === view.id);
+                 return {
+                   id: view.id,
+                   label: view.label,
+                   type: view.type,
+                   hasActiveFilters: Array.isArray(view.filter) && view.filter.length > 0,
+                   hasActiveSort: Array.isArray(view.sort) && view.sort.length > 0,
+                   isDefault: !!(saved?.isDefault ?? view.isDefault),
+                   isPinned: !!(saved?.isPinned ?? view.isPinned),
+                   visibility: saved?.visibility ?? view.visibility,
+                 } as ViewTabItem;
+               });
+               return (
                <div className="border-b px-3 sm:px-4 bg-background overflow-x-auto shrink-0">
                  <ViewTabBar
-                   views={views.map((view: any) => {
-                     const saved = savedViews.find((sv: any) => (sv.id || sv._id) === view.id);
-                     return {
-                       id: view.id,
-                       label: view.label,
-                       type: view.type,
-                       hasActiveFilters: Array.isArray(view.filter) && view.filter.length > 0,
-                       hasActiveSort: Array.isArray(view.sort) && view.sort.length > 0,
-                       isDefault: !!(saved?.isDefault ?? view.isDefault),
-                       isPinned: !!(saved?.isPinned ?? view.isPinned),
-                       visibility: saved?.visibility ?? view.visibility,
-                     } as ViewTabItem;
-                   })}
+                   views={viewTabItems}
                    activeViewId={activeViewId}
                    onViewChange={handleViewChange}
                    viewTypeIcons={VIEW_TYPE_ICONS}
@@ -1251,9 +1277,28 @@ export function ObjectView({ dataSource, objects, onEdit }: any) {
                    onSetDefaultView={isAdmin ? handleSetDefaultView : undefined}
                    onReorderViews={isAdmin ? handleReorderViews : undefined}
                    onConfigView={isAdmin ? handleConfigView : undefined}
+                   onManageViews={isAdmin ? () => setManageViewsOpen(true) : undefined}
                  />
+                 {isAdmin && (
+                   <ManageViewsDialog
+                     open={manageViewsOpen}
+                     onOpenChange={setManageViewsOpen}
+                     views={viewTabItems}
+                     activeViewId={activeViewId}
+                     viewTypeIcons={VIEW_TYPE_ICONS}
+                     onRename={handleRenameView}
+                     onDelete={handleDeleteView}
+                     onDuplicate={handleDuplicateView}
+                     onSetDefault={handleSetDefaultView}
+                     onSetPinned={handlePinView}
+                     onReorder={handleReorderViews}
+                     onAddView={handleAddView}
+                     onConfigView={handleConfigView}
+                   />
+                 )}
                </div>
-             )}
+               );
+             })()}
 
              {/* 2. Content — Plugin ObjectView with ViewSwitcher + Filter + Sort */}
              <div className="flex-1 overflow-hidden relative flex flex-row">

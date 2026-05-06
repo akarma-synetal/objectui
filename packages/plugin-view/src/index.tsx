@@ -17,9 +17,11 @@ import { SharedViewLink } from './SharedViewLink';
 
 export { ObjectView, ViewSwitcher, FilterUI, SortUI, SharedViewLink };
 export { ViewTabBar } from './ViewTabBar';
+export { ManageViewsDialog } from './ManageViewsDialog';
 export type { ObjectViewProps } from './ObjectView';
 export type { ViewSwitcherProps } from './ViewSwitcher';
 export type { ViewTabBarProps, ViewTabItem, AvailableViewType } from './ViewTabBar';
+export type { ManageViewsDialogProps } from './ManageViewsDialog';
 export type { FilterUIProps } from './FilterUI';
 export type { SortUIProps } from './SortUI';
 export type { SharedViewLinkProps } from './SharedViewLink';

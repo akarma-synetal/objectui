@@ -66,6 +66,7 @@ import {
   LayoutGrid,
   Settings2,
   ChevronDown,
+  ListOrdered,
 } from 'lucide-react';
 import {
   DndContext,
@@ -153,6 +154,8 @@ export interface ViewTabBarProps {
   onChangeViewType?: (viewId: string, newType: string) => void;
   /** Called when user clicks the gear icon to configure a view */
   onConfigView?: (viewId: string) => void;
+  /** Called when user opens the "Manage views" dialog */
+  onManageViews?: () => void;
 
   /** Available view types for quick-switch palette */
   availableViewTypes?: AvailableViewType[];
@@ -215,6 +218,7 @@ export const ViewTabBar: React.FC<ViewTabBarProps> = ({
   onReorderViews,
   onChangeViewType,
   onConfigView,
+  onManageViews,
   availableViewTypes,
   hasUnsavedChanges = false,
   onResetChanges,
@@ -531,6 +535,17 @@ export const ViewTabBar: React.FC<ViewTabBarProps> = ({
                   </DropdownMenuItem>
                 </>
               )}
+              {onManageViews && (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    data-testid={`view-tab-menu-manage-${view.id}`}
+                    onClick={onManageViews}
+                  >
+                    <ListOrdered className="h-4 w-4 mr-2" /> Manage all views…
+                  </DropdownMenuItem>
+                </>
+              )}
             </DropdownMenuContent>
           </DropdownMenu>
         )}
@@ -632,6 +647,17 @@ export const ViewTabBar: React.FC<ViewTabBarProps> = ({
                 </ContextMenuItem>
               </>
             )}
+            {onManageViews && (
+              <>
+                <ContextMenuSeparator />
+                <ContextMenuItem
+                  data-testid={`context-menu-manage-${view.id}`}
+                  onClick={onManageViews}
+                >
+                  <ListOrdered className="h-4 w-4 mr-2" /> Manage all views…
+                </ContextMenuItem>
+              </>
+            )}
           </ContextMenuContent>
         </ContextMenu>
       );
@@ -703,6 +729,18 @@ export const ViewTabBar: React.FC<ViewTabBarProps> = ({
               </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
+              {onManageViews && (
+                <>
+                  <DropdownMenuItem
+                    data-testid="view-tab-overflow-manage"
+                    onClick={onManageViews}
+                    className="font-medium"
+                  >
+                    <ListOrdered className="h-4 w-4 mr-2" /> Manage all views…
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                </>
+              )}
               {overflowViews.map((view) => {
                 const ViewIcon = viewTypeIcons[view.type] || DefaultIcon;
                 return (

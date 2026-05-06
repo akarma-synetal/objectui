@@ -367,3 +367,26 @@ const userView: ObjectViewSchema = {
 ## License
 
 MIT — see [LICENSE](./LICENSE).
+
+## Multi-view UX
+
+In addition to the renderer, the package ships two components that wrap an
+object's set of saved views (Airtable / Notion-style):
+
+- **`<ViewTabBar>`** — a horizontal strip of view tabs. Supports drag-reorder
+  on the visible tabs, an overflow `… N more` dropdown when there are too many
+  views to fit, an inline `+` button, a per-tab chevron menu (rename, pin,
+  duplicate, set default, delete) and right-click context menu.
+- **`<ManageViewsDialog>`** — a Shadcn `Dialog` containing a vertical sortable
+  list of **every** view (visible + overflow + metadata-defined). Supports
+  drag-reorder, search, inline rename, pin / set-default toggles, and a per-row
+  `⋯` action menu (rename, duplicate, edit configuration, set default,
+  pin/unpin, delete). Open it from the chevron menu's "Manage all views…"
+  item or from the header of the overflow `… N more` dropdown.
+
+Both components share the same callback surface
+(`onRenameView`, `onDeleteView`, `onReorderViews`, …) so a host like
+`@object-ui/app-shell`'s `ObjectView` wires the same set of handlers into
+both. View ordering is persisted to `localStorage` under
+`viewOrder:{objectName}` and, for backend-saved views, also written back as
+`sortOrder`.
