@@ -131,36 +131,81 @@ export const ObjectKanban: React.FC<ObjectKanbanProps> = ({
   // Enhance data with title mapping and ensure IDs
   const effectiveData = useMemo(() => {
     if (!Array.isArray(rawData)) return [];
-    
+
     // Support cardTitle property from schema (passed by ObjectView)
     // Fallback to legacy titleField for backwards compatibility
-    let titleField = schema.cardTitle || (schema as any).titleField;
+    const explicitTitleField: string | undefined =
+      schema.cardTitle || (schema as any).titleField;
 
-    // Fallback: Try to infer from object definition
-    if (!titleField && objectDef) {
-       // 1. Check for titleFormat like "{subject}" first (Higher priority for Cards)
-       if (objectDef.titleFormat) {
-           const match = /\{(.+?)\}/.exec(objectDef.titleFormat);
-           if (match) titleField = match[1];
-       }
-       // 2. Check for standard NAME_FIELD_KEY
-       if (!titleField && objectDef.NAME_FIELD_KEY) {
-           titleField = objectDef.NAME_FIELD_KEY;
-       } 
-    }
+    // Resolve title via, in order:
+    //   1. explicit titleField (schema.cardTitle / schema.titleField), if it
+    //      yields a non-empty value for the record
+    //   2. objectDef.titleFormat — render the full template
+    //      (e.g. "{full_name} - {company}")
+    //   3. objectDef.NAME_FIELD_KEY
+    //   4. Common name-like field fallbacks
+    //
+    // We always evaluate steps 2-4 when step 1 produced nothing, even when an
+    // explicit titleField was supplied. ListView used to default titleField
+    // to the literal "name" for objects that didn't have one, which made the
+    // explicit-only path resolve to undefined for every record and bypassed
+    // the objectDef-derived inference below.
+    const TITLE_FALLBACK_FIELDS = [
+      'name',
+      'full_name',
+      'fullName',
+      'title',
+      'subject',
+      'label',
+      'display_name',
+      'displayName',
+    ];
 
-    // Common title field names to try as fallback
-    const TITLE_FALLBACK_FIELDS = ['name', 'title', 'subject', 'label', 'display_name'];
+    const titleFormat: string | undefined = objectDef?.titleFormat;
+    const nameFieldKey: string | undefined = objectDef?.NAME_FIELD_KEY;
+
+    const renderFromTemplate = (template: string, item: Record<string, any>) => {
+      let anyResolved = false;
+      const out = template.replace(/\{(.+?)\}/g, (_m, key) => {
+        const v = item[key.trim()];
+        if (v !== undefined && v !== null && v !== '') {
+          anyResolved = true;
+          return String(v);
+        }
+        return '';
+      }).replace(/\s+-\s+(?=$|\s*$)/, '').trim();
+      return anyResolved ? out : '';
+    };
 
     return rawData.map(item => {
-      // If a specific title field was configured, try it first
-      let resolvedTitle = titleField ? item[titleField] : undefined;
+      let resolvedTitle: any = undefined;
 
-      // Fallback: try common field names
+      // 1. Explicit titleField
+      if (explicitTitleField) {
+        resolvedTitle = item[explicitTitleField];
+        if (typeof resolvedTitle === 'string') resolvedTitle = resolvedTitle.trim();
+      }
+
+      // 2. titleFormat template
+      if (!resolvedTitle && titleFormat) {
+        const rendered = renderFromTemplate(titleFormat, item);
+        if (rendered) resolvedTitle = rendered;
+      }
+
+      // 3. NAME_FIELD_KEY
+      if (!resolvedTitle && nameFieldKey) {
+        const v = item[nameFieldKey];
+        if (typeof v === 'string') resolvedTitle = v.trim();
+        else if (v) resolvedTitle = v;
+      }
+
+      // 4. Common field-name fallbacks
       if (!resolvedTitle) {
         for (const field of TITLE_FALLBACK_FIELDS) {
-          if (item[field]) {
-            resolvedTitle = item[field];
+          const v = item[field];
+          const s = typeof v === 'string' ? v.trim() : v;
+          if (s) {
+            resolvedTitle = s;
             break;
           }
         }

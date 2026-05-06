@@ -921,7 +921,9 @@ export const ListView = React.forwardRef<ListViewHandle, ListViewProps>(({
           ...baseProps,
           groupBy: schema.kanban?.groupField || schema.options?.kanban?.groupField || 'status',
           groupField: schema.kanban?.groupField || schema.options?.kanban?.groupField || 'status',
-          titleField: schema.kanban?.titleField || schema.options?.kanban?.titleField || 'name',
+          ...(schema.kanban?.titleField || schema.options?.kanban?.titleField
+            ? { titleField: schema.kanban?.titleField || schema.options?.kanban?.titleField }
+            : {}),
           cardFields: schema.kanban?.cardFields || effectiveFields || [],
           ...(groupingConfig ? { grouping: groupingConfig } : {}),
           ...(schema.options?.kanban || {}),
@@ -933,7 +935,9 @@ export const ListView = React.forwardRef<ListViewHandle, ListViewProps>(({
           ...baseProps,
           startDateField: schema.calendar?.startDateField || schema.options?.calendar?.startDateField || 'start_date',
           endDateField: schema.calendar?.endDateField || schema.options?.calendar?.endDateField || 'end_date',
-          titleField: schema.calendar?.titleField || schema.options?.calendar?.titleField || 'name',
+          ...(schema.calendar?.titleField || schema.options?.calendar?.titleField
+            ? { titleField: schema.calendar?.titleField || schema.options?.calendar?.titleField }
+            : {}),
           ...(schema.calendar?.defaultView ? { defaultView: schema.calendar.defaultView } : {}),
           ...(schema.options?.calendar || {}),
           ...(schema.calendar || {}),
