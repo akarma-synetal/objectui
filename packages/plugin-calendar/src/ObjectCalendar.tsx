@@ -27,7 +27,7 @@ import type { ObjectGridSchema, DataSource, ViewData, CalendarConfig } from '@ob
 import { CalendarView, type CalendarEvent } from './CalendarView';
 import { usePullToRefresh } from '@object-ui/mobile';
 import { useNavigationOverlay } from '@object-ui/react';
-import { NavigationOverlay } from '@object-ui/components';
+import { NavigationOverlay, useIsMobile } from '@object-ui/components';
 import { extractRecords, buildExpandFields } from '@object-ui/core';
 
 export interface CalendarSchema {
@@ -165,7 +165,25 @@ export const ObjectCalendar: React.FC<ObjectCalendarProps> = ({
   const [error, setError] = useState<Error | null>(null);
   const [objectSchema, setObjectSchema] = useState<any>(null);
   const [currentDate, setCurrentDate] = useState(new Date());
-  const [view, setView] = useState<'month' | 'week' | 'day'>('month');
+  const isMobile = useIsMobile();
+  const schemaDefaultView = (schema as any).defaultView as 'month' | 'week' | 'day' | undefined;
+  // Lazy initializer: read window.innerWidth synchronously so SSR-friendly
+  // useIsMobile (which returns false on first render) doesn't lock us into
+  // a 24-hour day grid on phones.
+  const [view, setView] = useState<'month' | 'week' | 'day'>(() => {
+    const wantsDay = schemaDefaultView === 'day' || !schemaDefaultView;
+    const isMobileSync = typeof window !== 'undefined' && window.innerWidth < 768;
+    if (isMobileSync && wantsDay) return 'month';
+    return schemaDefaultView || 'month';
+  });
+  // If the viewport later transitions into mobile (rotation, resize) while
+  // sitting on day view, downgrade to month.
+  useEffect(() => {
+    if (isMobile && view === 'day' && (schemaDefaultView === 'day' || !schemaDefaultView)) {
+      setView('month');
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isMobile]);
   const [refreshKey, setRefreshKey] = useState(0);
 
   // P2: Auto-subscribe to DataSource mutation events (standalone mode only).
@@ -435,7 +453,7 @@ export const ObjectCalendar: React.FC<ObjectCalendarProps> = ({
         <CalendarView
           events={events}
           currentDate={currentDate}
-          view={(schema as any).defaultView || 'month'}
+          view={view}
           locale={locale}
           onEventClick={(event) => {
             navigation.handleClick(event.data);

@@ -16,7 +16,7 @@ const Timeline = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <ol
     ref={ref}
-    className={cn("relative border-l border-gray-200", className)}
+    className={cn("relative ml-3 border-l border-gray-200", className)}
     {...props}
   />
 ))

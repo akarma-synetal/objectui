@@ -135,9 +135,9 @@ function SortableCard({ card, conditionalFormatting }: { card: KanbanCard; condi
           </div>
         )}
         <CardHeader className="p-4">
-          <CardTitle className="text-sm font-medium font-mono tracking-tight text-foreground group-hover:text-primary transition-colors">{card.title}</CardTitle>
+          <CardTitle className="text-sm font-medium tracking-tight text-foreground group-hover:text-primary transition-colors">{card.title}</CardTitle>
           {card.description && (
-            <CardDescription className="text-xs text-muted-foreground font-mono">
+            <CardDescription className="text-xs text-muted-foreground">
               {card.description}
             </CardDescription>
           )}
@@ -302,12 +302,12 @@ function KanbanColumnEnhanced({
           </Button>
           {!column.collapsed && (
             <>
-              <h3 className="font-mono text-sm font-semibold tracking-wider text-primary/90 uppercase truncate">
+              <h3 className=" text-sm font-semibold tracking-wider text-primary/90 uppercase truncate">
                 {column.title}
               </h3>
               <div className="flex items-center gap-2">
                 <span className={cn(
-                  "font-mono text-xs",
+                  " text-xs",
                   isLimitExceeded ? "text-destructive" : isNearLimit ? "text-yellow-500" : "text-muted-foreground"
                 )}>
                   {safeCards.length}
@@ -327,7 +327,7 @@ function KanbanColumnEnhanced({
         </div>
         {column.collapsed && (
           <div className="flex flex-col items-center gap-1">
-            <span className="font-mono text-xs font-bold text-primary/90 [writing-mode:vertical-rl] rotate-180">
+            <span className=" text-xs font-bold text-primary/90 [writing-mode:vertical-rl] rotate-180">
               {column.title}
             </span>
             <Badge variant="secondary" className="text-xs">

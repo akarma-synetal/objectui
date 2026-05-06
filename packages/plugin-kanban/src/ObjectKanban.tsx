@@ -211,12 +211,49 @@ export const ObjectKanban: React.FC<ObjectKanbanProps> = ({
         }
       }
 
+      // Derive a short description and badges from common semantic fields so
+      // mobile cards aren't a wall of bare titles. Only emit when not already
+      // set by the schema/source.
+      const fmtMoney = (n: number) => {
+        if (n >= 1_000_000) return `$${(n / 1_000_000).toFixed(1).replace(/\.0$/, '')}M`;
+        if (n >= 1_000) return `$${Math.round(n / 1_000)}K`;
+        return `$${n}`;
+      };
+      const descParts: string[] = [];
+      const moneyField = ['amount', 'value', 'deal_value', 'expected_value', 'opportunity_value']
+        .find(k => typeof item[k] === 'number');
+      if (moneyField) descParts.push(fmtMoney(item[moneyField] as number));
+      const orgField = ['company', 'company_name', 'account', 'account_name', 'organization']
+        .find(k => typeof item[k] === 'string' && item[k]);
+      if (orgField && (!resolvedTitle || !String(resolvedTitle).includes(item[orgField]))) {
+        descParts.push(item[orgField]);
+      }
+      const ownerField = ['owner', 'owner_name', 'assignee', 'assignee_name']
+        .find(k => typeof item[k] === 'string' && item[k]);
+      if (ownerField) descParts.push(`@${item[ownerField]}`);
+
+      const badgeFields = ['priority', 'severity', 'industry', 'rating'];
+      const cardBadges: Array<{ label: string; variant?: any }> = [];
+      for (const f of badgeFields) {
+        const v = item[f];
+        if (v != null && v !== '') {
+          cardBadges.push({ label: String(v), variant: 'secondary' });
+          if (cardBadges.length >= 2) break;
+        }
+      }
+
       return {
         ...item,
         // Ensure id exists
         id: item.id || item._id,
         // Map title
         title: resolvedTitle || 'Untitled',
+        ...(item.description == null && descParts.length > 0
+          ? { description: descParts.join(' · ') }
+          : {}),
+        ...(!Array.isArray(item.badges) && cardBadges.length > 0
+          ? { badges: cardBadges }
+          : {}),
       };
     });
   }, [rawData, schema, objectDef]);

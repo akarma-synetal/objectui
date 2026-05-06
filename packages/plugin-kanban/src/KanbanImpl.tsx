@@ -145,9 +145,9 @@ function SortableCard({ card, onCardClick, conditionalFormatting }: { card: Kanb
           </div>
         )}
         <CardHeader className="p-2 sm:p-4">
-          <CardTitle className="text-xs sm:text-sm font-medium font-mono tracking-tight text-foreground group-hover:text-primary transition-colors">{card.title}</CardTitle>
+          <CardTitle className="text-xs sm:text-sm font-medium tracking-tight text-foreground group-hover:text-primary transition-colors">{card.title}</CardTitle>
           {card.description && (
-            <CardDescription className="text-xs text-muted-foreground font-mono line-clamp-2 sm:line-clamp-none">
+            <CardDescription className="text-xs text-muted-foreground line-clamp-2 sm:line-clamp-none">
               {card.description}
             </CardDescription>
           )}
@@ -256,15 +256,15 @@ function KanbanColumnView({
       role="group"
       aria-label={column.title}
       className={cn(
-        "flex flex-col w-[85vw] sm:w-80 flex-shrink-0 rounded-lg border border-border bg-card/20 backdrop-blur-sm shadow-xl snap-start",
+        "flex flex-col w-[85vw] sm:w-80 flex-shrink-0 rounded-lg border border-border bg-card/20 backdrop-blur-sm shadow-xl snap-start max-h-full min-h-0",
         column.className
       )}
     >
       <div className="p-3 sm:p-4 border-b border-border/50 bg-muted/30 rounded-t-lg">
         <div className="flex items-center justify-between">
-          <h3 id={`kanban-col-${column.id}`} className="font-mono text-xs sm:text-sm font-semibold tracking-wider text-primary/90 uppercase truncate">{column.title}</h3>
+          <h3 id={`kanban-col-${column.id}`} className=" text-xs sm:text-sm font-semibold tracking-wider text-primary/90 uppercase truncate">{column.title}</h3>
           <div className="flex items-center gap-2">
-            <Badge variant="secondary" className="text-xs font-mono tabular-nums">
+            <Badge variant="secondary" className="text-xs tabular-nums">
               {safeCards.length}
               {column.limit && ` / ${column.limit}`}
             </Badge>
@@ -284,7 +284,7 @@ function KanbanColumnView({
           <div className="space-y-2" role="list" aria-label={`${column.title} cards`}>
             {safeCards.length === 0 && (
               <div className="flex flex-col items-center justify-center py-8 text-muted-foreground/50">
-                <span className="text-xs font-mono">No cards</span>
+                <span className="text-xs">No cards</span>
               </div>
             )}
             {safeCards.map((card) => (
@@ -520,8 +520,8 @@ function KanbanBoardInner({ columns, onCardMove, onCardClick, className, dnd, qu
           <div className="flex gap-3 sm:gap-4 pl-36 sm:pl-44 overflow-x-auto">
             {boardColumns.map(col => (
               <div key={col.id} className="w-[85vw] sm:w-80 flex-shrink-0 text-center">
-                <span className="font-mono text-xs sm:text-sm font-semibold tracking-wider text-primary/90 uppercase">{col.title}</span>
-                <span className="ml-2 font-mono text-xs text-muted-foreground">({col.cards.length})</span>
+                <span className=" text-xs sm:text-sm font-semibold tracking-wider text-primary/90 uppercase">{col.title}</span>
+                <span className="ml-2 text-xs text-muted-foreground">({col.cards.length})</span>
               </div>
             ))}
           </div>
@@ -541,8 +541,8 @@ function KanbanBoardInner({ columns, onCardMove, onCardClick, className, dnd, qu
                   aria-expanded={!isCollapsed}
                 >
                   <span className={cn("transition-transform text-xs", isCollapsed ? "" : "rotate-90")}>▶</span>
-                  <span className="font-mono text-xs font-semibold text-muted-foreground uppercase tracking-wider">{lane}</span>
-                  <span className="font-mono text-xs text-muted-foreground">({laneCardCount})</span>
+                  <span className=" text-xs font-semibold text-muted-foreground uppercase tracking-wider">{lane}</span>
+                  <span className=" text-xs text-muted-foreground">({laneCardCount})</span>
                 </button>
 
                 {/* Lane content */}
@@ -572,7 +572,7 @@ function KanbanBoardInner({ columns, onCardMove, onCardClick, className, dnd, qu
         </div>
       ) : (
         /* Standard flat layout */
-        <div className={cn("flex gap-3 sm:gap-4 overflow-x-auto snap-x snap-mandatory p-2 sm:p-4 bg-muted/10 rounded-lg [-webkit-overflow-scrolling:touch] min-w-0", className)} role="region" aria-label="Kanban board">
+        <div className={cn("flex gap-3 sm:gap-4 overflow-x-auto snap-x snap-mandatory p-2 sm:p-4 bg-muted/10 rounded-lg [-webkit-overflow-scrolling:touch] min-w-0 min-h-0 h-full", className)} role="region" aria-label="Kanban board">
           {boardColumns.map((column) => (
             <KanbanColumnView
               key={column.id}

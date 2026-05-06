@@ -92,7 +92,7 @@ export const InlineQuickAdd: React.FC<InlineQuickAddProps> = ({
         <div key={field.name} className="space-y-1">
           <label
             htmlFor={`qa-${columnId}-${field.name}`}
-            className="text-xs font-mono text-muted-foreground"
+            className="text-xs text-muted-foreground"
           >
             {field.label ?? field.name}
           </label>
