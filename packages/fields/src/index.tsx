@@ -366,15 +366,21 @@ export function DateCellRenderer({ value, field }: CellRendererProps): React.Rea
   const dateField = field as any;
   const style = dateField.format || 'relative';
   const formatted = formatDate(safe as string | Date, style);
-  
-  // Determine if date is overdue (in the past)
+
+  // Determine if date is overdue (in the past) — but only color it red when the
+  // field is *semantically* a due/deadline. A plain "start_date" or "created_at"
+  // in the past should not render in red.
   const date = typeof safe === 'string' ? new Date(safe) : safe;
   const isValidDate = date instanceof Date && !isNaN(date.getTime());
   const startOfToday = new Date();
   startOfToday.setHours(0, 0, 0, 0);
-  const isOverdue = isValidDate && date < startOfToday;
+  const fieldName = String(dateField?.name || dateField?.accessorKey || dateField?.key || '').toLowerCase();
+  const dueLike =
+    dateField?.dueLike === true ||
+    /(^|_)(due|deadline|expires?|expiry|expiration|expected_close|target_close|sla|return_by|renewal|next_action)(_|$)/.test(fieldName);
+  const isOverdue = dueLike && isValidDate && date < startOfToday;
   const isoString = isValidDate ? date.toISOString() : String(safe);
-  
+
   return (
     <span
       className={`tabular-nums${isOverdue ? ' text-red-600' : ''}`}

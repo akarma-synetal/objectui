@@ -266,9 +266,9 @@ export function UnifiedSidebar({ activeAppName }: UnifiedSidebarProps) {
              basePath={basePath}
              evaluateVisibility={evalVis}
              checkPermission={checkPerm}
-             enablePinning
+             enablePinning={!isMobile}
              onPinToggle={togglePin}
-             enableReorder
+             enableReorder={!isMobile}
              onReorder={handleReorder}
              resolveObjectLabel={(objectName, fallback) => resolveNavObjectLabel({ name: objectName, label: fallback })}
              resolveDashboardLabel={(dashboardName, fallback) => resolveNavDashboardLabel({ name: dashboardName, label: fallback })}

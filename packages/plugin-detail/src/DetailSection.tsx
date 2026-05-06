@@ -22,6 +22,7 @@ import {
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
+  useIsMobile,
 } from '@object-ui/components';
 import { ChevronDown, ChevronRight, Copy, Check, Eye, EyeOff } from 'lucide-react';
 import { SchemaRenderer } from '@object-ui/react';
@@ -120,8 +121,10 @@ export const DetailSection: React.FC<DetailSectionProps> = ({
   // section is entirely empty (e.g., loading state, brand-new record), do NOT
   // auto-hide — the labels themselves are useful as a structural skeleton.
   // Explicit `hideEmpty` honored as before.
-  const AUTO_HIDE_MIN_FIELDS = 6;
-  const AUTO_HIDE_RATIO = 0.5;
+  // On mobile, vertical real estate is precious — drop the thresholds.
+  const isMobile = useIsMobile();
+  const AUTO_HIDE_MIN_FIELDS = isMobile ? 3 : 6;
+  const AUTO_HIDE_RATIO = isMobile ? 0.2 : 0.5;
   const filledCount = section.fields.length - emptyCount;
   const shouldAutoHideEmpty =
     !section.hideEmpty &&

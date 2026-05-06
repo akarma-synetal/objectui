@@ -1234,11 +1234,11 @@ export const ObjectGrid: React.FC<ObjectGridProps> = ({
     // Stage badge color mapping for common pipeline stages — soft pill style.
     const stageBadgeColor = (value: string): string => {
       const v = (value || '').toLowerCase();
-      if (v.includes('won') || v.includes('completed') || v.includes('done') || v.includes('active'))
+      if (v.includes('won') || v.includes('completed') || v.includes('done') || v.includes('active') || v === 'activated' || v === 'success' || v === 'approved' || v === 'paid')
         return 'bg-green-50 text-green-700 border-green-200 dark:bg-green-950/40 dark:text-green-300 dark:border-green-900/60';
-      if (v.includes('lost') || v.includes('cancelled') || v.includes('rejected') || v.includes('closed lost'))
+      if (v.includes('lost') || v.includes('cancelled') || v.includes('rejected') || v.includes('closed lost') || v === 'expired' || v === 'terminated' || v === 'failed' || v === 'overdue')
         return 'bg-red-50 text-red-700 border-red-200 dark:bg-red-950/40 dark:text-red-300 dark:border-red-900/60';
-      if (v.includes('negotiation') || v.includes('review') || v.includes('in progress'))
+      if (v.includes('negotiation') || v.includes('review') || v.includes('in progress') || v.includes('approval') || v === 'in_approval' || v === 'pending_approval')
         return 'bg-yellow-50 text-yellow-800 border-yellow-200 dark:bg-yellow-950/40 dark:text-yellow-300 dark:border-yellow-900/60';
       if (v.includes('proposal') || v.includes('pending'))
         return 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-900/60';
@@ -1246,17 +1246,19 @@ export const ObjectGrid: React.FC<ObjectGridProps> = ({
         return 'bg-indigo-50 text-indigo-700 border-indigo-200 dark:bg-indigo-950/40 dark:text-indigo-300 dark:border-indigo-900/60';
       if (v.includes('prospecting') || v.includes('new') || v.includes('open'))
         return 'bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-950/40 dark:text-purple-300 dark:border-purple-900/60';
+      if (v === 'draft' || v.includes('draft'))
+        return 'bg-slate-50 text-slate-700 border-slate-200 dark:bg-slate-950/40 dark:text-slate-300 dark:border-slate-900/60';
       return 'bg-muted text-muted-foreground border-border';
     };
 
     // Left border color for card accent based on stage
     const stageBorderLeft = (value: string): string => {
       const v = (value || '').toLowerCase();
-      if (v.includes('won') || v.includes('completed') || v.includes('done') || v.includes('active'))
+      if (v.includes('won') || v.includes('completed') || v.includes('done') || v.includes('active') || v === 'activated')
         return 'border-l-green-500';
-      if (v.includes('lost') || v.includes('cancelled') || v.includes('rejected'))
+      if (v.includes('lost') || v.includes('cancelled') || v.includes('rejected') || v === 'expired' || v === 'terminated')
         return 'border-l-red-500';
-      if (v.includes('negotiation') || v.includes('review') || v.includes('in progress'))
+      if (v.includes('negotiation') || v.includes('review') || v.includes('in progress') || v.includes('approval'))
         return 'border-l-yellow-500';
       if (v.includes('proposal') || v.includes('pending'))
         return 'border-l-blue-500';
@@ -1264,6 +1266,8 @@ export const ObjectGrid: React.FC<ObjectGridProps> = ({
         return 'border-l-indigo-500';
       if (v.includes('prospecting') || v.includes('new') || v.includes('open'))
         return 'border-l-purple-500';
+      if (v === 'draft' || v.includes('draft'))
+        return 'border-l-slate-400';
       return 'border-l-gray-300';
     };
 

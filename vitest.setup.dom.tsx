@@ -27,6 +27,13 @@ afterEach(() => {
   cleanup();
 });
 
+// jsdom does not implement Element.prototype.scrollIntoView; some components
+// (e.g. LookupField keyboard navigation) call it inside effects. Polyfill as
+// a no-op so component tests don't throw inside React's commit phase.
+if (typeof Element !== 'undefined' && !Element.prototype.scrollIntoView) {
+  Element.prototype.scrollIntoView = function () {};
+}
+
 // Import packages to register components (side-effect imports)
 import '@object-ui/components'; // Register all ObjectUI components
 import '@object-ui/fields'; // Register field widgets

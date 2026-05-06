@@ -51,6 +51,7 @@ export * from './custom';
 // Export hooks
 export { useConfigDraft } from './hooks/use-config-draft';
 export type { UseConfigDraftOptions, UseConfigDraftReturn } from './hooks/use-config-draft';
+export { useIsMobile } from './hooks/use-mobile';
 
 // Export config panel types
 export type {
