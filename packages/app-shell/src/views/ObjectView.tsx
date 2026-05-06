@@ -21,11 +21,11 @@ import type { ViewTabItem } from '@object-ui/plugin-view';
 // Plugin registration is handled by the host app (e.g. apps/console/src/main.tsx
 // uses ComponentRegistry.registerLazy so heavy plugins stay code-split).
 // Do NOT add eager `import '@object-ui/plugin-*'` side-effect imports here.
-import { Button, Empty, EmptyTitle, EmptyDescription, NavigationOverlay, DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@object-ui/components';
-import { Plus, Table as TableIcon, Settings2, Wrench, KanbanSquare, Calendar, LayoutGrid, Activity, GanttChart, MapPin, BarChart3 } from 'lucide-react';
+import { Button, Empty, EmptyTitle, EmptyDescription, NavigationOverlay } from '@object-ui/components';
+import { Plus, Table as TableIcon, KanbanSquare, Calendar, LayoutGrid, Activity, GanttChart, MapPin, BarChart3 } from 'lucide-react';
 import { getIcon } from '../utils/getIcon';
 import type { ListViewSchema, ViewNavigationConfig, FeedItem } from '@object-ui/types';
-import { MetadataToggle, MetadataPanel, useMetadataInspector } from './MetadataInspector';
+import { MetadataPanel, useMetadataInspector } from './MetadataInspector';
 import { ViewConfigPanel } from './ViewConfigPanel';
 import { CreateViewDialog } from './CreateViewDialog';
 import { useObjectActions } from '../hooks/useObjectActions';
@@ -244,7 +244,7 @@ export function ObjectView({ dataSource, objects, onEdit }: any) {
     const navigate = useNavigate();
     const { objectName, viewId } = useParams();
     const [searchParams, setSearchParams] = useSearchParams();
-    const { showDebug, toggleDebug } = useMetadataInspector();
+    const { showDebug } = useMetadataInspector();
     const { t } = useObjectTranslation();
     const { objectLabel, objectDescription: objectDesc } = useObjectLabel();
     
@@ -1205,36 +1205,12 @@ export function ObjectView({ dataSource, objects, onEdit }: any) {
                       }} />
                     )}
 
-                    {/* Design tools menu — visible only to admin users */}
-                    {isAdmin && (
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button 
-                          size="sm" 
-                          variant="ghost"
-                          className="shadow-none h-8 sm:h-9 px-2"
-                          title={t('console.objectView.designTools')}
-                        >
-                          <Wrench className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="w-48">
-                        <DropdownMenuItem onClick={toggleDebug}>
-                          <MetadataToggle open={showDebug} onToggle={toggleDebug} className="hidden" />
-                          {t('console.objectView.metadataInspector')}
-                        </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem onClick={() => { setViewConfigPanelMode('edit'); setShowViewConfigPanel(prev => !prev); }}>
-                          <Settings2 className="h-4 w-4 mr-2" />
-                          {t('console.objectView.editView')}
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => setShowCreateViewDialog(true)}>
-                          <Plus className="h-4 w-4 mr-2" />
-                          {t('console.objectView.addView')}
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                    )}
+                    {/*
+                       Design Tools dropdown removed — its items were redundant:
+                       - "Edit view"  → use chevron menu's "Edit view config"
+                       - "Add view"   → use the `+` button on the tab bar or the "Add new view" footer in Manage Views
+                       - "Metadata inspector" → still toggleable via the `?__debug` URL flag (see useMetadataInspector)
+                    */}
                  </div>
              </div>
 

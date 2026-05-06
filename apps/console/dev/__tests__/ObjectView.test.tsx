@@ -86,8 +86,12 @@ vi.mock('@object-ui/components', async (importOriginal) => {
         DropdownMenu: ({ children }: any) => <div data-testid="dropdown-menu">{children}</div>,
         DropdownMenuTrigger: ({ children }: any) => <>{children}</>,
         DropdownMenuContent: ({ children }: any) => <div data-testid="dropdown-content">{children}</div>,
-        DropdownMenuItem: ({ children, onClick }: any) => <button onClick={onClick}>{children}</button>,
+        DropdownMenuItem: ({ children, onClick, ...rest }: any) => <button onClick={onClick} {...rest}>{children}</button>,
         DropdownMenuSeparator: () => <hr />,
+        // Submenu mocks (used by ViewTabBar's chevron "Change type" submenu)
+        DropdownMenuSub: ({ children }: any) => <div data-testid="dropdown-sub">{children}</div>,
+        DropdownMenuSubTrigger: ({ children, ...rest }: any) => <button {...rest}>{children}</button>,
+        DropdownMenuSubContent: ({ children }: any) => <div data-testid="dropdown-sub-content">{children}</div>,
     };
 });
 
@@ -220,37 +224,6 @@ describe('ObjectView Component', () => {
         expect(screen.getByText('Calendar View: due_date')).toBeInTheDocument();
     });
 
-    it('shows design tools for admin users without toggle', () => {
-        mockAuthUser = { id: 'u1', name: 'Admin', role: 'admin' };
-        mockUseParams.mockReturnValue({ objectName: 'opportunity' });
-
-        render(<ObjectView dataSource={mockDataSource} objects={mockObjects} onEdit={vi.fn()} />);
-
-        // Design tools (wrench button) should be visible directly for admin
-        expect(screen.getByTitle('console.objectView.designTools')).toBeInTheDocument();
-        // No "Enter Design Mode" toggle should exist
-        expect(screen.queryByText('console.objectView.enterDesignMode')).not.toBeInTheDocument();
-    });
-
-    it('hides design tools for non-admin users', () => {
-        mockAuthUser = { id: 'u2', name: 'Viewer', role: 'viewer' };
-        mockUseParams.mockReturnValue({ objectName: 'opportunity' });
-
-        render(<ObjectView dataSource={mockDataSource} objects={mockObjects} onEdit={vi.fn()} />);
-
-        // Design tools button should not be visible
-        expect(screen.queryByTitle('console.objectView.designTools')).not.toBeInTheDocument();
-    });
-
-    it('hides design tools when user is not authenticated', () => {
-        mockAuthUser = null;
-        mockUseParams.mockReturnValue({ objectName: 'opportunity' });
-
-        render(<ObjectView dataSource={mockDataSource} objects={mockObjects} onEdit={vi.fn()} />);
-
-        expect(screen.queryByTitle('console.objectView.designTools')).not.toBeInTheDocument();
-    });
-
     it('opens create-view dialog when Add View is clicked from nested view route', () => {
         mockAuthUser = { id: 'u1', name: 'Admin', role: 'admin' };
         mockUseParams.mockReturnValue({ objectName: 'opportunity', viewId: 'pipeline' });
@@ -258,11 +231,7 @@ describe('ObjectView Component', () => {
         render(<ObjectView dataSource={mockDataSource} objects={mockObjects} onEdit={vi.fn()} />);
 
         // Click the design tools button, then "Add View"
-        const designBtn = screen.getByTitle('console.objectView.designTools');
-        fireEvent.click(designBtn);
-
-        const addViewBtn = screen.getByText('console.objectView.addView');
-        fireEvent.click(addViewBtn);
+        fireEvent.click(screen.getByTestId('view-tab-add'));
 
         // Should open create-view dialog (Airtable-style type picker) instead of navigating
         expect(mockNavigate).not.toHaveBeenCalledWith('../../views/new', { relative: 'path' });
@@ -275,11 +244,7 @@ describe('ObjectView Component', () => {
 
         render(<ObjectView dataSource={mockDataSource} objects={mockObjects} onEdit={vi.fn()} />);
 
-        const designBtn = screen.getByTitle('console.objectView.designTools');
-        fireEvent.click(designBtn);
-
-        const addViewBtn = screen.getByText('console.objectView.addView');
-        fireEvent.click(addViewBtn);
+        fireEvent.click(screen.getByTestId('view-tab-add'));
 
         // Should open create-view dialog instead of navigating
         expect(mockNavigate).not.toHaveBeenCalledWith('views/new', { relative: 'path' });
@@ -320,11 +285,8 @@ describe('ObjectView Component', () => {
         expect(screen.queryByTestId('view-config-panel')).not.toBeInTheDocument();
 
         // Click design tools > Edit View
-        const designBtn = screen.getByTitle('console.objectView.designTools');
-        fireEvent.click(designBtn);
-
-        const editViewBtn = screen.getByText('console.objectView.editView');
-        fireEvent.click(editViewBtn);
+        fireEvent.click(screen.getByTestId('view-tab-actions-all'));
+        fireEvent.click(screen.getByTestId('view-tab-menu-config-all'));
 
         // Panel should now be visible
         expect(screen.getByTestId('view-config-panel')).toBeInTheDocument();
@@ -337,10 +299,8 @@ describe('ObjectView Component', () => {
         render(<ObjectView dataSource={mockDataSource} objects={mockObjects} onEdit={vi.fn()} />);
 
         // Open the panel
-        const designBtn = screen.getByTitle('console.objectView.designTools');
-        fireEvent.click(designBtn);
-        const editViewBtn = screen.getByText('console.objectView.editView');
-        fireEvent.click(editViewBtn);
+        fireEvent.click(screen.getByTestId('view-tab-actions-all'));
+        fireEvent.click(screen.getByTestId('view-tab-menu-config-all'));
 
         expect(screen.getByTestId('view-config-panel')).toBeInTheDocument();
 
@@ -389,8 +349,8 @@ describe('ObjectView Component', () => {
         render(<ObjectView dataSource={dsWithUpdate} objects={mockObjects} onEdit={vi.fn()} />);
 
         // Open config panel
-        fireEvent.click(screen.getByTitle('console.objectView.designTools'));
-        fireEvent.click(screen.getByText('console.objectView.editView'));
+        fireEvent.click(screen.getByTestId('view-tab-actions-all'));
+        fireEvent.click(screen.getByTestId('view-tab-menu-config-all'));
         expect(screen.getByTestId('view-config-panel')).toBeInTheDocument();
 
         // Wait for draft to be initialized from activeView, then modify
@@ -417,8 +377,8 @@ describe('ObjectView Component', () => {
         render(<ObjectView dataSource={mockDataSource} objects={mockObjects} onEdit={vi.fn()} />);
 
         // Open config panel
-        fireEvent.click(screen.getByTitle('console.objectView.designTools'));
-        fireEvent.click(screen.getByText('console.objectView.editView'));
+        fireEvent.click(screen.getByTestId('view-tab-actions-all'));
+        fireEvent.click(screen.getByTestId('view-tab-menu-config-all'));
 
         // Make a change and save
         const titleInput = await screen.findByDisplayValue('All Opportunities');
@@ -444,8 +404,8 @@ describe('ObjectView Component', () => {
         render(<ObjectView dataSource={dsWithFailingUpdate} objects={mockObjects} onEdit={vi.fn()} />);
 
         // Open config panel
-        fireEvent.click(screen.getByTitle('console.objectView.designTools'));
-        fireEvent.click(screen.getByText('console.objectView.editView'));
+        fireEvent.click(screen.getByTestId('view-tab-actions-all'));
+        fireEvent.click(screen.getByTestId('view-tab-menu-config-all'));
 
         // Make a change and save
         const titleInput = await screen.findByDisplayValue('All Opportunities');
@@ -472,8 +432,8 @@ describe('ObjectView Component', () => {
         render(<ObjectView dataSource={mockDataSource} objects={mockObjects} onEdit={vi.fn()} />);
 
         // Open config panel
-        fireEvent.click(screen.getByTitle('console.objectView.designTools'));
-        fireEvent.click(screen.getByText('console.objectView.editView'));
+        fireEvent.click(screen.getByTestId('view-tab-actions-all'));
+        fireEvent.click(screen.getByTestId('view-tab-menu-config-all'));
         expect(screen.getByTestId('view-config-panel')).toBeInTheDocument();
 
         // Toggle showSearch off — our mock Switch fires onCheckedChange with opposite of aria-checked
@@ -499,8 +459,8 @@ describe('ObjectView Component', () => {
         render(<ObjectView dataSource={mockDataSource} objects={mockObjects} onEdit={vi.fn()} />);
 
         // Open config panel
-        fireEvent.click(screen.getByTitle('console.objectView.designTools'));
-        fireEvent.click(screen.getByText('console.objectView.editView'));
+        fireEvent.click(screen.getByTestId('view-tab-actions-all'));
+        fireEvent.click(screen.getByTestId('view-tab-menu-config-all'));
 
         // Toggle showSort off
         fireEvent.click(screen.getByTestId('section-header-toolbar')); // Expand toolbar (defaultCollapsed)
@@ -521,8 +481,8 @@ describe('ObjectView Component', () => {
         const { container } = render(<ObjectView dataSource={mockDataSource} objects={mockObjects} onEdit={vi.fn()} />);
 
         // Open config panel
-        fireEvent.click(screen.getByTitle('console.objectView.designTools'));
-        fireEvent.click(screen.getByText('console.objectView.editView'));
+        fireEvent.click(screen.getByTestId('view-tab-actions-all'));
+        fireEvent.click(screen.getByTestId('view-tab-menu-config-all'));
 
         // The PluginObjectView should still render (grid) — draft changes are synced live
         expect(screen.getByTestId('object-grid')).toBeInTheDocument();
@@ -543,8 +503,8 @@ describe('ObjectView Component', () => {
         render(<ObjectView dataSource={mockDataSource} objects={mockObjects} onEdit={vi.fn()} />);
 
         // Open config panel
-        fireEvent.click(screen.getByTitle('console.objectView.designTools'));
-        fireEvent.click(screen.getByText('console.objectView.editView'));
+        fireEvent.click(screen.getByTestId('view-tab-actions-all'));
+        fireEvent.click(screen.getByTestId('view-tab-menu-config-all'));
 
         // Change the view label — this triggers onViewUpdate('label', ...)
         const titleInput = await screen.findByDisplayValue('All Opportunities');
@@ -566,8 +526,8 @@ describe('ObjectView Component', () => {
         expect(screen.getByTestId('object-grid')).toBeInTheDocument();
 
         // Open config panel
-        fireEvent.click(screen.getByTitle('console.objectView.designTools'));
-        fireEvent.click(screen.getByText('console.objectView.editView'));
+        fireEvent.click(screen.getByTestId('view-tab-actions-all'));
+        fireEvent.click(screen.getByTestId('view-tab-menu-config-all'));
 
         // Make a change  
         const titleInput = await screen.findByDisplayValue('All Opportunities');
@@ -592,8 +552,8 @@ describe('ObjectView Component', () => {
         expect(screen.queryByTestId('schema-showRecordCount')).not.toBeInTheDocument();
 
         // Open config panel
-        fireEvent.click(screen.getByTitle('console.objectView.designTools'));
-        fireEvent.click(screen.getByText('console.objectView.editView'));
+        fireEvent.click(screen.getByTestId('view-tab-actions-all'));
+        fireEvent.click(screen.getByTestId('view-tab-menu-config-all'));
 
         // Expand the Export & Print section (defaultCollapsed)
         fireEvent.click(screen.getByTestId('section-header-exportPrint'));
@@ -618,8 +578,8 @@ describe('ObjectView Component', () => {
         expect(screen.queryByTestId('schema-allowPrinting')).not.toBeInTheDocument();
 
         // Open config panel
-        fireEvent.click(screen.getByTitle('console.objectView.designTools'));
-        fireEvent.click(screen.getByText('console.objectView.editView'));
+        fireEvent.click(screen.getByTestId('view-tab-actions-all'));
+        fireEvent.click(screen.getByTestId('view-tab-menu-config-all'));
 
         // Expand the Export & Print section (defaultCollapsed)
         fireEvent.click(screen.getByTestId('section-header-exportPrint'));
@@ -672,8 +632,8 @@ describe('ObjectView Component', () => {
         render(<ObjectView dataSource={mockDataSource} objects={mockObjects} onEdit={vi.fn()} />);
 
         // Open config panel
-        fireEvent.click(screen.getByTitle('console.objectView.designTools'));
-        fireEvent.click(screen.getByText('console.objectView.editView'));
+        fireEvent.click(screen.getByTestId('view-tab-actions-all'));
+        fireEvent.click(screen.getByTestId('view-tab-menu-config-all'));
 
         // Toggle showSearch off
         fireEvent.click(screen.getByTestId('section-header-toolbar')); // Expand toolbar (defaultCollapsed)
@@ -729,8 +689,8 @@ describe('ObjectView Component', () => {
         render(<ObjectView dataSource={mockDataSource} objects={mockObjects} onEdit={vi.fn()} />);
 
         // Open config panel
-        fireEvent.click(screen.getByTitle('console.objectView.designTools'));
-        fireEvent.click(screen.getByText('console.objectView.editView'));
+        fireEvent.click(screen.getByTestId('view-tab-actions-all'));
+        fireEvent.click(screen.getByTestId('view-tab-menu-config-all'));
 
         // Change selection mode to 'single'
         fireEvent.click(screen.getByTestId('section-header-records')); // Expand records (defaultCollapsed)
@@ -753,8 +713,8 @@ describe('ObjectView Component', () => {
         expect(screen.queryByTestId('schema-addRecord-enabled')).not.toBeInTheDocument();
 
         // Open config panel
-        fireEvent.click(screen.getByTitle('console.objectView.designTools'));
-        fireEvent.click(screen.getByText('console.objectView.editView'));
+        fireEvent.click(screen.getByTestId('view-tab-actions-all'));
+        fireEvent.click(screen.getByTestId('view-tab-menu-config-all'));
 
         // Toggle addRecord on
         fireEvent.click(screen.getByTestId('section-header-records')); // Expand records (defaultCollapsed)
@@ -778,8 +738,8 @@ describe('ObjectView Component', () => {
         expect(screen.queryByTestId('schema-navigation-mode')).not.toBeInTheDocument();
 
         // Open config panel
-        fireEvent.click(screen.getByTitle('console.objectView.designTools'));
-        fireEvent.click(screen.getByText('console.objectView.editView'));
+        fireEvent.click(screen.getByTestId('view-tab-actions-all'));
+        fireEvent.click(screen.getByTestId('view-tab-menu-config-all'));
 
         // Change navigation mode to 'modal'
         fireEvent.click(screen.getByTestId('section-header-navigation')); // Expand navigation (defaultCollapsed)
@@ -935,8 +895,7 @@ describe('ObjectView Component', () => {
         render(<ObjectView dataSource={mockDataSource} objects={mockObjects} onEdit={vi.fn()} />);
 
         // Open design tools dropdown and click Add View to exercise handleCreateView
-        fireEvent.click(screen.getByTitle('console.objectView.designTools'));
-        fireEvent.click(screen.getByText('console.objectView.addView'));
+        fireEvent.click(screen.getByTestId('view-tab-add'));
 
         // CreateViewDialog should open (Airtable-style type picker + name input)
         expect(screen.getByTestId('create-view-dialog')).toBeInTheDocument();
@@ -948,8 +907,10 @@ describe('ObjectView Component', () => {
 
         render(<ObjectView dataSource={mockDataSource} objects={mockObjects} onEdit={vi.fn()} />);
 
-        // Non-admin should not see the design tools (which contain view actions)
-        expect(screen.queryByTitle('console.objectView.designTools')).not.toBeInTheDocument();
+        // Non-admin should not see the chevron menu's Edit-view-config affordance.
+        expect(screen.queryByTestId('view-tab-menu-config-all')).not.toBeInTheDocument();
+        // Nor the Add View "+" button on the tab bar.
+        expect(screen.queryByTestId('view-tab-add')).not.toBeInTheDocument();
     });
 
     it('opens ViewConfigPanel in edit mode via view action settings callback', () => {
@@ -959,8 +920,8 @@ describe('ObjectView Component', () => {
         render(<ObjectView dataSource={mockDataSource} objects={mockObjects} onEdit={vi.fn()} />);
 
         // Open design tools and click Edit View to exercise handleViewAction('settings')
-        fireEvent.click(screen.getByTitle('console.objectView.designTools'));
-        fireEvent.click(screen.getByText('console.objectView.editView'));
+        fireEvent.click(screen.getByTestId('view-tab-actions-all'));
+        fireEvent.click(screen.getByTestId('view-tab-menu-config-all'));
 
         // ViewConfigPanel should be open in edit mode
         expect(screen.getByTestId('view-config-panel')).toBeInTheDocument();
