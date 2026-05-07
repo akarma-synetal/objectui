@@ -935,15 +935,15 @@ export function ObjectView({ dataSource, objects, onEdit }: any) {
                 window.open(`${basePath}/record/${encodeURIComponent(String(recordId))}`, '_blank');
                 return;
             }
-            // page / view mode — navigate to record detail page
-            // Handles action === 'view' (from useNavigationOverlay page mode) and
-            // default fallthrough for any unrecognised action
-            if (action === 'view' || !action || action === 'page') {
-                if (viewId) {
-                    navigate(`../../record/${encodeURIComponent(String(recordId))}`, { relative: 'path' });
-                } else {
-                    navigate(`record/${encodeURIComponent(String(recordId))}`);
-                }
+            // Default: navigate to record detail page.
+            // `action` may be 'view' / 'page' / undefined, OR a custom view name
+            // forwarded from `navigation.view` (e.g. 'detail_form'). The view
+            // variant is resolved by RecordDetailView from its own config, so
+            // any non-`new_window` action lands on the record detail route.
+            if (viewId) {
+                navigate(`../../record/${encodeURIComponent(String(recordId))}`, { relative: 'path' });
+            } else {
+                navigate(`record/${encodeURIComponent(String(recordId))}`);
             }
         },
         [navigate, viewId]
