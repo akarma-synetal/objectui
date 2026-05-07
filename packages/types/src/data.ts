@@ -343,6 +343,152 @@ export interface DataSource<T = any> {
    * ```
    */
   onMutation?(callback: (event: MutationEvent<T>) => void): () => void;
+
+  /**
+   * Initiate an asynchronous export job for a resource (server-driven streaming export).
+   *
+   * When implemented, callers can fire-and-forget large exports — the data
+   * source is responsible for queueing the job, streaming records to the chosen
+   * format, and producing a downloadable file. UI consumers then poll
+   * `getExportJobProgress` until the job reaches a terminal state and use
+   * `downloadUrl` (or `getExportJobDownloadUrl`) to deliver the file.
+   *
+   * Optional — when not implemented, callers fall back to client-side export
+   * (the legacy synchronous blob path used by ObjectGrid).
+   *
+   * Aligns with the spec v4 `CreateExportJobRequest` / `CreateExportJobResponse`
+   * contracts (see `@objectstack/spec/export`).
+   *
+   * @param resource - Resource name (e.g., 'account', 'opportunity')
+   * @param request - Export request (format, fields, filter, sort, limit, …)
+   * @returns Promise resolving to job tracking info ({ jobId, status, … })
+   */
+  createExportJob?(
+    resource: string,
+    request: CreateExportJobRequest,
+  ): Promise<CreateExportJobResult>;
+
+  /**
+   * Poll the progress of a previously-created export job.
+   *
+   * Optional — required only if `createExportJob` is implemented.
+   *
+   * @param jobId - The job identifier returned by `createExportJob`.
+   * @returns Promise resolving to current progress / terminal status.
+   */
+  getExportJobProgress?(jobId: string): Promise<ExportJobProgressInfo>;
+
+  /**
+   * Cancel an in-flight export job.
+   * Optional — implementations that don't support cancellation may omit this
+   * method (the UI will hide the Cancel button).
+   *
+   * @param jobId - The job identifier to cancel.
+   */
+  cancelExportJob?(jobId: string): Promise<void>;
+
+  /**
+   * Resolve the final download URL for a completed export job.
+   *
+   * Optional — when omitted, consumers fall back to the `downloadUrl` field on
+   * the latest progress payload. Implementations may use this hook to mint
+   * a fresh signed URL just before download.
+   *
+   * @param jobId - The job identifier.
+   * @returns Promise resolving to a downloadable URL (may be short-lived).
+   */
+  getExportJobDownloadUrl?(jobId: string): Promise<string>;
+}
+
+/**
+ * Lifecycle status of a server-driven export job.
+ * Mirrors the `ExportJobStatus` enum from `@objectstack/spec/export`.
+ */
+export type ExportJobStatus =
+  | 'pending'
+  | 'processing'
+  | 'completed'
+  | 'failed'
+  | 'cancelled'
+  | 'expired';
+
+/**
+ * Output formats supported by async export jobs.
+ */
+export type ExportJobFormat = 'json' | 'jsonl' | 'csv' | 'xlsx' | 'parquet';
+
+/**
+ * Request payload for `DataSource.createExportJob`.
+ *
+ * Mirrors the spec v4 `CreateExportJobRequest` shape; ObjectUI does not import
+ * the zod schema directly to keep `@object-ui/types` zero-dependency.
+ */
+export interface CreateExportJobRequest {
+  /** Output file format. Defaults to 'csv'. */
+  format?: ExportJobFormat;
+  /** Subset of fields to include (defaults to all visible columns). */
+  fields?: string[];
+  /** Server-side filter (engine-specific shape, often the view filter). */
+  filter?: Record<string, unknown>;
+  /** Sort instructions; multiple keys allowed. */
+  sort?: Array<{ field: string; direction?: 'asc' | 'desc' }>;
+  /** Hard cap on records exported (server may enforce its own ceiling). */
+  limit?: number;
+  /** Whether to write a header row (CSV/XLSX). Default true. */
+  includeHeaders?: boolean;
+  /** Text encoding for textual formats. Default 'utf-8'. */
+  encoding?: string;
+  /** Optional named template (column ordering, formatting, locale). */
+  templateId?: string;
+}
+
+/**
+ * Result of `DataSource.createExportJob`.
+ *
+ * UI consumers use `jobId` as the polling key.
+ */
+export interface CreateExportJobResult {
+  /** Server-assigned job identifier. */
+  jobId: string;
+  /** Initial status. Usually 'pending' or 'processing'. */
+  status: ExportJobStatus;
+  /** Optional record-count estimate (used to render initial progress). */
+  estimatedRecords?: number;
+  /** ISO-8601 creation timestamp. */
+  createdAt?: string;
+}
+
+/**
+ * Progress payload returned by `DataSource.getExportJobProgress`.
+ *
+ * Once `status` is 'completed', `downloadUrl` (or
+ * `DataSource.getExportJobDownloadUrl`) becomes available.
+ */
+export interface ExportJobProgressInfo {
+  /** Job identifier. */
+  jobId: string;
+  /** Current lifecycle status. */
+  status: ExportJobStatus;
+  /** Format the file is being produced in. */
+  format?: ExportJobFormat;
+  /** Total records in the slice (may be unknown for streaming exports). */
+  totalRecords?: number;
+  /** Records written to the output stream so far. */
+  processedRecords?: number;
+  /** 0–100 progress; computed by the server when `totalRecords` is known. */
+  percentComplete?: number;
+  /** Final file size in bytes (present after completion). */
+  fileSize?: number;
+  /** Direct download URL (present after completion). */
+  downloadUrl?: string;
+  /** ISO-8601 timestamp at which `downloadUrl` expires. */
+  downloadExpiresAt?: string;
+  /** Error details when `status === 'failed'`. */
+  error?: { code: string; message: string };
+  /** ISO-8601 start timestamp. */
+  startedAt?: string;
+  /** ISO-8601 completion timestamp. */
+  completedAt?: string;
 }
 
 /**

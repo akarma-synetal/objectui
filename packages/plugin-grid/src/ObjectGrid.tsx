@@ -29,6 +29,7 @@ import { getCellRenderer, formatCurrency, formatCompactCurrency, formatDate, for
 import {
   Badge, Button, NavigationOverlay, EmptyValue,
   Popover, PopoverContent, PopoverTrigger,
+  ExportProgressDialog, useExportJob,
 } from '@object-ui/components';
 import { usePullToRefresh } from '@object-ui/mobile';
 import { evaluatePlainCondition, buildExpandFields } from '@object-ui/core';
@@ -190,6 +191,8 @@ export const ObjectGrid: React.FC<ObjectGridProps> = ({
   const [useCardView, setUseCardView] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
   const [showExport, setShowExport] = useState(false);
+  const [exportDialogOpen, setExportDialogOpen] = useState(false);
+  const exportJob = useExportJob({ dataSource });
   const [rowHeightMode, setRowHeightMode] = useState<'compact' | 'short' | 'medium' | 'tall' | 'extra_tall'>(schema.rowHeight ?? 'compact');
   const [selectedRows, setSelectedRows] = useState<any[]>([]);
 
@@ -970,6 +973,32 @@ export const ObjectGrid: React.FC<ObjectGridProps> = ({
     const maxRecords = exportConfig?.maxRecords || 0;
     const includeHeaders = exportConfig?.includeHeaders !== false;
     const prefix = exportConfig?.fileNamePrefix || schema.objectName || 'export';
+
+    // Async streaming path — use spec v4 createExportJob when the data source
+    // supports it (and the format is something the server can stream).
+    const asyncEligible = format === 'csv' || format === 'xlsx' || format === 'json';
+    const useAsync = asyncEligible
+      && exportJob.isSupported
+      && schema.objectName
+      && !hasInlineData
+      // Honor an opt-out: schema.exportOptions.streaming === false forces client-side.
+      && (exportConfig as any)?.streaming !== false;
+
+    if (useAsync) {
+      const cols = generateColumns().filter((c: any) => c.accessorKey !== '_actions');
+      const fields = cols.map((c: any) => c.accessorKey).filter(Boolean);
+      setShowExport(false);
+      setExportDialogOpen(true);
+      void exportJob.start(schema.objectName!, {
+        format: format === 'json' ? 'json' : (format as 'csv' | 'xlsx'),
+        fields: fields.length ? fields : undefined,
+        includeHeaders,
+        limit: maxRecords > 0 ? maxRecords : undefined,
+      });
+      return;
+    }
+
+    // Client-side fallback (legacy synchronous blob path).
     const exportData = maxRecords > 0 ? data.slice(0, maxRecords) : data;
 
     const downloadFile = (blob: Blob, filename: string) => {
@@ -1004,7 +1033,7 @@ export const ObjectGrid: React.FC<ObjectGridProps> = ({
       downloadFile(new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' }), `${prefix}.json`);
     }
     setShowExport(false);
-  }, [data, schema.exportOptions, schema.objectName, generateColumns]);
+  }, [data, schema.exportOptions, schema.objectName, generateColumns, exportJob, hasInlineData]);
 
   if (error) {
     return (
@@ -1590,27 +1619,41 @@ export const ObjectGrid: React.FC<ObjectGridProps> = ({
     </>
   );
 
+  // Shared async-export progress dialog (used by both render paths).
+  const exportProgressDialog = (
+    <ExportProgressDialog
+      open={exportDialogOpen}
+      onOpenChange={setExportDialogOpen}
+      job={exportJob}
+      filename={`${schema.exportOptions?.fileNamePrefix || schema.objectName || 'export'}.${exportJob.progress?.format || 'csv'}`}
+      closeAfterDownloadMs={400}
+    />
+  );
+
   // For split mode, wrap the grid in the ResizablePanelGroup
   if (navigation.isOverlay && navigation.mode === 'split') {
     return (
-      <NavigationOverlay
-        {...navigation}
-        title={detailTitle}
-        mainContent={
-          <>
-            {gridToolbar}
-            {gridContent}
-            <BulkActionBar
-              selectedRows={selectedRows}
-              actions={effectiveBulkActions ?? []}
-              onAction={(action, rows) => executeAction({ type: action, params: { records: rows } })}
-              onClearSelection={() => setSelectedRows([])}
-            />
-          </>
-        }
-      >
-        {(record) => renderRecordDetail(record)}
-      </NavigationOverlay>
+      <>
+        <NavigationOverlay
+          {...navigation}
+          title={detailTitle}
+          mainContent={
+            <>
+              {gridToolbar}
+              {gridContent}
+              <BulkActionBar
+                selectedRows={selectedRows}
+                actions={effectiveBulkActions ?? []}
+                onAction={(action, rows) => executeAction({ type: action, params: { records: rows } })}
+                onClearSelection={() => setSelectedRows([])}
+              />
+            </>
+          }
+        >
+          {(record) => renderRecordDetail(record)}
+        </NavigationOverlay>
+        {exportProgressDialog}
+      </>
     );
   }
 
@@ -1640,6 +1683,7 @@ export const ObjectGrid: React.FC<ObjectGridProps> = ({
           {(record) => renderRecordDetail(record)}
         </NavigationOverlay>
       )}
+      {exportProgressDialog}
     </div>
   );
 };
