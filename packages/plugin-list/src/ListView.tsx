@@ -432,9 +432,33 @@ export const ListView = React.forwardRef<ListViewHandle, ListViewProps>(({
   const [dynamicPageSize, setDynamicPageSize] = React.useState<number | undefined>(undefined);
   const effectivePageSize = dynamicPageSize ?? schema.pagination?.pageSize ?? 100;
 
-  // Grouping state (initialized from schema, user can add/remove via popover)
-  const [groupingConfig, setGroupingConfig] = React.useState(schema.grouping);
+  // Grouping state (initialized from schema, user can add/remove via popover).
+  // Supports two input shapes from the schema:
+  //   1. Spec-compliant `grouping: { fields: [...] }` (preferred).
+  //   2. Shorthand `groupBy: 'fieldname'` written by the view config UI —
+  //      normalized into a single-field GroupingConfig so the renderer honors
+  //      grouping configured via the visual view editor.
+  const initialGroupingConfig = React.useMemo(() => {
+    if (schema.grouping?.fields?.length) return schema.grouping;
+    const groupByField = typeof schema.groupBy === 'string' ? schema.groupBy.trim() : '';
+    if (groupByField) {
+      return { fields: [{ field: groupByField, order: 'asc' as const, collapsed: false }] };
+    }
+    return undefined;
+  }, [schema.grouping, schema.groupBy]);
+  const [groupingConfig, setGroupingConfig] = React.useState(initialGroupingConfig);
   const [showGroupPopover, setShowGroupPopover] = React.useState(false);
+
+  // Re-sync grouping when the underlying schema-driven config changes (e.g. the
+  // user edits `groupBy` in the view designer). User-driven changes via the
+  // popover keep the latest interaction since this only fires on schema deltas.
+  const lastSchemaGroupingRef = React.useRef(initialGroupingConfig);
+  React.useEffect(() => {
+    if (lastSchemaGroupingRef.current !== initialGroupingConfig) {
+      lastSchemaGroupingRef.current = initialGroupingConfig;
+      setGroupingConfig(initialGroupingConfig);
+    }
+  }, [initialGroupingConfig]);
 
   // Row color state (initialized from schema, user can configure via popover)
   const [rowColorConfig, setRowColorConfig] = React.useState(schema.rowColor);
