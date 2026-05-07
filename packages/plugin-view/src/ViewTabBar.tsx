@@ -110,6 +110,19 @@ export interface ViewTabItem {
   isPinned?: boolean;
   /** View visibility for grouping */
   visibility?: 'private' | 'team' | 'organization' | 'public';
+  /**
+   * Whether this view is *read-only* (e.g. a System View loaded from
+   * code/metadata, or a view the current user lacks permission to mutate).
+   *
+   * When `true`, mutation menu items (Edit configuration, Rename, Set as
+   * default, Pin, Change view type, Delete) are hidden from the tab's
+   * dropdown / context menu, the inline-rename trigger is disabled, and a
+   * lock icon is rendered next to the label. *Duplicate* remains available
+   * because it produces a fresh override and does not mutate the source.
+   */
+  readonly?: boolean;
+  /** Optional tooltip shown alongside the lock icon when `readonly` is true. */
+  readonlyReason?: string;
 }
 
 /** Available view type for quick-switch palette */
@@ -252,6 +265,7 @@ export const ViewTabBar: React.FC<ViewTabBarProps> = ({
     if (!inlineRename || !onRenameView) return;
     const view = views.find(v => v.id === viewId);
     if (!view) return;
+    if (view.readonly) return; // System views cannot be renamed.
     setRenamingViewId(viewId);
     setRenameValue(view.label);
   }, [inlineRename, onRenameView, views]);
@@ -341,6 +355,12 @@ export const ViewTabBar: React.FC<ViewTabBarProps> = ({
     const isRenaming = renamingViewId === view.id;
     const hasIndicator = showIndicators && (view.hasActiveFilters || view.hasActiveSort);
     const showSeparator = shouldShowVisibilitySeparator(index);
+    /**
+     * System / read-only views suppress mutation menu items so the UI does
+     * not advertise actions that would no-op (or worse, surprise the user
+     * by silently failing in the host's onRename/onDelete handlers).
+     */
+    const isReadonly = !!view.readonly;
 
     const getVisibilityIcon = (view: ViewTabItem) => {
       if (!showVisibilityGroups) return null;
@@ -418,6 +438,20 @@ export const ViewTabBar: React.FC<ViewTabBarProps> = ({
         ) : (
           <span>{view.label}</span>
         )}
+        {isReadonly && (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Lock
+                data-testid={`view-tab-readonly-${view.id}`}
+                aria-label="Read-only view"
+                className="h-3 w-3 text-muted-foreground shrink-0"
+              />
+            </TooltipTrigger>
+            <TooltipContent side="bottom" className="text-xs">
+              {view.readonlyReason || 'System view — duplicate to customize.'}
+            </TooltipContent>
+          </Tooltip>
+        )}
         {hasIndicator && (
           <Tooltip>
             <TooltipTrigger asChild>
@@ -456,7 +490,7 @@ export const ViewTabBar: React.FC<ViewTabBarProps> = ({
               className="min-w-[180px]"
               onClick={(e) => e.stopPropagation()}
             >
-              {onConfigView && (
+              {onConfigView && !isReadonly && (
                 <DropdownMenuItem
                   data-testid={`view-tab-menu-config-${view.id}`}
                   onClick={() => onConfigView(view.id)}
@@ -464,7 +498,7 @@ export const ViewTabBar: React.FC<ViewTabBarProps> = ({
                   <Settings2 className="h-4 w-4 mr-2" /> Edit view config
                 </DropdownMenuItem>
               )}
-              {onRenameView && (
+              {onRenameView && !isReadonly && (
                 <DropdownMenuItem
                   data-testid={`view-tab-menu-rename-${view.id}`}
                   onClick={() => startRename(view.id)}
@@ -488,7 +522,7 @@ export const ViewTabBar: React.FC<ViewTabBarProps> = ({
                   <Share2 className="h-4 w-4 mr-2" /> Share view
                 </DropdownMenuItem>
               )}
-              {onSetDefaultView && (
+              {onSetDefaultView && !isReadonly && (
                 <DropdownMenuItem
                   data-testid={`view-tab-menu-default-${view.id}`}
                   onClick={() => onSetDefaultView(view.id)}
@@ -496,7 +530,7 @@ export const ViewTabBar: React.FC<ViewTabBarProps> = ({
                   <Star className="h-4 w-4 mr-2" /> Set as default
                 </DropdownMenuItem>
               )}
-              {onPinView && (
+              {onPinView && !isReadonly && (
                 <DropdownMenuItem
                   data-testid={`view-tab-menu-pin-${view.id}`}
                   onClick={() => onPinView(view.id, !view.isPinned)}
@@ -506,7 +540,7 @@ export const ViewTabBar: React.FC<ViewTabBarProps> = ({
                     : <><Pin className="h-4 w-4 mr-2" /> Pin view</>}
                 </DropdownMenuItem>
               )}
-              {onChangeViewType && availableViewTypes && availableViewTypes.length > 0 && (
+              {onChangeViewType && !isReadonly && availableViewTypes && availableViewTypes.length > 0 && (
                 <DropdownMenuSub>
                   <DropdownMenuSubTrigger data-testid={`view-tab-menu-change-type-${view.id}`}>
                     <LayoutGrid className="h-4 w-4 mr-2" /> Change view type
@@ -529,7 +563,7 @@ export const ViewTabBar: React.FC<ViewTabBarProps> = ({
                   </DropdownMenuSubContent>
                 </DropdownMenuSub>
               )}
-              {onDeleteView && (
+              {onDeleteView && !isReadonly && (
                 <>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem
@@ -567,7 +601,7 @@ export const ViewTabBar: React.FC<ViewTabBarProps> = ({
             {tabContent}
           </ContextMenuTrigger>
           <ContextMenuContent>
-            {onRenameView && (
+            {onRenameView && !isReadonly && (
               <ContextMenuItem
                 data-testid={`context-menu-rename-${view.id}`}
                 onClick={() => startRename(view.id)}
@@ -591,7 +625,7 @@ export const ViewTabBar: React.FC<ViewTabBarProps> = ({
                 <Share2 className="h-4 w-4 mr-2" /> Share View
               </ContextMenuItem>
             )}
-            {onSetDefaultView && (
+            {onSetDefaultView && !isReadonly && (
               <ContextMenuItem
                 data-testid={`context-menu-default-${view.id}`}
                 onClick={() => onSetDefaultView(view.id)}
@@ -599,7 +633,7 @@ export const ViewTabBar: React.FC<ViewTabBarProps> = ({
                 <Star className="h-4 w-4 mr-2" /> Set as Default
               </ContextMenuItem>
             )}
-            {onPinView && (
+            {onPinView && !isReadonly && (
               <ContextMenuItem
                 data-testid={`context-menu-pin-${view.id}`}
                 onClick={() => onPinView(view.id, !view.isPinned)}
@@ -610,7 +644,7 @@ export const ViewTabBar: React.FC<ViewTabBarProps> = ({
                 }
               </ContextMenuItem>
             )}
-            {onChangeViewType && availableViewTypes && availableViewTypes.length > 0 && (
+            {onChangeViewType && !isReadonly && availableViewTypes && availableViewTypes.length > 0 && (
               <>
                 <ContextMenuSeparator />
                 <ContextMenuSub>
@@ -641,7 +675,7 @@ export const ViewTabBar: React.FC<ViewTabBarProps> = ({
                 </ContextMenuSub>
               </>
             )}
-            {onDeleteView && (
+            {onDeleteView && !isReadonly && (
               <>
                 <ContextMenuSeparator />
                 <ContextMenuItem

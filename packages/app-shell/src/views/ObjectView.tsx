@@ -689,21 +689,26 @@ export function ObjectView({ dataSource, objects, onEdit }: any) {
 
     const handleSetDefaultView = useCallback(async (vid: string) => {
         if (!dataSource?.update) return;
+        if (!isSavedView(vid)) {
+            toast.error(
+                t('console.objectView.cannotEditMetaView')
+                || 'System view — duplicate it to mark a default.',
+            );
+            return;
+        }
         try {
             // Clear `isDefault` on all other saved views, then set this one.
             const updates = savedViews
                 .filter((sv: any) => (sv.id || sv._id) !== vid && sv.isDefault)
                 .map((sv: any) => dataSource.update('sys_view', sv.id || sv._id, { isDefault: false }));
-            if (isSavedView(vid)) {
-                updates.push(dataSource.update('sys_view', vid, { isDefault: true }));
-            }
+            updates.push(dataSource.update('sys_view', vid, { isDefault: true }));
             await Promise.all(updates);
             setRefreshKey(k => k + 1);
         } catch (err) {
             console.error('[ViewTabBar] Failed to set default view:', err);
             toast.error('Failed to set default view');
         }
-    }, [dataSource, savedViews, isSavedView]);
+    }, [dataSource, savedViews, isSavedView, t]);
 
     const handleReorderViews = useCallback(async (orderedIds: string[]) => {
         // Persist order for ALL views (incl. metadata) in localStorage so the
@@ -731,10 +736,20 @@ export function ObjectView({ dataSource, objects, onEdit }: any) {
     }, [dataSource, savedViews, objectName]);
 
     const handleConfigView = useCallback((vid: string) => {
+        // System (metadata-defined) views are read-only — opening the
+        // ViewConfigPanel against one would let the user save changes that
+        // never persist. Steer them to "Duplicate view" instead.
+        if (!isSavedView(vid)) {
+            toast.error(
+                t('console.objectView.cannotEditMetaView')
+                || 'System view — duplicate it to make changes.',
+            );
+            return;
+        }
         if (vid !== activeViewId) handleViewChange(vid);
         setViewConfigPanelMode('edit');
         setShowViewConfigPanel(true);
-    }, [activeViewId, handleViewChange]);
+    }, [activeViewId, handleViewChange, isSavedView, t]);
 
     const handleAddView = useCallback(() => {
         setShowCreateViewDialog(true);
@@ -1221,6 +1236,10 @@ export function ObjectView({ dataSource, objects, onEdit }: any) {
              {views.length >= 1 && (() => {
                const viewTabItems: ViewTabItem[] = views.map((view: any) => {
                  const saved = savedViews.find((sv: any) => (sv.id || sv._id) === view.id);
+                 // System views (loaded from objectDef.listViews / metadata) are
+                 // *read-only*. Only sys_view-backed records can be mutated by
+                 // the user; admins must duplicate a system view to customize it.
+                 const isSystem = !saved;
                  return {
                    id: view.id,
                    label: view.label,
@@ -1230,6 +1249,11 @@ export function ObjectView({ dataSource, objects, onEdit }: any) {
                    isDefault: !!(saved?.isDefault ?? view.isDefault),
                    isPinned: !!(saved?.isPinned ?? view.isPinned),
                    visibility: saved?.visibility ?? view.visibility,
+                   readonly: isSystem,
+                   readonlyReason: isSystem
+                     ? (t('console.objectView.systemViewReadonly')
+                       || 'System view defined in code — duplicate to customize.')
+                     : undefined,
                  } as ViewTabItem;
                });
                return (
