@@ -1,5 +1,21 @@
 # @object-ui/types
 
+## 4.0.0
+
+### Major Changes
+
+- Release v4.0.0: Unified app shell, convention-based i18n, and plugin architecture overhaul.
+
+  ### Major Changes
+  - **`@object-ui/app-shell`**: New unified application shell with sidebar, breadcrumb, and dashboard wiring.
+  - **`@object-ui/providers`**: Promoted to first-class fixed package; new `DataSourceProvider` and `ThemeProvider` APIs.
+  - **Convention-based i18n** (`@object-ui/i18n`): `useObjectLabel` now covers nav groups, dashboards, pages, reports, charts, and field options — zero-config localisation via translation packs.
+  - **Dashboard surface i18n**: `DashboardRenderer`, `DashboardView`, `ChartRenderer`, `ObjectDataTable`, `ObjectChart`, and `data-table` all resolve labels through the i18n convention.
+  - **Sidebar/breadcrumb/chart i18n**: Full i18n coverage across navigation, breadcrumbs, chart axes/legends, and table column headers.
+  - **System view immutability**: Read-only UI affordances for system-managed views.
+  - **Multi-level grouping**: Nested sub-group support with inline grouping editor.
+  - **Record title resolution**: `titleFormat` and separator cleanup for consistent record display.
+
 ## 3.4.0
 
 ### Minor Changes
