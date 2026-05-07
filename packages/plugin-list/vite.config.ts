@@ -33,12 +33,25 @@ export default defineConfig({
       fileName: (format) => `index.${format === 'es' ? 'js' : 'umd.cjs'}`,
     },
     rollupOptions: {
-      external: ['react', 'react-dom', 'react/jsx-runtime'],
+      // IMPORTANT: do NOT inline @object-ui/* runtime packages.
+      // Each plugin must share the same ComponentRegistry singleton from
+      // @object-ui/core; bundling core into every plugin creates per-plugin
+      // private registries and breaks cross-plugin component lookup.
+      external: (id) =>
+        /^(react|react-dom|react\/jsx-runtime|@object-ui\/(core|types|react|components|fields|i18n|mobile|layout|app-shell|theme|providers)|lucide-react)(\/|$)/.test(id),
       output: {
         globals: {
           react: 'React',
           'react-dom': 'ReactDOM',
           'react/jsx-runtime': 'jsxRuntime',
+          '@object-ui/core': 'ObjectUICore',
+          '@object-ui/types': 'ObjectUITypes',
+          '@object-ui/react': 'ObjectUIReact',
+          '@object-ui/components': 'ObjectUIComponents',
+          '@object-ui/fields': 'ObjectUIFields',
+          '@object-ui/i18n': 'ObjectUIi18n',
+          '@object-ui/mobile': 'ObjectUIMobile',
+          'lucide-react': 'LucideReact',
         },
       },
     },

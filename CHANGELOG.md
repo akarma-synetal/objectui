@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **`@object-ui/plugin-list` & `@object-ui/plugin-detail`: shared `ComponentRegistry` singleton broken when consumed via published dist.** Both packages' `vite.config.ts` only listed `react`, `react-dom`, `react/jsx-runtime` in `rollupOptions.external`. As a result Rolldown inlined `@object-ui/core` (and a large chunk of lucide-react) into each plugin's bundle, giving every plugin its **own private `ComponentRegistry` instance**. Downstream apps that loaded the published plugins from npm saw `registry.get('object-grid')` from one plugin return `undefined` for components registered by another plugin — only workspace `alias` overrides pointing back to `packages/*/src` masked the issue. The `external` config now uses a regex covering all `@object-ui/*` workspace packages, the `@object-ui/*` deps have been moved from `dependencies` to `peerDependencies` (versioned `workspace:^` for publish-time rewrite, mirrored in `devDependencies` for local builds), and a regression test (`packages/core/src/registry/__tests__/cross-plugin-singleton.test.ts`) imports the built dist of `@object-ui/plugin-grid` and `@object-ui/plugin-list` and asserts cross-plugin lookup works against the same `ComponentRegistry` singleton. Downstream consumers (e.g. framework `apps/dashboard`) can now drop any `OBJECTUI_ROOT` / `packages/*/src` aliases.
+  - `packages/plugin-list/dist/index.js` shrank from a multi-megabyte icon bundle to **67 kB** (gzip 16 kB).
+  - `packages/plugin-detail/dist/index.js` shrank to **124 kB** (gzip 28 kB).
 - **CI: `apps/console` ObjectView test failures.** The `vi.mock('@object-ui/i18n', ...)`
   block in `apps/console/dev/__tests__/ObjectView.test.tsx` was returning bare
   functions for `useObjectTranslation` / `useObjectLabel`, but the real hooks
