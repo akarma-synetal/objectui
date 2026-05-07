@@ -58,6 +58,41 @@ const userName = scope.get('user.name') // 'John'
 const isAdmin = scope.evaluate('${user.role === "admin"}') // true
 ```
 
+### System Views (`defineView`)
+
+Schemas authored in source code are part of the product contract and must
+not be mutated at runtime. Wrap them with `defineView()` to deep-freeze the
+graph and tag it as a *System View*.
+
+```typescript
+import { defineView, cloneAsOverride, isSystemView } from '@object-ui/core'
+
+export const userListView = defineView({
+  type: 'list',
+  data: { object: 'User' },
+  columns: [{ name: 'email' }],
+})
+
+userListView.columns.push({ name: 'name' }) // ❌ TypeError (strict mode)
+isSystemView(userListView)                   // ✅ true
+
+// To produce a Tenant- or User-level override, derive a mutable copy:
+const draft = cloneAsOverride(userListView)
+draft.columns.push({ name: 'name' })         // ✅ allowed
+isSystemView(draft)                          // false — clone is no longer System
+```
+
+**View tiers (recommended layering):**
+
+| Tier        | Source                | Mutable? | API                         |
+| ----------- | --------------------- | -------- | --------------------------- |
+| System View | code (`import` / `as const`) | ❌ frozen | `defineView()`              |
+| Tenant View | backend / DB          | ⚠️ admin only | `cloneAsOverride()` + persist |
+| User View   | localStorage / API    | ✅ user-editable | `cloneAsOverride()` + persist |
+
+`Date`, `RegExp`, `Map`, `Set`, and class instances passed via `props` are
+intentionally **not** frozen so infrastructure objects keep working.
+
 ## Philosophy
 
 This package is designed to be **framework-agnostic**. It contains:

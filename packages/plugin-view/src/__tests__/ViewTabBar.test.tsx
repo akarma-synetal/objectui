@@ -717,4 +717,88 @@ describe('ViewTabBar', () => {
       expect(onViewChange).not.toHaveBeenCalled();
     });
   });
+
+  // ============================
+  // Read-only / System Views
+  // ============================
+  describe('Read-only (System) views', () => {
+    /** A view marked `readonly: true` (e.g. loaded from `objectDef.listViews`) */
+    const buildReadonlyView = (): ViewTabItem[] => [
+      { id: 'sys-1', label: 'System View', type: 'grid', readonly: true },
+      { id: 'usr-1', label: 'User View', type: 'grid' },
+    ];
+
+    it('renders a Lock icon next to a read-only view label', () => {
+      render(
+        <ViewTabBar
+          views={buildReadonlyView()}
+          activeViewId="sys-1"
+          onViewChange={vi.fn()}
+        />,
+      );
+      expect(screen.getByTestId('view-tab-readonly-sys-1')).toBeDefined();
+      expect(screen.queryByTestId('view-tab-readonly-usr-1')).toBeNull();
+    });
+
+    it('hides Edit / Rename / Set-default / Pin / Delete from the dropdown for read-only views', async () => {
+      const user = userEvent.setup();
+      render(
+        <ViewTabBar
+          views={buildReadonlyView()}
+          activeViewId="sys-1"
+          onViewChange={vi.fn()}
+          onConfigView={vi.fn()}
+          onRenameView={vi.fn()}
+          onDuplicateView={vi.fn()}
+          onSetDefaultView={vi.fn()}
+          onPinView={vi.fn()}
+          onDeleteView={vi.fn()}
+        />,
+      );
+      await user.click(screen.getByTestId('view-tab-actions-sys-1'));
+      expect(screen.queryByTestId('view-tab-menu-config-sys-1')).toBeNull();
+      expect(screen.queryByTestId('view-tab-menu-rename-sys-1')).toBeNull();
+      expect(screen.queryByTestId('view-tab-menu-default-sys-1')).toBeNull();
+      expect(screen.queryByTestId('view-tab-menu-pin-sys-1')).toBeNull();
+      expect(screen.queryByTestId('view-tab-menu-delete-sys-1')).toBeNull();
+      // Duplicate is intentionally preserved — it is the canonical
+      // override path: duplicate a system view to produce a mutable copy.
+      expect(screen.getByTestId('view-tab-menu-duplicate-sys-1')).toBeDefined();
+    });
+
+    it('still shows mutation actions for non-readonly views', async () => {
+      const user = userEvent.setup();
+      render(
+        <ViewTabBar
+          views={buildReadonlyView()}
+          activeViewId="usr-1"
+          onViewChange={vi.fn()}
+          onConfigView={vi.fn()}
+          onRenameView={vi.fn()}
+          onDeleteView={vi.fn()}
+        />,
+      );
+      await user.click(screen.getByTestId('view-tab-actions-usr-1'));
+      expect(screen.getByTestId('view-tab-menu-config-usr-1')).toBeDefined();
+      expect(screen.getByTestId('view-tab-menu-rename-usr-1')).toBeDefined();
+      expect(screen.getByTestId('view-tab-menu-delete-usr-1')).toBeDefined();
+    });
+
+    it('does not start inline rename for a read-only view (double-click no-op)', async () => {
+      const user = userEvent.setup();
+      const onRenameView = vi.fn();
+      render(
+        <ViewTabBar
+          views={buildReadonlyView()}
+          activeViewId="sys-1"
+          onViewChange={vi.fn()}
+          onRenameView={onRenameView}
+        />,
+      );
+      await user.dblClick(screen.getByTestId('view-tab-sys-1'));
+      // No rename input appears because startRename short-circuits on readonly.
+      expect(screen.queryByTestId('view-tab-rename-input-sys-1')).toBeNull();
+      expect(onRenameView).not.toHaveBeenCalled();
+    });
+  });
 });

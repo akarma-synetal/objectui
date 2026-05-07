@@ -57,6 +57,7 @@ import {
   Table as TableIcon,
   Check,
   X,
+  Lock,
 } from 'lucide-react';
 import { cn } from '@object-ui/components';
 import type { ViewTabItem } from './ViewTabBar';
@@ -136,6 +137,10 @@ const SortableRow: React.FC<RowProps> = ({
 
   const inputRef = useRef<HTMLInputElement>(null);
   const [draftName, setDraftName] = useState(view.label);
+  // System / read-only views suppress mutation affordances (rename, set
+  // default, pin, edit configuration, delete). Duplicate is preserved
+  // because it produces a fresh override that *is* mutable.
+  const isReadonly = !!view.readonly;
 
   useEffect(() => {
     if (isRenaming) {
@@ -211,17 +216,24 @@ const SortableRow: React.FC<RowProps> = ({
         ) : (
           <button
             type="button"
-            className="w-full text-left text-sm font-medium truncate cursor-pointer"
+            className="w-full text-left text-sm font-medium truncate cursor-pointer flex items-center gap-1.5"
             onDoubleClick={(e) => {
               e.stopPropagation();
-              onStartRename(view.id);
+              if (!isReadonly) onStartRename(view.id);
             }}
             title={view.label}
           >
-            {view.label}
+            <span className="truncate">{view.label}</span>
+            {isReadonly && (
+              <Lock
+                aria-label="Read-only view"
+                data-testid={`manage-views-readonly-${view.id}`}
+                className="h-3 w-3 text-muted-foreground shrink-0"
+              />
+            )}
             {view.isDefault && (
               <span
-                className="ml-2 inline-flex items-center text-[10px] uppercase tracking-wide text-muted-foreground"
+                className="ml-1 inline-flex items-center text-[10px] uppercase tracking-wide text-muted-foreground"
                 title="Default view"
               >
                 <Star className="h-3 w-3 mr-0.5 fill-current" /> default
@@ -232,7 +244,7 @@ const SortableRow: React.FC<RowProps> = ({
       </div>
 
       {/* Pin toggle */}
-      {onSetPinned && !isRenaming && (
+      {onSetPinned && !isRenaming && !isReadonly && (
         <TooltipProvider delayDuration={300}>
           <Tooltip>
             <TooltipTrigger asChild>
@@ -260,7 +272,7 @@ const SortableRow: React.FC<RowProps> = ({
       )}
 
       {/* Set default */}
-      {onSetDefault && !isRenaming && !view.isDefault && (
+      {onSetDefault && !isRenaming && !view.isDefault && !isReadonly && (
         <TooltipProvider delayDuration={300}>
           <Tooltip>
             <TooltipTrigger asChild>
@@ -297,12 +309,14 @@ const SortableRow: React.FC<RowProps> = ({
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="min-w-[180px]">
-            <DropdownMenuItem
-              data-testid={`manage-views-action-rename-${view.id}`}
-              onClick={() => onStartRename(view.id)}
-            >
-              <Pencil className="h-4 w-4 mr-2" /> Rename
-            </DropdownMenuItem>
+            {!isReadonly && (
+              <DropdownMenuItem
+                data-testid={`manage-views-action-rename-${view.id}`}
+                onClick={() => onStartRename(view.id)}
+              >
+                <Pencil className="h-4 w-4 mr-2" /> Rename
+              </DropdownMenuItem>
+            )}
             {onDuplicate && (
               <DropdownMenuItem
                 data-testid={`manage-views-action-duplicate-${view.id}`}
@@ -311,7 +325,7 @@ const SortableRow: React.FC<RowProps> = ({
                 <Copy className="h-4 w-4 mr-2" /> Duplicate
               </DropdownMenuItem>
             )}
-            {onConfigView && (
+            {onConfigView && !isReadonly && (
               <DropdownMenuItem
                 data-testid={`manage-views-action-config-${view.id}`}
                 onClick={() => onConfigView(view.id)}
@@ -319,7 +333,7 @@ const SortableRow: React.FC<RowProps> = ({
                 <Pencil className="h-4 w-4 mr-2" /> Edit configuration…
               </DropdownMenuItem>
             )}
-            {onSetDefault && !view.isDefault && (
+            {onSetDefault && !view.isDefault && !isReadonly && (
               <DropdownMenuItem
                 data-testid={`manage-views-action-default-${view.id}`}
                 onClick={() => onSetDefault(view.id)}
@@ -327,7 +341,7 @@ const SortableRow: React.FC<RowProps> = ({
                 <Star className="h-4 w-4 mr-2" /> Set as default
               </DropdownMenuItem>
             )}
-            {onSetPinned && (
+            {onSetPinned && !isReadonly && (
               <DropdownMenuItem
                 data-testid={`manage-views-action-pin-${view.id}`}
                 onClick={() => onSetPinned(view.id, !view.isPinned)}
@@ -337,7 +351,7 @@ const SortableRow: React.FC<RowProps> = ({
                   : <><Pin className="h-4 w-4 mr-2" /> Pin</>}
               </DropdownMenuItem>
             )}
-            {onDelete && (
+            {onDelete && !isReadonly && (
               <>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem

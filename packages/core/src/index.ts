@@ -27,6 +27,7 @@ export * from './errors/index.js';
 export * from './utils/debug.js';
 export * from './utils/debug-collector.js';
 export * from './utils/merge-views-into-objects.js';
+export * from './utils/freeze-schema.js';
 export * from './protocols/index.js';
 
 /**
