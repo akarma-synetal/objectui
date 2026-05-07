@@ -242,7 +242,14 @@ export function AppHeader({
             : trimmedTitle;
           extraSegments.push({ label: displayTitle || `#${shortId}` });
         } else if (pathParts[3] === 'view' && pathParts[4]) {
-          extraSegments.push({ label: humanizeSlug(pathParts[4]) });
+          // Prefer the view's metadata label (e.g. "Lead Pipeline") over a
+          // humanized slug ("Kanban By Status") so the breadcrumb matches the
+          // tab label users clicked.
+          const viewName = pathParts[4];
+          const definedViews = (currentObject as any).listViews || (currentObject as any).list_views || {};
+          const viewDef = (definedViews as Record<string, any>)[viewName];
+          const viewLabel = (viewDef && (viewDef.label || viewDef.title)) || humanizeSlug(viewName);
+          extraSegments.push({ label: viewLabel });
         }
       }
     }

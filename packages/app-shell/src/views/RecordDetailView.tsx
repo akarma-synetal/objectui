@@ -22,6 +22,7 @@ import { ActionParamDialog, type ParamDialogState } from './ActionParamDialog';
 import { useRecordBreadcrumbTitle } from '../context/NavigationContext';
 import type { DetailViewSchema, FeedItem, HighlightField, SectionGroup } from '@object-ui/types';
 import type { ActionDef, ActionParamDef } from '@object-ui/core';
+import { getRecordDisplayName } from '../utils';
 
 interface RecordDetailViewProps {
   dataSource: any;
@@ -568,18 +569,13 @@ export function RecordDetailView({ dataSource, objects, onEdit }: RecordDetailVi
               objectLabel={objectDef.label}
               onDataLoaded={(record) => {
                 if (!record || typeof record !== 'object') return;
-                const primary = detailSchema.primaryField;
-                const candidates = [
-                  primary && record[primary],
-                  record.name,
-                  record.title,
-                  record.label,
-                  record.subject,
-                ];
-                const next = candidates.find(
-                  (v) => typeof v === 'string' && v.trim().length > 0
-                );
-                if (next && next !== recordTitle) setRecordTitle(next);
+                // Resolve the same way DetailView's header does, so the
+                // breadcrumb matches the on-page title (e.g. "David Kim"
+                // instead of "#lead-1778…").
+                const resolved = getRecordDisplayName(objectDef, record);
+                if (resolved && resolved !== recordTitle && resolved !== 'Untitled') {
+                  setRecordTitle(resolved);
+                }
               }}
               onEdit={() => {
                 onEdit({ id: pureRecordId });
