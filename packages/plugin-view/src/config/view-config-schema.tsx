@@ -958,34 +958,128 @@ function buildDataSection(
                 },
             },
             // NOTE: prefixField removed — not consumed by any runtime renderer
-            // UI extension: groupBy — visible for grid/gallery (kanban has dedicated type-specific option).
+            // UI extension: grouping — Airtable-style multi-level grouping editor.
+            // Visible for grid/gallery (kanban has dedicated type-specific groupByField).
+            // Writes to spec-compliant `grouping: { fields: [{field, order, collapsed}] }`.
+            // Reads back from `grouping`, with fallback to legacy `groupBy`/`groupBy2` shorthand
+            // for backward-compatibility with views saved by previous versions.
             {
-                key: '_groupBy',
+                key: '_grouping',
                 label: t('console.objectView.groupBy'),
                 type: 'custom',
                 visibleWhen: supportsGenericGroupBy,
                 render: (_value: any, _onChange: any, draft: any) => {
-                    const viewType = draft.type || 'grid';
-                    const groupByValue = draft.kanban?.groupByField || draft.kanban?.groupField || draft.groupBy || '';
+                    const MAX_LEVELS = 3;
+
+                    // Normalize current value: prefer spec `grouping.fields`, fall back to
+                    // legacy shorthand fields so old views render correctly in the editor.
+                    const current: Array<{ field: string; order: 'asc' | 'desc'; collapsed: boolean }> =
+                        Array.isArray(draft.grouping?.fields) && draft.grouping.fields.length
+                            ? draft.grouping.fields.map((f: any) => ({
+                                field: f.field,
+                                order: f.order === 'desc' ? 'desc' : 'asc',
+                                collapsed: !!f.collapsed,
+                            }))
+                            : [
+                                draft.groupBy && { field: draft.groupBy, order: 'asc' as const, collapsed: false },
+                                draft.groupBy2 && { field: draft.groupBy2, order: 'asc' as const, collapsed: false },
+                            ].filter(Boolean) as any;
+
+                    const writeFields = (next: Array<{ field: string; order: 'asc' | 'desc'; collapsed: boolean }>) => {
+                        updateField('grouping', next.length ? { fields: next } : undefined);
+                        // Keep legacy shorthands in sync so older renderers (or downstream
+                        // consumers still reading them) stay consistent.
+                        updateField('groupBy', next[0]?.field || undefined);
+                        updateField('groupBy2', next[1]?.field || undefined);
+                    };
+
+                    const usedFields = new Set(current.map(g => g.field));
+
                     return (
                         <ConfigRow label={t('console.objectView.groupBy')}>
-                            <select
-                                data-testid="data-groupBy"
-                                className="text-xs h-7 rounded-md border border-input bg-background px-2 text-foreground max-w-[120px]"
-                                value={groupByValue}
-                                onChange={(e: React.ChangeEvent<HTMLSelectElement>) => {
-                                    updateField('groupBy', e.target.value);
-                                    if (viewType === 'kanban') {
-                                        const current = draft.kanban || {};
-                                        updateField('kanban', { ...current, groupByField: e.target.value });
-                                    }
-                                }}
-                            >
-                                <option value="">{t('console.objectView.none')}</option>
-                                {fieldOptions.map(f => (
-                                    <option key={f.value} value={f.value}>{f.label}</option>
+                            <div data-testid="data-grouping" className="flex flex-col gap-1.5 w-full">
+                                {current.map((g, idx) => (
+                                    <div key={idx} className="flex items-center gap-1.5">
+                                        <select
+                                            data-testid={`data-grouping-field-${idx}`}
+                                            className="text-xs h-7 rounded-md border border-input bg-background px-2 text-foreground flex-1 min-w-0"
+                                            value={g.field}
+                                            onChange={(e: React.ChangeEvent<HTMLSelectElement>) => {
+                                                const next = [...current];
+                                                next[idx] = { ...g, field: e.target.value };
+                                                writeFields(next);
+                                            }}
+                                        >
+                                            {fieldOptions
+                                                .filter(f => f.value === g.field || !usedFields.has(f.value))
+                                                .map(f => (
+                                                    <option key={f.value} value={f.value}>{f.label}</option>
+                                                ))}
+                                        </select>
+                                        <button
+                                            type="button"
+                                            title={g.order === 'asc' ? 'Ascending' : 'Descending'}
+                                            data-testid={`data-grouping-order-${idx}`}
+                                            className="text-xs h-7 w-7 rounded-md border border-input bg-background text-foreground hover:bg-muted"
+                                            onClick={() => {
+                                                const next = [...current];
+                                                next[idx] = { ...g, order: g.order === 'asc' ? 'desc' : 'asc' };
+                                                writeFields(next);
+                                            }}
+                                        >
+                                            {g.order === 'asc' ? '↑' : '↓'}
+                                        </button>
+                                        <label
+                                            title={t('console.objectView.collapsedByDefault', 'Collapsed by default')}
+                                            className="flex items-center text-xs text-muted-foreground"
+                                        >
+                                            <input
+                                                type="checkbox"
+                                                data-testid={`data-grouping-collapsed-${idx}`}
+                                                className="h-3 w-3"
+                                                checked={g.collapsed}
+                                                onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                                                    const next = [...current];
+                                                    next[idx] = { ...g, collapsed: e.target.checked };
+                                                    writeFields(next);
+                                                }}
+                                            />
+                                        </label>
+                                        <button
+                                            type="button"
+                                            title={t('console.objectView.removeGroup', 'Remove')}
+                                            data-testid={`data-grouping-remove-${idx}`}
+                                            className="text-xs h-7 w-7 rounded-md border border-input bg-background text-muted-foreground hover:bg-muted hover:text-destructive"
+                                            onClick={() => {
+                                                const next = current.filter((_, i) => i !== idx);
+                                                writeFields(next);
+                                            }}
+                                        >
+                                            ✕
+                                        </button>
+                                    </div>
                                 ))}
-                            </select>
+                                {current.length < MAX_LEVELS && (() => {
+                                    const remaining = fieldOptions.filter(f => !usedFields.has(f.value));
+                                    if (remaining.length === 0) return null;
+                                    return (
+                                        <button
+                                            type="button"
+                                            data-testid="data-grouping-add"
+                                            className="text-xs h-7 rounded-md border border-dashed border-input bg-background px-2 text-muted-foreground hover:bg-muted hover:text-foreground self-start"
+                                            onClick={() => {
+                                                const next = [
+                                                    ...current,
+                                                    { field: remaining[0].value, order: 'asc' as const, collapsed: false },
+                                                ];
+                                                writeFields(next);
+                                            }}
+                                        >
+                                            + {t('console.objectView.addGroup', 'Add group field')}
+                                        </button>
+                                    );
+                                })()}
+                            </div>
                         </ConfigRow>
                     );
                 },

@@ -230,6 +230,46 @@ describe('ListView grouping config propagation', () => {
     expect(capturedSchema.grouping).toBeUndefined();
   });
 
+  it('normalizes shorthand groupBy string into a GroupingConfig for grid view', () => {
+    render(
+      <ListView
+        schema={{
+          type: 'list-view',
+          objectName: 'products',
+          viewType: 'grid',
+          fields: ['name', 'category'],
+          // Shorthand written by the view-config UI.
+          groupBy: 'category',
+          data: testData,
+        }}
+      />,
+    );
+
+    expect(capturedSchema).toBeDefined();
+    expect(capturedSchema.type).toBe('object-grid');
+    expect(capturedSchema.grouping).toEqual({
+      fields: [{ field: 'category', order: 'asc', collapsed: false }],
+    });
+  });
+
+  it('prefers explicit grouping over shorthand groupBy', () => {
+    render(
+      <ListView
+        schema={{
+          type: 'list-view',
+          objectName: 'products',
+          viewType: 'grid',
+          fields: ['name', 'category'],
+          grouping: groupingConfig,
+          groupBy: 'name',
+          data: testData,
+        }}
+      />,
+    );
+
+    expect(capturedSchema.grouping).toEqual(groupingConfig);
+  });
+
   it('does not pass grouping when no grouping config exists', () => {
     render(
       <ListView

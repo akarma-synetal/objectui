@@ -372,8 +372,8 @@ describe('useGroupedData aggregations', () => {
     const agg: AggregationConfig[] = [{ field: 'amount', type: 'sum' }];
     const { result } = renderHook(() => useGroupedData(config, data, agg));
 
-    const groupA = result.current.groups.find((g) => g.key === 'A')!;
-    const groupB = result.current.groups.find((g) => g.key === 'B')!;
+    const groupA = result.current.groups.find((g) => g.label === 'A')!;
+    const groupB = result.current.groups.find((g) => g.label === 'B')!;
 
     expect(groupA.aggregations[0]).toEqual({ field: 'amount', type: 'sum', value: 30 });
     expect(groupB.aggregations[0]).toEqual({ field: 'amount', type: 'sum', value: 120 });
@@ -383,8 +383,8 @@ describe('useGroupedData aggregations', () => {
     const agg: AggregationConfig[] = [{ field: 'amount', type: 'count' }];
     const { result } = renderHook(() => useGroupedData(config, data, agg));
 
-    const groupA = result.current.groups.find((g) => g.key === 'A')!;
-    const groupB = result.current.groups.find((g) => g.key === 'B')!;
+    const groupA = result.current.groups.find((g) => g.label === 'A')!;
+    const groupB = result.current.groups.find((g) => g.label === 'B')!;
 
     expect(groupA.aggregations[0]).toEqual({ field: 'amount', type: 'count', value: 2 });
     expect(groupB.aggregations[0]).toEqual({ field: 'amount', type: 'count', value: 3 });
@@ -394,8 +394,8 @@ describe('useGroupedData aggregations', () => {
     const agg: AggregationConfig[] = [{ field: 'amount', type: 'avg' }];
     const { result } = renderHook(() => useGroupedData(config, data, agg));
 
-    const groupA = result.current.groups.find((g) => g.key === 'A')!;
-    const groupB = result.current.groups.find((g) => g.key === 'B')!;
+    const groupA = result.current.groups.find((g) => g.label === 'A')!;
+    const groupB = result.current.groups.find((g) => g.label === 'B')!;
 
     expect(groupA.aggregations[0]).toEqual({ field: 'amount', type: 'avg', value: 15 });
     expect(groupB.aggregations[0]).toEqual({ field: 'amount', type: 'avg', value: 40 });
@@ -409,7 +409,7 @@ describe('useGroupedData aggregations', () => {
     ];
     const { result } = renderHook(() => useGroupedData(config, data, agg));
 
-    const groupA = result.current.groups.find((g) => g.key === 'A')!;
+    const groupA = result.current.groups.find((g) => g.label === 'A')!;
     expect(groupA.aggregations).toHaveLength(3);
     expect(groupA.aggregations[0]).toEqual({ field: 'amount', type: 'sum', value: 30 });
     expect(groupA.aggregations[1]).toEqual({ field: 'amount', type: 'count', value: 2 });

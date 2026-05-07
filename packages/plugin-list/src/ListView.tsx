@@ -432,9 +432,40 @@ export const ListView = React.forwardRef<ListViewHandle, ListViewProps>(({
   const [dynamicPageSize, setDynamicPageSize] = React.useState<number | undefined>(undefined);
   const effectivePageSize = dynamicPageSize ?? schema.pagination?.pageSize ?? 100;
 
-  // Grouping state (initialized from schema, user can add/remove via popover)
-  const [groupingConfig, setGroupingConfig] = React.useState(schema.grouping);
+  // Grouping state (initialized from schema, user can add/remove via popover).
+  // Supports three input shapes from the schema:
+  //   1. Spec-compliant `grouping: { fields: [...] }` (preferred — supports
+  //      arbitrary nesting depth).
+  //   2. Shorthand `groupBy: 'fieldname'` written by the view config UI for
+  //      the primary group.
+  //   3. Optional `groupBy2: 'fieldname'` for a secondary (nested) group,
+  //      enabling Airtable-style two-level grouping from the visual editor.
+  // Any combination of (2) + (3) is normalized into a multi-level
+  // GroupingConfig so the renderer honors grouping configured visually.
+  const initialGroupingConfig = React.useMemo(() => {
+    if (schema.grouping?.fields?.length) return schema.grouping;
+    const primary = typeof schema.groupBy === 'string' ? schema.groupBy.trim() : '';
+    const secondary = typeof schema.groupBy2 === 'string' ? schema.groupBy2.trim() : '';
+    const fields: Array<{ field: string; order: 'asc'; collapsed: boolean }> = [];
+    if (primary) fields.push({ field: primary, order: 'asc', collapsed: false });
+    if (secondary && secondary !== primary) {
+      fields.push({ field: secondary, order: 'asc', collapsed: false });
+    }
+    return fields.length > 0 ? { fields } : undefined;
+  }, [schema.grouping, schema.groupBy, schema.groupBy2]);
+  const [groupingConfig, setGroupingConfig] = React.useState(initialGroupingConfig);
   const [showGroupPopover, setShowGroupPopover] = React.useState(false);
+
+  // Re-sync grouping when the underlying schema-driven config changes (e.g. the
+  // user edits `groupBy` in the view designer). User-driven changes via the
+  // popover keep the latest interaction since this only fires on schema deltas.
+  const lastSchemaGroupingRef = React.useRef(initialGroupingConfig);
+  React.useEffect(() => {
+    if (lastSchemaGroupingRef.current !== initialGroupingConfig) {
+      lastSchemaGroupingRef.current = initialGroupingConfig;
+      setGroupingConfig(initialGroupingConfig);
+    }
+  }, [initialGroupingConfig]);
 
   // Row color state (initialized from schema, user can configure via popover)
   const [rowColorConfig, setRowColorConfig] = React.useState(schema.rowColor);

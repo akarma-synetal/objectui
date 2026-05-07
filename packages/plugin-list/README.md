@@ -40,6 +40,44 @@ function ContactsView() {
 }
 ```
 
+### Grouping Records (Airtable-style)
+
+Group rows in grid/gallery views by one or more fields. Two equivalent shapes
+are supported on the schema:
+
+```tsx
+// Spec-compliant: structured GroupingConfig (multi-level + per-field options)
+<ListView
+  schema={{
+    type: 'list-view',
+    objectName: 'tasks',
+    viewType: 'grid',
+    fields: ['title', 'status', 'assignee'],
+    grouping: {
+      fields: [
+        { field: 'status', order: 'asc', collapsed: false },
+        { field: 'assignee', order: 'asc', collapsed: true },
+      ],
+    },
+  }}
+/>
+
+// Shorthand: a single field name (used by the visual view-config UI).
+// Internally normalized into the GroupingConfig above.
+<ListView
+  schema={{
+    type: 'list-view',
+    objectName: 'tasks',
+    viewType: 'grid',
+    fields: ['title', 'status'],
+    groupBy: 'status',
+  }}
+/>
+```
+
+When both are present, `grouping` wins. End users can also add or remove
+grouping fields at runtime via the Group toolbar button.
+
 ### With Multiple View Types
 
 ```tsx

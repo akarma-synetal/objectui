@@ -873,6 +873,8 @@ export const ObjectView: React.FC<ObjectViewProps> = ({
           rowHeight: activeView?.rowHeight,
           densityMode: activeView?.densityMode,
           groupBy: activeView?.groupBy,
+          groupBy2: activeView?.groupBy2,
+          grouping: activeView?.grouping,
           options: currentNamedViewConfig?.options || activeView,
           // Propagate toolbar toggle flags
           showSearch: activeView?.showSearch ?? schema.showSearch,

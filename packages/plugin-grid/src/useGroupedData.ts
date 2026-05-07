@@ -31,16 +31,28 @@ export interface AggregationResult {
 }
 
 export interface GroupEntry {
-  /** Composite key identifying this group (field values joined by ' / ') */
+  /** Composite key identifying this group (unique across all levels) */
   key: string;
-  /** Display label for the group header */
+  /** Display label for the group header (current level only) */
   label: string;
-  /** Rows belonging to this group */
+  /** Field name this group is bucketed by */
+  field: string;
+  /** Nesting depth (0 = top-level) */
+  depth: number;
+  /** Rows belonging to this group (flattened across subgroups) */
   rows: any[];
   /** Whether the group section is collapsed */
   collapsed: boolean;
   /** Computed aggregations for this group (empty when no aggregations configured). */
   aggregations: AggregationResult[];
+  /**
+   * Nested subgroups for the next grouping field.
+   *
+   * Empty array (not undefined) when this is the deepest level so consumers
+   * can switch on `subgroups.length` to decide whether to render a child
+   * `GroupRow` or the data table.
+   */
+  subgroups: GroupEntry[];
 }
 
 export interface UseGroupedDataResult {
@@ -53,22 +65,49 @@ export interface UseGroupedDataResult {
 }
 
 /**
- * Build a composite group key from a row based on the grouping fields.
+ * Build a value-only key segment for a single grouping field. Used to compose
+ * stable composite keys across nesting levels.
  */
-function buildGroupKey(row: Record<string, any>, fields: GroupingConfig['fields']): string {
-  return fields.map((f) => String(row[f.field] ?? '')).join(' / ');
+function buildSegmentKey(row: Record<string, any>, field: string): string {
+  return String(row[field] ?? '');
 }
 
 /**
- * Build a human-readable label from a row based on the grouping fields.
+ * Optional per-field value formatter. Returning `undefined` falls back to the
+ * default stringification, so resolvers can opt out for individual values
+ * (e.g. unknown select values).
  */
-function buildGroupLabel(row: Record<string, any>, fields: GroupingConfig['fields']): string {
-  return fields
-    .map((f) => {
-      const val = row[f.field];
-      return val !== undefined && val !== null && val !== '' ? String(val) : '(empty)';
-    })
-    .join(' / ');
+export type GroupValueFormatter = (field: string, value: any) => string | undefined;
+
+/**
+ * Build a human-readable label for a single grouping field value.
+ *
+ * When a `formatValue` resolver is supplied, it is consulted first so callers
+ * can map raw values (e.g. select option codes, booleans) to display labels.
+ */
+function buildSegmentLabel(
+  value: any,
+  field: string,
+  formatValue?: GroupValueFormatter,
+): string {
+  if (value === undefined || value === null || value === '') return '(empty)';
+  if (formatValue) {
+    const formatted = formatValue(field, value);
+    if (formatted !== undefined && formatted !== '') return formatted;
+  }
+  if (Array.isArray(value)) {
+    const joined = value
+      .map((v) => {
+        if (formatValue) {
+          const f2 = formatValue(field, v);
+          if (f2 !== undefined && f2 !== '') return f2;
+        }
+        return String(v);
+      })
+      .join(', ');
+    return joined || '(empty)';
+  }
+  return String(value);
 }
 
 /**
@@ -126,11 +165,15 @@ function compareGroups(a: string, b: string, order: 'asc' | 'desc'): number {
  * @param config        - GroupingConfig from the grid schema (optional)
  * @param data          - flat data rows
  * @param aggregations  - optional aggregation definitions to compute per group
+ * @param formatValue   - optional per-field formatter that maps raw values to
+ *                        display labels (e.g. resolves select option codes
+ *                        to their human-readable labels)
  */
 export function useGroupedData(
   config: GroupingConfig | undefined,
   data: any[],
   aggregations?: AggregationConfig[],
+  formatValue?: GroupValueFormatter,
 ): UseGroupedDataResult {
   const fields = config?.fields;
   const isGrouped = !!(fields && fields.length > 0);
@@ -138,50 +181,84 @@ export function useGroupedData(
   // Track which group keys have been explicitly toggled by the user.
   const [toggledKeys, setToggledKeys] = useState<Record<string, boolean>>({});
 
-  // Determine whether a field set defaults to collapsed.
-  const fieldsDefaultCollapsed = useMemo(() => {
-    if (!fields) return false;
-    // If any grouping field has collapsed: true, default all groups to collapsed.
-    return fields.some((f) => f.collapsed);
-  }, [fields]);
-
   const groups: GroupEntry[] = useMemo(() => {
     if (!isGrouped || !fields) return [];
 
-    // Group rows by composite key
-    const map = new Map<string, { label: string; rows: any[] }>();
-    const keyOrder: string[] = [];
+    /**
+     * Recursively build a tree of groups for the slice of rows at the current
+     * nesting depth. Each level partitions rows by `fields[depth]` and then
+     * recurses into the next field.  When all fields are consumed we stop and
+     * the rows attached to the leaf entry become the data table input.
+     */
+    const buildLevel = (
+      rowsAtLevel: any[],
+      depth: number,
+      parentKey: string,
+    ): GroupEntry[] => {
+      if (depth >= fields.length) return [];
+      const f = fields[depth];
 
-    for (const row of data) {
-      const key = buildGroupKey(row, fields);
-      if (!map.has(key)) {
-        map.set(key, { label: buildGroupLabel(row, fields), rows: [] });
-        keyOrder.push(key);
+      const map = new Map<string, { label: string; rows: any[] }>();
+      const keyOrder: string[] = [];
+
+      for (const row of rowsAtLevel) {
+        const segment = buildSegmentKey(row, f.field);
+        if (!map.has(segment)) {
+          map.set(segment, {
+            label: buildSegmentLabel(row[f.field], f.field, formatValue),
+            rows: [],
+          });
+          keyOrder.push(segment);
+        }
+        map.get(segment)!.rows.push(row);
       }
-      map.get(key)!.rows.push(row);
-    }
 
-    // Sort groups using the first grouping field's order
-    const primaryOrder = fields[0]?.order ?? 'asc';
-    keyOrder.sort((a, b) => compareGroups(a, b, primaryOrder));
+      const order = f.order ?? 'asc';
+      keyOrder.sort((a, b) => compareGroups(a, b, order));
 
-    return keyOrder.map((key) => {
-      const entry = map.get(key)!;
-      const collapsed =
-        key in toggledKeys ? toggledKeys[key] : fieldsDefaultCollapsed;
-      const agg = aggregations && aggregations.length > 0
-        ? computeAggregations(entry.rows, aggregations)
-        : [];
-      return { key, label: entry.label, rows: entry.rows, collapsed, aggregations: agg };
-    });
-  }, [data, fields, isGrouped, toggledKeys, fieldsDefaultCollapsed, aggregations]);
+      return keyOrder.map((segment) => {
+        const entry = map.get(segment)!;
+        const compositeKey = parentKey ? `${parentKey}__${depth}:${segment}` : `${depth}:${segment}`;
+        const collapsedDefault = !!f.collapsed;
+        const collapsed =
+          compositeKey in toggledKeys ? toggledKeys[compositeKey] : collapsedDefault;
+        const agg = aggregations && aggregations.length > 0
+          ? computeAggregations(entry.rows, aggregations)
+          : [];
+        const subgroups = depth + 1 < fields.length
+          ? buildLevel(entry.rows, depth + 1, compositeKey)
+          : [];
+        return {
+          key: compositeKey,
+          label: entry.label,
+          field: f.field,
+          depth,
+          rows: entry.rows,
+          collapsed,
+          aggregations: agg,
+          subgroups,
+        };
+      });
+    };
+
+    return buildLevel(data, 0, '');
+  }, [data, fields, isGrouped, toggledKeys, aggregations, formatValue]);
 
   const toggleGroup = useCallback((key: string) => {
-    setToggledKeys((prev) => ({
-      ...prev,
-      [key]: prev[key] !== undefined ? !prev[key] : !fieldsDefaultCollapsed,
-    }));
-  }, [fieldsDefaultCollapsed]);
+    setToggledKeys((prev) => {
+      // Determine the per-level default: the leading "<depth>:..." segment of
+      // the composite key tells us which grouping field (and its `collapsed`
+      // flag) to honor when the user has not explicitly toggled this group.
+      const lastSegment = key.split('__').pop() || '';
+      const depthMatch = /^(\d+):/.exec(lastSegment);
+      const depth = depthMatch ? Number(depthMatch[1]) : 0;
+      const fieldDefault = !!fields?.[depth]?.collapsed;
+      return {
+        ...prev,
+        [key]: prev[key] !== undefined ? !prev[key] : !fieldDefault,
+      };
+    });
+  }, [fields]);
 
   return { groups, isGrouped, toggleGroup };
 }
