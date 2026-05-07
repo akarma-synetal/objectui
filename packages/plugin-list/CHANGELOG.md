@@ -1,5 +1,16 @@
 # @object-ui/plugin-list
 
+## 4.0.1
+
+### Patch Changes
+
+- @object-ui/types@4.0.1
+- @object-ui/core@4.0.1
+- @object-ui/i18n@4.0.1
+- @object-ui/react@4.0.1
+- @object-ui/components@4.0.1
+- @object-ui/mobile@4.0.1
+
 ## 4.0.0
 
 ### Patch Changes
