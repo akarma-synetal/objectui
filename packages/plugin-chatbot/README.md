@@ -46,7 +46,8 @@ function App() {
 ### AI Streaming Mode (service-ai)
 
 When `api` is set in the schema, the chatbot connects to a backend SSE endpoint
-using `@ai-sdk/react` for streaming, tool-calling, and production-grade chat:
+using `@ai-sdk/react` v3 (Vercel UI Message Stream protocol) for streaming,
+tool-calling, and production-grade chat:
 
 ```tsx
 import '@object-ui/plugin-chatbot';
@@ -101,6 +102,55 @@ function MyChat() {
 ```
 
 ## Schema-Driven Usage
+
+### Discovering Backend Agents
+
+Use `useAgents` to fetch the list of agents exposed by `@objectstack/service-ai`
+at `GET {apiBase}/agents`. This is what the global console FAB uses to populate
+its in-header agent picker:
+
+```tsx
+import { useAgents } from '@object-ui/plugin-chatbot';
+
+function AgentPicker() {
+  const { agents, isLoading, error } = useAgents({
+    apiBase: 'http://localhost:3000/api/v1/ai',
+    // Optional fallback list shown when the backend is unreachable
+    fallback: [{ name: 'data_chat', label: 'Data Chat' }],
+  });
+
+  if (isLoading) return <span>Loading agents…</span>;
+  if (error) return <span>Backend unreachable</span>;
+
+  return (
+    <select>
+      {agents.map(a => (
+        <option key={a.name} value={a.name}>{a.label}</option>
+      ))}
+    </select>
+  );
+}
+```
+
+Each agent's chat endpoint is `POST {apiBase}/agents/{name}/chat` — pass that
+URL as the `api` option to `useObjectChat` to talk to it.
+
+### Console Integration
+
+The console (`@object-ui/app-shell`) auto-mounts a global floating chatbot
+when `useDiscovery().isAiEnabled` is true. Configure the backend in your
+console `.env`:
+
+```bash
+# AI service endpoint (defaults to ${VITE_SERVER_URL}/api/v1/ai when unset)
+VITE_AI_BASE_URL=http://localhost:3000/api/v1/ai
+# Default agent to select on first open (must match an agent name returned
+# by GET ${VITE_AI_BASE_URL}/agents)
+VITE_AI_DEFAULT_AGENT=sales_copilot
+```
+
+The picker lets the user switch agents at runtime; switching transparently
+remounts the chat hook against the new agent's `/chat` endpoint.
 
 This plugin automatically registers with ObjectUI's component registry when imported:
 

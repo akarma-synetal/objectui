@@ -13,7 +13,7 @@ import { useState, useEffect, useCallback, lazy, Suspense, useMemo, type ReactNo
 import { ModalForm } from '@object-ui/plugin-form';
 import { Empty, EmptyTitle, EmptyDescription, Button } from '@object-ui/components';
 import { toast } from 'sonner';
-import { SchemaRendererProvider, useActionRunner, useGlobalUndo } from '@object-ui/react';
+import { useActionRunner, useGlobalUndo } from '@object-ui/react';
 import { useObjectTranslation, useObjectLabel } from '@object-ui/i18n';
 import type { ConnectionState } from '@object-ui/data-objectstack';
 import { useAuth } from '@object-ui/auth';
@@ -292,7 +292,6 @@ export function AppContent({ extraRoutes, extraRoutesNoApp }: AppContentProps = 
         />
         <KeyboardShortcutsDialog />
         <OnboardingWalkthrough />
-        <SchemaRendererProvider dataSource={dataSource || {}}>
           <ErrorBoundary>
             <Suspense fallback={<LoadingScreen />}>
               <Routes>
@@ -358,7 +357,6 @@ export function AppContent({ extraRoutes, extraRoutesNoApp }: AppContentProps = 
               dataSource={dataSource}
             />
           )}
-        </SchemaRendererProvider>
       </ConsoleLayout>
     </ExpressionProvider>
   );

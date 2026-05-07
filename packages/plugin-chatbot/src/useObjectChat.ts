@@ -6,9 +6,10 @@
  * LICENSE file in the root directory of this source tree.
  */
 
-import { useState, useCallback, useRef, useEffect } from 'react';
+import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import type { ChatMessage as OuiChatMessage } from '@object-ui/types';
 import { useChat } from '@ai-sdk/react';
+import { DefaultChatTransport } from 'ai';
 import { generateUniqueId } from './utils';
 
 /**
@@ -165,29 +166,42 @@ export function useObjectChat(options: UseObjectChatOptions = {}): UseObjectChat
   const modeRef = useRef<'api' | 'local'>(api ? 'api' : 'local');
   const isApiMode = modeRef.current === 'api';
 
-  // Convert OUI messages to vercel/ai format for initialMessages
-  const aiInitialMessages = normalizeMessages(initialMessages).map(msg => ({
-    id: msg.id,
-    role: msg.role as 'user' | 'assistant' | 'system' | 'tool',
-    content: msg.content,
-  }));
+  // Convert OUI messages to vercel/ai v3 UIMessage format for initialMessages
+  const aiInitialMessages = useMemo(
+    () =>
+      normalizeMessages(initialMessages).map((msg) => ({
+        id: msg.id,
+        role: msg.role as 'user' | 'assistant' | 'system',
+        parts: [{ type: 'text' as const, text: msg.content ?? '' }],
+      })),
+    // initialMessages is intentionally referenced once on first render only
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [],
+  );
+
+  // Build a transport for API mode that posts to the configured endpoint and
+  // forwards conversation/system/model metadata in the request body.
+  // Note: conversationId is sent in the body (not a header) to avoid CORS
+  // preflight issues with custom headers in cross-origin setups.
+  const transport = useMemo(() => {
+    if (!isApiMode) return undefined;
+    return new DefaultChatTransport({
+      api: api!,
+      headers: { ...headers },
+      body: {
+        ...body,
+        ...(conversationId ? { conversationId } : {}),
+        ...(model ? { model } : {}),
+        ...(systemPrompt ? { systemPrompt } : {}),
+        ...(streamingEnabled !== undefined ? { stream: streamingEnabled } : {}),
+      },
+    });
+  }, [isApiMode, api, headers, body, model, systemPrompt, streamingEnabled, conversationId]);
 
   // --- @ai-sdk/react useChat (always called to satisfy Rules of Hooks, but only active in API mode) ---
-  // When in local mode, useChat is initialized with minimal config and its results are ignored.
   const chatResult = useChat({
-    api: isApiMode ? api! : '/api/noop',
-    initialMessages: isApiMode && aiInitialMessages.length > 0 ? aiInitialMessages : undefined,
-    headers: isApiMode ? {
-      ...headers,
-      ...(conversationId ? { 'x-conversation-id': conversationId } : {}),
-    } : undefined,
-    body: isApiMode ? {
-      ...body,
-      ...(model ? { model } : {}),
-      ...(systemPrompt ? { systemPrompt } : {}),
-      ...(streamingEnabled !== undefined ? { stream: streamingEnabled } : {}),
-    } : undefined,
-    maxToolRoundtrips: isApiMode ? maxToolRoundtrips : undefined,
+    transport,
+    messages: isApiMode && aiInitialMessages.length > 0 ? (aiInitialMessages as any) : undefined,
     onError: isApiMode ? (err: Error) => { onError?.(err); } : undefined,
   } as any);
 
@@ -197,6 +211,9 @@ export function useObjectChat(options: UseObjectChatOptions = {}): UseObjectChat
   );
   const [localIsLoading, setLocalIsLoading] = useState(false);
   const [localInput, setLocalInput] = useState('');
+  // API-mode input state (v3 useChat no longer manages it). Declared at top
+  // level to satisfy the Rules of Hooks regardless of which mode is active.
+  const [apiInput, setApiInput] = useState('');
   const autoResponseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Cleanup auto-response timer on unmount
@@ -213,50 +230,67 @@ export function useObjectChat(options: UseObjectChatOptions = {}): UseObjectChat
   if (isApiMode) {
     const {
       messages: aiMessages,
-      isLoading,
+      status,
       error,
-      input,
-      setInput,
-      handleInputChange,
-      append,
+      sendMessage: aiSendMessage,
+      regenerate,
       stop,
-      reload,
       setMessages,
-    } = chatResult;
+    } = chatResult as any;
 
-    // Convert vercel/ai messages back to OUI ChatMessage format
-    const messages: OuiChatMessage[] = aiMessages.map((msg: any) => ({
-      id: msg.id,
-      role: msg.role,
-      content: msg.content,
-      toolInvocations: msg.toolInvocations,
-      streaming: isLoading && msg.id === aiMessages[aiMessages.length - 1]?.id && msg.role === 'assistant',
-    }));
+    const isLoading = status === 'submitted' || status === 'streaming';
 
-    const sendMessage = useCallback((content: string) => {
-      const trimmed = content.trim();
-      if (!trimmed) return;
+    // Convert vercel/ai v3 UIMessage (parts: [{type:'text', text}]) → OUI ChatMessage
+    const messages: OuiChatMessage[] = aiMessages.map((msg: any) => {
+      const text =
+        typeof msg.content === 'string'
+          ? msg.content
+          : Array.isArray(msg.parts)
+            ? msg.parts
+                .filter((p: any) => p?.type === 'text')
+                .map((p: any) => p.text ?? '')
+                .join('')
+            : '';
+      return {
+        id: msg.id,
+        role: msg.role,
+        content: text,
+        toolInvocations: msg.toolInvocations,
+        streaming:
+          isLoading &&
+          msg.id === aiMessages[aiMessages.length - 1]?.id &&
+          msg.role === 'assistant',
+      } as OuiChatMessage;
+    });
 
-      const newMsg = { role: 'user' as const, content: trimmed };
+    // Local input state (v3 useChat no longer manages it) — declared above
+    // at the top of the hook to comply with the Rules of Hooks.
 
-      // Construct the next messages list for the onSend callback,
-      // ensuring it includes the newly sent user message.
-      const nextMessages: OuiChatMessage[] = [
-        ...messages,
-        {
-          id: generateUniqueId('msg'),
-          role: 'user',
-          content: trimmed,
-        },
-      ];
-
-      append(newMsg);
-      onSend?.(trimmed, nextMessages);
-    }, [append, onSend, messages]);
+    const sendMessage = useCallback(
+      (content: string) => {
+        const trimmed = content.trim();
+        if (!trimmed) return;
+        const nextMessages: OuiChatMessage[] = [
+          ...messages,
+          { id: generateUniqueId('msg'), role: 'user', content: trimmed },
+        ];
+        aiSendMessage({ text: trimmed });
+        setApiInput('');
+        onSend?.(trimmed, nextMessages);
+      },
+      [aiSendMessage, onSend, messages],
+    );
 
     const clear = useCallback(() => {
       setMessages([]);
     }, [setMessages]);
+
+    const handleInputChange = useCallback(
+      (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+        setApiInput(e.target.value);
+      },
+      [],
+    );
 
     return {
       messages,
@@ -264,11 +298,11 @@ export function useObjectChat(options: UseObjectChatOptions = {}): UseObjectChat
       error,
       sendMessage,
       stop,
-      reload,
+      reload: regenerate,
       clear,
       isApiMode: true,
-      input,
-      setInput,
+      input: apiInput,
+      setInput: setApiInput,
       handleInputChange,
     };
   }

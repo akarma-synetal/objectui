@@ -8,9 +8,14 @@
  * @module
  */
 
-import React, { useEffect } from 'react';
+import React, { useEffect, Suspense, lazy } from 'react';
 import { useNavigationContext } from '../../context/NavigationContext';
 import { AppHeader } from '../../layout/AppHeader';
+import { useDiscovery } from '@object-ui/react';
+
+// Lazy-load the chatbot so its heavy markdown deps stay out of the initial
+// paint until the AI assistant is actually enabled.
+const ConsoleFloatingChatbot = lazy(() => import('../../layout/ConsoleFloatingChatbot'));
 
 interface HomeLayoutProps {
   children: React.ReactNode;
@@ -18,6 +23,7 @@ interface HomeLayoutProps {
 
 export function HomeLayout({ children }: HomeLayoutProps) {
   const { setContext } = useNavigationContext();
+  const { isAiEnabled } = useDiscovery();
 
   useEffect(() => {
     setContext('home');
@@ -31,6 +37,13 @@ export function HomeLayout({ children }: HomeLayoutProps) {
       <main className="flex-1 min-w-0 overflow-auto">
         {children}
       </main>
+
+      {/* Global floating chatbot — also available on the home/workspace screen */}
+      {isAiEnabled && (
+        <Suspense fallback={null}>
+          <ConsoleFloatingChatbot appLabel="Workspace" objects={[]} />
+        </Suspense>
+      )}
     </div>
   );
 }

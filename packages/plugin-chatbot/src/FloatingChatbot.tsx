@@ -17,6 +17,8 @@ import { ChatbotEnhanced, type ChatbotEnhancedProps } from "./ChatbotEnhanced"
 export interface FloatingChatbotProps extends ChatbotEnhancedProps {
   /** Floating configuration */
   floatingConfig?: FloatingChatbotConfig
+  /** Optional content rendered in the panel header (e.g. an agent picker) */
+  headerExtra?: React.ReactNode
 }
 
 /**
@@ -28,6 +30,7 @@ export interface FloatingChatbotProps extends ChatbotEnhancedProps {
  */
 export function FloatingChatbot({
   floatingConfig,
+  headerExtra,
   ...chatbotProps
 }: FloatingChatbotProps) {
   const {
@@ -70,6 +73,7 @@ export function FloatingChatbot({
         position={position}
         width={panelWidth}
         height={panelHeight}
+        headerExtra={headerExtra}
       >
         <ChatbotEnhanced
           {...chatbotProps}

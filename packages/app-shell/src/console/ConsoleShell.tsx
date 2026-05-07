@@ -13,6 +13,7 @@
 import { Suspense, type ReactNode } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { AuthGuard, useAuth } from '@object-ui/auth';
+import { SchemaRendererProvider } from '@object-ui/react';
 import { AdapterProvider, useAdapter } from '../providers/AdapterProvider';
 import { MetadataProvider, useMetadata } from '../providers/MetadataProvider';
 import { NavigationProvider } from '../context/NavigationContext';
@@ -69,7 +70,13 @@ export function ConnectedShell({ children }: { children: ReactNode }) {
 function ConnectedShellInner({ children }: { children: ReactNode }) {
   const adapter = useAdapter();
   if (!adapter) return <LoadingFallback />;
-  return <MetadataProvider adapter={adapter}>{children}</MetadataProvider>;
+  // Expose the adapter via SchemaRendererContext so descendant hooks like
+  // useDiscovery() (used to gate the global AI chatbot) can resolve it.
+  return (
+    <SchemaRendererProvider dataSource={adapter}>
+      <MetadataProvider adapter={adapter}>{children}</MetadataProvider>
+    </SchemaRendererProvider>
+  );
 }
 
 /**

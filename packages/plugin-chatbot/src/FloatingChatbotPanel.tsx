@@ -25,6 +25,8 @@ export interface FloatingChatbotPanelProps {
   children: React.ReactNode
   /** Custom className for the panel container */
   className?: string
+  /** Optional content rendered in the header, between the title and the action buttons (e.g. an agent picker) */
+  headerExtra?: React.ReactNode
 }
 
 /**
@@ -39,6 +41,7 @@ export function FloatingChatbotPanel({
   height = 520,
   children,
   className,
+  headerExtra,
 }: FloatingChatbotPanelProps) {
   const { isOpen, isFullscreen, close, toggleFullscreen } = useFloatingChatbot()
 
@@ -65,9 +68,14 @@ export function FloatingChatbotPanel({
       data-testid="floating-chatbot-panel"
     >
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-2 border-b bg-muted/40">
-        <span className="text-sm font-medium truncate">{title}</span>
-        <div className="flex items-center gap-1">
+      <div className="flex items-center justify-between gap-2 px-4 py-2 border-b bg-muted/40">
+        <span className="text-sm font-medium truncate flex-shrink-0">{title}</span>
+        {headerExtra ? (
+          <div className="flex-1 min-w-0 flex items-center justify-end mr-1" data-testid="floating-chatbot-header-extra">
+            {headerExtra}
+          </div>
+        ) : null}
+        <div className="flex items-center gap-1 flex-shrink-0">
           <Button
             variant="ghost"
             size="icon"

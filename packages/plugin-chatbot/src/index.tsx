@@ -248,6 +248,14 @@ export { Chatbot, TypingIndicator }
 export { useObjectChat } from './useObjectChat';
 export type { UseObjectChatOptions, UseObjectChatReturn } from './useObjectChat';
 
+// Export the agent catalog hook (talks to @objectstack/service-ai)
+export { useAgents } from './useAgents';
+export type {
+  UseAgentsOptions,
+  UseAgentsReturn,
+  AgentDescriptor,
+} from './useAgents';
+
 // Export floating chatbot components
 export { FloatingChatbot } from './FloatingChatbot';
 export type { FloatingChatbotProps } from './FloatingChatbot';
