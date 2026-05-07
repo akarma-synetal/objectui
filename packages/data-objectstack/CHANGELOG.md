@@ -1,5 +1,12 @@
 # @object-ui/data-objectstack
 
+## 4.0.1
+
+### Patch Changes
+
+- @object-ui/types@4.0.1
+- @object-ui/core@4.0.1
+
 ## 4.0.0
 
 ### Patch Changes
