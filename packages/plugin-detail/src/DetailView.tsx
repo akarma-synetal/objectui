@@ -46,6 +46,63 @@ import { useDetailTranslation } from './useDetailTranslation';
 /** Default page size for related lists in the detail view */
 const DEFAULT_RELATED_PAGE_SIZE = 5;
 
+/**
+ * Resolve the human-readable title for the detail header.
+ *
+ * Priority order:
+ *   1. `schema.primaryField` value on the record
+ *   2. Render `objectSchema.titleFormat` (e.g. `{full_name} - {company}`),
+ *      stripping orphan separators around empty placeholders.
+ *   3. `schema.title` (caller-provided override, typically the object label)
+ *   4. Common name-like fields on the record (`name`, `full_name`, …)
+ *   5. Translated "Details" fallback.
+ */
+function resolveDisplayTitle(
+  data: any,
+  schema: DetailViewSchema,
+  objectSchema: any,
+  fallback: string,
+): string {
+  if (data && typeof data === 'object') {
+    if (schema.primaryField) {
+      const v = (data as any)[schema.primaryField];
+      if (v !== null && v !== undefined && v !== '') return String(v);
+    }
+    const titleFormat: string | undefined = objectSchema?.titleFormat;
+    if (titleFormat) {
+      const EMPTY = '\u0000';
+      const SEP = '[-\\u2013\\u2014|/·,:]';
+      let any = false;
+      const raw = titleFormat.replace(/\{([^{}]+)\}/g, (_m, key) => {
+        const v = (data as any)[key.trim()];
+        if (v !== null && v !== undefined && v !== '') {
+          any = true;
+          return String(v);
+        }
+        return EMPTY;
+      });
+      if (any) {
+        const out = raw
+          .replace(new RegExp(`\\s*${SEP}\\s*${EMPTY}`, 'g'), '')
+          .replace(new RegExp(`${EMPTY}\\s*${SEP}\\s*`, 'g'), '')
+          .replace(new RegExp(EMPTY, 'g'), '')
+          .replace(/\s+/g, ' ')
+          .trim();
+        if (out) return out;
+      }
+    }
+  }
+  if (schema.title) return schema.title;
+  if (data && typeof data === 'object') {
+    for (const k of ['name', 'full_name', 'fullName', 'title', 'subject', 'label', 'display_name', 'displayName']) {
+      const v = (data as any)[k];
+      if (typeof v === 'string' && v.trim()) return v.trim();
+      if (v !== null && v !== undefined && v !== '') return String(v);
+    }
+  }
+  return fallback;
+}
+
 export interface DetailViewProps {
   schema: DetailViewSchema;
   dataSource?: DataSource;
@@ -612,7 +669,7 @@ export const DetailView: React.FC<DetailViewProps> = ({
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
                 <h1 className="text-xl sm:text-2xl font-bold truncate">
-                  {(schema.primaryField && data?.[schema.primaryField]) || schema.title || t('detail.details')}
+                  {resolveDisplayTitle(data, schema, objectSchema, t('detail.details'))}
                 </h1>
                 {effectiveSummaryFields.map((fieldName) => {
                   const val = data?.[fieldName];

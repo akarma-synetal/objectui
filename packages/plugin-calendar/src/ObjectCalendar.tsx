@@ -336,16 +336,24 @@ export const ObjectCalendar: React.FC<ObjectCalendarProps> = ({
     ];
 
     const renderFromTemplate = (template: string, item: Record<string, any>) => {
+      const EMPTY_TOKEN = '\u0000';
+      const SEPARATORS = '[-\\u2013\\u2014|/·,:]';
       let anyResolved = false;
-      const out = template.replace(/\{(.+?)\}/g, (_m, key) => {
+      const raw = template.replace(/\{([^{}]+)\}/g, (_m, key) => {
         const v = item[key.trim()];
         if (v !== undefined && v !== null && v !== '') {
           anyResolved = true;
           return String(v);
         }
-        return '';
-      }).replace(/\s+-\s+(?=$|\s*$)/, '').trim();
-      return anyResolved ? out : '';
+        return EMPTY_TOKEN;
+      });
+      if (!anyResolved) return '';
+      return raw
+        .replace(new RegExp(`\\s*${SEPARATORS}\\s*${EMPTY_TOKEN}`, 'g'), '')
+        .replace(new RegExp(`${EMPTY_TOKEN}\\s*${SEPARATORS}\\s*`, 'g'), '')
+        .replace(new RegExp(EMPTY_TOKEN, 'g'), '')
+        .replace(/\s+/g, ' ')
+        .trim();
     };
 
     const resolveTitle = (record: Record<string, any>): string => {

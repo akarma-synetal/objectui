@@ -30,25 +30,51 @@ export function capitalizeFirst(str: string): string {
   return str.charAt(0).toUpperCase() + str.slice(1);
 }
 
+// Sentinel used to mark empty-placeholder positions inside formatRecordTitle
+// so adjacent separators can be stripped in a second pass.
+const EMPTY_TOKEN = '\u0000';
+// Separator characters commonly placed between {fields} in titleFormat patterns
+// (hyphen, em/en dashes, pipes, slashes, middle dot, comma, colon).
+const SEPARATOR_CLASS = '[-\\u2013\\u2014|/·,:]';
+
 /**
- * Format a record title using the titleFormat pattern
- * @param titleFormat Pattern like "{name} - {email}" or "{firstName} {lastName}"
- * @param record The record data object
- * @returns Formatted title string
+ * Format a record title using the titleFormat pattern.
+ *
+ * Empty placeholders (missing or null/empty fields) are stripped along with
+ * any orphan separator they leave behind, so a template like
+ *   "{full_name} - {company}"
+ * evaluated against `{ company: "Acme" }` resolves to `"Acme"` rather than
+ * `" - Acme"`. Returns an empty string when no placeholder resolved.
  */
 export function formatRecordTitle(titleFormat: string | undefined, record: any): string {
   if (!titleFormat || !record) {
     return record?.id || record?._id || 'Record';
   }
 
-  // Replace {fieldName} patterns with actual values
-  return titleFormat.replace(/\{(\w+)\}/g, (_match, fieldName) => {
-    const value = record[fieldName];
-    if (value === null || value === undefined) {
-      return '';
+  let anyResolved = false;
+  let out = titleFormat.replace(/\{([^{}]+)\}/g, (_match, fieldName) => {
+    const value = record[fieldName.trim()];
+    if (value === null || value === undefined || value === '') {
+      return EMPTY_TOKEN;
     }
+    anyResolved = true;
     return String(value);
   });
+
+  if (!anyResolved) return '';
+
+  // Drop separators on either side of an empty token, then any leftover
+  // tokens, then collapse runs of whitespace.
+  const sepBefore = new RegExp(`\\s*${SEPARATOR_CLASS}\\s*${EMPTY_TOKEN}`, 'g');
+  const sepAfter = new RegExp(`${EMPTY_TOKEN}\\s*${SEPARATOR_CLASS}\\s*`, 'g');
+  out = out
+    .replace(sepBefore, '')
+    .replace(sepAfter, '')
+    .replace(new RegExp(EMPTY_TOKEN, 'g'), '')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  return out;
 }
 
 /**
@@ -59,9 +85,19 @@ export function formatRecordTitle(titleFormat: string | undefined, record: any):
  */
 export function getRecordDisplayName(objectDef: any, record: any): string {
   if (objectDef?.titleFormat) {
-    return formatRecordTitle(objectDef.titleFormat, record);
+    const formatted = formatRecordTitle(objectDef.titleFormat, record);
+    if (formatted) return formatted;
   }
-  
-  // Fallback: Try common name fields
-  return record?.name || record?.title || record?.label || record?.id || record?._id || 'Untitled';
+
+  return (
+    record?.name ||
+    record?.full_name ||
+    record?.fullName ||
+    record?.title ||
+    record?.label ||
+    record?.subject ||
+    record?.id ||
+    record?._id ||
+    'Untitled'
+  );
 }
