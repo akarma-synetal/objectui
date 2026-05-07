@@ -60,13 +60,44 @@ function buildGroupKey(row: Record<string, any>, fields: GroupingConfig['fields'
 }
 
 /**
- * Build a human-readable label from a row based on the grouping fields.
+ * Optional per-field value formatter. Returning `undefined` falls back to the
+ * default stringification, so resolvers can opt out for individual values
+ * (e.g. unknown select values).
  */
-function buildGroupLabel(row: Record<string, any>, fields: GroupingConfig['fields']): string {
+export type GroupValueFormatter = (field: string, value: any) => string | undefined;
+
+/**
+ * Build a human-readable label from a row based on the grouping fields.
+ *
+ * When a `formatValue` resolver is supplied, it is consulted first so callers
+ * can map raw values (e.g. select option codes, booleans) to display labels.
+ */
+function buildGroupLabel(
+  row: Record<string, any>,
+  fields: GroupingConfig['fields'],
+  formatValue?: GroupValueFormatter,
+): string {
   return fields
     .map((f) => {
       const val = row[f.field];
-      return val !== undefined && val !== null && val !== '' ? String(val) : '(empty)';
+      if (val === undefined || val === null || val === '') return '(empty)';
+      if (formatValue) {
+        const formatted = formatValue(f.field, val);
+        if (formatted !== undefined && formatted !== '') return formatted;
+      }
+      if (Array.isArray(val)) {
+        const joined = val
+          .map((v) => {
+            if (formatValue) {
+              const f2 = formatValue(f.field, v);
+              if (f2 !== undefined && f2 !== '') return f2;
+            }
+            return String(v);
+          })
+          .join(', ');
+        return joined || '(empty)';
+      }
+      return String(val);
     })
     .join(' / ');
 }
@@ -126,11 +157,15 @@ function compareGroups(a: string, b: string, order: 'asc' | 'desc'): number {
  * @param config        - GroupingConfig from the grid schema (optional)
  * @param data          - flat data rows
  * @param aggregations  - optional aggregation definitions to compute per group
+ * @param formatValue   - optional per-field formatter that maps raw values to
+ *                        display labels (e.g. resolves select option codes
+ *                        to their human-readable labels)
  */
 export function useGroupedData(
   config: GroupingConfig | undefined,
   data: any[],
   aggregations?: AggregationConfig[],
+  formatValue?: GroupValueFormatter,
 ): UseGroupedDataResult {
   const fields = config?.fields;
   const isGrouped = !!(fields && fields.length > 0);
@@ -155,7 +190,7 @@ export function useGroupedData(
     for (const row of data) {
       const key = buildGroupKey(row, fields);
       if (!map.has(key)) {
-        map.set(key, { label: buildGroupLabel(row, fields), rows: [] });
+        map.set(key, { label: buildGroupLabel(row, fields, formatValue), rows: [] });
         keyOrder.push(key);
       }
       map.get(key)!.rows.push(row);
@@ -174,7 +209,7 @@ export function useGroupedData(
         : [];
       return { key, label: entry.label, rows: entry.rows, collapsed, aggregations: agg };
     });
-  }, [data, fields, isGrouped, toggledKeys, fieldsDefaultCollapsed, aggregations]);
+  }, [data, fields, isGrouped, toggledKeys, fieldsDefaultCollapsed, aggregations, formatValue]);
 
   const toggleGroup = useCallback((key: string) => {
     setToggledKeys((prev) => ({

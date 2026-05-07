@@ -484,7 +484,70 @@ export const ObjectGrid: React.FC<ObjectGridProps> = ({
   }, [schema.conditionalFormatting]);
 
   // --- Grouping support ---
-  const { groups, isGrouped, toggleGroup } = useGroupedData(schema.grouping, data);
+  // Build a per-field value formatter so group headers display the human
+  // readable label for select/boolean fields rather than the raw value
+  // (e.g. "In Progress" instead of "in_progress", "Yes" instead of "true").
+  const groupValueFormatter = React.useMemo(() => {
+    const grouping = schema.grouping;
+    if (!grouping?.fields?.length) return undefined;
+
+    // Per-field { value -> label } lookup, plus a per-field type so we can
+    // handle booleans / dates / users without dedicated option lists.
+    const lookup = new Map<string, { type?: string; options?: Map<string, string> }>();
+
+    for (const gf of grouping.fields) {
+      const fieldName = gf.field;
+      const objectDefField = objectSchema?.fields?.[fieldName];
+      // Try to find a column override matching this field for type/options
+      const cols = normalizeColumns(schema.columns) as any[] | undefined;
+      const colOverride = cols?.find?.((c) => typeof c === 'object' && c?.field === fieldName);
+
+      const type = colOverride?.type || objectDefField?.type;
+      const rawOptions = colOverride?.options || objectDefField?.options;
+
+      const optionsMap = new Map<string, string>();
+      if (Array.isArray(rawOptions) && rawOptions.length > 0) {
+        const translated = schema.objectName
+          ? translateOptions(schema.objectName, fieldName, rawOptions)
+          : rawOptions;
+        for (const opt of translated) {
+          if (opt && opt.value !== undefined && opt.value !== null) {
+            const label = (opt as any).label;
+            optionsMap.set(String(opt.value), label != null ? String(label) : String(opt.value));
+          }
+        }
+      }
+
+      lookup.set(fieldName, {
+        type: type || undefined,
+        options: optionsMap.size > 0 ? optionsMap : undefined,
+      });
+    }
+
+    return (field: string, value: any): string | undefined => {
+      const meta = lookup.get(field);
+      if (!meta) return undefined;
+      // Select / multi-select: resolve from options map first.
+      if (meta.options) {
+        const label = meta.options.get(String(value));
+        if (label !== undefined) return label;
+      }
+      // Boolean fields: render as Yes/No. We use the toolbar i18n bundle so
+      // grids without an objectName still produce a readable label.
+      if (meta.type === 'boolean' || typeof value === 'boolean') {
+        if (value === true || value === 'true') return t('grid.booleanTrue', 'Yes');
+        if (value === false || value === 'false') return t('grid.booleanFalse', 'No');
+      }
+      return undefined;
+    };
+  }, [schema.grouping, schema.columns, schema.objectName, objectSchema, translateOptions, t]);
+
+  const { groups, isGrouped, toggleGroup } = useGroupedData(
+    schema.grouping,
+    data,
+    undefined,
+    groupValueFormatter,
+  );
 
   // --- Column summary support ---
   const summaryColumns = React.useMemo(() => {

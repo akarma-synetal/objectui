@@ -162,4 +162,56 @@ describe('useGroupedData – collapsed state management', () => {
     const firstGroup = result.current.groups[0];
     expect(firstGroup.label).toContain(' / ');
   });
+
+  describe('formatValue – select / boolean label resolution', () => {
+    it('uses formatValue to resolve select option labels', () => {
+      const data = [
+        { id: 1, status: 'in_progress' },
+        { id: 2, status: 'in_progress' },
+        { id: 3, status: 'done' },
+      ];
+      const config = { fields: [{ field: 'status', order: 'asc' as const, collapsed: false }] };
+      const formatter = (field: string, value: any) => {
+        if (field !== 'status') return undefined;
+        return ({ in_progress: 'In Progress', done: 'Done' } as Record<string, string>)[String(value)];
+      };
+
+      const { result } = renderHook(() => useGroupedData(config, data, undefined, formatter));
+
+      // Groups are sorted by raw key — 'done' < 'in_progress'
+      const labels = result.current.groups.map((g) => g.label);
+      expect(labels).toEqual(['Done', 'In Progress']);
+    });
+
+    it('falls back to raw value when formatter returns undefined', () => {
+      const data = [{ status: 'unknown_value' }];
+      const config = { fields: [{ field: 'status', order: 'asc' as const, collapsed: false }] };
+      const formatter = () => undefined;
+
+      const { result } = renderHook(() => useGroupedData(config, data, undefined, formatter));
+
+      expect(result.current.groups[0].label).toBe('unknown_value');
+    });
+
+    it('still renders (empty) when value is null', () => {
+      const data = [{ status: null }];
+      const config = { fields: [{ field: 'status', order: 'asc' as const, collapsed: false }] };
+      const formatter = () => 'should-not-be-called';
+
+      const { result } = renderHook(() => useGroupedData(config, data, undefined, formatter));
+
+      expect(result.current.groups[0].label).toBe('(empty)');
+    });
+
+    it('formats array values (multi-select) per element', () => {
+      const data = [{ tags: ['a', 'b'] }];
+      const config = { fields: [{ field: 'tags', order: 'asc' as const, collapsed: false }] };
+      const formatter = (_field: string, value: any) =>
+        ({ a: 'Alpha', b: 'Beta' } as Record<string, string>)[String(value)];
+
+      const { result } = renderHook(() => useGroupedData(config, data, undefined, formatter));
+
+      expect(result.current.groups[0].label).toBe('Alpha, Beta');
+    });
+  });
 });
