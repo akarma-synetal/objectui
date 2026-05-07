@@ -10,7 +10,22 @@
     "test": {
       "dependsOn": ["^build"],
       "outputs": ["coverage/**"],
-      "cache": true
+      "cache": true,
+      "inputs": [
+        "src/**",
+        "test/**",
+        "tests/**",
+        "vitest.config.*",
+        "vitest.setup.*",
+        "tsconfig*.json",
+        "package.json",
+        "$TURBO_DEFAULT$",
+        "!**/*.md",
+        "!**/CHANGELOG.md",
+        "!storybook-static/**",
+        "!.storybook/**",
+        "!**/*.stories.*"
+      ]
     },
     "test:watch": {
       "cache": false,
