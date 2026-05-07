@@ -12,7 +12,7 @@
  */
 
 import React from 'react';
-import { Input, Switch, Checkbox, FilterBuilder, SortBuilder, ConfigRow } from '@object-ui/components';
+import { Input, Switch, Checkbox, FilterBuilder, SortBuilder, ConfigRow, GroupingEditor } from '@object-ui/components';
 import type { ConfigPanelSchema, ConfigField } from '@object-ui/components';
 import type { FilterGroup, SortItem } from '@object-ui/components';
 import { Eye, EyeOff, GripVertical } from 'lucide-react';
@@ -969,117 +969,41 @@ function buildDataSection(
                 type: 'custom',
                 visibleWhen: supportsGenericGroupBy,
                 render: (_value: any, _onChange: any, draft: any) => {
-                    const MAX_LEVELS = 3;
-
-                    // Normalize current value: prefer spec `grouping.fields`, fall back to
-                    // legacy shorthand fields so old views render correctly in the editor.
-                    const current: Array<{ field: string; order: 'asc' | 'desc'; collapsed: boolean }> =
-                        Array.isArray(draft.grouping?.fields) && draft.grouping.fields.length
-                            ? draft.grouping.fields.map((f: any) => ({
+                    const value = (Array.isArray(draft.grouping?.fields) && draft.grouping.fields.length)
+                        ? {
+                            fields: draft.grouping.fields.map((f: any) => ({
                                 field: f.field,
-                                order: f.order === 'desc' ? 'desc' : 'asc',
+                                order: f.order === 'desc' ? 'desc' as const : 'asc' as const,
                                 collapsed: !!f.collapsed,
-                            }))
-                            : [
-                                draft.groupBy && { field: draft.groupBy, order: 'asc' as const, collapsed: false },
-                                draft.groupBy2 && { field: draft.groupBy2, order: 'asc' as const, collapsed: false },
-                            ].filter(Boolean) as any;
-
-                    const writeFields = (next: Array<{ field: string; order: 'asc' | 'desc'; collapsed: boolean }>) => {
-                        updateField('grouping', next.length ? { fields: next } : undefined);
-                        // Keep legacy shorthands in sync so older renderers (or downstream
-                        // consumers still reading them) stay consistent.
-                        updateField('groupBy', next[0]?.field || undefined);
-                        updateField('groupBy2', next[1]?.field || undefined);
-                    };
-
-                    const usedFields = new Set(current.map(g => g.field));
-
+                            })),
+                        }
+                        : (draft.groupBy || draft.groupBy2)
+                            ? {
+                                fields: [
+                                    draft.groupBy && { field: draft.groupBy, order: 'asc' as const, collapsed: false },
+                                    draft.groupBy2 && { field: draft.groupBy2, order: 'asc' as const, collapsed: false },
+                                ].filter(Boolean) as any,
+                            }
+                            : undefined;
                     return (
                         <ConfigRow label={t('console.objectView.groupBy')}>
-                            <div data-testid="data-grouping" className="flex flex-col gap-1.5 w-full">
-                                {current.map((g, idx) => (
-                                    <div key={idx} className="flex items-center gap-1.5">
-                                        <select
-                                            data-testid={`data-grouping-field-${idx}`}
-                                            className="text-xs h-7 rounded-md border border-input bg-background px-2 text-foreground flex-1 min-w-0"
-                                            value={g.field}
-                                            onChange={(e: React.ChangeEvent<HTMLSelectElement>) => {
-                                                const next = [...current];
-                                                next[idx] = { ...g, field: e.target.value };
-                                                writeFields(next);
-                                            }}
-                                        >
-                                            {fieldOptions
-                                                .filter(f => f.value === g.field || !usedFields.has(f.value))
-                                                .map(f => (
-                                                    <option key={f.value} value={f.value}>{f.label}</option>
-                                                ))}
-                                        </select>
-                                        <button
-                                            type="button"
-                                            title={g.order === 'asc' ? 'Ascending' : 'Descending'}
-                                            data-testid={`data-grouping-order-${idx}`}
-                                            className="text-xs h-7 w-7 rounded-md border border-input bg-background text-foreground hover:bg-muted"
-                                            onClick={() => {
-                                                const next = [...current];
-                                                next[idx] = { ...g, order: g.order === 'asc' ? 'desc' : 'asc' };
-                                                writeFields(next);
-                                            }}
-                                        >
-                                            {g.order === 'asc' ? '↑' : '↓'}
-                                        </button>
-                                        <label
-                                            title={t('console.objectView.collapsedByDefault', 'Collapsed by default')}
-                                            className="flex items-center text-xs text-muted-foreground"
-                                        >
-                                            <input
-                                                type="checkbox"
-                                                data-testid={`data-grouping-collapsed-${idx}`}
-                                                className="h-3 w-3"
-                                                checked={g.collapsed}
-                                                onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
-                                                    const next = [...current];
-                                                    next[idx] = { ...g, collapsed: e.target.checked };
-                                                    writeFields(next);
-                                                }}
-                                            />
-                                        </label>
-                                        <button
-                                            type="button"
-                                            title={t('console.objectView.removeGroup', 'Remove')}
-                                            data-testid={`data-grouping-remove-${idx}`}
-                                            className="text-xs h-7 w-7 rounded-md border border-input bg-background text-muted-foreground hover:bg-muted hover:text-destructive"
-                                            onClick={() => {
-                                                const next = current.filter((_, i) => i !== idx);
-                                                writeFields(next);
-                                            }}
-                                        >
-                                            ✕
-                                        </button>
-                                    </div>
-                                ))}
-                                {current.length < MAX_LEVELS && (() => {
-                                    const remaining = fieldOptions.filter(f => !usedFields.has(f.value));
-                                    if (remaining.length === 0) return null;
-                                    return (
-                                        <button
-                                            type="button"
-                                            data-testid="data-grouping-add"
-                                            className="text-xs h-7 rounded-md border border-dashed border-input bg-background px-2 text-muted-foreground hover:bg-muted hover:text-foreground self-start"
-                                            onClick={() => {
-                                                const next = [
-                                                    ...current,
-                                                    { field: remaining[0].value, order: 'asc' as const, collapsed: false },
-                                                ];
-                                                writeFields(next);
-                                            }}
-                                        >
-                                            + {t('console.objectView.addGroup', 'Add group field')}
-                                        </button>
-                                    );
-                                })()}
-                            </div>
+                            <GroupingEditor
+                                value={value}
+                                fieldOptions={fieldOptions}
+                                maxLevels={3}
+                                labels={{
+                                    addGroup: t('console.objectView.addGroup', 'Add group field'),
+                                    collapseTitle: t('console.objectView.collapsedByDefault', 'Collapsed by default'),
+                                    removeTitle: t('console.objectView.removeGroup', 'Remove'),
+                                }}
+                                onChange={(next) => {
+                                    updateField('grouping', next);
+                                    // Keep legacy shorthand keys in sync for downstream consumers
+                                    // that still read them.
+                                    updateField('groupBy', next?.fields?.[0]?.field || undefined);
+                                    updateField('groupBy2', next?.fields?.[1]?.field || undefined);
+                                }}
+                            />
                         </ConfigRow>
                     );
                 },

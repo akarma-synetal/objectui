@@ -1,5 +1,12 @@
 # @object-ui/providers — Changelog
 
+## 4.0.0
+
+### Patch Changes
+
+- Updated dependencies
+  - @object-ui/types@4.0.0
+
 ## 3.3.3
 
 ### Patch Changes
