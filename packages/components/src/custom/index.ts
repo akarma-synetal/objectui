@@ -15,6 +15,7 @@ export * from './navigation-overlay';
 export * from './section-header';
 export * from './spinner';
 export * from './sort-builder';
+export * from './grouping-editor';
 export * from './action-param-dialog';
 export * from './view-skeleton';
 export * from './view-states';

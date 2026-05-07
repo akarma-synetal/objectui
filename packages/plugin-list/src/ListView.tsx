@@ -7,7 +7,7 @@
  */
 
 import * as React from 'react';
-import { cn, Button, Input, Popover, PopoverContent, PopoverTrigger, FilterBuilder, SortBuilder, NavigationOverlay } from '@object-ui/components';
+import { cn, Button, Input, Popover, PopoverContent, PopoverTrigger, FilterBuilder, SortBuilder, NavigationOverlay, GroupingEditor } from '@object-ui/components';
 import type { SortItem } from '@object-ui/components';
 import { Search, SlidersHorizontal, ArrowUpDown, X, EyeOff, Group, Paintbrush, Ruler, Inbox, Download, AlignJustify, Share2, Printer, Plus, icons, type LucideIcon } from 'lucide-react';
 import type { FilterGroup } from '@object-ui/components';
@@ -1374,7 +1374,7 @@ export const ListView = React.forwardRef<ListViewHandle, ListViewProps>(({
                 )}
               </Button>
             </PopoverTrigger>
-            <PopoverContent align="start" className="w-64 p-3">
+            <PopoverContent align="start" className="w-72 p-3">
               <div className="space-y-2">
                 <div className="flex items-center justify-between border-b pb-2">
                   <h4 className="font-medium text-sm">{t('list.groupBy')}</h4>
@@ -1384,29 +1384,18 @@ export const ListView = React.forwardRef<ListViewHandle, ListViewProps>(({
                     </Button>
                   )}
                 </div>
-                <div className="max-h-60 overflow-y-auto space-y-1" data-testid="group-field-list">
-                  {allFields.map((field: any) => {
-                    const isGrouped = groupingConfig?.fields?.some((f: any) => f.field === field.name);
-                    return (
-                      <label key={field.name} className="flex items-center gap-2 text-sm py-1 px-1 rounded hover:bg-muted cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={!!isGrouped}
-                          onChange={() => {
-                            if (isGrouped) {
-                              const newFields = (groupingConfig?.fields || []).filter((f: any) => f.field !== field.name);
-                              setGroupingConfig(newFields.length > 0 ? { fields: newFields } : undefined);
-                            } else {
-                              const existing = groupingConfig?.fields || [];
-                              setGroupingConfig({ fields: [...existing, { field: field.name, order: 'asc', collapsed: false }] });
-                            }
-                          }}
-                          className="rounded border-input"
-                        />
-                        <span className="truncate">{field.label}</span>
-                      </label>
-                    );
-                  })}
+                <div data-testid="group-field-list">
+                  <GroupingEditor
+                    value={groupingConfig as any}
+                    fieldOptions={allFields.map((f: any) => ({ value: f.name, label: f.label || f.name }))}
+                    maxLevels={3}
+                    labels={{
+                      addGroup: t('list.addGroup', 'Add group field'),
+                      collapseTitle: t('list.collapsedByDefault', 'Collapsed by default'),
+                      removeTitle: t('list.removeGroup', 'Remove'),
+                    }}
+                    onChange={(next) => setGroupingConfig(next as any)}
+                  />
                 </div>
               </div>
             </PopoverContent>

@@ -45,6 +45,29 @@ vi.mock('@object-ui/components', () => ({
   FilterBuilder: () => null,
   SortBuilder: () => null,
   NavigationOverlay: () => null,
+  GroupingEditor: ({ value, onChange, fieldOptions }: any) => (
+    <div data-testid="grouping-editor">
+      {(fieldOptions ?? []).map((opt: any) => {
+        const checked = !!value?.fields?.some((f: any) => f.field === opt.value);
+        return (
+          <label key={opt.value}>
+            <input
+              type="checkbox"
+              checked={checked}
+              onChange={() => {
+                const current = value?.fields ?? [];
+                const next = checked
+                  ? current.filter((f: any) => f.field !== opt.value)
+                  : [...current, { field: opt.value, order: 'asc', collapsed: false }];
+                onChange(next.length ? { fields: next } : undefined);
+              }}
+            />
+            {opt.label}
+          </label>
+        );
+      })}
+    </div>
+  ),
 }));
 
 vi.mock('@object-ui/mobile', () => ({
