@@ -140,7 +140,18 @@ export function CreateViewDialog({
       : allTypes),
     [allTypes, availableTypes],
   );
-  const existingSet = useMemo(() => new Set(existingLabels ?? []), [existingLabels]);
+  // Stabilise the existing-labels list across renders so we don't churn the
+  // `existingSet` memo (and the dependent useEffects) on every parent render.
+  // Callers commonly pass `views.map(v => v.label)` inline, which is a fresh
+  // array each render — without this normalisation, the name-suggest effect
+  // below would re-fire indefinitely and could trigger "Maximum update depth"
+  // when the array contents are stable but the reference is not.
+  const existingKey = (existingLabels ?? []).join('\u0000');
+  const existingSet = useMemo(
+    () => new Set(existingLabels ?? []),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [existingKey],
+  );
   const fieldOptions = useMemo(() => (objectDef ? deriveFieldOptions(objectDef) : []), [objectDef]);
 
   const [selectedType, setSelectedType] = useState<string>(types[0]?.type ?? 'grid');

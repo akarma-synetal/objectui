@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **CI: `apps/console` ObjectView test failures.** The `vi.mock('@object-ui/i18n', ...)`
+  block in `apps/console/dev/__tests__/ObjectView.test.tsx` was returning bare
+  functions for `useObjectTranslation` / `useObjectLabel`, but the real hooks
+  return objects with `{ t, ... }` and `{ objectLabel, objectDescription, ... }`
+  — `ObjectView` therefore crashed on `objectLabel is not a function`. The
+  mocks have been rewritten to mirror the real shape, the broken
+  `useNavigationOverlay` stub has been dropped (the real hook drives the
+  drawer/modal/split/popover state machine and the page-mode `onNavigate`),
+  the smart `dataSource.find('sys_view', …)` mock now seeds sys_view-backed
+  views so the chevron config menu renders, and the dependent tests have been
+  converted to `async` + `findByTestId` to wait for the async fetch.
+- **`@object-ui/app-shell` CreateViewDialog churn.** `existingSet` is now
+  memoised on the joined string key of `existingLabels` rather than the raw
+  array reference, preventing the name-suggest `useEffect` from re-firing on
+  every parent render when callers pass an inline `views.map(v => v.label)`.
+
 ## [4.0.0] - 2026-05-07
 
 ### Added
