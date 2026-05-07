@@ -139,7 +139,6 @@ vi.mock('@object-ui/collaboration', () => ({
 // Mock react utilities
 vi.mock('@object-ui/react', async (importOriginal) => {
     const actual = await importOriginal<any>();
-    const React = await import('react');
     return {
         ...actual,
         ActionProvider: ({ children }: any) => <>{children}</>,
