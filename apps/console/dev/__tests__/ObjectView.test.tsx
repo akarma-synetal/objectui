@@ -181,6 +181,23 @@ vi.mock('@object-ui/plugin-charts', () => ({
     ObjectChart: ({ schema }: any) => <div data-testid="object-chart">Chart: {schema.objectName}</div>,
 }));
 
+// Mock app-shell hooks
+vi.mock('@object-ui/app-shell', async (importOriginal) => {
+    const actual = await importOriginal<any>();
+    return {
+        ...actual,
+        useObjectActions: () => ({
+            execute: vi.fn(),
+            create: vi.fn(),
+            deleteRecord: vi.fn(),
+            navigateToView: vi.fn(),
+            navigateToRecord: vi.fn(),
+            loading: false,
+            error: null,
+        }),
+    };
+});
+
 describe('ObjectView Component', () => {
     
     beforeEach(() => {
