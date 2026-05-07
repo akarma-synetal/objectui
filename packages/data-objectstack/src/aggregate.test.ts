@@ -274,4 +274,33 @@ describe('ObjectStackAdapter aggregate()', () => {
     expect(result.find((r: any) => r.stage === 'Prospect')?.amount).toBe(300);
     expect(result.find((r: any) => r.stage === 'Closed Won')?.amount).toBe(500);
   });
+
+  it('should fall back to client-side aggregation when backend returns rows missing the measure', async () => {
+    mockAnalyticsQuery.mockResolvedValue({
+      rows: [
+        { stage: 'Prospect' },
+        { stage: 'Closed Won' },
+      ],
+      fields: [{ name: 'stage', type: 'string' }],
+    });
+
+    (adapter as any).client.data.find = vi.fn().mockResolvedValue({
+      records: [
+        { stage: 'Prospect', amount: 100 },
+        { stage: 'Prospect', amount: 200 },
+        { stage: 'Closed Won', amount: 500 },
+      ],
+      total: 3,
+    });
+
+    const result = await adapter.aggregate('opportunity', {
+      field: 'amount',
+      function: 'sum',
+      groupBy: 'stage',
+    });
+
+    expect(result).toHaveLength(2);
+    expect(result.find((r: any) => r.stage === 'Prospect')?.amount).toBe(300);
+    expect(result.find((r: any) => r.stage === 'Closed Won')?.amount).toBe(500);
+  });
 });

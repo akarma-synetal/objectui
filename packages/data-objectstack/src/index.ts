@@ -1055,6 +1055,24 @@ export class ObjectStackAdapter<T = unknown> implements DataSource<T> {
         : data?.results && Array.isArray(data.results) ? data.results
         : [];
 
+      // Defensive guard: if the backend silently dropped the requested measure
+      // (e.g. it doesn't recognise the `${field}_${function}` alias and the
+      // canonical measure is named differently), the rows come back without
+      // any measure value. Detect this and fall back to client-side
+      // aggregation so charts still render.
+      const measureMissing = rawRows.length > 0 && rawRows.every((row: any) => {
+        if (row == null) return true;
+        if (measureName in row && row[measureName] != null) return false;
+        if (params.field in row && row[params.field] != null) return false;
+        return true;
+      });
+      if (measureMissing) {
+        const result = await this.find(resource as any);
+        const records = result.data || [];
+        if (records.length === 0) return [];
+        return this.aggregateClientSide(records, params);
+      }
+
       // Map measure keys back to the original field name so that consumers
       // (ObjectChart, DashboardRenderer, etc.) can access values by field name.
       // This includes count → field (e.g. 'count' → 'amount') to match the
