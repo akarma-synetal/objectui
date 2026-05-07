@@ -915,18 +915,10 @@ const DataTableRenderer = ({ schema }: { schema: DataTableSchema }) => {
                       )}
                       {showRowNumbers && (
                         <TableCell className={cn("text-center w-10 relative", frozenColumns > 0 && "sticky z-10 bg-background")} style={frozenColumns > 0 ? { left: selectable ? 40 : 0 } : undefined}>
-                          <span className={cn("text-xs text-muted-foreground tabular-nums select-none", selectable ? "group-hover/row:hidden" : "group-hover/row:invisible")}>
+                          <span className={cn("text-xs text-muted-foreground tabular-nums select-none", !selectable && schema.onRowClick && "group-hover/row:invisible")}>
                             {globalIndex + 1}
                           </span>
-                          {selectable ? (
-                            <div className="absolute inset-0 hidden group-hover/row:flex items-center justify-center">
-                              <Checkbox
-                                checked={isSelected}
-                                onCheckedChange={(checked) => handleSelectRow(rowId, checked as boolean)}
-                                data-testid="row-hover-checkbox"
-                              />
-                            </div>
-                          ) : schema.onRowClick && (
+                          {!selectable && schema.onRowClick && (
                             <button
                               type="button"
                               className="absolute inset-0 hidden group-hover/row:flex items-center justify-center gap-0.5 text-xs font-medium text-primary hover:text-primary/80"
