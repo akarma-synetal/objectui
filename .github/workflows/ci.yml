@@ -11,6 +11,17 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  changeset-check:
+    name: Changeset Fixed Group Check
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Verify all packages are in changeset fixed group
+        run: node scripts/check-changeset-fixed.mjs
+
   test:
     name: Test
     runs-on: ubuntu-latest
