@@ -56,6 +56,10 @@ export function ConsoleLayout({
 }: ConsoleLayoutProps) {
   const appLabel = resolveI18nLabel(activeApp?.label) || activeAppName;
   const { isAiEnabled } = useDiscovery();
+  // Trust an explicit `VITE_AI_BASE_URL` opt-in even when discovery reports
+  // AI as disabled (e.g. framework started without `--preset full`).
+  const aiBaseUrlConfigured = Boolean(import.meta.env?.VITE_AI_BASE_URL);
+  const showChatbot = isAiEnabled || aiBaseUrlConfigured;
   const { setContext, setCurrentAppName } = useNavigationContext();
 
   // Set navigation context to 'app' when this layout mounts
@@ -101,8 +105,9 @@ export function ConsoleLayout({
         {children}
       </ConsoleLayoutInner>
 
-      {/* Global floating chatbot — rendered only when AI service is available */}
-      {isAiEnabled && (
+      {/* Global floating chatbot — rendered when AI service is available
+          OR when `VITE_AI_BASE_URL` has been explicitly configured. */}
+      {showChatbot && (
         <Suspense fallback={null}>
           <ConsoleFloatingChatbot appLabel={appLabel} objects={objects} />
         </Suspense>

@@ -24,6 +24,11 @@ interface HomeLayoutProps {
 export function HomeLayout({ children }: HomeLayoutProps) {
   const { setContext } = useNavigationContext();
   const { isAiEnabled } = useDiscovery();
+  // Render the chatbot whenever AI is reachable. If the developer has explicitly
+  // configured `VITE_AI_BASE_URL`, trust that opt-in even when discovery
+  // reports AI as disabled (e.g. framework started without `--preset full`).
+  const aiBaseUrlConfigured = Boolean(import.meta.env?.VITE_AI_BASE_URL);
+  const showChatbot = isAiEnabled || aiBaseUrlConfigured;
 
   useEffect(() => {
     setContext('home');
@@ -39,7 +44,7 @@ export function HomeLayout({ children }: HomeLayoutProps) {
       </main>
 
       {/* Global floating chatbot — also available on the home/workspace screen */}
-      {isAiEnabled && (
+      {showChatbot && (
         <Suspense fallback={null}>
           <ConsoleFloatingChatbot appLabel="Workspace" objects={[]} />
         </Suspense>
