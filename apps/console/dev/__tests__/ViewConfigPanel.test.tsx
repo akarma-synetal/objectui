@@ -246,6 +246,25 @@ vi.mock('@object-ui/components', () => {
             </div>
             );
         },
+        GroupingEditor: ({ fieldOptions, value, onChange, maxLevels }: any) => {
+            let counter = 0;
+            return (
+                <div
+                    data-testid="mock-grouping-editor"
+                    data-field-count={fieldOptions?.length || 0}
+                    data-group-count={value?.fields?.length || 0}
+                    data-max-levels={maxLevels ?? ''}
+                >
+                    <button data-testid="grouping-editor-add" onClick={() => {
+                        const newField = { id: `mock-group-${Date.now()}-${++counter}`, field: fieldOptions?.[0]?.value || '', order: 'asc', collapsed: false };
+                        onChange?.({ fields: [...(value?.fields || []), newField] });
+                    }}>Add group</button>
+                    {value?.fields?.map((f: any, i: number) => (
+                        <span key={f.id || i} data-testid={`grouping-field-${i}`}>{f.field} {f.order}</span>
+                    ))}
+                </div>
+            );
+        },
     };
 });
 
