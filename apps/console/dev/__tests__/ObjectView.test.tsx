@@ -115,6 +115,89 @@ vi.mock('@object-ui/auth', () => ({
     createAuthenticatedFetch: () => (input: RequestInfo | URL, init?: RequestInit) => fetch(input as any, init),
 }));
 
+// Mock permissions
+vi.mock('@object-ui/permissions', () => ({
+    usePermissions: () => ({
+        can: () => true,
+    }),
+}));
+
+// Mock i18n
+vi.mock('@object-ui/i18n', () => ({
+    useObjectTranslation: () => (key: string) => key,
+    useObjectLabel: () => (objectName: string) => objectName,
+}));
+
+// Mock collaboration
+vi.mock('@object-ui/collaboration', () => ({
+    useRealtimeSubscription: () => ({}),
+    useConflictResolution: () => ({
+        resolveConflict: vi.fn(),
+    }),
+}));
+
+// Mock react utilities
+vi.mock('@object-ui/react', async (importOriginal) => {
+    const actual = await importOriginal<any>();
+    const React = await import('react');
+    return {
+        ...actual,
+        ActionProvider: ({ children }: any) => <>{children}</>,
+        useNavigationOverlay: () => ({
+            open: false,
+            close: vi.fn(),
+            setContent: vi.fn(),
+        }),
+    };
+});
+
+// Mock sonner toast
+vi.mock('sonner', () => ({
+    toast: {
+        success: vi.fn(),
+        error: vi.fn(),
+        warning: vi.fn(),
+        info: vi.fn(),
+    },
+}));
+
+// Mock plugin-detail
+vi.mock('@object-ui/plugin-detail', () => ({
+    DetailView: ({ schema }: any) => <div data-testid="detail-view">{schema.objectName}</div>,
+    RecordChatterPanel: () => <div data-testid="record-chatter-panel">Chatter</div>,
+}));
+
+// Mock plugin-view components
+vi.mock('@object-ui/plugin-view', async (importOriginal) => {
+    const actual = await importOriginal<any>();
+    return {
+        ...actual,
+        ManageViewsDialog: ({ open }: any) => open ? <div data-testid="manage-views-dialog">Manage Views</div> : null,
+    };
+});
+
+// Mock plugin-charts
+vi.mock('@object-ui/plugin-charts', () => ({
+    ObjectChart: ({ schema }: any) => <div data-testid="object-chart">Chart: {schema.objectName}</div>,
+}));
+
+// Mock app-shell hooks
+vi.mock('@object-ui/app-shell', async (importOriginal) => {
+    const actual = await importOriginal<any>();
+    return {
+        ...actual,
+        useObjectActions: () => ({
+            execute: vi.fn(),
+            create: vi.fn(),
+            deleteRecord: vi.fn(),
+            navigateToView: vi.fn(),
+            navigateToRecord: vi.fn(),
+            loading: false,
+            error: null,
+        }),
+    };
+});
+
 describe('ObjectView Component', () => {
     
     beforeEach(() => {
