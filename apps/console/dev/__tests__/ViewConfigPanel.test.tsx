@@ -1429,7 +1429,7 @@ describe('ViewConfigPanel', () => {
             />
         );
 
-        expect(screen.getByTestId('data-groupBy')).toBeInTheDocument();
+        expect(screen.getByTestId('mock-grouping-editor')).toBeInTheDocument();
     });
 
     it('changes groupBy for grid view', () => {
@@ -1444,10 +1444,12 @@ describe('ViewConfigPanel', () => {
             />
         );
 
-        const groupBySelect = screen.getByTestId('data-groupBy');
-        fireEvent.change(groupBySelect, { target: { value: 'stage' } });
+        fireEvent.click(screen.getByTestId('grouping-editor-add'));
 
-        expect(onViewUpdate).toHaveBeenCalledWith('groupBy', 'stage');
+        const groupByCalls = onViewUpdate.mock.calls.filter((c) => c[0] === 'groupBy');
+        expect(groupByCalls.length).toBeGreaterThan(0);
+        expect(typeof groupByCalls[0][1]).toBe('string');
+        expect(groupByCalls[0][1].length).toBeGreaterThan(0);
     });
 
     // ── Calendar endDateField test ──
