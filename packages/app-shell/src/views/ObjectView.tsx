@@ -1098,7 +1098,13 @@ export function ObjectView({ dataSource, objects, onEdit }: any) {
                     center: viewDef.map?.center,
                 },
                 gallery: {
-                    imageField: viewDef.gallery?.imageField || 'image',
+                    // Spread the full view-defined gallery first so spec
+                    // fields (cardSize, visibleFields, coverField, coverFit)
+                    // make it through; then layer legacy field aliases that
+                    // ObjectGallery still consults.
+                    ...(viewDef.gallery || {}),
+                    imageField: viewDef.gallery?.imageField || viewDef.gallery?.coverField || 'image',
+                    coverField: viewDef.gallery?.coverField || viewDef.gallery?.imageField,
                     titleField: viewDef.gallery?.titleField || objectDef.titleField || 'name',
                     subtitleField: viewDef.gallery?.subtitleField,
                 },

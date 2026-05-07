@@ -150,7 +150,7 @@ export const DetailView: React.FC<DetailViewProps> = ({
   inlineEdit = false,
   onFieldSave,
   discussionSlot,
-  rightRail,
+  rightRail: _rightRail,
   objectLabel,
   onDataLoaded,
 }) => {
@@ -493,7 +493,11 @@ export const DetailView: React.FC<DetailViewProps> = ({
    * server-driven action protocol.
    */
   const systemActions = React.useMemo<ActionSchema[]>(() => {
-    const items: ActionSchema[] = [];
+    // System action items use a UI-local shape (`type: 'script'`,
+    // `variant: 'destructive'`, `onClick`) that doesn't perfectly conform
+    // to the canonical ActionSchema discriminated union. Cast at the
+    // boundary so call sites can keep treating them as ActionSchema[].
+    const items: any[] = [];
 
     // Share lives in the unified overflow on every breakpoint — keeps the
     // header focused on the primary Edit CTA. (Was sm:hidden previously.)
@@ -563,7 +567,7 @@ export const DetailView: React.FC<DetailViewProps> = ({
       });
     }
 
-    return items;
+    return items as ActionSchema[];
   }, [
     t,
     schema.showEdit,
@@ -609,7 +613,7 @@ export const DetailView: React.FC<DetailViewProps> = ({
         return {
           ...record,
           systemActions: [...existingSystem, ...systemActions],
-        } as SchemaNode;
+        } as unknown as SchemaNode;
       }
       return node;
     });

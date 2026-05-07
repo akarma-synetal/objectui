@@ -740,8 +740,9 @@ export const ListView = React.forwardRef<ListViewHandle, ListViewProps>(({
               v.startDateField, v.endDateField, v.dateField, v.endField,
               v.colorField, v.allDayField,
               v.coverField, v.imageField, v.subtitleField,
-              v.swimlaneField,
+              v.swimlaneField, v.valueField,
               ...(Array.isArray(v.cardFields) ? v.cardFields : []),
+              ...(Array.isArray(v.visibleFields) ? v.visibleFields : []),
             ];
             for (const f of candidates) {
               if (typeof f === 'string' && f) required.add(f);
@@ -930,7 +931,7 @@ export const ListView = React.forwardRef<ListViewHandle, ListViewProps>(({
     
     // Apply field order
     if (schema.fieldOrder && schema.fieldOrder.length > 0) {
-      const orderMap = new Map(schema.fieldOrder.map((f: any, i: number) => [f, i]));
+      const orderMap = new Map<string, number>(schema.fieldOrder.map((f: any, i: number) => [f as string, i]));
       fields = [...fields].sort((a: any, b: any) => {
         const nameA = typeof a === 'string' ? a : (a?.name || a?.fieldName || a?.field);
         const nameB = typeof b === 'string' ? b : (b?.name || b?.fieldName || b?.field);

@@ -18,6 +18,66 @@ import {
   createErrorFromResponse,
 } from './errors';
 
+/**
+ * Map human-readable filter operator names produced by SDUI view configs
+ * (e.g. `lead.view.ts`) to the canonical operator symbols expected by the
+ * ObjectStack server's filter AST. Unknown operators fall through unchanged
+ * so existing AST-style entries keep working.
+ */
+const FILTER_OPERATOR_ALIASES: Record<string, string> = {
+  equals: '=',
+  eq: '=',
+  '==': '=',
+  not_equals: '!=',
+  notequals: '!=',
+  ne: '!=',
+  greater_than: '>',
+  greaterthan: '>',
+  gt: '>',
+  greater_than_or_equal: '>=',
+  greater_than_or_equals: '>=',
+  greaterthanorequal: '>=',
+  gte: '>=',
+  less_than: '<',
+  lessthan: '<',
+  lt: '<',
+  less_than_or_equal: '<=',
+  less_than_or_equals: '<=',
+  lessthanorequal: '<=',
+  lte: '<=',
+  in: 'in',
+  not_in: 'nin',
+  notin: 'nin',
+  nin: 'nin',
+  contains: 'contains',
+  not_contains: 'notcontains',
+  notcontains: 'notcontains',
+  starts_with: 'startswith',
+  startswith: 'startswith',
+  ends_with: 'endswith',
+  endswith: 'endswith',
+  between: 'between',
+  is_null: 'isnull',
+  isnull: 'isnull',
+  is_not_null: 'isnotnull',
+  isnotnull: 'isnotnull',
+};
+
+function normalizeFilterOperator(op: unknown): string | null {
+  if (typeof op !== 'string') return null;
+  const lower = op.toLowerCase();
+  return FILTER_OPERATOR_ALIASES[lower] ?? FILTER_OPERATOR_ALIASES[op] ?? op;
+}
+
+function objectFilterEntryToAST(entry: any): [string, string, any] | null {
+  if (!entry || typeof entry !== 'object') return null;
+  const field = entry.field ?? entry.name;
+  const rawOp = entry.operator ?? entry.op ?? '=';
+  const op = normalizeFilterOperator(rawOp);
+  if (!field || !op) return null;
+  return [String(field), op, entry.value];
+}
+
 // Module-level discovery cache. Multiple ObjectStackAdapter instances pointed
 // at the same baseUrl (e.g. ConditionalAuthWrapper's throwaway adapter +
 // AdapterProvider's main adapter) would otherwise each fire `/discovery`. By
@@ -749,8 +809,33 @@ export class ObjectStackAdapter<T = unknown> implements DataSource<T> {
         : typeof params.$filter === 'object' && Object.keys(params.$filter).length === 0;
       if (!isEmpty) {
         if (Array.isArray(params.$filter)) {
-          // Assume active AST format if it's already an array
-          options.filters = params.$filter;
+          // Two array shapes are accepted from upstream:
+          //   1. AST tuples:  [field, op, value]                 — pass through.
+          //   2. Object form: [{ field, operator, value }, ...]  — server-driven
+          //      view configs (lead.view.ts etc.) use this. Translate each
+          //      entry into the AST tuple shape and map human-readable
+          //      operator names (`greater_than_or_equal`, `in`, `contains`,
+          //      …) to the canonical symbols the server understands.
+          const isObjectForm = params.$filter.length > 0
+            && typeof params.$filter[0] === 'object'
+            && !Array.isArray(params.$filter[0])
+            && (params.$filter[0] as any).field !== undefined;
+          if (isObjectForm) {
+            const tuples = (params.$filter as any[])
+              .map(entry => objectFilterEntryToAST(entry))
+              .filter((t): t is [string, string, any] => t !== null);
+            if (tuples.length === 0) {
+              // All entries were unrecognized — drop the filter rather than
+              // sending a malformed array.
+            } else if (tuples.length === 1) {
+              options.filters = tuples[0];
+            } else {
+              options.filters = ['and', ...tuples];
+            }
+          } else {
+            // Already in AST format
+            options.filters = params.$filter;
+          }
         } else {
           options.filters = convertFiltersToAST(params.$filter);
         }

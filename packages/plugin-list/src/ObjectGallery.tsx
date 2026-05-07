@@ -140,6 +140,17 @@ export const ObjectGallery: React.FC<ObjectGalleryProps> = (props) => {
 
     const items: Record<string, unknown>[] = props.data || boundData || schema.data || fetchedData || [];
 
+    // Hide the placeholder cover area when no item actually has an image.
+    // Without this, gallery cards on data sets that have no `coverField` (or
+    // an explicit one but no populated values) render with a giant empty
+    // letter-placeholder block that dwarfs the actual content. By collapsing
+    // it when there's nothing to show, the cards become information-dense.
+    const hasAnyCover = useMemo(
+        () => items.some((it) => typeof (it as any)[coverField] === 'string' && !!(it as any)[coverField]),
+        [items, coverField],
+    );
+    const showCoverArea = !!gallery?.coverField || hasAnyCover;
+
     // --- Grouping support ---
     const groupingFields = schema.grouping?.fields;
     const isGrouped = !!(groupingFields && groupingFields.length > 0);
@@ -207,7 +218,7 @@ export const ObjectGallery: React.FC<ObjectGalleryProps> = (props) => {
                 )}
                 onClick={() => navigation.handleClick(item)}
             >
-                <div className={cn('w-full overflow-hidden bg-muted relative', ASPECT_CLASSES[cardSize])}>
+                <div className={cn('w-full overflow-hidden bg-muted relative', ASPECT_CLASSES[cardSize])} hidden={!showCoverArea}>
                     {imageUrl ? (
                         <img
                             src={imageUrl}
@@ -226,18 +237,21 @@ export const ObjectGallery: React.FC<ObjectGalleryProps> = (props) => {
                         </div>
                     )}
                 </div>
-                <CardContent className="p-3 border-t">
+                <CardContent className={cn('p-3', showCoverArea && 'border-t')}>
                     <h3 className="font-medium truncate text-sm" title={title}>
                         {title}
                     </h3>
                     {visibleFields && visibleFields.length > 0 && (
                         <div className="mt-1 space-y-0.5">
                             {visibleFields.map((field) => {
-                                const value = item[field];
-                                if (value == null) return null;
+                                const value = (item as any)[field];
+                                if (value == null || value === '') return null;
+                                const display = typeof value === 'object'
+                                    ? ((value as any).label ?? (value as any).name ?? (value as any).id ?? JSON.stringify(value))
+                                    : String(value);
                                 return (
                                     <p key={field} className="text-xs text-muted-foreground truncate">
-                                        {String(value)}
+                                        {display}
                                     </p>
                                 );
                             })}
@@ -250,7 +264,7 @@ export const ObjectGallery: React.FC<ObjectGalleryProps> = (props) => {
 
     const renderGrid = (gridItems: Record<string, unknown>[]) => (
         <div
-            className={cn('grid gap-4 p-4', GRID_CLASSES[cardSize], schema.className)}
+            className={cn('grid gap-4 p-4 auto-rows-min content-start', GRID_CLASSES[cardSize], schema.className)}
             role="list"
         >
             {gridItems.map((item, i) => renderCard(item, i))}

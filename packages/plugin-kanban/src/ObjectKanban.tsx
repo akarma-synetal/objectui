@@ -36,6 +36,7 @@ export const ObjectKanban: React.FC<ObjectKanbanProps> = ({
   onCardClick,
   ..._props
 }) => {
+  void _props;
   // When a parent (e.g. ListView) pre-fetches data and passes it via the `data` prop,
   // we must not trigger a second fetch. Detect external data by checking if externalData
   // is an array (undefined when not provided by parent).

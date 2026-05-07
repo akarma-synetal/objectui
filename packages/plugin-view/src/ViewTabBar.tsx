@@ -283,6 +283,18 @@ export const ViewTabBar: React.FC<ViewTabBarProps> = ({
     setRenameValue('');
   }, []);
 
+  /**
+   * Suppress the per-tab readonly lock indicator when *every* view is
+   * readonly — in that case the badge is pure noise (no actionable contrast
+   * with editable views) and clutters the tab bar. The lock still appears
+   * the moment the user creates a saved/editable view alongside the system
+   * ones, so the affordance returns when it actually distinguishes things.
+   */
+  const allReadonly = useMemo(
+    () => views.length > 0 && views.every(v => !!v.readonly),
+    [views],
+  );
+
   // --- Sort views: pinned first → personal → shared ---
   const sortedViews = useMemo(() => {
     const sorted = [...views];
@@ -438,7 +450,7 @@ export const ViewTabBar: React.FC<ViewTabBarProps> = ({
         ) : (
           <span>{view.label}</span>
         )}
-        {isReadonly && (
+        {isReadonly && !allReadonly && (
           <Tooltip>
             <TooltipTrigger asChild>
               <Lock

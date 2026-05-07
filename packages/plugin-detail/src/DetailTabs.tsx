@@ -57,15 +57,17 @@ export const DetailTabs: React.FC<DetailTabsProps> = ({
 
       {visibleTabs.map((tab) => (
         <TabsContent key={tab.key} value={tab.key} className="mt-4">
-          {Array.isArray(tab.content) ? (
-            <div className="space-y-4">
-              {tab.content.map((schema, index) => (
-                <SchemaRenderer key={index} schema={schema} data={data} />
-              ))}
-            </div>
-          ) : (
-            <SchemaRenderer schema={tab.content} data={data} />
-          )}
+          <React.Suspense fallback={null}>
+            {Array.isArray(tab.content) ? (
+              <div className="space-y-4">
+                {tab.content.map((schema, index) => (
+                  <SchemaRenderer key={index} schema={schema} data={data} />
+                ))}
+              </div>
+            ) : (
+              <SchemaRenderer schema={tab.content} data={data} />
+            )}
+          </React.Suspense>
         </TabsContent>
       ))}
     </Tabs>
