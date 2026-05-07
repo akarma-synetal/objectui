@@ -448,12 +448,12 @@ describe('buildViewConfigSchema', () => {
             const fieldKeys = section.fields.map((f: any) => f.key);
             // Spec order: columns, filter, sort, pagination, searchableFields, filterableFields,
             //             hiddenFields, quickFilters, virtualScroll
-            // _source is UI extension (first), _groupBy is UI extension (after sort), _typeOptions is UI extension (last)
+            // _source is UI extension (first), _grouping is UI extension (after sort), _typeOptions is UI extension (last)
             // NOTE: prefixField removed — not consumed by runtime
             expect(fieldKeys).toEqual([
                 '_source',
                 '_columns', '_filterBy', '_sortBy',
-                '_groupBy',
+                '_grouping',
                 '_pageSize', '_pageSizeOptions',
                 '_searchableFields', '_filterableFields', '_hiddenFields',
                 '_quickFilters',
@@ -757,7 +757,7 @@ describe('spec alignment', () => {
         it('documents UI extension fields not in NamedListView spec', () => {
             const keys = allFieldKeys();
             // These fields are UI extensions — documented as protocol suggestions
-            const uiExtensions = ['_source', '_groupBy', '_typeOptions'];
+            const uiExtensions = ['_source', '_grouping', '_typeOptions'];
             for (const ext of uiExtensions) {
                 expect(keys).toContain(ext);
             }
@@ -903,10 +903,10 @@ describe('spec alignment', () => {
         });
 
         // ── Data section visibility by view type ────────────────────────
-        it('_groupBy visible for grid (default) and gallery, hidden for others', () => {
+        it('_grouping visible for grid (default) and gallery, hidden for others', () => {
             const schema = buildSpecSchema();
             const section = schema.sections.find((s: any) => s.key === 'data')!;
-            const field = section.fields.find((f: any) => f.key === '_groupBy')!;
+            const field = section.fields.find((f: any) => f.key === '_grouping')!;
             expect(field.visibleWhen).toBeDefined();
             expect(field.visibleWhen!({})).toBe(true);                    // default = grid
             expect(field.visibleWhen!({ type: 'grid' })).toBe(true);

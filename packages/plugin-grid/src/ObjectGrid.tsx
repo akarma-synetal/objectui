@@ -1658,12 +1658,14 @@ export const ObjectGrid: React.FC<ObjectGridProps> = ({
     </div>
   ) : null;
 
-  // Render grid content: grouped (multiple tables with headers) or flat (single table)
-  const gridContent = isGrouped ? (
-    <div className="space-y-2">
-      {groups.map((group) => (
+  // Render grid content: grouped (recursive nested headers + leaf table) or
+  // flat (single table). Multi-level grouping renders one `GroupRow` per level
+  // with progressive indentation; the deepest level hosts the data table.
+  const renderGroup = (group: typeof groups[number]): React.ReactNode => {
+    const indentStyle = group.depth > 0 ? { marginLeft: group.depth * 16 } : undefined;
+    return (
+      <div key={group.key} style={indentStyle}>
         <GroupRow
-          key={group.key}
           groupKey={group.key}
           label={group.label}
           count={group.rows.length}
@@ -1671,10 +1673,20 @@ export const ObjectGrid: React.FC<ObjectGridProps> = ({
           aggregations={group.aggregations}
           onToggle={toggleGroup}
         >
-          <SchemaRenderer schema={buildGroupTableSchema(group.rows)} />
+          {group.subgroups.length > 0 ? (
+            <div className="space-y-2 p-2">
+              {group.subgroups.map(renderGroup)}
+            </div>
+          ) : (
+            <SchemaRenderer schema={buildGroupTableSchema(group.rows)} />
+          )}
         </GroupRow>
-      ))}
-    </div>
+      </div>
+    );
+  };
+
+  const gridContent = isGrouped ? (
+    <div className="space-y-2">{groups.map(renderGroup)}</div>
   ) : (
     <>
       <SchemaRenderer schema={dataTableSchema} />
