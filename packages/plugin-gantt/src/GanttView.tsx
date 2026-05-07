@@ -9,14 +9,17 @@
 "use client"
 
 import * as React from "react"
-import { 
-  ChevronLeft, 
-  ChevronRight, 
-  ZoomIn, 
-  ZoomOut, 
+import {
+  ChevronLeft,
+  ChevronRight,
+  ZoomIn,
+  ZoomOut,
   Calendar as CalendarIcon,
   MoreHorizontal,
-  Plus
+  PanelLeftClose,
+  PanelLeft,
+  Plus,
+  CalendarDays,
 } from "lucide-react"
 import { 
   cn, 
@@ -96,9 +99,23 @@ export function GanttView({
   const containerRef = React.useRef<HTMLDivElement>(null);
   const { width: containerWidth } = useResizeObserver(containerRef);
   const effectiveWidth = containerWidth || (typeof window !== 'undefined' ? window.innerWidth : 1024);
+  const isNarrow = effectiveWidth < 640;
   const rowHeight = rowHeightForContainer(effectiveWidth);
-  const columnWidth = columnWidthForContainer(effectiveWidth);
-  const taskListWidth = taskListWidthForContainer(effectiveWidth);
+  const baseColumnWidth = columnWidthForContainer(effectiveWidth);
+  // Mobile UX (round 3): make zoom + list-collapse stateful so the toolbar
+  // buttons + pinch-to-zoom gesture actually persist.
+  const [columnWidthOverride, setColumnWidthOverride] = React.useState<number | null>(null);
+  const columnWidth = columnWidthOverride ?? baseColumnWidth;
+  const [taskListCollapsed, setTaskListCollapsed] = React.useState<boolean>(false);
+  // Auto-collapse the list once on first narrow render — undoable by the user.
+  const collapsedAutoSet = React.useRef(false);
+  React.useEffect(() => {
+    if (!collapsedAutoSet.current && isNarrow) {
+      setTaskListCollapsed(true);
+      collapsedAutoSet.current = true;
+    }
+  }, [isNarrow]);
+  const taskListWidth = taskListCollapsed ? 0 : taskListWidthForContainer(effectiveWidth);
   const [editingTask, setEditingTask] = React.useState<string | number | null>(null);
   const [editValues, setEditValues] = React.useState<Record<string, string>>({});
   
@@ -150,6 +167,48 @@ export function GanttView({
   const headerRef = React.useRef<HTMLDivElement>(null);
   const listRef = React.useRef<HTMLDivElement>(null);
   const timelineRef = React.useRef<HTMLDivElement>(null);
+  // Wrapper around the scroll-syncing timeline body, so the pinch handler
+  // and the "Today" button can target a stable node.
+  const scrollAreaRef = React.useRef<HTMLDivElement>(null);
+
+  // Pinch-to-zoom state. Track distance between two touch points; deltas
+  // adjust the column width within [15, 120].
+  const pinchState = React.useRef<{ baseDistance: number; baseColumn: number } | null>(null);
+  const onTouchStart = React.useCallback((e: React.TouchEvent<HTMLDivElement>) => {
+    if (e.touches.length === 2) {
+      const dx = e.touches[0].clientX - e.touches[1].clientX;
+      const dy = e.touches[0].clientY - e.touches[1].clientY;
+      pinchState.current = {
+        baseDistance: Math.max(1, Math.sqrt(dx * dx + dy * dy)),
+        baseColumn: columnWidth,
+      };
+    }
+  }, [columnWidth]);
+  const onTouchMove = React.useCallback((e: React.TouchEvent<HTMLDivElement>) => {
+    if (e.touches.length !== 2 || !pinchState.current) return;
+    const dx = e.touches[0].clientX - e.touches[1].clientX;
+    const dy = e.touches[0].clientY - e.touches[1].clientY;
+    const distance = Math.max(1, Math.sqrt(dx * dx + dy * dy));
+    const ratio = distance / pinchState.current.baseDistance;
+    const next = Math.max(15, Math.min(120, Math.round(pinchState.current.baseColumn * ratio)));
+    setColumnWidthOverride(next);
+  }, []);
+  const onTouchEnd = React.useCallback(() => { pinchState.current = null; }, []);
+
+  // Compute the index (and pixel offset) of "today" within the timeline so
+  // we can render a sticky marker AND scroll to it on demand.
+  const todayLeftPx = React.useMemo(() => {
+    const now = new Date();
+    if (now < timelineRange.start || now > timelineRange.end) return null;
+    const msPerDay = 24 * 60 * 60 * 1000;
+    const days = (now.getTime() - timelineRange.start.getTime()) / msPerDay;
+    return Math.round(days * columnWidth);
+  }, [timelineRange, columnWidth]);
+  const jumpToToday = React.useCallback(() => {
+    if (todayLeftPx == null || !scrollAreaRef.current) return;
+    const target = Math.max(0, todayLeftPx - scrollAreaRef.current.clientWidth / 2);
+    scrollAreaRef.current.scrollTo({ left: target, behavior: 'smooth' });
+  }, [todayLeftPx]);
 
   const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
     // Sync horizontal scroll to header
@@ -211,13 +270,47 @@ export function GanttView({
             </SelectContent>
           </Select>
           <div className="flex bg-muted rounded-md p-1">
-            <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setColumnWidth(prev => Math.max(15, prev - 10))} aria-label="Zoom out">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-6 w-6"
+              onClick={() => setColumnWidthOverride(Math.max(15, columnWidth - 10))}
+              aria-label="Zoom out"
+            >
               <ZoomOut className="h-3 w-3" />
             </Button>
-            <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setColumnWidth(prev => Math.min(120, prev + 10))} aria-label="Zoom in">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-6 w-6"
+              onClick={() => setColumnWidthOverride(Math.min(120, columnWidth + 10))}
+              aria-label="Zoom in"
+            >
               <ZoomIn className="h-3 w-3" />
             </Button>
           </div>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8"
+            onClick={() => setTaskListCollapsed((v) => !v)}
+            aria-label={taskListCollapsed ? 'Show task list' : 'Hide task list'}
+            aria-pressed={taskListCollapsed}
+            data-testid="gantt-toggle-task-list"
+          >
+            {taskListCollapsed ? <PanelLeft className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8"
+            onClick={jumpToToday}
+            disabled={todayLeftPx == null}
+            aria-label="Jump to today"
+            data-testid="gantt-jump-today"
+          >
+            <CalendarDays className="h-4 w-4" />
+          </Button>
         </div>
       </div>
 
@@ -352,12 +445,29 @@ export function GanttView({
           </div>
 
           {/* Right Side: Timeline */}
-          <div 
-            className="flex-1 overflow-auto bg-background/50 relative [-webkit-overflow-scrolling:touch]" 
-            ref={timelineRef}
+          <div
+            className="flex-1 overflow-auto bg-background/50 relative [-webkit-overflow-scrolling:touch]"
+            ref={(el) => { (timelineRef as any).current = el; (scrollAreaRef as any).current = el; }}
             onScroll={handleScroll}
+            onTouchStart={onTouchStart}
+            onTouchMove={onTouchMove}
+            onTouchEnd={onTouchEnd}
+            data-testid="gantt-timeline"
           >
-            <div style={{ width: timeColumns.length * columnWidth }}>
+            <div className="relative" style={{ width: timeColumns.length * columnWidth }}>
+              {/* Today vertical marker — sticky inside the scroll area, in front of grid + bars */}
+              {todayLeftPx != null && (
+                <div
+                  className="absolute top-0 bottom-0 w-px bg-red-500/80 z-20 pointer-events-none"
+                  style={{ left: todayLeftPx }}
+                  data-testid="gantt-today-marker"
+                  aria-label="Today"
+                >
+                  <div className="absolute -top-2 -translate-x-1/2 left-0 text-[10px] font-semibold text-white bg-red-500 rounded-sm px-1 py-0.5 whitespace-nowrap">
+                    Today
+                  </div>
+                </div>
+              )}
               {/* Timeline Task Rows */}
               <div className="relative">
                 {/* Background Grid */}

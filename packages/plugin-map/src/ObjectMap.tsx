@@ -20,13 +20,14 @@
  * - Works with object/api/value data providers
  */
 
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useRef, useCallback } from 'react';
 import type { ObjectGridSchema, DataSource, ViewData } from '@object-ui/types';
 import { useNavigationOverlay } from '@object-ui/react';
-import { NavigationOverlay, cn } from '@object-ui/components';
+import { NavigationOverlay, cn, useIsMobile } from '@object-ui/components';
 import { extractRecords, buildExpandFields } from '@object-ui/core';
 import { z } from 'zod';
 import MapGL, { NavigationControl, Marker, Popup } from 'react-map-gl/maplibre';
+import type { MapRef } from 'react-map-gl/maplibre';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 
@@ -302,6 +303,37 @@ export const ObjectMap: React.FC<ObjectMapProps> = ({
   const [objectSchema, setObjectSchema] = useState<any>(null);
   const [selectedMarkerId, setSelectedMarkerId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  // Mobile UX (round 3)
+  const isMobile = useIsMobile();
+  const mapRef = useRef<MapRef | null>(null);
+  const [userLocation, setUserLocation] = useState<{ lng: number; lat: number } | null>(null);
+  const [geoError, setGeoError] = useState<string | null>(null);
+  const [geoBusy, setGeoBusy] = useState(false);
+  const requestUserLocation = useCallback(() => {
+    if (typeof navigator === 'undefined' || !navigator.geolocation) {
+      setGeoError('Geolocation is not available in this browser.');
+      return;
+    }
+    setGeoBusy(true);
+    setGeoError(null);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const { longitude, latitude } = pos.coords;
+        setUserLocation({ lng: longitude, lat: latitude });
+        setGeoBusy(false);
+        try {
+          mapRef.current?.flyTo({ center: [longitude, latitude], zoom: 12, duration: 800 });
+        } catch {
+          /* mapRef may be null in some test envs */
+        }
+      },
+      (err) => {
+        setGeoBusy(false);
+        setGeoError(err.message || 'Unable to retrieve location.');
+      },
+      { enableHighAccuracy: false, timeout: 8000, maximumAge: 60_000 },
+    );
+  }, []);
 
   const rawDataConfig = getDataConfig(schema);
   // Memoize dataConfig using deep comparison to prevent infinite loops
@@ -534,6 +566,7 @@ export const ObjectMap: React.FC<ObjectMapProps> = ({
       )}
       <div className="relative border rounded-lg overflow-hidden bg-muted h-[300px] sm:h-[400px] md:h-[500px] lg:h-[600px] w-full">
          <MapGL
+            ref={(r) => { mapRef.current = r as any; }}
             initialViewState={initialViewState}
             style={{ width: '100%', height: '100%' }}
             mapStyle="https://demotiles.maplibre.org/style.json"
@@ -543,7 +576,29 @@ export const ObjectMap: React.FC<ObjectMapProps> = ({
             onZoom={(e) => setCurrentZoom(Math.round(e.viewState.zoom))}
          >
             <NavigationControl position="top-right" showCompass={true} showZoom={true} />
-            
+
+            {/* Geolocation button — explicit user-initiated location request */}
+            <button
+              type="button"
+              onClick={requestUserLocation}
+              disabled={geoBusy}
+              className="absolute top-2 left-2 z-10 inline-flex items-center justify-center size-9 rounded-md bg-background/95 border shadow-sm hover:bg-background disabled:opacity-50"
+              aria-label="Show my location"
+              data-testid="map-geolocate"
+            >
+              <span aria-hidden="true">{geoBusy ? '⏳' : '🧭'}</span>
+            </button>
+
+            {userLocation && (
+              <Marker longitude={userLocation.lng} latitude={userLocation.lat} anchor="center">
+                <div
+                  className="size-3 rounded-full bg-blue-500 ring-4 ring-blue-500/30 shadow"
+                  aria-label="Your location"
+                  data-testid="map-user-location"
+                />
+              </Marker>
+            )}
+
             {clusteredData.map(cluster => (
               cluster.isCluster ? (
                 <Marker
@@ -551,6 +606,18 @@ export const ObjectMap: React.FC<ObjectMapProps> = ({
                   longitude={cluster.coordinates[0]}
                   latitude={cluster.coordinates[1]}
                   anchor="center"
+                  onClick={(e) => {
+                    e.originalEvent.stopPropagation();
+                    // Cluster tap-through: zoom in toward the cluster center.
+                    try {
+                      const next = Math.min(20, Math.max(currentZoom + 2, 8));
+                      mapRef.current?.flyTo({
+                        center: [cluster.coordinates[0], cluster.coordinates[1]],
+                        zoom: next,
+                        duration: 600,
+                      });
+                    } catch { /* ignore */ }
+                  }}
                 >
                   <div
                     className="flex items-center justify-center rounded-full bg-primary text-primary-foreground font-bold text-xs cursor-pointer hover:scale-110 transition-transform shadow-md"
@@ -559,6 +626,7 @@ export const ObjectMap: React.FC<ObjectMapProps> = ({
                       height: Math.min(48, 24 + cluster.markers.length * 2),
                     }}
                     title={`${cluster.markers.length} markers`}
+                    data-testid="map-cluster"
                   >
                     {cluster.markers.length}
                   </div>
@@ -584,7 +652,7 @@ export const ObjectMap: React.FC<ObjectMapProps> = ({
               )
             ))}
 
-            {selectedMarker && (
+            {selectedMarker && !isMobile && (
                 <Popup
                     longitude={selectedMarker.coordinates[0]}
                     latitude={selectedMarker.coordinates[1]}
@@ -609,6 +677,54 @@ export const ObjectMap: React.FC<ObjectMapProps> = ({
                 </Popup>
             )}
          </MapGL>
+         {/* Mobile UX (round 3) — bottom-sheet record card replaces the
+             Popup on small viewports for a native-feeling mobile pattern. */}
+         {selectedMarker && isMobile && (
+           <div
+             className="absolute inset-x-0 bottom-0 z-30 bg-background border-t shadow-lg rounded-t-2xl p-4 pb-[max(env(safe-area-inset-bottom),1rem)]"
+             role="dialog"
+             aria-label="Location details"
+             data-testid="map-mobile-record-sheet"
+           >
+             <div className="mx-auto mb-2 h-1 w-10 rounded-full bg-muted" aria-hidden="true" />
+             <div className="flex items-start justify-between gap-3">
+               <div className="min-w-0 flex-1">
+                 <h3 className="text-sm font-semibold truncate">{selectedMarker.title}</h3>
+                 {selectedMarker.description && (
+                   <p className="mt-1 text-xs text-muted-foreground line-clamp-3">{selectedMarker.description}</p>
+                 )}
+               </div>
+               <button
+                 type="button"
+                 onClick={() => setSelectedMarkerId(null)}
+                 className="text-muted-foreground hover:text-foreground text-lg leading-none px-2"
+                 aria-label="Close details"
+                 data-testid="map-mobile-record-close"
+               >
+                 ×
+               </button>
+             </div>
+             <div className="mt-3 flex flex-wrap gap-2 text-xs">
+               {onEdit && (
+                 <button
+                   className="px-3 py-1.5 rounded-md border bg-card hover:bg-accent"
+                   onClick={() => onEdit(selectedMarker.data)}
+                 >Edit</button>
+               )}
+               {onDelete && (
+                 <button
+                   className="px-3 py-1.5 rounded-md border border-destructive/30 text-destructive hover:bg-destructive/10"
+                   onClick={() => onDelete(selectedMarker.data)}
+                 >Delete</button>
+               )}
+             </div>
+           </div>
+         )}
+         {geoError && (
+           <div className="absolute top-2 left-14 right-2 z-10 text-xs px-3 py-1.5 rounded-md bg-destructive/10 text-destructive border border-destructive/30">
+             {geoError}
+           </div>
+         )}
       </div>
       {navigation.isOverlay && (
         <NavigationOverlay {...navigation} title="Location Details">
