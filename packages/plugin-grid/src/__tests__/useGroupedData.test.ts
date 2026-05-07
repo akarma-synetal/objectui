@@ -252,4 +252,61 @@ describe('useGroupedData – collapsed state management', () => {
       expect(result.current.groups[0].label).toBe('Alpha, Beta');
     });
   });
+
+  describe('lookup / master_detail object values', () => {
+    it('groups by lookup object using id and shows display name', () => {
+      const data = [
+        { id: 1, account: { id: 'a1', name: 'Acme Corporation' } },
+        { id: 2, account: { id: 'a1', name: 'Acme Corporation' } },
+        { id: 3, account: { id: 'a2', name: 'Beta Industries' } },
+      ];
+      const config = { fields: [{ field: 'account', order: 'asc' as const, collapsed: false }] };
+
+      const { result } = renderHook(() => useGroupedData(config, data));
+
+      expect(result.current.groups).toHaveLength(2);
+      expect(result.current.groups.map((g) => g.label)).toEqual([
+        'Acme Corporation',
+        'Beta Industries',
+      ]);
+      expect(result.current.groups[0].rows).toHaveLength(2);
+      expect(result.current.groups[1].rows).toHaveLength(1);
+      // No "[object Object]" anywhere in labels
+      for (const g of result.current.groups) {
+        expect(g.label).not.toContain('[object Object]');
+      }
+    });
+
+    it('keeps distinct groups for same display name but different ids', () => {
+      const data = [
+        { account: { id: 'a1', name: 'Same Name' } },
+        { account: { id: 'a2', name: 'Same Name' } },
+      ];
+      const config = { fields: [{ field: 'account', order: 'asc' as const, collapsed: false }] };
+
+      const { result } = renderHook(() => useGroupedData(config, data));
+
+      expect(result.current.groups).toHaveLength(2);
+    });
+
+    it('falls back to id when no display name field is present', () => {
+      const data = [{ owner: { id: 'u1' } }];
+      const config = { fields: [{ field: 'owner', order: 'asc' as const, collapsed: false }] };
+
+      const { result } = renderHook(() => useGroupedData(config, data));
+
+      expect(result.current.groups[0].label).toBe('u1');
+    });
+
+    it('handles null lookup values as (empty)', () => {
+      const data = [{ account: null }, { account: { id: 'a1', name: 'Acme' } }];
+      const config = { fields: [{ field: 'account', order: 'asc' as const, collapsed: false }] };
+
+      const { result } = renderHook(() => useGroupedData(config, data));
+
+      const labels = result.current.groups.map((g) => g.label);
+      expect(labels).toContain('(empty)');
+      expect(labels).toContain('Acme');
+    });
+  });
 });

@@ -65,11 +65,37 @@ export interface UseGroupedDataResult {
 }
 
 /**
+ * Extract a stable identity key from a value. For lookup / master_detail
+ * fields the cell contains an expanded object (e.g. `{ id, name, ... }`); we
+ * key off `id` so different referenced records produce distinct groups even
+ * when they happen to share the same display name. Plain primitives are
+ * stringified directly.
+ */
+function extractValueKey(value: any): string {
+  if (value === undefined || value === null || value === '') return '';
+  if (Array.isArray(value)) {
+    return value.map((v) => extractValueKey(v)).join('|');
+  }
+  if (typeof value === 'object') {
+    const id = (value as any).id ?? (value as any)._id ?? (value as any).pk ?? (value as any).value;
+    if (id !== undefined && id !== null && id !== '') return String(id);
+    const label = (value as any).name ?? (value as any).label ?? (value as any).title;
+    if (label !== undefined && label !== null && label !== '') return String(label);
+    try {
+      return JSON.stringify(value);
+    } catch {
+      return '';
+    }
+  }
+  return String(value);
+}
+
+/**
  * Build a value-only key segment for a single grouping field. Used to compose
  * stable composite keys across nesting levels.
  */
 function buildSegmentKey(row: Record<string, any>, field: string): string {
-  return String(row[field] ?? '');
+  return extractValueKey(row[field]);
 }
 
 /**
@@ -102,10 +128,27 @@ function buildSegmentLabel(
           const f2 = formatValue(field, v);
           if (f2 !== undefined && f2 !== '') return f2;
         }
-        return String(v);
+        return buildSegmentLabel(v, field);
       })
       .join(', ');
     return joined || '(empty)';
+  }
+  // Lookup / master_detail fields: the cell is an expanded object such as
+  // `{ id, name, ... }`. Stringifying directly produces "[object Object]",
+  // so prefer common display fields, falling back to the id.
+  if (typeof value === 'object') {
+    const label =
+      (value as any).name ??
+      (value as any).label ??
+      (value as any).title ??
+      (value as any).display_name ??
+      (value as any).displayName ??
+      (value as any).fullName ??
+      (value as any).full_name;
+    if (label !== undefined && label !== null && label !== '') return String(label);
+    const id = (value as any).id ?? (value as any)._id ?? (value as any).pk;
+    if (id !== undefined && id !== null && id !== '') return String(id);
+    return '(empty)';
   }
   return String(value);
 }
@@ -214,7 +257,11 @@ export function useGroupedData(
       }
 
       const order = f.order ?? 'asc';
-      keyOrder.sort((a, b) => compareGroups(a, b, order));
+      keyOrder.sort((a, b) => {
+        const labelA = map.get(a)?.label ?? a;
+        const labelB = map.get(b)?.label ?? b;
+        return compareGroups(labelA, labelB, order);
+      });
 
       return keyOrder.map((segment) => {
         const entry = map.get(segment)!;
