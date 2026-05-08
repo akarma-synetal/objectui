@@ -72,3 +72,5 @@ playwright-report
 *~
 
 .objectstack
+
+.playwright-mcp

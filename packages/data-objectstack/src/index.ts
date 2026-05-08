@@ -723,9 +723,13 @@ export class ObjectStackAdapter<T = unknown> implements DataSource<T> {
       queryParams.set('skip', String(params.$skip));
     }
 
-    // Selection
+    // Selection — always include `id` to ensure records can be identified
+    // for navigation/selection even when callers omit it from $select.
     if (params.$select && params.$select.length > 0) {
-      queryParams.set('select', params.$select.join(','));
+      const selectFields = params.$select.includes('id')
+        ? params.$select
+        : ['id', ...params.$select];
+      queryParams.set('select', selectFields.join(','));
     }
 
     // Sorting
@@ -796,9 +800,12 @@ export class ObjectStackAdapter<T = unknown> implements DataSource<T> {
 
     const options: ObjectStackQueryOptions = {};
 
-    // Selection
+    // Selection — always include `id` so records remain identifiable for
+    // navigation/selection even when callers omit it from $select.
     if (params.$select) {
-      options.select = params.$select;
+      options.select = params.$select.includes('id')
+        ? params.$select
+        : ['id', ...params.$select];
     }
 
     // Filtering - convert to ObjectStack FilterNode AST format. Treat empty

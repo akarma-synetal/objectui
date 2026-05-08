@@ -1,29 +1,23 @@
-# @objectstack/plugin-ui
+# @object-ui/cli
 
-> **oclif plugin** for Object UI — Build applications from JSON schemas.
->
-> Previously published as `@object-ui/cli`. See [MIGRATION.md](./MIGRATION.md) for upgrade details.
-
-## Installation
-
-### With ObjectStack CLI (recommended)
+> Standalone CLI for **Object UI** — scaffold, develop, build, lint, test and validate
+> JSON/YAML schema-driven applications.
 
 ```bash
-npm install -g @objectstack/cli @objectstack/plugin-ui
-
-# Commands are auto-discovered under `os ui`
-os ui dev
-os ui build --help
+npm install -g @object-ui/cli
+# or one-shot:
+npx @object-ui/cli dev app.json
 ```
 
-### Standalone (backward compatible)
+## Why standalone?
 
-```bash
-npm install -g @objectstack/plugin-ui
+ObjectUI is a **protocol-agnostic** rendering engine (Rule #1). Its CLI is a
+self-contained frontend toolchain — like `vite`, `next`, or `astro` — and is
+**not** distributed as a plugin of any meta-CLI.
 
-# Legacy bin still works
-objectui dev app.json
-```
+If you want to aggregate it under another host CLI (e.g. an `os` umbrella),
+write a thin wrapper in that host's repo that shells out to `objectui`. Don't
+re-shape this package to its conventions.
 
 ## Commands
 
@@ -37,17 +31,12 @@ objectui init my-app --template form
 objectui init . --template dashboard
 ```
 
-**Options:**
-- `-t, --template <template>` - Template to use: `simple`, `form`, or `dashboard` (default: `dashboard`)
-
-**Templates:**
-- **simple**: A minimal getting started template
-- **form**: A contact form with validation
-- **dashboard**: A full dashboard with metrics and charts
+**Options**
+- `-t, --template <template>` — `simple`, `form`, or `dashboard` (default: `dashboard`)
 
 ### `objectui dev [schema]`
 
-Start a development server with hot reload. Opens browser automatically.
+Start a development server with hot reload. Opens the browser automatically.
 
 ```bash
 objectui dev app.json
@@ -55,17 +44,14 @@ objectui dev my-schema.json --port 8080
 objectui dev --no-open
 ```
 
-**Arguments:**
-- `[schema]` - Path to JSON/YAML schema file (default: `app.json`)
-
-**Options:**
-- `-p, --port <port>` - Port to run the server on (default: `3000`)
-- `-h, --host <host>` - Host to bind the server to (default: `localhost`)
-- `--no-open` - Do not open browser automatically
+**Options**
+- `-p, --port <port>` — default `3000`
+- `-h, --host <host>` — default `localhost`
+- `--no-open` — do not open browser
 
 ### `objectui build [schema]`
 
-Build your application for production deployment.
+Build the application for production.
 
 ```bash
 objectui build app.json
@@ -73,12 +59,9 @@ objectui build --out-dir build
 objectui build --clean
 ```
 
-**Arguments:**
-- `[schema]` - Path to JSON/YAML schema file (default: `app.json`)
-
-**Options:**
-- `-o, --out-dir <dir>` - Output directory (default: `dist`)
-- `--clean` - Clean output directory before build
+**Options**
+- `-o, --out-dir <dir>` — default `dist`
+- `--clean` — clean output directory before build
 
 ### `objectui start`
 
@@ -86,139 +69,83 @@ Serve the production build locally.
 
 ```bash
 objectui start
-objectui start --port 8080
-objectui start --dir build
+objectui start --port 8080 --dir build
 ```
 
-**Options:**
-- `-p, --port <port>` - Port to run the server on (default: `3000`)
-- `-h, --host <host>` - Host to bind the server to (default: `0.0.0.0`)
-- `-d, --dir <dir>` - Directory to serve (default: `dist`)
+**Options**
+- `-p, --port <port>` — default `3000`
+- `-h, --host <host>` — default `0.0.0.0`
+- `-d, --dir <dir>` — default `dist`
 
 ### `objectui serve [schema]`
 
-Start a development server (legacy command, use `dev` instead).
-
-```bash
-objectui serve app.json
-objectui serve my-schema.json --port 8080
-```
-
-**Arguments:**
-- `[schema]` - Path to JSON schema file (default: `app.json`)
-
-**Options:**
-- `-p, --port <port>` - Port to run the server on (default: `3000`)
-- `-h, --host <host>` - Host to bind the server to (default: `localhost`)
+Legacy alias of `dev` (kept for older scripts).
 
 ### `objectui lint`
 
-Lint the generated application code using ESLint.
+Lint the generated application code via ESLint.
 
 ```bash
-objectui lint
 objectui lint --fix
 ```
 
-**Options:**
-- `--fix` - Automatically fix linting issues
-
-**Note:** Run `objectui dev` first to generate the application before linting.
-
 ### `objectui test`
 
-Run tests for the application using Vitest.
+Run the application's tests via Vitest.
 
 ```bash
-objectui test
 objectui test --watch
 objectui test --coverage
 objectui test --ui
 ```
 
-**Options:**
-- `-w, --watch` - Run tests in watch mode
-- `-c, --coverage` - Generate test coverage report
-- `--ui` - Run tests with Vitest UI
+### `objectui generate <type> <name>` (alias `g`)
 
-**Note:** Run `objectui dev` first to generate the application before testing.
+Generate new resources (`resource`/`object`, `page`, `plugin`).
 
-## Quick Start
+### `objectui add <component>`
 
-1. Create a new application:
-   ```bash
-   objectui init my-dashboard --template dashboard
-   cd my-dashboard
-   ```
+Add a new component renderer to your project.
 
-2. Start the development server:
-   ```bash
-   objectui dev app.json
-   ```
+### `objectui validate [schema]`
 
-3. Lint your code (optional):
-   ```bash
-   objectui lint
-   ```
+Validate a schema file against the ObjectUI specification.
 
-4. Run tests (optional):
-   ```bash
-   objectui test
-   ```
+### `objectui check`, `objectui doctor`, `objectui studio`, `objectui analyze`, `objectui create plugin <name>`
 
-5. Build for production:
-   ```bash
-   objectui build app.json
-   ```
+Utility commands — see `objectui --help`.
 
-6. Serve the production build:
-   ```bash
-   objectui start
-   ```
+## Quick start
 
-Your app will be running at http://localhost:3000!
-
-## Example Schema
-
-```json
-{
-  "type": "div",
-  "className": "min-h-screen flex items-center justify-center",
-  "body": {
-    "type": "card",
-    "title": "Hello World",
-    "body": {
-      "type": "text",
-      "content": "Welcome to Object UI!"
-    }
-  }
-}
+```bash
+objectui init my-dashboard --template dashboard
+cd my-dashboard
+objectui dev app.json
 ```
 
-## Learn More
+## Programmatic API
 
-- [Object UI Documentation](https://www.objectui.org)
-- [Schema Reference](https://www.objectui.org/docs/protocol/overview)
-- [Component Library](https://www.objectui.org/docs/api/components)
+```ts
+import { serve, init } from '@object-ui/cli';
 
-<!-- release-metadata:v3.3.0 -->
+await serve('app.json', { port: '3000', host: 'localhost' });
+await init('my-app', { template: 'dashboard' });
+```
 
 ## Compatibility
 
-- **Node.js:** ≥ 18
-- **TypeScript:** ≥ 5.0 (strict mode)
-- **`@objectstack/spec`:** ^3.3.0
-- **`@objectstack/client`:** ^3.3.0
-- **Tailwind CSS:** ≥ 3.4 (for packages with UI)
+- **Node.js** ≥ 18
+- **TypeScript** ≥ 5.0 (strict mode)
+- **`@objectstack/spec`** ^3.3.0
+- **`@objectstack/client`** ^3.3.0
+- **Tailwind CSS** ≥ 3.4
 
 ## Links
 
 - 📚 [Documentation](https://www.objectui.org/docs/utilities/cli)
-- 📦 [npm package](https://www.npmjs.com/package/@objectstack/plugin-ui)
+- 📦 [npm package](https://www.npmjs.com/package/@object-ui/cli)
 - 📝 [Changelog](./CHANGELOG.md)
 - 🐛 [Report an issue](https://github.com/objectstack-ai/objectui/issues)
-- 🤝 [Contributing Guide](https://github.com/objectstack-ai/objectui/blob/main/CONTRIBUTING.md)
-- 🗺️ [Roadmap](https://github.com/objectstack-ai/objectui/blob/main/ROADMAP.md)
 
 ## License
 

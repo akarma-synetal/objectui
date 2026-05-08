@@ -1,5 +1,5 @@
 /**
- * ObjectUI — @objectstack/plugin-ui
+ * ObjectUI — @object-ui/cli
  * Copyright (c) 2024-present ObjectStack Inc.
  *
  * This source code is licensed under the MIT license found in the

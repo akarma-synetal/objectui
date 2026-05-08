@@ -49,7 +49,7 @@ pnpm changeset publish         # Publish to npm (CI only)
 
 | Path | Purpose |
 | --- | --- |
-| `packages/*` | 39 published packages (`@object-ui/*`, `@objectstack/plugin-ui`) |
+| `packages/*` | 39 published packages (`@object-ui/*`) |
 | `apps/console` | Full ObjectUI console app (Vite + React) |
 | `apps/site` | Public docs site at <https://www.objectui.org> (fumadocs) |
 | `apps/server` | Vercel backend for `demo.objectstack.ai` |

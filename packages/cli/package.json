@@ -1,7 +1,7 @@
 {
-  "name": "@objectstack/plugin-ui",
+  "name": "@object-ui/cli",
   "version": "4.0.5",
-  "description": "ObjectStack CLI plugin for Object UI — oclif-based UI toolchain commands (os ui dev, os ui build, etc.)",
+  "description": "Standalone CLI for Object UI — scaffold, develop, build and validate JSON/YAML schema-driven applications.",
   "type": "module",
   "homepage": "https://www.objectui.org/docs/utilities/cli",
   "repository": {
@@ -38,7 +38,6 @@
   "keywords": [
     "objectstack",
     "object-ui",
-    "oclif-plugin",
     "cli",
     "schema-driven",
     "ui-builder",
@@ -53,15 +52,10 @@
   ],
   "author": "ObjectStack Team",
   "license": "MIT",
-  "oclif": {
-    "commands": "./dist/commands",
-    "hooks": {}
-  },
   "dependencies": {
     "@object-ui/components": "workspace:*",
     "@object-ui/react": "workspace:*",
     "@object-ui/types": "workspace:*",
-    "@oclif/core": "^4.11.0",
     "@types/glob": "^9.0.0",
     "@vitejs/plugin-react": "^6.0.1",
     "chalk": "^5.6.2",

@@ -18,7 +18,7 @@ complete release metadata and aligned with `@objectstack/spec` ^4.0.4 and
 
 ### Highlights
 
-- **39 published packages** (`@object-ui/*`, `@objectstack/plugin-ui`) with
+- **39 published packages** (`@object-ui/*`) with
   standardized `package.json` metadata, per-package `LICENSE` and
   `CHANGELOG.md`.
 - **Standard README template** applied across every package (Installation →

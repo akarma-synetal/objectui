@@ -758,9 +758,6 @@ importers:
       '@object-ui/types':
         specifier: workspace:*
         version: link:../types
-      '@oclif/core':
-        specifier: ^4.11.0
-        version: 4.11.0
       '@types/glob':
         specifier: ^9.0.0
         version: 9.0.0
