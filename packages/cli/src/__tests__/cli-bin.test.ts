@@ -52,12 +52,24 @@ function run(args: string[], opts: { cwd?: string } = {}) {
 describe('@object-ui/cli bin', () => {
   beforeAll(() => {
     if (!existsSync(CLI_BIN)) {
-      throw new Error(
-        `dist/cli.js not found. Run "pnpm --filter @object-ui/cli build" first.\n` +
-          `Looked at: ${CLI_BIN}`,
-      );
+      // Auto-build the CLI on first test run. This keeps the test self-contained
+      // so it works in CI (where `pnpm test:coverage` runs without `^build` deps)
+      // and locally without requiring a separate build step.
+      const pkgRoot = resolve(__dirname, '../..');
+      const result = spawnSync('pnpm', ['run', 'build'], {
+        cwd: pkgRoot,
+        encoding: 'utf-8',
+        stdio: 'pipe',
+      });
+      if (result.status !== 0 || !existsSync(CLI_BIN)) {
+        throw new Error(
+          `Failed to build @object-ui/cli for tests.\n` +
+            `Looked at: ${CLI_BIN}\n` +
+            `stdout: ${result.stdout}\nstderr: ${result.stderr}`,
+        );
+      }
     }
-  });
+  }, 60_000);
 
   describe('package metadata', () => {
     it('package.json declares the standalone @object-ui/cli identity', () => {
