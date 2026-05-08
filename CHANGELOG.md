@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Page-mode record forms (`editMode: 'page'`).** New per-object
+  metadata flag that opts a record's create/edit form into a dedicated
+  full-screen route instead of the default modal dialog. Routes are
+  scoped under the active app:
+  - `GET /apps/:appName/:objectName/new` — create page
+  - `GET /apps/:appName/:objectName/record/:recordId/edit` — edit page
+
+  These URLs are deep-linkable, refresh-safe, and integrate with the
+  browser back button — making them suitable for long forms,
+  multi-tab/wizard layouts, and copy-paste-share workflows. The same
+  `<ObjectForm>` pipeline drives both modes, so every existing field /
+  section / `formType` configuration carries over unchanged.
+
+  Two new declarative actions, `navigate_create` and `navigate_edit`,
+  let JSON `<action:button>` schemas open the page routes directly
+  without any host-app code changes. Default behavior (modal) is
+  preserved for any object that does not set `editMode`.
+
+  Implemented in `@object-ui/app-shell` (new `RecordFormPage` view +
+  routes in `AppContent`). Type added to `@object-ui/types`
+  (`ObjectSchemaMetadata.editMode`). New guide at
+  `content/docs/guide/record-edit-modes.md`.
+
 ### Fixed
 
 - **`@object-ui/plugin-list` & `@object-ui/plugin-detail`: shared `ComponentRegistry` singleton broken when consumed via published dist.** Both packages' `vite.config.ts` only listed `react`, `react-dom`, `react/jsx-runtime` in `rollupOptions.external`. As a result Rolldown inlined `@object-ui/core` (and a large chunk of lucide-react) into each plugin's bundle, giving every plugin its **own private `ComponentRegistry` instance**. Downstream apps that loaded the published plugins from npm saw `registry.get('object-grid')` from one plugin return `undefined` for components registered by another plugin — only workspace `alias` overrides pointing back to `packages/*/src` masked the issue. The `external` config now uses a regex covering all `@object-ui/*` workspace packages, the `@object-ui/*` deps have been moved from `dependencies` to `peerDependencies` (versioned `workspace:^` for publish-time rewrite, mirrored in `devDependencies` for local builds), and a regression test (`packages/core/src/registry/__tests__/cross-plugin-singleton.test.ts`) imports the built dist of `@object-ui/plugin-grid` and `@object-ui/plugin-list` and asserts cross-plugin lookup works against the same `ComponentRegistry` singleton. Downstream consumers (e.g. framework `apps/dashboard`) can now drop any `OBJECTUI_ROOT` / `packages/*/src` aliases.

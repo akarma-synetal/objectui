@@ -1,5 +1,17 @@
 # @object-ui/types
 
+## Unreleased
+
+### Added
+
+- **`ObjectSchemaMetadata.editMode`.** Optional `'modal' | 'page'` flag
+  declaring whether record create/edit should open the global
+  `<ModalForm>` (default) or navigate to the dedicated full-screen route
+  mounted by `@object-ui/app-shell` (`/apps/:appName/:objectName/new` and
+  `/apps/:appName/:objectName/record/:recordId/edit`). Default remains
+  `'modal'` so existing schemas are unaffected. See the new guide at
+  `content/docs/guide/record-edit-modes.md` for details.
+
 ## 4.0.1
 
 ## 4.0.0

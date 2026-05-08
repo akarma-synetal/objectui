@@ -201,7 +201,7 @@ export default function ConsoleFloatingChatbot({
   React.useEffect(() => {
     if (!activeAgent && agents.length > 0) {
       const preferred = defaultAgentProp ?? envDefaultAgent;
-      const match = preferred && agents.find((a) => a.name === preferred);
+      const match = preferred ? agents.find((a) => a.name === preferred) : undefined;
       setActiveAgent((match ?? agents[0]).name);
     }
   }, [agents, activeAgent, defaultAgentProp, envDefaultAgent]);

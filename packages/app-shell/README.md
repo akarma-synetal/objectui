@@ -175,6 +175,60 @@ See `examples/byo-backend-console` for a complete working example that demonstra
 - Cherry-picking only needed components
 - Building a console in ~100 lines of code
 
+## Record create/edit modes
+
+The default `<DefaultAppContent>` shell mounts a global `<ModalForm>` for
+record create/edit interactions. Each object can opt in to a route-driven
+full-screen experience instead by setting `editMode` on its metadata:
+
+```jsonc
+// objects/account.json
+{
+  "name": "account",
+  "label": "Account",
+  "editMode": "page",        // ← opt-in. Default is "modal".
+  "fields": { /* ... */ }
+}
+```
+
+When `editMode: 'page'` is set, clicking **Create** or **Edit** for an
+`account` record navigates to a dedicated route instead of opening the
+dialog:
+
+| Action | URL |
+|--------|-----|
+| Create | `/apps/:appName/account/new` |
+| Edit   | `/apps/:appName/account/record/:recordId/edit` |
+
+These routes are deep-linkable (refresh-safe), respect the browser back
+button, and render the same `<ObjectForm>` pipeline as the modal — so
+`tabbed`, `wizard`, and section configurations work in both modes.
+
+JSON `<action:button>` schemas can also trigger the page routes directly
+via the action runner, regardless of the object's `editMode`:
+
+```json
+{
+  "type": "action:button",
+  "label": "New Account",
+  "action": { "action": "navigate_create", "params": { "objectName": "account" } }
+}
+```
+
+```json
+{
+  "type": "action:button",
+  "label": "Edit",
+  "action": {
+    "action": "navigate_edit",
+    "params": { "objectName": "account", "recordId": "${record.id}" }
+  }
+}
+```
+
+See [`content/docs/guide/record-edit-modes.md`](../../content/docs/guide/record-edit-modes.md)
+for a longer walkthrough.
+
 <!-- release-metadata:v3.3.0 -->
 
 ## Compatibility

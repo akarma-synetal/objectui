@@ -17,6 +17,7 @@
 > - 🛑 **Spec v4 native opt-ins** for the platform layer (CLI v4 plugin options, multi-tenant v4 resolver) — engine-level work, no immediate end-user impact.
 
 > **Recently Completed (queued in `.changeset/` for next release):**
+> - 🪟 Page-mode record forms — `editMode: 'page'` opens create/edit on a deep-linkable, refresh-safe full-screen route alongside the existing modal flow
 > - 📱 Mobile UX rounds 1 & 2 — Kanban readability, Calendar mobile default, Timeline dot clipping, list/sidebar/record-detail polish
 > - 🪟 `plugin-view` Manage Views dialog (replaces inline tab drag)
 > - 🧭 App-shell view-tab strip for single-view objects + DropdownMenu propagation fix

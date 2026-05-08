@@ -88,12 +88,14 @@ export {
 export {
   ObjectView,
   RecordDetailView,
+  RecordFormPage,
   DashboardView,
   PageView,
   ReportView,
   SearchResultsPage,
   ViewConfigPanel,
 } from './views';
+export type { RecordFormPageProps } from './views';
 
 // Hooks
 export {

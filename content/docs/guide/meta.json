@@ -16,6 +16,7 @@
     "plugins",
     "plugin-development",
     "building-crud-app",
+    "record-edit-modes",
     "console",
     "console-architecture",
     "objectos-integration",
