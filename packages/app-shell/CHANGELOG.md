@@ -1,5 +1,39 @@
 # @object-ui/app-shell — Changelog
 
+## Unreleased
+
+### Added
+
+- **Page-mode record forms.** Objects can now opt into a route-driven
+  full-screen create/edit experience by setting `editMode: 'page'` on the
+  object metadata (default remains `'modal'`). When opted in, the
+  console mounts two new routes under `/apps/:appName/`:
+  - `:objectName/new` for create
+  - `:objectName/record/:recordId/edit` for edit
+
+  URLs are deep-linkable, refresh-safe, and respect the browser back
+  button. The new `RecordFormPage` view renders inside the existing
+  `ConsoleLayout` chrome and reuses the same `<ObjectForm>` pipeline as
+  the modal flow, so every existing form configuration (sections,
+  visibility expressions, validations, `formType: 'tabbed' | 'wizard'`,
+  …) works without changes.
+
+  Two declarative actions expose the routes for `<action:button>` JSON:
+  - `{ "action": "navigate_create", "params": { "objectName": "..." } }`
+  - `{ "action": "navigate_edit", "params": { "objectName": "...", "recordId": "..." } }`
+
+  When called from inside an `ObjectView` the `objectName` falls back to
+  the action context, so it can be omitted from the params.
+
+  See `content/docs/guide/record-edit-modes.md` for a walkthrough.
+
+  - New view: `packages/app-shell/src/views/RecordFormPage.tsx`
+  - New helpers: `resolveRecordFormTarget`, `resolveNavigateCreateUrl`,
+    `resolveNavigateEditUrl` in
+    `packages/app-shell/src/utils/recordFormNavigation.ts`
+  - Tests: `RecordFormPage.test.tsx` (6) and
+    `recordFormNavigation.test.ts` (22), all passing.
+
 ## 4.0.1
 
 ### Patch Changes
