@@ -1072,7 +1072,7 @@ export const ListView = React.forwardRef<ListViewHandle, ListViewProps>(({
   const hasFilters = currentFilters.conditions && currentFilters.conditions.length > 0;
 
   const filterFields = React.useMemo(() => {
-    let fields: Array<{ value: string; label: string; type: string; options?: any }>;
+    let fields: Array<{ value: string; label: string; type: string; options?: any; referenceTo?: string; displayField?: string; idField?: string }>;
 
     if (!objectDef?.fields) {
         // Fallback to schema fields if objectDef not loaded yet
@@ -1083,7 +1083,10 @@ export const ListView = React.forwardRef<ListViewHandle, ListViewProps>(({
               value: fieldName,
               label: tFieldLabel(fieldName, f.label || f.name),
               type: f.type || 'text',
-              options: f.options
+              options: f.options,
+              referenceTo: f.reference_to || f.reference,
+              displayField: f.display_field || f.reference_field,
+              idField: f.id_field,
            };
         });
     } else {
@@ -1091,7 +1094,10 @@ export const ListView = React.forwardRef<ListViewHandle, ListViewProps>(({
             value: key,
             label: tFieldLabel(key, field.label || key),
             type: field.type || 'text',
-            options: field.options
+            options: field.options,
+            referenceTo: field.reference_to || field.reference,
+            displayField: field.display_field || field.reference_field,
+            idField: field.id_field,
         }));
     }
 

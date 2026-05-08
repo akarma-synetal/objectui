@@ -61,7 +61,19 @@ The Filter Builder component provides a visual interface for creating complex fi
 interface FilterField {
   value: string;                         // Field identifier
   label: string;                         // Display label
-  type?: 'text' | 'number' | 'date' | 'boolean';  // Field type
+  type?:
+    | 'text' | 'number' | 'currency' | 'percent' | 'rating'
+    | 'date' | 'datetime' | 'time'
+    | 'boolean'
+    | 'select' | 'status'
+    | 'lookup' | 'master_detail' | 'user' | 'owner'; // Field type
+  options?: Array<{ value: string; label: string }>;  // Static options (select-like)
+  // Lookup-like fields without `options` render a remote-search picker that
+  // queries the configured DataSource. The metadata below describes how to
+  // resolve and display referenced records:
+  referenceTo?: string;                  // Referenced object name (e.g. "user")
+  displayField?: string;                 // Display field on referenced object (default "name")
+  idField?: string;                      // Id field on referenced object (default "id")
 }
 
 interface FilterCondition {

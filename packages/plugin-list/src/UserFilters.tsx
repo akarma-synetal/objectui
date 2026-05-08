@@ -7,7 +7,7 @@
  */
 
 import * as React from 'react';
-import { cn, Button, Popover, PopoverContent, PopoverTrigger } from '@object-ui/components';
+import { cn, Button, Popover, PopoverContent, PopoverTrigger, LookupValuePicker } from '@object-ui/components';
 import { ChevronDown, X, Plus, SlidersHorizontal } from 'lucide-react';
 import type { ListViewSchema } from '@object-ui/types';
 
@@ -27,7 +27,15 @@ interface ResolvedField {
   options: ResolvedOption[];
   showCount?: boolean;
   defaultValues?: (string | number | boolean)[];
+  /** Lookup-like fields: referenced object name */
+  referenceTo?: string;
+  /** Lookup-like fields: display field on referenced object */
+  displayField?: string;
+  /** Lookup-like fields: id field on referenced object */
+  idField?: string;
 }
+
+const LOOKUP_LIKE_TYPES = new Set(['lookup', 'master_detail', 'user', 'owner']);
 
 export interface UserFiltersProps {
   config: NonNullable<ListViewSchema['userFilters']>;
@@ -103,34 +111,64 @@ function resolveFields(
 ): ResolvedField[] {
   return fields.map(f => {
     let options: ResolvedOption[] = f.options ? [...f.options] : [];
-    if (options.length === 0 && objectDef?.fields) {
+    let resolvedType: string | undefined = f.type;
+    let referenceTo: string | undefined;
+    let displayField: string | undefined;
+    let idField: string | undefined;
+
+    if (objectDef?.fields) {
       const fieldDef =
         Array.isArray(objectDef.fields)
           ? objectDef.fields.find((fd: any) => fd.name === f.field)
           : objectDef.fields[f.field];
-      if (fieldDef?.options) {
-        if (Array.isArray(fieldDef.options)) {
-          options = fieldDef.options.map((o: any) => ({
-            label: o.label ?? String(o.value ?? o),
-            value: o.value ?? o,
-            color: o.color,
-          }));
-        } else {
-          options = Object.entries(fieldDef.options).map(([value, meta]) => ({
-            label: (meta as any)?.label || value,
-            value,
-            color: (meta as any)?.color,
-          }));
+      if (fieldDef) {
+        // Adopt field type from objectDef when caller didn't specify
+        if (!resolvedType) resolvedType = fieldDef.type;
+        // Capture lookup metadata regardless of caller-specified type
+        referenceTo = fieldDef.reference_to ?? fieldDef.reference;
+        displayField = fieldDef.display_field ?? fieldDef.reference_field;
+        idField = fieldDef.id_field;
+
+        if (options.length === 0 && fieldDef.options) {
+          if (Array.isArray(fieldDef.options)) {
+            options = fieldDef.options.map((o: any) => ({
+              label: o.label ?? String(o.value ?? o),
+              value: o.value ?? o,
+              color: o.color,
+            }));
+          } else {
+            options = Object.entries(fieldDef.options).map(([value, meta]) => ({
+              label: (meta as any)?.label || value,
+              value,
+              color: (meta as any)?.color,
+            }));
+          }
         }
       }
     }
+
+    // Auto-derive options for boolean fields when none were provided
+    if (options.length === 0 && resolvedType === 'boolean') {
+      options = [
+        { label: 'True', value: true },
+        { label: 'False', value: false },
+      ];
+    }
+
     if (f.showCount && data.length > 0) {
       options = options.map(opt => ({
         ...opt,
         count: data.filter(row => row[f.field] === opt.value).length,
       }));
     }
-    return { ...f, options };
+    return {
+      ...f,
+      type: resolvedType,
+      options,
+      referenceTo,
+      displayField,
+      idField,
+    };
   });
 }
 
@@ -198,6 +236,11 @@ function DropdownFilters({ fields, objectDef, data, onFilterChange, maxVisible, 
   const renderBadge = (f: ResolvedField) => {
     const selected = selectedValues[f.field] || [];
     const hasSelection = selected.length > 0;
+    const isLookupLike =
+      LOOKUP_LIKE_TYPES.has(f.type || '') &&
+      f.options.length === 0 &&
+      (f.referenceTo || f.type === 'user' || f.type === 'owner');
+    const popoverWidth = isLookupLike ? 'w-72' : 'w-56';
 
     return (
       <Popover key={f.field}>
@@ -231,40 +274,71 @@ function DropdownFilters({ fields, objectDef, data, onFilterChange, maxVisible, 
             )}
           </button>
         </PopoverTrigger>
-        <PopoverContent align="start" className="w-56 p-2">
-          <div className="max-h-60 overflow-y-auto space-y-0.5" data-testid={`filter-options-${f.field}`}>
-            {f.options.map(opt => (
-                <label
-                  key={String(opt.value)}
-                  className={cn(
-                    'flex items-center gap-2 text-sm py-1.5 px-2 rounded cursor-pointer',
-                    selected.includes(opt.value) ? 'bg-primary/5 text-primary' : 'hover:bg-muted',
-                  )}
-                >
-                  <input
-                    type="checkbox"
-                    checked={selected.includes(opt.value)}
-                    onChange={() => {
-                      const next = selected.includes(opt.value)
-                        ? selected.filter(v => v !== opt.value)
-                        : [...selected, opt.value];
-                      handleChange(f.field, next);
-                    }}
-                    className="rounded border-input"
-                  />
-                  {opt.color && (
-                    <span
-                      className="h-2.5 w-2.5 rounded-full shrink-0"
-                      style={{ backgroundColor: opt.color }}
+        <PopoverContent align="start" className={cn(popoverWidth, 'p-2')}>
+          {isLookupLike ? (
+            <div data-testid={`filter-lookup-${f.field}`}>
+              <LookupValuePicker
+                field={{
+                  value: f.field,
+                  label: f.label || f.field,
+                  type: f.type,
+                  referenceTo: f.referenceTo,
+                  displayField: f.displayField,
+                  idField: f.idField,
+                }}
+                value={selected}
+                multiple={true}
+                onChange={(value) => {
+                  const arr = Array.isArray(value)
+                    ? (value as (string | number | boolean)[])
+                    : (value === undefined || value === null || value === '')
+                      ? []
+                      : [value as string | number | boolean];
+                  handleChange(f.field, arr);
+                }}
+              />
+            </div>
+          ) : (
+            <div className="max-h-60 overflow-y-auto space-y-0.5" data-testid={`filter-options-${f.field}`}>
+              {f.options.length === 0 ? (
+                <div className="px-2 py-3 text-center text-xs text-muted-foreground">
+                  No options
+                </div>
+              ) : (
+                f.options.map(opt => (
+                  <label
+                    key={String(opt.value)}
+                    className={cn(
+                      'flex items-center gap-2 text-sm py-1.5 px-2 rounded cursor-pointer',
+                      selected.includes(opt.value) ? 'bg-primary/5 text-primary' : 'hover:bg-muted',
+                    )}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={selected.includes(opt.value)}
+                      onChange={() => {
+                        const next = selected.includes(opt.value)
+                          ? selected.filter(v => v !== opt.value)
+                          : [...selected, opt.value];
+                        handleChange(f.field, next);
+                      }}
+                      className="rounded border-input"
                     />
-                  )}
-                  <span className="truncate flex-1">{opt.label}</span>
-                  {opt.count !== undefined && (
-                    <span className="text-xs text-muted-foreground">{opt.count}</span>
-                  )}
-                </label>
-              ))}
-          </div>
+                    {opt.color && (
+                      <span
+                        className="h-2.5 w-2.5 rounded-full shrink-0"
+                        style={{ backgroundColor: opt.color }}
+                      />
+                    )}
+                    <span className="truncate flex-1">{opt.label}</span>
+                    {opt.count !== undefined && (
+                      <span className="text-xs text-muted-foreground">{opt.count}</span>
+                    )}
+                  </label>
+                ))
+              )}
+            </div>
+          )}
         </PopoverContent>
       </Popover>
     );
