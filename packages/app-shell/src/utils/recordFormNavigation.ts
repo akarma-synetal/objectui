@@ -93,10 +93,15 @@ export interface NavigationActionDef {
  * Optional context typically supplied by an `ActionRunner` (e.g. when the
  * action button is mounted inside an `ObjectView`, the view registers its
  * `objectName` and `baseUrl` on the runner so action JSON can omit them).
+ *
+ * Tolerant of additional unknown keys because the upstream
+ * `ActionRunner.getContext()` returns a generic `ActionContext` with an
+ * open index signature; we only read the two fields we care about.
  */
 export interface NavigationActionContext {
   objectName?: string;
   baseUrl?: string;
+  [key: string]: unknown;
 }
 
 export type NavigationActionResult =

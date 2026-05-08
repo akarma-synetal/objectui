@@ -146,7 +146,7 @@ export function AppContent({ extraRoutes, extraRoutesNoApp }: AppContentProps = 
     // `objectName` (set per view) so action buttons mounted inside an
     // ObjectView can omit it.
     runner.registerHandler('navigate_create', async (action: any) => {
-      const ctx = (runner as any).context ?? {};
+      const ctx = runner.getContext?.() ?? {};
       const result = resolveNavigateCreateUrl({
         action,
         context: ctx,
@@ -158,7 +158,7 @@ export function AppContent({ extraRoutes, extraRoutesNoApp }: AppContentProps = 
     });
 
     runner.registerHandler('navigate_edit', async (action: any) => {
-      const ctx = (runner as any).context ?? {};
+      const ctx = runner.getContext?.() ?? {};
       const result = resolveNavigateEditUrl({
         action,
         context: ctx,

@@ -120,18 +120,30 @@ export function RecordFormPage({ mode }: RecordFormPageProps) {
     goBack();
   }, [goBack]);
 
+  // Authenticated-user descriptor — shared by the ExpressionEvaluator (used
+  // for field-visibility expression evaluation) and the ExpressionProvider
+  // wrapping the form (which exposes the same descriptor to descendant
+  // expression consumers). Memoised on the underlying user identity so a
+  // re-render that doesn't change the user does not invalidate downstream
+  // memoisations.
+  const expressionUser = useMemo(
+    () =>
+      user
+        ? { name: user.name, email: user.email, role: user.role ?? 'user' }
+        : { name: 'Anonymous', email: '', role: 'guest' },
+    [user],
+  );
+
   // Build expression evaluator for field-visibility expressions, mirroring
   // the global ModalForm setup in AppContent.
   const expressionEvaluator = useMemo(
     () =>
       new ExpressionEvaluator({
-        user: user
-          ? { name: user.name, email: user.email, role: user.role ?? 'user' }
-          : {},
+        user: user ? expressionUser : {},
         app: { name: appName },
         data: {},
       }),
-    [user, appName],
+    [user, expressionUser, appName],
   );
 
   // Resolve the field list using the same visibility-aware logic as the
@@ -181,10 +193,6 @@ export function RecordFormPage({ mode }: RecordFormPageProps) {
       </div>
     );
   }
-
-  const expressionUser = user
-    ? { name: user.name, email: user.email, role: user.role ?? 'user' }
-    : { name: 'Anonymous', email: '', role: 'guest' };
 
   return (
     <ExpressionProvider user={expressionUser} app={{ name: appName }} data={{}}>
