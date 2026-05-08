@@ -53,6 +53,10 @@ const GRID_DEFAULT_TRANSLATIONS: Record<string, string> = {
   'grid.pullToRefresh': 'Pull to refresh',
   'grid.refreshing': 'Refreshing…',
   'grid.openRecord': 'Open record',
+  'grid.empty': 'Empty',
+  'grid.yes': 'Yes',
+  'grid.no': 'No',
+  'grid.systemFields': 'System',
 };
 
 /**
@@ -1591,7 +1595,7 @@ export const ObjectGrid: React.FC<ObjectGridProps> = ({
 
     const renderFieldValue = (key: string, value: any): React.ReactNode => {
       if (value == null || value === '') {
-        return <span className="text-muted-foreground/50 text-sm italic">Empty</span>;
+        return <span className="text-muted-foreground/50 text-sm italic">{t('grid.empty')}</span>;
       }
 
       // Use objectSchema field type for type-aware rendering
@@ -1605,7 +1609,7 @@ export const ObjectGrid: React.FC<ObjectGridProps> = ({
 
       // Fallback: infer from value and key name
       if (typeof value === 'boolean') {
-        return <Badge variant={value ? 'default' : 'outline'}>{value ? 'Yes' : 'No'}</Badge>;
+        return <Badge variant={value ? 'default' : 'outline'}>{value ? t('grid.yes') : t('grid.no')}</Badge>;
       }
       // Detect date-like values
       if (typeof value === 'string' && !isNaN(Date.parse(value)) && (key.includes('date') || key.includes('_at') || key.includes('time'))) {
@@ -1641,7 +1645,7 @@ export const ObjectGrid: React.FC<ObjectGridProps> = ({
         {metaFields.length > 0 && (
           <div className="rounded-lg border bg-muted/30">
             <div className="px-4 py-2 border-b">
-              <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">System</span>
+              <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t('grid.systemFields')}</span>
             </div>
             <div className="divide-y divide-border/50">
               {metaFields.map(([key, value]) => (

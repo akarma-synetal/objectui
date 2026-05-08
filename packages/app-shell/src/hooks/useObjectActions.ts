@@ -14,6 +14,7 @@
 import { useCallback, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useActionRunner } from '@object-ui/react';
+import { useObjectTranslation } from '@object-ui/i18n';
 import { toast } from 'sonner';
 import type { ActionDef, ActionResult } from '@object-ui/core';
 
@@ -57,6 +58,7 @@ export function useObjectActions({
 }: ObjectActionConfig): ObjectActions {
   const navigate = useNavigate();
   const { appName } = useParams();
+  const { t } = useObjectTranslation();
   const baseUrl = `/apps/${appName}`;
 
   const { execute, loading, error, runner } = useActionRunner({
@@ -89,15 +91,15 @@ export function useObjectActions({
         action.params?.record?.id ??
         action.params?.records?.[0]?.id ??
         action.recordId;
-      if (!recordId) return { success: false, error: 'No record ID provided' };
+      if (!recordId) return { success: false, error: t('objectActions.noRecordId') };
 
       try {
         await dataSource.delete(objectName, recordId);
         onRefresh?.();
-        toast.success(`${objectLabel || objectName} deleted successfully`);
+        toast.success(t('objectActions.deleteSuccess', { label: objectLabel || objectName }));
         return { success: true, reload: true };
       } catch (err: any) {
-        toast.error(`Failed to delete ${objectLabel || objectName}`, {
+        toast.error(t('objectActions.deleteFailed', { label: objectLabel || objectName }), {
           description: err.message,
         });
         return { success: false, error: err.message };
@@ -118,7 +120,7 @@ export function useObjectActions({
       onRefresh?.();
       return { success: true, reload: true };
     });
-  }, [runner, objectName, dataSource, onEdit, onRefresh, navigate, baseUrl]);
+  }, [runner, objectName, dataSource, onEdit, onRefresh, navigate, baseUrl, t, objectLabel]);
 
   const create = useCallback(() => {
     onEdit?.(null);
@@ -128,11 +130,11 @@ export function useObjectActions({
     async (recordId: string) => {
       return execute({
         type: 'delete',
-        confirmText: `Are you sure you want to delete this record?`,
+        confirmText: t('objectActions.deleteConfirm'),
         params: { recordId },
       });
     },
-    [execute],
+    [execute, t],
   );
 
   const navigateToView = useCallback(

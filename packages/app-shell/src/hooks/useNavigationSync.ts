@@ -12,6 +12,7 @@
 import { useCallback, useEffect, useRef } from 'react';
 import { toast } from 'sonner';
 import type { NavigationItem, AppSchema } from '@object-ui/types';
+import { useObjectTranslation } from '@object-ui/i18n';
 import { useAdapter } from '../providers/AdapterProvider';
 import { useMetadata } from '../providers/MetadataProvider';
 
@@ -149,6 +150,7 @@ export interface UseNavigationSyncReturn {
 export function useNavigationSync(): UseNavigationSyncReturn {
   const adapter = useAdapter();
   const { apps, refresh } = useMetadata();
+  const { t } = useObjectTranslation();
 
   // Keep a ref so the undo closure always reads the latest adapter
   const adapterRef = useRef(adapter);
@@ -197,24 +199,24 @@ export function useNavigationSync(): UseNavigationSyncReturn {
 
       try {
         await saveApp(appName, updatedApp);
-        toast.success(`Navigation updated: added page "${label || pageName}"`, {
+        toast.success(t('navigationSync.addedPage', { name: label || pageName }), {
           action: {
-            label: 'Undo',
+            label: t('navigationSync.undoLabel'),
             onClick: async () => {
               try {
                 await saveApp(appName, { ...app, navigation: prev });
-                toast.info('Navigation change undone');
+                toast.info(t('navigationSync.undone'));
               } catch {
-                toast.error('Failed to undo navigation change');
+                toast.error(t('navigationSync.undoFailed'));
               }
             },
           },
         });
       } catch {
-        toast.error('Failed to update navigation');
+        toast.error(t('navigationSync.updateFailed'));
       }
     },
-    [findApp, saveApp],
+    [findApp, saveApp, t],
   );
 
   const syncDashboardCreated = useCallback(
@@ -235,24 +237,24 @@ export function useNavigationSync(): UseNavigationSyncReturn {
 
       try {
         await saveApp(appName, updatedApp);
-        toast.success(`Navigation updated: added dashboard "${label || dashboardName}"`, {
+        toast.success(t('navigationSync.addedDashboard', { name: label || dashboardName }), {
           action: {
-            label: 'Undo',
+            label: t('navigationSync.undoLabel'),
             onClick: async () => {
               try {
                 await saveApp(appName, { ...app, navigation: prev });
-                toast.info('Navigation change undone');
+                toast.info(t('navigationSync.undone'));
               } catch {
-                toast.error('Failed to undo navigation change');
+                toast.error(t('navigationSync.undoFailed'));
               }
             },
           },
         });
       } catch {
-        toast.error('Failed to update navigation');
+        toast.error(t('navigationSync.updateFailed'));
       }
     },
-    [findApp, saveApp],
+    [findApp, saveApp, t],
   );
 
   // ------------------------------------------------------------------
@@ -272,24 +274,24 @@ export function useNavigationSync(): UseNavigationSyncReturn {
 
       try {
         await saveApp(appName, updatedApp);
-        toast.success(`Navigation updated: removed page "${pageName}"`, {
+        toast.success(t('navigationSync.removedPage', { name: pageName }), {
           action: {
-            label: 'Undo',
+            label: t('navigationSync.undoLabel'),
             onClick: async () => {
               try {
                 await saveApp(appName, { ...app, navigation: prev });
-                toast.info('Navigation change undone');
+                toast.info(t('navigationSync.undone'));
               } catch {
-                toast.error('Failed to undo navigation change');
+                toast.error(t('navigationSync.undoFailed'));
               }
             },
           },
         });
       } catch {
-        toast.error('Failed to update navigation');
+        toast.error(t('navigationSync.updateFailed'));
       }
     },
-    [findApp, saveApp],
+    [findApp, saveApp, t],
   );
 
   const syncDashboardDeleted = useCallback(
@@ -305,24 +307,24 @@ export function useNavigationSync(): UseNavigationSyncReturn {
 
       try {
         await saveApp(appName, updatedApp);
-        toast.success(`Navigation updated: removed dashboard "${dashboardName}"`, {
+        toast.success(t('navigationSync.removedDashboard', { name: dashboardName }), {
           action: {
-            label: 'Undo',
+            label: t('navigationSync.undoLabel'),
             onClick: async () => {
               try {
                 await saveApp(appName, { ...app, navigation: prev });
-                toast.info('Navigation change undone');
+                toast.info(t('navigationSync.undone'));
               } catch {
-                toast.error('Failed to undo navigation change');
+                toast.error(t('navigationSync.undoFailed'));
               }
             },
           },
         });
       } catch {
-        toast.error('Failed to update navigation');
+        toast.error(t('navigationSync.updateFailed'));
       }
     },
-    [findApp, saveApp],
+    [findApp, saveApp, t],
   );
 
   // ------------------------------------------------------------------
@@ -342,24 +344,24 @@ export function useNavigationSync(): UseNavigationSyncReturn {
 
       try {
         await saveApp(appName, updatedApp);
-        toast.success(`Navigation updated: renamed page "${oldName}" → "${newName}"`, {
+        toast.success(t('navigationSync.renamedPage', { oldName, newName }), {
           action: {
-            label: 'Undo',
+            label: t('navigationSync.undoLabel'),
             onClick: async () => {
               try {
                 await saveApp(appName, { ...app, navigation: prev });
-                toast.info('Navigation change undone');
+                toast.info(t('navigationSync.undone'));
               } catch {
-                toast.error('Failed to undo navigation change');
+                toast.error(t('navigationSync.undoFailed'));
               }
             },
           },
         });
       } catch {
-        toast.error('Failed to update navigation');
+        toast.error(t('navigationSync.updateFailed'));
       }
     },
-    [findApp, saveApp],
+    [findApp, saveApp, t],
   );
 
   const syncDashboardRenamed = useCallback(
@@ -375,24 +377,24 @@ export function useNavigationSync(): UseNavigationSyncReturn {
 
       try {
         await saveApp(appName, updatedApp);
-        toast.success(`Navigation updated: renamed dashboard "${oldName}" → "${newName}"`, {
+        toast.success(t('navigationSync.renamedDashboard', { oldName, newName }), {
           action: {
-            label: 'Undo',
+            label: t('navigationSync.undoLabel'),
             onClick: async () => {
               try {
                 await saveApp(appName, { ...app, navigation: prev });
-                toast.info('Navigation change undone');
+                toast.info(t('navigationSync.undone'));
               } catch {
-                toast.error('Failed to undo navigation change');
+                toast.error(t('navigationSync.undoFailed'));
               }
             },
           },
         });
       } catch {
-        toast.error('Failed to update navigation');
+        toast.error(t('navigationSync.updateFailed'));
       }
     },
-    [findApp, saveApp],
+    [findApp, saveApp, t],
   );
 
   // ------------------------------------------------------------------

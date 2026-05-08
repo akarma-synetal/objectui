@@ -8,6 +8,7 @@ const ReportConfigPanel = lazy(() =>
 );
 import { Empty, EmptyTitle, EmptyDescription } from '@object-ui/components';
 import { Pencil, BarChart3, Loader2 } from 'lucide-react';
+import { useObjectTranslation } from '@object-ui/i18n';
 import { MetadataPanel, useMetadataInspector } from './MetadataInspector';
 import { useMetadata } from '../providers/MetadataProvider';
 import { useAdapter } from '../providers/AdapterProvider';
@@ -26,6 +27,7 @@ const FALLBACK_FIELDS = [
 ];
 
 export function ReportView({ dataSource }: { dataSource?: DataSource }) {
+  const { t } = useObjectTranslation();
   const { reportName } = useParams<{ reportName: string }>();
   const { showDebug } = useMetadataInspector();
   const adapter = useAdapter();
@@ -244,10 +246,9 @@ export function ReportView({ dataSource }: { dataSource?: DataSource }) {
             <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-muted">
               <BarChart3 className="h-6 w-6 text-muted-foreground" />
             </div>
-            <EmptyTitle>Report Not Found</EmptyTitle>
+            <EmptyTitle>{t('empty.reportNotFound')}</EmptyTitle>
             <EmptyDescription>
-              The report &quot;{reportName}&quot; could not be found.
-              It may have been removed or renamed.
+              {t('empty.reportNotFoundDescription', { name: reportName })}
             </EmptyDescription>
           </Empty>
         </div>

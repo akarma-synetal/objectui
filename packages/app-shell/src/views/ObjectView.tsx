@@ -14,6 +14,9 @@ import { useParams, useSearchParams, useNavigate } from 'react-router-dom';
 const ObjectChart = lazy(() =>
   import('@object-ui/plugin-charts').then((m) => ({ default: m.ObjectChart })),
 );
+const ImportWizard = lazy(() =>
+  import('@object-ui/plugin-grid').then((m) => ({ default: m.ImportWizard })),
+);
 import { ListView } from '@object-ui/plugin-list';
 import { DetailView, RecordChatterPanel } from '@object-ui/plugin-detail';
 import { ObjectView as PluginObjectView, ViewTabBar, ManageViewsDialog } from '@object-ui/plugin-view';
@@ -22,7 +25,7 @@ import type { ViewTabItem } from '@object-ui/plugin-view';
 // uses ComponentRegistry.registerLazy so heavy plugins stay code-split).
 // Do NOT add eager `import '@object-ui/plugin-*'` side-effect imports here.
 import { Button, Empty, EmptyTitle, EmptyDescription, NavigationOverlay } from '@object-ui/components';
-import { Plus, Table as TableIcon, KanbanSquare, Calendar, LayoutGrid, Activity, GanttChart, MapPin, BarChart3 } from 'lucide-react';
+import { Plus, Upload, Table as TableIcon, KanbanSquare, Calendar, LayoutGrid, Activity, GanttChart, MapPin, BarChart3 } from 'lucide-react';
 import { getIcon } from '../utils/getIcon';
 import type { ListViewSchema, ViewNavigationConfig, FeedItem } from '@object-ui/types';
 import { MetadataPanel, useMetadataInspector } from './MetadataInspector';
@@ -362,6 +365,9 @@ export function ObjectView({ dataSource, objects, onEdit }: any) {
     // Refresh trigger — bumped after view CRUD or external data mutations.
     const [refreshKey, setRefreshKey] = useState(0);
 
+    // Import wizard open/close state — toolbar entry triggers it.
+    const [showImport, setShowImport] = useState(false);
+
     // ─── User-defined views (sys_view) ──────────────────────────────────
     // Saved views created via the ViewConfigPanel ("Add View") are persisted
     // to the `sys_view` object. We fetch them here and merge into `views` so
@@ -590,7 +596,7 @@ export function ObjectView({ dataSource, objects, onEdit }: any) {
             setRefreshKey(k => k + 1);
         } catch (err) {
             console.error('[ViewTabBar] Failed to rename view:', err);
-            toast.error('Failed to rename view');
+            toast.error(t('objectViewActions.renameFailed'));
         }
     }, [dataSource, isSavedView, t]);
 
@@ -640,7 +646,7 @@ export function ObjectView({ dataSource, objects, onEdit }: any) {
             setRefreshKey(k => k + 1);
         } catch (err) {
             console.error('[ViewTabBar] Failed to delete view:', err);
-            toast.error('Failed to delete view');
+            toast.error(t('objectViewActions.deleteFailed'));
         }
     }, [dataSource, isSavedView, activeViewId, views, viewId, navigate, t, confirmHandler]);
 
@@ -1226,7 +1232,25 @@ export function ObjectView({ dataSource, objects, onEdit }: any) {
                         <span className="hidden sm:inline">{t('console.objectView.new')}</span>
                     </Button>
                     )}
-                    
+
+                    {/* Data import — gated by create permission, since
+                        importing rows is logically a bulk-create operation.
+                        Wires the schema's field map into the existing
+                        ImportWizard from @object-ui/plugin-grid. */}
+                    {can(objectDef.name, 'create') && (
+                    <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => setShowImport(true)}
+                        className="shadow-none gap-1.5 sm:gap-2 h-8 sm:h-9"
+                        title={t('console.objectView.importTitle')}
+                        data-testid="object-view-import-button"
+                    >
+                        <Upload className="h-4 w-4" />
+                        <span className="hidden sm:inline">{t('console.objectView.import')}</span>
+                    </Button>
+                    )}
+
                     {/* Schema-driven toolbar actions */}
                     {objectDef.actions?.some((a: any) => a.locations?.includes('list_toolbar')) && (
                       <SchemaRenderer schema={{
@@ -1246,6 +1270,37 @@ export function ObjectView({ dataSource, objects, onEdit }: any) {
                     */}
                  </div>
              </div>
+
+             {/* CSV Import wizard (lazy-loaded) — opened from the toolbar
+                 button above. On completion we bump refreshKey to re-fetch
+                 the list so newly-imported rows show up. */}
+             {showImport && (
+               <Suspense fallback={null}>
+                 <ImportWizard
+                   open={showImport}
+                   onOpenChange={setShowImport}
+                   objectName={objectDef.name}
+                   objectLabel={objectLabel(objectDef)}
+                   fields={Object.entries(objectDef.fields || {}).map(([name, def]: [string, any]) => ({
+                     name,
+                     label: def?.label || name,
+                     type: def?.type || 'text',
+                     required: !!def?.required,
+                   }))}
+                   dataSource={dataSource}
+                   onComplete={(result) => {
+                     setRefreshKey(k => k + 1);
+                     const ok = result.importedRows;
+                     const skip = result.skippedRows;
+                     if (skip > 0) {
+                       toast.warning(t('console.objectView.importedWithSkipped', { ok, skipped: skip }));
+                     } else if (ok > 0) {
+                       toast.success(t('console.objectView.importedToast', { count: ok }));
+                     }
+                   }}
+                 />
+               </Suspense>
+             )}
 
              {/* View Tabs — Airtable-style switcher with rename / delete /
                  duplicate / pin / set-default / drag-reorder. Built-in views

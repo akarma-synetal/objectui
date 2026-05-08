@@ -23,6 +23,7 @@ import {
   BarChart3,
   ArrowLeft,
 } from 'lucide-react';
+import { useObjectTranslation } from '@object-ui/i18n';
 import { useMetadata } from '../providers/MetadataProvider';
 
 interface SearchResult {
@@ -61,6 +62,7 @@ const TYPE_COLORS: Record<string, string> = {
 };
 
 export function SearchResultsPage() {
+  const { t } = useObjectTranslation();
   const { appName } = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
   const queryParam = searchParams.get('q') || '';
@@ -130,20 +132,20 @@ export function SearchResultsPage() {
           className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors"
         >
           <ArrowLeft className="h-4 w-4" />
-          Back
+          {t('search.back')}
         </Link>
-        <h1 className="text-xl font-semibold">Search</h1>
+        <h1 className="text-xl font-semibold">{t('search.title')}</h1>
       </div>
 
       {/* Search input */}
       <div className="relative">
-        <label htmlFor="search-results-input" className="sr-only">Search objects, dashboards, pages, reports</label>
+        <label htmlFor="search-results-input" className="sr-only">{t('search.placeholder')}</label>
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" aria-hidden="true" />
         <Input
           id="search-results-input"
           value={query}
           onChange={(e: any) => handleSearch(e.target.value)}
-          placeholder="Search objects, dashboards, pages, reports..."
+          placeholder={t('search.placeholder')}
           className="pl-10 h-11 text-base"
           autoFocus
         />
@@ -152,28 +154,30 @@ export function SearchResultsPage() {
       {/* Results count */}
       <div className="text-sm text-muted-foreground">
         {query.trim()
-          ? `${results.length} result${results.length !== 1 ? 's' : ''} for "${query}"`
-          : `${allItems.length} items available`}
+          ? t(results.length === 1 ? 'search.resultsCount' : 'search.resultsCountPlural', { count: results.length, query })
+          : t('search.itemsAvailable', { count: allItems.length })}
       </div>
 
       {/* Results */}
       {results.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-12 text-center">
           <Search className="h-12 w-12 text-muted-foreground/30 mb-4" />
-          <p className="text-lg font-medium text-muted-foreground">No results found</p>
+          <p className="text-lg font-medium text-muted-foreground">{t('search.noResults')}</p>
           <p className="text-sm text-muted-foreground/80 mt-1">
-            Try adjusting your search terms
+            {t('search.noResultsHint')}
           </p>
         </div>
       ) : (
         <div className="space-y-6">
           {Object.entries(grouped).map(([type, items]) => {
             const TypeIcon = TYPE_ICONS[type] || Database;
+            const typeLabelKey = `search.type${type.charAt(0).toUpperCase()}${type.slice(1)}s`;
+            const badgeKey = `search.badge${type.charAt(0).toUpperCase()}${type.slice(1)}`;
             return (
               <div key={type}>
                 <h2 className="text-sm font-medium text-muted-foreground mb-2 flex items-center gap-1.5">
                   <TypeIcon className="h-4 w-4" />
-                  {type.charAt(0).toUpperCase() + type.slice(1)}s
+                  {t(typeLabelKey)}
                   <Badge variant="secondary" className="ml-1 text-xs">
                     {items.length}
                   </Badge>
@@ -181,6 +185,7 @@ export function SearchResultsPage() {
                 <div className="grid gap-2">
                   {items.map(item => {
                     const ItemIcon = TYPE_ICONS[item.type] || Database;
+                    const itemBadgeKey = `search.badge${item.type.charAt(0).toUpperCase()}${item.type.slice(1)}`;
                     return (
                     <Link key={item.id} to={item.href} className="rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
                       <Card className="hover:bg-accent/50 transition-colors cursor-pointer">
@@ -195,7 +200,7 @@ export function SearchResultsPage() {
                             )}
                           </div>
                           <Badge variant="outline" className="text-xs shrink-0">
-                            {item.type}
+                            {t(itemBadgeKey)}
                           </Badge>
                         </CardContent>
                       </Card>

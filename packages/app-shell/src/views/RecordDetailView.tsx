@@ -530,10 +530,9 @@ export function RecordDetailView({ dataSource, objects, onEdit }: RecordDetailVi
           <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-muted">
             <Database className="h-6 w-6 text-muted-foreground" />
           </div>
-          <EmptyTitle>Object Not Found</EmptyTitle>
+          <EmptyTitle>{t('empty.objectNotFound')}</EmptyTitle>
           <EmptyDescription>
-            Object &quot;{objectName}&quot; definition missing.
-            Check your configuration or navigate back to select a valid object.
+            {t('empty.objectNotFoundDescription', { name: objectName })}
           </EmptyDescription>
         </Empty>
       </div>
@@ -545,7 +544,7 @@ export function RecordDetailView({ dataSource, objects, onEdit }: RecordDetailVi
       <div className="absolute top-2 sm:top-4 right-2 sm:right-4 z-50 flex items-center gap-2">
         {/* Presence: who else is viewing this record */}
         {recordViewers.length > 0 && (
-          <div className="flex items-center gap-1.5" title="Users viewing this record">
+          <div className="flex items-center gap-1.5" title={t('recordDetail.viewersTooltip')}>
             <Users className="h-3.5 w-3.5 text-muted-foreground" />
             <PresenceAvatars users={recordViewers} size="sm" maxVisible={4} showStatus />
           </div>

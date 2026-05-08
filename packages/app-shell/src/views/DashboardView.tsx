@@ -197,21 +197,21 @@ export function DashboardView({ dataSource }: { dataSource?: any }) {
   const scriptHandlers = useMemo<Record<string, (a: ActionDef, c: ActionContext) => Promise<ActionResult> | ActionResult>>(
     () => ({
       export_dashboard_pdf: async () => {
-        toast.info('Preparing PDF export…');
+        toast.info(t('dashboardActions.pdfPreparing'));
         try {
           window.print();
           return { success: true };
         } catch (err: any) {
-          toast.error(`Export failed: ${err?.message || String(err)}`);
+          toast.error(t('dashboardActions.exportFailed', { message: err?.message || String(err) }));
           return { success: false, error: err?.message || String(err) };
         }
       },
       forecast_dashboard: async () => {
-        toast.info('Forecast view coming soon');
+        toast.info(t('dashboardActions.forecastSoon'));
         return { success: true };
       },
     }),
-    [],
+    [t],
   );
 
   useEffect(() => {
@@ -442,10 +442,9 @@ export function DashboardView({ dataSource }: { dataSource?: any }) {
           <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-muted">
             <LayoutDashboard className="h-6 w-6 text-muted-foreground" />
           </div>
-          <EmptyTitle>Dashboard Not Found</EmptyTitle>
+          <EmptyTitle>{t('empty.dashboardNotFound')}</EmptyTitle>
           <EmptyDescription>
-            The dashboard &quot;{dashboardName}&quot; could not be found.
-            It may have been removed or renamed.
+            {t('empty.dashboardNotFoundDescription', { name: dashboardName })}
           </EmptyDescription>
         </Empty>
       </div>
@@ -581,14 +580,14 @@ export function DashboardView({ dataSource }: { dataSource?: any }) {
         <Dialog open onOpenChange={(open) => { if (!open) closeModal({ success: false }); }}>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>{modalState.schema?.title || 'Action'}</DialogTitle>
+              <DialogTitle>{modalState.schema?.title || t('actionDialog.defaultActionTitle')}</DialogTitle>
               {modalState.schema?.description && (
                 <DialogDescription>{modalState.schema.description}</DialogDescription>
               )}
             </DialogHeader>
             <DialogFooter>
-              <Button variant="outline" onClick={() => closeModal({ success: false })}>Cancel</Button>
-              <Button onClick={() => closeModal({ success: true })}>OK</Button>
+              <Button variant="outline" onClick={() => closeModal({ success: false })}>{t('actionDialog.cancel')}</Button>
+              <Button onClick={() => closeModal({ success: true })}>{t('actionDialog.ok')}</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>

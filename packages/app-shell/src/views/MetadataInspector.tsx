@@ -9,6 +9,7 @@ import { useState, useMemo } from 'react';
 import { Button } from '@object-ui/components';
 import { Code2, Copy, Check, ChevronDown, ChevronRight } from 'lucide-react';
 import { parseDebugFlags } from '@object-ui/core';
+import { useObjectTranslation } from '@object-ui/i18n';
 
 interface MetadataSection {
   title: string;
@@ -29,16 +30,17 @@ interface MetadataInspectorProps {
  * Place this in your header/toolbar area.
  */
 export function MetadataToggle({ open, onToggle, className }: { open: boolean; onToggle: () => void; className?: string }) {
+  const { t } = useObjectTranslation();
   return (
     <Button
       size="sm"
       variant={open ? 'secondary' : 'outline'}
       onClick={onToggle}
       className={`shadow-none gap-2 ${className || ''}`}
-      title="Toggle Metadata Inspector"
+      title={t('layout.metadata.toggleTitle')}
     >
       <Code2 className="h-4 w-4" />
-      <span className="hidden lg:inline">Metadata</span>
+      <span className="hidden lg:inline">{t('layout.metadata.label')}</span>
     </Button>
   );
 }
@@ -49,6 +51,7 @@ export function MetadataToggle({ open, onToggle, className }: { open: boolean; o
 export function MetadataPanel({ sections, open }: Omit<MetadataInspectorProps, 'onToggle'>) {
   if (!open) return null;
 
+  const { t } = useObjectTranslation();
   const [expandedSections, setExpandedSections] = useState<string[]>(['0']);
   const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
 
@@ -73,8 +76,8 @@ export function MetadataPanel({ sections, open }: Omit<MetadataInspectorProps, '
   return (
     <div className="w-80 border-l bg-background p-0 overflow-hidden flex flex-col shrink-0 z-20 transition-all">
       <div className="px-4 py-3 border-b bg-muted/5 flex items-center justify-between">
-        <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Metadata Inspector</span>
-        <span className="text-[10px] text-muted-foreground/60">JSON</span>
+        <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t('layout.metadata.panelTitle')}</span>
+        <span className="text-[10px] text-muted-foreground/60">{t('layout.metadata.jsonBadge')}</span>
       </div>
       <div className="flex-1 overflow-auto">
         {sections.map((section, index) => {
@@ -101,7 +104,7 @@ export function MetadataPanel({ sections, open }: Omit<MetadataInspectorProps, '
                 <button
                   onClick={() => handleCopy(section.data, index)}
                   className="p-1 hover:bg-muted rounded transition-colors ml-2"
-                  title="Copy JSON"
+                  title={t('layout.metadata.copyJson')}
                 >
                   {isCopied ? (
                     <Check className="h-3 w-3 text-green-600" />

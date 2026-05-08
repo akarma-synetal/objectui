@@ -306,26 +306,26 @@ export function AppSidebar({ activeAppName, onAppChange }: { activeAppName: stri
                   <div className="flex size-6 items-center justify-center rounded-md border bg-background">
                     <Home className="size-4" />
                   </div>
-                  <div className="font-medium text-muted-foreground">Home</div>
+                  <div className="font-medium text-muted-foreground">{t('layout.appSwitcher.home')}</div>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem className="gap-2 p-2" onClick={() => navigate(`/apps/${activeAppName}/create-app`)} data-testid="add-app-btn">
                   <div className="flex size-6 items-center justify-center rounded-md border bg-background">
                     <Plus className="size-4" />
                   </div>
-                  <div className="font-medium text-muted-foreground">Add App</div>
+                  <div className="font-medium text-muted-foreground">{t('layout.appSwitcher.addApp')}</div>
                 </DropdownMenuItem>
                 <DropdownMenuItem className="gap-2 p-2" onClick={() => navigate(`/apps/${activeAppName}/edit-app/${activeAppName}`)} data-testid="edit-app-btn">
                   <div className="flex size-6 items-center justify-center rounded-md border bg-background">
                     <Pencil className="size-4" />
                   </div>
-                  <div className="font-medium text-muted-foreground">Edit App</div>
+                  <div className="font-medium text-muted-foreground">{t('layout.appSwitcher.editApp')}</div>
                 </DropdownMenuItem>
                 <DropdownMenuItem className="gap-2 p-2" onClick={() => navigate('/apps/setup/system/apps')} data-testid="manage-all-apps-btn">
                   <div className="flex size-6 items-center justify-center rounded-md border bg-background">
                     <Settings className="size-4" />
                   </div>
-                  <div className="font-medium text-muted-foreground">Manage All Apps</div>
+                  <div className="font-medium text-muted-foreground">{t('layout.appSwitcher.manageAllApps')}</div>
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -340,8 +340,8 @@ export function AppSidebar({ activeAppName, onAppChange }: { activeAppName: stri
                 <Settings className="size-4" />
               </div>
               <div className="grid flex-1 text-left text-sm leading-tight">
-                <span className="truncate font-semibold">System Console</span>
-                <span className="truncate text-xs text-muted-foreground">No apps configured</span>
+                <span className="truncate font-semibold">{t('layout.appSwitcher.systemConsole')}</span>
+                <span className="truncate text-xs text-muted-foreground">{t('layout.appSwitcher.noAppsConfigured')}</span>
               </div>
             </SidebarMenuButton>
             )}

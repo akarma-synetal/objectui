@@ -9,6 +9,7 @@ import { useParams, useSearchParams } from 'react-router-dom';
 import { SchemaRenderer } from '@object-ui/react';
 import { Empty, EmptyTitle, EmptyDescription } from '@object-ui/components';
 import { FileText, Pencil } from 'lucide-react';
+import { useObjectTranslation } from '@object-ui/i18n';
 import { MetadataPanel, useMetadataInspector } from './MetadataInspector';
 import { useMetadata } from '../providers/MetadataProvider';
 import { DesignDrawer } from './DesignDrawer';
@@ -19,6 +20,7 @@ const PageCanvasEditor = lazy(() =>
 );
 
 export function PageView() {
+  const { t } = useObjectTranslation();
   const { pageName } = useParams<{ pageName: string }>();
   const [searchParams] = useSearchParams();
   const { showDebug } = useMetadataInspector();
@@ -51,10 +53,9 @@ export function PageView() {
           <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-muted">
             <FileText className="h-6 w-6 text-muted-foreground" />
           </div>
-          <EmptyTitle>Page Not Found</EmptyTitle>
+          <EmptyTitle>{t('empty.pageNotFound')}</EmptyTitle>
           <EmptyDescription>
-            The page &quot;{pageName}&quot; could not be found.
-            It may have been removed or renamed.
+            {t('empty.pageNotFoundDescription', { name: pageName })}
           </EmptyDescription>
         </Empty>
       </div>

@@ -299,16 +299,16 @@ export function AppContent({ extraRoutes, extraRoutesNoApp }: AppContentProps = 
   if (!activeApp && !isCreateAppRoute && !isSystemRoute) return (
     <div className="h-screen flex items-center justify-center">
       <Empty>
-        <EmptyTitle>No Apps Configured</EmptyTitle>
+        <EmptyTitle>{t('empty.noAppsConfigured')}</EmptyTitle>
         <EmptyDescription>
-          No applications have been registered. Create your first app or visit System Settings to configure your environment.
+          {t('empty.noAppsConfiguredDescription')}
         </EmptyDescription>
         <div className="mt-4 flex flex-col sm:flex-row items-center gap-3">
           <Button onClick={() => navigate('/create-app')} data-testid="create-first-app-btn">
-            Create Your First App
+            {t('empty.createFirstApp')}
           </Button>
           <Button variant="outline" onClick={() => navigate('/apps/setup')} data-testid="go-to-settings-btn">
-            System Settings
+            {t('empty.systemSettings')}
           </Button>
         </div>
       </Empty>

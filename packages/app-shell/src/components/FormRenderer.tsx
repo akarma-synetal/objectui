@@ -1,4 +1,5 @@
 import { SchemaRendererProvider } from '@object-ui/react';
+import { useObjectTranslation } from '@object-ui/i18n';
 import type { FormRendererProps } from '../types';
 
 /**
@@ -16,10 +17,11 @@ export function FormRenderer({
   onCancel,
   objectDef,
 }: FormRendererProps) {
+  const { t } = useObjectTranslation();
   if (!schema) {
     return (
       <div className="flex items-center justify-center p-4">
-        <div className="text-muted-foreground">No form schema provided</div>
+        <div className="text-muted-foreground">{t('renderer.noFormSchema')}</div>
       </div>
     );
   }
@@ -42,26 +44,26 @@ export function FormRenderer({
     <SchemaRendererProvider dataSource={dataSource}>
       <div className="form-renderer p-4">
         <h2 className="mb-4 text-xl font-semibold">
-          {schema.title || (mode === 'create' ? 'Create Record' : 'Edit Record')}
+          {schema.title || (mode === 'create' ? t('renderer.createRecord') : t('renderer.editRecord'))}
         </h2>
         {/* TODO: Integrate with actual form renderer */}
         <div className="text-muted-foreground">
-          Form rendering in {mode} mode
-          {recordId && ` for record ${recordId}`}
+          {t('renderer.formRenderingMode', { mode })}
+          {recordId && ` ${t('renderer.formRenderingFor', { id: recordId })}`}
         </div>
         <div className="mt-4 flex gap-2">
           <button
             onClick={() => handleSubmit({})}
             className="rounded bg-primary px-4 py-2 text-primary-foreground"
           >
-            Save
+            {t('renderer.save')}
           </button>
           {onCancel && (
             <button
               onClick={onCancel}
               className="rounded border px-4 py-2"
             >
-              Cancel
+              {t('renderer.cancel')}
             </button>
           )}
         </div>

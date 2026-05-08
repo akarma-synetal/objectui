@@ -11,6 +11,87 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@object-ui/components';
 import { Upload, FileSpreadsheet, CheckCircle2, AlertCircle, X, ArrowRight, ArrowLeft, Save, Trash2 } from 'lucide-react';
+import { useObjectTranslation } from '@object-ui/react';
+
+/** Default English fallback strings used when no I18nProvider is mounted
+ *  (standalone / Storybook usage). Mirrors the keys under `grid.import.*`. */
+const IMPORT_DEFAULT_TRANSLATIONS: Record<string, string> = {
+  'grid.import.title': 'Import {{object}}',
+  'grid.import.stepUpload': 'Upload',
+  'grid.import.stepMapping': 'Mapping',
+  'grid.import.stepPreview': 'Preview',
+  'grid.import.uploadDescription': 'Upload a CSV file to get started.',
+  'grid.import.mappingDescription': 'Map CSV columns to object fields.',
+  'grid.import.previewDescription': 'Review data before importing.',
+  'grid.import.dragDrop': 'Drag & drop a CSV file here, or click to browse',
+  'grid.import.browseFiles': 'Browse Files',
+  'grid.import.onlyCsv': 'Only CSV files are supported.',
+  'grid.import.fileNeedsHeader': 'File must contain a header row and at least one data row.',
+  'grid.import.mappingTemplate': 'Mapping template:',
+  'grid.import.chooseTemplate': 'Choose template…',
+  'grid.import.noSavedTemplates': 'No saved templates',
+  'grid.import.noneOption': '— None —',
+  'grid.import.saveCurrent': 'Save current',
+  'grid.import.templateName': 'Template name',
+  'grid.import.save': 'Save',
+  'grid.import.deleteTemplate': 'Delete template',
+  'grid.import.csvColumn': 'CSV Column',
+  'grid.import.mapsTo': 'Maps To',
+  'grid.import.status': 'Status',
+  'grid.import.skipColumn': 'Skip column',
+  'grid.import.skip': '— Skip —',
+  'grid.import.mapped': 'Mapped',
+  'grid.import.skipped': 'Skipped',
+  'grid.import.rowsWithErrors': '{{count}} row(s) with errors',
+  'grid.import.rowsCorrected': '{{count}} row(s) corrected',
+  'grid.import.clickToFix': '— click a highlighted cell to fix it inline.',
+  'grid.import.showingRows': 'Showing {{shown}} of {{total}} rows',
+  'grid.import.importing': 'Importing… {{progress}}%',
+  'grid.import.importComplete': 'Import Complete',
+  'grid.import.imported': '{{count}} imported',
+  'grid.import.skippedCount': '{{count}} skipped',
+  'grid.import.moreErrors': '…and {{count}} more errors',
+  'grid.import.cancel': 'Cancel',
+  'grid.import.back': 'Back',
+  'grid.import.next': 'Next',
+  'grid.import.close': 'Close',
+  'grid.import.importNRows': 'Import {{count}} Rows',
+  'grid.import.importingProgress': 'Importing…',
+  'grid.import.required': 'Required',
+  'grid.import.invalidType': 'Invalid {{type}}',
+};
+
+/** Apply `{{var}}` interpolation to a translation template. */
+function interpolate(template: string, vars?: Record<string, unknown>): string {
+  if (!vars) return template;
+  let out = template;
+  for (const [k, v] of Object.entries(vars)) {
+    out = out.replace(new RegExp(`{{${k}}}`, 'g'), String(v));
+  }
+  return out;
+}
+
+/** Translation hook with safe English fallback for standalone usage.
+ *  Mirrors the pattern in ObjectGrid.tsx — when no I18nProvider is mounted
+ *  (e.g. Storybook / unit tests) the hook still resolves `grid.import.*`
+ *  keys via the embedded defaults so the wizard stays usable. */
+function useImportTranslation(): { t: (key: string, vars?: Record<string, unknown>) => string } {
+  const fallback = (key: string, vars?: Record<string, unknown>) =>
+    interpolate(IMPORT_DEFAULT_TRANSLATIONS[key] ?? key, vars);
+  try {
+    const result = useObjectTranslation();
+    const probe = result.t('grid.import.title');
+    if (probe === 'grid.import.title') return { t: fallback };
+    return {
+      t: (key, vars) => {
+        const v = result.t(key, vars as Record<string, unknown> | undefined);
+        return v === key ? fallback(key, vars) : v;
+      },
+    };
+  } catch {
+    return { t: fallback };
+  }
+}
 
 /** @internal — exported solely for unit tests. */
 export const __testables = {
@@ -191,20 +272,21 @@ function validateRow(row: string[], mappedCols: MappedCol[], rowIndex: number) {
 
 // Step 1: File Upload
 const StepUpload: React.FC<{ onFileLoaded: (headers: string[], rows: string[][]) => void }> = ({ onFileLoaded }) => {
+  const { t } = useImportTranslation();
   const [dragOver, setDragOver] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const processFile = useCallback((file: File) => {
     setError(null);
-    if (!file.name.endsWith('.csv')) { setError('Only CSV files are supported.'); return; }
+    if (!file.name.endsWith('.csv')) { setError(t('grid.import.onlyCsv')); return; }
     const reader = new FileReader();
     reader.onload = (e) => {
       const parsed = parseCSV(e.target?.result as string);
-      if (parsed.length < 2) { setError('File must contain a header row and at least one data row.'); return; }
+      if (parsed.length < 2) { setError(t('grid.import.fileNeedsHeader')); return; }
       onFileLoaded(parsed[0], parsed.slice(1));
     };
     reader.readAsText(file);
-  }, [onFileLoaded]);
+  }, [onFileLoaded, t]);
 
   return (
     <div className="flex flex-col items-center gap-4 py-6">
@@ -218,10 +300,10 @@ const StepUpload: React.FC<{ onFileLoaded: (headers: string[], rows: string[][])
         onDrop={(e) => { e.preventDefault(); setDragOver(false); const f = e.dataTransfer.files[0]; if (f) processFile(f); }}
       >
         <Upload className="h-10 w-10 text-muted-foreground" />
-        <p className="text-sm text-muted-foreground">Drag & drop a CSV file here, or click to browse</p>
+        <p className="text-sm text-muted-foreground">{t('grid.import.dragDrop')}</p>
         <label>
           <input type="file" accept=".csv" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) processFile(f); }} />
-          <Button variant="outline" size="sm" asChild><span>Browse Files</span></Button>
+          <Button variant="outline" size="sm" asChild><span>{t('grid.import.browseFiles')}</span></Button>
         </label>
       </div>
       {error && (
@@ -242,6 +324,7 @@ const TemplateBar: React.FC<{
   onDelete: () => void;
   disabled?: boolean;
 }> = ({ templates, selectedId, onSelect, onSaveAs, onDelete, disabled }) => {
+  const { t } = useImportTranslation();
   const [savingName, setSavingName] = useState('');
   const [showSave, setShowSave] = useState(false);
   return (
@@ -250,20 +333,20 @@ const TemplateBar: React.FC<{
       data-testid="import-template-bar"
     >
       <Save className="h-4 w-4 text-muted-foreground" />
-      <span className="text-xs font-medium text-muted-foreground">Mapping template:</span>
+      <span className="text-xs font-medium text-muted-foreground">{t('grid.import.mappingTemplate')}</span>
       <Select
         value={selectedId ?? '__none__'}
         onValueChange={(v) => v !== '__none__' && onSelect(v)}
       >
         <SelectTrigger className="h-7 w-48 text-xs" data-testid="import-template-select">
-          <SelectValue placeholder={templates.length ? 'Choose template…' : 'No saved templates'} />
+          <SelectValue placeholder={templates.length ? t('grid.import.chooseTemplate') : t('grid.import.noSavedTemplates')} />
         </SelectTrigger>
         <SelectContent>
           <SelectItem value="__none__" disabled={templates.length === 0}>
-            {templates.length ? '— None —' : 'No saved templates'}
+            {templates.length ? t('grid.import.noneOption') : t('grid.import.noSavedTemplates')}
           </SelectItem>
-          {templates.map((t) => (
-            <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
+          {templates.map((tpl) => (
+            <SelectItem key={tpl.id} value={tpl.id}>{tpl.name}</SelectItem>
           ))}
         </SelectContent>
       </Select>
@@ -276,14 +359,14 @@ const TemplateBar: React.FC<{
           disabled={disabled}
           data-testid="import-template-save-btn"
         >
-          Save current
+          {t('grid.import.saveCurrent')}
         </Button>
       ) : (
         <div className="flex items-center gap-1">
           <Input
             value={savingName}
             onChange={(e) => setSavingName(e.target.value)}
-            placeholder="Template name"
+            placeholder={t('grid.import.templateName')}
             className="h-7 w-40 text-xs"
             data-testid="import-template-name-input"
             autoFocus
@@ -295,10 +378,10 @@ const TemplateBar: React.FC<{
             disabled={!savingName.trim() || disabled}
             data-testid="import-template-confirm-save"
           >
-            Save
+            {t('grid.import.save')}
           </Button>
           <Button type="button" variant="ghost" size="sm" onClick={() => { setShowSave(false); setSavingName(''); }}>
-            Cancel
+            {t('grid.import.cancel')}
           </Button>
         </div>
       )}
@@ -308,7 +391,7 @@ const TemplateBar: React.FC<{
           variant="ghost"
           size="sm"
           onClick={onDelete}
-          aria-label="Delete template"
+          aria-label={t('grid.import.deleteTemplate')}
           data-testid="import-template-delete-btn"
         >
           <Trash2 className="h-3.5 w-3.5" />
@@ -330,6 +413,7 @@ const StepMapping: React.FC<{
   onSaveTemplate: (name: string) => void;
   onDeleteTemplate: () => void;
 }> = ({ headers, fields, mapping, onMappingChange, templates, selectedTemplateId, onSelectTemplate, onSaveTemplate, onDeleteTemplate }) => {
+  const { t } = useImportTranslation();
   const usedFields = useMemo(() => new Set(Object.values(mapping)), [mapping]);
   const handleChange = useCallback((colIdx: number, fieldName: string) => {
     const next = { ...mapping };
@@ -347,13 +431,13 @@ const StepMapping: React.FC<{
         onDelete={onDeleteTemplate}
         disabled={Object.keys(mapping).length === 0}
       />
-      <div className="max-h-[320px] overflow-auto">
+      <div className="max-h-[420px] overflow-auto">
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead>CSV Column</TableHead>
-            <TableHead>Maps To</TableHead>
-            <TableHead className="w-24 text-center">Status</TableHead>
+            <TableHead>{t('grid.import.csvColumn')}</TableHead>
+            <TableHead>{t('grid.import.mapsTo')}</TableHead>
+            <TableHead className="w-24 text-center">{t('grid.import.status')}</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -362,9 +446,9 @@ const StepMapping: React.FC<{
               <TableCell className="font-medium">{header}</TableCell>
               <TableCell>
                 <Select value={mapping[idx] ?? '__skip__'} onValueChange={(v) => handleChange(idx, v)}>
-                  <SelectTrigger className="h-8 w-56"><SelectValue placeholder="Skip column" /></SelectTrigger>
+                  <SelectTrigger className="h-8 w-56"><SelectValue placeholder={t('grid.import.skipColumn')} /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="__skip__">— Skip —</SelectItem>
+                    <SelectItem value="__skip__">{t('grid.import.skip')}</SelectItem>
                     {fields.map((f) => (
                       <SelectItem key={f.name} value={f.name} disabled={usedFields.has(f.name) && mapping[idx] !== f.name}>
                         {f.label}{f.required ? ' *' : ''}
@@ -375,8 +459,8 @@ const StepMapping: React.FC<{
               </TableCell>
               <TableCell className="text-center">
                 {mapping[idx]
-                  ? <Badge variant="default" className="text-xs">Mapped</Badge>
-                  : <Badge variant="secondary" className="text-xs">Skipped</Badge>}
+                  ? <Badge variant="default" className="text-xs">{t('grid.import.mapped')}</Badge>
+                  : <Badge variant="secondary" className="text-xs">{t('grid.import.skipped')}</Badge>}
               </TableCell>
             </TableRow>
           ))}
@@ -394,6 +478,7 @@ const StepPreview: React.FC<{
   corrections: Record<number, Record<number, string>>;
   onCorrect: (rowIdx: number, csvIdx: number, value: string) => void;
 }> = ({ headers, rows, mapping, fields, corrections, onCorrect }) => {
+  const { t } = useImportTranslation();
   const mappedCols = useMemo(() =>
     Object.entries(mapping).map(([idx, fieldName]) => ({
       csvIdx: Number(idx), header: headers[Number(idx)], field: fields.find((f) => f.name === fieldName)!,
@@ -410,17 +495,17 @@ const StepPreview: React.FC<{
     const errs: Record<number, string> = {};
     for (const col of mappedCols) {
       const raw = effectiveValue(rIdx, col.csvIdx);
-      if (col.field.required && !raw) errs[col.csvIdx] = 'Required';
-      else if (raw && !validateValue(raw, col.field.type)) errs[col.csvIdx] = `Invalid ${col.field.type}`;
+      if (col.field.required && !raw) errs[col.csvIdx] = t('grid.import.required');
+      else if (raw && !validateValue(raw, col.field.type)) errs[col.csvIdx] = t('grid.import.invalidType', { type: col.field.type });
     }
     return errs;
-  }), [previewRows, mappedCols, effectiveValue]);
+  }), [previewRows, mappedCols, effectiveValue, t]);
 
   const errorCount = rowValidations.filter(e => Object.keys(e).length > 0).length;
   const correctedCount = Object.keys(corrections).length;
 
   return (
-    <div className="max-h-[360px] overflow-auto">
+    <div className="max-h-[440px] overflow-auto">
       {(errorCount > 0 || correctedCount > 0) && (
         <p
           className="mb-2 flex items-center gap-2 text-xs"
@@ -428,15 +513,15 @@ const StepPreview: React.FC<{
         >
           {errorCount > 0 && (
             <span className="flex items-center gap-1 text-destructive">
-              <AlertCircle className="h-3.5 w-3.5" /> {errorCount} row(s) with errors
+              <AlertCircle className="h-3.5 w-3.5" /> {t('grid.import.rowsWithErrors', { count: errorCount })}
             </span>
           )}
           {correctedCount > 0 && (
             <span className="flex items-center gap-1 text-emerald-600">
-              <CheckCircle2 className="h-3.5 w-3.5" /> {correctedCount} row(s) corrected
+              <CheckCircle2 className="h-3.5 w-3.5" /> {t('grid.import.rowsCorrected', { count: correctedCount })}
             </span>
           )}
-          <span className="text-muted-foreground">— click a highlighted cell to fix it inline.</span>
+          <span className="text-muted-foreground">{t('grid.import.clickToFix')}</span>
         </p>
       )}
       <Table>
@@ -488,7 +573,7 @@ const StepPreview: React.FC<{
           })}
         </TableBody>
       </Table>
-      <p className="mt-2 text-xs text-muted-foreground">Showing {previewRows.length} of {rows.length} rows</p>
+      <p className="mt-2 text-xs text-muted-foreground">{t('grid.import.showingRows', { shown: previewRows.length, total: rows.length })}</p>
     </div>
   );
 };
@@ -616,18 +701,19 @@ export const ImportWizard: React.FC<ImportWizardProps> = ({
   }, []);
 
   const handleClose = useCallback(() => { reset(); onOpenChange?.(false); onCancel?.(); }, [reset, onOpenChange, onCancel]);
+  const { t } = useImportTranslation();
 
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!v) handleClose(); else onOpenChange?.(v); }}>
-      <DialogContent className="sm:max-w-2xl">
+      <DialogContent className="flex max-h-[85vh] flex-col gap-4 overflow-hidden sm:max-w-4xl">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <FileSpreadsheet className="h-5 w-5" /> Import {label}
+            <FileSpreadsheet className="h-5 w-5" /> {t('grid.import.title', { object: label })}
           </DialogTitle>
           <DialogDescription>
-            {step === 'upload' && 'Upload a CSV file to get started.'}
-            {step === 'mapping' && 'Map CSV columns to object fields.'}
-            {step === 'preview' && 'Review data before importing.'}
+            {step === 'upload' && t('grid.import.uploadDescription')}
+            {step === 'mapping' && t('grid.import.mappingDescription')}
+            {step === 'preview' && t('grid.import.previewDescription')}
           </DialogDescription>
         </DialogHeader>
 
@@ -637,12 +723,13 @@ export const ImportWizard: React.FC<ImportWizardProps> = ({
             <React.Fragment key={s}>
               {i > 0 && <ArrowRight className="h-3 w-3" />}
               <span className={cn('rounded-full px-3 py-1', step === s ? 'bg-primary text-primary-foreground' : 'bg-muted')}>
-                {i + 1}. {s === 'upload' ? 'Upload' : s === 'mapping' ? 'Mapping' : 'Preview'}
+                {i + 1}. {s === 'upload' ? t('grid.import.stepUpload') : s === 'mapping' ? t('grid.import.stepMapping') : t('grid.import.stepPreview')}
               </span>
             </React.Fragment>
           ))}
         </div>
 
+        <div className="min-h-0 flex-1 overflow-auto">
         {!result ? (
           <>
             {step === 'upload' && <StepUpload onFileLoaded={handleFileLoaded} />}
@@ -672,48 +759,49 @@ export const ImportWizard: React.FC<ImportWizardProps> = ({
             {importing && (
               <div className="flex flex-col gap-1">
                 <Progress value={progress} className="h-2" />
-                <p className="text-center text-xs text-muted-foreground">Importing… {progress}%</p>
+                <p className="text-center text-xs text-muted-foreground">{t('grid.import.importing', { progress })}</p>
               </div>
             )}
           </>
         ) : (
           <div className="flex flex-col items-center gap-3 py-4">
             <CheckCircle2 className="h-10 w-10 text-green-500" />
-            <p className="text-lg font-semibold">Import Complete</p>
+            <p className="text-lg font-semibold">{t('grid.import.importComplete')}</p>
             <div className="flex gap-3">
-              <Badge variant="default">{result.importedRows} imported</Badge>
-              {result.skippedRows > 0 && <Badge variant="destructive">{result.skippedRows} skipped</Badge>}
+              <Badge variant="default">{t('grid.import.imported', { count: result.importedRows })}</Badge>
+              {result.skippedRows > 0 && <Badge variant="destructive">{t('grid.import.skippedCount', { count: result.skippedRows })}</Badge>}
             </div>
             {result.errors.length > 0 && (
               <div className="max-h-32 w-full overflow-auto rounded border p-2 text-xs">
                 {result.errors.slice(0, 10).map((err, i) => (
                   <p key={i} className="text-destructive">Row {err.row}{err.field ? ` (${err.field})` : ''}: {err.message}</p>
                 ))}
-                {result.errors.length > 10 && <p className="text-muted-foreground">…and {result.errors.length - 10} more errors</p>}
+                {result.errors.length > 10 && <p className="text-muted-foreground">{t('grid.import.moreErrors', { count: result.errors.length - 10 })}</p>}
               </div>
             )}
           </div>
         )}
+        </div>
 
         <DialogFooter className="gap-2 sm:gap-0">
           {result ? (
-            <Button onClick={handleClose}>Close</Button>
+            <Button onClick={handleClose}>{t('grid.import.close')}</Button>
           ) : (
             <>
-              <Button variant="ghost" onClick={handleClose} disabled={importing}><X className="mr-1 h-4 w-4" /> Cancel</Button>
+              <Button variant="ghost" onClick={handleClose} disabled={importing}><X className="mr-1 h-4 w-4" /> {t('grid.import.cancel')}</Button>
               {(step === 'mapping' || step === 'preview') && (
                 <Button variant="outline" onClick={() => setStep(step === 'mapping' ? 'upload' : 'mapping')} disabled={importing}>
-                  <ArrowLeft className="mr-1 h-4 w-4" /> Back
+                  <ArrowLeft className="mr-1 h-4 w-4" /> {t('grid.import.back')}
                 </Button>
               )}
               {step === 'mapping' && (
                 <Button onClick={() => setStep('preview')} disabled={Object.keys(mapping).length === 0 || missingRequired.length > 0}>
-                  Next <ArrowRight className="ml-1 h-4 w-4" />
+                  {t('grid.import.next')} <ArrowRight className="ml-1 h-4 w-4" />
                 </Button>
               )}
               {step === 'preview' && (
                 <Button onClick={handleImport} disabled={importing}>
-                  {importing ? 'Importing…' : `Import ${rows.length} Rows`}
+                  {importing ? t('grid.import.importingProgress') : t('grid.import.importNRows', { count: rows.length })}
                 </Button>
               )}
             </>

@@ -1,4 +1,5 @@
 import { SchemaRendererProvider } from '@object-ui/react';
+import { useObjectTranslation } from '@object-ui/i18n';
 import type { DashboardRendererProps } from '../types';
 
 /**
@@ -12,10 +13,11 @@ export function DashboardRenderer({
   dataSource,
   dashboardName,
 }: DashboardRendererProps) {
+  const { t } = useObjectTranslation();
   if (!schema) {
     return (
       <div className="flex h-full items-center justify-center">
-        <div className="text-muted-foreground">No dashboard schema provided</div>
+        <div className="text-muted-foreground">{t('renderer.noDashboardSchema')}</div>
       </div>
     );
   }
@@ -24,11 +26,11 @@ export function DashboardRenderer({
     <SchemaRendererProvider dataSource={dataSource}>
       <div className="dashboard-renderer h-full p-4">
         <h1 className="mb-4 text-2xl font-bold">
-          {schema.title || dashboardName || 'Dashboard'}
+          {schema.title || dashboardName || t('renderer.dashboard')}
         </h1>
         {/* TODO: Integrate with actual SchemaRenderer for dashboard */}
         <div className="text-muted-foreground">
-          Dashboard rendering: {schema.title || dashboardName}
+          {t('renderer.dashboardRendering', { name: schema.title || dashboardName })}
         </div>
       </div>
     </SchemaRendererProvider>

@@ -15,6 +15,25 @@ import {
   DropdownMenuTrigger,
 } from '@object-ui/components';
 import { Edit, Trash2, MoreVertical } from 'lucide-react';
+import { useObjectTranslation } from '@object-ui/react';
+
+const ROW_ACTION_FALLBACKS: Record<string, string> = {
+  'grid.openMenu': 'Open menu',
+  'grid.edit': 'Edit',
+  'grid.delete': 'Delete',
+};
+
+function useRowActionTranslation() {
+  try {
+    const { t } = useObjectTranslation();
+    return (key: string) => {
+      const v = t(key);
+      return v === key ? (ROW_ACTION_FALLBACKS[key] ?? key) : v;
+    };
+  } catch {
+    return (key: string) => ROW_ACTION_FALLBACKS[key] ?? key;
+  }
+}
 
 /**
  * Format an action identifier string into a human-readable label.
@@ -50,6 +69,7 @@ export const RowActionMenu: React.FC<RowActionMenuProps> = ({
   onDelete,
   onAction,
 }) => {
+  const t = useRowActionTranslation();
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -60,20 +80,20 @@ export const RowActionMenu: React.FC<RowActionMenuProps> = ({
           data-testid="row-action-trigger"
         >
           <MoreVertical className="h-4 w-4" />
-          <span className="sr-only">Open menu</span>
+          <span className="sr-only">{t('grid.openMenu')}</span>
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
         {canEdit && onEdit && (
           <DropdownMenuItem onClick={() => onEdit(row)}>
             <Edit className="mr-2 h-4 w-4" />
-            Edit
+            {t('grid.edit')}
           </DropdownMenuItem>
         )}
         {canDelete && onDelete && (
           <DropdownMenuItem onClick={() => onDelete(row)}>
             <Trash2 className="mr-2 h-4 w-4" />
-            Delete
+            {t('grid.delete')}
           </DropdownMenuItem>
         )}
         {rowActions?.map(action => (

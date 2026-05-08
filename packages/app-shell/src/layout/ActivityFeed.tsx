@@ -18,6 +18,7 @@ import {
   SheetTrigger,
 } from '@object-ui/components';
 import { Bell, Plus, Pencil, Trash2, MessageSquare, Filter } from 'lucide-react';
+import { useObjectTranslation } from '@object-ui/i18n';
 
 export interface ActivityItem {
   id: string;
@@ -44,21 +45,23 @@ const typeConfig: Record<
   comment: { icon: MessageSquare, color: 'text-amber-500' },
 };
 
-/** Format an ISO timestamp as a relative string (e.g. "2m ago"). */
-function formatRelativeTime(iso: string): string {
+/** Format an ISO timestamp as a localized relative string (e.g. "2m ago"). */
+function formatRelativeTime(iso: string, t: (key: string, vars?: Record<string, unknown>) => string): string {
   const ms = new Date(iso).getTime();
   if (Number.isNaN(ms)) return '';
   const seconds = Math.floor((Date.now() - ms) / 1000);
-  if (seconds < 60) return `${Math.max(seconds, 0)}s ago`;
+  if (seconds < 5) return t('layout.activityFeed.relativeJustNow');
+  if (seconds < 60) return t('layout.activityFeed.relativeSecondsAgo', { count: Math.max(seconds, 0) });
   const minutes = Math.floor(seconds / 60);
-  if (minutes < 60) return `${minutes}m ago`;
+  if (minutes < 60) return t('layout.activityFeed.relativeMinutesAgo', { count: minutes });
   const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours}h ago`;
+  if (hours < 24) return t('layout.activityFeed.relativeHoursAgo', { count: hours });
   const days = Math.floor(hours / 24);
-  return `${days}d ago`;
+  return t('layout.activityFeed.relativeDaysAgo', { count: days });
 }
 
 export function ActivityFeed({ activities = [], className }: ActivityFeedProps) {
+  const { t } = useObjectTranslation();
   const [open, setOpen] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
   const [notificationPreferences, setNotificationPreferences] = useState<Record<ActivityItem['type'], boolean>>({
@@ -74,6 +77,14 @@ export function ActivityFeed({ activities = [], className }: ActivityFeedProps) 
 
   const filteredActivities = activities.filter(a => notificationPreferences[a.type]);
 
+  /** Localized labels for activity type badges. */
+  const typeLabels: Record<ActivityItem['type'], string> = {
+    create: t('layout.activityFeed.typeCreate'),
+    update: t('layout.activityFeed.typeUpdate'),
+    delete: t('layout.activityFeed.typeDelete'),
+    comment: t('layout.activityFeed.typeComment'),
+  };
+
   return (
     <Sheet open={open} onOpenChange={setOpen}>
       <SheetTrigger asChild>
@@ -81,7 +92,7 @@ export function ActivityFeed({ activities = [], className }: ActivityFeedProps) 
           variant="ghost"
           size="icon"
           className={className ?? 'h-8 w-8'}
-          aria-label="Activity feed"
+          aria-label={t('layout.activityFeed.ariaLabel')}
         >
           <Bell className="h-4 w-4" />
           {activities.length > 0 && (
@@ -95,7 +106,7 @@ export function ActivityFeed({ activities = [], className }: ActivityFeedProps) 
       <SheetContent side="right" className="w-80 sm:w-96">
         <SheetHeader>
           <SheetTitle className="flex items-center justify-between">
-            Recent Activity
+            {t('layout.activityFeed.title')}
             <Button
               variant={showFilters ? 'secondary' : 'ghost'}
               size="sm"
@@ -103,7 +114,7 @@ export function ActivityFeed({ activities = [], className }: ActivityFeedProps) 
               onClick={() => setShowFilters(!showFilters)}
             >
               <Filter className="h-3.5 w-3.5 mr-1" />
-              Filter
+              {t('layout.activityFeed.filter')}
             </Button>
           </SheetTitle>
         </SheetHeader>
@@ -117,11 +128,11 @@ export function ActivityFeed({ activities = [], className }: ActivityFeedProps) 
                 <Badge
                   key={type}
                   variant={active ? 'default' : 'outline'}
-                  className="cursor-pointer select-none gap-1 capitalize"
+                  className="cursor-pointer select-none gap-1"
                   onClick={() => togglePreference(type)}
                 >
                   <Icon className={`h-3 w-3 ${active ? '' : color}`} />
-                  {type}
+                  {typeLabels[type]}
                 </Badge>
               );
             })}
@@ -131,7 +142,7 @@ export function ActivityFeed({ activities = [], className }: ActivityFeedProps) 
         {filteredActivities.length === 0 ? (
           <div className="flex flex-col items-center justify-center gap-2 py-16 text-muted-foreground">
             <Bell className="h-8 w-8 opacity-40" />
-            <p className="text-sm">No recent activity</p>
+            <p className="text-sm">{t('layout.activityFeed.empty')}</p>
           </div>
         ) : (
           <ul className="mt-4 space-y-1 overflow-y-auto max-h-[calc(100vh-8rem)]">
@@ -148,7 +159,7 @@ export function ActivityFeed({ activities = [], className }: ActivityFeedProps) 
                   <div className="min-w-0 flex-1">
                     <p className="text-sm leading-snug">{item.description}</p>
                     <p className="mt-0.5 text-xs text-muted-foreground">
-                      {item.user} · {formatRelativeTime(item.timestamp)}
+                      {item.user} · {formatRelativeTime(item.timestamp, t)}
                     </p>
                   </div>
                 </li>

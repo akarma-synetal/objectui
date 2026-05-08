@@ -180,15 +180,14 @@ export function RecordFormPage({ mode }: RecordFormPageProps) {
           <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-muted">
             <Database className="h-6 w-6 text-muted-foreground" />
           </div>
-          <EmptyTitle>Object Not Found</EmptyTitle>
+          <EmptyTitle>{t('empty.objectNotFound')}</EmptyTitle>
           <EmptyDescription>
-            Object &quot;{objectName}&quot; definition missing. Check your
-            configuration or navigate back to select a valid object.
+            {t('empty.objectNotFoundDescription', { name: objectName })}
           </EmptyDescription>
           <div className="mt-4">
             <Button variant="outline" onClick={() => navigate(baseUrl)}>
               <ArrowLeft className="mr-2 h-4 w-4" />
-              Back
+              {t('empty.back')}
             </Button>
           </div>
         </Empty>

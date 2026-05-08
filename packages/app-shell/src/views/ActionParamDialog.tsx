@@ -28,6 +28,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@object-ui/components';
+import { useObjectTranslation } from '@object-ui/i18n';
 import type { ActionParamDef } from '@object-ui/core';
 
 export interface ParamDialogState {
@@ -42,6 +43,7 @@ interface ActionParamDialogProps {
 }
 
 export function ActionParamDialog({ state, onOpenChange }: ActionParamDialogProps) {
+  const { t } = useObjectTranslation();
   const [values, setValues] = useState<Record<string, any>>({});
   const [errors, setErrors] = useState<Record<string, boolean>>({});
 
@@ -98,9 +100,9 @@ export function ActionParamDialog({ state, onOpenChange }: ActionParamDialogProp
     }}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Action Parameters</DialogTitle>
+          <DialogTitle>{t('actionDialog.title')}</DialogTitle>
           <DialogDescription>
-            Please provide the required information to continue.
+            {t('actionDialog.description')}
           </DialogDescription>
         </DialogHeader>
 
@@ -118,7 +120,7 @@ export function ActionParamDialog({ state, onOpenChange }: ActionParamDialogProp
                   onValueChange={(val) => updateValue(param.name, val)}
                 >
                   <SelectTrigger id={param.name} className={errors[param.name] ? 'border-destructive' : ''}>
-                    <SelectValue placeholder={param.placeholder || `Select ${param.label}`} />
+                    <SelectValue placeholder={param.placeholder || t('actionDialog.selectPlaceholder', { label: param.label })} />
                   </SelectTrigger>
                   <SelectContent>
                     {param.options.map((opt) => (
@@ -157,7 +159,7 @@ export function ActionParamDialog({ state, onOpenChange }: ActionParamDialogProp
               )}
 
               {errors[param.name] && (
-                <p className="text-xs text-destructive">{param.label} is required</p>
+                <p className="text-xs text-destructive">{t('actionDialog.requiredError', { label: param.label })}</p>
               )}
               {param.helpText && (
                 <p className="text-xs text-muted-foreground">{param.helpText}</p>
@@ -167,8 +169,8 @@ export function ActionParamDialog({ state, onOpenChange }: ActionParamDialogProp
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={handleCancel}>Cancel</Button>
-          <Button onClick={handleSubmit}>Confirm</Button>
+          <Button variant="outline" onClick={handleCancel}>{t('actionDialog.cancel')}</Button>
+          <Button onClick={handleSubmit}>{t('actionDialog.confirm')}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
