@@ -2,6 +2,14 @@
  * Utility functions for ObjectStack Console
  */
 
+export {
+  resolveRecordFormTarget,
+} from './recordFormNavigation';
+export type {
+  ObjectDefinitionForNavigation,
+  RecordFormTarget,
+} from './recordFormNavigation';
+
 /**
  * Resolves an I18nLabel to a plain string.
  * I18nLabel can be either a string or an object { key, defaultValue?, params? }.

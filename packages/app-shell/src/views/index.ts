@@ -1,5 +1,7 @@
 export { ObjectView } from './ObjectView';
 export { RecordDetailView } from './RecordDetailView';
+export { RecordFormPage } from './RecordFormPage';
+export type { RecordFormPageProps } from './RecordFormPage';
 export { DashboardView } from './DashboardView';
 export { PageView } from './PageView';
 export { ReportView } from './ReportView';

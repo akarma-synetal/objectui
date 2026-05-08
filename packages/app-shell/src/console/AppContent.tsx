@@ -21,6 +21,7 @@ import { useMetadata } from '../providers/MetadataProvider';
 import { useAdapter } from '../providers/AdapterProvider';
 import { ExpressionProvider, evaluateVisibility } from '../providers/ExpressionProvider';
 import { useRecentItems } from '../hooks/useRecentItems';
+import { resolveRecordFormTarget, resolveNavigateCreateUrl, resolveNavigateEditUrl } from '../utils/recordFormNavigation';
 import { ExpressionEvaluator } from '@object-ui/core';
 
 // Components (eagerly loaded — always needed)
@@ -39,6 +40,7 @@ const DashboardView = lazy(() => import('../views/DashboardView').then(m => ({ d
 const PageView = lazy(() => import('../views/PageView').then(m => ({ default: m.PageView })));
 const ReportView = lazy(() => import('../views/ReportView').then(m => ({ default: m.ReportView })));
 const SearchResultsPage = lazy(() => import('../views/SearchResultsPage').then(m => ({ default: m.SearchResultsPage })));
+const RecordFormPage = lazy(() => import('../views/RecordFormPage').then(m => ({ default: m.RecordFormPage })));
 
 // Designer pages — sourced from @object-ui/plugin-designer so third-party hosts
 // can opt out by not registering these routes.
@@ -133,13 +135,47 @@ export function AppContent({ extraRoutes, extraRoutesNoApp }: AppContentProps = 
       return { success: true };
     });
 
+    // Page-mode navigation handlers — declarative counterparts to the
+    // imperative `handleEdit` callback. These let JSON schemas open the
+    // full-screen create/edit pages directly via `<action:button>` without
+    // any custom code:
+    //   { "action": "navigate_create", "params": { "objectName": "..." } }
+    //   { "action": "navigate_edit",
+    //     "params": { "objectName": "...", "recordId": "..." } }
+    // The `objectName` param falls back to the action context's
+    // `objectName` (set per view) so action buttons mounted inside an
+    // ObjectView can omit it.
+    runner.registerHandler('navigate_create', async (action: any) => {
+      const ctx = (runner as any).context ?? {};
+      const result = resolveNavigateCreateUrl({
+        action,
+        context: ctx,
+        defaultBaseUrl: `/apps/${appName ?? ''}`,
+      });
+      if (!result.success) return result;
+      navigate(result.url);
+      return { success: true };
+    });
+
+    runner.registerHandler('navigate_edit', async (action: any) => {
+      const ctx = (runner as any).context ?? {};
+      const result = resolveNavigateEditUrl({
+        action,
+        context: ctx,
+        defaultBaseUrl: `/apps/${appName ?? ''}`,
+      });
+      if (!result.success) return result;
+      navigate(result.url);
+      return { success: true };
+    });
+
     // NOTE: `flow` actions are handled at the per-view ActionProvider level
     // (RecordDetailView / ObjectView) so they share the same ActionRunner that
     // <action:button> renderers consume via useAction(). Do NOT register a
     // `flow` handler on this top-level useActionRunner — it lives on a
     // different ActionRunner instance and would never be invoked from the
     // record/list action buttons.
-  }, [runner]);
+  }, [runner, navigate, appName]);
 
   useEffect(() => {
     if (!dataSource) return;
@@ -218,6 +254,19 @@ export function AppContent({ extraRoutes, extraRoutesNoApp }: AppContentProps = 
   }, [location.pathname, addRecentItem]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleEdit = (record: any) => {
+    // Page-mode opt-in: when the object metadata declares
+    // `editMode: 'page'`, route to the full-screen create/edit page instead
+    // of opening the global ModalForm. Default behavior (modal) is
+    // preserved for any object without the flag.
+    const target = resolveRecordFormTarget({
+      objectDef: currentObjectDef as any,
+      baseUrl: activeApp?.name ? `/apps/${activeApp.name}` : '',
+      record,
+    });
+    if (target.kind === 'page') {
+      navigate(target.url);
+      return;
+    }
     setEditingRecord(record);
     setIsDialogOpen(true);
   };
@@ -299,11 +348,17 @@ export function AppContent({ extraRoutes, extraRoutesNoApp }: AppContentProps = 
                 <Route path=":objectName" element={
                   <ObjectView dataSource={dataSource} objects={allObjects} onEdit={handleEdit} />
                 } />
+                <Route path=":objectName/new" element={
+                  <RecordFormPage mode="create" />
+                } />
                 <Route path=":objectName/view/:viewId" element={
                   <ObjectView dataSource={dataSource} objects={allObjects} onEdit={handleEdit} />
                 } />
                 <Route path=":objectName/record/:recordId" element={
                   <RecordDetailView key={refreshKey} dataSource={dataSource} objects={allObjects} onEdit={handleEdit} />
+                } />
+                <Route path=":objectName/record/:recordId/edit" element={
+                  <RecordFormPage mode="edit" />
                 } />
                 <Route path="dashboard/:dashboardName" element={<DashboardView dataSource={dataSource} />} />
                 <Route path="report/:reportName" element={<ReportView dataSource={dataSource} />} />

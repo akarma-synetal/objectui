@@ -855,6 +855,27 @@ export interface ObjectSchemaMetadata {
   version?: string;
   
   /**
+   * Default UI mode for record create/edit interactions.
+   *
+   * - `'modal'` (default) — open the record form inside a `ModalForm` dialog
+   *   overlaid on top of the current view. Suitable for short forms and
+   *   quick edits.
+   * - `'page'` — navigate to a dedicated full-screen route
+   *   (`/{objectName}/new` for create, `/{objectName}/record/:id/edit` for
+   *   edit). URLs are deep-linkable, refresh-safe, and integrate with the
+   *   browser back button. Recommended for objects with many fields,
+   *   `tabbed` / `wizard` form layouts, or scenarios that benefit from
+   *   shareable links to the create/edit form.
+   *
+   * The host application reads this flag in its central `handleEdit`
+   * dispatcher (see `@object-ui/app-shell` `AppContent`) — switching the
+   * value requires no code changes.
+   *
+   * @default 'modal'
+   */
+  editMode?: 'modal' | 'page';
+
+  /**
    * Cache configuration (Phase 3.1.5)
    */
   cache?: {
