@@ -18,7 +18,7 @@
  * @module pages/system/MetadataDetailPage
  */
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
   Button,
@@ -140,22 +140,33 @@ export function MetadataDetailPage() {
   const [editOpen, setEditOpen] = useState(false);
   const [saving, setSaving] = useState(false);
 
+  // Stable refs so callbacks below don't re-create when hook callers return
+  // new object references on every render. This prevents infinite
+  // useEffect → setLoading → re-render → new fetchItem → useEffect loops in
+  // hosts where `useMetadataService()` / `getMetadataTypeConfig()` are not
+  // memoized.
+  const metadataServiceRef = useRef(metadataService);
+  metadataServiceRef.current = metadataService;
+  const configLabelRef = useRef(config?.label);
+  configLabelRef.current = config?.label;
+
   // Fetch the single item by finding it in the list
   const fetchItem = useCallback(async () => {
-    if (!metadataService || !metadataType || !itemName) return;
+    const svc = metadataServiceRef.current;
+    if (!svc || !metadataType || !itemName) return;
     setLoading(true);
     try {
-      const items = await metadataService.getItems(metadataType);
+      const items = await svc.getItems(metadataType);
       const found = items.find(
         (i) => String(i.name) === itemName && !i._deleted,
       );
       setItem(found ?? null);
     } catch {
-      toast.error(`Failed to load ${config?.label ?? metadataType}`);
+      toast.error(`Failed to load ${configLabelRef.current ?? metadataType}`);
     } finally {
       setLoading(false);
     }
-  }, [metadataService, metadataType, itemName, config?.label]);
+  }, [metadataType, itemName]);
 
   useEffect(() => {
     fetchItem();
@@ -164,22 +175,23 @@ export function MetadataDetailPage() {
   // Save handler for the edit dialog
   const handleSave = useCallback(
     async (values: Record<string, string>) => {
-      if (!metadataService || !metadataType || !itemName) return;
+      const svc = metadataServiceRef.current;
+      if (!svc || !metadataType || !itemName) return;
       setSaving(true);
       try {
         const data: Record<string, unknown> = { ...item, ...values };
-        await metadataService.saveMetadataItem(metadataType, itemName, data);
+        await svc.saveMetadataItem(metadataType, itemName, data);
         await refresh();
         await fetchItem();
-        toast.success(`${config?.label ?? 'Item'} "${itemName}" updated`);
+        toast.success(`${configLabelRef.current ?? 'Item'} "${itemName}" updated`);
       } catch {
         toast.error(`Failed to update "${itemName}"`);
-        throw new Error(`Failed to save ${config?.label ?? 'item'} "${itemName}"`);
+        throw new Error(`Failed to save ${configLabelRef.current ?? 'item'} "${itemName}"`);
       } finally {
         setSaving(false);
       }
     },
-    [metadataService, metadataType, itemName, item, config?.label, refresh, fetchItem],
+    [metadataType, itemName, item, refresh, fetchItem],
   );
 
   const listPath = config?.customRoute

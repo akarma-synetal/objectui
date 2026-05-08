@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **CI: `MetadataDetailPage` flaky test (`should display field values
+  from the item`).** The `useMetadataService()` and `useMetadata()`
+  mocks in `apps/console/dev/__tests__/MetadataDetailPage.test.tsx`
+  returned a fresh object literal on every render, which made
+  `MetadataDetailPage`'s `fetchItem` `useCallback` reference change on
+  every render and re-trigger the data-fetch `useEffect` in an infinite
+  loading→loaded→loading loop. Locally the resolved promise won the
+  race; in CI the page was occasionally still in the `loading` state
+  when assertions ran, breaking the text lookup. Hoisted both mock
+  return values to module-level singletons, and additionally hardened
+  `apps/console/src/legacy/MetadataDetailPage.tsx` to read the
+  `metadataService` and `config.label` through refs so an unstable
+  hook return identity in any host can no longer cause the same loop
+  (CI run #25541629421).
+
 ## [4.0.2] - 2026-05-08
 
 ### Added
