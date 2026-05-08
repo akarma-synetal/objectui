@@ -370,9 +370,17 @@ export const ObjectGrid: React.FC<ObjectGridProps> = ({
         // --- Step 2: Fetch data ---
         if (dataSource && objectName) {
           const getSelectFields = () => {
-            if (schemaFields) return schemaFields;
+            // Always include 'id' so row click / navigation handlers can resolve
+            // the record key — without it `record.id` is undefined and the
+            // primary-field link silently no-ops.
+            const ensureId = (list: any[]): any[] => {
+              const names = list.map((f: any) => typeof f === 'string' ? f : (f?.name || f?.field));
+              return names.includes('id') ? list : ['id', ...list];
+            };
+            if (schemaFields) return ensureId(schemaFields as any[]);
             if (schemaColumns && Array.isArray(schemaColumns)) {
-              return schemaColumns.map((c: any) => typeof c === 'string' ? c : c.field);
+              const fields = schemaColumns.map((c: any) => typeof c === 'string' ? c : c.field);
+              return ensureId(fields);
             }
             return undefined;
           };

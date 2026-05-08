@@ -1217,7 +1217,11 @@ const fieldWidgetMap: Record<string, () => Promise<{ default: React.ComponentTyp
   'markdown': () => import('./widgets/RichTextField').then(m => ({ default: m.RichTextField })),
   'html': () => import('./widgets/RichTextField').then(m => ({ default: m.RichTextField })),
   'lookup': () => import('./widgets/LookupField').then(m => ({ default: m.LookupField })),
-  'master_detail': () => import('./widgets/MasterDetailField').then(m => ({ default: m.MasterDetailField })),
+  // master_detail represents the child-side FK to its parent. In create/edit forms it
+  // must render as a single-value lookup picker (it is typically NOT NULL). The legacy
+  // MasterDetailField widget modelled this as a one-to-many list, which is incorrect
+  // for the child-side and prevented users from filling the required parent reference.
+  'master_detail': () => import('./widgets/LookupField').then(m => ({ default: m.LookupField })),
   
   // File fields
   'file': () => import('./widgets/FileField').then(m => ({ default: m.FileField })),
@@ -1317,7 +1321,9 @@ export function registerFields() {
   ComponentRegistry.register('markdown', createFieldRenderer(RichTextField), { namespace: 'field' });
   ComponentRegistry.register('html', createFieldRenderer(RichTextField), { namespace: 'field' });
   ComponentRegistry.register('lookup', createFieldRenderer(LookupField), { namespace: 'field' });
-  ComponentRegistry.register('master_detail', createFieldRenderer(MasterDetailField), { namespace: 'field' });
+  // master_detail = child-side FK lookup (single value, typically required). See
+  // fieldWidgetMap above for rationale.
+  ComponentRegistry.register('master_detail', createFieldRenderer(LookupField), { namespace: 'field' });
   
   // File fields
   ComponentRegistry.register('file', createFieldRenderer(FileField), { namespace: 'field' });

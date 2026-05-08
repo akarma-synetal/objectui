@@ -24,7 +24,11 @@ const AUTO_GENERATED_FORM_TYPES = new Set([
   'field:summary',
   'field:auto_number',
   'field:autonumber',
-  'field:master_detail',
+  // NOTE: 'field:master_detail' is NOT excluded here. From the child's perspective,
+  // a master-detail field is the FK lookup to its parent and is typically required
+  // (NOT NULL in the database). It must appear in create/edit forms as a lookup picker.
+  // The "embedded sublist on parent detail page" use-case is rendered separately
+  // via related-list views, not via the master-detail field type itself.
 ]);
 
 /** Field types that should span full width in multi-column layouts */
@@ -45,15 +49,18 @@ const WIDE_FIELD_TYPES = new Set([
  * Object field types that are auto-generated/aggregate and should be excluded
  * from modal edit/create forms — they are either computed server-side or render
  * as full-page sub-tables that belong on detail views, not dialogs.
+ *
+ * NOTE: master_detail/masterDetail are NOT excluded here. From the child-side
+ * the field is the FK lookup to the parent (often required / NOT NULL); it must
+ * appear in create/edit forms as a lookup picker. The "embedded sublist on the
+ * parent's detail page" pattern is rendered by related-list views, not by this
+ * field type.
  */
 const AUTO_GENERATED_FIELD_TYPES = new Set([
   'formula',
   'summary',
   'auto_number',
   'autonumber',
-  // master_detail renders an embedded sublist; belongs on the detail page, not a modal
-  'master_detail',
-  'masterDetail',
 ]);
 
 /**
