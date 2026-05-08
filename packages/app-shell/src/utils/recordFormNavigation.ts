@@ -172,4 +172,3 @@ export function resolveNavigateEditUrl(opts: {
     url: `${baseUrl}/${objectName}/record/${encoded}/edit`,
   };
 }
-

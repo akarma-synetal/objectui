@@ -152,7 +152,7 @@ export function RecordFormPage({ mode }: RecordFormPageProps) {
   // ModalForm in AppContent so page-mode and modal-mode show the same
   // fields for a given user.
   const fields = useMemo(() => {
-    if (!objectDef?.fields) return [] as string[];
+    if (!objectDef?.fields) return [];
     if (Array.isArray(objectDef.fields)) {
       return (objectDef.fields as any[])
         .filter((f: any) => {
@@ -199,7 +199,7 @@ export function RecordFormPage({ mode }: RecordFormPageProps) {
   return (
     <ExpressionProvider user={expressionUser} app={{ name: appName }} data={{}}>
       <div
-        className="h-full flex flex-col bg-background overflow-hidden"
+        className="flex flex-col h-full overflow-hidden bg-background"
         data-testid="record-form-page"
         data-mode={mode}
       >
