@@ -32,21 +32,16 @@ export default defineConfig({
       fileName: 'index',
     },
     rollupOptions: {
-      external: [
-        'react',
-        'react-dom',
-        '@object-ui/components',
-        '@object-ui/core',
-        '@object-ui/react',
-        '@object-ui/types',
-        'tailwind-merge',
-        'clsx',
-        'lucide-react'
-      ],
+      // External: any subpath of react/react-dom, all @object-ui packages,
+      // and CJS deps that internally `require("react")` — letting them
+      // through would inline a CJS wrapper whose require() calls hit
+      // rolldown's runtime stub and throw at runtime.
+      external: (id) => !/^[./]/.test(id) && !id.startsWith(__dirname),
       output: {
         globals: {
           react: 'React',
           'react-dom': 'ReactDOM',
+          'react-grid-layout': 'ReactGridLayout',
           '@object-ui/components': 'ObjectUIComponents',
           '@object-ui/core': 'ObjectUICore',
           '@object-ui/react': 'ObjectUIReact',

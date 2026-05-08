@@ -34,7 +34,7 @@ export default defineConfig({
       fileName: 'index',
     },
     rollupOptions: {
-      external: ['react', 'react/jsx-runtime', 'react-dom', '@object-ui/components', '@object-ui/core', '@object-ui/react', 'lucide-react'],
+      external: (id) => !/^[./]/.test(id) && !id.startsWith(__dirname),
       output: {
         globals: {
           react: 'React',

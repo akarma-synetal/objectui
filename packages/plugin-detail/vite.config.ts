@@ -37,8 +37,7 @@ export default defineConfig({
       // Each plugin must share the same ComponentRegistry singleton from
       // @object-ui/core; bundling core into every plugin creates per-plugin
       // private registries and breaks cross-plugin component lookup.
-      external: (id) =>
-        /^(react|react-dom|react\/jsx-runtime|@object-ui\/(core|types|react|components|fields|i18n|mobile|layout|app-shell|theme|providers)|lucide-react)(\/|$)/.test(id),
+      external: (id) => !/^[./]/.test(id) && !id.startsWith(__dirname),
       output: {
         globals: {
           react: 'React',

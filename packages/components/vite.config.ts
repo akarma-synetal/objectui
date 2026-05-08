@@ -47,7 +47,7 @@ export default defineConfig({
     rollupOptions: {
       // Use a function to match subpath imports (e.g. react/jsx-runtime)
       // so Rolldown does not bundle CJS wrappers that use require().
-      external: (id) => /^(react|react-dom|@object-ui\/(core|react|types))(\/|$)/.test(id),
+      external: (id) => !/^[./]/.test(id) && !id.startsWith(__dirname),
       output: {
         globals: {
           react: 'React',

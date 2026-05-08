@@ -19,18 +19,7 @@ export default defineConfig({
       fileName: 'index',
     },
     rollupOptions: {
-      external: [
-        'react',
-        'react-dom',
-        '@object-ui/components',
-        '@object-ui/core',
-        '@object-ui/react',
-        '@object-ui/types',
-        'clsx',
-        'tailwind-merge',
-        'lucide-react',
-        'react-router-dom'
-      ],
+      external: (id) => !/^[./]/.test(id) && !id.startsWith(__dirname),
     },
   },
   test: {

@@ -35,23 +35,7 @@ export default defineConfig({
       fileName: 'index',
     },
     rollupOptions: {
-      external: [
-        'react',
-        'react-dom',
-        'react-router-dom',
-        'sonner',
-        '@object-ui/app-shell',
-        '@object-ui/components',
-        '@object-ui/core',
-        '@object-ui/fields',
-        '@object-ui/plugin-grid',
-        '@object-ui/plugin-form',
-        '@object-ui/react',
-        '@object-ui/types',
-        'tailwind-merge',
-        'clsx',
-        'lucide-react'
-      ],
+      external: (id) => !/^[./]/.test(id) && !id.startsWith(__dirname),
       output: {
         globals: {
           react: 'React',
