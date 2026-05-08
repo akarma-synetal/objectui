@@ -266,11 +266,11 @@ export function FileField({ value, onChange, field, readonly, ...props }: FieldW
               >
                 <div className="flex items-center gap-2 flex-1 min-w-0">
                   {isImage(file) && file.url ? (
-                    <img src={file.url} alt={file.name} className="size-8 object-cover rounded flex-shrink-0" />
+                    <img src={file.url} alt={file.name} className="size-8 object-cover rounded shrink-0" />
                   ) : isImage(file) ? (
-                    <ImageIcon className="size-4 text-muted-foreground flex-shrink-0" />
+                    <ImageIcon className="size-4 text-muted-foreground shrink-0" />
                   ) : (
-                    <FileIcon className="size-4 text-muted-foreground flex-shrink-0" />
+                    <FileIcon className="size-4 text-muted-foreground shrink-0" />
                   )}
                   <span className="text-sm truncate">
                     {file.name || file.original_name || 'File'}

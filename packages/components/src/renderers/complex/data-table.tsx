@@ -806,10 +806,10 @@ const DataTableRenderer = ({ schema }: { schema: DataTableSchema }) => {
                     )}>
                       <div className="flex items-center gap-1">
                         {reorderableColumns && (
-                          <GripVertical className="h-4 w-4 opacity-0 group-hover:opacity-50 cursor-grab active:cursor-grabbing flex-shrink-0" />
+                          <GripVertical className="h-4 w-4 opacity-0 group-hover:opacity-50 cursor-grab active:cursor-grabbing shrink-0" />
                         )}
                         {col.headerIcon && (
-                          <span className="text-muted-foreground flex-shrink-0">{col.headerIcon}</span>
+                          <span className="text-muted-foreground shrink-0">{col.headerIcon}</span>
                         )}
                         <span className="text-xs font-normal text-muted-foreground whitespace-nowrap truncate">{col.header}</span>
                         {sortable && col.sortable !== false && getSortIcon(col.accessorKey)}

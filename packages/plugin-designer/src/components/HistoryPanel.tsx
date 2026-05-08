@@ -130,7 +130,7 @@ export function HistoryPanel<T>({
                 >
                   <span
                     className={[
-                      'inline-block size-1.5 rounded-full flex-shrink-0',
+                      'inline-block size-1.5 rounded-full shrink-0',
                       isCurrent ? 'bg-primary' : 'bg-muted-foreground/40',
                     ].join(' ')}
                     aria-hidden="true"

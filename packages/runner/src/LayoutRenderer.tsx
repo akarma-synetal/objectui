@@ -67,7 +67,7 @@ const NavItem = ({ item, currentPath, isSidebarOpen, onNavigate, level = 0 }: an
         <Collapsible open={isOpen} onOpenChange={setIsOpen} className="w-full">
             <CollapsibleTrigger className={`flex w-full items-center justify-between py-2 text-sm font-medium rounded-md transition-colors text-muted-foreground hover:bg-muted hover:text-foreground ${isSidebarOpen ? 'px-3' : 'justify-center px-2 cursor-pointer'}`}>
                  <div className="flex items-center overflow-hidden">
-                    {Icon && <Icon className={`h-4 w-4 flex-shrink-0 ${isSidebarOpen ? 'mr-3' : ''}`} />}
+                    {Icon && <Icon className={`h-4 w-4 shrink-0 ${isSidebarOpen ? 'mr-3' : ''}`} />}
                     <span className={`whitespace-nowrap overflow-hidden transition-all duration-300 ${isSidebarOpen ? 'opacity-100 w-auto' : 'opacity-0 w-0 hidden'}`}>
                         {item.label}
                     </span>
@@ -103,7 +103,7 @@ const NavItem = ({ item, currentPath, isSidebarOpen, onNavigate, level = 0 }: an
           : 'text-muted-foreground hover:bg-muted hover:text-foreground'
       } ${isSidebarOpen ? 'px-3' : 'justify-center px-2'} ${level > 0 && isSidebarOpen ? 'pl-10' : ''}`}
     >
-      {Icon && <Icon className={`h-4 w-4 flex-shrink-0 ${isSidebarOpen ? 'mr-3' : ''} ${isActive ? 'text-primary-foreground' : 'text-muted-foreground group-hover:text-foreground'}`} />}
+      {Icon && <Icon className={`h-4 w-4 shrink-0 ${isSidebarOpen ? 'mr-3' : ''} ${isActive ? 'text-primary-foreground' : 'text-muted-foreground group-hover:text-foreground'}`} />}
       <span className={`whitespace-nowrap overflow-hidden transition-all duration-300 ${isSidebarOpen ? 'opacity-100 w-auto' : 'opacity-0 w-0 hidden'}`}>
         {item.label}
       </span>
@@ -159,7 +159,7 @@ export const LayoutRenderer = ({ app, children, currentPath, onNavigate }: Layou
       {layout === 'sidebar' && (
         <aside 
             className={`
-                flex-shrink-0 border-r bg-background hidden md:flex flex-col h-screen sticky top-0 z-30 transition-all duration-300 ease-in-out
+                shrink-0 border-r bg-background hidden md:flex flex-col h-screen sticky top-0 z-30 transition-all duration-300 ease-in-out
                 ${isSidbarOpen ? 'w-64' : 'w-[70px]'}
             `}
         >

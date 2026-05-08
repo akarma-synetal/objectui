@@ -856,7 +856,7 @@ export const FlowDesigner: React.FC<FlowDesignerProps> = ({ schema, onSave }) =>
   return (
     <Card className="flex flex-col h-full min-h-[600px] outline-none" tabIndex={0} onKeyDown={handleKeyDown}>
       {/* Header */}
-      <CardHeader className="py-2 px-4 border-b flex-shrink-0">
+      <CardHeader className="py-2 px-4 border-b shrink-0">
         <div className="flex items-center gap-3 flex-wrap">
           <Zap className="h-4 w-4 text-primary shrink-0" />
           <CardTitle className="text-sm font-semibold">
@@ -954,7 +954,7 @@ export const FlowDesigner: React.FC<FlowDesignerProps> = ({ schema, onSave }) =>
       <CardContent className="flex flex-1 p-0 overflow-hidden">
         {/* Left toolbar — node palette */}
         {showToolbar && !readOnly && (
-          <div className="w-36 border-r bg-muted/30 flex-shrink-0 overflow-y-auto py-2 px-2">
+          <div className="w-36 border-r bg-muted/30 shrink-0 overflow-y-auto py-2 px-2">
             <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide mb-2 px-1">Add Node</p>
             <div className="space-y-1">
               {TOOLBAR_NODE_TYPES.map((type) => (
@@ -1127,14 +1127,14 @@ export const FlowDesigner: React.FC<FlowDesignerProps> = ({ schema, onSave }) =>
 
         {/* Version History panel */}
         {showVersionPanel && versionHistory.length > 0 && (
-          <div className="w-48 border-l bg-background flex-shrink-0 overflow-y-auto">
+          <div className="w-48 border-l bg-background shrink-0 overflow-y-auto">
             <VersionHistoryPanel versions={versionHistory} />
           </div>
         )}
 
         {/* Property panel */}
         {showPropertyPanel && (
-          <div className="w-52 border-l bg-background flex-shrink-0 overflow-y-auto">
+          <div className="w-52 border-l bg-background shrink-0 overflow-y-auto">
             <PropertyPanel
               node={selectedNode}
               edge={selectedEdge}

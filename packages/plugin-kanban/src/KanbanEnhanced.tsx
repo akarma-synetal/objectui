@@ -285,7 +285,7 @@ function KanbanColumnEnhanced({
     <div
       ref={setNodeRef}
       className={cn(
-        "flex flex-col flex-shrink-0 rounded-lg border border-border bg-card/20 backdrop-blur-sm shadow-xl transition-all",
+        "flex flex-col shrink-0 rounded-lg border border-border bg-card/20 backdrop-blur-sm shadow-xl transition-all",
         column.collapsed ? "w-16" : "w-80",
         column.className
       )}

@@ -271,7 +271,7 @@ const ChatbotEnhanced = React.forwardRef<HTMLDivElement, ChatbotEnhancedProps>(
                   )}
                 >
                   {message.role !== "user" && (
-                    <Avatar className="h-8 w-8 flex-shrink-0">
+                    <Avatar className="h-8 w-8 shrink-0">
                       <AvatarImage src={message.avatar || assistantAvatarUrl} />
                       <AvatarFallback>{message.avatarFallback || assistantAvatarFallback}</AvatarFallback>
                     </Avatar>
@@ -301,7 +301,7 @@ const ChatbotEnhanced = React.forwardRef<HTMLDivElement, ChatbotEnhancedProps>(
                   </div>
 
                   {message.role === "user" && (
-                    <Avatar className="h-8 w-8 flex-shrink-0">
+                    <Avatar className="h-8 w-8 shrink-0">
                       <AvatarImage src={message.avatar || userAvatarUrl} />
                       <AvatarFallback>{message.avatarFallback || userAvatarFallback}</AvatarFallback>
                     </Avatar>
@@ -340,7 +340,7 @@ const ChatbotEnhanced = React.forwardRef<HTMLDivElement, ChatbotEnhancedProps>(
         {/* Error display */}
         {error && (
           <div className="flex items-center gap-2 px-4 py-2 border-t bg-destructive/10 text-destructive text-sm" role="alert">
-            <AlertCircle className="h-4 w-4 flex-shrink-0" />
+            <AlertCircle className="h-4 w-4 shrink-0" />
             <span className="flex-1 truncate">{error.message || 'An error occurred'}</span>
             {onReload && (
               <Button

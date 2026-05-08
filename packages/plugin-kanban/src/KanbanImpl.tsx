@@ -256,8 +256,8 @@ function KanbanColumnView({
   // When the parent passes inline width, drop the viewport-relative classes
   // so they don't fight with the container-derived value.
   const widthClasses = columnStyle && columnStyle.width != null
-    ? "flex-shrink-0"
-    : "w-[85vw] sm:w-80 flex-shrink-0";
+    ? "shrink-0"
+    : "w-[85vw] sm:w-80 shrink-0";
 
   return (
     <div
@@ -546,7 +546,7 @@ function KanbanBoardInner({ columns, onCardMove, onCardClick, className, dnd, qu
           {/* Column headers */}
           <div className="flex gap-3 sm:gap-4 pl-36 sm:pl-44 overflow-x-auto">
             {boardColumns.map(col => (
-              <div key={col.id} className="w-[85vw] sm:w-80 flex-shrink-0 text-center">
+              <div key={col.id} className="w-[85vw] sm:w-80 shrink-0 text-center">
                 <span className=" text-xs sm:text-sm font-semibold tracking-wider text-primary/90 uppercase">{col.title}</span>
                 <span className="ml-2 text-xs text-muted-foreground">({col.cards.length})</span>
               </div>
@@ -580,7 +580,7 @@ function KanbanBoardInner({ columns, onCardMove, onCardClick, className, dnd, qu
                         (c[swimlaneField!] != null ? String(c[swimlaneField!]) : UNCATEGORIZED_LANE) === lane
                       )
                       return (
-                        <div key={col.id} className="w-[85vw] sm:w-80 flex-shrink-0 min-h-[60px] rounded-md bg-card/20 p-2">
+                        <div key={col.id} className="w-[85vw] sm:w-80 shrink-0 min-h-[60px] rounded-md bg-card/20 p-2">
                           <SortableContext items={laneCards.map(c => c.id)} strategy={verticalListSortingStrategy}>
                             <div className="space-y-2" role="list" aria-label={`${col.title} - ${lane} cards`}>
                               {laneCards.map(card => (

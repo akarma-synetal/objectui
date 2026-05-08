@@ -290,7 +290,7 @@ export function PercentCellRenderer({ value, field }: CellRendererProps): React.
   return (
     <div className="flex items-center gap-2">
       <div
-        className="h-1.5 w-16 rounded-full bg-muted overflow-hidden flex-shrink-0"
+        className="h-1.5 w-16 rounded-full bg-muted overflow-hidden shrink-0"
         role="progressbar"
         aria-valuenow={clampedBar}
         aria-valuemin={0}

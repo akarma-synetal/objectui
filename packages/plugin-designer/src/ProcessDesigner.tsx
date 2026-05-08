@@ -934,7 +934,7 @@ export function ProcessDesigner({
 
         {/* Collapsible property panel */}
         {showPropertyPanel && !readOnly && (
-          <div className="w-64 border-l bg-background overflow-y-auto flex-shrink-0" role="complementary" aria-label="Property panel">
+          <div className="w-64 border-l bg-background overflow-y-auto shrink-0" role="complementary" aria-label="Property panel">
             <PropertyEditor
               title={selectedNode ? `Properties: ${selectedNode.label}` : 'Properties'}
               fields={propertyFields}

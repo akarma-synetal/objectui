@@ -69,13 +69,13 @@ export function FloatingChatbotPanel({
     >
       {/* Header */}
       <div className="flex items-center justify-between gap-2 px-4 py-2 border-b bg-muted/40">
-        <span className="text-sm font-medium truncate flex-shrink-0">{title}</span>
+        <span className="text-sm font-medium truncate shrink-0">{title}</span>
         {headerExtra ? (
           <div className="flex-1 min-w-0 flex items-center justify-end mr-1" data-testid="floating-chatbot-header-extra">
             {headerExtra}
           </div>
         ) : null}
-        <div className="flex items-center gap-1 flex-shrink-0">
+        <div className="flex items-center gap-1 shrink-0">
           <Button
             variant="ghost"
             size="icon"

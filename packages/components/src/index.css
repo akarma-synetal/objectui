@@ -202,65 +202,10 @@ body {
   background-color: hsl(var(--primary) / 0.24);
 }
 
-/* Icon mode: collapsed state = icon width, expanded state = full width */
-.group[data-collapsible="icon"][data-state="collapsed"] .group-data-\[collapsible\=icon\]\:w-\[--sidebar-width-icon\] {
-  width: var(--sidebar-width-icon);
-}
-
-.group[data-collapsible="icon"][data-state="expanded"] .group-data-\[collapsible\=icon\]\:w-\[--sidebar-width-icon\] {
-  width: var(--sidebar-width);
-}
-
-.group[data-collapsible="icon"][data-state="collapsed"] .group-data-\[collapsible\=icon\]\:w-\[calc\(var\(--sidebar-width-icon\)_\+_theme\(spacing\.4\)\)\] {
-  width: calc(var(--sidebar-width-icon) + 1rem);
-}
-
-.group[data-collapsible="icon"][data-state="expanded"] .group-data-\[collapsible\=icon\]\:w-\[calc\(var\(--sidebar-width-icon\)_\+_theme\(spacing\.4\)\)\] {
-  width: var(--sidebar-width);
-}
-
-.group[data-collapsible="icon"][data-state="collapsed"] .group-data-\[collapsible\=icon\]\:w-\[calc\(var\(--sidebar-width-icon\)_\+_theme\(spacing\.4\)_\+2px\)\] {
-  width: calc(var(--sidebar-width-icon) + 1rem + 2px);
-}
-
-.group[data-collapsible="icon"][data-state="expanded"] .group-data-\[collapsible\=icon\]\:w-\[calc\(var\(--sidebar-width-icon\)_\+_theme\(spacing\.4\)_\+2px\)\] {
-  width: var(--sidebar-width);
-}
-
-/* Labels visibility - only hide when BOTH icon mode AND collapsed */
-.group[data-collapsible="icon"][data-state="collapsed"] .group-data-\[collapsible\=icon\]\:opacity-0 {
-  opacity: 0;
-}
-
-.group[data-collapsible="icon"][data-state="expanded"] .group-data-\[collapsible\=icon\]\:opacity-0 {
-  opacity: 1;
-}
-
-.group[data-collapsible="icon"][data-state="collapsed"] .group-data-\[collapsible\=icon\]\:-mt-8 {
-  margin-top: -2rem;
-}
-
-.group[data-collapsible="icon"][data-state="expanded"] .group-data-\[collapsible\=icon\]\:-mt-8 {
-  margin-top: 0;
-}
-
-.group[data-collapsible="icon"][data-state="collapsed"] .group-data-\[collapsible\=icon\]\:hidden {
-  display: none;
-}
-
-.group[data-collapsible="icon"][data-state="expanded"] .group-data-\[collapsible\=icon\]\:hidden {
-  display: block;
-}
-
-.group[data-collapsible="icon"][data-state="collapsed"] .group-data-\[collapsible\=icon\]\:overflow-hidden {
-  overflow: hidden;
-}
-
-.group[data-collapsible="icon"][data-state="expanded"] .group-data-\[collapsible\=icon\]\:overflow-hidden {
-  overflow: auto;
-}
-
-/* Menu button behavior - collapsed = icon only, expanded = full width */
+/* Icon mode menu button sizing — custom classes attached in sidebar.tsx
+   (sidebar-menu-button-icon-mode and -lg). Width / height / padding for
+   collapsed icon mode are still managed manually because the variants
+   would conflict with the per-item button content sizing. */
 .group[data-collapsible="icon"][data-state="collapsed"] .sidebar-menu-button-icon-mode {
   width: 2rem !important;
   height: 2rem !important;
@@ -279,9 +224,4 @@ body {
 
 .group[data-collapsible="icon"][data-state="expanded"] .sidebar-menu-button-icon-mode-lg {
   padding: 0.5rem;
-}
-
-/* Offcanvas mode: always collapsed = 0 width */
-.group[data-collapsible="offcanvas"] .group-data-\[collapsible\=offcanvas\]\:w-0 {
-  width: 0;
 }

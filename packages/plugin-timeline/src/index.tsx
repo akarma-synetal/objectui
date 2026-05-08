@@ -149,7 +149,7 @@ const TimelineHorizontalItem = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <div
     ref={ref}
-    className={cn("flex-shrink-0 w-64 relative", className)}
+    className={cn("shrink-0 w-64 relative", className)}
     {...props}
   />
 ))
