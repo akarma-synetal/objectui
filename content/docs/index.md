@@ -111,7 +111,7 @@ ObjectUI provides a complete toolkit for building schema-driven applications:
 
 - **[CLI](/docs/utilities/cli)** - Build and run apps directly from JSON/YAML schemas
   ```bash
-  npx @object-ui/cli dev --schema dashboard.json
+  npx @object-ui/cli dev dashboard.json
   ```
 
 - **[Create Plugin](/docs/utilities/create-plugin)** - Scaffold new plugins with best practices

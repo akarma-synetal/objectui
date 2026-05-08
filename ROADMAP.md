@@ -1468,7 +1468,7 @@ Plugin architecture refactoring to support true modular development, plugin isol
 
 ### Ecosystem & Marketplace
 - Plugin marketplace website with search, ratings, and install count
-- Plugin publishing CLI (`os ui publish`) with automated validation
+- Plugin publishing CLI (`objectui plugin publish`) with automated validation
 - 25+ official plugins
 
 ### Community Growth

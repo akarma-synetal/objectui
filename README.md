@@ -271,12 +271,12 @@ objectui init my-app
 
 # Start the development server
 cd my-app
-objectui serve app.schema.json
+objectui dev app.json
 ```
 
 Your app will be running at http://localhost:3000! 🎉
 
-Just edit `app.schema.json` to build your UI - no React code needed.
+Just edit `app.json` to build your UI - no React code needed.
 
 ### Option 2: Using as a Library
 

@@ -170,14 +170,20 @@ Adjust `@source` paths to match your project structure relative to `node_modules
 
 | Command | What it does |
 |---------|-------------|
-| `objectui init` | Scaffold new project from template |
-| `objectui dev` | Dev server with hot reload + schema watching |
-| `objectui build` | Compile ObjectStack config |
-| `objectui serve` | Production server |
+| `objectui init` | Scaffold new project from template (`simple`, `form`, `dashboard`) |
+| `objectui dev` | Dev server with HMR + schema watching (alias: `objectui serve`) |
+| `objectui build` | Production build (Vite) |
+| `objectui start` | Serve a previously-built production bundle |
 | `objectui studio` | Visual UI editor |
-| `objectui check` | Validate config files |
-| `objectui generate` | Code generation |
+| `objectui validate` | Validate a schema file (CI-friendly, exits non-zero on failure) |
+| `objectui check` | Validate every schema file in the project |
+| `objectui lint` | Lint generated app code (ESLint) |
+| `objectui test` | Run app tests (Vitest) |
+| `objectui generate` | Code/schema generation (`object`, `page`, `plugin`) |
+| `objectui add` | Add a component renderer scaffold |
+| `objectui create plugin` | Scaffold a new plugin |
 | `objectui doctor` | Diagnostics (Node version, deps, etc.) |
+| `objectui analyze` | Analyze bundle size / render performance |
 
 ### Dev server modes
 

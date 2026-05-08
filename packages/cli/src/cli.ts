@@ -105,14 +105,14 @@ program
 
 program
   .command('init')
-  .description('初始化新的Object UI应用 / Initialize a new Object UI application with sample schema')
-  .argument('[name]', '应用名称 / Application name', 'my-app')
-  .option('-t, --template <template>', '使用的模板 / Template to use (dashboard, form, simple)', 'dashboard')
+  .description('Initialize a new Object UI application with sample schema')
+  .argument('[name]', 'Application name', 'my-app')
+  .option('-t, --template <template>', 'Template to use (dashboard, form, simple)', 'dashboard')
   .action(async (name, options) => {
     try {
       await init(name, options);
     } catch (error) {
-      console.error(chalk.red('错误 Error:'), error instanceof Error ? error.message : error);
+      console.error(chalk.red('Error:'), error instanceof Error ? error.message : error);
       process.exit(1);
     }
   });
