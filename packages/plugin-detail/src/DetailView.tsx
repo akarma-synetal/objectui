@@ -389,20 +389,8 @@ export const DetailView: React.FC<DetailViewProps> = ({
     }
   }, [schema]);
 
-  const handleDuplicate = React.useCallback(() => {
-    // Duplicate functionality - could navigate to create page with prefilled data
-    console.log('Duplicate record:', data);
-  }, [data]);
-
-  const handleExport = React.useCallback(() => {
-    // Export functionality - could download as JSON, PDF, etc.
-    console.log('Export record:', data);
-  }, [data]);
-
-  const handleViewHistory = React.useCallback(() => {
-    // View history functionality
-    console.log('View history for record:', schema.resourceId);
-  }, [schema]);
+  // NOTE: Duplicate / Export / View History are intentionally hidden until
+  // real implementations exist. See systemActions below.
 
   const handleToggleFavorite = React.useCallback(() => {
     setIsFavorite(!isFavorite);
@@ -536,29 +524,9 @@ export const DetailView: React.FC<DetailViewProps> = ({
     }
 
     // Universal record-level utilities (desktop + mobile).
-    const firstUniversalTags = items.length > 0 ? ['separator-before'] : undefined;
-    items.push({
-      name: 'sys_duplicate',
-      label: t('detail.duplicate'),
-      icon: 'copy',
-      type: 'script',
-      ...(firstUniversalTags && { tags: firstUniversalTags }),
-      onClick: handleDuplicate,
-    });
-    items.push({
-      name: 'sys_export',
-      label: t('detail.export'),
-      icon: 'download',
-      type: 'script',
-      onClick: handleExport,
-    });
-    items.push({
-      name: 'sys_view_history',
-      label: t('detail.viewHistory'),
-      icon: 'history',
-      type: 'script',
-      onClick: handleViewHistory,
-    });
+    // Duplicate / Export / View History are intentionally omitted until
+    // real implementations land — previously they only emitted console.log
+    // and surfacing fake actions to end users is misleading.
 
     // Destructive action — separated and styled via variant.
     if (schema.showDelete) {
@@ -583,9 +551,6 @@ export const DetailView: React.FC<DetailViewProps> = ({
     handleShare,
     handleEdit,
     handleInlineEditToggle,
-    handleDuplicate,
-    handleExport,
-    handleViewHistory,
     handleDelete,
   ]);
 
