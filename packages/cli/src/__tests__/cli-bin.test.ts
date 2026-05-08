@@ -51,10 +51,34 @@ function run(args: string[], opts: { cwd?: string } = {}) {
 
 describe('@object-ui/cli bin', () => {
   beforeAll(() => {
+    // The CLI bin imports @object-ui/types/zod at runtime (validate command),
+    // so both the CLI bundle AND the types package must be built before we
+    // invoke `dist/cli.js` as a child process. `pnpm test:coverage` (root
+    // vitest) does NOT trigger turbo's `^build` deps, so we self-build here
+    // to keep the test runnable from any entry point (CI coverage, CI turbo,
+    // local watch, fresh clone).
+    const TYPES_ZOD = resolve(
+      __dirname,
+      '../../../types/dist/zod/index.zod.js',
+    );
+    const repoRoot = resolve(__dirname, '../../../..');
+
+    if (!existsSync(TYPES_ZOD)) {
+      const result = spawnSync(
+        'pnpm',
+        ['--filter', '@object-ui/types', 'run', 'build'],
+        { cwd: repoRoot, encoding: 'utf-8', stdio: 'pipe' },
+      );
+      if (result.status !== 0 || !existsSync(TYPES_ZOD)) {
+        throw new Error(
+          `Failed to build @object-ui/types for tests.\n` +
+            `Looked at: ${TYPES_ZOD}\n` +
+            `stdout: ${result.stdout}\nstderr: ${result.stderr}`,
+        );
+      }
+    }
+
     if (!existsSync(CLI_BIN)) {
-      // Auto-build the CLI on first test run. This keeps the test self-contained
-      // so it works in CI (where `pnpm test:coverage` runs without `^build` deps)
-      // and locally without requiring a separate build step.
       const pkgRoot = resolve(__dirname, '../..');
       const result = spawnSync('pnpm', ['run', 'build'], {
         cwd: pkgRoot,
@@ -69,7 +93,7 @@ describe('@object-ui/cli bin', () => {
         );
       }
     }
-  }, 60_000);
+  }, 180_000);
 
   describe('package metadata', () => {
     it('package.json declares the standalone @object-ui/cli identity', () => {
