@@ -10,6 +10,35 @@ import { useMemo } from 'react';
 import { ExpressionEvaluator } from '@object-ui/core';
 
 /**
+ * Normalize a schema-supplied predicate (`visible` / `enabled` / `disabled` /
+ * `hidden`) into the `${expr}` template form expected by `useCondition`.
+ *
+ * Accepts:
+ *   - `boolean` → returned as-is (predicate hooks short-circuit on booleans).
+ *   - `string`  → wrapped as `${string}` (legacy DX shorthand).
+ *   - `Expression` envelope `{ dialect, source }` (new format from
+ *     `@objectstack/spec`'s normalized predicate inputs) → unwrapped, then
+ *     wrapped as `${source}`. Both `cel` and `template` dialects already use
+ *     compatible variable syntax (`record.x`, etc.).
+ *   - `null` / `undefined` / empty → `undefined` (default visible/enabled).
+ *
+ * This is the canonical helper to use in renderers so we never end up with
+ * `${[object Object]}` after JS template-literal interpolation.
+ */
+export function toPredicateInput(
+  value: unknown,
+): string | boolean | undefined {
+  if (value === null || value === undefined || value === '') return undefined;
+  if (typeof value === 'boolean') return value;
+  if (typeof value === 'string') return `\${${value}}`;
+  if (typeof value === 'object' && typeof (value as any).source === 'string') {
+    const src = (value as any).source as string;
+    return src ? `\${${src}}` : undefined;
+  }
+  return undefined;
+}
+
+/**
  * Hook for evaluating expressions with dynamic context
  * 
  * @example

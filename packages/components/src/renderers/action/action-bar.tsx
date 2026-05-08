@@ -34,7 +34,7 @@
 import React, { forwardRef, useMemo } from 'react';
 import { ComponentRegistry } from '@object-ui/core';
 import type { ActionSchema, ActionLocation, ActionComponent } from '@object-ui/types';
-import { useCondition } from '@object-ui/react';
+import { useCondition, toPredicateInput } from '@object-ui/react';
 import { cn } from '../../lib/utils';
 import { useIsMobile } from '../../hooks/use-mobile';
 
@@ -100,7 +100,7 @@ const ActionBarRenderer = forwardRef<HTMLDivElement, { schema: ActionBarSchema; 
       ...rest
     } = props;
 
-    const isVisible = useCondition(schema.visible ? `\${${schema.visible}}` : undefined);
+    const isVisible = useCondition(toPredicateInput(schema.visible));
     const isMobile = useIsMobile();
 
     // Filter business actions by location and deduplicate by name

@@ -76,7 +76,15 @@ export class ExpressionEvaluator {
    * evaluator.evaluate('Amount is ${data.amount}'); // Returns: "Amount is 1500"
    * ```
    */
-  evaluate(expression: string | boolean | number | null | undefined, options: EvaluationOptions = {}): any {
+  evaluate(expression: string | boolean | number | null | undefined | { dialect?: string; source?: string }, options: EvaluationOptions = {}): any {
+    // Unwrap Expression envelope produced by `@objectstack/spec`'s normalized
+    // template/CEL inputs: `{ dialect: 'cel' | 'template', source: '...' }`.
+    // We only consume `source` — the underlying syntax (`${expr}` or `{var}`)
+    // is identical to what we already supported as plain strings.
+    if (expression && typeof expression === 'object' && typeof (expression as any).source === 'string') {
+      expression = (expression as any).source as string;
+    }
+
     // Handle non-string primitives
     if (typeof expression !== 'string') {
       return expression;
@@ -195,9 +203,14 @@ export class ExpressionEvaluator {
    * evaluator.evaluateCondition('${data.age >= 18}'); // Returns: true/false
    * ```
    */
-  evaluateCondition(condition: string | boolean | undefined, options: EvaluationOptions = {}): boolean {
+  evaluateCondition(condition: string | boolean | undefined | { dialect?: string; source?: string }, options: EvaluationOptions = {}): boolean {
     if (typeof condition === 'boolean') {
       return condition;
+    }
+
+    // Unwrap Expression envelope (see `evaluate` for rationale).
+    if (condition && typeof condition === 'object' && typeof (condition as any).source === 'string') {
+      condition = (condition as any).source as string;
     }
 
     if (!condition) {

@@ -328,7 +328,13 @@ export const ObjectCalendar: React.FC<ObjectCalendarProps> = ({
     }
 
     const { startDateField, endDateField, titleField, colorField } = calendarConfig;
-    const titleFormat: string | undefined = objectSchema?.titleFormat;
+    const rawTitleFormat: any = objectSchema?.titleFormat;
+    const titleFormat: string | undefined =
+      typeof rawTitleFormat === 'string'
+        ? rawTitleFormat
+        : (rawTitleFormat && typeof rawTitleFormat === 'object' && typeof rawTitleFormat.source === 'string')
+          ? rawTitleFormat.source
+          : undefined;
     const nameFieldKey: string | undefined = objectSchema?.NAME_FIELD_KEY;
     const TITLE_FALLBACK_FIELDS = [
       'name', 'full_name', 'fullName', 'title', 'subject',

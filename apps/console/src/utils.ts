@@ -32,17 +32,26 @@ export function capitalizeFirst(str: string): string {
 
 /**
  * Format a record title using the titleFormat pattern
- * @param titleFormat Pattern like "{name} - {email}" or "{firstName} {lastName}"
+ * @param titleFormat Pattern like "{name} - {email}", or an Expression
+ *        envelope `{ dialect: 'template', source: '...' }` produced by the
+ *        framework's compile step.
  * @param record The record data object
  * @returns Formatted title string
  */
-export function formatRecordTitle(titleFormat: string | undefined, record: any): string {
-  if (!titleFormat || !record) {
+export function formatRecordTitle(titleFormat: string | { source?: string } | undefined, record: any): string {
+  const template: string | undefined =
+    typeof titleFormat === 'string'
+      ? titleFormat
+      : (titleFormat && typeof titleFormat === 'object' && typeof titleFormat.source === 'string')
+        ? titleFormat.source
+        : undefined;
+
+  if (!template || !record) {
     return record?.id || record?._id || 'Record';
   }
 
   // Replace {fieldName} patterns with actual values
-  return titleFormat.replace(/\{(\w+)\}/g, (_match, fieldName) => {
+  return template.replace(/\{(\w+)\}/g, (_match, fieldName) => {
     const value = record[fieldName];
     if (value === null || value === undefined) {
       return '';

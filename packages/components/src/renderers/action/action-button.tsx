@@ -21,7 +21,7 @@ import React, { forwardRef, useCallback, useState } from 'react';
 import { ComponentRegistry } from '@object-ui/core';
 import type { ActionSchema } from '@object-ui/types';
 import { useAction } from '@object-ui/react';
-import { useCondition } from '@object-ui/react';
+import { useCondition, toPredicateInput } from '@object-ui/react';
 import { Button } from '../../ui';
 import { cn } from '../../lib/utils';
 import { Loader2 } from 'lucide-react';
@@ -52,8 +52,8 @@ const ActionButtonRenderer = forwardRef<HTMLButtonElement, ActionButtonProps>(
     const recordData = data != null && typeof data === 'object' ? data as Record<string, any> : {};
 
     // Evaluate visibility and enabled conditions with record data context
-    const isVisible = useCondition(schema.visible ? `\${${schema.visible}}` : undefined, recordData);
-    const isEnabled = useCondition(schema.enabled ? `\${${schema.enabled}}` : undefined, recordData);
+    const isVisible = useCondition(toPredicateInput(schema.visible), recordData);
+    const isEnabled = useCondition(toPredicateInput(schema.enabled), recordData);
 
     // Resolve icon
     const Icon = resolveIcon(schema.icon);

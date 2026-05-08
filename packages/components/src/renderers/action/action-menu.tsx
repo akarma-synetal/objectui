@@ -17,7 +17,7 @@ import React, { forwardRef, useCallback, useMemo, useState } from 'react';
 import { ComponentRegistry } from '@object-ui/core';
 import type { ActionSchema } from '@object-ui/types';
 import { useAction } from '@object-ui/react';
-import { useCondition } from '@object-ui/react';
+import { useCondition, toPredicateInput } from '@object-ui/react';
 import { Button } from '../../ui';
 import {
   DropdownMenu,
@@ -53,8 +53,8 @@ const ActionMenuItem: React.FC<{
   action: ActionSchema;
   onExecute: (action: ActionSchema) => Promise<void>;
 }> = ({ action, onExecute }) => {
-  const isVisible = useCondition(action.visible ? `\${${action.visible}}` : undefined);
-  const isEnabled = useCondition(action.enabled ? `\${${action.enabled}}` : undefined);
+  const isVisible = useCondition(toPredicateInput(action.visible));
+  const isEnabled = useCondition(toPredicateInput(action.enabled));
 
   const iconElement = useMemo(() => {
     const Icon = resolveIcon(action.icon);
@@ -96,7 +96,7 @@ const ActionMenuRenderer = forwardRef<HTMLButtonElement, { schema: ActionMenuSch
     const { execute } = useAction();
     const [loading, setLoading] = useState(false);
 
-    const isVisible = useCondition(schema.visible ? `\${${schema.visible}}` : undefined);
+    const isVisible = useCondition(toPredicateInput(schema.visible));
 
     const TriggerIcon = resolveIcon(schema.icon) || MoreHorizontal;
     const variant = schema.variant || 'ghost';

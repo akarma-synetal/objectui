@@ -16,7 +16,7 @@ import React, { forwardRef, useCallback, useState } from 'react';
 import { ComponentRegistry } from '@object-ui/core';
 import type { ActionSchema } from '@object-ui/types';
 import { useAction } from '@object-ui/react';
-import { useCondition } from '@object-ui/react';
+import { useCondition, toPredicateInput } from '@object-ui/react';
 import { Button } from '../../ui';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../../ui';
 import { cn } from '../../lib/utils';
@@ -42,8 +42,8 @@ const ActionIconRenderer = forwardRef<HTMLButtonElement, ActionIconProps>(
     const { execute } = useAction();
     const [loading, setLoading] = useState(false);
 
-    const isVisible = useCondition(schema.visible ? `\${${schema.visible}}` : undefined);
-    const isEnabled = useCondition(schema.enabled ? `\${${schema.enabled}}` : undefined);
+    const isVisible = useCondition(toPredicateInput(schema.visible));
+    const isEnabled = useCondition(toPredicateInput(schema.enabled));
 
     const Icon = resolveIcon(schema.icon);
     const variant = schema.variant === 'primary' ? 'default' : (schema.variant || 'ghost');

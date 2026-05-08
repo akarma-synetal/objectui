@@ -48,19 +48,32 @@ const SEPARATOR_CLASS = '[-\\u2013\\u2014|/·,:]';
 /**
  * Format a record title using the titleFormat pattern.
  *
+ * Accepts either a legacy string template or an Expression envelope
+ * (`{ dialect: 'template', source: string }`) emitted by `@objectstack/spec`'s
+ * normalized templates. The placeholder syntax (`{field}`) is identical in both
+ * shapes; only the wrapping object is new.
+ *
  * Empty placeholders (missing or null/empty fields) are stripped along with
  * any orphan separator they leave behind, so a template like
  *   "{full_name} - {company}"
  * evaluated against `{ company: "Acme" }` resolves to `"Acme"` rather than
  * `" - Acme"`. Returns an empty string when no placeholder resolved.
  */
-export function formatRecordTitle(titleFormat: string | undefined, record: any): string {
-  if (!titleFormat || !record) {
+export function formatRecordTitle(titleFormat: string | { source?: string } | undefined, record: any): string {
+  // Normalize Expression envelope ({ dialect, source }) → raw template string.
+  const template: string | undefined =
+    typeof titleFormat === 'string'
+      ? titleFormat
+      : (titleFormat && typeof titleFormat === 'object' && typeof titleFormat.source === 'string')
+        ? titleFormat.source
+        : undefined;
+
+  if (!template || !record) {
     return record?.id || record?._id || 'Record';
   }
 
   let anyResolved = false;
-  let out = titleFormat.replace(/\{([^{}]+)\}/g, (_match, fieldName) => {
+  let out = template.replace(/\{([^{}]+)\}/g, (_match, fieldName) => {
     const value = record[fieldName.trim()];
     if (value === null || value === undefined || value === '') {
       return EMPTY_TOKEN;

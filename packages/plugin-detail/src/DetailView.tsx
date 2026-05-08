@@ -68,7 +68,13 @@ function resolveDisplayTitle(
       const v = (data as any)[schema.primaryField];
       if (v !== null && v !== undefined && v !== '') return String(v);
     }
-    const titleFormat: string | undefined = objectSchema?.titleFormat;
+    const rawTitleFormat: any = objectSchema?.titleFormat;
+    const titleFormat: string | undefined =
+      typeof rawTitleFormat === 'string'
+        ? rawTitleFormat
+        : (rawTitleFormat && typeof rawTitleFormat === 'object' && typeof rawTitleFormat.source === 'string')
+          ? rawTitleFormat.source
+          : undefined;
     if (titleFormat) {
       const EMPTY = '\u0000';
       const SEP = '[-\\u2013\\u2014|/·,:]';

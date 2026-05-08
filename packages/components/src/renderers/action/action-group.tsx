@@ -20,7 +20,7 @@ import React, { forwardRef, useCallback, useState } from 'react';
 import { ComponentRegistry } from '@object-ui/core';
 import type { ActionSchema, ActionGroup, ActionLocation } from '@object-ui/types';
 import { useAction } from '@object-ui/react';
-import { useCondition } from '@object-ui/react';
+import { useCondition, toPredicateInput } from '@object-ui/react';
 import { Button } from '../../ui';
 import {
   DropdownMenu,
@@ -68,8 +68,8 @@ const InlineActionButton: React.FC<{
   onExecute: (action: ActionSchema) => Promise<void>;
 }> = ({ action, variant, size, onExecute }) => {
   const [loading, setLoading] = useState(false);
-  const isVisible = useCondition(action.visible ? `\${${action.visible}}` : undefined);
-  const isEnabled = useCondition(action.enabled ? `\${${action.enabled}}` : undefined);
+  const isVisible = useCondition(toPredicateInput(action.visible));
+  const isEnabled = useCondition(toPredicateInput(action.enabled));
 
   const Icon = resolveIcon(action.icon);
   const btnVariant = (action.variant as string) === 'primary' ? 'default' : (action.variant || variant || 'outline');
@@ -117,7 +117,7 @@ const ActionGroupRenderer = forwardRef<HTMLDivElement, { schema: ActionGroupSche
     const { execute } = useAction();
     const [dropdownLoading, setDropdownLoading] = useState(false);
 
-    const isVisible = useCondition(schema.visible ? `\${${schema.visible}}` : undefined);
+    const isVisible = useCondition(toPredicateInput(schema.visible));
 
     // Filter actions by location if specified
     let actions = schema.actions || [];

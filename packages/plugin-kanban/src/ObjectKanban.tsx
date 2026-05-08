@@ -162,7 +162,13 @@ export const ObjectKanban: React.FC<ObjectKanbanProps> = ({
       'displayName',
     ];
 
-    const titleFormat: string | undefined = objectDef?.titleFormat;
+    const rawTitleFormat: any = objectDef?.titleFormat;
+    const titleFormat: string | undefined =
+      typeof rawTitleFormat === 'string'
+        ? rawTitleFormat
+        : (rawTitleFormat && typeof rawTitleFormat === 'object' && typeof rawTitleFormat.source === 'string')
+          ? rawTitleFormat.source
+          : undefined;
     const nameFieldKey: string | undefined = objectDef?.NAME_FIELD_KEY;
 
     const renderFromTemplate = (template: string, item: Record<string, any>) => {
