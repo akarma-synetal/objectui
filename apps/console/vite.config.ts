@@ -138,14 +138,7 @@ export default defineConfig({
       'react-map-gl',
       'react-map-gl/maplibre',
       'maplibre-gl'
-    ],
-    esbuildOptions: {
-      target: 'esnext',
-      supported: {
-        'top-level-await': true
-      },
-      resolveExtensions: ['.mjs', '.js', '.mts', '.ts', '.jsx', '.tsx', '.json']
-    }
+    ]
   },
   build: {
     target: 'esnext',

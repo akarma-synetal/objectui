@@ -77,6 +77,7 @@ ComponentRegistry.register(
   'page-designer',
   PageDesigner,
   {
+    namespace: 'plugin-designer',
     label: 'Page Designer',
     category: 'Designer',
     inputs: [
@@ -94,6 +95,7 @@ ComponentRegistry.register(
   'data-model-designer',
   DataModelDesigner,
   {
+    namespace: 'plugin-designer',
     label: 'Data Model Designer',
     category: 'Designer',
     inputs: [
@@ -110,6 +112,7 @@ ComponentRegistry.register(
   'process-designer',
   ProcessDesigner,
   {
+    namespace: 'plugin-designer',
     label: 'Process Designer (BPMN)',
     category: 'Designer',
     inputs: [
@@ -128,6 +131,7 @@ ComponentRegistry.register(
   'report-designer',
   ReportDesigner,
   {
+    namespace: 'plugin-designer',
     label: 'Report Designer',
     category: 'Designer',
     inputs: [
@@ -146,6 +150,7 @@ ComponentRegistry.register(
   'app-creation-wizard',
   AppCreationWizard,
   {
+    namespace: 'plugin-designer',
     label: 'App Creation Wizard',
     category: 'Designer',
     inputs: [
@@ -161,6 +166,7 @@ ComponentRegistry.register(
   'navigation-designer',
   NavigationDesigner,
   {
+    namespace: 'plugin-designer',
     label: 'Navigation Designer',
     category: 'Designer',
     inputs: [
@@ -176,6 +182,7 @@ ComponentRegistry.register(
   'dashboard-editor',
   DashboardEditor,
   {
+    namespace: 'plugin-designer',
     label: 'Dashboard Editor',
     category: 'Designer',
     inputs: [
@@ -190,6 +197,7 @@ ComponentRegistry.register(
   'page-canvas-editor',
   PageCanvasEditor,
   {
+    namespace: 'plugin-designer',
     label: 'Page Canvas Editor',
     category: 'Designer',
     inputs: [
@@ -204,6 +212,7 @@ ComponentRegistry.register(
   'object-view-configurator',
   ObjectViewConfigurator,
   {
+    namespace: 'plugin-designer',
     label: 'Object View Configurator',
     category: 'Designer',
     inputs: [
@@ -218,6 +227,7 @@ ComponentRegistry.register(
   'branding-editor',
   BrandingEditor,
   {
+    namespace: 'plugin-designer',
     label: 'Branding Editor',
     category: 'Designer',
     inputs: [
@@ -233,6 +243,7 @@ ComponentRegistry.register(
   'object-manager',
   ObjectManager,
   {
+    namespace: 'plugin-designer',
     label: 'Object Manager',
     category: 'Designer',
     inputs: [
@@ -248,6 +259,7 @@ ComponentRegistry.register(
   'field-designer',
   FieldDesigner,
   {
+    namespace: 'plugin-designer',
     label: 'Field Designer',
     category: 'Designer',
     inputs: [
