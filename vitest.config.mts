@@ -38,13 +38,14 @@ export default defineConfig({
       ],
       // Section 3.6: Testing coverage thresholds
       // Target: 80%+ lines and functions
-      // Last adjusted: 2026-02-18 - Lowered after multiple PRs added
-      // plugin-designer, plugin-dashboard, plugin-grid, CLI with partial coverage
+      // Last adjusted: 2026-05-08 - Lowered after pruning test suite from
+      // 394 -> 101 essential files (core protocol/engine + one canonical test
+      // per plugin). Integration coverage is now provided by Playwright e2e.
       thresholds: {
-        lines: 62,
-        functions: 54,
-        branches: 50,
-        statements: 61,
+        lines: 40,
+        functions: 33,
+        branches: 30,
+        statements: 40,
       },
     },
   },
