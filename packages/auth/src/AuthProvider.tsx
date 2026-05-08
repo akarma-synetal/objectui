@@ -442,11 +442,17 @@ export function AuthProvider({
     [client],
   );
 
+  // Real auth is "enabled" only when the prop is true AND we're not in preview mode.
+  // Guest mode (enabled=false) and preview mode both have hardcoded `isAuthenticated`
+  // and a no-op signOut backend, so consumers should hide sign-out UIs.
+  const isAuthEnabled = enabled && !isPreviewMode;
+
   const value = useMemo<AuthContextValue>(
     () => ({
       user,
       session,
       isAuthenticated,
+      isAuthEnabled,
       isLoading,
       error,
       isPreviewMode,
@@ -480,7 +486,7 @@ export function AuthProvider({
       listUserInvitations,
     }),
     [
-      user, session, isAuthenticated, isLoading, error, isPreviewMode, previewMode,
+      user, session, isAuthenticated, isAuthEnabled, isLoading, error, isPreviewMode, previewMode,
       signIn, signUp, signOut, updateUser, forgotPassword, resetPassword, getAuthConfig, signInWithProvider,
       organizations, activeOrganization, isOrganizationsLoading, switchOrganization, createOrganization, refreshOrganizations,
       updateOrganization, deleteOrganization, leaveOrganization,

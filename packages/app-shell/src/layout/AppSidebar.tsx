@@ -137,7 +137,7 @@ const getIcon = resolveIcon;
 
 export function AppSidebar({ activeAppName, onAppChange }: { activeAppName: string, onAppChange: (name: string) => void }) {
   const { isMobile } = useSidebar();
-  const { user, signOut } = useAuth();
+  const { user, signOut, isAuthEnabled } = useAuth();
   const navigate = useNavigate();
   const { t } = useObjectTranslation();
   const { objectLabel: resolveNavObjectLabel } = useObjectLabel();
@@ -551,17 +551,21 @@ export function AppSidebar({ activeAppName, onAppChange }: { activeAppName: stri
                     onClick={() => navigate('/apps/setup')}
                   >
                     <Settings className="mr-2 h-4 w-4" />
-                    Settings
+                    {t('user.settings', { defaultValue: 'Settings' })}
                   </DropdownMenuItem>
                 </DropdownMenuGroup>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  className="text-destructive focus:text-destructive"
-                  onClick={() => signOut()}
-                >
-                  <LogOut className="mr-2 h-4 w-4" />
-                  Log out
-                </DropdownMenuItem>
+                {isAuthEnabled && (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      className="text-destructive focus:text-destructive"
+                      onClick={() => signOut()}
+                    >
+                      <LogOut className="mr-2 h-4 w-4" />
+                      {t('user.logout', { defaultValue: 'Log out' })}
+                    </DropdownMenuItem>
+                  </>
+                )}
               </DropdownMenuContent>
             </DropdownMenu>
           </SidebarMenuItem>

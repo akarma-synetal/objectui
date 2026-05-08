@@ -1138,6 +1138,11 @@ const zh = {
     no: '否',
     systemFields: '系统字段',
   },
+  user: {
+    profile: '个人资料',
+    settings: '设置',
+    logout: '注销',
+  },
 } as const;
 
 export default zh;

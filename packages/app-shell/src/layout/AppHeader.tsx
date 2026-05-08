@@ -109,6 +109,7 @@ export function AppHeader({
   const {
     user,
     signOut,
+    isAuthEnabled,
     organizations,
     activeOrganization,
     isOrganizationsLoading,
@@ -478,11 +479,15 @@ export function AppHeader({
                 {t('sidebar.settings', { defaultValue: 'Settings' })}
               </DropdownMenuItem>
             </DropdownMenuGroup>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => signOut()}>
-              <LogOut className="mr-2 h-4 w-4" />
-              {t('user.logout', { defaultValue: 'Log out' })}
-            </DropdownMenuItem>
+            {isAuthEnabled && (
+              <>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => signOut()}>
+                  <LogOut className="mr-2 h-4 w-4" />
+                  {t('user.logout', { defaultValue: 'Log out' })}
+                </DropdownMenuItem>
+              </>
+            )}
           </DropdownMenuContent>
         </DropdownMenu>
         </div>

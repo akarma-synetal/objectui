@@ -1138,6 +1138,11 @@ const en = {
     no: 'No',
     systemFields: 'System',
   },
+  user: {
+    profile: 'Profile',
+    settings: 'Settings',
+    logout: 'Log out',
+  },
 } as const;
 
 export default en;

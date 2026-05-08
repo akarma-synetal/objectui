@@ -16,6 +16,13 @@ export interface AuthContextValue {
   session: AuthSession | null;
   /** Whether the user is authenticated */
   isAuthenticated: boolean;
+  /**
+   * Whether real authentication is enabled in this environment.
+   * - `true`: real auth backend is in use; sign-in / sign-out are meaningful.
+   * - `false`: auth is disabled (guest mode) or running in preview/demo mode.
+   *   Sign-out has no real effect; UIs should hide or disable the action.
+   */
+  isAuthEnabled: boolean;
   /** Whether auth state is loading */
   isLoading: boolean;
   /** Authentication error */
