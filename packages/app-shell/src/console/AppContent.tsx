@@ -145,6 +145,13 @@ export function AppContent({ extraRoutes, extraRoutesNoApp }: AppContentProps = 
     // The `objectName` param falls back to the action context's
     // `objectName` (set per view) so action buttons mounted inside an
     // ObjectView can omit it.
+    // NOTE on duplication below: each handler reads `runner.getContext()`
+    // INSIDE its closure (at action-invocation time) rather than once at
+    // registration. Hoisting the call outside the registrations would
+    // freeze the context to whatever it was when the effect last ran,
+    // breaking dynamic per-view `runner.updateContext({ objectName, ... })`
+    // calls (used by ObjectView / RecordDetailView). Keep the call where
+    // it is.
     runner.registerHandler('navigate_create', async (action: any) => {
       const ctx = runner.getContext?.() ?? {};
       const result = resolveNavigateCreateUrl({

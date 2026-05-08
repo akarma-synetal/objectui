@@ -139,11 +139,13 @@ export function RecordFormPage({ mode }: RecordFormPageProps) {
   const expressionEvaluator = useMemo(
     () =>
       new ExpressionEvaluator({
-        user: user ? expressionUser : {},
+        // expressionUser already handles the anonymous fallback, so we can
+        // pass it through unconditionally.
+        user: expressionUser,
         app: { name: appName },
         data: {},
       }),
-    [user, expressionUser, appName],
+    [expressionUser, appName],
   );
 
   // Resolve the field list using the same visibility-aware logic as the
