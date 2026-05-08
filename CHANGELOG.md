@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **CI: `ReportViewer` conditional-formatting test.** Made the
+  background-color assertion in
+  `packages/plugin-report/src/__tests__/ReportViewer.test.tsx`
+  tolerant of both `rgb(...)` and hex (`#rrggbb`) representations.
+  Newer jsdom versions preserve the original hex value on
+  `HTMLElement.style.backgroundColor` instead of normalizing to
+  `rgb(...)`, which broke the previous strict equality check
+  (CI run #25539753515).
+
 ### Added
 
 - **Page-mode record forms (`editMode: 'page'`).** New per-object
