@@ -44,6 +44,7 @@ export default defineConfig({
     rollupOptions: {
       external: (id) => !/^[./]/.test(id) && !id.startsWith(__dirname),
       output: {
+        inlineDynamicImports: true,
         globals: {
           react: 'React',
           'react-dom': 'ReactDOM',

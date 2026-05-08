@@ -39,6 +39,7 @@ export default defineConfig({
       // private registries and breaks cross-plugin component lookup.
       external: (id) => !/^[./]/.test(id) && !id.startsWith(__dirname),
       output: {
+        inlineDynamicImports: true,
         globals: {
           react: 'React',
           'react-dom': 'ReactDOM',

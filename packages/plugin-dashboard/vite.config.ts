@@ -38,6 +38,7 @@ export default defineConfig({
       // rolldown's runtime stub and throw at runtime.
       external: (id) => !/^[./]/.test(id) && !id.startsWith(__dirname),
       output: {
+        inlineDynamicImports: true,
         globals: {
           react: 'React',
           'react-dom': 'ReactDOM',

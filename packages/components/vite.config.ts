@@ -49,6 +49,7 @@ export default defineConfig({
       // so Rolldown does not bundle CJS wrappers that use require().
       external: (id) => !/^[./]/.test(id) && !id.startsWith(__dirname),
       output: {
+        inlineDynamicImports: true,
         globals: {
           react: 'React',
           'react-dom': 'ReactDOM',
