@@ -19,37 +19,53 @@ const mockGetItems = vi.fn().mockResolvedValue([]);
 const mockSaveMetadataItem = vi.fn().mockResolvedValue(undefined);
 
 const mockRefresh = vi.fn().mockResolvedValue(undefined);
+
+// IMPORTANT: keep the mock return values as module-level singletons so their
+// reference identity is stable across renders. Returning a fresh object literal
+// from these hook mocks would cause `useCallback`/`useEffect` dependencies in
+// the component under test to change every render, producing an infinite
+// loading→loaded→loading flicker that races test assertions in CI.
+//
+// Per-test isolation is preserved because the embedded `vi.fn()` instances
+// (`mockGetItems`, `mockSaveMetadataItem`, `mockRefresh`) keep their stable
+// references; tests reconfigure their behavior via `mockResolvedValue` /
+// `mockClear` in `beforeEach`. Do NOT replace these singletons with a fresh
+// object inside a test — mutate the inner `vi.fn()`s instead.
+const mockMetadataService = {
+  getItems: mockGetItems,
+  saveMetadataItem: mockSaveMetadataItem,
+};
+
+const mockMetadataContext = {
+  apps: [],
+  objects: [
+    {
+      name: 'account',
+      label: 'Accounts',
+      icon: 'Building',
+      description: 'Customer accounts',
+      enabled: true,
+      fields: [
+        { name: 'id', type: 'text', label: 'ID', readonly: true },
+        { name: 'name', type: 'text', label: 'Account Name', required: true },
+      ],
+      relationships: [],
+    },
+  ],
+  dashboards: [],
+  reports: [],
+  pages: [],
+  loading: false,
+  error: null,
+  refresh: mockRefresh,
+};
+
 vi.mock('@object-ui/app-shell', async () => {
   const actual = await vi.importActual<typeof import('@object-ui/app-shell')>('@object-ui/app-shell');
   return {
     ...actual,
-    useMetadataService: () => ({
-      getItems: mockGetItems,
-      saveMetadataItem: mockSaveMetadataItem,
-    }),
-    useMetadata: () => ({
-      apps: [],
-      objects: [
-        {
-          name: 'account',
-          label: 'Accounts',
-          icon: 'Building',
-          description: 'Customer accounts',
-          enabled: true,
-          fields: [
-            { name: 'id', type: 'text', label: 'ID', readonly: true },
-            { name: 'name', type: 'text', label: 'Account Name', required: true },
-          ],
-          relationships: [],
-        },
-      ],
-      dashboards: [],
-      reports: [],
-      pages: [],
-      loading: false,
-      error: null,
-      refresh: mockRefresh,
-    }),
+    useMetadataService: () => mockMetadataService,
+    useMetadata: () => mockMetadataContext,
   };
 });
 
