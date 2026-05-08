@@ -280,7 +280,7 @@ export function AppSidebar({ activeAppName, onAppChange }: { activeAppName: stri
                 </SidebarMenuButton>
               </DropdownMenuTrigger>
               <DropdownMenuContent
-                className="w-[--radix-dropdown-menu-trigger-width] min-w-56 rounded-lg"
+                className="w-(--radix-dropdown-menu-trigger-width) min-w-56 rounded-lg"
                 align="start"
                 side={isMobile ? "bottom" : "right"}
                 sideOffset={4}
@@ -526,7 +526,7 @@ export function AppSidebar({ activeAppName, onAppChange }: { activeAppName: stri
                 </SidebarMenuButton>
               </DropdownMenuTrigger>
               <DropdownMenuContent
-                className="w-[--radix-dropdown-menu-trigger-width] min-w-56 rounded-lg"
+                className="w-(--radix-dropdown-menu-trigger-width) min-w-56 rounded-lg"
                 side={isMobile ? "bottom" : "right"}
                 align="end"
                 sideOffset={4}

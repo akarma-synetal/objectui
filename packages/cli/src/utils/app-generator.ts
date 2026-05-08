@@ -646,7 +646,7 @@ export function ModeToggle() {
           <LucideIcons.ChevronsUpDown className="ml-auto size-4" />
         </SidebarMenuButton>
       </DropdownMenuTrigger>
-      <DropdownMenuContent className="w-[--radix-dropdown-menu-trigger-width] min-w-56 rounded-lg" side="bottom" align="end" sideOffset={4}>
+      <DropdownMenuContent className="w-(--radix-dropdown-menu-trigger-width) min-w-56 rounded-lg" side="bottom" align="end" sideOffset={4}>
         <DropdownMenuItem onClick={() => setTheme("light")}>
           <LucideIcons.Sun className="mr-2 size-4" />
           Light
