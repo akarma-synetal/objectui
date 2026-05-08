@@ -63,7 +63,7 @@ export const RowActionMenu: React.FC<RowActionMenuProps> = ({
           <span className="sr-only">Open menu</span>
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
+      <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
         {canEdit && onEdit && (
           <DropdownMenuItem onClick={() => onEdit(row)}>
             <Edit className="mr-2 h-4 w-4" />

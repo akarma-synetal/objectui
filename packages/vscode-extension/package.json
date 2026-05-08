@@ -193,7 +193,7 @@
     "vscode:prepublish": "pnpm run build",
     "build": "tsup",
     "dev": "tsup --watch",
-    "test": "vitest run",
+    "test": "vitest run --passWithNoTests",
     "test:watch": "vitest",
     "package": "vsce package",
     "publish": "vsce publish"

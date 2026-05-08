@@ -755,15 +755,6 @@ export function ObjectView({ dataSource, objects, onEdit }: any) {
         setShowCreateViewDialog(true);
     }, []);
 
-    // Action system for toolbar operations — refreshKey moved up (declared earlier).
-    const actions = useObjectActions({
-        objectName: objectDef.name,
-        objectLabel: objectDef.label,
-        dataSource,
-        onEdit,
-        onRefresh: () => setRefreshKey(k => k + 1),
-    });
-
     // ─── ActionProvider handlers for schema-driven toolbar actions ──────
     const currentUser = user
         ? { id: user.id, name: user.name, avatar: user.image }
@@ -773,6 +764,19 @@ export function ObjectView({ dataSource, objects, onEdit }: any) {
         if (options?.type === 'error') toast.error(message);
         else toast.success(message);
     }, []);
+
+    // Action system for toolbar operations — refreshKey moved up (declared earlier).
+    // Wired to confirmHandler/toastHandler so deletes use the Shadcn AlertDialog
+    // and Sonner toast instead of native window.confirm.
+    const actions = useObjectActions({
+        objectName: objectDef.name,
+        objectLabel: objectDef.label,
+        dataSource,
+        onEdit,
+        onRefresh: () => setRefreshKey(k => k + 1),
+        onConfirm: confirmHandler,
+        onToast: toastHandler,
+    });
 
     const navigateHandler = useCallback((url: string, options?: { external?: boolean; newTab?: boolean }) => {
         if (options?.external || options?.newTab) {
@@ -1133,13 +1137,21 @@ export function ObjectView({ dataSource, objects, onEdit }: any) {
                 schema={fullSchema}
                 className={className}
                 onEdit={editHandler}
+                onDelete={(record: any) => {
+                    if (record?.id != null) {
+                        // useObjectActions.deleteRecord wraps execute() which
+                        // already shows a confirmation dialog + success toast
+                        // and triggers onRefresh on success.
+                        actions.deleteRecord(String(record.id));
+                    }
+                }}
                 onRowClick={(record: any) => {
                     navOverlay.handleClick(record);
                 }}
                 dataSource={ds}
             />
         );
-    }, [activeView, objectDef, objectName, refreshKey, navOverlay]);
+    }, [activeView, objectDef, objectName, refreshKey, navOverlay, actions]);
 
     // Memoize the merged views array so PluginObjectView doesn't get a new
     // reference on every render (which would trigger unnecessary data refetches).

@@ -1167,8 +1167,19 @@ export const ObjectGrid: React.FC<ObjectGridProps> = ({
   }
 
   const operations = 'operations' in schema ? schema.operations : undefined;
+  // Row actions can declare 'edit' / 'delete' as canonical strings — treat
+  // them as equivalent to operations.update / operations.delete so the
+  // dropdown surfaces native Edit/Delete entries (with proper icons) and
+  // routes them to onEdit / onDelete instead of the generic action runner
+  // (which has no 'edit' handler and a parameter-shape mismatch for 'delete').
+  const rowActionsList: string[] = Array.isArray(schema.rowActions) ? schema.rowActions : [];
+  const wantEditAction = rowActionsList.includes('edit');
+  const wantDeleteAction = rowActionsList.includes('delete');
+  const customRowActions = rowActionsList.filter(a => a !== 'edit' && a !== 'delete');
+  const canEdit = !!((operations?.update || wantEditAction) && onEdit);
+  const canDelete = !!((operations?.delete || wantDeleteAction) && onDelete);
   const hasActions = operations && (operations.update || operations.delete);
-  const hasRowActions = schema.rowActions && schema.rowActions.length > 0;
+  const hasRowActions = customRowActions.length > 0 || wantEditAction || wantDeleteAction;
 
   const columnsWithActions = (hasActions || hasRowActions) ? [
     ...persistedColumns,
@@ -1178,9 +1189,9 @@ export const ObjectGrid: React.FC<ObjectGridProps> = ({
       cell: (_value: any, row: any) => (
         <RowActionMenu
           row={row}
-          rowActions={schema.rowActions}
-          canEdit={!!(operations?.update && onEdit)}
-          canDelete={!!(operations?.delete && onDelete)}
+          rowActions={customRowActions}
+          canEdit={canEdit}
+          canDelete={canDelete}
           onEdit={onEdit}
           onDelete={onDelete}
           onAction={(action, r) => executeAction({ type: action, params: { record: r } })}

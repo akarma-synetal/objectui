@@ -887,9 +887,28 @@ const DataTableRenderer = ({ schema }: { schema: DataTableSchema }) => {
                       style={rowStyle ? rowStyle(row, rowIndex) : undefined}
                       onClick={(e) => {
                         if (schema.onRowClick && !e.defaultPrevented) {
-                           // Simple heuristic to avoid triggering on interactive elements if they didn't stop propagation
+                           // Heuristic to avoid triggering on interactive elements if they didn't stop propagation.
+                           // Note: Radix overlays (DropdownMenu, Popover, Dialog, etc.) render their content in a
+                           // Portal but React events still bubble up through the virtual tree to this row. So we
+                           // must also ignore menu/dialog/listbox/option/tab targets, otherwise a click on a
+                           // dropdown "Edit" item would navigate to the record detail.
                            const target = e.target as HTMLElement;
-                           if (target.closest('button') || target.closest('[role="checkbox"]') || target.closest('a')) {
+                           if (
+                             target.closest('button') ||
+                             target.closest('a') ||
+                             target.closest('input, select, textarea, label') ||
+                             target.closest('[role="checkbox"]') ||
+                             target.closest('[role="menu"]') ||
+                             target.closest('[role="menuitem"]') ||
+                             target.closest('[role="menuitemcheckbox"]') ||
+                             target.closest('[role="menuitemradio"]') ||
+                             target.closest('[role="dialog"]') ||
+                             target.closest('[role="alertdialog"]') ||
+                             target.closest('[role="listbox"]') ||
+                             target.closest('[role="option"]') ||
+                             target.closest('[role="tab"]') ||
+                             target.closest('[data-radix-popper-content-wrapper]')
+                           ) {
                              return;
                            }
                            schema.onRowClick(row);

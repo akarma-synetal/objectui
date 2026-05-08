@@ -23,6 +23,10 @@ interface ObjectActionConfig {
   dataSource: any;
   onEdit?: (record: any) => void;
   onRefresh?: () => void;
+  /** Optional shadcn-style confirm handler — falls back to window.confirm */
+  onConfirm?: (message: string, options?: { title?: string; confirmText?: string; cancelText?: string }) => Promise<boolean>;
+  /** Optional toast handler — falls back to sonner */
+  onToast?: (message: string, options?: { type?: string }) => void;
 }
 
 interface ObjectActions {
@@ -48,6 +52,8 @@ export function useObjectActions({
   dataSource,
   onEdit,
   onRefresh,
+  onConfirm,
+  onToast,
 }: ObjectActionConfig): ObjectActions {
   const navigate = useNavigate();
   const { appName } = useParams();
@@ -59,6 +65,8 @@ export function useObjectActions({
       objectLabel: objectLabel || objectName,
       baseUrl,
     },
+    onConfirm,
+    onToast,
   });
 
   // Register custom handlers
@@ -71,7 +79,16 @@ export function useObjectActions({
 
     // Handler: delete
     runner.registerHandler('delete', async (action: any) => {
-      const recordId = action.params?.recordId || action.recordId;
+      // Accept several param shapes used across call sites:
+      //   { params: { recordId } }       — toolbar / programmatic deletes
+      //   { params: { record } }         — ObjectGrid row dropdown
+      //   { params: { records: [...] } } — bulk delete
+      //   { recordId } (legacy)          — pre-params shape
+      const recordId =
+        action.params?.recordId ??
+        action.params?.record?.id ??
+        action.params?.records?.[0]?.id ??
+        action.recordId;
       if (!recordId) return { success: false, error: 'No record ID provided' };
 
       try {
