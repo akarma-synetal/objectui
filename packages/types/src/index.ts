@@ -271,6 +271,11 @@ export type {
   AggregateParams,
   AggregateResult,
   MutationEvent,
+  ExportJobStatus,
+  ExportJobFormat,
+  CreateExportJobRequest,
+  CreateExportJobResult,
+  ExportJobProgressInfo,
 } from './data';
 
 // ============================================================================
