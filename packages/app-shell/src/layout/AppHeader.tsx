@@ -130,10 +130,17 @@ export function AppHeader({
 
   const fetchPresenceAndActivities = useCallback(async () => {
     if (!dataSource || !isApp) return;
+    // ObjectStack client throws Error objects with `httpStatus` (not `status`)
+    // and a `code` like `object_not_found` when the underlying object isn't
+    // registered on the server. Either signal means the feature is
+    // unavailable — disable it for the rest of the page.
+    const isMissingResource = (err: any): boolean =>
+      err?.httpStatus === 404 || err?.status === 404 || err?.code === 'object_not_found';
+
     const presenceP = presenceUnavailableRef.current
       ? Promise.resolve({ data: [] as Record<string, unknown>[] })
       : dataSource.find('sys_presence').catch((err: any) => {
-          if (err?.status === 404) presenceUnavailableRef.current = true;
+          if (isMissingResource(err)) presenceUnavailableRef.current = true;
           return { data: [] as Record<string, unknown>[] };
         });
     const activityP = activityUnavailableRef.current
@@ -141,7 +148,7 @@ export function AppHeader({
       : dataSource
           .find('sys_activity', { $orderby: { timestamp: 'desc' }, $top: 20 })
           .catch((err: any) => {
-            if (err?.status === 404) activityUnavailableRef.current = true;
+            if (isMissingResource(err)) activityUnavailableRef.current = true;
             return { data: [] as Record<string, unknown>[] };
           });
     try {

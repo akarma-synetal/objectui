@@ -111,6 +111,70 @@ export function clearSharedDiscoveryCache(): void {
 }
 
 /**
+ * Detect "missing resource" errors regardless of where they originate.
+ *
+ * The ObjectStack client decorates thrown errors with `httpStatus` (and a
+ * machine-readable `code` such as `object_not_found`/`record_not_found`),
+ * while raw `fetch()` callers may surface `status` or `statusCode`. Treat
+ * any of these as a 404 so callers can degrade gracefully instead of
+ * tripping on the property-name mismatch.
+ */
+export function is404Error(error: unknown): boolean {
+  if (!error || typeof error !== 'object') return false;
+  const err = error as Record<string, unknown>;
+  if (err.httpStatus === 404 || err.status === 404 || err.statusCode === 404) {
+    return true;
+  }
+  const code = typeof err.code === 'string' ? err.code : '';
+  return code === 'object_not_found' || code === 'record_not_found';
+}
+
+/**
+ * Build a Logger compatible with @objectstack/client that demotes expected
+ * 404 noise to console.debug. The client logs every non-2xx response with
+ * `logger.error("HTTP request failed", undefined, { status, error })`, but
+ * 404s on optional collections (sys_presence, sys_activity, …) are part of
+ * normal degraded operation when those plugins aren't installed on the
+ * server — they should not surface as errors in the browser DevTools.
+ *
+ * Returned object is loosely typed because the spec's Logger interface lives
+ * in a transitive package; using `any` keeps us decoupled.
+ */
+function createQuietHttpLogger(): any {
+  const isExpected404 = (meta?: Record<string, any>): boolean => {
+    if (!meta || typeof meta !== 'object') return false;
+    if (meta.status === 404 || meta.statusCode === 404) return true;
+    const errBody = meta.error;
+    if (errBody && typeof errBody === 'object') {
+      const code = (errBody as Record<string, unknown>).code;
+      if (code === 'object_not_found' || code === 'record_not_found') return true;
+    }
+    return false;
+  };
+  const logger: any = {
+    debug: (message: string, meta?: Record<string, any>) =>
+      console.debug(message, meta ?? ''),
+    info: (message: string, meta?: Record<string, any>) =>
+      console.info(message, meta ?? ''),
+    warn: (message: string, meta?: Record<string, any>) =>
+      console.warn(message, meta ?? ''),
+    error: (message: string, error?: Error, meta?: Record<string, any>) => {
+      if (isExpected404(meta)) {
+        console.debug(`[ObjectStack] ${message} (suppressed expected 404)`, meta);
+        return;
+      }
+      console.error(message, error ?? '', meta ?? '');
+    },
+    fatal: (message: string, error?: Error, meta?: Record<string, any>) =>
+      console.error(message, error ?? '', meta ?? ''),
+    log: (message: string, ...args: any[]) => console.log(message, ...args),
+    child: () => logger,
+    withTrace: () => logger,
+  };
+  return logger;
+}
+
+/**
  * Connection state for monitoring
  */
 export type ConnectionState = 'disconnected' | 'connecting' | 'connected' | 'reconnecting' | 'error';
@@ -224,7 +288,11 @@ export class ObjectStackAdapter<T = unknown> implements DataSource<T> {
     maxReconnectAttempts?: number;
     reconnectDelay?: number;
   }) {
-    this.client = new ObjectStackClient(config);
+    // Inject a quiet logger that demotes expected 404s ("HTTP request failed"
+    // from probing optional collections like sys_presence/sys_activity) to
+    // debug() so they don't pollute the browser console. Other log levels are
+    // forwarded to the standard console.
+    this.client = new ObjectStackClient({ ...config, logger: createQuietHttpLogger() });
     this.metadataCache = new MetadataCache(config.cache);
     this.autoReconnect = config.autoReconnect ?? true;
     this.maxReconnectAttempts = config.maxReconnectAttempts ?? 3;
@@ -426,13 +494,19 @@ export class ObjectStackAdapter<T = unknown> implements DataSource<T> {
     })();
 
     this.inflightFinds.set(key, promise);
-    promise.finally(() => {
+    // Use `.then(cleanup, cleanup)` instead of `.finally(cleanup)`. `.finally`
+    // returns a new chained promise that re-raises the rejection, and because
+    // we don't return that chain, Node/browsers see it as an unhandled
+    // rejection — flooding DevTools when callers handle the original `promise`
+    // via `.catch()` (e.g. AppHeader probing optional sys_presence/sys_activity).
+    const cleanup = () => {
       // Only clear if the entry still points at this promise; a later call
       // that started after settle may have already replaced it.
       if (this.inflightFinds.get(key) === promise) {
         this.inflightFinds.delete(key);
       }
-    });
+    };
+    promise.then(cleanup, cleanup);
     return promise;
   }
 
@@ -461,7 +535,7 @@ export class ObjectStackAdapter<T = unknown> implements DataSource<T> {
         const records = resultObj.records || resultObj.value || [];
         return records[0] || null;
       } catch (error: unknown) {
-        if ((error as Record<string, unknown>)?.status === 404) {
+        if (is404Error(error)) {
           return null;
         }
         // Fall through to direct GET without $expand — some servers don't
@@ -475,7 +549,7 @@ export class ObjectStackAdapter<T = unknown> implements DataSource<T> {
       return result.record;
     } catch (error: unknown) {
       // If record not found, return null instead of throwing
-      if ((error as Record<string, unknown>)?.status === 404) {
+      if (is404Error(error)) {
         return null;
       }
       throw error;
@@ -908,7 +982,7 @@ export class ObjectStackAdapter<T = unknown> implements DataSource<T> {
     } catch (error: unknown) {
       // Check if it's a 404 error
       const errorObj = error as Record<string, unknown>;
-      if (errorObj?.status === 404 || errorObj?.statusCode === 404) {
+      if (is404Error(errorObj)) {
         throw new MetadataNotFoundError(objectName, { originalError: error });
       }
       
