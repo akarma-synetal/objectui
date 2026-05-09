@@ -1254,10 +1254,22 @@ export function ObjectView({ dataSource, objects, onEdit }: any) {
                 onRowClick={(record: any) => {
                     navOverlay.handleClick(record);
                 }}
+                onSortChange={(sort: any) => {
+                    persistViewPatch(viewDef.id, viewDef, { sort });
+                }}
+                onFilterChange={(filter: any) => {
+                    persistViewPatch(viewDef.id, viewDef, { filter });
+                }}
+                onHiddenFieldsChange={(hidden: string[]) => {
+                    persistViewPatch(viewDef.id, viewDef, { hiddenFields: hidden });
+                }}
+                onColumnStateChange={(state: { order?: string[]; widths?: Record<string, number> }) => {
+                    persistViewPatch(viewDef.id, viewDef, { columnState: state });
+                }}
                 dataSource={ds}
             />
         );
-    }, [activeView, objectDef, objectName, refreshKey, navOverlay, actions]);
+    }, [activeView, objectDef, objectName, refreshKey, navOverlay, actions, persistViewPatch]);
 
     // Memoize the merged views array so PluginObjectView doesn't get a new
     // reference on every render (which would trigger unnecessary data refetches).
