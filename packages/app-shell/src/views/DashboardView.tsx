@@ -323,12 +323,16 @@ export function DashboardView({ dataSource }: { dataSource?: any }) {
   const handleDashboardConfigSave = useCallback(
     (config: Record<string, any>) => {
       if (!editSchema) return;
+      const toNum = (v: any, fallback?: number) => {
+        const n = Number(v);
+        return Number.isFinite(n) ? n : fallback;
+      };
       const newSchema = {
         ...editSchema,
-        columns: config.columns,
-        gap: config.gap,
-        rowHeight: config.rowHeight,
-        refreshInterval: Number(config.refreshInterval) || 0,
+        columns: toNum(config.columns, editSchema.columns),
+        gap: toNum(config.gap, editSchema.gap),
+        rowHeight: toNum(config.rowHeight, editSchema.rowHeight),
+        refreshInterval: toNum(config.refreshInterval, 0) ?? 0,
         title: config.title,
         showDescription: config.showDescription,
         theme: config.theme,
@@ -343,11 +347,14 @@ export function DashboardView({ dataSource }: { dataSource?: any }) {
   const handleDashboardFieldChange = useCallback(
     (field: string, value: any) => {
       if (!editSchema) return;
-      // Map config field keys to proper DashboardSchema updates for live preview
+      // Map config field keys to proper DashboardSchema updates for live preview.
+      // Coerce numeric layout fields so previews/save payloads stay typed.
       setEditSchema((prev: any) => {
         if (!prev) return prev;
-        if (field === 'refreshInterval') {
-          return { ...prev, refreshInterval: Number(value) || 0 };
+        const numericFields = new Set(['columns', 'gap', 'rowHeight', 'refreshInterval']);
+        if (numericFields.has(field)) {
+          const n = Number(value);
+          return { ...prev, [field]: Number.isFinite(n) ? n : prev[field] };
         }
         return { ...prev, [field]: value };
       });

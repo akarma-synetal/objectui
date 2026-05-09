@@ -423,6 +423,22 @@ function buildWidgetSchema(
         ],
       },
 
+      // ----- Behavior (always visible, collapsed by default) -------------
+      {
+        key: 'behavior',
+        title: 'Behavior',
+        collapsible: true,
+        defaultCollapsed: true,
+        fields: [
+          {
+            key: 'actionUrl',
+            label: 'Click-through URL',
+            type: 'input',
+            placeholder: 'https://...',
+          },
+        ],
+      },
+
       // ----- Appearance (always visible, collapsed by default) ------------
       {
         key: 'appearance',
@@ -436,12 +452,6 @@ function buildWidgetSchema(
             type: 'select',
             options: COLOR_VARIANT_OPTIONS,
             defaultValue: 'default',
-          },
-          {
-            key: 'actionUrl',
-            label: 'Action URL',
-            type: 'input',
-            placeholder: 'https://...',
           },
         ],
       },

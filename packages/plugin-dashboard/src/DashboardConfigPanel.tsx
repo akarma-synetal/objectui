@@ -23,6 +23,7 @@ const dashboardSchema: ConfigPanelSchema = {
     {
       key: 'layout',
       title: 'Layout',
+      collapsible: true,
       fields: [
         {
           key: 'columns',
@@ -44,10 +45,12 @@ const dashboardSchema: ConfigPanelSchema = {
         },
         {
           key: 'rowHeight',
-          label: 'Row height',
-          type: 'input',
-          defaultValue: '120',
-          placeholder: 'e.g. 120',
+          label: 'Row height (px)',
+          type: 'slider',
+          defaultValue: 120,
+          min: 40,
+          max: 320,
+          step: 10,
         },
       ],
     },
@@ -58,14 +61,17 @@ const dashboardSchema: ConfigPanelSchema = {
       fields: [
         {
           key: 'refreshInterval',
-          label: 'Refresh interval',
+          label: 'Auto refresh',
           type: 'select',
           defaultValue: '0',
           options: [
-            { value: '0', label: 'Manual' },
-            { value: '30', label: '30s' },
-            { value: '60', label: '1 min' },
-            { value: '300', label: '5 min' },
+            { value: '0', label: 'Off' },
+            { value: '30', label: 'Every 30s' },
+            { value: '60', label: 'Every 1 min' },
+            { value: '300', label: 'Every 5 min' },
+            { value: '900', label: 'Every 15 min' },
+            { value: '1800', label: 'Every 30 min' },
+            { value: '3600', label: 'Every 1 hour' },
           ],
         },
       ],
