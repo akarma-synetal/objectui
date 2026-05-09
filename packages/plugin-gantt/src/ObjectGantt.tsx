@@ -230,10 +230,48 @@ export const ObjectGantt: React.FC<ObjectGanttProps> = ({
 
     const { startDateField, endDateField, titleField, progressField, dependenciesField, colorField } = ganttConfig;
 
+    // Resolve a value through nested paths like "account.name". Returns the
+    // first non-empty string from the path (so lookups that resolve to either a
+    // FK string or an embedded object both work).
+    const resolvePath = (record: any, path: string): unknown => {
+      if (!path) return undefined;
+      const parts = path.split('.');
+      let cur: any = record;
+      for (const p of parts) {
+        if (cur == null) return undefined;
+        cur = cur[p];
+      }
+      return cur;
+    };
+
+    // Fallback chain: configured titleField → object's `name`/`title`/`subject`
+    // → embedded lookup display label → record id. Avoids the dreaded
+    // "Untitled Task" placeholder when an autonumber/title field is null but
+    // other identifying data exists on the record.
+    const resolveTitle = (record: any): string => {
+      const candidates: unknown[] = [
+        resolvePath(record, titleField),
+        record?.name,
+        record?.title,
+        record?.subject,
+        record?.label,
+        // Common single embedded lookup labels (e.g. account.name on a contract).
+        record?.account?.name,
+        record?.opportunity?.name,
+        record?.contact && [record.contact.first_name, record.contact.last_name].filter(Boolean).join(' '),
+        record?.id,
+        record?._id,
+      ];
+      for (const v of candidates) {
+        if (v != null && String(v).trim() !== '') return String(v);
+      }
+      return 'Untitled';
+    };
+
     return data.map((record, index) => {
       const startDate = record[startDateField];
       const endDate = record[endDateField];
-      const title = record[titleField] || 'Untitled Task';
+      const title = resolveTitle(record);
       const progress = progressField ? record[progressField] : 0;
       const dependencies = dependenciesField ? record[dependenciesField] : [];
       const color = colorField ? record[colorField] : undefined;

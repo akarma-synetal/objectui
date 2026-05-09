@@ -153,10 +153,10 @@ export function humanizeLabel(value: string): string {
 /**
  * Format date as relative time (e.g., "2 days ago", "Today", "Overdue 3d")
  */
-export function formatRelativeDate(value: string | Date): string {
-  if (!value) return '—';
-  const date = typeof value === 'string' ? new Date(value) : value;
-  if (isNaN(date.getTime())) return '—';
+export function formatRelativeDate(value: string | Date | number): string {
+  if (value === null || value === undefined || value === '') return '—';
+  const date = value instanceof Date ? value : new Date(value as any);
+  if (!(date instanceof Date) || isNaN(date.getTime())) return '—';
 
   const now = new Date();
   const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -179,10 +179,10 @@ export function formatRelativeDate(value: string | Date): string {
 /**
  * Format date value
  */
-export function formatDate(value: string | Date, style?: string): string {
-  if (!value) return '—';
-  const date = typeof value === 'string' ? new Date(value) : value;
-  if (isNaN(date.getTime())) return '—';
+export function formatDate(value: string | Date | number, style?: string): string {
+  if (value === null || value === undefined || value === '') return '—';
+  const date = value instanceof Date ? value : new Date(value as any);
+  if (!(date instanceof Date) || isNaN(date.getTime())) return '—';
 
   if (style === 'short') {
     // Compact format for mobile: "Jan 15, '24"
@@ -207,10 +207,10 @@ export function formatDate(value: string | Date, style?: string): string {
 /**
  * Format datetime value
  */
-export function formatDateTime(value: string | Date): string {
-  if (!value) return '—';
-  const date = typeof value === 'string' ? new Date(value) : value;
-  if (isNaN(date.getTime())) return '—';
+export function formatDateTime(value: string | Date | number): string {
+  if (value === null || value === undefined || value === '') return '—';
+  const date = value instanceof Date ? value : new Date(value as any);
+  if (!(date instanceof Date) || isNaN(date.getTime())) return '—';
   
   return date.toLocaleDateString(undefined, {
     year: 'numeric',
@@ -370,7 +370,7 @@ export function DateCellRenderer({ value, field }: CellRendererProps): React.Rea
   // Determine if date is overdue (in the past) — but only color it red when the
   // field is *semantically* a due/deadline. A plain "start_date" or "created_at"
   // in the past should not render in red.
-  const date = typeof safe === 'string' ? new Date(safe) : safe;
+  const date = safe instanceof Date ? safe : (safe != null ? new Date(safe as any) : null);
   const isValidDate = date instanceof Date && !isNaN(date.getTime());
   const startOfToday = new Date();
   startOfToday.setHours(0, 0, 0, 0);
@@ -397,7 +397,7 @@ export function DateCellRenderer({ value, field }: CellRendererProps): React.Rea
 export function DateTimeCellRenderer({ value }: CellRendererProps): React.ReactElement {
   if (!value) return <EmptyValue />;
   const safe = coerceToSafeValue(value);
-  const date = typeof safe === 'string' ? new Date(safe) : safe;
+  const date = safe instanceof Date ? safe : (safe != null ? new Date(safe as any) : null);
   if (!(date instanceof Date) || isNaN(date.getTime())) return <EmptyValue />;
 
   const datePart = date.toLocaleDateString(undefined, {

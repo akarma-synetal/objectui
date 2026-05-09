@@ -168,6 +168,7 @@ const DataTableRenderer = ({ schema }: { schema: DataTableSchema }) => {
     rowClassName,
     rowStyle,
     className,
+    cellClassName,
     frozenColumns = 0,
     showRowNumbers = false,
     showAddRow = false,
@@ -916,7 +917,7 @@ const DataTableRenderer = ({ schema }: { schema: DataTableSchema }) => {
                       }}
                     >
                       {selectable && (
-                        <TableCell className={cn(frozenColumns > 0 && "sticky left-0 z-10 bg-background", selectionStyle === 'hover' && "relative")}>
+                        <TableCell className={cn(cellClassName, frozenColumns > 0 && "sticky left-0 z-10 bg-background", selectionStyle === 'hover' && "relative")}>
                           {selectionStyle === 'hover' ? (
                             <div className={cn("transition-opacity", isSelected ? "opacity-100" : "opacity-0 group-hover/row:opacity-100")}>
                               <Checkbox
@@ -933,7 +934,7 @@ const DataTableRenderer = ({ schema }: { schema: DataTableSchema }) => {
                         </TableCell>
                       )}
                       {showRowNumbers && (
-                        <TableCell className={cn("text-center w-10 relative", frozenColumns > 0 && "sticky z-10 bg-background")} style={frozenColumns > 0 ? { left: selectable ? 40 : 0 } : undefined}>
+                        <TableCell className={cn("text-center w-10 relative", cellClassName, frozenColumns > 0 && "sticky z-10 bg-background")} style={frozenColumns > 0 ? { left: selectable ? 40 : 0 } : undefined}>
                           <span className={cn("text-xs text-muted-foreground tabular-nums select-none", !selectable && schema.onRowClick && "group-hover/row:invisible")}>
                             {globalIndex + 1}
                           </span>
@@ -1012,7 +1013,7 @@ const DataTableRenderer = ({ schema }: { schema: DataTableSchema }) => {
                         );
                       })}
                       {rowActions && (
-                        <TableCell className="text-right">
+                        <TableCell className={cn("text-right", cellClassName)}>
                           <div className="flex items-center justify-end gap-1">
                             {rowHasChanges && (schema.onRowSave || schema.onBatchSave) ? (
                               <>

@@ -1222,16 +1222,17 @@ export const ObjectGrid: React.FC<ObjectGridProps> = ({
   const rightPinnedClasses = 'sticky right-0 z-10 bg-background border-l border-border';
 
   // Density-driven cell padding/font (applied to every column so it actually reaches <td>).
+  // `h-*` enforces a minimum row height so the action-button column doesn't dictate it.
   const rowHeightCellClass =
     rowHeightMode === 'compact'
-      ? 'px-3 py-1 text-[13px] leading-tight'
+      ? 'px-3 py-1 h-9 text-[13px] leading-tight'
       : rowHeightMode === 'short'
-        ? 'px-3 py-1 text-[13px] leading-normal'
+        ? 'px-3 py-1 h-9 text-[13px] leading-normal'
         : rowHeightMode === 'tall'
-          ? 'px-3 py-2.5 text-sm'
+          ? 'px-3 py-2.5 h-14 text-sm'
           : rowHeightMode === 'extra_tall'
-            ? 'px-3 py-3.5 text-sm leading-relaxed'
-            : 'px-3 py-1.5 text-[13px] leading-normal';
+            ? 'px-3 py-3.5 h-16 text-sm leading-relaxed'
+            : 'px-3 py-1.5 h-11 text-[13px] leading-normal';
 
   const applyDensity = (col: any) => ({
     ...col,
