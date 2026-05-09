@@ -408,6 +408,43 @@ export function ObjectView({ dataSource, objects, onEdit }: any) {
         return () => { cancelled = true; };
     }, [dataSource, objectName, refreshKey]);
 
+    // Persisted per-view config overrides (e.g. density toggle). Saved
+    // separately from `objectDef.listViews` (the embedded definition) via
+    // `dataSource.updateViewConfig` and read back here so toggle preferences
+    // survive a hard reload. Keyed by viewId → partial view config to merge.
+    const [viewOverrides, setViewOverrides] = useState<Record<string, any>>({});
+    useEffect(() => {
+        let cancelled = false;
+        if (!dataSource?.getView || !objectName) {
+            setViewOverrides({});
+            return;
+        }
+        const definedViews = (objectDef.listViews || objectDef.list_views || {}) as Record<string, any>;
+        const ids = Object.keys(definedViews);
+        if (ids.length === 0) {
+            setViewOverrides({});
+            return;
+        }
+        Promise.all(
+            ids.map(async (id) => {
+                try {
+                    const v = await dataSource.getView(objectName, id);
+                    return [id, v] as const;
+                } catch {
+                    return [id, null] as const;
+                }
+            })
+        ).then((entries) => {
+            if (cancelled) return;
+            const map: Record<string, any> = {};
+            for (const [id, v] of entries) {
+                if (v && typeof v === 'object') map[id] = v;
+            }
+            setViewOverrides(map);
+        });
+        return () => { cancelled = true; };
+    }, [dataSource, objectName, objectDef.listViews, objectDef.list_views, refreshKey]);
+
     // Resolve Views from objectDef.listViews (camelCase per @objectstack/spec)
     const views = useMemo(() => {
         // Default column resolution priority:
@@ -439,11 +476,18 @@ export function ObjectView({ dataSource, objects, onEdit }: any) {
         };
 
         const definedViews = objectDef.listViews || objectDef.list_views || {};
-        const viewList = Object.entries(definedViews).map(([key, value]: [string, any]) => ({
-            id: key,
-            ...value,
-            type: value.type || 'grid'
-        }));
+        const viewList = Object.entries(definedViews).map(([key, value]: [string, any]) => {
+            const override = viewOverrides[key];
+            // Override wins per-key — saved overrides represent user
+            // preferences (density, column widths, etc.) that should
+            // shadow the embedded definition.
+            return {
+                id: key,
+                ...value,
+                ...(override || {}),
+                type: (override?.type) || value.type || 'grid',
+            };
+        });
 
         if (viewList.length === 0) {
             viewList.push({
@@ -526,7 +570,7 @@ export function ObjectView({ dataSource, objects, onEdit }: any) {
         });
 
         return viewList;
-    }, [objectDef, savedViews, t]);
+    }, [objectDef, savedViews, viewOverrides, t]);
 
     // Active View State — merge saved draft if available for this view.
     // Resolution priority: URL viewId → ?view= → user-marked default → first.

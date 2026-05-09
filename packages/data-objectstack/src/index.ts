@@ -1043,7 +1043,7 @@ export class ObjectStackAdapter<T = unknown> implements DataSource<T> {
       const cacheKey = `view:${objectName}:${viewId}`;
       return await this.metadataCache.get(cacheKey, async () => {
         // Try meta.getItem for view metadata
-        const result: any = await this.client.meta.getItem(objectName, `views/${viewId}`);
+        const result: any = await this.client.meta.getItem(objectName, viewId);
         if (result && result.item) return result.item;
         return result ?? null;
       });
@@ -1079,7 +1079,7 @@ export class ObjectStackAdapter<T = unknown> implements DataSource<T> {
     try {
       const result: any = await this.client.meta.saveItem(
         objectName,
-        `views/${viewId}`,
+        viewId,
         config
       );
       // Invalidate cached read so next getView reflects the change
