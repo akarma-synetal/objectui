@@ -241,11 +241,14 @@ export function DashboardView({ dataSource }: { dataSource?: any }) {
   const saveSchema = useCallback(
     async (schema: DashboardSchema) => {
       try {
-        if (adapter) {
+        if (adapter && (adapter as any).updateDashboard) {
+          await (adapter as any).updateDashboard(dashboardName!, schema);
+        } else if (adapter) {
+          // Fallback for adapters that don't expose updateDashboard
           await adapter.update('sys_dashboard', dashboardName!, schema);
-          // Refresh metadata cache so closing the config panel shows saved data
-          refresh().catch(() => {});
         }
+        // Refresh metadata cache so closing the config panel shows saved data
+        refresh().catch(() => {});
       } catch (err) {
         console.warn('[DashboardView] Auto-save failed:', err);
       }

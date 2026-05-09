@@ -1142,6 +1142,40 @@ export class ObjectStackAdapter<T = unknown> implements DataSource<T> {
   }
 
   /**
+   * Update (upsert) a dashboard definition.
+   *
+   * Dashboards are control-plane metadata, not data records. Persist via
+   * `client.meta.saveItem('dashboard', name, schema)` which routes to
+   * `PUT /api/v1/meta/dashboard/:name`. After save, invalidates the
+   * relevant metadata cache entry so the next dashboard read reflects
+   * the new payload.
+   *
+   * @param dashboardName - Dashboard identifier (e.g. 'crm_overview_dashboard')
+   * @param schema - Full dashboard schema (widgets, layout, etc.)
+   */
+  async updateDashboard(
+    dashboardName: string,
+    schema: Record<string, any>
+  ): Promise<Record<string, any> | void> {
+    await this.connect();
+    try {
+      const result: any = await this.client.meta.saveItem(
+        'dashboard',
+        dashboardName,
+        schema
+      );
+      // Invalidate dashboards list and any cached dashboard read so the
+      // next render reflects the change.
+      this.metadataCache.invalidate?.('dashboards');
+      this.metadataCache.invalidate?.(`dashboard:${dashboardName}`);
+      if (result && result.item) return result.item;
+      return result ?? undefined;
+    } catch (err) {
+      throw err;
+    }
+  }
+
+  /**
    * Perform server-side aggregation via the ObjectStack analytics API.
    * Uses `this.client.analytics.query()` from @objectstack/client to leverage
    * the SDK's built-in auth, headers, and fetch configuration.
