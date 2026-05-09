@@ -6,7 +6,7 @@
  * LICENSE file in the root directory of this source tree.
  */
 
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 
 /** Density mode aligned with DensityMode from @objectstack/spec v2.0.7 */
 export type DensityModeValue = 'compact' | 'comfortable' | 'spacious';
@@ -18,6 +18,14 @@ export interface DensityConfig {
   paddingClasses?: Record<DensityModeValue, string>;
   /** Font size classes for each density mode */
   fontSizeClasses?: Record<DensityModeValue, string>;
+  /**
+   * Optional callback fired whenever the active density mode changes.
+   * Typical use: persist the new value on the active view definition.
+   * The callback is *not* invoked for the initial mount; only on user-driven
+   * transitions (setMode / cycle) and when the controlled `initialMode`
+   * changes from upstream.
+   */
+  onChange?: (mode: DensityModeValue) => void;
 }
 
 export interface DensityResult {
@@ -59,32 +67,62 @@ const DENSITY_ORDER: DensityModeValue[] = ['compact', 'comfortable', 'spacious']
  * Hook for managing view density modes (compact/comfortable/spacious).
  * Implements DensityMode from @objectstack/spec v2.0.7.
  *
+ * Behaviour:
+ * - `initialMode` acts as a controlled-ish source of truth: when it changes
+ *   externally (e.g. user switches to a different saved view) the internal
+ *   mode follows.
+ * - User-driven transitions (`setMode` / `cycle`) emit `config.onChange`,
+ *   so callers can persist the choice.
+ *
  * @example
  * ```tsx
- * const density = useDensityMode('comfortable');
- *
- * return (
- *   <div className={density.paddingClass}>
- *     <table style={{ rowHeight: density.rowHeight }}>...</table>
- *     <button onClick={density.cycle}>Toggle Density</button>
- *   </div>
- * );
+ * const density = useDensityMode(activeView?.densityMode ?? 'comfortable', {
+ *   onChange: (m) => dataSource.updateViewConfig(obj, vid, { densityMode: m }),
+ * });
  * ```
  */
 export function useDensityMode(
   initialMode: DensityModeValue = 'comfortable',
   config?: DensityConfig
 ): DensityResult {
-  const [mode, setMode] = useState<DensityModeValue>(initialMode);
+  const [mode, setModeState] = useState<DensityModeValue>(initialMode);
 
   const rowHeights = config?.rowHeights ?? DEFAULT_ROW_HEIGHTS;
   const paddingClasses = config?.paddingClasses ?? DEFAULT_PADDING_CLASSES;
   const fontSizeClasses = config?.fontSizeClasses ?? DEFAULT_FONT_SIZE_CLASSES;
 
+  // Keep latest onChange in a ref so we don't need to re-create callbacks
+  // when the parent re-renders with a new function identity.
+  const onChangeRef = useRef(config?.onChange);
+  useEffect(() => {
+    onChangeRef.current = config?.onChange;
+  }, [config?.onChange]);
+
+  // Track the upstream initialMode so we can detect external changes
+  // (e.g. switching views) without firing onChange for those.
+  const lastInitialRef = useRef(initialMode);
+  useEffect(() => {
+    if (initialMode !== lastInitialRef.current) {
+      lastInitialRef.current = initialMode;
+      setModeState(initialMode);
+    }
+  }, [initialMode]);
+
+  const setMode = useCallback((next: DensityModeValue) => {
+    setModeState((current) => {
+      if (current === next) return current;
+      // Fire onChange asynchronously so React state has settled.
+      queueMicrotask(() => onChangeRef.current?.(next));
+      return next;
+    });
+  }, []);
+
   const cycle = useCallback(() => {
-    setMode((current) => {
+    setModeState((current) => {
       const idx = DENSITY_ORDER.indexOf(current);
-      return DENSITY_ORDER[(idx + 1) % DENSITY_ORDER.length];
+      const next = DENSITY_ORDER[(idx + 1) % DENSITY_ORDER.length];
+      queueMicrotask(() => onChangeRef.current?.(next));
+      return next;
     });
   }, []);
 
@@ -97,6 +135,6 @@ export function useDensityMode(
       paddingClass: paddingClasses[mode],
       fontSizeClass: fontSizeClasses[mode],
     }),
-    [mode, cycle, rowHeights, paddingClasses, fontSizeClasses]
+    [mode, setMode, cycle, rowHeights, paddingClasses, fontSizeClasses]
   );
 }

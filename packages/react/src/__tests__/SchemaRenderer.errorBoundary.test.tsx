@@ -70,6 +70,40 @@ describe('SchemaErrorBoundary', () => {
     );
     expect(screen.getByText(/failed to render/i)).toBeInTheDocument();
   });
+
+  it('auto-resets when componentType changes', () => {
+    const { rerender } = render(
+      <SchemaErrorBoundary componentType="broken">
+        <CrashingWidget />
+      </SchemaErrorBoundary>
+    );
+    expect(screen.getByRole('alert')).toBeInTheDocument();
+
+    rerender(
+      <SchemaErrorBoundary componentType="healthy">
+        <StableWidget content="recovered" />
+      </SchemaErrorBoundary>
+    );
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    expect(screen.getByTestId('stable-widget')).toHaveTextContent('recovered');
+  });
+
+  it('auto-resets when resetKey changes', () => {
+    const { rerender } = render(
+      <SchemaErrorBoundary componentType="widget" resetKey="v1">
+        <CrashingWidget />
+      </SchemaErrorBoundary>
+    );
+    expect(screen.getByRole('alert')).toBeInTheDocument();
+
+    rerender(
+      <SchemaErrorBoundary componentType="widget" resetKey="v2">
+        <StableWidget content="ok" />
+      </SchemaErrorBoundary>
+    );
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    expect(screen.getByTestId('stable-widget')).toBeInTheDocument();
+  });
 });
 
 describe('SchemaRenderer error boundary integration', () => {

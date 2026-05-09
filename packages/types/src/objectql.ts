@@ -1593,6 +1593,15 @@ export interface ListViewSchema extends BaseSchema {
   rowHeight?: 'compact' | 'short' | 'medium' | 'tall' | 'extra_tall';
 
   /**
+   * Optional callback fired when the user toggles row density via the
+   * toolbar. When provided, the host (typically ObjectView) is expected to
+   * persist the new value on the active view definition (e.g. via
+   * dataSource.updateViewConfig). Without this callback the toggle remains
+   * a session-local preference.
+   */
+  onDensityChange?: (mode: 'compact' | 'comfortable' | 'spacious') => void;
+
+  /**
    * Conditional formatting rules for row/cell styling.
    * Rules are evaluated in order; first matching rule wins.
    * Supports both ObjectUI field/operator/value rules and spec expression-based { condition, style } rules.

@@ -563,7 +563,9 @@ export const ListView = React.forwardRef<ListViewHandle, ListViewProps>(({
     }
     return 'compact';
   }, [schema.densityMode, schema.rowHeight]);
-  const density = useDensityMode(resolvedDensity);
+  const density = useDensityMode(resolvedDensity, {
+    onChange: schema.onDensityChange,
+  });
 
   const handlePullRefresh = React.useCallback(async () => {
     setRefreshKey(k => k + 1);

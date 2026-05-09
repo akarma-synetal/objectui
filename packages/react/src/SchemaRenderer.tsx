@@ -56,13 +56,27 @@ interface SchemaErrorBoundaryState {
 }
 
 export class SchemaErrorBoundary extends Component<
-  { componentType?: string; children: React.ReactNode },
+  { componentType?: string; children: React.ReactNode; resetKey?: any },
   SchemaErrorBoundaryState
 > {
   state: SchemaErrorBoundaryState = { hasError: false, error: null };
 
   static getDerivedStateFromError(error: Error): SchemaErrorBoundaryState {
     return { hasError: true, error };
+  }
+
+  componentDidUpdate(prevProps: { componentType?: string; resetKey?: any }) {
+    // Auto-recover when the upstream component identity or an explicit reset
+    // key changes. This makes "Retry" implicit: as soon as the producer of
+    // the schema fixes the offending value (e.g. user edits the date field
+    // in view config), the broken widget re-mounts cleanly.
+    if (
+      this.state.hasError &&
+      (prevProps.componentType !== this.props.componentType ||
+        prevProps.resetKey !== this.props.resetKey)
+    ) {
+      this.setState({ hasError: false, error: null });
+    }
   }
 
   handleRetry = () => {
@@ -264,7 +278,10 @@ export const SchemaRenderer = forwardRef<any, { schema: SchemaNode } & Record<st
   debugTime(`render:${evaluatedSchema.type}:${evaluatedSchema.id ?? 'anon'}`);
   const renderStart = isDebug ? performance.now() : 0;
   const rendered = (
-    <SchemaErrorBoundary componentType={evaluatedSchema.type}>
+    <SchemaErrorBoundary
+      componentType={evaluatedSchema.type}
+      resetKey={evaluatedSchema.id ?? null}
+    >
       {React.createElement(Component, {
         schema: evaluatedSchema,
         ...componentProps,  // Spread non-metadata schema properties as props

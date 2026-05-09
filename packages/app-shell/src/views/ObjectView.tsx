@@ -1030,6 +1030,23 @@ export function ObjectView({ dataSource, objects, onEdit }: any) {
             // Propagate appearance/view-config properties for live preview
             rowHeight: viewDef.rowHeight ?? listSchema.rowHeight,
             densityMode: viewDef.densityMode ?? listSchema.densityMode,
+            // Persist density toggle changes to the active view definition
+            // so the preference survives reload and is per-view (matches
+            // Airtable behaviour). Falls back silently if the data source
+            // does not expose updateViewConfig.
+            onDensityChange: (mode) => {
+                if (!dataSource?.updateViewConfig || !viewDef.id) return;
+                const objName = objectName;
+                if (!objName) return;
+                Promise.resolve(
+                    dataSource.updateViewConfig(objName, viewDef.id, {
+                        ...viewDef,
+                        densityMode: mode,
+                    })
+                ).catch((err: any) => {
+                    console.error('[ObjectView] Failed to persist densityMode:', err);
+                });
+            },
             inlineEdit: viewDef.inlineEdit ?? viewDef.editRecordsInline ?? listSchema.inlineEdit,
             appearance: viewDef.showDescription != null
                 ? { showDescription: viewDef.showDescription }

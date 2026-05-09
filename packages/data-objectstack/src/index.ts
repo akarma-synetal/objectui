@@ -1054,6 +1054,48 @@ export class ObjectStackAdapter<T = unknown> implements DataSource<T> {
   }
 
   /**
+   * Persist a view definition for an object.
+   *
+   * Symmetric counterpart to {@link getView}: writes the view to the
+   * server metadata store via `client.meta.saveItem`, then invalidates
+   * the matching cache entry so the next {@link getView} reflects the
+   * new payload. Returns the persisted item when the server echoes it,
+   * otherwise undefined.
+   *
+   * Used by ObjectView for "live" toolbar persistence (density,
+   * column widths, sort, etc.) and by the View Config Panel for
+   * explicit saves.
+   *
+   * @param objectName - Object name (e.g. 'lead')
+   * @param viewId - View identifier (e.g. 'all_leads')
+   * @param config - Full view definition to persist
+   */
+  async updateViewConfig(
+    objectName: string,
+    viewId: string,
+    config: Record<string, any>
+  ): Promise<Record<string, any> | void> {
+    await this.connect();
+    try {
+      const result: any = await this.client.meta.saveItem(
+        objectName,
+        `views/${viewId}`,
+        config
+      );
+      // Invalidate cached read so next getView reflects the change
+      const cacheKey = `view:${objectName}:${viewId}`;
+      this.metadataCache.invalidate?.(cacheKey);
+      if (result && result.item) return result.item;
+      return result ?? undefined;
+    } catch (err) {
+      // Surface the error so the caller can decide whether to toast/log;
+      // we don't swallow it here because persistence failures are
+      // operationally meaningful (unlike read fallbacks).
+      throw err;
+    }
+  }
+
+  /**
    * Get an application definition by name or ID.
    * Attempts to fetch from the server metadata API.
    * Falls back to null if the server doesn't provide app definitions,
