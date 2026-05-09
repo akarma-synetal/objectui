@@ -413,7 +413,9 @@ export function AppContent({ extraRoutes, extraRoutesNoApp }: AppContentProps = 
                 onCancel: handleDialogCancel,
                 showSubmit: true,
                 showCancel: true,
-                submitText: t('form.saveRecord'),
+                submitText: editingRecord
+                  ? t('form.update', { defaultValue: t('common.save') || '保存' })
+                  : t('form.create', { defaultValue: t('common.create') || '创建' }),
                 cancelText: t('common.cancel'),
               }}
               dataSource={dataSource}

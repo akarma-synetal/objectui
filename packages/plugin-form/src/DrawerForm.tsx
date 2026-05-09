@@ -27,6 +27,7 @@ import {
 import { SchemaRenderer, useSafeFieldLabel } from '@object-ui/react';
 import { mapFieldTypeToFormType, buildValidationRules } from '@object-ui/fields';
 import { applyAutoLayout } from './autoLayout';
+import { sanitizeFormData } from './sanitize';
 
 /**
  * Container-query-based grid classes for form field layout.
@@ -275,10 +276,11 @@ export const DrawerForm: React.FC<DrawerFormProps> = ({
 
     try {
       let result;
+      const payload = sanitizeFormData(data, objectSchema);
       if (schema.mode === 'create') {
-        result = await dataSource.create(schema.objectName, data);
+        result = await dataSource.create(schema.objectName, payload);
       } else if (schema.mode === 'edit' && schema.recordId) {
-        result = await dataSource.update(schema.objectName, schema.recordId, data);
+        result = await dataSource.update(schema.objectName, schema.recordId, payload);
       }
       if (schema.onSuccess) {
         await schema.onSuccess(result);
@@ -292,7 +294,7 @@ export const DrawerForm: React.FC<DrawerFormProps> = ({
       }
       throw err;
     }
-  }, [schema, dataSource]);
+  }, [schema, dataSource, objectSchema]);
 
   // Handle cancel
   const handleCancel = useCallback(() => {

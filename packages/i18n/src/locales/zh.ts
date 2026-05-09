@@ -60,7 +60,9 @@ const zh = {
     editTitle: '编辑{{object}}',
     createDescription: '向数据库添加新的{{object}}。',
     editDescription: '更新{{object}}的详情',
-    saveRecord: '保存记录',
+    saveRecord: '保存',
+    create: '创建',
+    update: '更新',
   },
   table: {
     rowsPerPage: '每页行数',
@@ -102,7 +104,7 @@ const zh = {
     pullToRefresh: '下拉刷新',
     refreshing: '刷新中…',
     openRecord: '打开记录',
-    openMenu: '打开菜单',
+    openMenu: '更多操作',
     rowHeight: '行高: {{mode}}',
     empty: '空',
     yes: '是',
@@ -1098,7 +1100,7 @@ const zh = {
     ok: '确定',
   },
   rowAction: {
-    openMenu: '打开菜单',
+    openMenu: '更多操作',
     edit: '编辑',
     delete: '删除',
   },

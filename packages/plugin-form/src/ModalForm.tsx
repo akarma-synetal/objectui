@@ -30,6 +30,7 @@ import { FormSection } from './FormSection';
 import { SchemaRenderer, useSafeFieldLabel } from '@object-ui/react';
 import { mapFieldTypeToFormType, buildValidationRules } from '@object-ui/fields';
 import { applyAutoLayout, inferModalSize } from './autoLayout';
+import { sanitizeFormData } from './sanitize';
 
 export interface ModalFormSectionConfig {
   name?: string;
@@ -307,10 +308,11 @@ export const ModalForm: React.FC<ModalFormProps> = ({
       }
 
       let result;
+      const payload = sanitizeFormData(data, objectSchema);
       if (schema.mode === 'create') {
-        result = await dataSource.create(schema.objectName, data);
+        result = await dataSource.create(schema.objectName, payload);
       } else if (schema.mode === 'edit' && schema.recordId) {
-        result = await dataSource.update(schema.objectName, schema.recordId, data);
+        result = await dataSource.update(schema.objectName, schema.recordId, payload);
       }
       if (schema.onSuccess) {
         await schema.onSuccess(result);
@@ -326,7 +328,7 @@ export const ModalForm: React.FC<ModalFormProps> = ({
     } finally {
       setIsSubmitting(false);
     }
-  }, [schema, dataSource]);
+  }, [schema, dataSource, objectSchema]);
 
   // Handle cancel
   const handleCancel = useCallback(() => {

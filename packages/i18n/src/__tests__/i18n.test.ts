@@ -57,7 +57,7 @@ describe('@object-ui/i18n', () => {
       expect(i18n.t('form.editTitle', { object: 'Contact' })).toBe('Edit Contact');
       expect(i18n.t('form.createDescription', { object: 'Contact' })).toBe('Add a new Contact to your database.');
       expect(i18n.t('form.editDescription', { object: 'Contact' })).toBe('Update details for Contact');
-      expect(i18n.t('form.saveRecord')).toBe('Save Record');
+      expect(i18n.t('form.saveRecord')).toBe('Save');
     });
 
     it('translates common keys in Chinese', () => {
@@ -76,7 +76,7 @@ describe('@object-ui/i18n', () => {
       expect(i18n.t('form.editTitle', { object: '联系人' })).toBe('编辑联系人');
       expect(i18n.t('form.createDescription', { object: '联系人' })).toBe('向数据库添加新的联系人。');
       expect(i18n.t('form.editDescription', { object: '联系人' })).toBe('更新联系人的详情');
-      expect(i18n.t('form.saveRecord')).toBe('保存记录');
+      expect(i18n.t('form.saveRecord')).toBe('保存');
     });
 
     it('translates toolbarEnabledCount in Chinese (not English fallback)', () => {

@@ -60,7 +60,9 @@ const en = {
     editTitle: 'Edit {{object}}',
     createDescription: 'Add a new {{object}} to your database.',
     editDescription: 'Update details for {{object}}',
-    saveRecord: 'Save Record',
+    saveRecord: 'Save',
+    create: 'Create',
+    update: 'Update',
   },
   table: {
     rowsPerPage: 'Rows per page',
