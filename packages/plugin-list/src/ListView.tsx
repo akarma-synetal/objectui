@@ -7,9 +7,9 @@
  */
 
 import * as React from 'react';
-import { cn, Button, Input, Popover, PopoverContent, PopoverTrigger, FilterBuilder, SortBuilder, NavigationOverlay, GroupingEditor } from '@object-ui/components';
+import { cn, Button, Input, Popover, PopoverContent, PopoverTrigger, FilterBuilder, SortBuilder, NavigationOverlay, GroupingEditor, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@object-ui/components';
 import type { SortItem } from '@object-ui/components';
-import { Search, SlidersHorizontal, ArrowUpDown, X, EyeOff, Group, Paintbrush, Ruler, Inbox, Download, AlignJustify, Share2, Printer, Plus, icons, type LucideIcon } from 'lucide-react';
+import { Search, SlidersHorizontal, ArrowUpDown, X, EyeOff, Group, Paintbrush, Ruler, Inbox, Download, AlignJustify, Rows4, Rows3, Rows2, Share2, Printer, Plus, Trash2, CheckSquare, icons, type LucideIcon } from 'lucide-react';
 import type { FilterGroup } from '@object-ui/components';
 import { ViewSwitcher, ViewType } from './ViewSwitcher';
 import { TabBar } from './components/TabBar';
@@ -326,7 +326,7 @@ export const ListView = React.forwardRef<ListViewHandle, ListViewProps>(({
       showSearch: ua?.search !== undefined ? ua.search : schema.showSearch !== false,
       showSort: ua?.sort !== undefined ? ua.sort : schema.showSort !== false,
       showFilters: ua?.filter !== undefined ? ua.filter : schema.showFilters !== false,
-      showDensity: ua?.rowHeight !== undefined ? ua.rowHeight : schema.showDensity === true,
+      showDensity: ua?.rowHeight !== undefined ? ua.rowHeight : schema.showDensity !== false,
       showHideFields: schema.showHideFields === true,
       showGroup: schema.showGroup !== false,
       showColor: schema.showColor === true,
@@ -946,6 +946,11 @@ export const ListView = React.forwardRef<ListViewHandle, ListViewProps>(({
 
   // Generate the appropriate view component schema
   const viewComponentSchema = React.useMemo(() => {
+    const densityRowHeight = density.mode === 'compact'
+      ? 'compact'
+      : density.mode === 'spacious'
+        ? 'tall'
+        : 'medium';
     const baseProps = {
       objectName: schema.objectName,
       fields: effectiveFields,
@@ -956,6 +961,10 @@ export const ListView = React.forwardRef<ListViewHandle, ListViewProps>(({
       showSearch: false,
       // Pass navigation click handler to child views
       onRowClick: navigation.handleClick,
+      // Forward density to child views (overrides schema.rowHeight at runtime)
+      rowHeight: densityRowHeight,
+      // Suppress child grid's own row-height toggle since ListView toolbar controls it
+      hideRowHeightToggle: true,
       // Forward display properties to child views
       ...(schema.striped != null ? { striped: schema.striped } : {}),
       ...(schema.bordered != null ? { bordered: schema.bordered } : {}),
@@ -1067,7 +1076,7 @@ export const ListView = React.forwardRef<ListViewHandle, ListViewProps>(({
       default:
         return baseProps;
     }
-  }, [currentView, schema, currentSort, effectiveFields, groupingConfig, rowColorConfig, navigation.handleClick]);
+  }, [currentView, schema, currentSort, effectiveFields, groupingConfig, rowColorConfig, navigation.handleClick, density.mode]);
 
   const hasFilters = currentFilters.conditions && currentFilters.conditions.length > 0;
 
@@ -1506,21 +1515,24 @@ export const ListView = React.forwardRef<ListViewHandle, ListViewProps>(({
           )}
 
           {/* Row Height / Density Mode */}
-          {toolbarFlags.showDensity && (
-          <Button
-            variant="ghost"
-            size="sm"
-            className={cn(
-              "h-7 px-2 text-muted-foreground hover:text-primary text-xs hidden lg:flex transition-colors duration-150",
-              density.mode !== 'compact' && "bg-primary/10 border border-primary/20 text-primary"
-            )}
-            onClick={density.cycle}
-            title={`Density: ${density.mode}`}
-          >
-            <AlignJustify className="h-3.5 w-3.5 mr-1.5" />
-            <span className="hidden sm:inline capitalize">{density.mode}</span>
-          </Button>
-          )}
+          {toolbarFlags.showDensity && (() => {
+            const DensityIcon = density.mode === 'compact' ? Rows4 : density.mode === 'comfortable' ? Rows3 : Rows2;
+            return (
+              <Button
+                variant="ghost"
+                size="sm"
+                aria-label={`Density: ${density.mode}`}
+                className={cn(
+                  "h-7 w-7 p-0 text-muted-foreground hover:text-primary transition-colors duration-150",
+                  density.mode !== 'compact' && "bg-primary/10 border border-primary/20 text-primary"
+                )}
+                onClick={density.cycle}
+                title={`Density: ${density.mode} (click to cycle)`}
+              >
+                <DensityIcon className="h-3.5 w-3.5" />
+              </Button>
+            );
+          })()}
 
           {/* --- Separator: Appearance | Export --- */}
           {(toolbarFlags.showColor || toolbarFlags.showDensity) && resolvedExportOptions && schema.allowExport !== false && (
@@ -1746,30 +1758,42 @@ export const ListView = React.forwardRef<ListViewHandle, ListViewProps>(({
       {/* Bulk Actions Bar — skip for grid view since ObjectGrid renders its own BulkActionBar */}
       {schema.bulkActions && schema.bulkActions.length > 0 && selectedRows.length > 0 && currentView !== 'grid' && (
         <div
-          className="border-t px-4 py-1.5 flex items-center gap-2 text-xs bg-primary/5 shrink-0"
+          className="border-t border-primary/30 px-4 py-2 flex items-center gap-2 text-xs bg-primary/10 text-foreground shrink-0 shadow-sm"
+          role="region"
+          aria-label="Bulk actions"
           data-testid="bulk-actions-bar"
         >
-          <span className="text-muted-foreground font-medium">{selectedRows.length} selected</span>
-          <div className="flex items-center gap-1 ml-2">
-            {schema.bulkActions.map((action: any) => (
-              <Button
-                key={action}
-                variant="outline"
-                size="sm"
-                className="h-6 px-2 text-xs"
-                onClick={() => props.onBulkAction?.(action, selectedRows)}
-                data-testid={`bulk-action-${action}`}
-              >
-                {formatActionLabel(action)}
-              </Button>
-            ))}
+          <CheckSquare className="h-3.5 w-3.5 text-primary shrink-0" />
+          <span className="font-medium">
+            {selectedRows.length} {selectedRows.length === 1 ? 'item' : 'items'} selected
+          </span>
+          <div className="flex items-center gap-1.5 ml-3">
+            {schema.bulkActions.map((action: any) => {
+              const actionStr = String(action).toLowerCase();
+              const isDestructive = actionStr.includes('delete') || actionStr.includes('remove') || actionStr.includes('destroy');
+              const Icon = isDestructive ? Trash2 : null;
+              return (
+                <Button
+                  key={action}
+                  variant={isDestructive ? 'destructive' : 'outline'}
+                  size="sm"
+                  className="h-7 px-2.5 text-xs gap-1.5"
+                  onClick={() => props.onBulkAction?.(action, selectedRows)}
+                  data-testid={`bulk-action-${action}`}
+                >
+                  {Icon && <Icon className="h-3 w-3" />}
+                  {formatActionLabel(action)}
+                </Button>
+              );
+            })}
           </div>
           <Button
             variant="ghost"
             size="sm"
-            className="h-6 px-2 text-xs ml-auto"
+            className="h-7 px-2 text-xs ml-auto gap-1"
             onClick={() => setSelectedRows([])}
           >
+            <X className="h-3 w-3" />
             Clear
           </Button>
         </div>
@@ -1778,30 +1802,43 @@ export const ListView = React.forwardRef<ListViewHandle, ListViewProps>(({
       {/* Record count status bar (Airtable-style) */}
       {!loading && data.length > 0 && schema.showRecordCount !== false && (
         <div
-          className="border-t px-4 py-1.5 flex items-center gap-2 text-xs text-muted-foreground bg-background shrink-0"
+          className="border-t px-4 py-2 flex items-center gap-3 text-xs text-muted-foreground bg-background shrink-0"
           data-testid="record-count-bar"
         >
-          <span>{data.length === 1 ? t('list.recordCountOne', { count: data.length }) : t('list.recordCount', { count: data.length })}</span>
+          <span className="font-medium text-foreground/80">
+            {data.length === 1 ? t('list.recordCountOne', { count: data.length }) : t('list.recordCount', { count: data.length })}
+          </span>
           {dataLimitReached && (
             <span className="text-amber-600" data-testid="data-limit-warning">
               {t('list.dataLimitReached', { limit: effectivePageSize })}
             </span>
           )}
           {schema.pagination?.pageSizeOptions && schema.pagination.pageSizeOptions.length > 0 && (
-            <select
-              className="ml-auto h-6 rounded border border-input bg-background px-1 text-xs"
-              value={effectivePageSize}
-              onChange={(e) => {
-                const newSize = Number(e.target.value);
-                setDynamicPageSize(newSize);
-                if (props.onPageSizeChange) props.onPageSizeChange(newSize);
-              }}
-              data-testid="page-size-selector"
-            >
-              {schema.pagination.pageSizeOptions.map((size: any) => (
-                <option key={size} value={size}>{size} / page</option>
-              ))}
-            </select>
+            <div className="ml-auto flex items-center gap-2">
+              <span>Rows per page</span>
+              <Select
+                value={String(effectivePageSize)}
+                onValueChange={(value) => {
+                  const newSize = Number(value);
+                  setDynamicPageSize(newSize);
+                  if (props.onPageSizeChange) props.onPageSizeChange(newSize);
+                }}
+              >
+                <SelectTrigger
+                  className="h-7 w-[72px] px-2 py-1 text-xs"
+                  data-testid="page-size-selector"
+                >
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {schema.pagination.pageSizeOptions.map((size: any) => (
+                    <SelectItem key={size} value={String(size)} className="text-xs">
+                      {size}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           )}
         </div>
       )}

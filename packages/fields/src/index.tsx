@@ -421,8 +421,9 @@ export function DateTimeCellRenderer({ value }: CellRendererProps): React.ReactE
 
 // Semantic color mapping (auto-detect from value text for priority & status fields)
 // Keys use underscore notation; lookup normalizes spaces/hyphens to underscores automatically.
+// Chinese keys are stored as-is and matched directly (no normalization side-effects).
 const SEMANTIC_COLOR_MAP: Record<string, string> = {
-  // Priority values
+  // Priority values (en)
   critical: 'red',
   urgent: 'red',
   high: 'orange',
@@ -430,7 +431,7 @@ const SEMANTIC_COLOR_MAP: Record<string, string> = {
   normal: 'blue',
   low: 'gray',
   none: 'gray',
-  // Status values
+  // Status values (en)
   paid: 'green',
   completed: 'green',
   done: 'green',
@@ -455,6 +456,52 @@ const SEMANTIC_COLOR_MAP: Record<string, string> = {
   overdue: 'red',
   delivered: 'purple',
   archived: 'indigo',
+  // CRM lifecycle values (en)
+  contacted: 'blue',
+  qualified: 'purple',
+  converted: 'green',
+  won: 'green',
+  lost: 'red',
+  // Priority values (zh)
+  紧急: 'red',
+  严重: 'red',
+  高: 'orange',
+  中: 'yellow',
+  普通: 'blue',
+  低: 'gray',
+  无: 'gray',
+  // Status values (zh)
+  新建: 'gray',
+  草稿: 'gray',
+  待处理: 'yellow',
+  待审核: 'yellow',
+  待联系: 'yellow',
+  挂起: 'yellow',
+  进行中: 'blue',
+  处理中: 'blue',
+  已联系: 'blue',
+  跟进中: 'blue',
+  已发货: 'blue',
+  打开: 'blue',
+  已确认: 'green',
+  已审核: 'green',
+  已通过: 'green',
+  已完成: 'green',
+  已支付: 'green',
+  已签收: 'green',
+  已转化: 'green',
+  成单: 'green',
+  赢得: 'green',
+  已签约: 'green',
+  已交付: 'purple',
+  已归档: 'indigo',
+  已关闭: 'gray',
+  已取消: 'red',
+  已拒绝: 'red',
+  失败: 'red',
+  逾期: 'red',
+  流失: 'red',
+  丢失: 'red',
 };
 
 // Color to Tailwind class mapping for custom Badge styling

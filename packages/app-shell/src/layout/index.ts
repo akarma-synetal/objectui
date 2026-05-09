@@ -9,3 +9,5 @@ export type { ActivityItem } from './ActivityFeed';
 export { LocaleSwitcher } from './LocaleSwitcher';
 export { ModeToggle } from './ModeToggle';
 export { AuthPageLayout } from './AuthPageLayout';
+export { PageHeader } from './PageHeader';
+export type { PageHeaderProps } from './PageHeader';

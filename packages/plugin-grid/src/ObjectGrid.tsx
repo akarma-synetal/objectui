@@ -200,6 +200,14 @@ export const ObjectGrid: React.FC<ObjectGridProps> = ({
   const [rowHeightMode, setRowHeightMode] = useState<'compact' | 'short' | 'medium' | 'tall' | 'extra_tall'>(schema.rowHeight ?? 'compact');
   const [selectedRows, setSelectedRows] = useState<any[]>([]);
 
+  // Sync internal rowHeightMode when schema.rowHeight prop changes (e.g., parent ListView density toggle)
+  React.useEffect(() => {
+    if (schema.rowHeight && schema.rowHeight !== rowHeightMode) {
+      setRowHeightMode(schema.rowHeight);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [schema.rowHeight]);
+
   // Column state persistence (order and widths)
   const columnStorageKey = React.useMemo(() => {
     return schema.id
@@ -1212,17 +1220,35 @@ export const ObjectGrid: React.FC<ObjectGridProps> = ({
   const unpinnedCols = columnsWithActions.filter((c: any) => !c.pinned);
   const hasPinnedColumns = pinnedLeftCols.length > 0 || pinnedRightCols.length > 0;
   const rightPinnedClasses = 'sticky right-0 z-10 bg-background border-l border-border';
+
+  // Density-driven cell padding/font (applied to every column so it actually reaches <td>).
+  const rowHeightCellClass =
+    rowHeightMode === 'compact'
+      ? 'px-3 py-1 text-[13px] leading-tight'
+      : rowHeightMode === 'short'
+        ? 'px-3 py-1 text-[13px] leading-normal'
+        : rowHeightMode === 'tall'
+          ? 'px-3 py-2.5 text-sm'
+          : rowHeightMode === 'extra_tall'
+            ? 'px-3 py-3.5 text-sm leading-relaxed'
+            : 'px-3 py-1.5 text-[13px] leading-normal';
+
+  const applyDensity = (col: any) => ({
+    ...col,
+    cellClassName: [rowHeightCellClass, col.cellClassName].filter(Boolean).join(' '),
+  });
+
   const orderedColumns = hasPinnedColumns
     ? [
-        ...pinnedLeftCols,
-        ...unpinnedCols,
+        ...pinnedLeftCols.map(applyDensity),
+        ...unpinnedCols.map(applyDensity),
         ...pinnedRightCols.map((col: any) => ({
-          ...col,
+          ...applyDensity(col),
           className: [col.className, rightPinnedClasses].filter(Boolean).join(' '),
-          cellClassName: [col.cellClassName, rightPinnedClasses].filter(Boolean).join(' '),
+          cellClassName: [rowHeightCellClass, col.cellClassName, rightPinnedClasses].filter(Boolean).join(' '),
         })),
       ]
-    : columnsWithActions;
+    : columnsWithActions.map(applyDensity);
 
   // Calculate frozenColumns: if pinned columns exist, use left-pinned count; otherwise use schema default
   const effectiveFrozenColumns = hasPinnedColumns
@@ -1531,7 +1557,9 @@ export const ObjectGrid: React.FC<ObjectGridProps> = ({
   const RowHeightIcon = rowHeightIcons[rowHeightMode];
 
   // Grid toolbar (row height toggle + export)
-  const showRowHeightToggle = schema.rowHeight !== undefined;
+  // Hide row-height toggle when parent (e.g., ListView) controls density externally,
+  // signaled by `hideRowHeightToggle` prop on schema.
+  const showRowHeightToggle = schema.rowHeight !== undefined && !(schema as any).hideRowHeightToggle;
   const hasToolbar = schema.exportOptions || showRowHeightToggle;
   const gridToolbar = hasToolbar ? (
     <div className="flex items-center justify-end gap-1 px-2 py-1">

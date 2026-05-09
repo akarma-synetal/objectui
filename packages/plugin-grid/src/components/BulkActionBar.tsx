@@ -8,6 +8,7 @@
 
 import React from 'react';
 import { Button } from '@object-ui/components';
+import { Trash2, CheckSquare, X } from 'lucide-react';
 import { formatActionLabel } from './RowActionMenu';
 
 export interface BulkActionBarProps {
@@ -33,32 +34,42 @@ export const BulkActionBar: React.FC<BulkActionBarProps> = ({
 
   return (
     <div
-      className="border-t px-4 py-1.5 flex items-center gap-2 text-xs bg-primary/5 shrink-0"
+      className="border-t border-primary/30 px-4 py-2 flex items-center gap-2 text-xs bg-primary/10 text-foreground shrink-0 shadow-sm"
+      role="region"
+      aria-label="Bulk actions"
       data-testid="bulk-actions-bar"
     >
-      <span className="text-muted-foreground font-medium">
-        {selectedRows.length} selected
+      <CheckSquare className="h-3.5 w-3.5 text-primary shrink-0" />
+      <span className="font-medium">
+        {selectedRows.length} {selectedRows.length === 1 ? 'item' : 'items'} selected
       </span>
-      <div className="flex items-center gap-1 ml-2">
-        {actions.map(action => (
-          <Button
-            key={action}
-            variant="outline"
-            size="sm"
-            className="h-6 px-2 text-xs"
-            onClick={() => onAction?.(action, selectedRows)}
-            data-testid={`bulk-action-${action}`}
-          >
-            {formatActionLabel(action)}
-          </Button>
-        ))}
+      <div className="flex items-center gap-1.5 ml-3">
+        {actions.map(action => {
+          const actionStr = String(action).toLowerCase();
+          const isDestructive = actionStr.includes('delete') || actionStr.includes('remove') || actionStr.includes('destroy');
+          const Icon = isDestructive ? Trash2 : null;
+          return (
+            <Button
+              key={action}
+              variant={isDestructive ? 'destructive' : 'outline'}
+              size="sm"
+              className="h-7 px-2.5 text-xs gap-1.5"
+              onClick={() => onAction?.(action, selectedRows)}
+              data-testid={`bulk-action-${action}`}
+            >
+              {Icon && <Icon className="h-3 w-3" />}
+              {formatActionLabel(action)}
+            </Button>
+          );
+        })}
       </div>
       <Button
         variant="ghost"
         size="sm"
-        className="h-6 px-2 text-xs ml-auto"
+        className="h-7 px-2 text-xs ml-auto gap-1"
         onClick={onClearSelection}
       >
+        <X className="h-3 w-3" />
         Clear
       </Button>
     </div>

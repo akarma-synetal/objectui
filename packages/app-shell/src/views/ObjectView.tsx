@@ -31,6 +31,7 @@ import type { ListViewSchema, ViewNavigationConfig, FeedItem } from '@object-ui/
 import { MetadataPanel, useMetadataInspector } from './MetadataInspector';
 import { ViewConfigPanel } from './ViewConfigPanel';
 import { CreateViewDialog } from './CreateViewDialog';
+import { PageHeader } from '../layout/PageHeader';
 import { useObjectActions } from '../hooks/useObjectActions';
 import { useObjectTranslation, useObjectLabel } from '@object-ui/i18n';
 import { usePermissions } from '@object-ui/permissions';
@@ -1211,24 +1212,16 @@ export function ObjectView({ dataSource, objects, onEdit }: any) {
         >
         <div className="h-full flex flex-col bg-background min-w-0 overflow-hidden">
              {/* 1. Header with breadcrumb + description */}
-             <div className="flex justify-between items-center py-2.5 sm:py-3 px-3 sm:px-4 border-b shrink-0 bg-background z-10">
-                 <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
-                    <div className="bg-primary/10 p-1.5 sm:p-2 rounded-md shrink-0">
-                        {(() => { const I = getIcon((objectDef as any)?.icon); return <I className="h-4 w-4 text-primary" />; })()}
-                    </div>
-                    <div className="min-w-0">
-                        <h1 className="text-base sm:text-lg font-semibold tracking-tight text-foreground truncate">{objectLabel(objectDef)}</h1>
-                        {objectDef.description && (
-                            <p className="text-xs text-muted-foreground truncate hidden sm:block max-w-md">{objectDesc(objectDef)}</p>
-                        )}
-                    </div>
-                 </div>
-                 
-                 <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+             <PageHeader
+                 title={objectLabel(objectDef)}
+                 description={objectDef.description ? objectDesc(objectDef) : undefined}
+                 icon={(() => { const I = getIcon((objectDef as any)?.icon); return <I className="h-4 w-4" />; })()}
+                 actions={
+                   <>
                     {/* Primary action - always visible */}
                     {can(objectDef.name, 'create') && (
                     <Button size="sm" onClick={actions.create} className="shadow-none gap-1.5 sm:gap-2 h-8 sm:h-9">
-                        <Plus className="h-4 w-4" /> 
+                        <Plus className="h-4 w-4" />
                         <span className="hidden sm:inline">{t('console.objectView.new')}</span>
                     </Button>
                     )}
@@ -1268,8 +1261,9 @@ export function ObjectView({ dataSource, objects, onEdit }: any) {
                        - "Add view"   → use the `+` button on the tab bar or the "Add new view" footer in Manage Views
                        - "Metadata inspector" → still toggleable via the `?__debug` URL flag (see useMetadataInspector)
                     */}
-                 </div>
-             </div>
+                   </>
+                 }
+             />
 
              {/* CSV Import wizard (lazy-loaded) — opened from the toolbar
                  button above. On completion we bump refreshKey to re-fetch
@@ -1381,21 +1375,23 @@ export function ObjectView({ dataSource, objects, onEdit }: any) {
                         title={objectLabel(objectDef)}
                         mainContent={
                             <div className="flex-1 min-w-0 relative h-full flex flex-col">
-                                <div className="flex-1 relative overflow-auto p-3 sm:p-4">
-                                    <PluginObjectView
-                                        schema={objectViewSchema}
-                                        dataSource={dataSource}
-                                        views={mergedViews}
-                                        activeViewId={activeViewId}
-                                        onViewChange={handleViewChange}
-                                        onEdit={(record: any) => onEdit?.(record)}
-                                        onRowClick={(record: any) => {
-                                            navOverlay.handleClick(record);
-                                        }}
-                                        renderListView={renderListView}
-                                        onCreateView={handleCreateView}
-                                        onViewAction={handleViewAction}
-                                    />
+                                <div className="flex-1 relative overflow-hidden p-3 sm:p-4">
+                                    <div className="h-full overflow-auto rounded-lg border bg-card shadow-xs">
+                                        <PluginObjectView
+                                            schema={objectViewSchema}
+                                            dataSource={dataSource}
+                                            views={mergedViews}
+                                            activeViewId={activeViewId}
+                                            onViewChange={handleViewChange}
+                                            onEdit={(record: any) => onEdit?.(record)}
+                                            onRowClick={(record: any) => {
+                                                navOverlay.handleClick(record);
+                                            }}
+                                            renderListView={renderListView}
+                                            onCreateView={handleCreateView}
+                                            onViewAction={handleViewAction}
+                                        />
+                                    </div>
                                 </div>
                                 {typeof recordCount === 'number' && (
                                     <div data-testid="record-count-footer" className="border-t px-3 sm:px-4 py-1.5 text-xs text-muted-foreground bg-muted/5 shrink-0">
@@ -1419,21 +1415,23 @@ export function ObjectView({ dataSource, objects, onEdit }: any) {
                     </NavigationOverlay>
                 ) : (
                 <div className="flex-1 min-w-0 relative h-full flex flex-col">
-                    <div className="flex-1 relative overflow-auto p-3 sm:p-4">
-                        <PluginObjectView
-                            schema={objectViewSchema}
-                            dataSource={dataSource}
-                            views={mergedViews}
-                            activeViewId={activeViewId}
-                            onViewChange={handleViewChange}
-                            onEdit={(record: any) => onEdit?.(record)}
-                            onRowClick={(record: any) => {
-                                navOverlay.handleClick(record);
-                            }}
-                            renderListView={renderListView}
-                            onCreateView={handleCreateView}
-                            onViewAction={handleViewAction}
-                        />
+                    <div className="flex-1 relative overflow-hidden p-3 sm:p-4">
+                        <div className="h-full overflow-auto rounded-lg border bg-card shadow-xs">
+                            <PluginObjectView
+                                schema={objectViewSchema}
+                                dataSource={dataSource}
+                                views={mergedViews}
+                                activeViewId={activeViewId}
+                                onViewChange={handleViewChange}
+                                onEdit={(record: any) => onEdit?.(record)}
+                                onRowClick={(record: any) => {
+                                    navOverlay.handleClick(record);
+                                }}
+                                renderListView={renderListView}
+                                onCreateView={handleCreateView}
+                                onViewAction={handleViewAction}
+                            />
+                        </div>
                     </div>
                     {/* Record count footer removed — ListView already renders record-count-bar */}
                 </div>

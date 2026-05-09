@@ -67,6 +67,8 @@ import {
   Settings2,
   ChevronDown,
   ListOrdered,
+  Filter as FilterIcon,
+  ArrowUpDown,
 } from 'lucide-react';
 import {
   DndContext,
@@ -469,9 +471,10 @@ export const ViewTabBar: React.FC<ViewTabBarProps> = ({
             <TooltipTrigger asChild>
               <span
                 data-testid={`view-tab-indicator-${view.id}`}
-                className="ml-1 inline-flex items-center justify-center h-4 min-w-[16px] rounded-full bg-primary/15 text-[10px] font-medium text-primary px-1 shrink-0"
+                className="ml-1 inline-flex items-center gap-0.5 h-4 px-1 rounded-full bg-primary/10 text-primary shrink-0"
               >
-                {[view.hasActiveFilters && 'F', view.hasActiveSort && 'S'].filter(Boolean).join('')}
+                {view.hasActiveFilters && <FilterIcon className="h-2.5 w-2.5" />}
+                {view.hasActiveSort && <ArrowUpDown className="h-2.5 w-2.5" />}
               </span>
             </TooltipTrigger>
             <TooltipContent side="bottom" className="text-xs">
@@ -805,8 +808,9 @@ export const ViewTabBar: React.FC<ViewTabBarProps> = ({
                     <ViewIcon className="h-4 w-4 mr-2" />
                     {view.label}
                     {showIndicators && (view.hasActiveFilters || view.hasActiveSort) && (
-                      <span className="ml-auto inline-flex items-center justify-center h-4 min-w-[16px] rounded-full bg-primary/15 text-[10px] font-medium text-primary px-1">
-                        {[view.hasActiveFilters && 'F', view.hasActiveSort && 'S'].filter(Boolean).join('')}
+                      <span className="ml-auto inline-flex items-center gap-0.5 h-4 px-1 rounded-full bg-primary/10 text-primary">
+                        {view.hasActiveFilters && <FilterIcon className="h-2.5 w-2.5" />}
+                        {view.hasActiveSort && <ArrowUpDown className="h-2.5 w-2.5" />}
                       </span>
                     )}
                   </DropdownMenuItem>
