@@ -106,10 +106,10 @@ export const MetricWidget = ({
           <>
             <div className="text-2xl font-bold truncate">{value}</div>
             {(trend || description) && (
-              <p className="text-xs text-muted-foreground flex items-center mt-1 truncate">
+              <div className="text-xs text-muted-foreground mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 min-w-0">
                 {trend && (
                   <span className={cn(
-                    "flex items-center mr-2 shrink-0 font-medium",
+                    "flex items-center shrink-0 font-medium",
                     trend.direction === 'up' && "text-emerald-600 dark:text-emerald-400",
                     trend.direction === 'down' && "text-rose-600 dark:text-rose-400",
                     trend.direction === 'neutral' && "text-muted-foreground"
@@ -120,8 +120,8 @@ export const MetricWidget = ({
                     {trend.value}%
                   </span>
                 )}
-                <span className="truncate">{resolveLabel(description) || resolveLabel(trend?.label)}</span>
-              </p>
+                <span className="truncate min-w-0">{resolveLabel(description) || resolveLabel(trend?.label)}</span>
+              </div>
             )}
           </>
         )}
