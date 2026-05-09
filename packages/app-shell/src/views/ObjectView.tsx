@@ -9,7 +9,7 @@
  * - ListView delegation for non-grid view types (kanban, calendar, chart, etc.)
  */
 
-import { useMemo, useState, useCallback, useEffect, lazy, Suspense, type ComponentType } from 'react';
+import { useMemo, useState, useCallback, useEffect, useRef, lazy, Suspense, type ComponentType } from 'react';
 import { useParams, useSearchParams, useNavigate } from 'react-router-dom';
 const ObjectChart = lazy(() =>
   import('@object-ui/plugin-charts').then((m) => ({ default: m.ObjectChart })),
@@ -262,7 +262,40 @@ export function ObjectView({ dataSource, objects, onEdit }: any) {
     
     // Draft state for view config edits — cached locally, saved on demand
     const [viewDraft, setViewDraft] = useState<Record<string, any> | null>(null);
-    
+
+    // Per-view debounce timers + latest pending patch payloads. Keyed by
+    // viewId so toggles on different views don't clobber each other. We
+    // merge incoming patches into a single payload so rapid successive
+    // toggles (e.g. resize-drag emitting 60 events/sec) collapse into one
+    // network write.
+    const persistTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+    const persistPending = useRef<Record<string, Record<string, any>>>({});
+    const persistViewPatch = useCallback(
+        (viewIdLocal: string, baseViewDef: Record<string, any>, patch: Record<string, any>) => {
+            if (!dataSource?.updateViewConfig || !objectName || !viewIdLocal) return;
+            // Merge into pending payload — every key present is the latest
+            // value the user intended.
+            const prev = persistPending.current[viewIdLocal] || {};
+            persistPending.current[viewIdLocal] = { ...prev, ...patch };
+            const existing = persistTimers.current[viewIdLocal];
+            if (existing) clearTimeout(existing);
+            persistTimers.current[viewIdLocal] = setTimeout(() => {
+                const merged = persistPending.current[viewIdLocal] || {};
+                delete persistPending.current[viewIdLocal];
+                delete persistTimers.current[viewIdLocal];
+                Promise.resolve(
+                    dataSource.updateViewConfig(objectName, viewIdLocal, {
+                        ...baseViewDef,
+                        ...merged,
+                    })
+                ).catch((err: any) => {
+                    console.error('[ObjectView] Failed to persist view config:', err);
+                });
+            }, 300);
+        },
+        [dataSource, objectName]
+    );
+
     const handleViewConfigSave = useCallback((draft: Record<string, any>) => {
         setViewDraft(draft);
         setRefreshKey(k => k + 1);
@@ -1074,22 +1107,28 @@ export function ObjectView({ dataSource, objects, onEdit }: any) {
             // Propagate appearance/view-config properties for live preview
             rowHeight: viewDef.rowHeight ?? listSchema.rowHeight,
             densityMode: viewDef.densityMode ?? listSchema.densityMode,
-            // Persist density toggle changes to the active view definition
-            // so the preference survives reload and is per-view (matches
-            // Airtable behaviour). Falls back silently if the data source
-            // does not expose updateViewConfig.
+            // Hydrate persisted user preferences so they survive reload
+            // (Airtable-style per-view personal config). All four below go
+            // through the same persistViewPatch helper which debounces and
+            // batches concurrent toggles.
+            sort: (viewDef as any).sort ?? listSchema.sort,
+            filter: (viewDef as any).filter ?? listSchema.filter,
+            hiddenFields: (viewDef as any).hiddenFields ?? listSchema.hiddenFields,
+            columnState: (viewDef as any).columnState ?? (listSchema as any).columnState,
             onDensityChange: (mode) => {
-                if (!dataSource?.updateViewConfig || !viewDef.id) return;
-                const objName = objectName;
-                if (!objName) return;
-                Promise.resolve(
-                    dataSource.updateViewConfig(objName, viewDef.id, {
-                        ...viewDef,
-                        densityMode: mode,
-                    })
-                ).catch((err: any) => {
-                    console.error('[ObjectView] Failed to persist densityMode:', err);
-                });
+                persistViewPatch(viewDef.id, viewDef, { densityMode: mode });
+            },
+            onSortChange: (sort: any) => {
+                persistViewPatch(viewDef.id, viewDef, { sort });
+            },
+            onFilterChange: (filter: any) => {
+                persistViewPatch(viewDef.id, viewDef, { filter });
+            },
+            onHiddenFieldsChange: (hidden: string[]) => {
+                persistViewPatch(viewDef.id, viewDef, { hiddenFields: hidden });
+            },
+            onColumnStateChange: (state: { order?: string[]; widths?: Record<string, number> }) => {
+                persistViewPatch(viewDef.id, viewDef, { columnState: state });
             },
             inlineEdit: viewDef.inlineEdit ?? viewDef.editRecordsInline ?? listSchema.inlineEdit,
             appearance: viewDef.showDescription != null
@@ -1124,7 +1163,6 @@ export function ObjectView({ dataSource, objects, onEdit }: any) {
             searchableFields: viewDef.searchableFields ?? listSchema.searchableFields,
             filterableFields: viewDef.filterableFields ?? listSchema.filterableFields,
             resizable: viewDef.resizable ?? listSchema.resizable,
-            hiddenFields: viewDef.hiddenFields ?? listSchema.hiddenFields,
             rowActions: viewDef.rowActions ?? listSchema.rowActions,
             bulkActions: viewDef.bulkActions ?? listSchema.bulkActions,
             sharing: viewDef.sharing ?? listSchema.sharing,

@@ -219,6 +219,10 @@ export const ObjectGrid: React.FC<ObjectGridProps> = ({
     order?: string[];
     widths?: Record<string, number>;
   }>(() => {
+    // Priority: 1) externally provided (e.g. persisted view override),
+    // 2) localStorage (per-browser fallback), 3) empty.
+    const fromProps = (schema as any).columnState;
+    if (fromProps && typeof fromProps === 'object') return fromProps;
     try {
       const saved = localStorage.getItem(columnStorageKey);
       return saved ? JSON.parse(saved) : {};
@@ -227,6 +231,21 @@ export const ObjectGrid: React.FC<ObjectGridProps> = ({
     }
   });
 
+  // Sync when external columnState changes (e.g. switching views, reload pulls
+  // a saved override from the server). Wrapped in a stable string key to
+  // avoid re-renders when the parent passes a fresh-but-equal object.
+  const externalColumnStateKey = React.useMemo(
+    () => JSON.stringify((schema as any).columnState ?? null),
+    [(schema as any).columnState]
+  );
+  React.useEffect(() => {
+    const fromProps = (schema as any).columnState;
+    if (fromProps && typeof fromProps === 'object') {
+      setColumnState(fromProps);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [externalColumnStateKey]);
+
   const saveColumnState = useCallback((state: typeof columnState) => {
     setColumnState(state);
     try {
@@ -234,7 +253,12 @@ export const ObjectGrid: React.FC<ObjectGridProps> = ({
     } catch (e) {
       console.warn('Failed to persist column state:', e);
     }
-  }, [columnStorageKey]);
+    // Notify parent so it can persist via dataSource.updateViewConfig.
+    const onChange = (rest as any).onColumnStateChange;
+    if (typeof onChange === 'function') {
+      try { onChange(state); } catch (e) { console.warn('onColumnStateChange threw:', e); }
+    }
+  }, [columnStorageKey, rest]);
 
   const handlePullRefresh = useCallback(async () => {
     setRefreshKey(k => k + 1);

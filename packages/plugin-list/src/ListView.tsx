@@ -29,6 +29,10 @@ export interface ListViewProps {
   onFilterChange?: (filters: any) => void;
   onSortChange?: (sort: any) => void;
   onSearchChange?: (search: string) => void;
+  /** Called when the user toggles fields via the Hide Fields popover. */
+  onHiddenFieldsChange?: (hidden: string[]) => void;
+  /** Called when the user resizes/reorders columns in the underlying grid. */
+  onColumnStateChange?: (state: { order?: string[]; widths?: Record<string, number> }) => void;
   /** Callback when a row/item is clicked (overrides NavigationConfig) */
   onRowClick?: (record: Record<string, unknown>) => void;
   /** Show view type switcher (Grid/Kanban/etc). Default: false (view type is fixed) */
@@ -297,6 +301,8 @@ export const ListView = React.forwardRef<ListViewHandle, ListViewProps>(({
   onFilterChange,
   onSortChange,
   onSearchChange,
+  onHiddenFieldsChange,
+  onColumnStateChange,
   onRowClick,
   showViewSwitcher = false,
   ...props
@@ -365,8 +371,39 @@ export const ListView = React.forwardRef<ListViewHandle, ListViewProps>(({
     return [];
   });
 
+  // Sync when parent schema.sort changes (view switch / reload pulls a
+  // saved override). Compare by stringified payload to avoid render loops.
+  const schemaSortKey = React.useMemo(
+    () => JSON.stringify(schema.sort || []),
+    [schema.sort]
+  );
+  React.useEffect(() => {
+    if (schema.sort && schema.sort.length > 0) {
+      setCurrentSort(
+        schema.sort.map((s: any) => {
+          if (typeof s === 'string') {
+            const parts = s.trim().split(/\s+/);
+            return {
+              id: crypto.randomUUID(),
+              field: parts[0],
+              order: (parts[1]?.toLowerCase() === 'desc' ? 'desc' : 'asc') as 'asc' | 'desc',
+            };
+          }
+          return {
+            id: crypto.randomUUID(),
+            field: s.field,
+            order: (s.order as 'asc' | 'desc') || 'asc',
+          };
+        })
+      );
+    } else {
+      setCurrentSort([]);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [schemaSortKey]);
+
   const [showFilters, setShowFilters] = React.useState(false);
-  
+
   const [currentFilters, setCurrentFilters] = React.useState<FilterGroup>({
     id: 'root',
     logic: 'and',
@@ -524,6 +561,25 @@ export const ListView = React.forwardRef<ListViewHandle, ListViewProps>(({
   // Hidden Fields State (initialized from schema)
   const [hiddenFields, setHiddenFields] = React.useState<Set<string>>(
     () => new Set(schema.hiddenFields || [])
+  );
+  // Sync when parent schema changes (e.g. switching between views, reload
+  // pulls a saved override). Wrapped in JSON to avoid Set identity churn.
+  const schemaHiddenKey = React.useMemo(
+    () => JSON.stringify(schema.hiddenFields || []),
+    [schema.hiddenFields]
+  );
+  React.useEffect(() => {
+    setHiddenFields(new Set(schema.hiddenFields || []));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [schemaHiddenKey]);
+
+  // Setter that also notifies parent for persistence (debounced upstream).
+  const updateHiddenFields = React.useCallback(
+    (next: Set<string>) => {
+      setHiddenFields(next);
+      onHiddenFieldsChange?.(Array.from(next));
+    },
+    [onHiddenFieldsChange]
   );
   const [showHideFields, setShowHideFields] = React.useState(false);
 
@@ -970,6 +1026,11 @@ export const ListView = React.forwardRef<ListViewHandle, ListViewProps>(({
       // Forward display properties to child views
       ...(schema.striped != null ? { striped: schema.striped } : {}),
       ...(schema.bordered != null ? { bordered: schema.bordered } : {}),
+      // Forward column-state callback (resize/reorder) so a parent can
+      // persist user adjustments alongside the view definition.
+      ...(onColumnStateChange ? { onColumnStateChange } : {}),
+      // Hydrate child grid with previously persisted column state.
+      ...(schema.columnState ? { columnState: schema.columnState } : {}),
     };
 
     switch (currentView) {
@@ -1289,7 +1350,7 @@ export const ListView = React.forwardRef<ListViewHandle, ListViewProps>(({
                 <div className="flex items-center justify-between border-b pb-2">
                   <h4 className="font-medium text-sm">{t('list.hideFieldsTitle')}</h4>
                   {hiddenFields.size > 0 && (
-                    <Button variant="ghost" size="sm" className="h-6 px-2 text-xs" onClick={() => setHiddenFields(new Set())}>
+                    <Button variant="ghost" size="sm" className="h-6 px-2 text-xs" onClick={() => updateHiddenFields(new Set())}>
                       {t('list.showAll')}
                     </Button>
                   )}
@@ -1301,15 +1362,13 @@ export const ListView = React.forwardRef<ListViewHandle, ListViewProps>(({
                         type="checkbox"
                         checked={!hiddenFields.has(field.name)}
                         onChange={() => {
-                          setHiddenFields(prev => {
-                            const next = new Set(prev);
-                            if (next.has(field.name)) {
-                              next.delete(field.name);
-                            } else {
-                              next.add(field.name);
-                            }
-                            return next;
-                          });
+                          const next = new Set(hiddenFields);
+                          if (next.has(field.name)) {
+                            next.delete(field.name);
+                          } else {
+                            next.add(field.name);
+                          }
+                          updateHiddenFields(next);
                         }}
                         className="rounded border-input"
                       />
