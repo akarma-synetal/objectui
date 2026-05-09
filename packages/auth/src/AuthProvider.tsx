@@ -12,54 +12,6 @@ import { AuthCtx, type AuthContextValue } from './AuthContext';
 import { createAuthClient } from './createAuthClient';
 import { ActiveOrganizationStorage } from './createAuthenticatedFetch';
 
-/**
- * Resolve the data-API base URL by replacing the trailing `/auth` segment of
- * `authUrl` with `/data`. Falls back to `/api/v1/data` when authUrl is missing
- * or malformed so we never throw inside the auth flow.
- */
-function resolveDataBaseUrl(authUrl: string | undefined): string {
-  if (!authUrl) return '/api/v1/data';
-  return authUrl.replace(/\/auth\/?$/, '/data');
-}
-
-/**
- * Probe `sys_user_permission_set` + `sys_permission_set` to determine if `user`
- * holds platform admin (admin_full_access with organization_id = null).
- * Returns `user` augmented with `role: 'admin'` when it does, otherwise
- * returns `user` unchanged. Silently no-ops on any error.
- */
-async function augmentUserWithRole(authUrl: string | undefined, user: AuthUser): Promise<AuthUser> {
-  if (!user?.id || user.role) return user;
-  const dataBase = resolveDataBaseUrl(authUrl);
-  try {
-    const where = encodeURIComponent(JSON.stringify({ user_id: user.id }));
-    const linksRes = await fetch(`${dataBase}/sys_user_permission_set?where=${where}&limit=50`, {
-      credentials: 'include',
-    });
-    if (!linksRes.ok) return user;
-    const linksJson = await linksRes.json();
-    const links: Array<{ permission_set_id: string; organization_id: string | null }> =
-      linksJson?.records ?? [];
-    const platformLinks = links.filter((l) => !l.organization_id);
-    if (platformLinks.length === 0) return user;
-
-    const setsRes = await fetch(`${dataBase}/sys_permission_set?limit=50`, {
-      credentials: 'include',
-    });
-    if (!setsRes.ok) return user;
-    const setsJson = await setsRes.json();
-    const adminSet = (setsJson?.records ?? []).find(
-      (r: { id: string; name: string }) => r.name === 'admin_full_access',
-    );
-    if (!adminSet) return user;
-    const isPlatformAdmin = platformLinks.some((l) => l.permission_set_id === adminSet.id);
-    if (!isPlatformAdmin) return user;
-    return { ...user, role: 'admin', roles: [...(user.roles ?? []), 'admin'] };
-  } catch {
-    return user;
-  }
-}
-
 export interface AuthProviderProps extends AuthProviderConfig {
   children: React.ReactNode;
   /**
@@ -182,13 +134,7 @@ export function AuthProvider({
         const result = await client.getSession();
         if (cancelled) return;
         if (result) {
-          // better-auth's user payload doesn't include a `role` field. Platform
-          // admin status lives in `sys_user_permission_set` rows that point at
-          // the `admin_full_access` permission set with `organization_id = null`.
-          // Probe both tables once and synthesize `user.role = 'admin'` so the
-          // frontend `isAdmin` gates (e.g. ObjectView's view-config menu) work.
-          const augmentedUser = await augmentUserWithRole(authUrl, result.user);
-          setUser(augmentedUser);
+          setUser(result.user);
           setSession(result.session);
         }
       } catch (err) {
@@ -203,7 +149,7 @@ export function AuthProvider({
 
     loadSession();
     return () => { cancelled = true; };
-  }, [client, enabled, isPreviewMode, previewMode, authUrl]);
+  }, [client, enabled, isPreviewMode, previewMode]);
 
   // Notify on auth state changes
   useEffect(() => {
@@ -222,8 +168,7 @@ export function AuthProvider({
       setError(null);
       try {
         const result = await client.signIn({ email, password });
-        const augmentedUser = await augmentUserWithRole(authUrl, result.user);
-        setUser(augmentedUser);
+        setUser(result.user);
         setSession(result.session);
       } catch (err) {
         const authError = err instanceof Error ? err : new Error(String(err));
@@ -233,7 +178,7 @@ export function AuthProvider({
         setIsLoading(false);
       }
     },
-    [client, authUrl],
+    [client],
   );
 
   const signUp = useCallback(
@@ -242,8 +187,7 @@ export function AuthProvider({
       setError(null);
       try {
         const result = await client.signUp({ name, email, password });
-        const augmentedUser = await augmentUserWithRole(authUrl, result.user);
-        setUser(augmentedUser);
+        setUser(result.user);
         setSession(result.session);
       } catch (err) {
         const authError = err instanceof Error ? err : new Error(String(err));
@@ -253,7 +197,7 @@ export function AuthProvider({
         setIsLoading(false);
       }
     },
-    [client, authUrl],
+    [client],
   );
 
   const signOut = useCallback(async () => {
