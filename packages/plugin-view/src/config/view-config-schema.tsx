@@ -209,23 +209,50 @@ export interface ViewSchemaFactoryOptions {
 }
 
 /** Section keys considered "essential" — rendered in simple mode.
- * Airtable parity: the top 3 (general / data / appearance) are the daily-use
- * categories and are surfaced expanded by default; the rest are kept available
- * but render collapsed so the panel feels lightweight at first glance.
+ *
+ * Airtable parity: only the three daily-use categories are surfaced. Power
+ * sections (toolbar toggles, user actions, navigation mode, export/print,
+ * sharing, accessibility) are accessible via the "Show advanced settings"
+ * toggle, but hidden by default to keep the panel approachable.
  */
 export const ESSENTIAL_SECTION_KEYS = [
     'general',     // Title / description / icon / view type
     'data',        // Filter / sort / group / columns / type-specific config
     'appearance',  // Row density / color field / conditional formatting
-    'toolbar',     // Search / filter / sort toggles
-    'userActions', // Inline edit / add-delete records
-    'navigation',  // Open record behavior
-    'exportPrint', // Export / print
 ] as const;
 
-/** Subset of essential sections that are expanded by default — the rest stay
- * collapsed to keep the panel scannable. */
+/** Subset of essential sections that are expanded by default. With the trimmed
+ * list above this is now equal to ESSENTIAL_SECTION_KEYS — kept as a separate
+ * constant to preserve the public export contract. */
 export const PRIMARY_SECTION_KEYS = ['general', 'data', 'appearance'] as const;
+
+/**
+ * Fields rendered in `essentialOnly` mode within the **Data** section.
+ * Mirrors Airtable's right-rail: the source object label, columns/fields,
+ * filter, sort, group, and view-type-specific options. Pagination,
+ * searchable/filterable/hidden fields, quick filters, and user filters are
+ * all advanced and require toggling "Show advanced settings".
+ */
+const ESSENTIAL_DATA_FIELD_KEYS = new Set<string>([
+    '_source',
+    '_columns',
+    '_filterBy',
+    '_sortBy',
+    '_grouping',
+    '_typeOptions',
+]);
+
+/**
+ * Fields rendered in `essentialOnly` mode within the **Appearance** section.
+ * Color, row height, and conditional formatting cover ~95% of real usage;
+ * stripes/borders/wrap headers/resizable/showDescription/emptyState are
+ * cosmetic edge cases gated behind "Show advanced settings".
+ */
+const ESSENTIAL_APPEARANCE_FIELD_KEYS = new Set<string>([
+    'color',
+    'rowHeight',
+    '_conditionalFormatting',
+]);
 
 // ---------------------------------------------------------------------------
 // View-type visibility predicates
@@ -290,11 +317,24 @@ export function buildViewConfigSchema(opts: ViewSchemaFactoryOptions): ConfigPan
         ? allSections
               .filter(s => (ESSENTIAL_SECTION_KEYS as readonly string[]).includes(s.key))
               .map(s => {
-                  // Force non-primary sections to render collapsed so the panel
-                  // looks Airtable-light at first glance. Power users can still
-                  // expand them as needed.
-                  if (!(PRIMARY_SECTION_KEYS as readonly string[]).includes(s.key)) {
-                      return { ...s, collapsible: true, defaultCollapsed: true };
+                  // Field-level whitelist: in essential mode, only the most
+                  // common fields render in data/appearance. Other sections
+                  // (currently just 'general') keep all their fields.
+                  if (s.key === 'data') {
+                      return {
+                          ...s,
+                          fields: s.fields.filter(f => ESSENTIAL_DATA_FIELD_KEYS.has(f.key)),
+                      };
+                  }
+                  if (s.key === 'appearance') {
+                      return {
+                          ...s,
+                          // Keep appearance expanded by default in essential
+                          // mode (it's now small enough — 3 controls).
+                          collapsible: true,
+                          defaultCollapsed: false,
+                          fields: s.fields.filter(f => ESSENTIAL_APPEARANCE_FIELD_KEYS.has(f.key)),
+                      };
                   }
                   return s;
               })

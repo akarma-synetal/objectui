@@ -730,6 +730,8 @@ const en = {
       importedWithSkipped: 'Imported {{ok}} row(s); skipped {{skipped}}.',
       configureView: 'Configure View',
       closePanel: 'Close panel',
+      showAdvancedSettings: 'Show advanced settings',
+      showFewerSettings: 'Show fewer settings',
       page: 'Page',
       pageConfigHint: 'Toolbar, navigation & view shell settings',
       listConfigHint: 'Data rendering, columns & appearance for this list type',

@@ -12,8 +12,9 @@
  * the draft via onSave; Discard resets to the original activeView.
  */
 
-import { useMemo, useEffect, useRef, useCallback } from 'react';
-import { ConfigPanelRenderer, useConfigDraft } from '@object-ui/components';
+import { useMemo, useEffect, useRef, useCallback, useState } from 'react';
+import { ConfigPanelRenderer, useConfigDraft, Button } from '@object-ui/components';
+import { Settings2 } from 'lucide-react';
 import { useObjectTranslation } from '@object-ui/i18n';
 import {
   buildViewConfigSchema,
@@ -73,6 +74,15 @@ export function ViewConfigPanel({ open, onClose, mode = 'edit', activeView, obje
     const { t } = useObjectTranslation();
     const panelRef = useRef<HTMLDivElement>(null);
 
+    // "Show advanced settings" — when false (default), the panel only shows
+    // the Airtable-essential subset. When true, every section/field is
+    // surfaced for power users. Reset whenever the panel closes so reopening
+    // returns to the simplified view.
+    const [showAdvanced, setShowAdvanced] = useState(false);
+    useEffect(() => {
+        if (!open) setShowAdvanced(false);
+    }, [open]);
+
     // Default empty view for create mode
     const defaultNewView = useMemo(() => ({
         id: `view_${Date.now()}`,
@@ -116,7 +126,8 @@ export function ViewConfigPanel({ open, onClose, mode = 'edit', activeView, obje
     const filterGroupValue = useMemo(() => toFilterGroup(draft.filter), [draft.filter]);
     const sortItemsValue = useMemo(() => toSortItems(draft.sort), [draft.sort]);
 
-    // Build schema — always essentials-only (Airtable-style focused layout).
+    // Build schema. essentialOnly is the default; the user can opt-in to the
+    // full advanced surface via the "Show advanced settings" toggle below.
     const schema = useMemo(
         () => buildViewConfigSchema({
             t,
@@ -125,9 +136,9 @@ export function ViewConfigPanel({ open, onClose, mode = 'edit', activeView, obje
             updateField,
             filterGroupValue,
             sortItemsValue,
-            essentialOnly: true,
+            essentialOnly: !showAdvanced,
         }),
-        [t, fieldOptions, objectDef, updateField, filterGroupValue, sortItemsValue],
+        [t, fieldOptions, objectDef, updateField, filterGroupValue, sortItemsValue, showAdvanced],
     );
 
     // Override breadcrumb with dynamic view type
@@ -160,6 +171,28 @@ export function ViewConfigPanel({ open, onClose, mode = 'edit', activeView, obje
         ? t('console.objectView.createView')
         : t('console.objectView.configureView');
 
+    // Header-extra: "Show advanced" toggle button. Subtle gear icon button
+    // sitting next to undo/redo/close — clearly affordant but not visually
+    // dominant. Title swaps between "Show advanced settings" and "Show fewer
+    // settings" so the user always knows what the next click will do.
+    const advancedToggle = (
+        <Button
+            size="sm"
+            variant={showAdvanced ? 'secondary' : 'ghost'}
+            onClick={() => setShowAdvanced(v => !v)}
+            className="h-7 w-7 p-0"
+            data-testid="view-config-advanced-toggle"
+            aria-pressed={showAdvanced}
+            title={
+                showAdvanced
+                    ? t('console.objectView.showFewerSettings', { defaultValue: 'Show fewer settings' })
+                    : t('console.objectView.showAdvancedSettings', { defaultValue: 'Show advanced settings' })
+            }
+        >
+            <Settings2 className="h-3.5 w-3.5" />
+        </Button>
+    );
+
     return (
         <ConfigPanelRenderer
             open={open}
@@ -188,6 +221,7 @@ export function ViewConfigPanel({ open, onClose, mode = 'edit', activeView, obje
             footerTestId="view-config-footer"
             saveTestId="view-config-save"
             discardTestId="view-config-discard"
+            headerExtra={advancedToggle}
             className="transition-all overflow-hidden"
         />
     );

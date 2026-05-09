@@ -730,6 +730,8 @@ const zh = {
       importedWithSkipped: '已导入 {{ok}} 行；跳过 {{skipped}} 行。',
       configureView: '配置视图',
       closePanel: '关闭面板',
+      showAdvancedSettings: '显示高级设置',
+      showFewerSettings: '显示精简设置',
       page: '页面',
       pageConfigHint: '工具栏、导航与视图外壳设置',
       listConfigHint: '此列表类型的数据渲染、列与外观',
