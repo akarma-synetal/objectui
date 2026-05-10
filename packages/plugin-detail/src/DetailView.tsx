@@ -25,7 +25,6 @@ import {
   ArrowLeft, 
   Edit, 
   Star,
-  StarOff,
   Check,
   ChevronLeft,
   ChevronRight,
@@ -734,7 +733,7 @@ export const DetailView: React.FC<DetailViewProps> = ({
                       {isFavorite ? (
                         <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
                       ) : (
-                        <StarOff className="h-4 w-4 text-muted-foreground" />
+                        <Star className="h-4 w-4 text-muted-foreground" />
                       )}
                     </Button>
                   </TooltipTrigger>

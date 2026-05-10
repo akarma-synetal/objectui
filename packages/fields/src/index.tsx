@@ -351,7 +351,7 @@ export function BooleanCellRenderer({ value, field }: CellRendererProps): React.
   }
 
   return (
-    <div className="flex items-center justify-center">
+    <div className="flex items-center justify-start">
       <Checkbox checked={!!value} disabled className="pointer-events-none" />
     </div>
   );
