@@ -9,7 +9,7 @@
 import * as React from 'react';
 import { cn, Card, CardContent } from '@object-ui/components';
 import type { HighlightField } from '@object-ui/types';
-import { getCellRenderer } from '@object-ui/fields';
+import { getCellRenderer, resolveCellRendererType } from '@object-ui/fields';
 import { useSafeFieldLabel } from '@object-ui/react';
 
 export interface HeaderHighlightProps {
@@ -67,7 +67,9 @@ export const HeaderHighlight: React.FC<HeaderHighlightProps> = ({
 
             // Use type-aware cell renderer — all renderers coerce values via
             // coerceToSafeValue() so even object/array data is safe (no error #310).
-            const CellRenderer = getCellRenderer(resolvedType || 'text');
+            const CellRenderer = getCellRenderer(
+              resolveCellRendererType(enrichedField as any) || resolvedType || 'text',
+            );
 
             return (
               <div key={field.name} className="flex flex-col gap-0.5">

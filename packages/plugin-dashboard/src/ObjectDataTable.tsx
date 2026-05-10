@@ -11,7 +11,7 @@ import { useDataScope, SchemaRendererContext, SchemaRenderer } from '@object-ui/
 import { extractRecords } from '@object-ui/core';
 import { Skeleton, cn } from '@object-ui/components';
 import { useSafeFieldLabel } from '@object-ui/i18n';
-import { getCellRenderer, formatCurrency, formatPercent, formatDate } from '@object-ui/fields';
+import { getCellRenderer, resolveCellRendererType, formatCurrency, formatPercent, formatDate } from '@object-ui/fields';
 
 export interface ObjectDataTableProps {
   schema: {
@@ -278,7 +278,7 @@ export const ObjectDataTable: React.FC<ObjectDataTableProps> = ({ schema, dataSo
         if (typeof fmt === 'string' && /[YMDHms]/.test(fmt)) {
           return formatDate(value, fmt);
         }
-        const Renderer = getCellRenderer(fieldMeta.type || 'text');
+        const Renderer = getCellRenderer(resolveCellRendererType(fieldMeta as any));
         return <Renderer value={value} field={fieldMeta as any} />;
       };
       return { ...col, ...fieldMeta, cell };

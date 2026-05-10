@@ -25,7 +25,7 @@ import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import type { ObjectGridSchema, DataSource, ListColumn, ViewData } from '@object-ui/types';
 import type { I18nLabel } from '@objectstack/spec/ui';
 import { SchemaRenderer, useDataScope, useNavigationOverlay, useAction, useObjectTranslation, useSafeFieldLabel } from '@object-ui/react';
-import { getCellRenderer, formatCurrency, formatCompactCurrency, formatDate, formatPercent, humanizeLabel } from '@object-ui/fields';
+import { getCellRenderer, resolveCellRendererType, formatCurrency, formatCompactCurrency, formatDate, formatPercent, humanizeLabel } from '@object-ui/fields';
 import {
   Badge, Button, NavigationOverlay, EmptyValue,
   Popover, PopoverContent, PopoverTrigger,
@@ -747,9 +747,15 @@ export const ObjectGrid: React.FC<ObjectGridProps> = ({
               // Build custom cell renderer based on column configuration
               let cellRenderer: ((value: any, row: any) => React.ReactNode) | undefined;
 
-              // Type-based cell renderer: explicit col type > objectDef type > heuristic inference
+              // Type-based cell renderer: explicit col type > objectDef type > heuristic inference.
+              // Format hints (e.g. `text` + `format: 'phone'`) promote to the
+              // richer renderer (PhoneCellRenderer) via resolveCellRendererType.
               const objectDefField = objectSchema?.fields?.[col.field];
-              const inferredType = col.type || objectDefField?.type || inferColumnType({ field: col.field }) || null;
+              const baseInferredType = col.type || objectDefField?.type || inferColumnType({ field: col.field }) || null;
+              const formatHint = (col as any).format ?? objectDefField?.format;
+              const inferredType = baseInferredType
+                ? resolveCellRendererType({ type: baseInferredType, format: formatHint })
+                : null;
               const CellRenderer = inferredType ? getCellRenderer(inferredType) : null;
 
               // Build field metadata for cell renderers with objectDef enrichment

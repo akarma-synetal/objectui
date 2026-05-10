@@ -26,7 +26,7 @@ import {
 } from '@object-ui/components';
 import { ChevronDown, ChevronRight, Copy, Check, Eye, EyeOff } from 'lucide-react';
 import { SchemaRenderer } from '@object-ui/react';
-import { getCellRenderer } from '@object-ui/fields';
+import { getCellRenderer, resolveCellRendererType } from '@object-ui/fields';
 import type { DetailViewSection as DetailViewSectionType, DetailViewField, FieldMetadata } from '@object-ui/types';
 import { applyDetailAutoLayout } from './autoLayout';
 import { useDetailTranslation } from './useDetailTranslation';
@@ -165,7 +165,6 @@ export const DetailSection: React.FC<DetailSectionProps> = ({
       // Enrich field with objectSchema metadata — merge missing properties
       // even when field.type is explicitly set (e.g., type: 'lookup' without reference_to)
       const objectDefField = objectSchema?.fields?.[field.name];
-      const resolvedType = field.type || objectDefField?.type;
       const enrichedField: Record<string, any> = { ...field };
       if (objectDefField) {
         if (!field.type && objectDefField.type) enrichedField.type = objectDefField.type;
@@ -177,7 +176,9 @@ export const DetailSection: React.FC<DetailSectionProps> = ({
         if (refTarget && !enrichedField.reference_to) enrichedField.reference_to = refTarget;
         if (objectDefField.reference_field && !enrichedField.reference_field) enrichedField.reference_field = objectDefField.reference_field;
       }
-      // Use type-aware cell renderer when field type is available (explicit or enriched)
+      // Use type-aware cell renderer; respect format hints (e.g.
+      // text + format: 'phone' → PhoneCellRenderer with tel: link).
+      const resolvedType = resolveCellRendererType(enrichedField as { type?: string; format?: string }) || field.type;
       if (resolvedType) {
         const CellRenderer = getCellRenderer(resolvedType);
         if (CellRenderer) {

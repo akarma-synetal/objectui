@@ -32,7 +32,7 @@ import {
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import type { DataSource, FieldMetadata } from '@object-ui/types';
-import { getCellRenderer } from '@object-ui/fields';
+import { getCellRenderer, resolveCellRendererType } from '@object-ui/fields';
 import { useDetailTranslation } from './useDetailTranslation';
 import { useSafeFieldLabel } from '@object-ui/react';
 
@@ -241,7 +241,8 @@ export const RelatedList: React.FC<RelatedListProps> = ({
         };
         // Add type-aware cell renderer for typed fields
         if (def.type) {
-          const CellRenderer = getCellRenderer(def.type);
+          const rendererType = resolveCellRendererType({ type: def.type, format: def.format }) || def.type;
+          const CellRenderer = getCellRenderer(rendererType);
           if (CellRenderer) {
             const fieldMeta: FieldMetadata = {
               name: key,

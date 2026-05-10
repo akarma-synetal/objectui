@@ -14,7 +14,7 @@ import type { ReportViewerSchema, ReportSection, ReportExportFormat, ReportField
 import { Download, Printer, RefreshCw } from 'lucide-react';
 import { exportReport } from './ReportExportEngine';
 import { formatValue } from './formatValue';
-import { getCellRenderer } from '@object-ui/fields';
+import { getCellRenderer, resolveCellRendererType } from '@object-ui/fields';
 
 // ---------------------------------------------------------------------------
 // Client-side grouping utility
@@ -163,7 +163,7 @@ export const ReportViewer: React.FC<ReportViewerProps> = ({ schema, onRefresh })
           color,
         }));
       }
-      const Renderer = getCellRenderer(field.type);
+      const Renderer = getCellRenderer(resolveCellRendererType(fieldMeta));
       return <Renderer value={value} field={fieldMeta} />;
     }
 

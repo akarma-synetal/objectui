@@ -916,6 +916,51 @@ export function registerFieldRenderer(type: string, renderer: React.FC<CellRende
 }
 
 /**
+ * Format hints (e.g. `{ type: 'text', format: 'phone' }`) that should
+ * map to a richer cell renderer than the bare type would imply. The
+ * canonical ObjectStack pattern uses `Field.text({ format: 'phone' })`
+ * for plain text columns that should still render with a tel: link,
+ * `Field.text({ format: 'url' })` for clickable links, etc.
+ *
+ * Only applies when the field's base type is a generic text type;
+ * explicit types like 'phone'/'email'/'currency' already win without
+ * any format hint.
+ */
+const FORMAT_TO_RENDERER: Record<string, string> = {
+  phone: 'phone',
+  tel: 'phone',
+  telephone: 'phone',
+  email: 'email',
+  url: 'url',
+  uri: 'url',
+  link: 'url',
+  currency: 'currency',
+  money: 'currency',
+  percent: 'percent',
+  percentage: 'percent',
+};
+
+const TEXTUAL_BASE_TYPES = new Set(['text', 'textarea', 'string', 'longtext', '']);
+
+/**
+ * Resolve the canonical cell-renderer key for a field. Accepts either a
+ * raw type string (back-compat) or a field-metadata object so that
+ * format hints (`format: 'phone'` etc.) can promote a plain `text`
+ * field to its richer renderer counterpart.
+ */
+export function resolveCellRendererType(fieldOrType: string | { type?: string; format?: string } | null | undefined): string {
+  if (!fieldOrType) return 'text';
+  if (typeof fieldOrType === 'string') return fieldOrType;
+  const baseType = (fieldOrType.type || '').toLowerCase();
+  const formatRaw = fieldOrType.format;
+  const format = typeof formatRaw === 'string' ? formatRaw.toLowerCase() : '';
+  if (format && FORMAT_TO_RENDERER[format] && TEXTUAL_BASE_TYPES.has(baseType)) {
+    return FORMAT_TO_RENDERER[format];
+  }
+  return fieldOrType.type || 'text';
+}
+
+/**
  * Get the appropriate cell renderer for a field type
  */
 export function getCellRenderer(fieldType: string): React.FC<CellRendererProps> {
