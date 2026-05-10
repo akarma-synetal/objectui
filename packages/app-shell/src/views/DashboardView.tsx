@@ -91,19 +91,43 @@ function defaultWidgetTitle(type: string): string {
 // Helpers: flatten / unflatten widget config for WidgetConfigPanel
 // ---------------------------------------------------------------------------
 
+// Top-level widget schema keys that the config panel exposes as flat fields.
+// Anything outside this set (e.g. pivot rowField/columnField, table searchable,
+// chart xAxisField/yAxisFields, list itemTemplate, custom component) is stored
+// under `widget.options` per the spec and round-tripped via spread.
+const TOP_LEVEL_WIDGET_KEYS = new Set([
+  'title',
+  'description',
+  'type',
+  'object',
+  'categoryField',
+  'valueField',
+  'aggregate',
+  'colorVariant',
+  'actionUrl',
+  'layoutW',
+  'layoutH',
+  'id',
+]);
+
 function flattenWidgetConfig(widget: DashboardWidgetSchema): Record<string, any> {
+  // Spread options first so explicit top-level widget fields take precedence
+  // on collision. This surfaces type-specific options (pivot/table/chart axes,
+  // list itemTemplate, etc.) so they appear pre-filled in the config panel.
+  const options = ((widget as any).options ?? {}) as Record<string, any>;
   return {
+    ...options,
     title: widget.title ?? '',
     description: widget.description ?? '',
     type: widget.type ?? 'metric',
     object: widget.object ?? '',
-    categoryField: widget.categoryField ?? '',
-    valueField: widget.valueField ?? '',
-    aggregate: widget.aggregate ?? 'count',
+    categoryField: widget.categoryField ?? options.categoryField ?? '',
+    valueField: widget.valueField ?? options.valueField ?? '',
+    aggregate: widget.aggregate ?? options.aggregate ?? 'count',
     layoutW: widget.layout?.w ?? 1,
     layoutH: widget.layout?.h ?? 1,
-    colorVariant: widget.colorVariant ?? 'default',
-    actionUrl: widget.actionUrl ?? '',
+    colorVariant: widget.colorVariant ?? options.colorVariant ?? 'default',
+    actionUrl: widget.actionUrl ?? options.actionUrl ?? '',
   };
 }
 
@@ -111,6 +135,15 @@ function unflattenWidgetConfig(
   config: Record<string, any>,
   base: DashboardWidgetSchema,
 ): Partial<DashboardWidgetSchema> {
+  // Collect any unknown keys (pivot/table/chart-specific) into options so the
+  // serialized widget keeps the spec-compliant nested shape.
+  const baseOptions = ((base as any).options ?? {}) as Record<string, any>;
+  const newOptions: Record<string, any> = { ...baseOptions };
+  for (const [key, value] of Object.entries(config)) {
+    if (TOP_LEVEL_WIDGET_KEYS.has(key)) continue;
+    if (value === undefined) continue;
+    newOptions[key] = value;
+  }
   return {
     title: config.title,
     description: config.description,
@@ -122,7 +155,8 @@ function unflattenWidgetConfig(
     layout: { ...(base.layout || {}), w: config.layoutW, h: config.layoutH } as DashboardWidgetSchema['layout'],
     colorVariant: config.colorVariant,
     actionUrl: config.actionUrl,
-  };
+    ...(Object.keys(newOptions).length > 0 ? { options: newOptions } : {}),
+  } as Partial<DashboardWidgetSchema>;
 }
 
 function extractDashboardConfig(schema: DashboardSchema): Record<string, any> {

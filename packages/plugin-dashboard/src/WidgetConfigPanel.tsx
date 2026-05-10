@@ -217,8 +217,8 @@ function buildWidgetSchema(
     : { key: 'columnField', label: 'Field', type: 'input', placeholder: 'e.g. stage' };
 
   const pivotValueField: ConfigField = hasObjects
-    ? buildFieldCombobox('pivotValueField', 'Field', 'Select value field…', availableFields)
-    : { key: 'pivotValueField', label: 'Field', type: 'input', placeholder: 'e.g. amount' };
+    ? buildFieldCombobox('valueField', 'Field', 'Select value field…', availableFields)
+    : { key: 'valueField', label: 'Field', type: 'input', placeholder: 'e.g. amount' };
 
   // ---- Breadcrumb varies by widget type ------------------------------------
 
@@ -577,6 +577,7 @@ function resolveLabel(v: unknown): string {
 function sanitizeDraftForType(draft: Record<string, any>): Record<string, any> {
   const t = draft.type as string | undefined;
   const out = { ...draft };
+  // Chart / metric fields
   if (!usesCategoryField(t)) delete out.categoryField;
   if (!isAggregatingType(t)) {
     delete out.valueField;
@@ -587,6 +588,31 @@ function sanitizeDraftForType(draft: Record<string, any>): Record<string, any> {
   if (!isCartesianChart(t)) {
     delete out.xAxisLabel;
     delete out.yAxisLabel;
+  }
+  // Pivot fields
+  if (t !== 'pivot') {
+    delete out.rowField;
+    delete out.columnField;
+    delete out.aggregation;
+    delete out.rowSortBy;
+    delete out.rowSortOrder;
+    delete out.columnSortBy;
+    delete out.columnSortOrder;
+    delete out.showRowLabels;
+    delete out.showRowTotals;
+    delete out.showColumnLabels;
+    delete out.showColumnTotals;
+    delete out.format;
+  } else {
+    // For pivot, valueField IS the value-cell field — keep it.
+    // Strip the chart-style aggregate so it doesn't conflict with `aggregation`.
+    delete out.aggregate;
+    delete out.categoryField;
+  }
+  // Table-only fields
+  if (t !== 'table') {
+    delete out.searchable;
+    delete out.pagination;
   }
   return out;
 }

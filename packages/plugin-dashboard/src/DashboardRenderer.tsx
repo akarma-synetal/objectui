@@ -398,6 +398,19 @@ export const DashboardRenderer = forwardRef<HTMLDivElement, DashboardRendererPro
 
             if (widgetType === 'pivot') {
                 const widgetData = (widget as any).data || options.data;
+                // Pivot config can live either at widget top-level (when edited
+                // through WidgetConfigPanel) or under widget.options (static
+                // metadata).  Top-level wins so live edits are reflected.
+                const w = widget as any;
+                const pivotProps = {
+                    rowField: w.rowField ?? options.rowField,
+                    columnField: w.columnField ?? options.columnField,
+                    valueField: w.valueField ?? options.valueField,
+                    aggregation: w.aggregation ?? options.aggregation ?? 'sum',
+                    showRowTotals: w.showRowTotals ?? options.showRowTotals,
+                    showColumnTotals: w.showColumnTotals ?? options.showColumnTotals,
+                    format: w.format ?? options.format,
+                };
 
                 // provider: 'object' — use ObjectPivotTable for async data loading
                 if (isObjectProvider(widgetData)) {
@@ -405,6 +418,7 @@ export const DashboardRenderer = forwardRef<HTMLDivElement, DashboardRendererPro
                     return {
                         type: 'object-pivot',
                         ...restOptions,
+                        ...pivotProps,
                         objectName: widget.object || widgetData.object,
                         dataProvider: widgetData,
                         filter: widgetData.filter || widget.filter,
@@ -416,6 +430,7 @@ export const DashboardRenderer = forwardRef<HTMLDivElement, DashboardRendererPro
                     return {
                         type: 'object-pivot',
                         ...options,
+                        ...pivotProps,
                         objectName: widget.object,
                         filter: widget.filter,
                     };
@@ -424,7 +439,63 @@ export const DashboardRenderer = forwardRef<HTMLDivElement, DashboardRendererPro
                 return {
                     type: 'pivot',
                     ...options,
+                    ...pivotProps,
                     data: Array.isArray(widgetData) ? widgetData : widgetData?.items || [],
+                };
+            }
+
+            // List widget — render as a compact rows-only data table.
+            // List shares table semantics (raw records) but typically without
+            // search / pagination chrome.
+            if (widgetType === 'list') {
+                const widgetData = (widget as any).data || options.data;
+
+                if (isObjectProvider(widgetData)) {
+                    const { data: _data, ...restOptions } = options;
+                    return {
+                        type: 'object-data-table',
+                        ...restOptions,
+                        objectName: widget.object || widgetData.object,
+                        dataProvider: widgetData,
+                        filter: widgetData.filter || widget.filter,
+                        searchable: false,
+                        pagination: false,
+                        className: "border-0",
+                    };
+                }
+
+                if (!widgetData && widget.object) {
+                    return {
+                        type: 'object-data-table',
+                        ...options,
+                        objectName: widget.object,
+                        filter: widget.filter,
+                        searchable: false,
+                        pagination: false,
+                        className: "border-0",
+                    };
+                }
+
+                return {
+                    type: 'data-table',
+                    ...options,
+                    data: Array.isArray(widgetData) ? widgetData : widgetData?.items || [],
+                    searchable: false,
+                    pagination: false,
+                    className: "border-0",
+                };
+            }
+
+            // Custom widget — caller must supply `widget.component` (a full
+            // UIComponent schema).  When missing, render a friendly placeholder
+            // instead of falling through (which produced 0×0 chart errors).
+            if (widgetType === 'custom') {
+                return {
+                    type: 'text',
+                    value: 'Custom widget — set `component` to a UIComponent schema.',
+                    variant: 'caption',
+                    align: 'center',
+                    className: 'flex h-full w-full items-center justify-center rounded border border-dashed bg-muted/20 p-4 text-muted-foreground',
                 };
             }
 

@@ -86,17 +86,23 @@ export function DashboardWithConfig({
       (w) => (w.id || w.title) === selectedWidgetId,
     );
     if (!widget) return null;
+    // Spread widget.options first so explicit top-level widget keys win on
+    // collision. This surfaces type-specific fields (pivot rowField/columnField,
+    // table searchable/pagination, chart xAxis/yAxis, etc.) that are stored
+    // under `options` in the persisted metadata.
+    const options = (widget.options || {}) as Record<string, any>;
     return {
+      ...options,
       id: widget.id ?? '',
       title: widget.title ?? '',
       description: widget.description ?? '',
       type: widget.type ?? '',
       object: widget.object ?? '',
-      categoryField: widget.categoryField ?? '',
-      valueField: widget.valueField ?? '',
-      aggregate: widget.aggregate ?? '',
-      colorVariant: widget.colorVariant ?? 'default',
-      actionUrl: widget.actionUrl ?? '',
+      categoryField: widget.categoryField ?? options.categoryField ?? '',
+      valueField: widget.valueField ?? options.valueField ?? '',
+      aggregate: widget.aggregate ?? options.aggregate ?? '',
+      colorVariant: widget.colorVariant ?? options.colorVariant ?? 'default',
+      actionUrl: widget.actionUrl ?? options.actionUrl ?? '',
       layoutW: widget.layout?.w ?? 1,
       layoutH: widget.layout?.h ?? 1,
     };
