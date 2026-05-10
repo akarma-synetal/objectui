@@ -37,6 +37,13 @@ export {
   toSortItems,
   VIEW_TYPE_LABELS,
   VIEW_TYPE_OPTIONS,
+  isImageLikeField,
+  isGeoLikeField,
+  pickPreferredField,
+  KANBAN_GROUP_PREFERRED,
+  PRIMARY_DATE_PREFERRED,
+  END_DATE_PREFERRED,
+  TITLE_PREFERRED,
 } from './config/view-config-utils';
 export type { FieldOption } from './config/view-config-utils';
 

@@ -214,6 +214,14 @@ export interface FieldOption {
     label: string;
     type: 'text' | 'number' | 'boolean' | 'date' | 'select';
     options?: any[];
+    /** Raw (unnormalized) field type from objectDef. Used by view-type
+     *  predicates (isImageLikeField, isGeoLikeField) that need finer signals
+     *  than the 5-bucket `type`. Optional for backward-compat. */
+    rawType?: string;
+    /** Raw field name (same as `value` in current callers but kept distinct
+     *  so future callers can carry through display-name heuristics without
+     *  affecting persistence keys). */
+    rawName?: string;
 }
 
 /** Derive field options from an objectDef for FilterBuilder/SortBuilder/Selects */
@@ -224,6 +232,8 @@ export function deriveFieldOptions(objectDef: { fields?: Record<string, any> }):
         label: field.label || key,
         type: normalizeFieldType(field.type),
         options: field.options,
+        rawType: field.type,
+        rawName: key,
     }));
 }
 
@@ -241,3 +251,113 @@ export function toSortItems(draftSort: any): SortItem[] {
         order: (s.order || s.direction || 'asc') as 'asc' | 'desc',
     }));
 }
+
+// ---------------------------------------------------------------------------
+// Field-role detection
+// ---------------------------------------------------------------------------
+//
+// These predicates classify object fields by their suitability for specific
+// view roles (kanban group-by, gallery image, map latitude, etc.). They are
+// used by CreateViewDialog to filter eligible fields and to compute whether a
+// view type is at all available for the current object.
+//
+// Each predicate accepts the *raw* objectDef field (unnormalized) so that we
+// can match on richer signals (semantic field type, name conventions) than
+// the 5-bucket normalized type.
+
+const IMAGE_FIELD_TYPES = new Set([
+    'image', 'image_url', 'photo', 'picture', 'avatar',
+    'file', 'attachment', 'attachments', 'media',
+    'url', 'link', // URL fields commonly hold image links in CRM datasets
+]);
+
+const IMAGE_FIELD_NAME_HINTS = [
+    'image', 'photo', 'picture', 'avatar', 'thumbnail', 'thumb',
+    'logo', 'cover', 'banner', 'icon', 'attachment',
+];
+
+/**
+ * True when the field is plausibly an image source for a gallery view.
+ * Matches on field type (image/file/url-like) OR field name (avatar/photo/…).
+ *
+ * Accepts either a raw object-definition field (`{ type, name }`) or a derived
+ * `FieldOption` (`{ rawType, rawName, value }`).
+ */
+export function isImageLikeField(
+    field: { type?: string; name?: string; key?: string; rawType?: string; rawName?: string; value?: string } | undefined | null,
+): boolean {
+    if (!field) return false;
+    const type = (field.rawType || field.type || '').toLowerCase();
+    if (IMAGE_FIELD_TYPES.has(type)) return true;
+    const name = (field.rawName || field.name || field.key || field.value || '').toLowerCase();
+    if (!name) return false;
+    return IMAGE_FIELD_NAME_HINTS.some((hint) => name.includes(hint));
+}
+
+const GEO_FIELD_TYPES = new Set([
+    'geolocation', 'geo', 'geo_point', 'geopoint', 'location', 'latlng', 'lnglat',
+]);
+
+/**
+ * True when the field is plausibly the latitude OR longitude component of a
+ * geo coordinate. `axis` selects which one.
+ *
+ * Matches on:
+ *   - dedicated geo types (always considered both axes)
+ *   - field name conventions (`lat`, `latitude`, `lng`, `lon`, `longitude`)
+ *
+ * Accepts either a raw object-definition field or a derived `FieldOption`.
+ */
+export function isGeoLikeField(
+    field: { type?: string; name?: string; key?: string; rawType?: string; rawName?: string; value?: string } | undefined | null,
+    axis: 'latitude' | 'longitude',
+): boolean {
+    if (!field) return false;
+    const type = (field.rawType || field.type || '').toLowerCase();
+    if (GEO_FIELD_TYPES.has(type)) return true;
+    const name = (field.rawName || field.name || field.key || field.value || '').toLowerCase();
+    if (!name) return false;
+    if (axis === 'latitude') {
+        return /(^|[_-])lat([^a-z]|itude)?($|[_-])/.test(name) || name === 'lat';
+    }
+    return /(^|[_-])(lng|lon|long)([^a-z]|gitude)?($|[_-])/.test(name)
+        || name === 'lng' || name === 'lon';
+}
+
+/**
+ * Pick the first option whose field name matches one of the preferred
+ * lowercase substrings. Falls back to the first option, or undefined when
+ * the list is empty. Used for "smart default" auto-pick in CreateViewDialog.
+ */
+export function pickPreferredField(
+    options: Array<{ value: string; label?: string }>,
+    preferredNames: readonly string[],
+): string | undefined {
+    if (options.length === 0) return undefined;
+    for (const pref of preferredNames) {
+        const found = options.find((o) => o.value.toLowerCase().includes(pref));
+        if (found) return found.value;
+    }
+    return options[0]?.value;
+}
+
+/** Common preferred names for kanban grouping (status-like fields). */
+export const KANBAN_GROUP_PREFERRED: readonly string[] = [
+    'status', 'stage', 'state', 'priority', 'category', 'type',
+];
+
+/** Common preferred names for primary date fields. */
+export const PRIMARY_DATE_PREFERRED: readonly string[] = [
+    'start_date', 'startdate', 'due_date', 'duedate',
+    'event_date', 'date', 'created_at', 'createdat', 'created',
+];
+
+/** Common preferred names for end date fields (gantt). */
+export const END_DATE_PREFERRED: readonly string[] = [
+    'end_date', 'enddate', 'finish_date', 'completion_date', 'closed_at',
+];
+
+/** Common preferred names for human-readable title fields. */
+export const TITLE_PREFERRED: readonly string[] = [
+    'name', 'title', 'subject', 'label', 'full_name', 'display_name',
+];

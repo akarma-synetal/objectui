@@ -341,10 +341,43 @@ export function ObjectView({ dataSource, objects, onEdit }: any) {
                 const incomingColumns = Array.isArray(config.columns) && config.columns.length > 0
                     ? config.columns
                     : defaultColumns;
-                const payload = {
-                    objectName,
-                    ...config,
-                    columns: incomingColumns,
+                // Translate NamedListView spec shape (type, label, kanban, chart,
+                // gantt, etc., columns, filter, sort) into the sys_view storage
+                // shape (view_type, label, object_name, *_json columns).
+                // Per spec: front-end follows the protocol, the persistence
+                // boundary owns the mapping to physical columns.
+                const VIEW_TYPE_KEYS = [
+                    'kanban', 'calendar', 'timeline', 'gantt',
+                    'gallery', 'map', 'chart', 'grid',
+                ] as const;
+                const subConfig: Record<string, any> = {};
+                for (const k of VIEW_TYPE_KEYS) {
+                    if (config[k] && typeof config[k] === 'object') {
+                        Object.assign(subConfig, config[k]);
+                    }
+                }
+                const viewType = (config.type as string) || 'grid';
+                const baseLabel = (config.label as string) || (config.name as string) || 'Untitled View';
+                const slug = baseLabel
+                    .toLowerCase()
+                    .replace(/[^a-z0-9]+/g, '_')
+                    .replace(/^_+|_+$/g, '')
+                    .slice(0, 60) || 'view';
+                const payload: Record<string, any> = {
+                    name: `${slug}_${Date.now().toString(36)}`,
+                    label: baseLabel,
+                    object_name: objectName,
+                    view_type: viewType,
+                    columns_json: JSON.stringify(incomingColumns),
+                    filters_json: config.filter ? JSON.stringify(config.filter) : null,
+                    sort_json: config.sort ? JSON.stringify(config.sort) : null,
+                    config_json: Object.keys(subConfig).length > 0
+                        ? JSON.stringify(subConfig)
+                        : null,
+                    page_size: config.pageSize ?? 25,
+                    show_search: config.showSearch !== false,
+                    show_filters: config.showFilters !== false,
+                    managed_by: 'user',
                 };
                 const created = await dataSource.create('sys_view', payload);
                 createdId = created?.id ?? created?._id;
