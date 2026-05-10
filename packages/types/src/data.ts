@@ -238,6 +238,21 @@ export interface DataSource<T = any> {
   getView?(objectName: string, viewId: string): Promise<any | null>;
 
   /**
+   * Batch-fetch all persisted view overrides for an object in one call.
+   *
+   * Optional companion to {@link getView} that returns a `{viewName: override}`
+   * map instead of fetching each view individually. Adapters should
+   * implement this when the underlying transport supports a list-by-type
+   * query (e.g. `GET /api/v1/meta/<object>` returning all `<object>/<view>`
+   * items). When not implemented, callers should fall back to per-view
+   * {@link getView}.
+   *
+   * @param objectName - Object name (e.g. 'lead')
+   * @returns Promise resolving to a map of view name → override config
+   */
+  listViewOverrides?(objectName: string): Promise<Record<string, any>>;
+
+  /**
    * Persist a view configuration to the backend.
    * Called when a user saves view settings (columns, filters, sort, toggles, etc.)
    * from the inline ViewConfigPanel.

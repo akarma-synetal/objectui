@@ -478,10 +478,16 @@ export function ObjectView({ dataSource, objects, onEdit }: any) {
     // separately from `objectDef.listViews` (the embedded definition) via
     // `dataSource.updateViewConfig` and read back here so toggle preferences
     // survive a hard reload. Keyed by viewId → partial view config to merge.
+    //
+    // Use the batch listViewOverrides() when available — fires one HTTP
+    // GET per object instead of N (one per defined view), avoiding a flurry
+    // of 404s for objects whose views have never been customized. Falls
+    // back to per-view getView() for adapters that don't support the batch
+    // method.
     const [viewOverrides, setViewOverrides] = useState<Record<string, any>>({});
     useEffect(() => {
         let cancelled = false;
-        if (!dataSource?.getView || !objectName) {
+        if (!dataSource || !objectName) {
             setViewOverrides({});
             return;
         }
@@ -491,22 +497,42 @@ export function ObjectView({ dataSource, objects, onEdit }: any) {
             setViewOverrides({});
             return;
         }
-        Promise.all(
-            ids.map(async (id) => {
+
+        const loadBatch = async (): Promise<Record<string, any>> => {
+            if (typeof (dataSource as any).listViewOverrides === 'function') {
                 try {
-                    const v = await dataSource.getView(objectName, id);
-                    return [id, v] as const;
+                    const all = await (dataSource as any).listViewOverrides(objectName);
+                    if (all && typeof all === 'object') {
+                        const map: Record<string, any> = {};
+                        for (const id of ids) {
+                            if (all[id]) map[id] = all[id];
+                        }
+                        return map;
+                    }
                 } catch {
-                    return [id, null] as const;
+                    // fall through to per-view fetch
                 }
-            })
-        ).then((entries) => {
-            if (cancelled) return;
+            }
+            if (typeof dataSource.getView !== 'function') return {};
+            const entries = await Promise.all(
+                ids.map(async (id) => {
+                    try {
+                        const v = await dataSource.getView!(objectName, id);
+                        return [id, v] as const;
+                    } catch {
+                        return [id, null] as const;
+                    }
+                })
+            );
             const map: Record<string, any> = {};
             for (const [id, v] of entries) {
                 if (v && typeof v === 'object') map[id] = v;
             }
-            setViewOverrides(map);
+            return map;
+        };
+
+        loadBatch().then((map) => {
+            if (!cancelled) setViewOverrides(map);
         });
         return () => { cancelled = true; };
     }, [dataSource, objectName, objectDef.listViews, objectDef.list_views, refreshKey]);

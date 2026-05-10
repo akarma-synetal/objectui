@@ -1027,6 +1027,45 @@ export class ObjectStackAdapter<T = unknown> implements DataSource<T> {
   }
 
   /**
+   * Batch-fetch all persisted view overrides for an object.
+   *
+   * Per-view runtime overrides (density, column widths, sort, …) are
+   * stored in the metadata registry under key `<objectName>/<viewName>`.
+   * Loading them per-view fires N HTTP GETs that return 404 for views
+   * the user has never customized — generates console noise on every
+   * page load. This batch method performs a single
+   * `GET /api/v1/meta/<objectName>` (returns `{type, items}`) and
+   * returns a `{viewName: override}` map. Returns an empty map if the
+   * server doesn't expose the listing or returns no items.
+   *
+   * Result is cached identically to {@link getView}; saving a view via
+   * {@link updateViewConfig} invalidates the cache.
+   *
+   * @param objectName - Object name (e.g. 'lead')
+   * @returns Map keyed by view name with the persisted override config
+   */
+  async listViewOverrides(objectName: string): Promise<Record<string, any>> {
+    await this.connect();
+
+    try {
+      const cacheKey = `view-overrides:${objectName}`;
+      return await this.metadataCache.get(cacheKey, async () => {
+        const result: any = await this.client.meta.getItems(objectName);
+        const items: any[] = Array.isArray(result?.items) ? result.items : [];
+        const out: Record<string, any> = {};
+        for (const it of items) {
+          if (!it || typeof it !== 'object') continue;
+          const key = it.name ?? it.id ?? it._name;
+          if (typeof key === 'string' && key) out[key] = it;
+        }
+        return out;
+      });
+    } catch {
+      return {};
+    }
+  }
+
+  /**
    * Get a view definition for an object.
    * Attempts to fetch from the server metadata API.
    * Falls back to null if the server doesn't provide view definitions,
@@ -1085,6 +1124,8 @@ export class ObjectStackAdapter<T = unknown> implements DataSource<T> {
       // Invalidate cached read so next getView reflects the change
       const cacheKey = `view:${objectName}:${viewId}`;
       this.metadataCache.invalidate?.(cacheKey);
+      // Also invalidate the batch override map so listViewOverrides re-fetches
+      this.metadataCache.invalidate?.(`view-overrides:${objectName}`);
       if (result && result.item) return result.item;
       return result ?? undefined;
     } catch (err) {
