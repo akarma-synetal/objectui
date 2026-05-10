@@ -159,15 +159,16 @@ function unflattenWidgetConfig(
   } as Partial<DashboardWidgetSchema>;
 }
 
-function extractDashboardConfig(schema: DashboardSchema): Record<string, any> {
+function extractDashboardConfig(schema: DashboardSchema | null | undefined): Record<string, any> {
+  const s = (schema ?? {}) as Partial<DashboardSchema> & Record<string, any>;
   return {
-    columns: schema.columns ?? 3,
-    gap: schema.gap ?? 4,
-    rowHeight: String((schema as any).rowHeight ?? '120'),
-    refreshInterval: String(schema.refreshInterval ?? '0'),
-    title: schema.title ?? '',
-    showDescription: (schema as any).showDescription ?? true,
-    theme: (schema as any).theme ?? 'auto',
+    columns: s.columns ?? 3,
+    gap: s.gap ?? 4,
+    rowHeight: String(s.rowHeight ?? '120'),
+    refreshInterval: String(s.refreshInterval ?? '0'),
+    title: s.title ?? '',
+    showDescription: s.showDescription ?? true,
+    theme: s.theme ?? 'auto',
   };
 }
 
