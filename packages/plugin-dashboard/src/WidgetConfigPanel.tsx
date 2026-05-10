@@ -158,12 +158,20 @@ function buildWidgetSchema(
       };
 
   const valueFieldDef: ConfigField = hasObjects
-    ? buildFieldCombobox('valueField', 'Value field', 'Select field…', availableFields)
+    ? {
+        ...buildFieldCombobox('valueField', 'Value field', 'Select field…', availableFields),
+        helpText: 'Field to aggregate (sum / average / min / max).',
+        visibleWhen: (d: Record<string, any>) =>
+          d.type !== 'pivot' && (d.aggregate ?? 'count') !== 'count',
+      }
     : {
         key: 'valueField',
         label: 'Value field',
         type: 'input',
         placeholder: 'e.g. amount',
+        helpText: 'Field to aggregate (sum / average / min / max).',
+        visibleWhen: (d: Record<string, any>) =>
+          d.type !== 'pivot' && (d.aggregate ?? 'count') !== 'count',
       };
 
   // --- Pivot-specific field selectors (row / column / value) ----------------
@@ -235,6 +243,7 @@ function buildWidgetSchema(
             type: 'select',
             options: AGGREGATE_OPTIONS,
             defaultValue: 'count',
+            helpText: 'Count ignores Value field; Sum / Avg / Min / Max require it.',
           },
         ],
       },
