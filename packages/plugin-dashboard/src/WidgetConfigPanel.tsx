@@ -435,10 +435,10 @@ function buildWidgetSchema(
         ],
       },
 
-      // ----- Table: Column config (visible for table type) ----------------
+      // ----- Table: Display options (visible for table type) --------------
       {
-        key: 'table-columns',
-        title: 'Columns',
+        key: 'table-options',
+        title: 'Table options',
         collapsible: true,
         visibleWhen: (d: Record<string, any>) => d.type === 'table',
         fields: [
