@@ -1201,7 +1201,11 @@ export class ObjectStackAdapter<T = unknown> implements DataSource<T> {
         dimensions: params.groupBy && params.groupBy !== '_all' ? [params.groupBy] : [],
       };
       if (params.filter) {
-        payload.filters = params.filter;
+        // Dashboard widgets emit MongoDB-style FilterCondition (per
+        // spec/ui/dashboard.zod.ts). Send via the canonical `where`
+        // field of the analytics endpoint, matching the unified Query
+        // DSL (spec/data/query.zod.ts).
+        payload.where = params.filter;
       }
 
       const data = await this.client.analytics.query(payload);
