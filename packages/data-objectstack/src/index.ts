@@ -78,148 +78,6 @@ function objectFilterEntryToAST(entry: any): [string, string, any] | null {
   return [String(field), op, entry.value];
 }
 
-/**
- * Map MongoDB-style operator keys (or human-readable names already normalized
- * by `normalizeFilterOperator`) to the cube-style operator names accepted by
- * the analytics endpoint (see framework `analytics.zod.ts`).
- *
- * The cube spec accepts: equals, notEquals, contains, notContains, gt, gte,
- * lt, lte, in, notIn, set, notSet, inDateRange.
- */
-function mongoOpToCubeOp(op: string): string | null {
-  switch (op) {
-    case '$eq':
-    case '=':
-    case 'eq':
-    case 'equals':
-      return 'equals';
-    case '$ne':
-    case '!=':
-    case 'ne':
-    case 'notequals':
-    case 'notEquals':
-      return 'notEquals';
-    case '$gt':
-    case '>':
-    case 'gt':
-      return 'gt';
-    case '$gte':
-    case '>=':
-    case 'gte':
-      return 'gte';
-    case '$lt':
-    case '<':
-    case 'lt':
-      return 'lt';
-    case '$lte':
-    case '<=':
-    case 'lte':
-      return 'lte';
-    case '$in':
-    case 'in':
-      return 'in';
-    case '$nin':
-    case 'nin':
-    case 'notIn':
-    case 'notin':
-      return 'notIn';
-    case '$contains':
-    case 'contains':
-      return 'contains';
-    case '$notContains':
-    case '$notcontains':
-    case 'notcontains':
-    case 'notContains':
-      return 'notContains';
-    default:
-      return null;
-  }
-}
-
-/** Stringify a filter value as the cube spec requires `values: string[]`. */
-function stringifyFilterValue(v: unknown): string {
-  if (v == null) return '';
-  // Booleans must be coerced to '1'/'0' so that SQLite numeric boolean columns
-  // match correctly. The naive `String(true)` produces 'true' which the
-  // backend's SQL driver does not parse as 1.
-  if (typeof v === 'boolean') return v ? '1' : '0';
-  if (v instanceof Date) return v.toISOString();
-  if (typeof v === 'object') return JSON.stringify(v);
-  return String(v);
-}
-
-/**
- * Convert a MongoDB-style filter into the cube-style array of
- * `{ member, operator, values }` objects the analytics endpoint expects.
- *
- * Supported input shapes:
- *  - `{ field: 'is_active', operator: 'equals', value: true }`         (single)
- *  - `[{ field, operator, value }, ...]`                               (array)
- *  - `{ is_active: true }`                                             (short)
- *  - `{ stage: { $nin: ['x','y'] }, amount: { $gte: 100 } }`           (mongo)
- *  - mixed: `{ stage: 'won', close_date: { $gte: 'X' } }`
- *
- * Unknown operators are dropped (and logged) so a single bad clause does not
- * cause the entire query to fail server-side.
- */
-export function convertFilterToCubeFilters(filter: any): Array<{ member: string; operator: string; values: string[] }> {
-  if (!filter) return [];
-  const out: Array<{ member: string; operator: string; values: string[] }> = [];
-
-  // Array of {field, operator, value} entries.
-  if (Array.isArray(filter)) {
-    for (const entry of filter) {
-      if (!entry || typeof entry !== 'object') continue;
-      const field = (entry as any).field ?? (entry as any).name ?? (entry as any).member;
-      const rawOp = (entry as any).operator ?? (entry as any).op ?? 'equals';
-      const cubeOp = mongoOpToCubeOp(String(rawOp).toLowerCase()) || mongoOpToCubeOp(String(rawOp));
-      if (!field || !cubeOp) continue;
-      const value = (entry as any).value ?? (entry as any).values;
-      const values = Array.isArray(value) ? value.map(stringifyFilterValue) : [stringifyFilterValue(value)];
-      out.push({ member: String(field), operator: cubeOp, values });
-    }
-    return out;
-  }
-
-  if (typeof filter !== 'object') return [];
-
-  // Single-clause object form: { field, operator, value }
-  if (
-    typeof (filter as any).field === 'string' &&
-    typeof (filter as any).operator === 'string' &&
-    'value' in (filter as any)
-  ) {
-    const cubeOp =
-      mongoOpToCubeOp(String((filter as any).operator).toLowerCase()) ||
-      mongoOpToCubeOp(String((filter as any).operator));
-    if (cubeOp) {
-      const v = (filter as any).value;
-      const values = Array.isArray(v) ? v.map(stringifyFilterValue) : [stringifyFilterValue(v)];
-      out.push({ member: String((filter as any).field), operator: cubeOp, values });
-    }
-    return out;
-  }
-
-  // MongoDB-style object: keys are field names, values are either primitives
-  // (short-form equality) or `{ $op: value }` operator wrappers.
-  for (const [field, raw] of Object.entries(filter)) {
-    if (raw == null) continue;
-    if (typeof raw === 'object' && !Array.isArray(raw) && !(raw instanceof Date)) {
-      for (const [op, opValue] of Object.entries(raw as Record<string, unknown>)) {
-        const cubeOp = mongoOpToCubeOp(op);
-        if (!cubeOp) continue;
-        const values = Array.isArray(opValue) ? opValue.map(stringifyFilterValue) : [stringifyFilterValue(opValue)];
-        out.push({ member: field, operator: cubeOp, values });
-      }
-    } else {
-      // Short-form equality: { is_active: true } / { stage: 'closed_won' }
-      const values = Array.isArray(raw) ? raw.map(stringifyFilterValue) : [stringifyFilterValue(raw)];
-      out.push({ member: field, operator: 'equals', values });
-    }
-  }
-  return out;
-}
-
 // Module-level discovery cache. Multiple ObjectStackAdapter instances pointed
 // at the same baseUrl (e.g. ConditionalAuthWrapper's throwaway adapter +
 // AdapterProvider's main adapter) would otherwise each fire `/discovery`. By
@@ -1343,16 +1201,7 @@ export class ObjectStackAdapter<T = unknown> implements DataSource<T> {
         dimensions: params.groupBy && params.groupBy !== '_all' ? [params.groupBy] : [],
       };
       if (params.filter) {
-        // The analytics endpoint expects cube-style filters of the form
-        //   [{ member, operator, values: string[] }, ...]
-        // (see framework/packages/spec/src/data/analytics.zod.ts). Callers
-        // (DashboardRenderer, ObjectMetricWidget) pass MongoDB-style
-        // filters: short-form `{is_active: true}` or operator form
-        // `{stage: {$nin: [...]}}` or array of `{field, operator, value}`.
-        // Convert here so server-driven schemas can use the same MongoDB
-        // shape they already use for find().
-        const cubeFilters = convertFilterToCubeFilters(params.filter);
-        if (cubeFilters.length > 0) payload.filters = cubeFilters;
+        payload.filters = params.filter;
       }
 
       const data = await this.client.analytics.query(payload);
@@ -1375,7 +1224,7 @@ export class ObjectStackAdapter<T = unknown> implements DataSource<T> {
         return true;
       });
       if (measureMissing) {
-        const result = await this.find(resource as any, params.filter ? { $filter: params.filter } : undefined);
+        const result = await this.find(resource as any);
         const records = result.data || [];
         if (records.length === 0) return [];
         return this.aggregateClientSide(records, params);
@@ -1395,9 +1244,8 @@ export class ObjectStackAdapter<T = unknown> implements DataSource<T> {
       });
     } catch {
       // If the analytics endpoint is not available, fall back to
-      // find() + client-side aggregation. Pass the filter through so the
-      // client-side fallback honours the same scoping the server would.
-      const result = await this.find(resource as any, params.filter ? { $filter: params.filter } : undefined);
+      // find() + client-side aggregation
+      const result = await this.find(resource as any);
       const records = result.data || [];
       if (records.length === 0) return [];
 
