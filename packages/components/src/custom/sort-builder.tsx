@@ -35,14 +35,28 @@ export function SortBuilder({
   onChange,
   className,
 }: SortBuilderProps) {
-  // Use internal state initialization prop changes
-  const [items, setItems] = React.useState<SortItem[]>(value || []);
+  // Normalize incoming items: ensure every row has an `id` (React key) and
+  // accept either `order` (internal) or `sortOrder` (spec) for the direction.
+  const normalize = React.useCallback((rows: any[]): SortItem[] => {
+    return (rows || []).map((row, idx) => ({
+      id: row?.id ?? (typeof crypto !== 'undefined' && crypto.randomUUID
+        ? crypto.randomUUID()
+        : `sort-${idx}-${row?.field ?? ''}`),
+      field: row?.field ?? '',
+      order: (row?.order ?? row?.sortOrder ?? 'asc') as 'asc' | 'desc',
+    }));
+  }, []);
+
+  const [items, setItems] = React.useState<SortItem[]>(() => normalize(value));
 
   React.useEffect(() => {
-    if (value && JSON.stringify(value) !== JSON.stringify(items)) {
-         setItems(value);
+    const next = normalize(value);
+    // Compare ignoring the synthetic `id` so external updates don't loop
+    const stripIds = (rs: SortItem[]) => rs.map(({ id: _id, ...rest }) => rest);
+    if (JSON.stringify(stripIds(next)) !== JSON.stringify(stripIds(items))) {
+      setItems(next);
     }
-  }, [value]);
+  }, [value, items, normalize]);
 
   const handleChange = (newItems: SortItem[]) => {
     setItems(newItems);

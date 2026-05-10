@@ -12,6 +12,7 @@ import {
   useConfigDraft,
   Checkbox,
   Button,
+  SortBuilder,
 } from '@object-ui/components';
 import type { ConfigPanelSchema } from '@object-ui/components';
 import { Plus, Trash2 } from 'lucide-react';
@@ -54,32 +55,37 @@ function FieldPicker({
   value: any;
   onChange: (v: any) => void;
 }) {
-  const selectedList: Array<{ name: string; label: string; type: string; aggregation?: string }> =
+  const selectedList: Array<{ field: string; label: string; type: string; aggregate?: string }> =
     Array.isArray(value)
       ? value.map((f: any) => (typeof f === 'string'
-          ? { name: f, label: f, type: 'string' }
-          : { name: f.name || f.field || f.value, label: f.label || f.name || '', type: f.type || 'string', aggregation: f.aggregation }
+          ? { field: f, label: f, type: 'string' }
+          : {
+              field: f.field || f.name || f.value,
+              label: f.label || f.name || f.field || '',
+              type: f.type || 'string',
+              aggregate: f.aggregate ?? f.aggregation,
+            }
         ))
       : [];
 
-  const selectedNames = selectedList.map((f) => f.name);
+  const selectedNames = selectedList.map((f) => f.field);
 
   const toggleField = (fieldValue: string) => {
     const isSelected = selectedNames.includes(fieldValue);
     let updated: typeof selectedList;
     if (isSelected) {
-      updated = selectedList.filter((f) => f.name !== fieldValue);
+      updated = selectedList.filter((f) => f.field !== fieldValue);
     } else {
       const def = availableFields.find((af) => af.value === fieldValue);
-      updated = [...selectedList, { name: fieldValue, label: def?.label || fieldValue, type: def?.type || 'string' }];
+      updated = [...selectedList, { field: fieldValue, label: def?.label || fieldValue, type: def?.type || 'string' }];
     }
     onChange(updated);
   };
 
-  const updateAggregation = (fieldName: string, aggregation: string) => {
+  const updateAggregation = (fieldName: string, aggregate: string) => {
     const updated = selectedList.map((f) =>
-      f.name === fieldName
-        ? { ...f, aggregation: aggregation || undefined, showInSummary: !!aggregation }
+      f.field === fieldName
+        ? { ...f, aggregate: aggregate || undefined }
         : f,
     );
     onChange(updated);
@@ -97,7 +103,7 @@ function FieldPicker({
     <div className="space-y-1 py-1" data-testid="field-picker">
       {availableFields.map((field) => {
         const checked = selectedNames.includes(field.value);
-        const selected = selectedList.find((f) => f.name === field.value);
+        const selected = selectedList.find((f) => f.field === field.value);
         return (
           <div key={field.value} className="flex items-center gap-2 px-1 py-0.5 rounded hover:bg-muted/50 text-xs">
             <label className="flex items-center gap-2 flex-1 cursor-pointer">
@@ -114,7 +120,7 @@ function FieldPicker({
             {checked && (
               <select
                 className="h-5 text-[10px] border rounded px-1 bg-background"
-                value={selected?.aggregation || ''}
+                value={selected?.aggregate || ''}
                 onChange={(e) => updateAggregation(field.value, e.target.value)}
                 data-testid={`field-agg-${field.value}`}
               >
@@ -154,7 +160,17 @@ function ChartConfig({
   onChange: (v: any) => void;
 }) {
   const chart = value || {};
-  const updateChart = (updates: any) => onChange({ ...chart, ...updates });
+  const chartType = chart.type ?? chart.chartType ?? '';
+  const xAxis = chart.xAxis ?? chart.xAxisField ?? '';
+  const yAxis = chart.yAxis ?? chart.yAxisFields?.[0] ?? '';
+  const updateChart = (updates: any) => {
+    const next = { ...chart, ...updates };
+    // Strip legacy aliases when authoritative spec keys are written.
+    if ('type' in updates) delete next.chartType;
+    if ('xAxis' in updates) delete next.xAxisField;
+    if ('yAxis' in updates) delete next.yAxisFields;
+    onChange(next);
+  };
 
   return (
     <div className="space-y-2 py-1" data-testid="chart-config">
@@ -162,8 +178,8 @@ function ChartConfig({
         <label className="text-[10px] text-muted-foreground">Chart type</label>
         <select
           className="w-full h-7 text-xs border rounded px-2 bg-background"
-          value={chart.chartType || ''}
-          onChange={(e) => updateChart({ chartType: e.target.value || undefined })}
+          value={chartType}
+          onChange={(e) => updateChart({ type: e.target.value || undefined })}
           data-testid="chart-type-select"
         >
           {CHART_TYPE_OPTIONS.map((opt) => (
@@ -171,14 +187,14 @@ function ChartConfig({
           ))}
         </select>
       </div>
-      {chart.chartType && (
+      {chartType && (
         <>
           <div>
             <label className="text-[10px] text-muted-foreground">X-axis field</label>
             <select
               className="w-full h-7 text-xs border rounded px-2 bg-background"
-              value={chart.xAxisField || ''}
-              onChange={(e) => updateChart({ xAxisField: e.target.value || undefined })}
+              value={xAxis}
+              onChange={(e) => updateChart({ xAxis: e.target.value || undefined })}
               data-testid="chart-x-field"
             >
               <option value="">Select field…</option>
@@ -191,8 +207,8 @@ function ChartConfig({
             <label className="text-[10px] text-muted-foreground">Y-axis field</label>
             <select
               className="w-full h-7 text-xs border rounded px-2 bg-background"
-              value={chart.yAxisFields?.[0] || ''}
-              onChange={(e) => updateChart({ yAxisFields: e.target.value ? [e.target.value] : [] })}
+              value={yAxis}
+              onChange={(e) => updateChart({ yAxis: e.target.value || undefined })}
               data-testid="chart-y-field"
             >
               <option value="">Select field…</option>
@@ -435,7 +451,7 @@ function buildReportSchema(
         title: 'Basic',
         fields: [
           {
-            key: 'title',
+            key: 'label',
             label: 'Title',
             type: 'input',
             placeholder: 'Report title',
@@ -447,7 +463,7 @@ function buildReportSchema(
             placeholder: 'Report description',
           },
           {
-            key: 'reportType',
+            key: 'type',
             label: 'Report type',
             type: 'select',
             defaultValue: 'tabular',
@@ -488,7 +504,7 @@ function buildReportSchema(
         hint: 'Select fields to display as report columns. Set aggregation per column for summary reports.',
         fields: [
           {
-            key: 'fields',
+            key: 'columns',
             label: 'Report columns',
             type: 'custom',
             render: (value: any, onChange: (v: any) => void) => (
@@ -508,7 +524,7 @@ function buildReportSchema(
         hint: 'Define filter conditions for the report data',
         fields: [
           {
-            key: 'filters',
+            key: 'filter',
             label: 'Conditions',
             type: 'filter',
             fields: availableFields,
@@ -522,10 +538,30 @@ function buildReportSchema(
         hint: 'Group report data and compute aggregations',
         fields: [
           {
-            key: 'groupBy',
+            key: 'groupingsDown',
             label: 'Grouping',
-            type: 'sort',
-            fields: availableFields,
+            type: 'custom',
+            render: (value: any, onChange: (v: any) => void) => {
+              // Marshal between SortBuilder shape ({field, order}) and
+              // spec ReportGrouping shape ({field, sortOrder}).
+              const fromSpec = Array.isArray(value)
+                ? value.map((g: any) => ({ ...g, order: g.order ?? g.sortOrder ?? 'asc' }))
+                : [];
+              return (
+                <SortBuilder
+                  fields={availableFields as any}
+                  value={fromSpec}
+                  onChange={(rows: any[]) =>
+                    onChange(
+                      rows.map((r: any) => {
+                        const { id: _id, order, ...rest } = r;
+                        return { ...rest, sortOrder: order ?? 'asc' };
+                      }),
+                    )
+                  }
+                />
+              );
+            },
           },
         ],
       },
@@ -536,7 +572,7 @@ function buildReportSchema(
         hint: 'Add a chart visualization to the report',
         fields: [
           {
-            key: 'chartConfig',
+            key: 'chart',
             label: 'Chart',
             type: 'custom',
             render: (value: any, onChange: (v: any) => void) => (

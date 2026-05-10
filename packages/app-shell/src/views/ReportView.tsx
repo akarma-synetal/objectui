@@ -330,7 +330,8 @@ export function ReportView({ dataSource }: { dataSource?: DataSource }) {
     // did not update the rendered report.
     if (mapped.fields && Array.isArray(mapped.fields) && mapped.fields.length > 0) {
       const hasSummaryFields = mapped.fields.some((f: any) => f.showInSummary || f.aggregation);
-      const reportType = mapped.reportType || 'tabular';
+      // Spec key is `type`; legacy renderer used `reportType`. Accept either.
+      const reportType = mapped.type || mapped.reportType || 'tabular';
       const sections: any[] = [];
       if (reportType === 'summary' || hasSummaryFields) {
         sections.push({ type: 'summary', title: 'Key Metrics' });
@@ -349,22 +350,27 @@ export function ReportView({ dataSource }: { dataSource?: DataSource }) {
           colorMap: f.colorMap,
         })),
       });
-      // Generate chart section from chartConfig if configured
-      if (mapped.chartConfig?.chartType) {
+      // Generate chart section from chart config if configured.
+      // Spec keys: type / xAxis / yAxis. Legacy: chartType / xAxisField / yAxisFields[0].
+      const chartCfg = mapped.chart || mapped.chartConfig;
+      const chartTypeVal = chartCfg?.type || chartCfg?.chartType;
+      if (chartTypeVal) {
+        const xField = chartCfg.xAxis || chartCfg.xAxisField;
+        const yField = chartCfg.yAxis || chartCfg.yAxisFields?.[0];
         sections.push({
           type: 'chart',
           title: 'Chart',
           chart: {
             type: 'chart',
-            chartType: mapped.chartConfig.chartType,
-            xAxisField: mapped.chartConfig.xAxisField,
-            yAxisFields: mapped.chartConfig.yAxisFields,
+            chartType: chartTypeVal,
+            xAxisField: xField,
+            yAxisFields: yField ? [yField] : chartCfg.yAxisFields,
           },
         });
       }
       // Preserve any user-defined chart sections from the original schema
       if (Array.isArray(src.sections)) {
-        const chartSections = src.sections.filter((s: any) => s.type === 'chart' && !mapped.chartConfig?.chartType);
+        const chartSections = src.sections.filter((s: any) => s.type === 'chart' && !chartTypeVal);
         sections.push(...chartSections);
       }
       mapped.sections = sections;
