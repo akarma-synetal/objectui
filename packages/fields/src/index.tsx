@@ -370,16 +370,16 @@ export function DateCellRenderer({ value, field }: CellRendererProps): React.Rea
   // Determine if date is overdue (in the past) — but only color it red when the
   // field is *semantically* a due/deadline. A plain "start_date" or "created_at"
   // in the past should not render in red.
-  const date = safe instanceof Date ? safe : (safe != null ? new Date(safe as any) : null);
-  const isValidDate = date instanceof Date && !isNaN(date.getTime());
+  const date = safe != null ? new Date(safe as string | number) : null;
+  const isValidDate = date !== null && !isNaN(date.getTime());
   const startOfToday = new Date();
   startOfToday.setHours(0, 0, 0, 0);
   const fieldName = String(dateField?.name || dateField?.accessorKey || dateField?.key || '').toLowerCase();
   const dueLike =
     dateField?.dueLike === true ||
     /(^|_)(due|deadline|expires?|expiry|expiration|expected_close|target_close|sla|return_by|renewal|next_action)(_|$)/.test(fieldName);
-  const isOverdue = dueLike && isValidDate && date < startOfToday;
-  const isoString = isValidDate ? date.toISOString() : String(safe);
+  const isOverdue = dueLike && isValidDate && date! < startOfToday;
+  const isoString = isValidDate ? date!.toISOString() : String(safe);
 
   return (
     <span
@@ -397,8 +397,8 @@ export function DateCellRenderer({ value, field }: CellRendererProps): React.Rea
 export function DateTimeCellRenderer({ value }: CellRendererProps): React.ReactElement {
   if (!value) return <EmptyValue />;
   const safe = coerceToSafeValue(value);
-  const date = safe instanceof Date ? safe : (safe != null ? new Date(safe as any) : null);
-  if (!(date instanceof Date) || isNaN(date.getTime())) return <EmptyValue />;
+  const date = safe != null ? new Date(safe as string | number) : null;
+  if (date === null || isNaN(date.getTime())) return <EmptyValue />;
 
   const datePart = date.toLocaleDateString(undefined, {
     month: 'numeric',

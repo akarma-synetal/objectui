@@ -1877,28 +1877,22 @@ export const ListView = React.forwardRef<ListViewHandle, ListViewProps>(({
           {schema.pagination?.pageSizeOptions && schema.pagination.pageSizeOptions.length > 0 && (
             <div className="ml-auto flex items-center gap-2">
               <span>Rows per page</span>
-              <Select
+              <select
+                data-testid="page-size-selector"
+                className="h-7 w-[72px] px-2 py-1 text-xs rounded-md border border-input bg-background"
                 value={String(effectivePageSize)}
-                onValueChange={(value) => {
-                  const newSize = Number(value);
+                onChange={(e) => {
+                  const newSize = Number(e.target.value);
                   setDynamicPageSize(newSize);
                   if (props.onPageSizeChange) props.onPageSizeChange(newSize);
                 }}
               >
-                <SelectTrigger
-                  className="h-7 w-[72px] px-2 py-1 text-xs"
-                  data-testid="page-size-selector"
-                >
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {schema.pagination.pageSizeOptions.map((size: any) => (
-                    <SelectItem key={size} value={String(size)} className="text-xs">
-                      {size}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                {schema.pagination.pageSizeOptions.map((size: any) => (
+                  <option key={size} value={String(size)}>
+                    {size}
+                  </option>
+                ))}
+              </select>
             </div>
           )}
         </div>

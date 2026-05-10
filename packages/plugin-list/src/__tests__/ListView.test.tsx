@@ -303,7 +303,7 @@ describe('ListView', () => {
     renderWithProvider(<ListView schema={schema} />);
     
     // Default density mode is 'compact'
-    const densityButton = screen.getByTitle('Density: compact');
+    const densityButton = screen.getByLabelText('Density: compact');
     expect(densityButton).toBeInTheDocument();
   });
 
@@ -362,7 +362,7 @@ describe('ListView', () => {
     };
 
     renderWithProvider(<ListView schema={schema} />);
-    const densityButton = screen.getByTitle('Density: compact');
+    const densityButton = screen.getByLabelText('Density: compact');
     expect(densityButton).toBeInTheDocument();
   });
 
@@ -378,7 +378,7 @@ describe('ListView', () => {
     };
 
     renderWithProvider(<ListView schema={schema} />);
-    const densityButton = screen.getByTitle('Density: spacious');
+    const densityButton = screen.getByLabelText('Density: spacious');
     expect(densityButton).toBeInTheDocument();
   });
 
@@ -841,7 +841,7 @@ describe('ListView', () => {
       expect(screen.queryByTitle(/density/i)).not.toBeInTheDocument();
     });
 
-    it('should hide Density button by default (showDensity undefined)', () => {
+    it('should show Density button by default (showDensity undefined)', () => {
       const schema: ListViewSchema = {
         type: 'list-view',
         objectName: 'contacts',
@@ -850,7 +850,7 @@ describe('ListView', () => {
       };
 
       renderWithProvider(<ListView schema={schema} />);
-      expect(screen.queryByTitle(/density/i)).not.toBeInTheDocument();
+      expect(screen.getByLabelText(/density/i)).toBeInTheDocument();
     });
 
     // Export + allowExport
@@ -993,7 +993,7 @@ describe('ListView', () => {
       };
 
       renderWithProvider(<ListView schema={schema} />);
-      const densityButton = screen.getByTitle('Density: compact');
+      const densityButton = screen.getByLabelText('Density: compact');
       expect(densityButton).toBeInTheDocument();
     });
 
@@ -1008,7 +1008,7 @@ describe('ListView', () => {
       };
 
       renderWithProvider(<ListView schema={schema} />);
-      const densityButton = screen.getByTitle('Density: spacious');
+      const densityButton = screen.getByLabelText('Density: spacious');
       expect(densityButton).toBeInTheDocument();
     });
   });
