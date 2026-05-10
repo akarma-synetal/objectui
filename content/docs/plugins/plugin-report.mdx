@@ -22,5 +22,33 @@ examples, see the package README:
 - 📝 [Package README](https://github.com/objectstack-ai/objectui/tree/main/packages/plugin-report)
 - 🐛 [Report an issue](https://github.com/objectstack-ai/objectui/issues)
 
+## Type-aware cell rendering
+
+Report cells are rendered through the shared `getCellRenderer` registry
+from `@object-ui/fields`, the same renderer used by `ObjectGrid` and
+list views. This means each column gets the right component for its
+type — `select` becomes a coloured `Badge`, `lookup` becomes a deep
+link, `boolean` becomes ✓/✗, `email`/`url`/`phone` become `mailto:`/
+external/`tel:` links, `image` becomes a thumbnail, and so on.
+
+When a report binds an `objectName`, columns auto-hydrate `type`,
+`options`, `referenceTo`, and `label` from the underlying object so
+authors don't need to duplicate field metadata. Per-column overrides
+always win.
+
+```ts
+{
+  name: 'contacts_by_account',
+  objectName: 'contact',
+  columns: [
+    { field: 'email' },       // mailto: link
+    { field: 'phone' },       // tel: link
+    { field: 'is_primary' },  // ✓/✗
+    { field: 'status' },      // Badge with option color
+    { field: 'account' },     // Linked account record
+  ],
+}
+```
+
 > **Note:** A rich interactive documentation page for this plugin is coming soon.
 > In the meantime, refer to the package README for schema, props and examples.

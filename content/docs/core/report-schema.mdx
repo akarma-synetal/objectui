@@ -314,13 +314,48 @@ const salesReport: ReportSchema = {
 interface ReportField {
   name: string;                    // Field name
   label?: string;                  // Display label
-  type?: 'string' | 'number' | 'date' | 'boolean';
+
+  // Drives type-aware cell rendering. Auto-hydrated from the bound
+  // object's ObjectField when the report has an `objectName`.
+  type?:
+    | 'string' | 'text' | 'number' | 'date' | 'datetime' | 'time' | 'boolean'
+    | 'select' | 'multi_select' | 'status'
+    | 'lookup' | 'reference' | 'master_detail'
+    | 'email' | 'url' | 'phone' | 'currency' | 'percent'
+    | 'image' | 'file' | 'user' | 'owner'
+    | 'richtext' | 'html' | 'markdown' | 'json' | 'tags';
+
+  // Used when type is select / multi_select / status.
+  options?: Array<{ value: string | number; label: string; color?: string }>;
+
+  // Used when type is lookup / reference / master_detail. Enables
+  // deep-links to the related record's detail page.
+  referenceTo?: string;
+
   aggregation?: 'sum' | 'avg' | 'min' | 'max' | 'count' | 'distinct';
   format?: string;                 // Display format
   showInSummary?: boolean;         // Show in summary section
   sortOrder?: number;              // Sort order
+
+  // Legacy opt-in: render a plain string cell as a Badge.
+  // For most cases prefer `type: 'select'` + `options`.
+  renderAs?: 'badge' | 'text';
+  colorMap?: Record<string, string>; // value → CSS class
 }
 ```
+
+#### Type-aware rendering
+
+The runtime maps `field.type` to a cell renderer from
+`@object-ui/fields`'s `getCellRenderer` registry. Examples: `select`
+becomes a coloured `Badge`, `lookup` becomes a deep link to the
+related record, `boolean` becomes ✓/✗, `email`/`url`/`phone` become
+`mailto:`/external/`tel:` links, `image` becomes a thumbnail. Any
+unknown type falls back to plain text.
+
+When the report binds an `objectName`, columns inherit `type`,
+`options`, `referenceTo`, and `label` from the corresponding
+`ObjectField` automatically — author-provided values always win.
 
 ### Aggregation Types
 

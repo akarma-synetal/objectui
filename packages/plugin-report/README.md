@@ -6,6 +6,7 @@ Report components for Object UI — build, view, render, and export reports with
 
 - 📊 **Report Builder** - Visual drag-and-drop report construction
 - 👁️ **Report Viewer** - Interactive report viewing with toolbar controls
+- 🎨 **Type-aware cells** - select → Badge, lookup → link, boolean → ✓/✗, email/url/phone → mailto/external/tel links, image → thumbnail, etc. (auto-hydrated from object metadata)
 - 🖨️ **Report Renderer** - Render reports from JSON definitions with charts
 - 📤 **Multi-Format Export** - Export to CSV, JSON, HTML, PDF, and Excel
 - 🔄 **Live Data Export** - Export with real-time data via `exportWithLiveData`
@@ -131,6 +132,67 @@ Components auto-register with `ComponentRegistry`:
   "report": { "sections": [] }
 }
 ```
+
+### Type-aware cell rendering
+
+`ReportViewer` delegates cell rendering to the shared `getCellRenderer`
+registry from `@object-ui/fields`, so each column is rendered with the
+component appropriate for its type — instead of `String(value)`.
+
+| `field.type`                  | Rendering                                     |
+| ----------------------------- | --------------------------------------------- |
+| `text` / `string`             | Plain text                                    |
+| `number` / `currency` / `percent` | Locale-formatted, optional currency/percent symbol |
+| `boolean`                     | ✓ / ✗ icons                                   |
+| `date` / `datetime` / `time`  | Localised date/time                           |
+| `select` / `multi_select` / `status` | Badge(s), label resolved from `options`, color from `option.color` or `colorMap` |
+| `lookup` / `reference` / `master_detail` | Linked record name (id fallback), deep-link to `/console/apps/<app>/<referenceTo>/record/<id>` |
+| `email`                       | `mailto:` link                                |
+| `url`                         | External link (`target="_blank"`)             |
+| `phone`                       | `tel:` link                                   |
+| `image`                       | Inline thumbnail                              |
+| `file`                        | Filename + download link                      |
+| `user` / `owner`              | Avatar + name                                 |
+| `richtext` / `html` / `markdown` | Sanitised inline content                   |
+| `json`                        | Collapsed code preview                        |
+
+Authors do **not** need to repeat type metadata on every report column:
+when a report binds an `objectName`, the runtime auto-hydrates each
+column's `type`, `options`, `referenceTo`, and `label` from the
+corresponding `ObjectField`. Author-provided values always win.
+
+Minimal report leveraging type-aware cells:
+
+```ts
+import type { ReportInput } from '@objectstack/spec/ui';
+
+export const ContactsReport: ReportInput = {
+  name: 'contacts_by_account',
+  label: 'Contacts by Account',
+  objectName: 'contact', // ← enables auto-hydration
+  type: 'tabular',
+  columns: [
+    { field: 'full_name', label: 'Name' },
+    { field: 'email',      label: 'Email' },     // → mailto:
+    { field: 'phone',      label: 'Phone' },     // → tel:
+    { field: 'is_primary', label: 'Primary' },   // → ✓/✗
+    { field: 'account',    label: 'Account' },   // → linked record
+    { field: 'status',     label: 'Status' },    // → Badge with option color
+  ],
+};
+```
+
+Override per column when needed:
+
+```ts
+columns: [
+  { field: 'tier', label: 'Tier', type: 'select',
+    options: [{ value: 'gold', label: 'Gold', color: 'amber' }] },
+]
+```
+
+Legacy `renderAs: 'badge'` + `colorMap` is still honoured for plain
+string columns.
 
 <!-- release-metadata:v3.3.0 -->
 
