@@ -11,6 +11,7 @@ import { useDataScope, SchemaRendererContext, SchemaRenderer } from '@object-ui/
 import { extractRecords } from '@object-ui/core';
 import { Skeleton, cn } from '@object-ui/components';
 import { useSafeFieldLabel } from '@object-ui/i18n';
+import { getCellRenderer, formatCurrency, formatPercent, formatDate } from '@object-ui/fields';
 
 export interface ObjectDataTableProps {
   schema: {
@@ -79,6 +80,40 @@ export function normalizeColumns(columns: (string | Record<string, any>)[]): Nor
  * - **Empty** → friendly "No data available" message
  * - **Data** → data-table with fetched rows
  */
+/**
+ * Compute the list of lookup-typed accessors that should be expanded when
+ * fetching rows. Returns column accessors whose object schema field type is
+ * a relation (lookup/reference/master_detail/user/owner). Used by the
+ * dashboard table widget to ask the data adapter to populate referenced
+ * records (e.g. `account: { id, name }`) so cells don't show raw FK ids.
+ */
+export function computeLookupExpand(
+  schema: { columns?: any[]; objectName?: string },
+  objectSchema: any,
+): string[] {
+  if (!objectSchema?.fields) return [];
+  const fieldsByName: Record<string, any> = {};
+  if (Array.isArray(objectSchema.fields)) {
+    for (const def of objectSchema.fields) if (def?.name) fieldsByName[def.name] = def;
+  } else {
+    for (const [name, def] of Object.entries(objectSchema.fields)) fieldsByName[name] = { name, ...(def as any) };
+  }
+  const cols = Array.isArray(schema.columns) ? schema.columns : [];
+  const accessors = cols
+    .map((c: any) => (typeof c === 'string' ? c : (c.accessorKey || c.name)))
+    .filter(Boolean);
+  const out = new Set<string>();
+  for (const acc of accessors) {
+    const def = fieldsByName[acc];
+    if (!def) continue;
+    const t = def.type;
+    if (t === 'lookup' || t === 'reference' || t === 'master_detail' || t === 'user' || t === 'owner') {
+      out.add(acc);
+    }
+  }
+  return Array.from(out);
+}
+
 export const ObjectDataTable: React.FC<ObjectDataTableProps> = ({ schema, dataSource: propDataSource, className }) => {
   const context = useContext(SchemaRendererContext);
   const dataSource = propDataSource || context?.dataSource;
@@ -103,9 +138,13 @@ export const ObjectDataTable: React.FC<ObjectDataTableProps> = ({ schema, dataSo
         let data: any[];
 
         if (typeof dataSource.find === 'function') {
-          const results = await dataSource.find(schema.objectName, {
-            $filter: schema.filter,
-          });
+          // If we know the schema, ask the server to expand lookup columns so
+          // cells can render the related record's display name instead of a
+          // bare FK id. Adapters that don't understand `$expand` ignore it.
+          const expand = computeLookupExpand(schema, objectSchema);
+          const params: any = { $filter: schema.filter };
+          if (expand.length) params.$expand = expand;
+          const results = await dataSource.find(schema.objectName, params);
           data = extractRecords(results);
         } else {
           return;
@@ -129,7 +168,7 @@ export const ObjectDataTable: React.FC<ObjectDataTableProps> = ({ schema, dataSo
     }
 
     return () => { isMounted = false; };
-  }, [schema.objectName, dataSource, boundData, schema.data, schema.filter]);
+  }, [schema.objectName, dataSource, boundData, schema.data, schema.filter, objectSchema]);
 
   // Fetch object schema for column-header translation and select-option cell labels.
   useEffect(() => {
@@ -150,60 +189,117 @@ export const ObjectDataTable: React.FC<ObjectDataTableProps> = ({ schema, dataSo
   // Auto-derive columns from data keys when none are provided. When `objectName`
   // is set, prefer translated field labels via the convention-based hook so that
   // headers automatically pick up i18n bundles.
+  //
+  // Each column is also enriched with `type/options/referenceTo/format` from
+  // the bound object schema and gets a `cell:` render function that delegates
+  // to `getCellRenderer` from `@object-ui/fields`. This produces the same
+  // type-aware rendering as ObjectGrid / list views and the report viewer
+  // (Badge for select, link for lookup, ✓/✗ for boolean, mailto:/tel: links,
+  // currency/percent/date formatting honouring the column's `format` prop).
   const derivedColumns = useMemo(() => {
     const objectName = schema.objectName;
+    const fieldsByName: Record<string, any> = {};
+    if (objectSchema?.fields) {
+      const f = objectSchema.fields;
+      if (Array.isArray(f)) {
+        for (const def of f) {
+          if (def?.name) fieldsByName[def.name] = def;
+        }
+      } else {
+        for (const [name, def] of Object.entries(f)) {
+          fieldsByName[name] = { name, ...(def as any) };
+        }
+      }
+    }
+
     const buildHeader = (k: string) => {
       const humanized = k.charAt(0).toUpperCase() + k.slice(1).replace(/([A-Z])/g, ' $1');
       return objectName ? fieldLabel(objectName, k, humanized) : humanized;
     };
+
+    const enrich = (col: NormalizedColumn): NormalizedColumn => {
+      const meta = fieldsByName[col.accessorKey];
+      const referenceTo =
+        col.referenceTo ??
+        meta?.referenceTo ??
+        (typeof meta?.reference === 'string' ? meta.reference : meta?.reference?.to) ??
+        meta?.target;
+
+      // For select fields, build options with translated labels so that
+      // the badge shows e.g. "提案" instead of the English/raw "proposal".
+      let options: Array<{ value: any; label: string; color?: string }> | undefined =
+        col.options ?? meta?.options;
+      if (
+        objectName &&
+        options &&
+        (meta?.type === 'select' || meta?.type === 'picklist' || meta?.type === 'dropdown' || meta?.type === 'status')
+      ) {
+        options = options.map((opt: any) => {
+          if (opt == null) return opt;
+          const value = typeof opt === 'object' ? opt.value : opt;
+          const fallback = typeof opt === 'object' ? (opt.label || String(value)) : String(value);
+          return {
+            value,
+            label: fieldOptionLabel(objectName, col.accessorKey, String(value), fallback),
+            color: typeof opt === 'object' ? opt.color : undefined,
+          };
+        });
+      }
+
+      // For lookup-like fields just pass through `referenceTo`. The server
+      // expands these via `$expand` in the fetch above so the cell value will
+      // be `{ id, name }`, which LookupCellRenderer/UserCellRenderer handle
+      // natively without needing an `options` map.
+
+      const fieldMeta: any = {
+        name: col.accessorKey,
+        label: col.header,
+        type: col.type ?? meta?.type,
+        options,
+        referenceTo,
+        format: col.format ?? meta?.format,
+        currency: (col as any).currency ?? meta?.currency,
+        decimals: (col as any).decimals ?? meta?.decimals,
+      };
+
+      if (typeof col.cell === 'function') return { ...col, ...fieldMeta };
+
+      const cell = (value: any): React.ReactNode => {
+        if (value == null || value === '') return '';
+        const fmt = fieldMeta.format;
+        if (typeof fmt === 'string' && /^\$|¥|€|£/.test(fmt) && typeof value === 'number') {
+          return formatCurrency(value, fieldMeta.currency || 'USD');
+        }
+        if (typeof fmt === 'string' && /%/.test(fmt) && typeof value === 'number') {
+          const decimals = (fmt.match(/0\.(0+)%/) || [, ''])[1].length;
+          const normalized = value > 1 ? value / 100 : value;
+          return formatPercent(normalized * 100, decimals);
+        }
+        if (typeof fmt === 'string' && /[YMDHms]/.test(fmt)) {
+          return formatDate(value, fmt);
+        }
+        const Renderer = getCellRenderer(fieldMeta.type || 'text');
+        return <Renderer value={value} field={fieldMeta as any} />;
+      };
+      return { ...col, ...fieldMeta, cell };
+    };
+
     if (schema.columns && schema.columns.length > 0) {
       const normalized = normalizeColumns(schema.columns);
-      if (!objectName) return normalized;
-      return normalized.map((col) => ({
-        ...col,
-        header: fieldLabel(objectName, col.accessorKey, col.header),
-      }));
+      const withHeaders = !objectName
+        ? normalized
+        : normalized.map((col) => ({ ...col, header: fieldLabel(objectName, col.accessorKey, col.header) }));
+      return withHeaders.map(enrich);
     }
     if (finalData.length === 0) return [];
     const keys = Object.keys(finalData[0]).filter(k => !k.startsWith('_'));
-    return keys.map(k => ({ header: buildHeader(k), accessorKey: k }));
-  }, [schema.columns, schema.objectName, finalData, fieldLabel]);
+    return keys.map(k => enrich({ header: buildHeader(k), accessorKey: k }));
+  }, [schema.columns, schema.objectName, finalData, objectSchema, fieldLabel, fieldOptionLabel]);
 
-  // Translate select/picklist cell values when an objectSchema is available.
-  // Skips cells whose raw value is missing, and falls back to the metadata
-  // option label (or the raw value) when no translation is registered.
-  const localizedData = useMemo(() => {
-    const objectName = schema.objectName;
-    if (!objectName || !objectSchema?.fields || finalData.length === 0) {
-      return finalData;
-    }
-    const selectFields: Record<string, Record<string, string>> = {};
-    for (const col of derivedColumns) {
-      const fieldDef = objectSchema.fields[col.accessorKey];
-      if (!fieldDef) continue;
-      const ft = fieldDef.type;
-      if (ft !== 'select' && ft !== 'picklist' && ft !== 'dropdown') continue;
-      const opts: Array<{ value: string; label: string } | string> = fieldDef.options || [];
-      const map: Record<string, string> = {};
-      for (const opt of opts) {
-        if (typeof opt === 'string') map[opt] = opt;
-        else if (opt && typeof opt === 'object') map[String(opt.value)] = opt.label || String(opt.value);
-      }
-      selectFields[col.accessorKey] = map;
-    }
-    if (Object.keys(selectFields).length === 0) return finalData;
-    return finalData.map((row: any) => {
-      const next: any = { ...row };
-      for (const [field, labelMap] of Object.entries(selectFields)) {
-        const raw = row[field];
-        if (raw == null || raw === '') continue;
-        const rawStr = String(raw);
-        const fallback = labelMap[rawStr] || rawStr;
-        next[field] = fieldOptionLabel(objectName, field, rawStr, fallback);
-      }
-      return next;
-    });
-  }, [finalData, derivedColumns, objectSchema, schema.objectName, fieldOptionLabel]);
+  // Note: per-cell select-label translation that used to happen here is now
+  // handled by SelectCellRenderer in the shared field registry, which also
+  // takes care of badge styling and option colors. The raw data is passed
+  // straight through to the underlying data-table.
 
   // Loading skeleton
   if (loading && finalData.length === 0) {
@@ -276,7 +372,7 @@ export const ObjectDataTable: React.FC<ObjectDataTableProps> = ({ schema, dataSo
   const tableSchema = {
     ...schema,
     type: 'data-table',
-    data: localizedData,
+    data: finalData,
     columns: derivedColumns,
   };
 

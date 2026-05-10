@@ -228,6 +228,48 @@ const schema = {
 };
 ```
 
+## Type-aware list/table widget cells
+
+Dashboard `type: 'table'` widgets bound to an `objectName` automatically
+render each cell using the appropriate component for the field's type — the
+same cell renderers used by `ObjectGrid` (the list view) and reports
+(`@object-ui/plugin-report`).
+
+You don't need to declare `type` on each column. The widget fetches the
+object schema once and infers the renderer from the bound field:
+
+| Field type | Cell rendering |
+|---|---|
+| `select` / `picklist` / `status` | Translated label inside a colored Badge |
+| `lookup` / `reference` / `master_detail` / `user` / `owner` | Display name (FK is auto-expanded server-side via `$expand`) |
+| `boolean` | Checkbox |
+| `email` | `mailto:` link |
+| `url` | Clickable link |
+| `phone` | Phone link with copy button |
+| `date` / `datetime` | Locale-formatted date |
+| `currency` | Locale currency (or honour `format: '$0,0'`) |
+| `percent` | `0%` / `0.0%` formatted (honour `format`) |
+
+Author overrides always win — pass `type`, `format`, `options`,
+`referenceTo`, or your own `cell` function on a column to bypass
+auto-detection.
+
+```jsonc
+{
+  "type": "table",
+  "objectName": "opportunity",
+  "columns": [
+    { "accessorKey": "name",        "header": "Opportunity" },
+    { "accessorKey": "account",     "header": "Account" },
+    { "accessorKey": "amount",      "header": "Amount",      "format": "$0,0" },
+    { "accessorKey": "stage",       "header": "Stage" },
+    { "accessorKey": "probability", "header": "Probability", "format": "0%" },
+    { "accessorKey": "close_date",  "header": "Close Date",  "format": "YYYY-MM-DD" },
+    { "accessorKey": "owner",       "header": "Owner" }
+  ]
+}
+```
+
 <!-- release-metadata:v3.3.0 -->
 
 ## Compatibility
