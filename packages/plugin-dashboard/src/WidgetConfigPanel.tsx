@@ -58,10 +58,36 @@ const AGGREGATE_OPTIONS = [
 // Helpers
 // ---------------------------------------------------------------------------
 
-const CHART_TYPES = ['bar', 'line', 'area', 'pie', 'donut', 'scatter'];
+const CHART_TYPES = ['bar', 'horizontal-bar', 'line', 'area', 'pie', 'donut', 'scatter', 'funnel'];
+// Charts that use a category axis (X) → a numeric series (Y); show "Category field"
+// and X/Y axis labels.
+const CARTESIAN_CHART_TYPES = ['bar', 'horizontal-bar', 'line', 'area', 'scatter'];
+// Charts that group records into proportional slices/segments; show "Category field"
+// but no axis labels.
+const CATEGORICAL_CHART_TYPES = ['pie', 'donut', 'funnel'];
+// Widget types that bind to a data source and render aggregated values
+// (i.e. they use Aggregation + Value field).  Excludes table / list which
+// render raw rows.
+const AGGREGATING_TYPES = ['metric', ...CHART_TYPES];
+// Widget types that group records by a "category" dimension.  Metric is a
+// single-value widget — picking a categoryField actually breaks it (it
+// re-runs the query grouped by that field, producing multiple results).
+const CATEGORY_GROUPED_TYPES = [...CHART_TYPES];
 
 function isChartType(t: string | undefined): boolean {
   return !!t && CHART_TYPES.includes(t);
+}
+
+function isCartesianChart(t: string | undefined): boolean {
+  return !!t && CARTESIAN_CHART_TYPES.includes(t);
+}
+
+function usesCategoryField(t: string | undefined): boolean {
+  return !!t && CATEGORY_GROUPED_TYPES.includes(t);
+}
+
+function isAggregatingType(t: string | undefined): boolean {
+  return !!t && AGGREGATING_TYPES.includes(t);
 }
 
 const SORT_BY_OPTIONS = [
@@ -149,12 +175,18 @@ function buildWidgetSchema(
   // --- Chart-specific field selectors (category / value / aggregate) --------
 
   const categoryFieldDef: ConfigField = hasObjects
-    ? buildFieldCombobox('categoryField', 'Category field', 'Select field…', availableFields)
+    ? {
+        ...buildFieldCombobox('categoryField', 'Category field', 'Select field…', availableFields),
+        helpText: 'Group records by this field (one bar/slice/segment per value).',
+        visibleWhen: (d: Record<string, any>) => usesCategoryField(d.type),
+      }
     : {
         key: 'categoryField',
         label: 'Category field',
         type: 'input',
         placeholder: 'e.g. status',
+        helpText: 'Group records by this field (one bar/slice/segment per value).',
+        visibleWhen: (d: Record<string, any>) => usesCategoryField(d.type),
       };
 
   const valueFieldDef: ConfigField = hasObjects
@@ -162,7 +194,7 @@ function buildWidgetSchema(
         ...buildFieldCombobox('valueField', 'Value field', 'Select field…', availableFields),
         helpText: 'Field to aggregate (sum / average / min / max).',
         visibleWhen: (d: Record<string, any>) =>
-          d.type !== 'pivot' && (d.aggregate ?? 'count') !== 'count',
+          isAggregatingType(d.type) && (d.aggregate ?? 'count') !== 'count',
       }
     : {
         key: 'valueField',
@@ -171,7 +203,7 @@ function buildWidgetSchema(
         placeholder: 'e.g. amount',
         helpText: 'Field to aggregate (sum / average / min / max).',
         visibleWhen: (d: Record<string, any>) =>
-          d.type !== 'pivot' && (d.aggregate ?? 'count') !== 'count',
+          isAggregatingType(d.type) && (d.aggregate ?? 'count') !== 'count',
       };
 
   // --- Pivot-specific field selectors (row / column / value) ----------------
@@ -244,6 +276,7 @@ function buildWidgetSchema(
             options: AGGREGATE_OPTIONS,
             defaultValue: 'count',
             helpText: 'Count ignores Value field; Sum / Avg / Min / Max require it.',
+            visibleWhen: (d: Record<string, any>) => isAggregatingType(d.type),
           },
         ],
       },
@@ -357,12 +390,12 @@ function buildWidgetSchema(
         ],
       },
 
-      // ----- Chart: Axis & Series (visible for chart types) ---------------
+      // ----- Chart: Axis & Series (visible only for cartesian charts) -----
       {
         key: 'chart-axis',
         title: 'Axis & Series',
         collapsible: true,
-        visibleWhen: (d: Record<string, any>) => isChartType(d.type),
+        visibleWhen: (d: Record<string, any>) => isCartesianChart(d.type),
         fields: [
           {
             key: 'xAxisLabel',
@@ -376,6 +409,23 @@ function buildWidgetSchema(
             type: 'input',
             placeholder: 'e.g. Revenue',
           },
+          {
+            key: 'showLegend',
+            label: 'Show legend',
+            type: 'switch',
+            defaultValue: true,
+          },
+        ],
+      },
+
+      // ----- Legend (visible for categorical charts: pie/donut/funnel) ----
+      {
+        key: 'chart-legend',
+        title: 'Display',
+        collapsible: true,
+        visibleWhen: (d: Record<string, any>) =>
+          !!d.type && CATEGORICAL_CHART_TYPES.includes(d.type),
+        fields: [
           {
             key: 'showLegend',
             label: 'Show legend',
@@ -519,6 +569,28 @@ function resolveLabel(v: unknown): string {
  * Sections are context-aware: pivot, table, and chart types each show
  * their own dedicated config sections via `visibleWhen` predicates.
  */
+/**
+ * Strip fields that are not relevant to the current widget type, so a stale
+ * value (e.g. a `categoryField` carried over from a previous chart type)
+ * doesn't break the widget after the user switches to e.g. `metric`.
+ */
+function sanitizeDraftForType(draft: Record<string, any>): Record<string, any> {
+  const t = draft.type as string | undefined;
+  const out = { ...draft };
+  if (!usesCategoryField(t)) delete out.categoryField;
+  if (!isAggregatingType(t)) {
+    delete out.valueField;
+    delete out.aggregate;
+  } else if ((out.aggregate ?? 'count') === 'count') {
+    delete out.valueField;
+  }
+  if (!isCartesianChart(t)) {
+    delete out.xAxisLabel;
+    delete out.yAxisLabel;
+  }
+  return out;
+}
+
 export function WidgetConfigPanel({
   open,
   onClose,
@@ -553,7 +625,7 @@ export function WidgetConfigPanel({
       draft={draft}
       isDirty={isDirty}
       onFieldChange={updateField}
-      onSave={() => onSave(draft)}
+      onSave={() => onSave(sanitizeDraftForType(draft))}
       onDiscard={discard}
       headerExtra={headerExtra}
     />
