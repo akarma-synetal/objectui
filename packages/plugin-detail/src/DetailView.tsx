@@ -822,10 +822,6 @@ export const DetailView: React.FC<DetailViewProps> = ({
               </div>
             )}
 
-            {headerActionNodes.map((action, index) => (
-              <SchemaRenderer key={index} schema={action} data={data} />
-            ))}
-
             {/* Inline Edit Toggle — desktop-only chrome.
                 Mobile fallback lives inside the unified action:bar overflow
                 menu as a `systemActions` entry with `sm:hidden`. */}
@@ -873,6 +869,14 @@ export const DetailView: React.FC<DetailViewProps> = ({
                 <TooltipContent>{t('detail.editRecord')}</TooltipContent>
               </Tooltip>
             )}
+
+            {/* Header business actions (and the unified "..." overflow menu
+                that holds systemActions) render LAST so the three-dot more
+                menu sits at the far right edge — the standard placement
+                for "more options" affordances. */}
+            {headerActionNodes.map((action, index) => (
+              <SchemaRenderer key={`header-action-${index}`} schema={action} data={data} />
+            ))}
           </div>
         </div>
 
