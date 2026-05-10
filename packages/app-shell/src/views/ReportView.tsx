@@ -267,22 +267,62 @@ export function ReportView({ dataSource }: { dataSource?: DataSource }) {
   // Map @objectstack/spec report format to @object-ui/types ReportSchema:
   //   - 'label' → 'title'
   //   - 'columns' (with 'field') → 'fields' (with 'name') + auto-generate 'sections'
+  //   - Hydrate type/options/referenceTo from the bound object's field metadata
+  //     so the type-aware cell renderer can show select badges, lookup links,
+  //     boolean ✓/✗, email/url/phone links, etc. instead of raw values.
   const mapReportForViewer = (src: any) => {
     const mapped: any = { ...src };
     if (!mapped.title && mapped.label) {
       mapped.title = mapped.label;
     }
+
+    // Build a lookup of object-field metadata to hydrate column type info.
+    const objName = mapped.objectName || mapped.dataSource?.object || mapped.dataSource?.resource;
+    const objDef = objName ? objects?.find((o: any) => o.name === objName) : null;
+    const objFieldsArr: any[] = Array.isArray(objDef?.fields)
+      ? objDef.fields
+      : objDef?.fields
+        ? Object.entries(objDef.fields).map(([name, def]: [string, any]) => ({ name, ...def }))
+        : [];
+    const objFieldMap: Record<string, any> = {};
+    for (const f of objFieldsArr) {
+      if (f && f.name) objFieldMap[f.name] = f;
+    }
+
+    const hydrate = (col: any): any => {
+      const name = col.name || col.field;
+      const meta = name ? objFieldMap[name] : undefined;
+      if (!meta) return col;
+      // Author-provided values win; only fill in what's missing.
+      const out = { ...col };
+      if (out.type === undefined && meta.type !== undefined) out.type = meta.type;
+      if (out.options === undefined && Array.isArray(meta.options)) out.options = meta.options;
+      if (out.referenceTo === undefined) {
+        const ref = meta.referenceTo || meta.reference?.to || meta.target;
+        if (ref) out.referenceTo = ref;
+      }
+      if (out.label === undefined && meta.label) out.label = meta.label;
+      return out;
+    };
+
     // Map spec 'columns' (field/label/aggregate) → ReportSchema 'fields' (name/label/aggregation)
     if (!mapped.fields && Array.isArray(mapped.columns)) {
-      mapped.fields = mapped.columns.map((col: any) => ({
-        name: col.field || col.name,
-        label: col.label,
-        type: col.type,
-        format: col.format,
-        renderAs: col.renderAs,
-        colorMap: col.colorMap,
-        ...(col.aggregate ? { aggregation: col.aggregate, showInSummary: true } : {}),
-      }));
+      mapped.fields = mapped.columns.map((col: any) => {
+        const hydrated = hydrate(col);
+        return {
+          name: hydrated.field || hydrated.name,
+          label: hydrated.label,
+          type: hydrated.type,
+          options: hydrated.options,
+          referenceTo: hydrated.referenceTo,
+          format: hydrated.format,
+          renderAs: hydrated.renderAs,
+          colorMap: hydrated.colorMap,
+          ...(hydrated.aggregate ? { aggregation: hydrated.aggregate, showInSummary: true } : {}),
+        };
+      });
+    } else if (Array.isArray(mapped.fields)) {
+      mapped.fields = mapped.fields.map(hydrate);
     }
     // Always regenerate sections from current fields so that live config
     // changes (e.g. field picker updates) are immediately reflected in
@@ -302,6 +342,8 @@ export function ReportView({ dataSource }: { dataSource?: DataSource }) {
           name: f.name,
           label: f.label,
           type: f.type,
+          options: f.options,
+          referenceTo: f.referenceTo,
           format: f.format,
           renderAs: f.renderAs,
           colorMap: f.colorMap,

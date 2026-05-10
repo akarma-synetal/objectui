@@ -14,6 +14,7 @@ import type { ReportViewerSchema, ReportSection, ReportExportFormat, ReportField
 import { Download, Printer, RefreshCw } from 'lucide-react';
 import { exportReport } from './ReportExportEngine';
 import { formatValue } from './formatValue';
+import { getCellRenderer } from '@object-ui/fields';
 
 // ---------------------------------------------------------------------------
 // Client-side grouping utility
@@ -133,10 +134,37 @@ export const ReportViewer: React.FC<ReportViewerProps> = ({ schema, onRefresh })
   const renderCellValue = (value: any, field: ReportField): React.ReactNode => {
     if (value == null || value === '') return '';
 
-    // Badge rendering for fields with renderAs='badge'
-    if (field.renderAs === 'badge') {
+    // Legacy badge rendering — explicit opt-in via renderAs='badge'.
+    // Kept for backwards compatibility; new code should set type:'select'/'status'
+    // which auto-renders as a badge.
+    if (field.renderAs === 'badge' && (!field.type || field.type === 'string' || field.type === 'text')) {
       const colorClass = field.colorMap?.[String(value)] || '';
       return <Badge className={colorClass}>{String(value)}</Badge>;
+    }
+
+    // Aggregation results are always raw numbers — keep simple numeric formatting
+    // and skip type-aware rendering (lookup/badge/etc don't make sense for sums).
+    if (field.aggregation) {
+      return formatValue(value, field);
+    }
+
+    // Type-aware rendering via the shared field cell-renderer registry.
+    // This handles select (badge), lookup (link), boolean (✓/✗), email/url/phone
+    // (mailto:/external/tel: links), image (thumbnail), richtext (sanitized),
+    // datetime, currency, percent, etc. Falls back to text for unknown types.
+    if (field.type) {
+      // colorMap on the report column should override per-option colors —
+      // splice it into a synthetic options list when present.
+      const fieldMeta: any = { ...field };
+      if (field.colorMap && !fieldMeta.options) {
+        fieldMeta.options = Object.entries(field.colorMap).map(([v, color]) => ({
+          value: v,
+          label: v,
+          color,
+        }));
+      }
+      const Renderer = getCellRenderer(field.type);
+      return <Renderer value={value} field={fieldMeta} />;
     }
 
     return formatValue(value, field);

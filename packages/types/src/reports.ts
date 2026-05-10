@@ -46,9 +46,60 @@ export interface ReportField {
   label?: string;
 
   /**
-   * Field type
+   * Field type — drives type-aware cell rendering.
+   *
+   * The narrow primitives (string/number/date/boolean) are kept for backwards
+   * compatibility, while the broader object-field types (select, multi_select,
+   * lookup, reference, email, url, phone, image, richtext, json, datetime,
+   * time, percent, currency, file, user, etc.) let the renderer pick the
+   * right cell component (Badge for select, link for email/url/phone, ✓/✗
+   * for boolean, thumbnail for image, …) instead of falling back to
+   * `String(value)`.
+   *
+   * When the report is bound to an object (`objectName`), the runtime should
+   * auto-hydrate this from the corresponding ObjectField so authors don't
+   * need to repeat type metadata.
    */
-  type?: 'string' | 'number' | 'date' | 'boolean';
+  type?:
+    | 'string'
+    | 'text'
+    | 'number'
+    | 'date'
+    | 'datetime'
+    | 'time'
+    | 'boolean'
+    | 'select'
+    | 'multi_select'
+    | 'status'
+    | 'lookup'
+    | 'reference'
+    | 'master_detail'
+    | 'email'
+    | 'url'
+    | 'phone'
+    | 'currency'
+    | 'percent'
+    | 'image'
+    | 'file'
+    | 'user'
+    | 'owner'
+    | 'richtext'
+    | 'html'
+    | 'markdown'
+    | 'json'
+    | 'tags';
+
+  /**
+   * Options for select / multi_select / status types.
+   * Used by the cell renderer to resolve raw value → label and badge color.
+   */
+  options?: Array<{ value: string | number; label: string; color?: string }>;
+
+  /**
+   * Target object for lookup / reference / master_detail types.
+   * Used by the cell renderer to build a deep-link to the related record.
+   */
+  referenceTo?: string;
 
   /**
    * Aggregation function
@@ -71,12 +122,15 @@ export interface ReportField {
   sortOrder?: number;
 
   /**
-   * Custom render style (e.g., 'badge' for status fields)
+   * Custom render style (e.g., 'badge' for status fields).
+   * Most types now have sensible default rendering — this is for opt-in
+   * overrides only.
    */
   renderAs?: 'badge' | 'text';
 
   /**
-   * Color mapping for badge rendering (value → CSS class or color)
+   * Color mapping for badge rendering (value → CSS class or color).
+   * Takes precedence over per-option colors when both are provided.
    */
   colorMap?: Record<string, string>;
 }

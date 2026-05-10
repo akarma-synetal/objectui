@@ -41,11 +41,27 @@ export const ReportAggregationTypeSchema = z.enum(['sum', 'avg', 'min', 'max', '
 export const ReportFieldSchema = z.object({
   name: z.string().describe('Field name/identifier'),
   label: z.string().optional().describe('Display label'),
-  type: z.enum(['string', 'number', 'date', 'boolean']).optional().describe('Field type'),
+  type: z
+    .enum([
+      'string', 'text', 'number', 'date', 'datetime', 'time', 'boolean',
+      'select', 'multi_select', 'status', 'lookup', 'reference', 'master_detail',
+      'email', 'url', 'phone', 'currency', 'percent',
+      'image', 'file', 'user', 'owner',
+      'richtext', 'html', 'markdown', 'json', 'tags',
+    ])
+    .optional()
+    .describe('Field type — drives type-aware cell rendering'),
+  options: z
+    .array(z.object({ value: z.union([z.string(), z.number()]), label: z.string(), color: z.string().optional() }))
+    .optional()
+    .describe('Options for select/multi_select/status types'),
+  referenceTo: z.string().optional().describe('Target object for lookup/reference/master_detail'),
   aggregation: ReportAggregationTypeSchema.optional().describe('Aggregation function'),
   format: z.string().optional().describe('Format string'),
   showInSummary: z.boolean().optional().describe('Show in summary'),
   sortOrder: z.number().optional().describe('Sort order'),
+  renderAs: z.enum(['badge', 'text']).optional().describe('Custom render style override'),
+  colorMap: z.record(z.string(), z.string()).optional().describe('Value → color class map for badges'),
 });
 
 /**
