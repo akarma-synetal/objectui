@@ -22,11 +22,13 @@ import type { ConfigPanelSchema, ConfigField } from '@object-ui/components';
 const WIDGET_TYPE_OPTIONS = [
   { value: 'metric', label: 'Metric' },
   { value: 'bar', label: 'Bar Chart' },
+  { value: 'horizontal-bar', label: 'Horizontal Bar' },
   { value: 'line', label: 'Line Chart' },
   { value: 'pie', label: 'Pie Chart' },
   { value: 'donut', label: 'Donut Chart' },
   { value: 'area', label: 'Area Chart' },
   { value: 'scatter', label: 'Scatter Plot' },
+  { value: 'funnel', label: 'Funnel' },
   { value: 'table', label: 'Table' },
   { value: 'pivot', label: 'Pivot Table' },
   { value: 'list', label: 'List' },

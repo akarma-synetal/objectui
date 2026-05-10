@@ -85,10 +85,12 @@ export async function resolveGroupByLabels(
 
   const fieldDef = objectSchema?.fields?.[groupByField];
   if (!fieldDef) {
-    // No metadata available — apply humanizeLabel as fallback
+    // No metadata available — apply humanizeLabel as fallback, but pass
+    // ISO-date-like values through untouched so date chart axes can format them.
+    const isoLike = /^\d{4}-\d{2}-\d{2}/;
     return data.map(row => {
       const raw = String(row[groupByField] ?? '');
-      const humanized = humanizeLabel(raw);
+      const humanized = isoLike.test(raw) ? raw : humanizeLabel(raw);
       return {
         ...row,
         [groupByField]: t(raw, humanized),
@@ -177,11 +179,30 @@ export async function resolveGroupByLabels(
     }
   }
 
+  // --- date / datetime / timestamp fields ---
+  // Preserve the raw ISO string so the chart layer can format it (e.g. "May 23").
+  // humanizeLabel would replace hyphens with spaces and break date parsing.
+  if (
+    fieldType === 'date' ||
+    fieldType === 'datetime' ||
+    fieldType === 'date_time' ||
+    fieldType === 'timestamp' ||
+    fieldType === 'time'
+  ) {
+    return data;
+  }
+
   // --- fallback for other field types ---
-  return data.map(row => ({
-    ...row,
-    [groupByField]: humanizeLabel(String(row[groupByField] ?? '')),
-  }));
+  // Detect ISO 8601-like date strings and pass them through untouched so the
+  // chart's tickFormatter can present them nicely. Otherwise humanize.
+  const isoLike = /^\d{4}-\d{2}-\d{2}/;
+  return data.map(row => {
+    const raw = String(row[groupByField] ?? '');
+    return {
+      ...row,
+      [groupByField]: isoLike.test(raw) ? raw : humanizeLabel(raw),
+    };
+  });
 }
 
 // Re-export extractRecords from @object-ui/core for backward compatibility

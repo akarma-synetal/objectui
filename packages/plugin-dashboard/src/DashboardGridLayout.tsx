@@ -129,7 +129,7 @@ export const DashboardGridLayout: React.FC<DashboardGridLayoutProps> = ({
 
     const widgetType = widget.type;
     const options = (widget.options || {}) as Record<string, any>;
-    if (widgetType === 'bar' || widgetType === 'line' || widgetType === 'area' || widgetType === 'pie' || widgetType === 'donut' || widgetType === 'scatter') {
+    if (widgetType === 'bar' || widgetType === 'horizontal-bar' || widgetType === 'line' || widgetType === 'area' || widgetType === 'pie' || widgetType === 'donut' || widgetType === 'scatter' || widgetType === 'funnel') {
       const widgetData = (widget as any).data || options.data;
       // Widget-level fields (from config panel) override options-level fields
       const xAxisKey = widget.categoryField || options.xField || 'name';

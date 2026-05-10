@@ -43,7 +43,7 @@ export interface ChartRendererProps {
     type: string;
     id?: string;
     className?: string;
-    chartType?: 'bar' | 'line' | 'area' | 'pie' | 'donut' | 'radar' | 'scatter' | 'combo';
+    chartType?: 'bar' | 'horizontal-bar' | 'line' | 'area' | 'pie' | 'donut' | 'radar' | 'scatter' | 'funnel' | 'combo';
     data?: Array<Record<string, any>>;
     config?: Record<string, any>;
     xAxisKey?: string;

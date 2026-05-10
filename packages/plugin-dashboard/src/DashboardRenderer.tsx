@@ -278,11 +278,11 @@ export const DashboardRenderer = forwardRef<HTMLDivElement, DashboardRendererPro
                 };
             }
 
-            // Normalise widget types that map to supported chart types
-            const chartTypeMap: Record<string, string> = { 'funnel': 'bar', 'horizontal-bar': 'bar' };
+            // 'horizontal-bar' uses BarChart with vertical layout; 'funnel' has its own renderer.
+            const chartTypeMap: Record<string, string> = {};
             const resolvedWidgetType = chartTypeMap[widgetType] || widgetType;
 
-            if (resolvedWidgetType === 'bar' || resolvedWidgetType === 'line' || resolvedWidgetType === 'area' || resolvedWidgetType === 'pie' || resolvedWidgetType === 'donut' || resolvedWidgetType === 'scatter') {
+            if (resolvedWidgetType === 'bar' || resolvedWidgetType === 'horizontal-bar' || resolvedWidgetType === 'line' || resolvedWidgetType === 'area' || resolvedWidgetType === 'pie' || resolvedWidgetType === 'donut' || resolvedWidgetType === 'scatter' || resolvedWidgetType === 'funnel') {
                 // Support data at widget level or nested inside options
                 const widgetData = (widget as any).data || options.data;
                 // Widget-level fields (from config panel) override options-level fields

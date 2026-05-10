@@ -28,6 +28,9 @@ import {
   XAxis,
   YAxis,
   CartesianGrid,
+  Funnel,
+  FunnelChart,
+  LabelList,
 } from 'recharts';
 import {
   ChartContainer,
@@ -70,7 +73,7 @@ const TW_COLORS: Record<string, string> = {
 const resolveColor = (color: string) => TW_COLORS[color] || color;
 
 export interface AdvancedChartImplProps {
-  chartType?: 'bar' | 'line' | 'area' | 'pie' | 'donut' | 'radar' | 'scatter' | 'combo';
+  chartType?: 'bar' | 'horizontal-bar' | 'line' | 'area' | 'pie' | 'donut' | 'radar' | 'scatter' | 'funnel' | 'combo';
   data?: Array<Record<string, any>>;
   config?: ChartConfig;
   xAxisKey?: string;
@@ -101,14 +104,46 @@ export default function AdvancedChartImpl({
   }, []);
   const ChartComponent = {
     bar: BarChart,
+    'horizontal-bar': BarChart,
     line: LineChart,
     area: AreaChart,
     pie: PieChart,
     donut: PieChart,
     radar: RadarChart,
     scatter: ScatterChart,
+    funnel: FunnelChart as any,
     combo: BarChart,
   }[chartType] || BarChart;
+
+  // Format ISO date strings into compact "MMM D" / "MMM YYYY" labels for X-axis ticks.
+  // Falls back to the raw value when not parseable as a date.
+  const formatTick = React.useCallback((value: any): string => {
+    if (value == null || value === '') return '';
+    const str = typeof value === 'string' ? value : String(value);
+    // Detect ISO 8601 date / datetime strings (YYYY-MM-DD or with time component)
+    const isoLike = /^\d{4}-\d{2}-\d{2}/.test(str);
+    if (isoLike) {
+      const d = new Date(str);
+      if (!Number.isNaN(d.getTime())) {
+        // Choose granularity based on data span: <= 31 days → MMM D, otherwise MMM YYYY
+        const span = data.length > 1
+          ? Math.abs(new Date(String(data[data.length - 1][xAxisKey] ?? '')).getTime() -
+                     new Date(String(data[0][xAxisKey] ?? '')).getTime())
+          : 0;
+        const days = span / (1000 * 60 * 60 * 24);
+        try {
+          if (days <= 62) {
+            return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+          }
+          return d.toLocaleDateString(undefined, { month: 'short', year: 'numeric' });
+        } catch {
+          return d.toISOString().slice(0, 10);
+        }
+      }
+    }
+    if (isMobile && str.length > 8) return str.slice(0, 8) + '…';
+    return str;
+  }, [data, xAxisKey, isMobile]);
 
   // Memoize whether any X-axis label is long enough to warrant angle rotation
   const hasLongLabels = React.useMemo(
@@ -159,6 +194,30 @@ export default function AdvancedChartImpl({
             {...(isMobile && { verticalAlign: "bottom", wrapperStyle: { fontSize: '11px', paddingTop: '8px' } })}
           />
         </PieChart>
+      </ChartContainer>
+    );
+  }
+
+  // Funnel chart — uses recharts FunnelChart (single series only)
+  if (chartType === 'funnel') {
+    const dataKey = series[0]?.dataKey || 'value';
+    const palette = getPalette();
+    return (
+      <ChartContainer config={config} className={className}>
+        <FunnelChart>
+          <ChartTooltip content={<ChartTooltipContent />} />
+          <Funnel
+            dataKey={dataKey}
+            data={data}
+            nameKey={xAxisKey}
+            isAnimationActive
+          >
+            <LabelList position="right" fill="hsl(var(--foreground))" stroke="none" dataKey={xAxisKey} />
+            {data.map((_entry, idx) => (
+              <Cell key={`funnel-cell-${idx}`} fill={resolveColor(palette[idx % palette.length])} />
+            ))}
+          </Funnel>
+        </FunnelChart>
       </ChartContainer>
     );
   }
@@ -249,11 +308,7 @@ export default function AdvancedChartImpl({
             tickMargin={10}
             axisLine={false}
             interval={isMobile ? Math.ceil(data.length / 5) : 0}
-            tickFormatter={(value) => {
-              if (!value || typeof value !== 'string') return value;
-              if (isMobile && value.length > 8) return value.slice(0, 8) + '…';
-              return value;
-            }}
+            tickFormatter={formatTick}
             {...(!isMobile && hasLongLabels && { angle: -35, textAnchor: 'end', height: 60 })}
           />
           <YAxis yAxisId="left" tickLine={false} axisLine={false} />
@@ -281,23 +336,36 @@ export default function AdvancedChartImpl({
     );
   }
 
+  // Horizontal bar — swap X/Y axis types and orientation.
+  const isHorizontal = chartType === 'horizontal-bar';
+
   return (
     <ChartContainer config={config} className={className}>
-      <ChartComponent data={data}>
+      <ChartComponent data={data} layout={isHorizontal ? 'vertical' : 'horizontal'}>
         <CartesianGrid vertical={false} />
-        <XAxis
-          dataKey={xAxisKey}
-          tickLine={false}
-          tickMargin={10}
-          axisLine={false}
-          interval={isMobile ? Math.ceil(data.length / 5) : 0}
-          tickFormatter={(value) => {
-            if (!value || typeof value !== 'string') return value;
-            if (isMobile && value.length > 8) return value.slice(0, 8) + '…';
-            return value;
-          }}
-          {...(!isMobile && hasLongLabels && { angle: -35, textAnchor: 'end', height: 60 })}
-        />
+        {isHorizontal ? (
+          <>
+            <XAxis type="number" tickLine={false} axisLine={false} />
+            <YAxis
+              type="category"
+              dataKey={xAxisKey}
+              tickLine={false}
+              axisLine={false}
+              width={Math.min(140, Math.max(60, Math.max(...data.map(d => String(d[xAxisKey] ?? '').length)) * 7))}
+              tickFormatter={formatTick}
+            />
+          </>
+        ) : (
+          <XAxis
+            dataKey={xAxisKey}
+            tickLine={false}
+            tickMargin={10}
+            axisLine={false}
+            interval={isMobile ? Math.ceil(data.length / 5) : 0}
+            tickFormatter={formatTick}
+            {...(!isMobile && hasLongLabels && { angle: -35, textAnchor: 'end', height: 60 })}
+          />
+        )}
         <ChartTooltip content={<ChartTooltipContent />} />
         <ChartLegend
           content={<ChartLegendContent />}
@@ -307,7 +375,7 @@ export default function AdvancedChartImpl({
           const palette = getPalette();
           const seriesColor = resolveColor(config[s.dataKey]?.color || palette[sIdx % palette.length] || DEFAULT_CHART_COLOR);
 
-          if (chartType === 'bar') {
+          if (chartType === 'bar' || chartType === 'horizontal-bar') {
             // For categorical bar charts with a single series, color each bar
             // distinctly so that categories are visually distinguishable.
             // For multi-series bars, keep one color per series (standard behavior).
