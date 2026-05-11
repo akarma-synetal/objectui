@@ -486,10 +486,10 @@ export const RelatedList: React.FC<RelatedListProps> = ({
           <div className="flex items-center gap-1 shrink-0">
             {onNew && (
               <Button
-                variant="ghost"
+                variant="outline"
                 size="sm"
                 onClick={(e) => { e.stopPropagation(); onNew(); }}
-                className="gap-1 h-7 text-xs"
+                className="gap-1 h-7 text-xs shadow-none"
               >
                 <Plus className="h-3.5 w-3.5" />
                 {t('detail.new')}
