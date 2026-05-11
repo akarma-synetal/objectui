@@ -28,6 +28,50 @@ import { useObjectTranslation } from "@object-ui/i18n"
 const DEFAULT_EVENT_COLOR = "bg-blue-500 text-white"
 const STABLE_DEFAULT_DATE = new Date()
 
+// Curated 8-stop palette for categorical event colors. Each entry pairs a
+// solid Tailwind background with a readable foreground so the labels stay
+// legible even when the data binds `colorField` to a non-color attribute
+// such as `channel`, `status`, or `industry`.
+const CATEGORICAL_PALETTE: ReadonlyArray<string> = [
+  "bg-blue-500 text-white",
+  "bg-emerald-500 text-white",
+  "bg-amber-500 text-black",
+  "bg-rose-500 text-white",
+  "bg-violet-500 text-white",
+  "bg-cyan-500 text-black",
+  "bg-orange-500 text-white",
+  "bg-fuchsia-500 text-white",
+]
+
+// Hex colors (#abc, #aabbcc) are treated as direct values via inline style.
+const HEX_COLOR_RE = /^#([0-9a-f]{3}|[0-9a-f]{6}|[0-9a-f]{8})$/i
+// Recognize tokens that already look like Tailwind color utilities so we
+// don't re-hash them. Covers `bg-*-500`, `bg-blue-500`, `text-*`, etc.
+const TAILWIND_TOKEN_RE = /(^|\s)(bg|text|from|to|via)-/
+
+/**
+ * Resolve a raw `event.color` value into a stable Tailwind class string.
+ *
+ * - `#aabbcc` and `#abc` are returned as-is (rendered via inline style).
+ * - Strings that already look like Tailwind utilities (e.g. `bg-blue-500
+ *   text-white`) pass through unchanged.
+ * - Any other value (e.g. a category label like `"email"` or `"digital"`)
+ *   is hashed deterministically onto the 8-stop palette so the same value
+ *   always gets the same color — matching how Notion/Linear assign labels.
+ * - `undefined` / `null` / empty → `DEFAULT_EVENT_COLOR`.
+ */
+function resolveEventColor(raw: string | undefined | null): { className: string; inlineColor?: string } {
+  if (!raw) return { className: DEFAULT_EVENT_COLOR }
+  if (HEX_COLOR_RE.test(raw)) return { className: "text-white", inlineColor: raw }
+  if (TAILWIND_TOKEN_RE.test(raw)) return { className: raw }
+  // Categorical fallback: deterministic hash over the string.
+  let hash = 0
+  for (let i = 0; i < raw.length; i++) {
+    hash = ((hash << 5) - hash + raw.charCodeAt(i)) | 0
+  }
+  return { className: CATEGORICAL_PALETTE[Math.abs(hash) % CATEGORICAL_PALETTE.length] }
+}
+
 // Default English translations for fallback when I18nProvider is not available
 const DEFAULT_TRANSLATIONS: Record<string, string> = {
   'calendar.today': 'Today',
@@ -439,9 +483,14 @@ function MonthView({ date, events, locale = "default", onEventClick, onDateClick
   const [draggedEventId, setDraggedEventId] = React.useState<string | number | null>(null)
   const [dropTargetIndex, setDropTargetIndex] = React.useState<number | null>(null)
 
-  // Pre-build event index by date key for O(1) lookup per cell instead of O(N)
+  // Pre-build event index by date key for O(1) lookup per cell instead of O(N).
+  // Each entry carries `isTitleDay` so the renderer can show the event title
+  // only at the start of the span (or at the start of each week for spans
+  // that wrap into a new row) and a slim continuation bar on subsequent
+  // days — same as Google/Outlook calendars. Without this, a multi-month
+  // event would repeat its title in every single day cell.
   const eventsByDate = React.useMemo(() => {
-    const map = new Map<string, CalendarEvent[]>()
+    const map = new Map<string, Array<{ event: CalendarEvent; isTitleDay: boolean; isSpanStart: boolean; isSpanEnd: boolean }>>()
     for (const event of events) {
       const eventStart = new Date(event.start)
       const eventEnd = event.end ? new Date(event.end) : new Date(eventStart)
@@ -450,11 +499,19 @@ function MonthView({ date, events, locale = "default", onEventClick, onDateClick
       const cursor = new Date(eventStart)
       while (cursor <= eventEnd) {
         const key = `${cursor.getFullYear()}-${cursor.getMonth()}-${cursor.getDate()}`
+        const isSpanStart = cursor.getTime() === eventStart.getTime()
+        const isSpanEnd = cursor.getTime() === eventEnd.getTime()
+        // Show the title on the event's own start day OR on the first day of
+        // a new week the span enters (Sunday, the leftmost column). That way
+        // a multi-week event still labels itself once per row instead of
+        // staying anonymous after the first week.
+        const isTitleDay = isSpanStart || cursor.getDay() === 0
         const arr = map.get(key)
+        const entry = { event, isTitleDay, isSpanStart, isSpanEnd }
         if (arr) {
-          arr.push(event)
+          arr.push(entry)
         } else {
-          map.set(key, [event])
+          map.set(key, [entry])
         }
         cursor.setDate(cursor.getDate() + 1)
       }
@@ -565,37 +622,43 @@ function MonthView({ date, events, locale = "default", onEventClick, onDateClick
               >
                 {day.getDate()}
               </div>
-              <div className="space-y-1">
-                {dayEvents.slice(0, 3).map((event) => (
-                  <div
-                    key={event.id}
-                    role="button"
-                    title={event.title}
-                    aria-label={event.title}
-                    draggable={!!onEventDrop}
-                    onDragStart={(e) => handleDragStart(e, event)}
-                    onDragEnd={handleDragEnd}
-                    className={cn(
-                      "text-xs px-2 py-1 rounded truncate cursor-pointer hover:opacity-80",
-                      event.color?.startsWith("#") ? "text-white" : (event.color || DEFAULT_EVENT_COLOR),
-                      draggedEventId === event.id && "opacity-50"
-                    )}
-                    style={
-                      event.color && event.color.startsWith("#")
-                        ? { backgroundColor: event.color }
-                        : undefined
-                    }
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      onEventClick?.(event)
-                    }}
-                  >
-                    {event.title}
-                  </div>
-                ))}
-                {dayEvents.length > 3 && (
+              <div className="space-y-0.5">
+                {dayEvents.slice(0, 4).map(({ event, isTitleDay, isSpanStart, isSpanEnd }, slotIdx) => {
+                  const isContinuation = !isTitleDay
+                  const { className: colorCls, inlineColor } = resolveEventColor(event.color)
+                  return (
+                    <div
+                      key={`${event.id}-${slotIdx}`}
+                      role="button"
+                      title={event.title}
+                      aria-label={event.title}
+                      draggable={!!onEventDrop}
+                      onDragStart={(e) => handleDragStart(e, event)}
+                      onDragEnd={handleDragEnd}
+                      className={cn(
+                        "text-xs cursor-pointer hover:opacity-80 truncate",
+                        isContinuation
+                          ? "h-1.5"
+                          : "px-2 py-0.5",
+                        isSpanStart ? "rounded-l" : "rounded-l-none",
+                        isSpanEnd ? "rounded-r" : "rounded-r-none",
+                        !isSpanEnd && "-mr-2",
+                        colorCls,
+                        draggedEventId === event.id && "opacity-50"
+                      )}
+                      style={inlineColor ? { backgroundColor: inlineColor } : undefined}
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        onEventClick?.(event)
+                      }}
+                    >
+                      {isContinuation ? "" : event.title}
+                    </div>
+                  )
+                })}
+                {dayEvents.length > 4 && (
                   <div className="text-xs text-muted-foreground px-2">
-                    {t('calendar.moreEvents', { count: dayEvents.length - 3 })}
+                    {t('calendar.moreEvents', { count: dayEvents.length - 4 })}
                   </div>
                 )}
               </div>
@@ -683,7 +746,9 @@ function WeekView({ date, events, locale = "default", onEventClick, onDateClick 
               onTouchEnd={handleSlotTouchEnd}
             >
               <div className="space-y-2">
-                {dayEvents.map((event) => (
+                {dayEvents.map((event) => {
+                  const { className: colorCls, inlineColor } = resolveEventColor(event.color)
+                  return (
                   <div
                     key={event.id}
                     role="button"
@@ -691,13 +756,9 @@ function WeekView({ date, events, locale = "default", onEventClick, onDateClick 
                     aria-label={event.title}
                     className={cn(
                       "text-xs sm:text-sm px-2 sm:px-3 py-1.5 sm:py-2 rounded cursor-pointer hover:opacity-80",
-                      event.color?.startsWith("#") ? "text-white" : (event.color || DEFAULT_EVENT_COLOR)
+                      colorCls
                     )}
-                    style={
-                      event.color && event.color.startsWith("#")
-                        ? { backgroundColor: event.color }
-                        : undefined
-                    }
+                    style={inlineColor ? { backgroundColor: inlineColor } : undefined}
                     onClick={(e) => {
                       e.stopPropagation()
                       onEventClick?.(event)
@@ -713,7 +774,8 @@ function WeekView({ date, events, locale = "default", onEventClick, onDateClick 
                       </div>
                     )}
                   </div>
-                ))}
+                  )
+                })}
               </div>
             </div>
           )
@@ -777,20 +839,18 @@ function DayView({ date, events, onEventClick, onDateClick }: DayViewProps) {
                 onTouchStart={() => handleSlotTouchStart(hour)}
                 onTouchEnd={handleSlotTouchEnd}
               >
-                {hourEvents.map((event) => (
+                {hourEvents.map((event) => {
+                  const { className: colorCls, inlineColor } = resolveEventColor(event.color)
+                  return (
                   <div
                     key={event.id}
                     title={event.title}
                     aria-label={event.title}
                     className={cn(
                       "px-2 sm:px-3 py-1.5 sm:py-2 rounded cursor-pointer hover:opacity-80",
-                      event.color?.startsWith("#") ? "text-white" : (event.color || DEFAULT_EVENT_COLOR)
+                      colorCls
                     )}
-                    style={
-                      event.color && event.color.startsWith("#")
-                        ? { backgroundColor: event.color }
-                        : undefined
-                    }
+                    style={inlineColor ? { backgroundColor: inlineColor } : undefined}
                     onClick={() => onEventClick?.(event)}
                   >
                     <div className="font-medium truncate">{event.title}</div>
@@ -808,7 +868,8 @@ function DayView({ date, events, onEventClick, onDateClick }: DayViewProps) {
                       </div>
                     )}
                   </div>
-                ))}
+                  )
+                })}
               </div>
             </div>
           )
@@ -819,3 +880,4 @@ function DayView({ date, events, onEventClick, onDateClick }: DayViewProps) {
 }
 
 export { CalendarView }
+export { resolveEventColor as __resolveEventColorForTest }
