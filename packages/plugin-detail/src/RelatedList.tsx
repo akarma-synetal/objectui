@@ -95,7 +95,7 @@ export const RelatedList: React.FC<RelatedListProps> = ({
   title,
   type,
   api,
-  data = [],
+  data,
   schema,
   columns,
   className,
@@ -115,7 +115,11 @@ export const RelatedList: React.FC<RelatedListProps> = ({
   referenceField,
   icon,
 }) => {
-  const [relatedData, setRelatedData] = React.useState(data);
+  // Distinguish "caller did not provide data" (auto-fetch) from
+  // "caller passed an empty array" (no related records — do not fetch).
+  const dataProvided = data !== undefined;
+  const initialData = data ?? [];
+  const [relatedData, setRelatedData] = React.useState(initialData);
   const [loading, setLoading] = React.useState(false);
   const [currentPage, setCurrentPage] = React.useState(0);
   const [sortField, setSortField] = React.useState<string | null>(null);
@@ -130,8 +134,10 @@ export const RelatedList: React.FC<RelatedListProps> = ({
 
   // Sync internal state when data prop changes (e.g., parent fetches async data)
   React.useEffect(() => {
-    setRelatedData(data);
-  }, [data]);
+    if (dataProvided) {
+      setRelatedData(data ?? []);
+    }
+  }, [data, dataProvided]);
 
   // Auto-fetch object schema when api/dataSource available but columns missing
   React.useEffect(() => {
@@ -143,7 +149,11 @@ export const RelatedList: React.FC<RelatedListProps> = ({
   }, [api, dataSource, columns]);
 
   React.useEffect(() => {
-    if (api && !data.length) {
+    // Only auto-fetch when the caller didn't pass `data` at all. If the parent
+    // explicitly passed an empty array, that means "no related records" — we
+    // must NOT fall back to fetching all rows of the API (which would surface
+    // unrelated data and confuse users).
+    if (api && !dataProvided) {
       setLoading(true);
       if (dataSource && typeof dataSource.find === 'function') {
         dataSource.find(api).then((result) => {
@@ -171,7 +181,7 @@ export const RelatedList: React.FC<RelatedListProps> = ({
           .finally(() => setLoading(false));
       }
     }
-  }, [api, data, dataSource]);
+  }, [api, dataProvided, dataSource]);
 
   // Resolve lookup-field display labels by batch-fetching referenced records.
   // For each lookup/master_detail column whose data is a primitive ID, gather
@@ -594,8 +604,8 @@ export const RelatedList: React.FC<RelatedListProps> = ({
           </div>
         )}
 
-        {/* Footer "View all" link — discreet, only when handler provided and we have data */}
-        {onViewAll && !isEmpty && (
+        {/* Footer "View all" link — only when records are truncated (more than displayed) */}
+        {onViewAll && !isEmpty && effectivePageSize > 0 && sortedData.length > effectivePageSize && (
           <div className="mt-3 pt-3 border-t flex justify-center">
             <button
               type="button"
