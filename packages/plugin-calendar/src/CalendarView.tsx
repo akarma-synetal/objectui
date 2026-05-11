@@ -144,6 +144,15 @@ export interface CalendarViewProps {
   onNavigate?: (date: Date) => void
   onAddClick?: () => void
   onEventDrop?: (event: CalendarEvent, newStart: Date, newEnd?: Date) => void
+  /**
+   * Fired in WeekView/DayView when the user drags across an empty area of
+   * the time grid to select a time range. The default ObjectCalendar
+   * handler opens a quick-create dialog pre-filled with `start` and `end`.
+   */
+  onTimeRangeSelect?: (start: Date, end: Date) => void
+  /** Granularity in minutes used by WeekView/DayView for snapping
+   * drag-to-move, drag-to-resize, and drag-to-create. Defaults to 30. */
+  slotMinutes?: number
   className?: string
 }
 
@@ -158,6 +167,8 @@ function CalendarView({
   onNavigate,
   onAddClick,
   onEventDrop,
+  onTimeRangeSelect,
+  slotMinutes = 30,
   className,
 }: CalendarViewProps) {
   const [selectedView, setSelectedView] = React.useState(view)
@@ -371,21 +382,27 @@ function CalendarView({
           />
         )}
         {selectedView === "week" && (
-          <WeekView
+          <TimeGridView
+            mode="week"
             date={selectedDate}
             events={events}
             locale={effectiveLocale}
+            slotMinutes={slotMinutes}
             onEventClick={onEventClick}
-            onDateClick={onDateClick}
             onEventDrop={onEventDrop}
+            onTimeRangeSelect={onTimeRangeSelect}
           />
         )}
         {selectedView === "day" && (
-          <DayView
+          <TimeGridView
+            mode="day"
             date={selectedDate}
             events={events}
+            locale={effectiveLocale}
+            slotMinutes={slotMinutes}
             onEventClick={onEventClick}
-            onDateClick={onDateClick}
+            onEventDrop={onEventDrop}
+            onTimeRangeSelect={onTimeRangeSelect}
           />
         )}
       </div>
@@ -748,277 +765,590 @@ function MonthView({ date, events, locale = "default", onEventClick, onDateClick
   )
 }
 
-interface WeekViewProps {
+
+/* ---------------------------------------------------------------------- */
+/*  TimeGridView — Day / Week classic time grid                            */
+/*                                                                        */
+/*  Classic Google-Calendar / Outlook-style vertical time grid:            */
+/*  - Drag an event body to move it (snaps to slotMinutes).                */
+/*  - Drag the top or bottom edge to resize the start/end time.            */
+/*  - Click-drag on empty grid background to create a new event in that    */
+/*    time range (commits via `onTimeRangeSelect`).                        */
+/*                                                                        */
+/*  Implementation uses pointer events (not HTML5 drag) for a uniform      */
+/*  move / resize / drag-create gesture model.                             */
+/* ---------------------------------------------------------------------- */
+
+interface TimeGridViewProps {
+  mode: "week" | "day"
   date: Date
   events: CalendarEvent[]
   locale?: string
+  slotMinutes?: number
   onEventClick?: (event: CalendarEvent) => void
-  onDateClick?: (date: Date) => void
   onEventDrop?: (event: CalendarEvent, newStart: Date, newEnd?: Date) => void
+  onTimeRangeSelect?: (start: Date, end: Date) => void
 }
 
-function WeekView({ date, events, locale = "default", onEventClick, onDateClick, onEventDrop }: WeekViewProps) {
-  const longPressTimer = React.useRef<ReturnType<typeof setTimeout> | null>(null)
-  const [draggedEventId, setDraggedEventId] = React.useState<string | number | null>(null)
-  const [dropTargetKey, setDropTargetKey] = React.useState<string | null>(null)
+type TimeGridDrag =
+  | { kind: "move"; eventId: string | number; grabMinuteOffset: number; durationMin: number; dayIndex: number; minutes: number }
+  | { kind: "resize-top"; eventId: string | number; anchorEndMin: number; dayIndex: number; minutes: number }
+  | { kind: "resize-bottom"; eventId: string | number; anchorStartMin: number; dayIndex: number; minutes: number }
+  | { kind: "select"; dayIndex: number; anchorMinutes: number; headMinutes: number }
 
-  const handleSlotTouchStart = (day: Date) => {
-    if (!onDateClick) return
-    longPressTimer.current = setTimeout(() => {
-      onDateClick(day)
-    }, 500)
+const PX_PER_HOUR = 48
+
+function startOfDay(d: Date): Date {
+  const x = new Date(d)
+  x.setHours(0, 0, 0, 0)
+  return x
+}
+
+function minutesIntoDay(d: Date): number {
+  return d.getHours() * 60 + d.getMinutes()
+}
+
+function dayKey(d: Date): string {
+  return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`
+}
+
+function TimeGridView({
+  mode,
+  date,
+  events,
+  locale = "default",
+  slotMinutes = 30,
+  onEventClick,
+  onEventDrop,
+  onTimeRangeSelect,
+}: TimeGridViewProps) {
+  const { t } = useCalendarTranslation()
+  const slotPx = (PX_PER_HOUR * slotMinutes) / 60
+  const totalHeight = PX_PER_HOUR * 24
+
+  // Day columns
+  const days = React.useMemo<Date[]>(() => {
+    if (mode === "day") return [startOfDay(date)]
+    const weekStart = getWeekStart(date)
+    return Array.from({ length: 7 }, (_, i) => {
+      const d = new Date(weekStart)
+      d.setDate(weekStart.getDate() + i)
+      return startOfDay(d)
+    })
+  }, [mode, date.getFullYear(), date.getMonth(), date.getDate()])
+
+  const today = React.useMemo(() => new Date(), [])
+
+  // Per-day event entries with absolute positioning info. Multi-day events
+  // are clipped into each day they touch so they show as a bar from their
+  // start time on the first day to midnight, full-day on intermediate days,
+  // and midnight to end time on their last day.
+  type Entry = {
+    event: CalendarEvent
+    startMin: number
+    endMin: number
+    isStart: boolean // is this the event's first day
+    isEnd: boolean // is this the event's last day
   }
+  const entriesByDay = React.useMemo(() => {
+    const map = new Map<string, Entry[]>()
+    for (const d of days) map.set(dayKey(d), [])
+    for (const ev of events) {
+      const s = new Date(ev.start)
+      const e = ev.end ? new Date(ev.end) : new Date(s.getTime() + 60 * 60 * 1000) // default 1h
+      // Iterate per-day in this view's range
+      for (const d of days) {
+        const dayStart = startOfDay(d)
+        const dayEnd = new Date(dayStart)
+        dayEnd.setDate(dayEnd.getDate() + 1)
+        if (e <= dayStart || s >= dayEnd) continue
+        const clippedStart = s < dayStart ? dayStart : s
+        const clippedEnd = e > dayEnd ? dayEnd : e
+        const startMin = minutesIntoDay(clippedStart)
+        // For end exactly at next-day-midnight, treat as 1440.
+        const endMin =
+          clippedEnd.getTime() === dayEnd.getTime() ? 1440 : minutesIntoDay(clippedEnd)
+        map.get(dayKey(d))!.push({
+          event: ev,
+          startMin,
+          endMin: Math.max(endMin, startMin + 15),
+          isStart: clippedStart.getTime() === s.getTime(),
+          isEnd: clippedEnd.getTime() === e.getTime(),
+        })
+      }
+    }
+    return map
+  }, [days, events])
 
-  const handleSlotTouchEnd = () => {
-    if (longPressTimer.current) {
-      clearTimeout(longPressTimer.current)
-      longPressTimer.current = null
+  // Overlap layout: for each day, sort by startMin and assign column / cols
+  // so concurrent events tile side-by-side.
+  type Laid = Entry & { col: number; cols: number }
+  const laidByDay = React.useMemo(() => {
+    const out = new Map<string, Laid[]>()
+    for (const [key, list] of entriesByDay) {
+      const sorted = [...list].sort((a, b) => a.startMin - b.startMin || a.endMin - b.endMin)
+      // Greedy column packing
+      type ColRun = { endMin: number }
+      const cols: ColRun[] = []
+      const assigned: Array<{ entry: Entry; col: number }> = []
+      let activeGroupStart = 0
+      const flushGroup = (until: number) => {
+        const groupCols = cols.length
+        for (let i = activeGroupStart; i < assigned.length; i++) {
+          assigned[i] = { ...assigned[i], col: assigned[i].col }
+          ;(assigned[i] as any).cols = groupCols
+          ;(assigned[i] as any).until = until
+        }
+      }
+      let _ = flushGroup // silence unused
+      void _
+      const laid: Laid[] = []
+      // Simpler 2-pass: assign column index greedily, then walk through and
+      // set `cols` = max overlapping column count at that interval.
+      for (const ent of sorted) {
+        let col = 0
+        while (cols[col] && cols[col].endMin > ent.startMin) col++
+        cols[col] = { endMin: ent.endMin }
+        assigned.push({ entry: ent, col })
+      }
+      // Compute cols (number of concurrent columns) for each event
+      for (let i = 0; i < assigned.length; i++) {
+        const a = assigned[i]
+        let maxCol = a.col
+        for (let j = 0; j < assigned.length; j++) {
+          if (j === i) continue
+          const b = assigned[j]
+          // overlap?
+          if (b.entry.startMin < a.entry.endMin && b.entry.endMin > a.entry.startMin) {
+            if (b.col > maxCol) maxCol = b.col
+          }
+        }
+        laid.push({ ...a.entry, col: a.col, cols: maxCol + 1 })
+      }
+      out.set(key, laid)
+    }
+    return out
+  }, [entriesByDay])
+
+  const gridRef = React.useRef<HTMLDivElement | null>(null)
+  const columnRefs = React.useRef<Array<HTMLDivElement | null>>([])
+  const [drag, setDrag] = React.useState<TimeGridDrag | null>(null)
+  const dragRef = React.useRef<TimeGridDrag | null>(null)
+  dragRef.current = drag
+  // Suppress click immediately after a drag/select gesture
+  const suppressNextClickRef = React.useRef(false)
+
+  // Convert clientY into minutes-of-day, snapped to slotMinutes
+  const yToMinutes = React.useCallback(
+    (clientY: number, dayIndex: number): number => {
+      const node = columnRefs.current[dayIndex]
+      if (!node) return 0
+      const rect = node.getBoundingClientRect()
+      const offset = clientY - rect.top + node.scrollTop
+      const minutes = (offset / PX_PER_HOUR) * 60
+      const snapped = Math.round(minutes / slotMinutes) * slotMinutes
+      return Math.max(0, Math.min(1440, snapped))
+    },
+    [slotMinutes]
+  )
+
+  const xToDayIndex = React.useCallback((clientX: number): number => {
+    for (let i = 0; i < columnRefs.current.length; i++) {
+      const n = columnRefs.current[i]
+      if (!n) continue
+      const r = n.getBoundingClientRect()
+      if (clientX >= r.left && clientX <= r.right) return i
+    }
+    return -1
+  }, [])
+
+  // Window-level pointer move/up handlers
+  React.useEffect(() => {
+    if (!drag) return
+    const onMove = (e: PointerEvent) => {
+      const dayIdx = drag.kind === "select" || drag.kind === "move"
+        ? xToDayIndex(e.clientX)
+        : (drag as any).dayIndex
+      const idx = dayIdx < 0 ? (drag as any).dayIndex ?? 0 : dayIdx
+      const minutes = yToMinutes(e.clientY, idx)
+      setDrag((prev) => {
+        if (!prev) return prev
+        if (prev.kind === "select") {
+          return { ...prev, dayIndex: idx >= 0 ? idx : prev.dayIndex, headMinutes: minutes }
+        }
+        if (prev.kind === "move") {
+          return { ...prev, dayIndex: idx, minutes }
+        }
+        // resize-top / resize-bottom stay on same day
+        return { ...prev, minutes }
+      })
+    }
+    const onUp = (e: PointerEvent) => {
+      const current = dragRef.current
+      if (!current) {
+        setDrag(null)
+        return
+      }
+      try {
+        if (current.kind === "select" && onTimeRangeSelect) {
+          const a = Math.min(current.anchorMinutes, current.headMinutes)
+          const b = Math.max(current.anchorMinutes, current.headMinutes)
+          // Treat zero-length as a single-slot create
+          const startMin = a
+          const endMin = b === a ? Math.min(1440, a + slotMinutes) : b
+          const d = days[current.dayIndex] ?? days[0]
+          const start = new Date(d)
+          start.setHours(0, Math.round(startMin), 0, 0)
+          const end = new Date(d)
+          end.setHours(0, Math.round(endMin), 0, 0)
+          suppressNextClickRef.current = true
+          onTimeRangeSelect(start, end)
+        } else if (current.kind === "move" && onEventDrop) {
+          const ev = events.find((x) => String(x.id) === String(current.eventId))
+          if (ev) {
+            const targetDayIdx = current.dayIndex < 0 ? 0 : current.dayIndex
+            const headStartMin = current.minutes - current.grabMinuteOffset
+            const snapped = Math.max(0, Math.min(1440 - current.durationMin, Math.round(headStartMin / slotMinutes) * slotMinutes))
+            const dayDate = days[targetDayIdx] ?? days[0]
+            const newStart = new Date(dayDate)
+            newStart.setHours(0, snapped, 0, 0)
+            const newEnd = new Date(newStart.getTime() + current.durationMin * 60 * 1000)
+            suppressNextClickRef.current = true
+            onEventDrop(ev, newStart, newEnd)
+          }
+        } else if (current.kind === "resize-top" && onEventDrop) {
+          const ev = events.find((x) => String(x.id) === String(current.eventId))
+          if (ev) {
+            const dayDate = days[current.dayIndex] ?? days[0]
+            const newStartMin = Math.min(current.anchorEndMin - slotMinutes, Math.max(0, current.minutes))
+            const newStart = new Date(dayDate)
+            newStart.setHours(0, newStartMin, 0, 0)
+            const newEnd = new Date(dayDate)
+            newEnd.setHours(0, current.anchorEndMin, 0, 0)
+            suppressNextClickRef.current = true
+            onEventDrop(ev, newStart, newEnd)
+          }
+        } else if (current.kind === "resize-bottom" && onEventDrop) {
+          const ev = events.find((x) => String(x.id) === String(current.eventId))
+          if (ev) {
+            const dayDate = days[current.dayIndex] ?? days[0]
+            const newEndMin = Math.max(current.anchorStartMin + slotMinutes, Math.min(1440, current.minutes))
+            const newStart = new Date(dayDate)
+            newStart.setHours(0, current.anchorStartMin, 0, 0)
+            const newEnd = new Date(dayDate)
+            newEnd.setHours(0, newEndMin, 0, 0)
+            suppressNextClickRef.current = true
+            onEventDrop(ev, newStart, newEnd)
+          }
+        }
+      } finally {
+        setDrag(null)
+        // Reset the click suppression on next tick
+        setTimeout(() => {
+          suppressNextClickRef.current = false
+        }, 50)
+      }
+      void e
+    }
+    window.addEventListener("pointermove", onMove)
+    window.addEventListener("pointerup", onUp)
+    return () => {
+      window.removeEventListener("pointermove", onMove)
+      window.removeEventListener("pointerup", onUp)
+    }
+  }, [drag, days, events, slotMinutes, onEventDrop, onTimeRangeSelect, xToDayIndex, yToMinutes])
+
+  const weekdayLabels = React.useMemo(() => {
+    return days.map((d) => ({
+      weekday: d.toLocaleDateString(locale, { weekday: "short" }),
+      day: d.getDate(),
+      month: d.toLocaleDateString(locale, { month: "short" }),
+      isToday: isSameDay(d, today),
+    }))
+  }, [days, locale, today])
+
+  // Hour labels (12 AM .. 11 PM)
+  const hourLabels = React.useMemo(() => {
+    return Array.from({ length: 24 }, (_, h) => {
+      const d = new Date(2024, 0, 1, h, 0)
+      return d.toLocaleTimeString(locale, { hour: "numeric" })
+    })
+  }, [locale])
+
+  const handleEventPointerDown = (
+    e: React.PointerEvent,
+    entry: Laid,
+    dayIndex: number,
+    zone: "body" | "top" | "bottom"
+  ) => {
+    if (!onEventDrop) return
+    if (e.button !== 0) return
+    e.stopPropagation()
+    e.preventDefault()
+    const minutes = yToMinutes(e.clientY, dayIndex)
+    if (zone === "body") {
+      setDrag({
+        kind: "move",
+        eventId: entry.event.id,
+        grabMinuteOffset: Math.max(0, minutes - entry.startMin),
+        durationMin: entry.endMin - entry.startMin,
+        dayIndex,
+        minutes,
+      })
+    } else if (zone === "top") {
+      setDrag({
+        kind: "resize-top",
+        eventId: entry.event.id,
+        anchorEndMin: entry.endMin,
+        dayIndex,
+        minutes,
+      })
+    } else {
+      setDrag({
+        kind: "resize-bottom",
+        eventId: entry.event.id,
+        anchorStartMin: entry.startMin,
+        dayIndex,
+        minutes,
+      })
     }
   }
 
-  const handleDragStart = (e: React.DragEvent, event: CalendarEvent) => {
-    if (!onEventDrop) return
-    setDraggedEventId(event.id)
-    e.dataTransfer.effectAllowed = "move"
-    e.dataTransfer.setData("text/plain", String(event.id))
-  }
-
-  const handleDragEnd = () => {
-    setDraggedEventId(null)
-    setDropTargetKey(null)
-  }
-
-  const handleDragOver = (e: React.DragEvent, key: string) => {
-    if (!onEventDrop) return
+  const handleGridPointerDown = (e: React.PointerEvent, dayIndex: number) => {
+    if (!onTimeRangeSelect) return
+    if (e.button !== 0) return
     e.preventDefault()
-    e.dataTransfer.dropEffect = "move"
-    setDropTargetKey(key)
+    const minutes = yToMinutes(e.clientY, dayIndex)
+    setDrag({
+      kind: "select",
+      dayIndex,
+      anchorMinutes: minutes,
+      headMinutes: minutes,
+    })
   }
 
-  const handleDrop = (e: React.DragEvent, targetDay: Date) => {
-    if (!onEventDrop) return
-    e.preventDefault()
-    setDropTargetKey(null)
-    setDraggedEventId(null)
-
-    const eventId = e.dataTransfer.getData("text/plain")
-    const draggedEvent = events.find((ev) => String(ev.id) === eventId)
-    if (!draggedEvent) return
-
-    const oldStart = new Date(draggedEvent.start)
-    const oldStartDay = new Date(oldStart)
-    oldStartDay.setHours(0, 0, 0, 0)
-    const newTargetDay = new Date(targetDay)
-    newTargetDay.setHours(0, 0, 0, 0)
-    const deltaMs = newTargetDay.getTime() - oldStartDay.getTime()
-    if (deltaMs === 0) return
-
-    const newStart = new Date(oldStart.getTime() + deltaMs)
-    let newEnd: Date | undefined
-    if (draggedEvent.end) {
-      newEnd = new Date(new Date(draggedEvent.end).getTime() + deltaMs)
+  // Helper: render the live preview overlay for the current drag.
+  const renderDragGhost = (dayIndex: number): React.ReactNode => {
+    if (!drag) return null
+    if (drag.kind === "select" && drag.dayIndex === dayIndex) {
+      const a = Math.min(drag.anchorMinutes, drag.headMinutes)
+      const b = Math.max(drag.anchorMinutes, drag.headMinutes)
+      const top = (a / 60) * PX_PER_HOUR
+      const height = Math.max(slotPx, ((b - a) / 60) * PX_PER_HOUR)
+      return (
+        <div
+          className="absolute left-1 right-1 rounded bg-primary/30 border border-primary pointer-events-none z-10"
+          style={{ top, height }}
+          aria-hidden
+        >
+          <div className="px-2 py-0.5 text-xs font-medium text-primary">
+            {formatTimeRange(days[dayIndex], a, b, locale)}
+          </div>
+        </div>
+      )
     }
-    onEventDrop(draggedEvent, newStart, newEnd)
+    if (drag.kind === "move" && drag.dayIndex === dayIndex) {
+      const headStart = drag.minutes - drag.grabMinuteOffset
+      const snapped = Math.max(0, Math.min(1440 - drag.durationMin, Math.round(headStart / slotMinutes) * slotMinutes))
+      const top = (snapped / 60) * PX_PER_HOUR
+      const height = (drag.durationMin / 60) * PX_PER_HOUR
+      return (
+        <div
+          className="absolute left-1 right-1 rounded border-2 border-dashed border-primary bg-primary/10 pointer-events-none z-10"
+          style={{ top, height }}
+          aria-hidden
+        >
+          <div className="px-2 py-0.5 text-xs font-medium text-primary">
+            {formatTimeRange(days[dayIndex], snapped, snapped + drag.durationMin, locale)}
+          </div>
+        </div>
+      )
+    }
+    if ((drag.kind === "resize-top" || drag.kind === "resize-bottom") && drag.dayIndex === dayIndex) {
+      let startMin: number, endMin: number
+      if (drag.kind === "resize-top") {
+        startMin = Math.min(drag.anchorEndMin - slotMinutes, Math.max(0, drag.minutes))
+        endMin = drag.anchorEndMin
+      } else {
+        startMin = drag.anchorStartMin
+        endMin = Math.max(drag.anchorStartMin + slotMinutes, Math.min(1440, drag.minutes))
+      }
+      const top = (startMin / 60) * PX_PER_HOUR
+      const height = ((endMin - startMin) / 60) * PX_PER_HOUR
+      return (
+        <div
+          className="absolute left-1 right-1 rounded border-2 border-dashed border-primary bg-primary/10 pointer-events-none z-10"
+          style={{ top, height }}
+          aria-hidden
+        >
+          <div className="px-2 py-0.5 text-xs font-medium text-primary">
+            {formatTimeRange(days[dayIndex], startMin, endMin, locale)}
+          </div>
+        </div>
+      )
+    }
+    return null
   }
-
-  const weekStart = getWeekStart(date)
-  const weekDays = Array.from({ length: 7 }, (_, i) => {
-    const day = new Date(weekStart)
-    day.setDate(day.getDate() + i)
-    return day
-  })
-  const today = new Date()
 
   return (
-    <div className="flex flex-col h-full">
-      {/* Week day headers */}
-      <div className="grid grid-cols-7 border-b">
-        {weekDays.map((day) => {
-          const isToday = isSameDay(day, today)
-          return (
+    <div className="flex flex-col h-full" ref={gridRef}>
+      {/* Day headers */}
+      <div className="flex border-b sticky top-0 bg-background z-20">
+        <div className="w-14 shrink-0 border-r" aria-hidden />
+        {weekdayLabels.map((lbl, i) => (
+          <div
+            key={i}
+            role="columnheader"
+            className={cn(
+              "flex-1 p-2 text-center text-sm border-r last:border-r-0",
+              lbl.isToday && "bg-primary/5"
+            )}
+          >
+            <div className="text-xs text-muted-foreground">{lbl.weekday}</div>
             <div
-              key={day.toISOString()}
-              className="p-3 text-center border-r last:border-r-0"
-            >
-              <div className="text-sm font-medium text-muted-foreground">
-                {day.toLocaleDateString(locale, { weekday: "short" })}
-              </div>
-              <div
-                className={cn(
-                  "text-lg font-semibold mt-1",
-                  isToday &&
-                    "inline-flex items-center justify-center rounded-full bg-primary text-primary-foreground h-8 w-8"
-                )}
-              >
-                {day.getDate()}
-              </div>
-            </div>
-          )
-        })}
-      </div>
-
-      {/* Week events */}
-      <div role="grid" className="grid grid-cols-7 flex-1">
-        {weekDays.map((day) => {
-          const dayEvents = getEventsForDate(day, events)
-          const key = day.toISOString()
-          return (
-            <div
-              key={key}
-              role="gridcell"
-              aria-label={`${day.toLocaleDateString("default", { weekday: "long", month: "long", day: "numeric", year: "numeric" })}${dayEvents.length > 0 ? `, ${dayEvents.length} event${dayEvents.length > 1 ? "s" : ""}` : ""}`}
               className={cn(
-                "border-r last:border-r-0 p-2 min-h-[400px] cursor-pointer hover:bg-accent/50",
-                dropTargetKey === key && "ring-2 ring-primary"
+                "font-medium",
+                lbl.isToday && "inline-flex items-center justify-center rounded-full bg-primary text-primary-foreground h-6 w-6 mx-auto"
               )}
-              onClick={() => onDateClick?.(day)}
-              onTouchStart={() => handleSlotTouchStart(day)}
-              onTouchEnd={handleSlotTouchEnd}
-              onDragOver={(e) => handleDragOver(e, key)}
-              onDragLeave={(e) => {
-                if (!e.currentTarget.contains(e.relatedTarget as Node)) {
-                  setDropTargetKey(null)
-                }
-              }}
-              onDrop={(e) => handleDrop(e, day)}
             >
-              <div className="space-y-2">
-                {dayEvents.map((event) => {
-                  const { className: colorCls, inlineColor } = resolveEventColor(event.color)
-                  return (
-                  <div
-                    key={event.id}
-                    role="button"
-                    title={event.title}
-                    aria-label={event.title}
-                    draggable={!!onEventDrop}
-                    onDragStart={(e) => handleDragStart(e, event)}
-                    onDragEnd={handleDragEnd}
-                    className={cn(
-                      "text-xs sm:text-sm px-2 sm:px-3 py-1.5 sm:py-2 rounded hover:opacity-80",
-                      onEventDrop ? "cursor-move" : "cursor-pointer",
-                      colorCls,
-                      draggedEventId === event.id && "opacity-50"
-                    )}
-                    style={inlineColor ? { backgroundColor: inlineColor } : undefined}
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      onEventClick?.(event)
-                    }}
-                  >
-                    <div className="font-medium truncate">{event.title}</div>
-                    {!event.allDay && (
-                      <div className="text-xs opacity-90 mt-1">
-                        {event.start.toLocaleTimeString("default", {
-                          hour: "numeric",
-                          minute: "2-digit",
-                        })}
-                      </div>
-                    )}
-                  </div>
-                  )
-                })}
-              </div>
+              {lbl.day}
             </div>
-          )
-        })}
+          </div>
+        ))}
       </div>
-    </div>
-  )
-}
 
-interface DayViewProps {
-  date: Date
-  events: CalendarEvent[]
-  onEventClick?: (event: CalendarEvent) => void
-  onDateClick?: (date: Date) => void
-}
-
-function DayView({ date, events, onEventClick, onDateClick }: DayViewProps) {
-  const dayEvents = getEventsForDate(date, events)
-  const hours = Array.from({ length: 24 }, (_, i) => i)
-  const longPressTimer = React.useRef<ReturnType<typeof setTimeout> | null>(null)
-
-  const handleSlotTouchStart = (hour: number) => {
-    if (!onDateClick) return
-    longPressTimer.current = setTimeout(() => {
-      const clickDate = new Date(date)
-      clickDate.setHours(hour, 0, 0, 0)
-      onDateClick(clickDate)
-    }, 500)
-  }
-
-  const handleSlotTouchEnd = () => {
-    if (longPressTimer.current) {
-      clearTimeout(longPressTimer.current)
-      longPressTimer.current = null
-    }
-  }
-
-  return (
-    <div className="flex flex-col h-full">
-      <div role="list" className="flex-1 overflow-auto">
-        {hours.map((hour) => {
-          const hourEvents = dayEvents.filter((event) => {
-            if (event.allDay) return hour === 0
-            const eventHour = event.start.getHours()
-            return eventHour === hour
-          })
-
-          return (
-            <div key={hour} role="listitem" className="flex border-b min-h-[60px]">
-              <div className="w-20 p-2 text-sm text-muted-foreground border-r">
-                {hour === 0
-                  ? "12 AM"
-                  : hour < 12
-                  ? `${hour} AM`
-                  : hour === 12
-                  ? "12 PM"
-                  : `${hour - 12} PM`}
-              </div>
+      {/* Scrollable time grid */}
+      <div className="flex-1 overflow-auto">
+        <div className="flex" style={{ height: totalHeight }}>
+          {/* Hour rail */}
+          <div className="w-14 shrink-0 border-r relative">
+            {hourLabels.map((label, h) => (
               <div
-                className="flex-1 p-2 space-y-2"
-                onTouchStart={() => handleSlotTouchStart(hour)}
-                onTouchEnd={handleSlotTouchEnd}
+                key={h}
+                className="absolute right-1 text-[10px] text-muted-foreground -translate-y-1/2"
+                style={{ top: h * PX_PER_HOUR }}
               >
-                {hourEvents.map((event) => {
-                  const { className: colorCls, inlineColor } = resolveEventColor(event.color)
-                  return (
+                {h === 0 ? "" : label}
+              </div>
+            ))}
+          </div>
+
+          {/* Day columns */}
+          {days.map((day, dayIndex) => {
+            const key = dayKey(day)
+            const laid = laidByDay.get(key) ?? []
+            return (
+              <div
+                key={key}
+                ref={(node) => {
+                  columnRefs.current[dayIndex] = node
+                }}
+                className="flex-1 border-r last:border-r-0 relative select-none"
+                style={{ height: totalHeight }}
+                onPointerDown={(e) => handleGridPointerDown(e, dayIndex)}
+                aria-label={day.toLocaleDateString(locale, { weekday: "long", month: "long", day: "numeric", year: "numeric" })}
+              >
+                {/* Hour gridlines */}
+                {Array.from({ length: 24 }, (_, h) => (
                   <div
-                    key={event.id}
-                    title={event.title}
-                    aria-label={event.title}
-                    className={cn(
-                      "px-2 sm:px-3 py-1.5 sm:py-2 rounded cursor-pointer hover:opacity-80",
-                      colorCls
-                    )}
-                    style={inlineColor ? { backgroundColor: inlineColor } : undefined}
-                    onClick={() => onEventClick?.(event)}
-                  >
-                    <div className="font-medium truncate">{event.title}</div>
-                    {!event.allDay && (
-                      <div className="text-xs opacity-90 mt-1">
-                        {event.start.toLocaleTimeString("default", {
-                          hour: "numeric",
-                          minute: "2-digit",
-                        })}
-                        {event.end &&
-                          ` - ${event.end.toLocaleTimeString("default", {
-                            hour: "numeric",
-                            minute: "2-digit",
-                          })}`}
+                    key={h}
+                    className="absolute left-0 right-0 border-t border-muted/60 pointer-events-none"
+                    style={{ top: h * PX_PER_HOUR }}
+                  />
+                ))}
+                {/* Half-hour (or slot) lines */}
+                {slotMinutes < 60 &&
+                  Array.from({ length: Math.floor((24 * 60) / slotMinutes) }, (_, s) => {
+                    const min = s * slotMinutes
+                    if (min % 60 === 0) return null
+                    return (
+                      <div
+                        key={s}
+                        className="absolute left-0 right-0 border-t border-dashed border-muted/30 pointer-events-none"
+                        style={{ top: (min / 60) * PX_PER_HOUR }}
+                      />
+                    )
+                  })}
+
+                {/* Events */}
+                {laid.map((entry) => {
+                  const top = (entry.startMin / 60) * PX_PER_HOUR
+                  const height = Math.max(slotPx, ((entry.endMin - entry.startMin) / 60) * PX_PER_HOUR)
+                  const widthPct = 100 / entry.cols
+                  const leftPct = entry.col * widthPct
+                  const { className: colorCls, inlineColor } = resolveEventColor(entry.event.color)
+                  const isBeingDragged = drag && (drag as any).eventId === entry.event.id
+                  return (
+                    <div
+                      key={`${entry.event.id}-${entry.startMin}`}
+                      role="button"
+                      tabIndex={0}
+                      title={entry.event.title}
+                      aria-label={entry.event.title}
+                      onPointerDown={(e) => handleEventPointerDown(e, entry, dayIndex, "body")}
+                      onClick={(e) => {
+                        if (suppressNextClickRef.current) {
+                          e.stopPropagation()
+                          return
+                        }
+                        e.stopPropagation()
+                        onEventClick?.(entry.event)
+                      }}
+                      className={cn(
+                        "absolute rounded text-xs px-2 py-1 overflow-hidden shadow-sm",
+                        onEventDrop ? "cursor-move" : "cursor-pointer",
+                        colorCls,
+                        isBeingDragged && "opacity-40"
+                      )}
+                      style={{
+                        top,
+                        height,
+                        left: `calc(${leftPct}% + 2px)`,
+                        width: `calc(${widthPct}% - 4px)`,
+                        ...(inlineColor ? { backgroundColor: inlineColor } : {}),
+                      }}
+                    >
+                      <div className="font-medium truncate">{entry.event.title}</div>
+                      <div className="text-[10px] opacity-80 truncate">
+                        {formatTimeRange(day, entry.startMin, entry.endMin, locale)}
                       </div>
-                    )}
-                  </div>
+                      {/* Resize handles — only on the original days */}
+                      {onEventDrop && entry.isStart && (
+                        <div
+                          onPointerDown={(e) => handleEventPointerDown(e, entry, dayIndex, "top")}
+                          className="absolute top-0 left-0 right-0 h-1.5 cursor-ns-resize"
+                          aria-label="Resize start"
+                        />
+                      )}
+                      {onEventDrop && entry.isEnd && (
+                        <div
+                          onPointerDown={(e) => handleEventPointerDown(e, entry, dayIndex, "bottom")}
+                          className="absolute bottom-0 left-0 right-0 h-1.5 cursor-ns-resize"
+                          aria-label="Resize end"
+                        />
+                      )}
+                    </div>
                   )
                 })}
+
+                {/* Drag preview */}
+                {renderDragGhost(dayIndex)}
               </div>
-            </div>
-          )
-        })}
+            )
+          })}
+        </div>
       </div>
     </div>
   )
+}
+
+function formatTimeRange(day: Date, startMin: number, endMin: number, locale: string): string {
+  const s = new Date(day)
+  s.setHours(0, Math.round(startMin), 0, 0)
+  const e = new Date(day)
+  e.setHours(0, Math.round(endMin), 0, 0)
+  const fmt = (d: Date) => d.toLocaleTimeString(locale, { hour: "numeric", minute: "2-digit" })
+  return `${fmt(s)} – ${fmt(e)}`
 }
 
 export { CalendarView }

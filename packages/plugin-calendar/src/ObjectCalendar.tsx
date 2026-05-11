@@ -503,11 +503,18 @@ export const ObjectCalendar: React.FC<ObjectCalendarProps> = ({
   // Quick-create state: clicking an empty day cell opens a small dialog
   // pre-filled with that date. On submit, dataSource.create() inserts a
   // record and the mutation event triggers a refetch.
-  const [quickCreate, setQuickCreate] = useState<{ date: Date; title: string; submitting: boolean; error?: string } | null>(null);
+  // `start` always set; `end` set for time-range drags from week/day grid.
+  // For month-cell click, `end` equals `start` and the dialog shows date-only.
+  const [quickCreate, setQuickCreate] = useState<{ start: Date; end?: Date; title: string; submitting: boolean; error?: string } | null>(null);
 
   const handleDateClickDefault = useCallback((day: Date) => {
     if (!calendarConfig || !schema.objectName || !dataSource?.create) return;
-    setQuickCreate({ date: day, title: '', submitting: false });
+    setQuickCreate({ start: day, title: '', submitting: false });
+  }, [calendarConfig, schema.objectName, dataSource]);
+
+  const handleTimeRangeSelectDefault = useCallback((start: Date, end: Date) => {
+    if (!calendarConfig || !schema.objectName || !dataSource?.create) return;
+    setQuickCreate({ start, end, title: '', submitting: false });
   }, [calendarConfig, schema.objectName, dataSource]);
 
   const submitQuickCreate = useCallback(async () => {
@@ -523,11 +530,11 @@ export const ObjectCalendar: React.FC<ObjectCalendarProps> = ({
     const { startDateField, endDateField, titleField } = calendarConfig;
     const payload: Record<string, any> = {
       [titleField || 'name']: title,
-      [startDateField]: quickCreate.date.toISOString(),
+      [startDateField]: quickCreate.start.toISOString(),
     };
-    // Default end_date to same day so the event is visible immediately.
+    // Default end_date to range end (or same as start if not provided).
     if (endDateField) {
-      payload[endDateField] = quickCreate.date.toISOString();
+      payload[endDateField] = (quickCreate.end ?? quickCreate.start).toISOString();
     }
     // Auto-fill required fields the user hasn't provided (e.g. select
     // status, autonumber). Without this the server would 400 on
@@ -627,6 +634,7 @@ export const ObjectCalendar: React.FC<ObjectCalendarProps> = ({
               void handleEventDropDefault(event.data, newStart, newEnd);
             }
           }}
+          onTimeRangeSelect={handleTimeRangeSelectDefault}
         />
       </div>
 
@@ -641,9 +649,15 @@ export const ObjectCalendar: React.FC<ObjectCalendarProps> = ({
           <DialogHeader>
             <DialogTitle>New event</DialogTitle>
             <DialogDescription>
-              {quickCreate && (
-                <>On {quickCreate.date.toLocaleDateString(locale, { year: 'numeric', month: 'long', day: 'numeric' })}</>
-              )}
+              {quickCreate && (() => {
+                const hasRange = quickCreate.end && quickCreate.end.getTime() !== quickCreate.start.getTime();
+                const datePart = quickCreate.start.toLocaleDateString(locale, { year: 'numeric', month: 'long', day: 'numeric' });
+                if (hasRange) {
+                  const fmt = (d: Date) => d.toLocaleTimeString(locale, { hour: 'numeric', minute: '2-digit' });
+                  return <>{datePart} · {fmt(quickCreate.start)} – {fmt(quickCreate.end!)}</>;
+                }
+                return <>On {datePart}</>;
+              })()}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-2">

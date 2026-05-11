@@ -6,14 +6,17 @@ Calendar view plugins for Object UI - includes both ObjectQL-integrated and stan
 
 - **Calendar View** - Monthly calendar with event display
 - **Event Management** - Create, edit, and delete events
-- **Drag-and-Drop Rescheduling** - Move events to a different day, or
-  drag the right edge of a multi-day event to extend/shrink it. Changes
-  are persisted via `dataSource.update()` automatically (override with
-  the `onEventDrop` prop).
-- **Click-to-Create** - Click any day cell to open a quick-create dialog
-  pre-filled with the clicked date. New records are persisted via
-  `dataSource.create()` and inserted optimistically into the calendar.
-  Required picklist fields auto-default to their first option.
+- **Drag-and-Drop Rescheduling** - Move events to a different day in
+  month view, or drag vertically in week/day views to change start
+  time. Drag top/bottom edges to resize start/end times. Changes are
+  persisted via `dataSource.update()` automatically (override with the
+  `onEventDrop` prop).
+- **Click-to-Create** - Click any day cell (month view) or click-drag
+  on the time grid (week/day views) to open a quick-create dialog
+  pre-filled with the selected date/range. New records are persisted
+  via `dataSource.create()` and inserted optimistically into the
+  calendar. Required picklist fields auto-default to their first
+  option.
 - **ObjectQL Integration** - Connect to ObjectStack data sources
 - **Standalone Mode** - Use with static data or custom backends
 - **Responsive** - Mobile-friendly calendar layouts
@@ -21,12 +24,28 @@ Calendar view plugins for Object UI - includes both ObjectQL-integrated and stan
 
 ## Drag-and-Drop
 
-Both `MonthView` and `WeekView` support drag-to-reschedule:
+### Month view
 
 | Gesture | Effect |
 | --- | --- |
 | Drag the event pill body to another day cell | Shifts both `startDateField` and `endDateField` by the day delta. Grab cell → drop cell defines the delta, so dragging from any day of a multi-day span works as expected. |
-| Drag the right-edge handle of a multi-day pill (MonthView only) | Adjusts only `endDateField`; start is preserved. Refuses drops earlier than start. |
+| Drag the right-edge handle of a multi-day pill | Adjusts only `endDateField`; start is preserved. Refuses drops earlier than start. |
+
+### Week / Day view (time grid)
+
+The week and day views render a classic Google Calendar-style vertical
+time grid with hour rows. Pointer-driven interactions:
+
+| Gesture | Effect |
+| --- | --- |
+| Drag an event vertically | Shifts both `startDateField` and `endDateField` by the time delta (snapped to `slotMinutes`, default 30). |
+| Drag the top edge of an event | Adjusts only `startDateField`; end is preserved. Refuses to drag past `end − slotMinutes`. |
+| Drag the bottom edge of an event | Adjusts only `endDateField`; start is preserved. Refuses to drag past `start + slotMinutes`. |
+| Click-drag on empty grid background | Opens the quick-create dialog with start/end pre-filled to the dragged time range. |
+
+Pass `slotMinutes={15}` to change the snap granularity. Pass
+`onTimeRangeSelect={(start, end) => …}` to handle drag-to-create
+yourself instead of the default quick-create dialog.
 
 When `ObjectCalendar` is bound to an object schema, the new dates are
 persisted with `dataSource.update(objectName, id, patch)` automatically;

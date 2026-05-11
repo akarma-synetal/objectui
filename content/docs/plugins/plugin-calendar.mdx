@@ -26,10 +26,31 @@ Both components support month, week, and day views with full event management ca
 
 ## Drag-and-Drop Rescheduling
 
-`MonthView` and `WeekView` both support drag-to-reschedule out of the box:
+### Month view
 
 - **Move an event** — grab any cell of the event pill and drop it on another day. The grabbed-day → drop-day distance is the day delta applied to both `startDateField` and `endDateField`, so dragging a multi-day span from any of its days behaves intuitively.
-- **Resize an event** (MonthView only) — grab the small right-edge handle on the last day of a multi-day pill and drop it on a different day to extend or shrink the end date. The start date is preserved; drops earlier than the start are ignored.
+- **Resize an event** — grab the small right-edge handle on the last day of a multi-day pill and drop it on a different day to extend or shrink the end date. The start date is preserved; drops earlier than the start are ignored.
+
+### Week / Day view (time grid)
+
+Week and day views render a classic Google Calendar-style vertical time
+grid. All gestures use pointer events and snap to `slotMinutes` (default
+30):
+
+- **Move an event** — drag the event body vertically to change its start
+  time (and end, by the same delta). In week view, drag horizontally to
+  also change the day.
+- **Resize start** — drag the top edge of an event to adjust only the
+  start time. Refuses to cross the existing end.
+- **Resize end** — drag the bottom edge to adjust only the end time.
+  Refuses to cross the existing start.
+- **Drag-to-create** — click-drag on an empty area of the time grid to
+  open the quick-create dialog with start/end pre-filled to the dragged
+  time range.
+
+Pass `slotMinutes={15}` to change the snap granularity, or
+`onTimeRangeSelect={(start, end) => …}` to override the drag-to-create
+default.
 
 When `ObjectCalendar` is bound to an object (i.e. it has `objectName` and a `dataSource`), the new dates are persisted automatically via `dataSource.update()` — local state is updated optimistically and rolled back on failure. To intercept (e.g. for a confirm dialog) pass an `onEventDrop` prop; supplying your own handler disables the default persistence.
 
@@ -45,9 +66,10 @@ When `ObjectCalendar` is bound to an object (i.e. it has `objectName` and a `dat
 
 ## Click-to-Create
 
-Clicking the empty area of any day cell opens a quick-create dialog
-pre-filled with the clicked date. Type a title and press <kbd>Enter</kbd>
-(or click **Create**) to persist a new record via
+Clicking the empty area of any day cell (month view) or click-dragging
+in the week/day time grid opens a quick-create dialog pre-filled with
+the selected date/range. Type a title and press <kbd>Enter</kbd> (or
+click **Create**) to persist a new record via
 `dataSource.create(objectName, payload)`. The new record is inserted
 optimistically into the calendar so it appears immediately.
 
