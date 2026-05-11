@@ -84,12 +84,44 @@ export function useObjectActions({
       // Accept several param shapes used across call sites:
       //   { params: { recordId } }       — toolbar / programmatic deletes
       //   { params: { record } }         — ObjectGrid row dropdown
-      //   { params: { records: [...] } } — bulk delete
+      //   { params: { records: [...] } } — bulk delete (multi-row)
       //   { recordId } (legacy)          — pre-params shape
+      const records = Array.isArray(action.params?.records)
+        ? action.params.records.filter((r: any) => r?.id != null)
+        : null;
+
+      // Bulk path — delete every record in parallel and report a summary.
+      if (records && records.length > 1) {
+        const results = await Promise.allSettled(
+          records.map((r: any) => dataSource.delete(objectName, r.id)),
+        );
+        const failed = results.filter(r => r.status === 'rejected').length;
+        const succeeded = results.length - failed;
+        onRefresh?.();
+        if (failed === 0) {
+          toast.success(
+            t('objectActions.bulkDeleteSuccess', {
+              count: succeeded,
+              label: objectLabel || objectName,
+              defaultValue: `Deleted ${succeeded} ${objectLabel || objectName} records`,
+            }),
+          );
+          return { success: true, reload: true };
+        }
+        toast.error(
+          t('objectActions.bulkDeletePartial', {
+            succeeded,
+            failed,
+            defaultValue: `${succeeded} deleted, ${failed} failed`,
+          }),
+        );
+        return { success: false, error: `${failed} failed` };
+      }
+
       const recordId =
         action.params?.recordId ??
         action.params?.record?.id ??
-        action.params?.records?.[0]?.id ??
+        records?.[0]?.id ??
         action.recordId;
       if (!recordId) return { success: false, error: t('objectActions.noRecordId') };
 

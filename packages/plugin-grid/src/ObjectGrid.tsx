@@ -178,6 +178,7 @@ export const ObjectGrid: React.FC<ObjectGridProps> = ({
   dataSource,
   onEdit,
   onDelete,
+  onBulkDelete,
   onRowSelect,
   onRowClick,
   onCellChange,
@@ -1295,9 +1296,18 @@ export const ObjectGrid: React.FC<ObjectGridProps> = ({
     : (schema.frozenColumns ?? 1);
 
   // Determine selection mode (support both new and legacy formats)
-  // Auto-enable 'multiple' selection when bulk actions are defined
-  const effectiveBulkActions = schema.batchActions ?? (schema as any).bulkActions;
-  const hasBulkActions = effectiveBulkActions && effectiveBulkActions.length > 0;
+  // Auto-enable 'multiple' selection when bulk actions are defined OR when
+  // a bulk-delete affordance is implicitly available (canDelete + onBulkDelete
+  // wired by the consumer). This gives every list a multi-select + delete UX
+  // out of the box without forcing each view JSON to declare bulkActions.
+  const explicitBulkActions = schema.batchActions ?? (schema as any).bulkActions;
+  const effectiveBulkActions: string[] =
+    explicitBulkActions && explicitBulkActions.length > 0
+      ? explicitBulkActions
+      : canDelete && onBulkDelete
+        ? ['delete']
+        : [];
+  const hasBulkActions = effectiveBulkActions.length > 0;
   let selectionMode: 'none' | 'single' | 'multiple' | boolean = false;
   if (schema.selection?.type) {
     selectionMode = schema.selection.type === 'none' ? false : schema.selection.type;
@@ -1308,6 +1318,18 @@ export const ObjectGrid: React.FC<ObjectGridProps> = ({
     // Auto-enable multi-select when bulk actions exist
     selectionMode = 'multiple';
   }
+
+  // Bulk action dispatcher — for the implicit 'delete' action, route through
+  // the consumer-provided onBulkDelete (which already knows about confirm +
+  // refresh). Other actions fall through to the generic action runner.
+  const dispatchBulkAction = (action: string, rows: any[]) => {
+    if (action === 'delete' && onBulkDelete) {
+      onBulkDelete(rows);
+      setSelectedRows([]);
+      return;
+    }
+    executeAction({ type: action, params: { records: rows } });
+  };
 
   // Determine pagination settings (support both new and legacy formats)
   const paginationEnabled = schema.pagination !== undefined 
@@ -1809,7 +1831,7 @@ export const ObjectGrid: React.FC<ObjectGridProps> = ({
               <BulkActionBar
                 selectedRows={selectedRows}
                 actions={effectiveBulkActions ?? []}
-                onAction={(action, rows) => executeAction({ type: action, params: { records: rows } })}
+                onAction={dispatchBulkAction}
                 onClearSelection={() => setSelectedRows([])}
               />
             </>
@@ -1837,7 +1859,7 @@ export const ObjectGrid: React.FC<ObjectGridProps> = ({
       <BulkActionBar
         selectedRows={selectedRows}
         actions={effectiveBulkActions ?? []}
-        onAction={(action, rows) => executeAction({ type: action, params: { records: rows } })}
+        onAction={dispatchBulkAction}
         onClearSelection={() => setSelectedRows([])}
       />
       {navigation.isOverlay && (

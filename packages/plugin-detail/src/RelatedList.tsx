@@ -15,6 +15,14 @@ import {
   Badge,
   Button,
   Input,
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
   cn,
 } from '@object-ui/components';
 import { SchemaRenderer } from '@object-ui/react';
@@ -303,11 +311,18 @@ export const RelatedList: React.FC<RelatedListProps> = ({
     }
   }, [sortField]);
 
+  // Confirm-delete dialog state. Replaces window.confirm() so the related
+  // list matches the rest of the app's Shadcn AlertDialog UX.
+  const [deleteTarget, setDeleteTarget] = React.useState<any | null>(null);
+
   const handleDeleteRow = React.useCallback((row: any) => {
-    if (window.confirm(t('detail.deleteRowConfirmation'))) {
-      onRowDelete?.(row);
-    }
-  }, [onRowDelete, t]);
+    setDeleteTarget(row);
+  }, []);
+
+  const handleConfirmDelete = React.useCallback(() => {
+    if (deleteTarget) onRowDelete?.(deleteTarget);
+    setDeleteTarget(null);
+  }, [deleteTarget, onRowDelete]);
 
   // Generate effective columns from explicit prop or object schema fields.
   // Behavior:
@@ -618,6 +633,32 @@ export const RelatedList: React.FC<RelatedListProps> = ({
           </div>
         )}
       </CardContent>}
+      <AlertDialog
+        open={deleteTarget !== null}
+        onOpenChange={(open) => { if (!open) setDeleteTarget(null); }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {t('detail.deleteRowTitle', { defaultValue: 'Delete record' })}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {t('detail.deleteRowConfirmation')}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>
+              {t('detail.cancel', { defaultValue: 'Cancel' })}
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {t('detail.delete', { defaultValue: 'Delete' })}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Card>
   );
 };

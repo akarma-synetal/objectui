@@ -1347,6 +1347,21 @@ export function ObjectView({ dataSource, objects, onEdit, externalRefreshKey }: 
                         actions.deleteRecord(String(record.id));
                     }
                 }}
+                onBulkDelete={(records: any[]) => {
+                    const valid = records.filter((r: any) => r?.id != null);
+                    if (valid.length === 0) return;
+                    // Route through actions.execute so the shared AlertDialog
+                    // confirms once for the whole batch and the existing
+                    // delete handler (now batch-aware) handles refresh + toast.
+                    actions.execute({
+                        type: 'delete',
+                        confirmText: t('console.objectView.bulkDeleteConfirm', {
+                            count: valid.length,
+                            defaultValue: `Delete ${valid.length} selected records? This cannot be undone.`,
+                        }),
+                        params: { records: valid },
+                    });
+                }}
                 onRowClick={(record: any) => {
                     navOverlay.handleClick(record);
                 }}
