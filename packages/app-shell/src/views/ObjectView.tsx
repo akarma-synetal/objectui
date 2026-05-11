@@ -1073,6 +1073,25 @@ export function ObjectView({ dataSource, objects, onEdit }: any) {
         [activeView?.navigation, objectDef.navigation]
     );
     const drawerRecordId = searchParams.get('recordId');
+
+    /**
+     * URL-derived equality filters in the form `?filter[<field>]=<value>`.
+     * Used by related-list "View All" buttons to scope the destination list
+     * to a single parent record. Emitted as ObjectQL triples (`[field, '=', value]`)
+     * which matches the shape consumed by the list view's data fetcher when
+     * merging base filters.
+     */
+    const urlFilters = useMemo(() => {
+        const out: Array<[string, string, any]> = [];
+        searchParams.forEach((value, key) => {
+            const m = /^filter\[(.+)\]$/.exec(key);
+            if (m && m[1] && value !== '') {
+                out.push([m[1], '=', value]);
+            }
+        });
+        return out;
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [searchParams.toString()]);
     // Memoize onNavigate to prevent stale closure in useNavigationOverlay's handleClick
     const handleNavOverlayNavigate = useCallback(
         (recordId: string | number, action?: string) => {
@@ -1171,7 +1190,12 @@ export function ObjectView({ dataSource, objects, onEdit }: any) {
             // through the same persistViewPatch helper which debounces and
             // batches concurrent toggles.
             sort: (viewDef as any).sort ?? listSchema.sort,
-            filter: (viewDef as any).filter ?? listSchema.filter,
+            filter: (() => {
+                const base = (viewDef as any).filter ?? listSchema.filter;
+                if (!urlFilters.length) return base;
+                const baseArr = Array.isArray(base) ? base : [];
+                return [...baseArr, ...urlFilters];
+            })(),
             hiddenFields: (viewDef as any).hiddenFields ?? listSchema.hiddenFields,
             columnState: (viewDef as any).columnState ?? (listSchema as any).columnState,
             onDensityChange: (mode) => {
@@ -1236,7 +1260,13 @@ export function ObjectView({ dataSource, objects, onEdit }: any) {
             aria: viewDef.aria ?? listSchema.aria,
             tabs: listSchema.tabs,
             // Propagate filter/sort as default filters/sort for data flow
-            ...(viewDef.filter?.length ? { filters: viewDef.filter } : {}),
+            ...((() => {
+                const combined = [
+                    ...(Array.isArray(viewDef.filter) ? viewDef.filter : []),
+                    ...urlFilters,
+                ];
+                return combined.length ? { filters: combined } : {};
+            })()),
             ...(viewDef.sort?.length ? { sort: viewDef.sort } : {}),
             options: {
                 kanban: {
@@ -1328,7 +1358,7 @@ export function ObjectView({ dataSource, objects, onEdit }: any) {
                 dataSource={ds}
             />
         );
-    }, [activeView, objectDef, objectName, refreshKey, navOverlay, actions, persistViewPatch]);
+    }, [activeView, objectDef, objectName, refreshKey, navOverlay, actions, persistViewPatch, urlFilters]);
 
     // Memoize the merged views array so PluginObjectView doesn't get a new
     // reference on every render (which would trigger unnecessary data refetches).

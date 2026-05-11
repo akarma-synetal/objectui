@@ -329,6 +329,57 @@ export function LookupField({ value, onChange, field, readonly, ...props }: Fiel
     };
   }, []);
 
+  /**
+   * Hydrate the picker's display when the field already has a value (e.g.
+   * edit-mode load, prefill via query-string from a related-list "+ New")
+   * but no option resolves it yet. Fetches the referenced record(s) via
+   * the DataSource and caches them in `pickerResolvedRecords` so the chip
+   * shows a friendly label instead of an empty placeholder.
+   */
+  useEffect(() => {
+    if (!hasDataSource || !dataSource || !referenceTo) return;
+    const ids: any[] = multiple
+      ? Array.isArray(value) ? value : []
+      : value != null && value !== '' ? [value] : [];
+    if (!ids.length) return;
+    // Only fetch records we haven't resolved yet.
+    const unresolved = ids.filter((v) => !findOption(v));
+    if (!unresolved.length) return;
+
+    let cancelled = false;
+    (async () => {
+      try {
+        const fetched: LookupOption[] = [];
+        for (const id of unresolved) {
+          if (typeof (dataSource as any).findOne === 'function') {
+            const rec = await (dataSource as any).findOne(referenceTo, id);
+            if (rec) fetched.push(recordToOption(rec, displayField, idField, descriptionField));
+          } else {
+            const res = await dataSource.find(referenceTo, {
+              $filter: { [idField]: id },
+              $top: 1,
+            } as QueryParams);
+            const rows = res?.data ?? res ?? [];
+            if (rows[0]) fetched.push(recordToOption(rows[0], displayField, idField, descriptionField));
+          }
+        }
+        if (!cancelled && fetched.length) {
+          setPickerResolvedRecords((prev) => {
+            const map = new Map(prev.map((o) => [o.value, o]));
+            for (const o of fetched) map.set(o.value, o);
+            return Array.from(map.values());
+          });
+        }
+      } catch {
+        // Ignore — chip will fall back to showing the raw id.
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [value, hasDataSource, referenceTo, displayField, idField, descriptionField, multiple]);
+
   // Get selected option(s) — check static, fetched, and picker-resolved options
   const findOption = useCallback(
     (v: any): LookupOption | undefined => {

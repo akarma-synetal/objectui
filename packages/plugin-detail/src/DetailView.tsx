@@ -1018,6 +1018,10 @@ export const DetailView: React.FC<DetailViewProps> = ({
                       objectName={related.api}
                       referenceField={(related as any).referenceField}
                       icon={(related as any).icon}
+                      onNew={(related as any).onNew}
+                      onViewAll={(related as any).onViewAll}
+                      onRowEdit={(related as any).onRowEdit}
+                      onRowDelete={(related as any).onRowDelete}
                       collapsible
                       pageSize={DEFAULT_RELATED_PAGE_SIZE}
                     />
@@ -1113,6 +1117,10 @@ export const DetailView: React.FC<DetailViewProps> = ({
                   objectName={related.api}
                   referenceField={(related as any).referenceField}
                   icon={(related as any).icon}
+                  onNew={(related as any).onNew}
+                  onViewAll={(related as any).onViewAll}
+                  onRowEdit={(related as any).onRowEdit}
+                  onRowDelete={(related as any).onRowDelete}
                   collapsible
                   pageSize={DEFAULT_RELATED_PAGE_SIZE}
                 />

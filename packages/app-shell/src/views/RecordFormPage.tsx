@@ -29,7 +29,7 @@
  */
 
 import { useCallback, useMemo } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { ObjectForm } from '@object-ui/plugin-form';
 import { Button, Empty, EmptyTitle, EmptyDescription } from '@object-ui/components';
 import { ArrowLeft, Database } from 'lucide-react';
@@ -62,11 +62,28 @@ export function RecordFormPage({ mode }: RecordFormPageProps) {
     recordId: string;
   }>();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const dataSource = useAdapter();
   const { objects, loading: metadataLoading } = useMetadata();
   const { t } = useObjectTranslation();
   const { objectLabel } = useObjectLabel();
   const { user } = useAuth();
+
+  /**
+   * Query-string prefills for create mode. Used by related-list "+ New"
+   * buttons that pass the parent record id as a `<referenceField>=<id>`
+   * pair so the new child record is auto-linked back to the parent.
+   * Stable identity: only changes when the actual search string changes.
+   */
+  const prefillValues = useMemo<Record<string, string> | undefined>(() => {
+    if (mode !== 'create') return undefined;
+    const entries: Array<[string, string]> = [];
+    for (const [k, v] of searchParams.entries()) {
+      if (k && v) entries.push([k, v]);
+    }
+    return entries.length > 0 ? Object.fromEntries(entries) : undefined;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mode, searchParams.toString()]);
 
   const objectDef = useMemo(
     () => objects.find((o: any) => o.name === objectName),
@@ -237,6 +254,7 @@ export function RecordFormPage({ mode }: RecordFormPageProps) {
                 objectName: objectDef.name,
                 mode,
                 recordId: mode === 'edit' ? recordId : undefined,
+                ...(prefillValues && { initialValues: prefillValues }),
                 title: pageTitle,
                 description:
                   mode === 'create'

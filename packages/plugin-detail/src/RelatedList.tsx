@@ -21,8 +21,6 @@ import { SchemaRenderer } from '@object-ui/react';
 import {
   Plus,
   ExternalLink,
-  Edit,
-  Trash2,
   ChevronLeft,
   ChevronRight,
   ArrowUpDown,
@@ -273,6 +271,8 @@ export const RelatedList: React.FC<RelatedListProps> = ({
     return generated;
   }, [columns, objectSchema, objectName, api, resolveFieldLabel, referenceField]);
 
+  const hasRowActions = !!onRowEdit || !!onRowDelete;
+
   const viewSchema = React.useMemo(() => {
     if (schema) return schema;
 
@@ -289,6 +289,9 @@ export const RelatedList: React.FC<RelatedListProps> = ({
           pageSize: effectivePageSize || 10,
           searchable: false,
           exportable: false,
+          rowActions: hasRowActions,
+          onRowEdit,
+          onRowDelete: onRowDelete ? handleDeleteRow : undefined,
         };
       case 'list':
         return {
@@ -298,9 +301,7 @@ export const RelatedList: React.FC<RelatedListProps> = ({
       default:
         return { type: 'div', children: 'No view configured' };
     }
-  }, [type, paginatedData, effectiveColumns, schema, effectivePageSize]);
-
-  const hasRowActions = !!onRowEdit || !!onRowDelete;
+  }, [type, paginatedData, effectiveColumns, schema, effectivePageSize, hasRowActions, onRowEdit, onRowDelete, handleDeleteRow]);
 
   const headerClassName = collapsible ? 'cursor-pointer select-none' : undefined;
   const handleHeaderClick = collapsible ? () => setCollapsed((c) => !c) : undefined;
@@ -407,60 +408,28 @@ export const RelatedList: React.FC<RelatedListProps> = ({
             {t('detail.loading')}
           </div>
         ) : isEmpty ? (
-          // Compact empty state — inline single line. We show an Add CTA only
-          // when there's no header New button (otherwise it would duplicate),
-          // ensuring tests can match the single header button unambiguously.
-          <div className="flex items-center justify-between gap-2 py-2 text-sm">
+          // Friendly empty state. When `onNew` is available, surface a
+          // prominent CTA so users can create the first related record in
+          // one click (HubSpot / Linear pattern).
+          <div className="flex flex-col items-center justify-center gap-2 py-6 text-sm">
+            <SectionIcon className="h-8 w-8 text-muted-foreground/40" aria-hidden />
             <span className="text-muted-foreground italic">
               {t('detail.noRelatedRecords')}
             </span>
-            {onNew === undefined && (
-              <span className="text-xs text-muted-foreground/70">
-                {/* placeholder so the row keeps consistent height */}
-              </span>
+            {onNew && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={onNew}
+                className="gap-1 h-7 text-xs mt-1"
+              >
+                <Plus className="h-3.5 w-3.5" />
+                {t('detail.new')}
+              </Button>
             )}
           </div>
         ) : (
-          <>
-            <SchemaRenderer schema={viewSchema} />
-
-            {/* Row-level actions (rendered as a simple action list below data) */}
-            {hasRowActions && paginatedData.length > 0 && (
-              <div className="mt-2 space-y-1" data-testid="row-actions">
-                {paginatedData.map((row, idx) => (
-                  <div key={row.id || idx} className="flex items-center justify-between px-2 py-1 text-xs border-b last:border-b-0">
-                    <span className="truncate text-muted-foreground">
-                      {row.name || row.title || row.id || `Row ${idx + 1}`}
-                    </span>
-                    <div className="flex items-center gap-1">
-                      {onRowEdit && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-6 text-xs gap-1 px-2"
-                          onClick={() => onRowEdit(row)}
-                        >
-                          <Edit className="h-3 w-3" />
-                          {t('detail.editRow')}
-                        </Button>
-                      )}
-                      {onRowDelete && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-6 text-xs gap-1 px-2 text-destructive hover:text-destructive"
-                          onClick={() => handleDeleteRow(row)}
-                        >
-                          <Trash2 className="h-3 w-3" />
-                          {t('detail.deleteRow')}
-                        </Button>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </>
+          <SchemaRenderer schema={viewSchema} />
         )}
 
         {/* Pagination controls */}

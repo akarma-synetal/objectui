@@ -33,7 +33,11 @@ interface RecordDetailViewProps {
 const FALLBACK_USER = { id: 'current-user', name: 'Demo User' };
 
 export function RecordDetailView({ dataSource, objects, onEdit }: RecordDetailViewProps) {
-  const { objectName, recordId } = useParams();
+  const { appName, objectName, recordId } = useParams<{
+    appName?: string;
+    objectName?: string;
+    recordId?: string;
+  }>();
   const { showDebug } = useMetadataInspector();
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -480,9 +484,61 @@ export function RecordDetailView({ dataSource, objects, onEdit }: RecordDetailVi
     // Build related entries from reverse-reference child objects.
     // `referenceField` is the FK field on the child pointing back to this
     // record — passed so the related-list renderer can hide the redundant
-    // parent-ID column.
+    // parent-ID column. Each entry carries action handlers that the renderer
+    // surfaces as header `+ New` / `View All` buttons and per-row Edit /
+    // Delete controls.
+    const baseAppUrl = appName ? `/apps/${appName}` : '';
     const related = childRelations.map(({ childObject, childLabel, referenceField }) => {
       const childObjectDef = objects.find((o: any) => o.name === childObject);
+      const parentId = pureRecordId || '';
+
+      const buildNewUrl = () => {
+        const qs = new URLSearchParams({ [referenceField]: parentId }).toString();
+        return `${baseAppUrl}/${childObject}/new${qs ? `?${qs}` : ''}`;
+      };
+      const buildListUrl = () => {
+        const qs = new URLSearchParams({
+          [`filter[${referenceField}]`]: parentId,
+        }).toString();
+        return `${baseAppUrl}/${childObject}${qs ? `?${qs}` : ''}`;
+      };
+      const buildEditUrl = (row: any) => {
+        const rid = row?.id || row?._id;
+        if (!rid) return null;
+        return `${baseAppUrl}/${childObject}/record/${encodeURIComponent(String(rid))}/edit`;
+      };
+
+      const onNew = baseAppUrl
+        ? () => navigate(buildNewUrl())
+        : undefined;
+      const onViewAll = baseAppUrl
+        ? () => navigate(buildListUrl())
+        : undefined;
+      const onRowEdit = baseAppUrl
+        ? (row: any) => {
+            const url = buildEditUrl(row);
+            if (url) navigate(url);
+          }
+        : undefined;
+      const onRowDelete = dataSource && parentId
+        ? async (row: any) => {
+            const rid = row?.id || row?._id;
+            if (!rid) return;
+            try {
+              await dataSource.delete(childObject, rid);
+              toast.success(t('detail.deleteSuccess', { defaultValue: 'Deleted' }));
+              setChildRelatedData((prev) => ({
+                ...prev,
+                [childObject]: (prev[childObject] || []).filter(
+                  (r: any) => (r.id || r._id) !== rid,
+                ),
+              }));
+            } catch (err: any) {
+              toast.error(err?.message || t('detail.deleteError', { defaultValue: 'Delete failed' }));
+            }
+          }
+        : undefined;
+
       return {
         title: childLabel,
         type: 'table' as const,
@@ -490,6 +546,10 @@ export function RecordDetailView({ dataSource, objects, onEdit }: RecordDetailVi
         data: childRelatedData[childObject] || [],
         referenceField,
         icon: childObjectDef?.icon,
+        onNew,
+        onViewAll,
+        onRowEdit,
+        onRowDelete,
       };
     });
 
@@ -517,7 +577,7 @@ export function RecordDetailView({ dataSource, objects, onEdit }: RecordDetailVi
       }),
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [objectDef?.name, pureRecordId, childRelatedData, actionRefreshKey]);
+  }, [objectDef?.name, pureRecordId, childRelatedData, actionRefreshKey, appName, navigate, dataSource, t]);
 
   if (isLoading) {
     return <SkeletonDetail />;
