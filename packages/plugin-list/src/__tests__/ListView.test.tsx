@@ -598,6 +598,54 @@ describe('ListView', () => {
     });
   });
 
+  describe('formula/computed field projection', () => {
+    it('should exclude formula and computed fields from $select projection', async () => {
+      const findMock = vi.fn().mockResolvedValue([]);
+      const mockDs = {
+        find: findMock,
+        findOne: vi.fn(),
+        create: vi.fn(),
+        update: vi.fn(),
+        delete: vi.fn(),
+        getObjectSchema: vi.fn().mockResolvedValue({
+          name: 'campaign',
+          fields: {
+            name: { type: 'text', label: 'Name' },
+            budgeted_cost: { type: 'currency', label: 'Budgeted' },
+            response_rate: { type: 'formula', label: 'Response Rate' },
+            roi: { type: 'formula', label: 'ROI' },
+            score: { type: 'number', label: 'Score', computed: true },
+          },
+        }),
+      };
+
+      const schema: ListViewSchema = {
+        type: 'list-view',
+        objectName: 'campaign',
+        viewType: 'grid',
+        fields: ['name', 'budgeted_cost', 'response_rate', 'roi', 'score'],
+      };
+
+      render(
+        <SchemaRendererProvider dataSource={mockDs}>
+          <ListView schema={schema} dataSource={mockDs} />
+        </SchemaRendererProvider>
+      );
+
+      await vi.waitFor(() => {
+        expect(findMock).toHaveBeenCalled();
+      });
+
+      const params = findMock.mock.calls[0]?.[1] ?? {};
+      const select: string[] = params.$select ?? [];
+      expect(select).toContain('name');
+      expect(select).toContain('budgeted_cost');
+      expect(select).not.toContain('response_rate');
+      expect(select).not.toContain('roi');
+      expect(select).not.toContain('score');
+    });
+  });
+
   // ============================================
   // Merged Toolbar Layout
   // ============================================

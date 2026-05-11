@@ -160,6 +160,24 @@ interface ListViewSchema {
 
 The ListView automatically persists the user's view type preference in localStorage using the key `listview-{objectName}-view`.
 
+## Server projection (`$select`)
+
+ListView automatically passes `$select` to the data source so the backend
+only ships the columns the view needs. The projection is derived from
+`schema.fields` plus view-specific runtime fields (groupBy / start /
+end / cover etc.), with the following automatic exclusions:
+
+- **Formula / rollup fields** (`type: 'formula' | 'rollup'`) — many
+  REST backends (including ObjectStack) refuse to project computed
+  fields and return an empty record set when one appears in `select=`.
+  These fields are dropped from `$select`; rows still contain the
+  computed values returned by the server.
+- **`computed: true`** fields — same handling.
+
+The exclusion is driven by the `ObjectField` metadata returned from
+`dataSource.getObjectSchema()`. If the object schema is not yet loaded,
+the field passes through unchanged.
+
 <!-- release-metadata:v3.3.0 -->
 
 ## Compatibility

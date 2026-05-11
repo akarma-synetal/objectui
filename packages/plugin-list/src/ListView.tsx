@@ -780,8 +780,29 @@ export const ListView = React.forwardRef<ListViewHandle, ListViewProps>(({
           // ignoring them. Stick to the user-requested columns plus the
           // expanded relation roots (which we know are valid because
           // buildExpandFields() derived them from the object schema).
+          // Some backends reject formula/computed fields in `$select` and
+          // return an empty result set rather than ignoring them (e.g. the
+          // ObjectStack REST runtime returns `records:[]` when the projection
+          // contains `Field.formula(...)`). Detect these from the object
+          // schema and drop them from the projection — they are still
+          // resolved server-side and returned in the row payload.
+          const fieldTypes: Record<string, any> = (objectDef?.fields && !Array.isArray(objectDef.fields))
+            ? objectDef.fields
+            : (Array.isArray(objectDef?.fields)
+                ? Object.fromEntries(objectDef.fields.map((f: any) => [f.name, f]))
+                : {});
+          const isProjectable = (name: string) => {
+            const def: any = fieldTypes[name];
+            if (!def) return true;
+            // Formula/computed/rollup are computed server-side; some backends
+            // refuse to project them. Better to fetch them implicitly.
+            if (def.type === 'formula' || def.type === 'rollup' || def.computed === true) return false;
+            return true;
+          };
           const required = new Set<string>(['id']);
-          for (const c of cols) required.add(c);
+          for (const c of cols) {
+            if (isProjectable(c)) required.add(c);
+          }
           for (const e of expandFields) required.add(e);
 
           // View-specific runtime fields. Each non-grid view binds to one
@@ -803,7 +824,7 @@ export const ListView = React.forwardRef<ListViewHandle, ListViewProps>(({
               ...(Array.isArray(v.visibleFields) ? v.visibleFields : []),
             ];
             for (const f of candidates) {
-              if (typeof f === 'string' && f) required.add(f);
+              if (typeof f === 'string' && f && isProjectable(f)) required.add(f);
             }
           };
           collectViewFields(schema.kanban);
