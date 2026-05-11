@@ -27,7 +27,19 @@ import type { ObjectGridSchema, DataSource, ViewData, CalendarConfig } from '@ob
 import { CalendarView, type CalendarEvent } from './CalendarView';
 import { usePullToRefresh } from '@object-ui/mobile';
 import { useNavigationOverlay } from '@object-ui/react';
-import { NavigationOverlay, useIsMobile } from '@object-ui/components';
+import {
+  NavigationOverlay,
+  useIsMobile,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  Button,
+  Input,
+  Label,
+} from '@object-ui/components';
 import { extractRecords, buildExpandFields } from '@object-ui/core';
 
 export interface CalendarSchema {
@@ -488,6 +500,86 @@ export const ObjectCalendar: React.FC<ObjectCalendarProps> = ({
     }
   }, [calendarConfig, schema.objectName, dataSource, data]);
 
+  // Quick-create state: clicking an empty day cell opens a small dialog
+  // pre-filled with that date. On submit, dataSource.create() inserts a
+  // record and the mutation event triggers a refetch.
+  const [quickCreate, setQuickCreate] = useState<{ date: Date; title: string; submitting: boolean; error?: string } | null>(null);
+
+  const handleDateClickDefault = useCallback((day: Date) => {
+    if (!calendarConfig || !schema.objectName || !dataSource?.create) return;
+    setQuickCreate({ date: day, title: '', submitting: false });
+  }, [calendarConfig, schema.objectName, dataSource]);
+
+  const submitQuickCreate = useCallback(async () => {
+    if (!quickCreate || !calendarConfig) return;
+    const title = quickCreate.title.trim();
+    if (!title) {
+      setQuickCreate(qc => qc ? { ...qc, error: 'Title is required' } : qc);
+      return;
+    }
+    if (!schema.objectName || !dataSource?.create) return;
+
+    setQuickCreate(qc => qc ? { ...qc, submitting: true, error: undefined } : qc);
+    const { startDateField, endDateField, titleField } = calendarConfig;
+    const payload: Record<string, any> = {
+      [titleField || 'name']: title,
+      [startDateField]: quickCreate.date.toISOString(),
+    };
+    // Default end_date to same day so the event is visible immediately.
+    if (endDateField) {
+      payload[endDateField] = quickCreate.date.toISOString();
+    }
+    // Auto-fill required fields the user hasn't provided (e.g. select
+    // status, autonumber). Without this the server would 400 on
+    // NOT NULL constraint. Uses first option for picklists; falls back
+    // to defaultValue or sensible empty string for text.
+    const fieldsMeta = objectSchema?.fields;
+    if (fieldsMeta && typeof fieldsMeta === 'object') {
+      const entries: [string, any][] = Array.isArray(fieldsMeta)
+        ? fieldsMeta.map((f: any) => [f.name ?? f.apiName, f] as [string, any])
+        : Object.entries(fieldsMeta);
+      for (const [name, def] of entries) {
+        if (!name || name in payload) continue;
+        if (!def?.required) continue;
+        if (def.defaultValue !== undefined && def.defaultValue !== null) {
+          payload[name] = def.defaultValue;
+          continue;
+        }
+        const t = def.type;
+        if (t === 'select' || t === 'picklist' || t === 'status') {
+          const opts = (def.options || def.choices || []) as any[];
+          const first = opts[0];
+          if (first !== undefined) {
+            payload[name] = typeof first === 'object' ? (first.value ?? first.id) : first;
+          }
+        } else if (t === 'boolean' || t === 'checkbox') {
+          payload[name] = false;
+        } else if (t === 'number' || t === 'integer' || t === 'decimal' || t === 'currency' || t === 'percent') {
+          payload[name] = 0;
+        }
+        // autonumber/text/date that are required but not provided will fall
+        // through; the server will surface a clear error which we display.
+      }
+    }
+    try {
+      const created = await dataSource.create(schema.objectName, payload);
+      // Optimistically insert into local state so the new event appears
+      // immediately. Different DataSource implementations may return the
+      // record directly, wrapped in `{record}`, or wrapped in `{data}`.
+      const c: any = created;
+      const newRecord = (c && (c.record || c.data || c)) ?? null;
+      if (newRecord && (newRecord.id !== undefined || newRecord._id !== undefined)) {
+        setData(prev => [...prev, newRecord]);
+      }
+      setQuickCreate(null);
+    } catch (err: any) {
+      const msg = err?.message || String(err);
+      setQuickCreate(qc => qc ? { ...qc, submitting: false, error: msg } : qc);
+      // eslint-disable-next-line no-console
+      console.error('[ObjectCalendar] Quick-create failed:', err);
+    }
+  }, [quickCreate, calendarConfig, schema.objectName, dataSource, objectSchema]);
+
   return (
     <div ref={pullRef} className={className}>
       {pullDistance > 0 && (
@@ -508,7 +600,15 @@ export const ObjectCalendar: React.FC<ObjectCalendarProps> = ({
             navigation.handleClick(event.data);
             onEventClick?.(event.data);
           }}
-          onDateClick={onDateClick}
+          // Quick-create on empty-day click. Caller-supplied onDateClick
+          // wins; otherwise open the quick-create dialog.
+          onDateClick={(day) => {
+            if (onDateClick) {
+              onDateClick(day);
+            } else {
+              handleDateClickDefault(day);
+            }
+          }}
           onNavigate={(date) => {
             setCurrentDate(date);
             onNavigate?.(date);
@@ -529,6 +629,61 @@ export const ObjectCalendar: React.FC<ObjectCalendarProps> = ({
           }}
         />
       </div>
+
+      {/* Quick-create dialog: opens when the user clicks an empty day cell.
+          Pre-fills start_date (and end_date) with the clicked day; only the
+          title is required. The full record can be edited afterward via the
+          standard detail page. */}
+      <Dialog open={!!quickCreate} onOpenChange={(open) => {
+        if (!open) setQuickCreate(null);
+      }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>New event</DialogTitle>
+            <DialogDescription>
+              {quickCreate && (
+                <>On {quickCreate.date.toLocaleDateString(locale, { year: 'numeric', month: 'long', day: 'numeric' })}</>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label htmlFor="quick-create-title">Title</Label>
+            <Input
+              id="quick-create-title"
+              autoFocus
+              value={quickCreate?.title ?? ''}
+              onChange={(e) => setQuickCreate(qc => qc ? { ...qc, title: e.target.value, error: undefined } : qc)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !quickCreate?.submitting) {
+                  e.preventDefault();
+                  void submitQuickCreate();
+                }
+              }}
+              placeholder="What's this event about?"
+              disabled={quickCreate?.submitting}
+            />
+            {quickCreate?.error && (
+              <p className="text-sm text-destructive">{quickCreate.error}</p>
+            )}
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setQuickCreate(null)}
+              disabled={quickCreate?.submitting}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={() => void submitQuickCreate()}
+              disabled={quickCreate?.submitting || !quickCreate?.title.trim()}
+            >
+              {quickCreate?.submitting ? 'Creating…' : 'Create'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {navigation.isOverlay && (
         <NavigationOverlay {...navigation} title="Event Details">
           {(record) => (

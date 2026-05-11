@@ -43,6 +43,32 @@ When `ObjectCalendar` is bound to an object (i.e. it has `objectName` and a `dat
 />
 ```
 
+## Click-to-Create
+
+Clicking the empty area of any day cell opens a quick-create dialog
+pre-filled with the clicked date. Type a title and press <kbd>Enter</kbd>
+(or click **Create**) to persist a new record via
+`dataSource.create(objectName, payload)`. The new record is inserted
+optimistically into the calendar so it appears immediately.
+
+The payload includes the configured `titleField`, `startDateField`,
+optional `endDateField` (set to the clicked day), plus auto-defaults
+for any other required fields not provided by the user (first picklist
+option for `select`/`status`, `false` for booleans, `0` for numerics,
+or the field's declared `defaultValue`). This ensures the create
+succeeds against `NOT NULL` columns without forcing the user through
+the full form.
+
+To override (e.g. open your own multi-field create form), pass
+`onDateClick`:
+
+```jsx
+<ObjectCalendar
+  schema={{ type: 'object-calendar', objectName: 'campaign' }}
+  onDateClick={(day) => navigate(`/campaign/new?start=${day.toISOString()}`)}
+/>
+```
+
 ## CalendarView Component
 
 Full-featured standalone calendar with month, week, and day views for displaying events and scheduling.

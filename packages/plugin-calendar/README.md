@@ -10,6 +10,10 @@ Calendar view plugins for Object UI - includes both ObjectQL-integrated and stan
   drag the right edge of a multi-day event to extend/shrink it. Changes
   are persisted via `dataSource.update()` automatically (override with
   the `onEventDrop` prop).
+- **Click-to-Create** - Click any day cell to open a quick-create dialog
+  pre-filled with the clicked date. New records are persisted via
+  `dataSource.create()` and inserted optimistically into the calendar.
+  Required picklist fields auto-default to their first option.
 - **ObjectQL Integration** - Connect to ObjectStack data sources
 - **Standalone Mode** - Use with static data or custom backends
 - **Responsive** - Mobile-friendly calendar layouts
@@ -30,6 +34,24 @@ the local state is updated optimistically and rolled back if the
 server call fails. To intercept (e.g. to confirm a status change) pass
 `onEventDrop={(record, newStart, newEnd) => …}` — the default
 persistence is skipped when you provide your own handler.
+
+## Click-to-Create
+
+Clicking an empty area of any day cell opens a small quick-create
+dialog pre-filled with the clicked date. Type a title, press
+<kbd>Enter</kbd> (or click **Create**), and the record is persisted
+via `dataSource.create(objectName, payload)`. The payload includes:
+
+- The configured `titleField` (defaults to `name`)
+- `startDateField` and (if configured) `endDateField` set to the
+  clicked day
+- Auto-defaults for any other required fields the user hasn't supplied
+  (first picklist option for `select`/`status`, `false` for booleans,
+  `0` for numerics, or the field's `defaultValue`)
+
+The new record is optimistically inserted into local state so it
+appears immediately. To override (e.g. open your own create form), pass
+`onDateClick={(day) => …}` — the default behaviour is skipped.
 
 ## Installation
 

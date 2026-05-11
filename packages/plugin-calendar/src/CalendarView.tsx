@@ -502,11 +502,13 @@ function MonthView({ date, events, locale = "default", onEventClick, onDateClick
         const key = `${cursor.getFullYear()}-${cursor.getMonth()}-${cursor.getDate()}`
         const isSpanStart = cursor.getTime() === eventStart.getTime()
         const isSpanEnd = cursor.getTime() === eventEnd.getTime()
-        // Show the title on the event's own start day OR on the first day of
-        // a new week the span enters (Sunday, the leftmost column). That way
-        // a multi-week event still labels itself once per row instead of
-        // staying anonymous after the first week.
-        const isTitleDay = isSpanStart || cursor.getDay() === 0
+        // Show the title on:
+        //   - the event's start day
+        //   - Sundays (first day of each new week the span enters)
+        //   - the event's end day (so the user sees where it ends, and so
+        //     the right-edge resize handle gets full hit area)
+        // Single-day events naturally satisfy isSpanStart && isSpanEnd.
+        const isTitleDay = isSpanStart || isSpanEnd || cursor.getDay() === 0
         const arr = map.get(key)
         const entry = { event, isTitleDay, isSpanStart, isSpanEnd }
         if (arr) {
@@ -726,7 +728,7 @@ function MonthView({ date, events, locale = "default", onEventClick, onDateClick
                           onDragStart={(e) => handleDragStart(e, event, "resize-end", day)}
                           onDragEnd={handleDragEnd}
                           onClick={(e) => e.stopPropagation()}
-                          className="absolute top-0 right-0 h-full w-1.5 cursor-ew-resize bg-black/20 hover:bg-black/40 rounded-r"
+                          className="absolute inset-y-0 right-0 w-2 cursor-ew-resize bg-black/25 hover:bg-black/50 rounded-r"
                         />
                       )}
                     </div>
