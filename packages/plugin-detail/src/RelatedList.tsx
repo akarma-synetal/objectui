@@ -233,7 +233,12 @@ export const RelatedList: React.FC<RelatedListProps> = ({
     if (!objectSchema?.fields) return [];
     const resolvedObjectName = objectName || api || '';
     const generated = Object.entries(objectSchema.fields)
-      .filter(([key]) => !key.startsWith('_') && key !== 'id' && key !== referenceField)
+      .filter(([key, def]: [string, any]) => {
+        if (key.startsWith('_')) return false;
+        if (key === 'id' || key === referenceField) return false;
+        if (def?.hidden) return false;
+        return true;
+      })
       .map(([key, def]: [string, any]) => {
         const col: any = {
           accessorKey: key,

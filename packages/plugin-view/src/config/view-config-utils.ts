@@ -227,14 +227,20 @@ export interface FieldOption {
 /** Derive field options from an objectDef for FilterBuilder/SortBuilder/Selects */
 export function deriveFieldOptions(objectDef: { fields?: Record<string, any> }): FieldOption[] {
     if (!objectDef.fields) return [];
-    return Object.entries(objectDef.fields).map(([key, field]: [string, any]) => ({
-        value: key,
-        label: field.label || key,
-        type: normalizeFieldType(field.type),
-        options: field.options,
-        rawType: field.type,
-        rawName: key,
-    }));
+    return Object.entries(objectDef.fields)
+        .filter(([key, field]: [string, any]) => {
+            if (key.startsWith('_')) return false;
+            if (field?.hidden) return false;
+            return true;
+        })
+        .map(([key, field]: [string, any]) => ({
+            value: key,
+            label: field.label || key,
+            type: normalizeFieldType(field.type),
+            options: field.options,
+            rawType: field.type,
+            rawName: key,
+        }));
 }
 
 /** Convert draft filter → FilterGroup for FilterBuilder */
