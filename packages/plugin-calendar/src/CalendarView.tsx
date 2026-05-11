@@ -80,6 +80,7 @@ const DEFAULT_TRANSLATIONS: Record<string, string> = {
   'calendar.day': 'Day',
   'calendar.newEvent': 'New event',
   'calendar.moreEvents': '+{{count}} more',
+  'calendar.allDay': 'all-day',
 }
 
 /**
@@ -850,10 +851,64 @@ function TimeGridView({
     isStart: boolean // is this the event's first day
     isEnd: boolean // is this the event's last day
   }
+
+  // Classify an event as "all-day" if it explicitly says so, or if its
+  // start/end land on midnight boundaries (date-only data), or if it spans
+  // 24h or more. These render in the all-day row above the time grid
+  // instead of filling the whole vertical column.
+  const isAllDayEvent = React.useCallback((ev: CalendarEvent): boolean => {
+    if (ev.allDay) return true
+    const s = new Date(ev.start)
+    const e = ev.end ? new Date(ev.end) : new Date(s)
+    const startsAtMidnight = s.getHours() === 0 && s.getMinutes() === 0 && s.getSeconds() === 0
+    const endsAtMidnight = e.getHours() === 0 && e.getMinutes() === 0 && e.getSeconds() === 0
+    const durationMs = e.getTime() - s.getTime()
+    if (startsAtMidnight && endsAtMidnight) return true
+    if (durationMs >= 24 * 60 * 60 * 1000) return true
+    return false
+  }, [])
+
+  const { allDayEvents, timedEvents } = React.useMemo(() => {
+    const allDay: CalendarEvent[] = []
+    const timed: CalendarEvent[] = []
+    for (const ev of events) {
+      if (isAllDayEvent(ev)) allDay.push(ev)
+      else timed.push(ev)
+    }
+    return { allDayEvents: allDay, timedEvents: timed }
+  }, [events, isAllDayEvent])
+
+  // All-day events grouped per visible day (for the all-day row).
+  const allDayByDay = React.useMemo(() => {
+    const map = new Map<string, Array<{ event: CalendarEvent; isStart: boolean; isEnd: boolean }>>()
+    for (const d of days) map.set(dayKey(d), [])
+    for (const ev of allDayEvents) {
+      const s = startOfDay(new Date(ev.start))
+      const eRaw = ev.end ? new Date(ev.end) : new Date(ev.start)
+      // For all-day, end is inclusive of the last day; if end is exactly
+      // midnight of next day (typical date-range storage), step back one day.
+      let eDay = startOfDay(eRaw)
+      if (eRaw.getHours() === 0 && eRaw.getMinutes() === 0 && eRaw.getSeconds() === 0 && eRaw.getTime() > s.getTime()) {
+        eDay = new Date(eDay)
+        eDay.setDate(eDay.getDate() - 1)
+      }
+      for (const d of days) {
+        const dayStart = startOfDay(d)
+        if (dayStart < s || dayStart > eDay) continue
+        map.get(dayKey(d))!.push({
+          event: ev,
+          isStart: dayStart.getTime() === s.getTime(),
+          isEnd: dayStart.getTime() === eDay.getTime(),
+        })
+      }
+    }
+    return map
+  }, [days, allDayEvents])
+
   const entriesByDay = React.useMemo(() => {
     const map = new Map<string, Entry[]>()
     for (const d of days) map.set(dayKey(d), [])
-    for (const ev of events) {
+    for (const ev of timedEvents) {
       const s = new Date(ev.start)
       const e = ev.end ? new Date(ev.end) : new Date(s.getTime() + 60 * 60 * 1000) // default 1h
       // Iterate per-day in this view's range
@@ -878,7 +933,7 @@ function TimeGridView({
       }
     }
     return map
-  }, [days, events])
+  }, [days, timedEvents])
 
   // Overlap layout: for each day, sort by startMin and assign column / cols
   // so concurrent events tile side-by-side.
@@ -1216,6 +1271,52 @@ function TimeGridView({
           </div>
         ))}
       </div>
+
+      {/* All-day row: events that span entire days (or have no time
+          component) render here as horizontal bars instead of filling
+          the entire vertical column below. Caps at ~5 rows with internal
+          scroll so a busy day doesn't push the time grid off-screen. */}
+      {allDayEvents.length > 0 && (
+        <div className="flex border-b bg-muted/20 max-h-[140px] overflow-y-auto">
+          <div className="w-14 shrink-0 border-r flex items-start justify-end pr-1 pt-1 text-[10px] text-muted-foreground sticky left-0 bg-muted/20">
+            {t('calendar.allDay') === 'calendar.allDay' ? 'all-day' : t('calendar.allDay')}
+          </div>
+          {days.map((day) => {
+            const key = dayKey(day)
+            const list = allDayByDay.get(key) ?? []
+            return (
+              <div
+                key={key}
+                className="flex-1 border-r last:border-r-0 min-h-[28px] p-0.5 space-y-0.5"
+              >
+                {list.map(({ event, isStart, isEnd }, idx) => {
+                  const { className: colorCls, inlineColor } = resolveEventColor(event.color)
+                  return (
+                    <div
+                      key={`${event.id}-${idx}`}
+                      role="button"
+                      title={event.title}
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        onEventClick?.(event)
+                      }}
+                      className={cn(
+                        "text-[11px] px-2 py-0.5 truncate cursor-pointer hover:opacity-80",
+                        isStart ? "rounded-l" : "rounded-l-none -ml-0.5",
+                        isEnd ? "rounded-r" : "rounded-r-none -mr-0.5",
+                        colorCls
+                      )}
+                      style={inlineColor ? { backgroundColor: inlineColor } : undefined}
+                    >
+                      {isStart ? event.title : "\u00A0"}
+                    </div>
+                  )
+                })}
+              </div>
+            )
+          })}
+        </div>
+      )}
 
       {/* Scrollable time grid */}
       <div className="flex-1 overflow-auto">
