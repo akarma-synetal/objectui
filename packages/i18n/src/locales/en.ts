@@ -63,6 +63,9 @@ const en = {
     saveRecord: 'Save',
     create: 'Create',
     update: 'Update',
+    createSuccess: '{{object}} created successfully',
+    updateSuccess: '{{object}} updated successfully',
+    deleteSuccess: '{{object}} deleted successfully',
   },
   table: {
     rowsPerPage: 'Rows per page',

@@ -63,6 +63,9 @@ const zh = {
     saveRecord: '保存',
     create: '创建',
     update: '更新',
+    createSuccess: '{{object}}创建成功',
+    updateSuccess: '{{object}}更新成功',
+    deleteSuccess: '{{object}}删除成功',
   },
   table: {
     rowsPerPage: '每页行数',

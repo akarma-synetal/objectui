@@ -353,13 +353,13 @@ export function AppContent({ extraRoutes, extraRoutesNoApp }: AppContentProps = 
               <Routes>
                 <Route path="/" element={<Navigate to={findFirstRoute(activeApp.navigation || [])} replace />} />
                 <Route path=":objectName" element={
-                  <ObjectView dataSource={dataSource} objects={allObjects} onEdit={handleEdit} />
+                  <ObjectView dataSource={dataSource} objects={allObjects} onEdit={handleEdit} externalRefreshKey={refreshKey} />
                 } />
                 <Route path=":objectName/new" element={
                   <RecordFormPage mode="create" />
                 } />
                 <Route path=":objectName/view/:viewId" element={
-                  <ObjectView dataSource={dataSource} objects={allObjects} onEdit={handleEdit} />
+                  <ObjectView dataSource={dataSource} objects={allObjects} onEdit={handleEdit} externalRefreshKey={refreshKey} />
                 } />
                 <Route path=":objectName/record/:recordId" element={
                   <RecordDetailView key={refreshKey} dataSource={dataSource} objects={allObjects} onEdit={handleEdit} />

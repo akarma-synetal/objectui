@@ -244,7 +244,7 @@ function DrawerDetailContent({ objectDef, recordId, dataSource, onEdit }: {
     );
 }
 
-export function ObjectView({ dataSource, objects, onEdit }: any) {
+export function ObjectView({ dataSource, objects, onEdit, externalRefreshKey }: any) {
     const navigate = useNavigate();
     const { objectName, viewId } = useParams();
     const [searchParams, setSearchParams] = useSearchParams();
@@ -431,6 +431,13 @@ export function ObjectView({ dataSource, objects, onEdit }: any) {
 
     // Refresh trigger — bumped after view CRUD or external data mutations.
     const [refreshKey, setRefreshKey] = useState(0);
+
+    // Propagate externally-triggered refreshes (e.g. global ModalForm submit)
+    // into our internal refreshKey so list/data effects re-run.
+    useEffect(() => {
+        if (externalRefreshKey === undefined || externalRefreshKey === 0) return;
+        setRefreshKey(k => k + 1);
+    }, [externalRefreshKey]);
 
     // Import wizard open/close state — toolbar entry triggers it.
     const [showImport, setShowImport] = useState(false);
