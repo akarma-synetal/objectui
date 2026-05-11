@@ -22,7 +22,7 @@
  * - Works with object/api/value data providers
  */
 
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import type { ObjectGridSchema, DataSource, ViewData, GanttConfig } from '@object-ui/types';
 import { GanttConfigSchema } from '@objectstack/spec/ui';
 import { useNavigationOverlay } from '@object-ui/react';
@@ -295,6 +295,45 @@ export const ObjectGantt: React.FC<ObjectGanttProps> = ({
     onRowClick,
   });
 
+  // Persist a drag-driven reschedule back to the data source. Mirrors
+  // ObjectCalendar.handleEventDropDefault: optimistic local patch, then
+  // dataSource.update; on failure we revert and log.
+  const handleTaskUpdateDefault = useCallback(
+    async (task: GanttTask, changes: { start?: Date; end?: Date; title?: string; progress?: number }) => {
+      if (!ganttConfig) return;
+      const objectName =
+        dataConfig?.provider === 'object' ? dataConfig.object : schema.objectName;
+      if (!objectName || !dataSource || typeof dataSource.update !== 'function') return;
+
+      const { startDateField, endDateField, titleField, progressField } = ganttConfig;
+      const patch: Record<string, unknown> = {};
+      if (changes.start instanceof Date) patch[startDateField] = changes.start.toISOString();
+      if (changes.end instanceof Date) patch[endDateField] = changes.end.toISOString();
+      if (typeof changes.title === 'string' && titleField) patch[titleField] = changes.title;
+      if (typeof changes.progress === 'number' && progressField) patch[progressField] = changes.progress;
+      if (Object.keys(patch).length === 0) return;
+
+      const recordId = (task as any).data?.id ?? (task as any).data?._id ?? task.id;
+      if (recordId == null) return;
+
+      // Optimistic update — replace the matching record in local state.
+      const prevSnapshot = data;
+      setData((prev) =>
+        prev.map((r) =>
+          String(r.id ?? r._id) === String(recordId) ? { ...r, ...patch } : r,
+        ),
+      );
+
+      try {
+        await dataSource.update(objectName, String(recordId), patch);
+      } catch (err) {
+        console.error('[ObjectGantt] Failed to persist task update:', err);
+        setData(prevSnapshot); // revert
+      }
+    },
+    [ganttConfig, dataConfig, dataSource, schema.objectName, data],
+  );
+
   if (loading) {
     return (
       <div className={className}>
@@ -336,6 +375,7 @@ export const ObjectGantt: React.FC<ObjectGanttProps> = ({
             navigation.handleClick(task.data);
             onTaskClick?.(task.data);
           }}
+          onTaskUpdate={handleTaskUpdateDefault}
           onAddClick={() => {
             // Placeholder for add action
           }}

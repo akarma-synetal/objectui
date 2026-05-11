@@ -5,11 +5,37 @@ Gantt chart plugin for Object UI - Visualize project timelines and task dependen
 ## Features
 
 - **Gantt Charts** - Interactive Gantt chart visualization
+- **Drag-and-drop rescheduling** - Drag a bar to move it; drag either edge to resize
+  start/end (snaps to whole days, persists via `dataSource.update`)
 - **Task Dependencies** - Link tasks with dependencies
 - **Timeline View** - Visualize project schedules
 - **Task Management** - Create, edit, and track tasks
 - **Responsive** - Scrollable timeline for large projects
 - **Customizable** - Tailwind CSS styling support
+
+### Drag-and-drop rescheduling
+
+When the renderer is used through `ObjectGantt` (the standard wiring used by
+the framework's `gantt` view type) drag is enabled automatically: each bar
+shows a grab cursor; the body drags the entire task, and the two thin edge
+zones (≈6px) resize start or end. Pointer motion snaps to whole days using
+the current column width. On release `ObjectGantt` issues an optimistic local
+patch and a `dataSource.update(objectName, recordId, { [startDateField]: …,
+[endDateField]: … })`. If the request fails the local state is reverted.
+
+When you embed the lower-level `<GanttView>` directly, pass `onTaskUpdate`
+to opt in:
+
+```tsx
+<GanttView
+  tasks={tasks}
+  onTaskUpdate={(task, { start, end }) => {
+    // start/end are JS Date objects already snapped to whole days,
+    // and the resize-left/right cases clamp so end - start >= 1 day.
+    save(task.id, { start, end });
+  }}
+/>
+```
 
 ## Installation
 

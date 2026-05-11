@@ -47,9 +47,16 @@ function columnWidthForContainer(width: number) {
 }
 
 function taskListWidthForContainer(width: number) {
-  if (width < 640) return 120;
-  if (width < 1024) return 200;
-  return 300;
+  if (width < 640) return 140;
+  if (width < 1024) return 220;
+  return 320;
+}
+
+// Show the Start/End sub-columns only when the task list is wide enough that
+// the title still has room. Below this threshold the title would collapse to
+// a few pixels (issue: bars rendered but names invisible).
+function showStartEndColumns(taskListWidth: number) {
+  return taskListWidth >= 280;
 }
 
 function rowHeightForContainer(width: number) {
@@ -116,8 +123,100 @@ export function GanttView({
     }
   }, [isNarrow]);
   const taskListWidth = taskListCollapsed ? 0 : taskListWidthForContainer(effectiveWidth);
+  const showSEColumns = showStartEndColumns(taskListWidth);
   const [editingTask, setEditingTask] = React.useState<string | number | null>(null);
   const [editValues, setEditValues] = React.useState<Record<string, string>>({});
+
+  // Drag-and-drop state for rescheduling a bar (move + resize from either edge).
+  // dayDelta is the snapped offset from the original position; preview is rendered
+  // by overriding left/width when dragState.taskId matches.
+  type DragMode = 'move' | 'resize-left' | 'resize-right';
+  const [dragState, setDragState] = React.useState<{
+    taskId: string | number;
+    mode: DragMode;
+    originStart: Date;
+    originEnd: Date;
+    originClientX: number;
+    dayDelta: number;
+  } | null>(null);
+  const dragStateRef = React.useRef<typeof dragState>(null);
+  React.useEffect(() => { dragStateRef.current = dragState; }, [dragState]);
+  // Suppress the click that fires immediately after a drag pointerup.
+  const suppressNextClickRef = React.useRef(false);
+
+  const computeDragChanges = React.useCallback((s: NonNullable<typeof dragState>) => {
+    const msPerDay = 1000 * 60 * 60 * 24;
+    const minDurationMs = msPerDay; // never collapse below 1 day
+    const deltaMs = s.dayDelta * msPerDay;
+    let start = new Date(s.originStart);
+    let end = new Date(s.originEnd);
+    if (s.mode === 'move') {
+      start = new Date(s.originStart.getTime() + deltaMs);
+      end = new Date(s.originEnd.getTime() + deltaMs);
+    } else if (s.mode === 'resize-left') {
+      start = new Date(s.originStart.getTime() + deltaMs);
+      if (end.getTime() - start.getTime() < minDurationMs) {
+        start = new Date(end.getTime() - minDurationMs);
+      }
+    } else if (s.mode === 'resize-right') {
+      end = new Date(s.originEnd.getTime() + deltaMs);
+      if (end.getTime() - start.getTime() < minDurationMs) {
+        end = new Date(start.getTime() + minDurationMs);
+      }
+    }
+    return { start, end };
+  }, []);
+
+  // Window-level pointer listeners: track horizontal motion in whole-day snaps,
+  // commit via onTaskUpdate on pointerup, suppress the trailing click.
+  React.useEffect(() => {
+    if (!dragState) return;
+    const onMove = (e: PointerEvent) => {
+      const cur = dragStateRef.current;
+      if (!cur) return;
+      const next = Math.round((e.clientX - cur.originClientX) / Math.max(columnWidth, 1));
+      if (next !== cur.dayDelta) {
+        setDragState({ ...cur, dayDelta: next });
+      }
+    };
+    const onUp = () => {
+      const cur = dragStateRef.current;
+      if (!cur) return;
+      if (cur.dayDelta !== 0) {
+        const task = tasks.find(t => t.id === cur.taskId);
+        if (task && onTaskUpdate) {
+          const { start, end } = computeDragChanges(cur);
+          onTaskUpdate(task, { start, end });
+        }
+        suppressNextClickRef.current = true;
+        // Reset suppression on next animation frame after the click fires.
+        window.setTimeout(() => { suppressNextClickRef.current = false; }, 0);
+      }
+      setDragState(null);
+    };
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+    window.addEventListener('pointercancel', onUp);
+    return () => {
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+      window.removeEventListener('pointercancel', onUp);
+    };
+  }, [dragState, columnWidth, tasks, onTaskUpdate, computeDragChanges]);
+
+  const beginDrag = React.useCallback((task: GanttTask, mode: DragMode, e: React.PointerEvent) => {
+    if (!onTaskUpdate) return;
+    e.stopPropagation();
+    e.preventDefault();
+    setDragState({
+      taskId: task.id,
+      mode,
+      originStart: new Date(task.start),
+      originEnd: new Date(task.end),
+      originClientX: e.clientX,
+      dayDelta: 0,
+    });
+  }, [onTaskUpdate]);
   
   // Calculate timeline range
   const timelineRange = React.useMemo(() => {
@@ -323,9 +422,13 @@ export function GanttView({
             className="flex items-center font-medium text-xs text-muted-foreground px-2 sm:px-4 border-r bg-card z-20 shadow-sm"
             style={{ width: taskListWidth, minWidth: taskListWidth }}
           >
-            <div className="flex-1">Task Name</div>
-            <div className="w-16 sm:w-20 text-right hidden sm:block">Start</div>
-            <div className="w-16 sm:w-20 text-right hidden sm:block">End</div>
+            <div className="flex-1 truncate">Task Name</div>
+            {showSEColumns && (
+              <>
+                <div className="w-16 sm:w-20 text-right">Start</div>
+                <div className="w-16 sm:w-20 text-right">End</div>
+              </>
+            )}
           </div>
           
           {/* Timeline Header */}
@@ -413,7 +516,7 @@ export function GanttView({
                     </span>
                   )}
                 </div>
-                <div className="w-16 sm:w-20 text-right text-xs text-muted-foreground hidden sm:block">
+                <div className="w-16 sm:w-20 text-right text-xs text-muted-foreground hidden sm:block" hidden={!showSEColumns} style={!showSEColumns ? { display: 'none' } : undefined}>
                   {isEditing ? (
                     <input
                       type="date"
@@ -426,7 +529,7 @@ export function GanttView({
                     task.start.toLocaleDateString(undefined, { month: 'numeric', day: 'numeric' })
                   )}
                 </div>
-                <div className="w-16 sm:w-20 text-right text-xs text-muted-foreground hidden sm:block">
+                <div className="w-16 sm:w-20 text-right text-xs text-muted-foreground hidden sm:block" hidden={!showSEColumns} style={!showSEColumns ? { display: 'none' } : undefined}>
                   {isEditing ? (
                     <input
                       type="date"
@@ -486,33 +589,88 @@ export function GanttView({
 
                 {/* Task Bars */}
                 {tasks.map((task) => {
-                   const style = getTaskStyle(task);
+                   const baseStyle = getTaskStyle(task);
+                   const isDragging = dragState?.taskId === task.id;
+                   let liveStyle = baseStyle;
+                   if (isDragging && dragState) {
+                     const previewed = computeDragChanges(dragState);
+                     liveStyle = getTaskStyle({ ...task, start: previewed.start, end: previewed.end });
+                   }
+                   const canDrag = !!onTaskUpdate;
                    return (
                     <div 
                       key={task.id}
                       className="relative border-b hover:bg-black/5"
                       style={{ height: rowHeight }}
                     >
+                      {/* Ghost: original position rendered faded while dragging */}
+                      {isDragging && (
+                        <div
+                          className="absolute top-1 sm:top-2 h-[calc(100%-8px)] sm:h-[calc(100%-16px)] rounded-sm border border-dashed border-primary/60 pointer-events-none"
+                          style={{ left: baseStyle.left, width: baseStyle.width, opacity: 0.35 }}
+                          aria-hidden="true"
+                        />
+                      )}
                       <div 
-                        className="absolute top-1 sm:top-2 h-[calc(100%-8px)] sm:h-[calc(100%-16px)] rounded-sm bg-primary border border-primary-foreground/20 shadow-sm cursor-pointer hover:brightness-110 flex items-center px-2 group"
+                        className={cn(
+                          "absolute top-1 sm:top-2 h-[calc(100%-8px)] sm:h-[calc(100%-16px)] rounded-sm bg-primary border border-primary-foreground/20 shadow-sm hover:brightness-110 flex items-center px-2 group select-none",
+                          canDrag ? "cursor-grab active:cursor-grabbing" : "cursor-pointer",
+                          isDragging && "ring-2 ring-primary/60 brightness-110 z-10"
+                        )}
                         style={{ 
-                          left: style.left, 
-                          width: style.width,
+                          left: liveStyle.left, 
+                          width: liveStyle.width,
                           backgroundColor: task.color || '#3b82f6'
                         }}
-                        onClick={() => onTaskClick?.(task)}
+                        data-testid={`gantt-task-bar-${task.id}`}
+                        onClick={() => {
+                          if (suppressNextClickRef.current) return;
+                          onTaskClick?.(task);
+                        }}
+                        onPointerDown={canDrag ? (e) => {
+                          // Body of bar = move; resize handles get their own onPointerDown
+                          // and stopPropagation so they win.
+                          if (e.button !== 0) return;
+                          beginDrag(task, 'move', e);
+                        } : undefined}
                       >
+                        {/* Resize handles — only when bar is wide enough to host them */}
+                        {canDrag && liveStyle.width >= 14 && (
+                          <>
+                            <div
+                              className="absolute left-0 top-0 bottom-0 w-1.5 cursor-ew-resize hover:bg-white/40"
+                              data-testid={`gantt-task-resize-left-${task.id}`}
+                              onPointerDown={(e) => {
+                                if (e.button !== 0) return;
+                                beginDrag(task, 'resize-left', e);
+                              }}
+                              onClick={(e) => e.stopPropagation()}
+                            />
+                            <div
+                              className="absolute right-0 top-0 bottom-0 w-1.5 cursor-ew-resize hover:bg-white/40"
+                              data-testid={`gantt-task-resize-right-${task.id}`}
+                              onPointerDown={(e) => {
+                                if (e.button !== 0) return;
+                                beginDrag(task, 'resize-right', e);
+                              }}
+                              onClick={(e) => e.stopPropagation()}
+                            />
+                          </>
+                        )}
+
                         {/* Progress Filter */}
                         {task.progress > 0 && (
                           <div 
-                            className="absolute left-0 top-0 bottom-0 bg-black/20 rounded-l-sm"
+                            className="absolute left-0 top-0 bottom-0 bg-black/20 rounded-l-sm pointer-events-none"
                             style={{ width: `${task.progress}%` }}
                           />
                         )}
                         
-                        {/* Hover Details */}
-                        <span className="text-[10px] text-white font-medium truncate opacity-0 group-hover:opacity-100 transition-opacity">
-                          {Math.round(task.progress)}%
+                        {/* Hover Details / drag tooltip */}
+                        <span className="text-[10px] text-white font-medium truncate opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                          {isDragging
+                            ? `${computeDragChanges(dragState!).start.toLocaleDateString(undefined, { month: 'numeric', day: 'numeric' })} → ${computeDragChanges(dragState!).end.toLocaleDateString(undefined, { month: 'numeric', day: 'numeric' })}`
+                            : `${Math.round(task.progress)}%`}
                         </span>
                       </div>
                     </div>
