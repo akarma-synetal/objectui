@@ -53,6 +53,10 @@ export interface RelatedListProps {
   onRowEdit?: (row: any) => void;
   /** Callback when a row Delete action is clicked */
   onRowDelete?: (row: any) => void;
+  /** Callback when a row is clicked (opens record detail) */
+  onRowClick?: (row: any) => void;
+  /** Maximum number of columns to auto-generate. Default 6. */
+  maxColumns?: number;
   /** Page size for pagination (enables pagination when set) */
   pageSize?: number;
   /** Enable column sorting */
@@ -101,6 +105,8 @@ export const RelatedList: React.FC<RelatedListProps> = ({
   onViewAll,
   onRowEdit,
   onRowDelete,
+  onRowClick,
+  maxColumns = 6,
   pageSize,
   sortable = false,
   filterable = false,
@@ -117,6 +123,8 @@ export const RelatedList: React.FC<RelatedListProps> = ({
   const [filterText, setFilterText] = React.useState('');
   const [objectSchema, setObjectSchema] = React.useState<any>(null);
   const [collapsed, setCollapsed] = React.useState(defaultCollapsed);
+  // Per-lookup-field cache of resolved labels: fieldName -> Map<id, label>
+  const [lookupLabels, setLookupLabels] = React.useState<Record<string, Record<string, string>>>({});
   const { t } = useDetailTranslation();
   const { fieldLabel: resolveFieldLabel } = useSafeFieldLabel();
 
@@ -164,6 +172,80 @@ export const RelatedList: React.FC<RelatedListProps> = ({
       }
     }
   }, [api, data, dataSource]);
+
+  // Resolve lookup-field display labels by batch-fetching referenced records.
+  // For each lookup/master_detail column whose data is a primitive ID, gather
+  // unique IDs and fetch them in one round trip per target object. The
+  // resulting id → name map is exposed via `options` on the field meta so
+  // the existing LookupCellRenderer renders a friendly label instead of the
+  // raw ID.
+  React.useEffect(() => {
+    if (!dataSource?.find || !objectSchema?.fields || !relatedData.length) return;
+    const fields = objectSchema.fields as Record<string, any>;
+    const tasks: Array<{ fieldName: string; target: string; ids: string[] }> = [];
+    for (const [fieldName, def] of Object.entries(fields)) {
+      if (!def || (def.type !== 'lookup' && def.type !== 'master_detail')) continue;
+      const target = def.reference_to || def.reference;
+      if (!target) continue;
+      const ids = new Set<string>();
+      for (const row of relatedData) {
+        const v = row?.[fieldName];
+        if (v == null) continue;
+        if (typeof v === 'string' && v) ids.add(v);
+        else if (typeof v === 'number') ids.add(String(v));
+      }
+      // Skip ids already cached
+      const cached = lookupLabels[fieldName] || {};
+      const missing = Array.from(ids).filter((id) => !(id in cached));
+      if (missing.length > 0) tasks.push({ fieldName, target, ids: missing });
+    }
+    if (tasks.length === 0) return;
+    let cancelled = false;
+    Promise.all(
+      tasks.map(({ fieldName, target, ids }) =>
+        dataSource
+          .find(target, { $filter: { id: { $in: ids } }, $top: ids.length })
+          .then((res: any) => {
+            const records: any[] = Array.isArray(res) ? res : res?.data || [];
+            const map: Record<string, string> = {};
+            for (const r of records) {
+              const id = r?.id || r?._id;
+              if (!id) continue;
+              map[String(id)] =
+                r?.full_name ||
+                r?.fullname ||
+                r?.display_name ||
+                r?.name ||
+                r?.subject ||
+                r?.title ||
+                r?.label ||
+                r?.code ||
+                String(id);
+            }
+            return { fieldName, map };
+          })
+          .catch((err: unknown) => {
+            console.warn(`[RelatedList] Failed to resolve lookups for ${fieldName}:`, err);
+            return { fieldName, map: {} as Record<string, string> };
+          }),
+      ),
+    ).then((results) => {
+      if (cancelled) return;
+      setLookupLabels((prev) => {
+        const next = { ...prev };
+        for (const { fieldName, map } of results) {
+          next[fieldName] = { ...(next[fieldName] || {}), ...map };
+        }
+        return next;
+      });
+    });
+    return () => {
+      cancelled = true;
+    };
+    // Intentionally exclude `lookupLabels` from deps: we add to the cache and
+    // would otherwise loop. We dedupe via the `missing` check.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dataSource, objectSchema, relatedData]);
 
   // Filter data
   const filteredData = React.useMemo(() => {
@@ -217,8 +299,14 @@ export const RelatedList: React.FC<RelatedListProps> = ({
     }
   }, [onRowDelete, t]);
 
-  // Generate effective columns from explicit prop or object schema fields,
-  // hiding the parent foreign-key column when `referenceField` is provided.
+  // Generate effective columns from explicit prop or object schema fields.
+  // Behavior:
+  //  - Hide the parent FK column (already implicit context).
+  //  - Skip image and large-blob fields that bloat row height.
+  //  - Skip fields with no visible value across the current rows.
+  //  - Prefer name-like fields (name, title, subject, ...) first.
+  //  - Cap at `maxColumns` to keep the related card readable; users can
+  //    click "View All" to see the full list.
   const effectiveColumns = React.useMemo(() => {
     const filterFK = (cols: any[]): any[] =>
       referenceField
@@ -227,49 +315,104 @@ export const RelatedList: React.FC<RelatedListProps> = ({
             return key !== referenceField;
           })
         : cols;
-    if (columns && columns.length > 0) return filterFK(columns);
+
+    const isValueEmpty = (v: any) =>
+      v === null ||
+      v === undefined ||
+      (typeof v === 'string' && v.trim() === '') ||
+      (Array.isArray(v) && v.length === 0);
+
+    const pruneEmpty = (cols: any[]): any[] => {
+      if (!relatedData.length) return cols;
+      return cols.filter((c) => {
+        const key = c?.accessorKey || c?.field || c?.name;
+        if (!key) return true;
+        return relatedData.some((r) => !isValueEmpty(r?.[key]));
+      });
+    };
+
+    if (columns && columns.length > 0) return pruneEmpty(filterFK(columns));
     if (!objectSchema?.fields) return [];
+
     const resolvedObjectName = objectName || api || '';
-    const generated = Object.entries(objectSchema.fields)
+    const SKIP_TYPES = new Set(['image', 'file', 'attachment', 'rich_text', 'html', 'json']);
+    const PRIORITY_NAMES = [
+      'name',
+      'full_name',
+      'fullname',
+      'title',
+      'subject',
+      'label',
+      'code',
+      'number',
+    ];
+    const entries = Object.entries(objectSchema.fields)
       .filter(([key, def]: [string, any]) => {
         if (key.startsWith('_')) return false;
         if (key === 'id' || key === referenceField) return false;
         if (def?.hidden) return false;
+        if (def?.type && SKIP_TYPES.has(def.type)) return false;
         return true;
-      })
-      .map(([key, def]: [string, any]) => {
-        const col: any = {
-          accessorKey: key,
-          header: resolveFieldLabel(resolvedObjectName, key, def.label || key),
-        };
-        // Add type-aware cell renderer for typed fields
-        if (def.type) {
-          const rendererType = resolveCellRendererType({ type: def.type, format: def.format }) || def.type;
-          const CellRenderer = getCellRenderer(rendererType);
-          if (CellRenderer) {
-            const fieldMeta: FieldMetadata = {
-              name: key,
-              label: def.label || key,
-              type: def.type,
-              ...(def.options && { options: def.options }),
-              ...(def.currency && { currency: def.currency }),
-              ...(def.precision !== undefined && { precision: def.precision }),
-              ...(def.format && { format: def.format }),
-              ...((def.reference_to || def.reference) && { reference_to: def.reference_to || def.reference }),
-              ...(def.reference_field && { reference_field: def.reference_field }),
-            };
-            col.cell = (value: any) => {
-              if (value === null || value === undefined) {
-                return React.createElement('span', { className: 'text-muted-foreground/50 text-xs italic' }, '—');
-              }
-              return React.createElement(CellRenderer, { value, field: fieldMeta });
-            };
-          }
-        }
-        return col;
       });
-    return generated;
-  }, [columns, objectSchema, objectName, api, resolveFieldLabel, referenceField]);
+
+    // Sort by priority: name-like → status/select → others. Stable for the rest.
+    entries.sort(([aKey, aDef]: any, [bKey, bDef]: any) => {
+      const aPri = PRIORITY_NAMES.indexOf(aKey);
+      const bPri = PRIORITY_NAMES.indexOf(bKey);
+      const aScore = aPri >= 0 ? aPri : 100;
+      const bScore = bPri >= 0 ? bPri : 100;
+      if (aScore !== bScore) return aScore - bScore;
+      const aIsStatus = aDef?.type === 'select' || aKey.includes('status');
+      const bIsStatus = bDef?.type === 'select' || bKey.includes('status');
+      if (aIsStatus !== bIsStatus) return aIsStatus ? -1 : 1;
+      return 0;
+    });
+
+    const generated = entries.map(([key, def]: [string, any]) => {
+      const col: any = {
+        accessorKey: key,
+        header: resolveFieldLabel(resolvedObjectName, key, def.label || key),
+      };
+      if (def.type) {
+        const rendererType = resolveCellRendererType({ type: def.type, format: def.format }) || def.type;
+        const CellRenderer = getCellRenderer(rendererType);
+        if (CellRenderer) {
+          // For lookup/master_detail fields, expose resolved id→label map as
+          // `options` so the cell renderer shows the friendly label instead
+          // of the raw record ID.
+          const isLookup = def.type === 'lookup' || def.type === 'master_detail';
+          const resolvedMap = isLookup ? lookupLabels[key] : undefined;
+          const lookupOptions =
+            resolvedMap && Object.keys(resolvedMap).length > 0
+              ? Object.entries(resolvedMap).map(([id, label]) => ({ value: id, label }))
+              : undefined;
+          const fieldMeta: FieldMetadata = {
+            name: key,
+            label: def.label || key,
+            type: def.type,
+            ...((lookupOptions || def.options) && {
+              options: lookupOptions || def.options,
+            }),
+            ...(def.currency && { currency: def.currency }),
+            ...(def.precision !== undefined && { precision: def.precision }),
+            ...(def.format && { format: def.format }),
+            ...((def.reference_to || def.reference) && { reference_to: def.reference_to || def.reference }),
+            ...(def.reference_field && { reference_field: def.reference_field }),
+          };
+          col.cell = (value: any) => {
+            if (value === null || value === undefined) {
+              return React.createElement('span', { className: 'text-muted-foreground/50 text-xs italic' }, '—');
+            }
+            return React.createElement(CellRenderer, { value, field: fieldMeta });
+          };
+        }
+      }
+      return col;
+    });
+
+    const pruned = pruneEmpty(generated);
+    return pruned.slice(0, Math.max(1, maxColumns));
+  }, [columns, objectSchema, objectName, api, resolveFieldLabel, referenceField, relatedData, maxColumns, lookupLabels]);
 
   const hasRowActions = !!onRowEdit || !!onRowDelete;
 
@@ -292,6 +435,7 @@ export const RelatedList: React.FC<RelatedListProps> = ({
           rowActions: hasRowActions,
           onRowEdit,
           onRowDelete: onRowDelete ? handleDeleteRow : undefined,
+          onRowClick,
         };
       case 'list':
         return {
@@ -301,7 +445,7 @@ export const RelatedList: React.FC<RelatedListProps> = ({
       default:
         return { type: 'div', children: 'No view configured' };
     }
-  }, [type, paginatedData, effectiveColumns, schema, effectivePageSize, hasRowActions, onRowEdit, onRowDelete, handleDeleteRow]);
+  }, [type, paginatedData, effectiveColumns, schema, effectivePageSize, hasRowActions, onRowEdit, onRowDelete, handleDeleteRow, onRowClick]);
 
   const headerClassName = collapsible ? 'cursor-pointer select-none' : undefined;
   const handleHeaderClick = collapsible ? () => setCollapsed((c) => !c) : undefined;

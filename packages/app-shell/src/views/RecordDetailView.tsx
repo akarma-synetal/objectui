@@ -12,7 +12,7 @@ import { DetailView, RecordChatterPanel } from '@object-ui/plugin-detail';
 import { Empty, EmptyTitle, EmptyDescription } from '@object-ui/components';
 import { PresenceAvatars, type PresenceUser } from '@object-ui/collaboration';
 import { useAuth, createAuthenticatedFetch } from '@object-ui/auth';
-import { ActionProvider, useObjectTranslation } from '@object-ui/react';
+import { ActionProvider, useObjectTranslation, useObjectLabel } from '@object-ui/react';
 import { toast } from 'sonner';
 import { Database, Users } from 'lucide-react';
 import { MetadataPanel, useMetadataInspector } from './MetadataInspector';
@@ -42,6 +42,7 @@ export function RecordDetailView({ dataSource, objects, onEdit }: RecordDetailVi
   const { user } = useAuth();
   const navigate = useNavigate();
   const { t } = useObjectTranslation();
+  const { objectLabel } = useObjectLabel();
   const [isLoading, setIsLoading] = useState(true);
   const [feedItems, setFeedItems] = useState<FeedItem[]>([]);
   const [recordViewers, setRecordViewers] = useState<PresenceUser[]>([]);
@@ -491,6 +492,9 @@ export function RecordDetailView({ dataSource, objects, onEdit }: RecordDetailVi
     const related = childRelations.map(({ childObject, childLabel, referenceField }) => {
       const childObjectDef = objects.find((o: any) => o.name === childObject);
       const parentId = pureRecordId || '';
+      const localizedTitle = childObjectDef
+        ? objectLabel({ name: childObjectDef.name, label: childObjectDef.label || childLabel })
+        : childLabel;
 
       const buildNewUrl = () => {
         const qs = new URLSearchParams({ [referenceField]: parentId }).toString();
@@ -507,12 +511,23 @@ export function RecordDetailView({ dataSource, objects, onEdit }: RecordDetailVi
         if (!rid) return null;
         return `${baseAppUrl}/${childObject}/record/${encodeURIComponent(String(rid))}/edit`;
       };
+      const buildRecordUrl = (row: any) => {
+        const rid = row?.id || row?._id;
+        if (!rid) return null;
+        return `${baseAppUrl}/${childObject}/record/${encodeURIComponent(String(rid))}`;
+      };
 
       const onNew = baseAppUrl
         ? () => navigate(buildNewUrl())
         : undefined;
       const onViewAll = baseAppUrl
         ? () => navigate(buildListUrl())
+        : undefined;
+      const onRowClick = baseAppUrl
+        ? (row: any) => {
+            const url = buildRecordUrl(row);
+            if (url) navigate(url);
+          }
         : undefined;
       const onRowEdit = baseAppUrl
         ? (row: any) => {
@@ -540,7 +555,7 @@ export function RecordDetailView({ dataSource, objects, onEdit }: RecordDetailVi
         : undefined;
 
       return {
-        title: childLabel,
+        title: localizedTitle,
         type: 'table' as const,
         api: childObject,
         data: childRelatedData[childObject] || [],
@@ -548,6 +563,7 @@ export function RecordDetailView({ dataSource, objects, onEdit }: RecordDetailVi
         icon: childObjectDef?.icon,
         onNew,
         onViewAll,
+        onRowClick,
         onRowEdit,
         onRowDelete,
       };
@@ -577,7 +593,7 @@ export function RecordDetailView({ dataSource, objects, onEdit }: RecordDetailVi
       }),
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [objectDef?.name, pureRecordId, childRelatedData, actionRefreshKey, appName, navigate, dataSource, t]);
+  }, [objectDef?.name, pureRecordId, childRelatedData, actionRefreshKey, appName, navigate, dataSource, t, objectLabel, objects]);
 
   if (isLoading) {
     return <SkeletonDetail />;

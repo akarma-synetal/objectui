@@ -1020,6 +1020,7 @@ export const DetailView: React.FC<DetailViewProps> = ({
                       icon={(related as any).icon}
                       onNew={(related as any).onNew}
                       onViewAll={(related as any).onViewAll}
+                      onRowClick={(related as any).onRowClick}
                       onRowEdit={(related as any).onRowEdit}
                       onRowDelete={(related as any).onRowDelete}
                       collapsible
@@ -1119,6 +1120,7 @@ export const DetailView: React.FC<DetailViewProps> = ({
                   icon={(related as any).icon}
                   onNew={(related as any).onNew}
                   onViewAll={(related as any).onViewAll}
+                  onRowClick={(related as any).onRowClick}
                   onRowEdit={(related as any).onRowEdit}
                   onRowDelete={(related as any).onRowDelete}
                   collapsible
