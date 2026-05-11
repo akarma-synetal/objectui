@@ -495,17 +495,6 @@ export const RelatedList: React.FC<RelatedListProps> = ({
                 {t('detail.new')}
               </Button>
             )}
-            {onViewAll && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={(e) => { e.stopPropagation(); onViewAll(); }}
-                className="gap-1 h-7 text-xs"
-              >
-                {t('detail.viewAll')}
-                <ExternalLink className="h-3 w-3" />
-              </Button>
-            )}
           </div>
         </CardTitle>
       </CardHeader>
@@ -602,6 +591,20 @@ export const RelatedList: React.FC<RelatedListProps> = ({
               {t('detail.nextPage')}
               <ChevronRight className="h-3 w-3" />
             </Button>
+          </div>
+        )}
+
+        {/* Footer "View all" link — discreet, only when handler provided and we have data */}
+        {onViewAll && !isEmpty && (
+          <div className="mt-3 pt-3 border-t flex justify-center">
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); onViewAll(); }}
+              className="text-xs text-muted-foreground hover:text-foreground inline-flex items-center gap-1 transition-colors"
+            >
+              {t('detail.viewAll')}
+              <ExternalLink className="h-3 w-3" />
+            </button>
           </div>
         )}
       </CardContent>}

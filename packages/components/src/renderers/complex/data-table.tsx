@@ -49,7 +49,15 @@ import {
   X,
   Plus,
   Expand,
+  MoreHorizontal,
 } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '../../ui/dropdown-menu';
 
 type SortDirection = 'asc' | 'desc' | null;
 
@@ -71,6 +79,8 @@ const TABLE_DEFAULT_TRANSLATIONS: Record<string, string> = {
   'table.search': 'Search...',
   'table.modified': '{{count}} row modified',
   'table.selected': '{{count}} selected',
+  'table.edit': 'Edit',
+  'table.delete': 'Delete',
   'common.actions': 'Actions',
 };
 
@@ -1037,22 +1047,39 @@ const DataTableRenderer = ({ schema }: { schema: DataTableSchema }) => {
                                 </Button>
                               </>
                             ) : (
-                              <>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  onClick={() => schema.onRowEdit?.(row)}
-                                >
-                                  <Edit className="h-4 w-4" />
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  onClick={() => schema.onRowDelete?.(row)}
-                                >
-                                  <Trash2 className="h-4 w-4 text-destructive" />
-                                </Button>
-                              </>
+                              (schema.onRowEdit || schema.onRowDelete) && (
+                                <DropdownMenu>
+                                  <DropdownMenuTrigger asChild>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      className="h-8 w-8"
+                                      onClick={(e) => e.stopPropagation()}
+                                      aria-label="Row actions"
+                                    >
+                                      <MoreHorizontal className="h-4 w-4" />
+                                    </Button>
+                                  </DropdownMenuTrigger>
+                                  <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+                                    {schema.onRowEdit && (
+                                      <DropdownMenuItem onClick={() => schema.onRowEdit?.(row)}>
+                                        <Edit className="mr-2 h-4 w-4" />
+                                        {t('table.edit')}
+                                      </DropdownMenuItem>
+                                    )}
+                                    {schema.onRowEdit && schema.onRowDelete && <DropdownMenuSeparator />}
+                                    {schema.onRowDelete && (
+                                      <DropdownMenuItem
+                                        onClick={() => schema.onRowDelete?.(row)}
+                                        className="text-destructive focus:text-destructive"
+                                      >
+                                        <Trash2 className="mr-2 h-4 w-4" />
+                                        {t('table.delete')}
+                                      </DropdownMenuItem>
+                                    )}
+                                  </DropdownMenuContent>
+                                </DropdownMenu>
+                              )
                             )}
                           </div>
                         </TableCell>

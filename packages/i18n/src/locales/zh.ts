@@ -92,6 +92,8 @@ const zh = {
     search: '搜索...',
     modified: '{{count}} 行已修改',
     selected: '已选择 {{count}} 项',
+    edit: '编辑',
+    delete: '删除',
   },
   grid: {
     actions: '操作',

@@ -92,6 +92,8 @@ const en = {
     search: 'Search...',
     modified: '{{count}} row modified',
     selected: '{{count}} selected',
+    edit: 'Edit',
+    delete: 'Delete',
   },
   grid: {
     actions: 'Actions',
