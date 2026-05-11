@@ -377,6 +377,7 @@ function CalendarView({
             locale={effectiveLocale}
             onEventClick={onEventClick}
             onDateClick={onDateClick}
+            onEventDrop={onEventDrop}
           />
         )}
         {selectedView === "day" && (
@@ -519,10 +520,40 @@ function MonthView({ date, events, locale = "default", onEventClick, onDateClick
     return map
   }, [events])
 
-  const handleDragStart = (e: React.DragEvent, event: CalendarEvent) => {
+  // Drag mode: "move" shifts the entire event so the day cell the user
+  // grabbed lands on the drop-target day. "resize-end" only adjusts the
+  // event's end date — used by the right-edge resize handle on multi-day
+  // spans. The mode and the source cell are encoded in the dataTransfer
+  // payload so the drop target doesn't need any DOM state to interpret the
+  // gesture, and so dragging from a *continuation* day of a multi-day
+  // event still results in a sensible delta.
+  type DragPayload = {
+    id: string | number
+    mode: "move" | "resize-end"
+    sourceDay?: string // ISO date (yyyy-mm-dd) of the cell drag started from
+  }
+
+  const handleDragStart = (
+    e: React.DragEvent,
+    event: CalendarEvent,
+    mode: "move" | "resize-end" = "move",
+    sourceDay?: Date,
+  ) => {
     setDraggedEventId(event.id)
     e.dataTransfer.effectAllowed = "move"
-    e.dataTransfer.setData("text/plain", String(event.id))
+    const payload: DragPayload = {
+      id: event.id,
+      mode,
+      ...(sourceDay
+        ? { sourceDay: `${sourceDay.getFullYear()}-${sourceDay.getMonth()}-${sourceDay.getDate()}` }
+        : {}),
+    }
+    e.dataTransfer.setData("text/plain", JSON.stringify(payload))
+    // Prevent the parent move-drag from firing when grabbing the resize
+    // handle, otherwise both gestures would fight over the same event.
+    if (mode === "resize-end") {
+      e.stopPropagation()
+    }
   }
 
   const handleDragEnd = () => {
@@ -550,27 +581,58 @@ function MonthView({ date, events, locale = "default", onEventClick, onDateClick
 
     if (!onEventDrop) return
 
-    const eventId = e.dataTransfer.getData("text/plain")
-    const draggedEvent = events.find((ev) => String(ev.id) === eventId)
+    const raw = e.dataTransfer.getData("text/plain")
+    let payload: DragPayload
+    try {
+      payload = JSON.parse(raw) as DragPayload
+    } catch {
+      // Backwards-compat: older payloads were just the bare id string.
+      payload = { id: raw, mode: "move" }
+    }
+    const draggedEvent = events.find((ev) => String(ev.id) === String(payload.id))
     if (!draggedEvent) return
-
-    const oldStart = new Date(draggedEvent.start)
-    const oldStartDay = new Date(oldStart)
-    oldStartDay.setHours(0, 0, 0, 0)
 
     const newTargetDay = new Date(targetDay)
     newTargetDay.setHours(0, 0, 0, 0)
 
-    const deltaMs = newTargetDay.getTime() - oldStartDay.getTime()
+    if (payload.mode === "resize-end") {
+      // Resize: snap the end date to the drop-target day, keep start fixed.
+      const oldEnd = draggedEvent.end ? new Date(draggedEvent.end) : new Date(draggedEvent.start)
+      const oldEndDay = new Date(oldEnd)
+      oldEndDay.setHours(0, 0, 0, 0)
+      if (newTargetDay.getTime() === oldEndDay.getTime()) return
+      // Guard: new end can't precede start day.
+      const startDay = new Date(draggedEvent.start)
+      startDay.setHours(0, 0, 0, 0)
+      if (newTargetDay.getTime() < startDay.getTime()) return
+      // Preserve the time-of-day component of the original end.
+      const newEnd = new Date(newTargetDay)
+      newEnd.setHours(oldEnd.getHours(), oldEnd.getMinutes(), oldEnd.getSeconds(), 0)
+      onEventDrop(draggedEvent, new Date(draggedEvent.start), newEnd)
+      return
+    }
+
+    // Move: translate both start and end by the day delta. When sourceDay
+    // is present (drag started from a specific cell of the span), the
+    // delta is `targetDay - sourceDay` so the grabbed cell lands on the
+    // drop target. Without sourceDay we fall back to `targetDay -
+    // eventStartDay` (legacy behavior).
+    const oldStart = new Date(draggedEvent.start)
+    let anchorDay: Date
+    if (payload.sourceDay) {
+      const [y, m, d] = payload.sourceDay.split("-").map((v) => parseInt(v, 10))
+      anchorDay = new Date(y, m, d)
+    } else {
+      anchorDay = new Date(oldStart)
+    }
+    anchorDay.setHours(0, 0, 0, 0)
+    const deltaMs = newTargetDay.getTime() - anchorDay.getTime()
     if (deltaMs === 0) return
-
     const newStart = new Date(oldStart.getTime() + deltaMs)
-
     let newEnd: Date | undefined
     if (draggedEvent.end) {
       newEnd = new Date(new Date(draggedEvent.end).getTime() + deltaMs)
     }
-
     onEventDrop(draggedEvent, newStart, newEnd)
   }
 
@@ -626,6 +688,7 @@ function MonthView({ date, events, locale = "default", onEventClick, onDateClick
                 {dayEvents.slice(0, 4).map(({ event, isTitleDay, isSpanStart, isSpanEnd }, slotIdx) => {
                   const isContinuation = !isTitleDay
                   const { className: colorCls, inlineColor } = resolveEventColor(event.color)
+                  const showResizeHandle = !!onEventDrop && isSpanEnd
                   return (
                     <div
                       key={`${event.id}-${slotIdx}`}
@@ -633,10 +696,11 @@ function MonthView({ date, events, locale = "default", onEventClick, onDateClick
                       title={event.title}
                       aria-label={event.title}
                       draggable={!!onEventDrop}
-                      onDragStart={(e) => handleDragStart(e, event)}
+                      onDragStart={(e) => handleDragStart(e, event, "move", day)}
                       onDragEnd={handleDragEnd}
                       className={cn(
-                        "text-xs cursor-pointer hover:opacity-80 truncate",
+                        "relative text-xs hover:opacity-80 truncate",
+                        onEventDrop ? "cursor-move" : "cursor-pointer",
                         isContinuation
                           ? "h-1.5"
                           : "px-2 py-0.5",
@@ -653,6 +717,18 @@ function MonthView({ date, events, locale = "default", onEventClick, onDateClick
                       }}
                     >
                       {isContinuation ? "" : event.title}
+                      {showResizeHandle && (
+                        <span
+                          role="separator"
+                          aria-label="Resize event end"
+                          title="Drag to change end date"
+                          draggable
+                          onDragStart={(e) => handleDragStart(e, event, "resize-end", day)}
+                          onDragEnd={handleDragEnd}
+                          onClick={(e) => e.stopPropagation()}
+                          className="absolute top-0 right-0 h-full w-1.5 cursor-ew-resize bg-black/20 hover:bg-black/40 rounded-r"
+                        />
+                      )}
                     </div>
                   )
                 })}
@@ -676,10 +752,13 @@ interface WeekViewProps {
   locale?: string
   onEventClick?: (event: CalendarEvent) => void
   onDateClick?: (date: Date) => void
+  onEventDrop?: (event: CalendarEvent, newStart: Date, newEnd?: Date) => void
 }
 
-function WeekView({ date, events, locale = "default", onEventClick, onDateClick }: WeekViewProps) {
+function WeekView({ date, events, locale = "default", onEventClick, onDateClick, onEventDrop }: WeekViewProps) {
   const longPressTimer = React.useRef<ReturnType<typeof setTimeout> | null>(null)
+  const [draggedEventId, setDraggedEventId] = React.useState<string | number | null>(null)
+  const [dropTargetKey, setDropTargetKey] = React.useState<string | null>(null)
 
   const handleSlotTouchStart = (day: Date) => {
     if (!onDateClick) return
@@ -693,6 +772,51 @@ function WeekView({ date, events, locale = "default", onEventClick, onDateClick 
       clearTimeout(longPressTimer.current)
       longPressTimer.current = null
     }
+  }
+
+  const handleDragStart = (e: React.DragEvent, event: CalendarEvent) => {
+    if (!onEventDrop) return
+    setDraggedEventId(event.id)
+    e.dataTransfer.effectAllowed = "move"
+    e.dataTransfer.setData("text/plain", String(event.id))
+  }
+
+  const handleDragEnd = () => {
+    setDraggedEventId(null)
+    setDropTargetKey(null)
+  }
+
+  const handleDragOver = (e: React.DragEvent, key: string) => {
+    if (!onEventDrop) return
+    e.preventDefault()
+    e.dataTransfer.dropEffect = "move"
+    setDropTargetKey(key)
+  }
+
+  const handleDrop = (e: React.DragEvent, targetDay: Date) => {
+    if (!onEventDrop) return
+    e.preventDefault()
+    setDropTargetKey(null)
+    setDraggedEventId(null)
+
+    const eventId = e.dataTransfer.getData("text/plain")
+    const draggedEvent = events.find((ev) => String(ev.id) === eventId)
+    if (!draggedEvent) return
+
+    const oldStart = new Date(draggedEvent.start)
+    const oldStartDay = new Date(oldStart)
+    oldStartDay.setHours(0, 0, 0, 0)
+    const newTargetDay = new Date(targetDay)
+    newTargetDay.setHours(0, 0, 0, 0)
+    const deltaMs = newTargetDay.getTime() - oldStartDay.getTime()
+    if (deltaMs === 0) return
+
+    const newStart = new Date(oldStart.getTime() + deltaMs)
+    let newEnd: Date | undefined
+    if (draggedEvent.end) {
+      newEnd = new Date(new Date(draggedEvent.end).getTime() + deltaMs)
+    }
+    onEventDrop(draggedEvent, newStart, newEnd)
   }
 
   const weekStart = getWeekStart(date)
@@ -735,15 +859,26 @@ function WeekView({ date, events, locale = "default", onEventClick, onDateClick 
       <div role="grid" className="grid grid-cols-7 flex-1">
         {weekDays.map((day) => {
           const dayEvents = getEventsForDate(day, events)
+          const key = day.toISOString()
           return (
             <div
-              key={day.toISOString()}
+              key={key}
               role="gridcell"
               aria-label={`${day.toLocaleDateString("default", { weekday: "long", month: "long", day: "numeric", year: "numeric" })}${dayEvents.length > 0 ? `, ${dayEvents.length} event${dayEvents.length > 1 ? "s" : ""}` : ""}`}
-              className="border-r last:border-r-0 p-2 min-h-[400px] cursor-pointer hover:bg-accent/50"
+              className={cn(
+                "border-r last:border-r-0 p-2 min-h-[400px] cursor-pointer hover:bg-accent/50",
+                dropTargetKey === key && "ring-2 ring-primary"
+              )}
               onClick={() => onDateClick?.(day)}
               onTouchStart={() => handleSlotTouchStart(day)}
               onTouchEnd={handleSlotTouchEnd}
+              onDragOver={(e) => handleDragOver(e, key)}
+              onDragLeave={(e) => {
+                if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+                  setDropTargetKey(null)
+                }
+              }}
+              onDrop={(e) => handleDrop(e, day)}
             >
               <div className="space-y-2">
                 {dayEvents.map((event) => {
@@ -754,9 +889,14 @@ function WeekView({ date, events, locale = "default", onEventClick, onDateClick 
                     role="button"
                     title={event.title}
                     aria-label={event.title}
+                    draggable={!!onEventDrop}
+                    onDragStart={(e) => handleDragStart(e, event)}
+                    onDragEnd={handleDragEnd}
                     className={cn(
-                      "text-xs sm:text-sm px-2 sm:px-3 py-1.5 sm:py-2 rounded cursor-pointer hover:opacity-80",
-                      colorCls
+                      "text-xs sm:text-sm px-2 sm:px-3 py-1.5 sm:py-2 rounded hover:opacity-80",
+                      onEventDrop ? "cursor-move" : "cursor-pointer",
+                      colorCls,
+                      draggedEventId === event.id && "opacity-50"
                     )}
                     style={inlineColor ? { backgroundColor: inlineColor } : undefined}
                     onClick={(e) => {

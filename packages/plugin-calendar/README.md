@@ -6,10 +6,30 @@ Calendar view plugins for Object UI - includes both ObjectQL-integrated and stan
 
 - **Calendar View** - Monthly calendar with event display
 - **Event Management** - Create, edit, and delete events
+- **Drag-and-Drop Rescheduling** - Move events to a different day, or
+  drag the right edge of a multi-day event to extend/shrink it. Changes
+  are persisted via `dataSource.update()` automatically (override with
+  the `onEventDrop` prop).
 - **ObjectQL Integration** - Connect to ObjectStack data sources
 - **Standalone Mode** - Use with static data or custom backends
 - **Responsive** - Mobile-friendly calendar layouts
 - **Customizable** - Tailwind CSS styling support
+
+## Drag-and-Drop
+
+Both `MonthView` and `WeekView` support drag-to-reschedule:
+
+| Gesture | Effect |
+| --- | --- |
+| Drag the event pill body to another day cell | Shifts both `startDateField` and `endDateField` by the day delta. Grab cell → drop cell defines the delta, so dragging from any day of a multi-day span works as expected. |
+| Drag the right-edge handle of a multi-day pill (MonthView only) | Adjusts only `endDateField`; start is preserved. Refuses drops earlier than start. |
+
+When `ObjectCalendar` is bound to an object schema, the new dates are
+persisted with `dataSource.update(objectName, id, patch)` automatically;
+the local state is updated optimistically and rolled back if the
+server call fails. To intercept (e.g. to confirm a status change) pass
+`onEventDrop={(record, newStart, newEnd) => …}` — the default
+persistence is skipped when you provide your own handler.
 
 ## Installation
 

@@ -453,6 +453,41 @@ export const ObjectCalendar: React.FC<ObjectCalendarProps> = ({
     );
   }
 
+  // Default drag-to-reschedule handler. When the caller hasn't provided an
+  // `onEventDrop`, persist the new dates back to the data source so dragging
+  // an event in the month view actually changes the record. Optimistic
+  // update local state first for snappy feedback; revert on failure.
+  const handleEventDropDefault = useCallback(async (record: any, newStart: Date, newEnd?: Date) => {
+    if (!calendarConfig) return;
+    const { startDateField, endDateField } = calendarConfig;
+    const id = record?.id ?? record?._id;
+    if (!id || !schema.objectName || !dataSource?.update) return;
+
+    const patch: Record<string, string> = {
+      [startDateField]: newStart.toISOString(),
+    };
+    if (endDateField && newEnd) {
+      patch[endDateField] = newEnd.toISOString();
+    }
+
+    // Optimistic UI update
+    const prevData = data;
+    setData(prev =>
+      prev.map(r => ((r?.id ?? r?._id) === id ? { ...r, ...patch } : r))
+    );
+
+    try {
+      await dataSource.update(schema.objectName, id, patch);
+      // Parent (e.g. ObjectView) listens on onMutation and will refetch.
+      // In standalone mode the mutation subscription bumps refreshKey.
+    } catch (err) {
+      // Roll back optimistic state
+      setData(prevData);
+      // eslint-disable-next-line no-console
+      console.error('[ObjectCalendar] Failed to persist drag-and-drop reschedule:', err);
+    }
+  }, [calendarConfig, schema.objectName, dataSource, data]);
+
   return (
     <div ref={pullRef} className={className}>
       {pullDistance > 0 && (
@@ -483,9 +518,15 @@ export const ObjectCalendar: React.FC<ObjectCalendarProps> = ({
             onViewChange?.(v);
           }}
           onAddClick={undefined}
-          onEventDrop={onEventDrop ? (event, newStart, newEnd) => {
-            onEventDrop(event.data, newStart, newEnd);
-          } : undefined}
+          // Wire drag-to-reschedule: caller-supplied handler wins, otherwise
+          // fall back to persisting via dataSource.update().
+          onEventDrop={(event, newStart, newEnd) => {
+            if (onEventDrop) {
+              onEventDrop(event.data, newStart, newEnd);
+            } else {
+              void handleEventDropDefault(event.data, newStart, newEnd);
+            }
+          }}
         />
       </div>
       {navigation.isOverlay && (
