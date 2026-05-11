@@ -488,3 +488,60 @@ describe('Combined column features', () => {
     expect(screen.getByTestId('summary-score')).toHaveTextContent('Avg: 80');
   });
 });
+
+// =========================================================================
+// Default row actions kebab — when consumer wires onEdit/onDelete but the
+// view schema omits an explicit `operations` block, ObjectGrid should still
+// render the per-row Edit/Delete dropdown so the main list always has a
+// delete affordance out of the box.
+// =========================================================================
+describe('Default row actions when onEdit/onDelete provided', () => {
+  function renderGridWithHandlers(handlers: { onEdit?: any; onDelete?: any } = {}) {
+    const schema: any = {
+      type: 'object-grid' as const,
+      objectName: 'test_object',
+      columns: [
+        { field: 'name', label: 'Name' },
+        { field: 'amount', label: 'Amount', type: 'number' },
+      ],
+      data: { provider: 'value', items: numericData },
+      // Note: no `operations` field — the new default behavior should kick in.
+    };
+    return render(
+      <ActionProvider>
+        <ObjectGrid schema={schema} {...handlers} />
+      </ActionProvider>
+    );
+  }
+
+  it('renders row action kebabs when onEdit + onDelete are wired without explicit operations', async () => {
+    renderGridWithHandlers({ onEdit: vi.fn(), onDelete: vi.fn() });
+    await waitFor(() => expect(screen.getByText('Name')).toBeInTheDocument());
+    // RowActionMenu renders a button with data-testid="row-action-trigger" per row.
+    const kebabs = screen.getAllByTestId('row-action-trigger');
+    expect(kebabs.length).toBe(numericData.length);
+  });
+
+  it('does NOT render row action kebabs when neither handler is provided', async () => {
+    renderGridWithHandlers({});
+    await waitFor(() => expect(screen.getByText('Name')).toBeInTheDocument());
+    expect(screen.queryAllByTestId('row-action-trigger')).toHaveLength(0);
+  });
+
+  it('still respects an explicit operations: { update: false, delete: false }', async () => {
+    const schema: any = {
+      type: 'object-grid' as const,
+      objectName: 'test_object',
+      columns: [{ field: 'name', label: 'Name' }],
+      data: { provider: 'value', items: numericData },
+      operations: { update: false, delete: false },
+    };
+    render(
+      <ActionProvider>
+        <ObjectGrid schema={schema} onEdit={vi.fn()} onDelete={vi.fn()} />
+      </ActionProvider>
+    );
+    await waitFor(() => expect(screen.getByText('Name')).toBeInTheDocument());
+    expect(screen.queryAllByTestId('row-action-trigger')).toHaveLength(0);
+  });
+});

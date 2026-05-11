@@ -1208,7 +1208,15 @@ export const ObjectGrid: React.FC<ObjectGridProps> = ({
     });
   }
 
-  const operations = 'operations' in schema ? schema.operations : undefined;
+  // When the consumer wired onEdit/onDelete callbacks but the view schema
+  // omits an explicit `operations` block, default to allowing those actions.
+  // This gives every main list a Row actions kebab out of the box without
+  // forcing every view JSON to declare operations: { update: true, delete: true }.
+  const explicitOperations = 'operations' in schema ? schema.operations : undefined;
+  const operations = explicitOperations ?? {
+    update: !!onEdit,
+    delete: !!onDelete,
+  };
   // Row actions can declare 'edit' / 'delete' as canonical strings — treat
   // them as equivalent to operations.update / operations.delete so the
   // dropdown surfaces native Edit/Delete entries (with proper icons) and
@@ -1220,7 +1228,7 @@ export const ObjectGrid: React.FC<ObjectGridProps> = ({
   const customRowActions = rowActionsList.filter(a => a !== 'edit' && a !== 'delete');
   const canEdit = !!((operations?.update || wantEditAction) && onEdit);
   const canDelete = !!((operations?.delete || wantDeleteAction) && onDelete);
-  const hasActions = operations && (operations.update || operations.delete);
+  const hasActions = !!(operations && (operations.update || operations.delete));
   const hasRowActions = customRowActions.length > 0 || wantEditAction || wantDeleteAction;
 
   const columnsWithActions = (hasActions || hasRowActions) ? [
