@@ -29,6 +29,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Copy,
+  X,
 } from 'lucide-react';
 import { DetailSection } from './DetailSection';
 import { DetailTabs } from './DetailTabs';
@@ -410,6 +411,11 @@ export const DetailView: React.FC<DetailViewProps> = ({
     }
     setIsInlineEditing(!isInlineEditing);
   }, [isInlineEditing, editedValues, data, onFieldSave]);
+
+  const handleInlineEditCancel = React.useCallback(() => {
+    setEditedValues({});
+    setIsInlineEditing(false);
+  }, []);
 
   const handleInlineFieldChange = React.useCallback((field: string, value: any) => {
     setEditedValues(prev => ({ ...prev, [field]: value }));
@@ -826,31 +832,49 @@ export const DetailView: React.FC<DetailViewProps> = ({
                 Mobile fallback lives inside the unified action:bar overflow
                 menu as a `systemActions` entry with `sm:hidden`. */}
             {inlineEdit && (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant={isInlineEditing ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={handleInlineEditToggle}
-                    className="gap-2 hidden sm:inline-flex"
-                  >
-                    {isInlineEditing ? (
-                      <>
-                        <Check className="h-4 w-4" />
-                        <span className="hidden sm:inline">{t('detail.save')}</span>
-                      </>
-                    ) : (
-                      <>
-                        <Edit className="h-4 w-4" />
-                        <span className="hidden sm:inline">{t('detail.editInline')}</span>
-                      </>
-                    )}
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>
-                  {isInlineEditing ? t('detail.saveChanges') : t('detail.editFieldsInline')}
-                </TooltipContent>
-              </Tooltip>
+              <>
+                {isInlineEditing && (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={handleInlineEditCancel}
+                        className="gap-2 hidden sm:inline-flex"
+                      >
+                        <X className="h-4 w-4" />
+                        <span className="hidden sm:inline">{t('detail.cancel')}</span>
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>{t('detail.cancelEdit')}</TooltipContent>
+                  </Tooltip>
+                )}
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant={isInlineEditing ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={handleInlineEditToggle}
+                      className="gap-2 hidden sm:inline-flex"
+                    >
+                      {isInlineEditing ? (
+                        <>
+                          <Check className="h-4 w-4" />
+                          <span className="hidden sm:inline">{t('detail.save')}</span>
+                        </>
+                      ) : (
+                        <>
+                          <Edit className="h-4 w-4" />
+                          <span className="hidden sm:inline">{t('detail.editInline')}</span>
+                        </>
+                      )}
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    {isInlineEditing ? t('detail.saveChanges') : t('detail.editFieldsInline')}
+                  </TooltipContent>
+                </Tooltip>
+              </>
             )}
 
             {/* Share moved into the unified overflow menu (sys_share) so the

@@ -26,7 +26,7 @@ import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import type { ObjectGridSchema, DataSource, ViewData, GanttConfig } from '@object-ui/types';
 import { GanttConfigSchema } from '@objectstack/spec/ui';
 import { useNavigationOverlay } from '@object-ui/react';
-import { RecordDetailDrawer } from '@object-ui/plugin-detail';
+import { RecordDetailDrawer, deriveRecordPageHref } from '@object-ui/plugin-detail';
 import {
   Dialog,
   DialogContent,
@@ -311,10 +311,14 @@ export const ObjectGantt: React.FC<ObjectGanttProps> = ({
   // Default to a right-side drawer so clicking a task opens an editable
   // detail panel inline (no full-page navigation). Schema can override by
   // providing its own `navigation` config (e.g., page mode).
+  // detail panel inline (no full-page navigation). Schema can override by
+  // providing its own `navigation` config (e.g., page mode).
+  const navConfig = (schema as any).navigation ?? { mode: 'drawer', width: 'min(960px, 60vw)' };
+  const navIsOverlay = navConfig.mode === 'drawer' || navConfig.mode === 'modal' || navConfig.mode === 'split' || navConfig.mode === 'popover';
   const navigation = useNavigationOverlay({
-    navigation: (schema as any).navigation ?? { mode: 'drawer', width: 'min(960px, 60vw)' },
+    navigation: navConfig,
     objectName: schema.objectName,
-    onRowClick,
+    onRowClick: navIsOverlay ? undefined : onRowClick,
   });
 
   // Persist a drag-driven reschedule back to the data source. Mirrors
@@ -548,6 +552,7 @@ export const ObjectGantt: React.FC<ObjectGanttProps> = ({
             dataSource={dataSource}
             objectSchema={objectSchema as any}
             width={navigation.width as any}
+            fullPageHref={deriveRecordPageHref(objectName, recordId) ?? undefined}
             onFieldSave={async (field, value) => {
               if (!dataSource?.update) return;
               await dataSource.update(objectName, String(recordId), { [field]: value });

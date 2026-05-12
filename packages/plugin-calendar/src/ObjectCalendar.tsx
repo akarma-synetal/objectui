@@ -27,7 +27,7 @@ import type { ObjectGridSchema, DataSource, ViewData, CalendarConfig } from '@ob
 import { CalendarView, type CalendarEvent } from './CalendarView';
 import { usePullToRefresh } from '@object-ui/mobile';
 import { useNavigationOverlay } from '@object-ui/react';
-import { RecordDetailDrawer } from '@object-ui/plugin-detail';
+import { RecordDetailDrawer, deriveRecordPageHref } from '@object-ui/plugin-detail';
 import {
   useIsMobile,
   Dialog,
@@ -427,10 +427,14 @@ export const ObjectCalendar: React.FC<ObjectCalendarProps> = ({
 
   // --- NavigationConfig support ---
   // Must be called before any early returns to satisfy React hooks rules
+  // When the local navigation mode is an overlay (drawer/modal), ignore the
+  // inherited onRowClick so the local overlay wins over parent page-nav.
+  const navConfig = (schema as any).navigation ?? { mode: 'drawer', width: 'min(960px, 60vw)' };
+  const navIsOverlay = navConfig.mode === 'drawer' || navConfig.mode === 'modal' || navConfig.mode === 'split' || navConfig.mode === 'popover';
   const navigation = useNavigationOverlay({
-    navigation: (schema as any).navigation,
+    navigation: navConfig,
     objectName: schema.objectName,
-    onRowClick,
+    onRowClick: navIsOverlay ? undefined : onRowClick,
   });
 
   if (loading) {
@@ -605,7 +609,11 @@ export const ObjectCalendar: React.FC<ObjectCalendarProps> = ({
           locale={locale}
           onEventClick={(event) => {
             navigation.handleClick(event.data);
-            onEventClick?.(event.data);
+            // When the local navigation is an overlay, the drawer wins —
+            // don't also fire parent's onEventClick (which would page-navigate).
+            if (!navIsOverlay) {
+              onEventClick?.(event.data);
+            }
           }}
           // Quick-create on empty-day click. Caller-supplied onDateClick
           // wins; otherwise open the quick-create dialog.
@@ -717,6 +725,7 @@ export const ObjectCalendar: React.FC<ObjectCalendarProps> = ({
             dataSource={dataSource}
             objectSchema={objectSchema as any}
             width={(navigation.width as any) ?? 'min(960px, 60vw)'}
+            fullPageHref={deriveRecordPageHref(objectName, recordId) ?? undefined}
             onFieldSave={async (field, value) => {
               if (!dataSource?.update) return;
               await dataSource.update(objectName, String(recordId), { [field]: value });

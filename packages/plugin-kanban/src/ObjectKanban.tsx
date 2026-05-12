@@ -9,7 +9,7 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import type { DataSource } from '@object-ui/types';
 import { useDataScope, useNavigationOverlay } from '@object-ui/react';
-import { RecordDetailDrawer } from '@object-ui/plugin-detail';
+import { RecordDetailDrawer, deriveRecordPageHref } from '@object-ui/plugin-detail';
 import { extractRecords, buildExpandFields } from '@object-ui/core';
 import { KanbanRenderer } from './index';
 import { KanbanSchema } from './types';
@@ -326,10 +326,12 @@ export const ObjectKanban: React.FC<ObjectKanbanProps> = ({
       ...(effectiveSwimlaneField ? { swimlaneField: effectiveSwimlaneField } : {}),
   };
 
+  const navConfig = (schema as any).navigation ?? { mode: 'drawer', width: 'min(960px, 60vw)' };
+  const navIsOverlay = navConfig.mode === 'drawer' || navConfig.mode === 'modal' || navConfig.mode === 'split' || navConfig.mode === 'popover';
   const navigation = useNavigationOverlay({
-    navigation: (schema as any).navigation,
+    navigation: navConfig,
     objectName: schema.objectName,
-    onRowClick: onRowClick ?? onCardClick,
+    onRowClick: navIsOverlay ? undefined : (onRowClick ?? onCardClick),
   });
 
   if (error) {
@@ -374,6 +376,7 @@ export const ObjectKanban: React.FC<ObjectKanbanProps> = ({
             dataSource={dataSource}
             objectSchema={objectDef as any}
             width={(navigation.width as any) ?? 'min(960px, 60vw)'}
+            fullPageHref={deriveRecordPageHref(objectName, recordId) ?? undefined}
             onFieldSave={async (field, value) => {
               if (!dataSource?.update) return;
               await dataSource.update(objectName, String(recordId), { [field]: value });
