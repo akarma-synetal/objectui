@@ -316,7 +316,7 @@ export const ObjectGantt: React.FC<ObjectGanttProps> = ({
   // detail panel inline (no full-page navigation). Schema can override by
   // providing its own `navigation` config (e.g., page mode).
   const navigation = useNavigationOverlay({
-    navigation: (schema as any).navigation ?? { mode: 'drawer', width: 480 },
+    navigation: (schema as any).navigation ?? { mode: 'drawer', width: 'min(960px, 60vw)' },
     objectName: schema.objectName,
     onRowClick,
   });
@@ -547,7 +547,7 @@ export const ObjectGantt: React.FC<ObjectGanttProps> = ({
           <Sheet open onOpenChange={(open) => { if (!open) navigation.close(); }}>
             <SheetContent
               side="right"
-              className="w-full sm:max-w-2xl overflow-y-auto p-0"
+              className="w-full overflow-y-auto p-0 sm:!max-w-none"
               style={widthStyle}
             >
               <SheetHeader className="px-6 pt-6 pb-2">
