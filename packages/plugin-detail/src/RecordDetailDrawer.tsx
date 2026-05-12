@@ -26,11 +26,7 @@ import {
   SheetContent,
   SheetHeader,
   SheetTitle,
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
 } from '@object-ui/components';
-import { ExternalLink } from 'lucide-react';
 import type { DataSource } from '@object-ui/types';
 import { DetailView } from './DetailView';
 import { useDetailTranslation } from './useDetailTranslation';
@@ -253,26 +249,6 @@ export function RecordDetailDrawer({
         <SheetHeader className="sr-only">
           <SheetTitle>{title}</SheetTitle>
         </SheetHeader>
-        {/* "Open in new tab" — bare icon button styled identically to
-            the built-in Close (X) so the two affordances line up
-            pixel-perfect at the top-right. Both are 16px icons with
-            opacity-70 → 100 on hover; we just sit at right-10 to leave
-            room for the X at right-4. */}
-        {fullPageHref && (
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <button
-                type="button"
-                aria-label={t('detail.openInNewTab')}
-                className="absolute right-10 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 z-10"
-                onClick={() => window.open(fullPageHref, '_blank', 'noopener')}
-              >
-                <ExternalLink className="h-4 w-4" />
-              </button>
-            </TooltipTrigger>
-            <TooltipContent>{t('detail.openInNewTab')}</TooltipContent>
-          </Tooltip>
-        )}
         <div className="px-6 pt-6 pb-6">
           <DetailView
             dataSource={dataSource}
@@ -285,6 +261,29 @@ export function RecordDetailDrawer({
               showDelete: true,
               columns,
               fields,
+              // Fold "Open in new tab" into DetailView's unified header
+              // overflow menu (the "..." kebab) rather than floating it
+              // as a separate icon. This way we never stack a third icon
+              // on top of the existing Edit + More-actions + Close X
+              // cluster at the top-right of the drawer.
+              actions: fullPageHref
+                ? [
+                    {
+                      type: 'action:bar',
+                      location: 'record_header',
+                      systemActions: [
+                        {
+                          name: 'sys_open_new_tab',
+                          label: t('detail.openInNewTab'),
+                          icon: 'external-link',
+                          type: 'script',
+                          onClick: () =>
+                            window.open(fullPageHref, '_blank', 'noopener'),
+                        },
+                      ],
+                    },
+                  ]
+                : undefined,
             } as any}
             onFieldSave={async (field, value) => {
               try {
