@@ -17,7 +17,6 @@ import {
   Calendar as CalendarIcon,
   PanelLeftClose,
   PanelLeft,
-  Plus,
   CalendarDays,
 } from "lucide-react"
 import { 
@@ -84,7 +83,6 @@ export interface GanttViewProps {
   onTaskUpdate?: (task: GanttTask, changes: Partial<Pick<GanttTask, 'title' | 'start' | 'end' | 'progress'>>) => void
   onTaskDelete?: (task: GanttTask) => void
   onViewChange?: (view: GanttViewMode) => void
-  onAddClick?: () => void
   className?: string
   /** Enable inline editing of task fields */
   inlineEdit?: boolean
@@ -98,7 +96,6 @@ export function GanttView({
   onTaskClick,
   onTaskUpdate,
   onViewChange,
-  onAddClick,
   className,
   inlineEdit = false,
 }: GanttViewProps) {
@@ -339,12 +336,10 @@ export function GanttView({
       {/* Toolbar */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 p-2 border-b bg-card">
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={() => onAddClick?.()} aria-label="Create new task">
-            <Plus className="h-4 w-4 mr-1 sm:mr-2" />
-            <span className="hidden sm:inline">New Task</span>
-            <span className="sm:hidden">New</span>
-          </Button>
-          <div className="h-4 w-px bg-border mx-1 sm:mx-2" />
+          {/* "New Task" intentionally removed — the page-level header
+              already exposes a fully-fielded create form for this
+              object, and the toolbar's quick-create only set 3 fields
+              which was confusing for required-field-heavy schemas. */}
           <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Previous period">
             <ChevronLeft className="h-4 w-4" />
           </Button>
