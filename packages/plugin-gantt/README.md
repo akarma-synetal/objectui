@@ -5,6 +5,9 @@ Gantt chart plugin for Object UI - Visualize project timelines and task dependen
 ## Features
 
 - **Gantt Charts** - Interactive Gantt chart visualization
+- **Full CRUD on the timeline** - Create via toolbar quick-create dialog, edit
+  inline or via drag, delete via row kebab → confirmation dialog, view detail
+  via click → navigation overlay
 - **Drag-and-drop rescheduling** - Drag a bar to move it; drag either edge to resize
   start/end (snaps to whole days, persists via `dataSource.update`)
 - **Task Dependencies** - Link tasks with dependencies
@@ -12,6 +15,26 @@ Gantt chart plugin for Object UI - Visualize project timelines and task dependen
 - **Task Management** - Create, edit, and track tasks
 - **Responsive** - Scrollable timeline for large projects
 - **Customizable** - Tailwind CSS styling support
+
+### Create / Edit / Delete / View
+
+When used through `ObjectGantt` (the wiring the framework uses for the
+`gantt` view type) the full CRUD lifecycle is wired automatically:
+
+- **Create** — click the toolbar "+ New Task" button. A small dialog opens
+  pre-filled with start/end (today → +7 days). On submit the component calls
+  `dataSource.create(objectName, { [titleField], [startDateField],
+  [endDateField], …required fields })` and optimistically inserts the new
+  record into the chart.
+- **Edit** — drag the bar (move), drag an edge (resize), or hover the row
+  and pick **Edit inline** from the kebab menu to rename / change dates
+  inline. All paths funnel through `dataSource.update`.
+- **Delete** — hover a row, open the kebab menu, choose **Delete**. A
+  shadcn `<AlertDialog>` asks for confirmation; on confirm `dataSource.delete`
+  removes the record (optimistic local removal, reverts on failure).
+- **View details** — click anywhere on a row (or pick **View details** in
+  the kebab) to open the standard `NavigationOverlay` with the full record.
+
 
 ### Drag-and-drop rescheduling
 
