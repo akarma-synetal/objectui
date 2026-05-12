@@ -238,10 +238,10 @@ const en = {
   detail: {
     back: 'Back',
     edit: 'Edit',
-    editInline: 'Edit inline',
+    editInline: 'Edit',
     save: 'Save',
     saveChanges: 'Save changes',
-    editFieldsInline: 'Edit fields inline',
+    editFieldsInline: 'Edit fields',
     share: 'Share',
     duplicate: 'Duplicate',
     export: 'Export',

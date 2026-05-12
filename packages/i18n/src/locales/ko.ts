@@ -156,10 +156,10 @@ const ko = {
   detail: {
     back: '뒤로',
     edit: '편집',
-    editInline: '인라인 편집',
+    editInline: '편집',
     save: '저장',
     saveChanges: '변경사항 저장',
-    editFieldsInline: '필드 인라인 편집',
+    editFieldsInline: '필드 편집',
     share: '공유',
     duplicate: '복제',
     export: '내보내기',

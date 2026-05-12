@@ -36,6 +36,7 @@
     "@dnd-kit/utilities": "^3.2.2",
     "@object-ui/components": "workspace:*",
     "@object-ui/core": "workspace:*",
+    "@object-ui/plugin-detail": "workspace:*",
     "@object-ui/react": "workspace:*",
     "@object-ui/types": "workspace:*",
     "@tanstack/react-virtual": "^3.13.24",

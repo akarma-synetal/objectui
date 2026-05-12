@@ -156,10 +156,10 @@ const ru = {
   detail: {
     back: 'Назад',
     edit: 'Редактировать',
-    editInline: 'Редактировать в строке',
+    editInline: 'Редактировать',
     save: 'Сохранить',
     saveChanges: 'Сохранить изменения',
-    editFieldsInline: 'Редактировать поля в строке',
+    editFieldsInline: 'Редактировать поля',
     share: 'Поделиться',
     duplicate: 'Дублировать',
     export: 'Экспорт',

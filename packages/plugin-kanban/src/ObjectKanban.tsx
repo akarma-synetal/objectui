@@ -9,7 +9,7 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import type { DataSource } from '@object-ui/types';
 import { useDataScope, useNavigationOverlay } from '@object-ui/react';
-import { NavigationOverlay } from '@object-ui/components';
+import { RecordDetailDrawer } from '@object-ui/plugin-detail';
 import { extractRecords, buildExpandFields } from '@object-ui/core';
 import { KanbanRenderer } from './index';
 import { KanbanSchema } from './types';
@@ -354,22 +354,45 @@ export const ObjectKanban: React.FC<ObjectKanbanProps> = ({
           onCardClick?.(card);
         },
       }} />
-      {navigation.isOverlay && (
-        <NavigationOverlay {...navigation} title={detailTitle}>
-          {(record) => (
-            <div className="space-y-3">
-              {Object.entries(record).map(([key, value]) => (
-                <div key={key} className="flex flex-col">
-                  <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                    {key.replace(/_/g, ' ')}
-                  </span>
-                  <span className="text-sm">{String(value ?? '—')}</span>
-                </div>
-              ))}
-            </div>
-          )}
-        </NavigationOverlay>
-      )}
+      {navigation.isOverlay && navigation.isOpen && navigation.selectedRecord && (() => {
+        const objectName = schema.objectName;
+        const rec = navigation.selectedRecord as Record<string, any>;
+        const recordId = rec.id ?? rec._id;
+        if (!objectName || recordId == null) return null;
+        const titleField = (schema as any).cardTitle ?? (schema as any).titleField;
+        const titleText = titleField && rec[titleField]
+          ? String(rec[titleField])
+          : detailTitle;
+        return (
+          <RecordDetailDrawer
+            open
+            onClose={navigation.close}
+            title={titleText}
+            record={rec}
+            objectName={objectName}
+            recordId={recordId}
+            dataSource={dataSource}
+            objectSchema={objectDef as any}
+            width={(navigation.width as any) ?? 'min(960px, 60vw)'}
+            onFieldSave={async (field, value) => {
+              if (!dataSource?.update) return;
+              await dataSource.update(objectName, String(recordId), { [field]: value });
+              setFetchedData((prev) => prev.map((r) =>
+                String(r.id ?? r._id) === String(recordId)
+                  ? { ...r, [field]: value }
+                  : r,
+              ));
+            }}
+            onDelete={async () => {
+              if (!dataSource?.delete) return;
+              await dataSource.delete(objectName, String(recordId));
+              setFetchedData((prev) => prev.filter((r) =>
+                String(r.id ?? r._id) !== String(recordId),
+              ));
+            }}
+          />
+        );
+      })()}
     </>
   );
 }

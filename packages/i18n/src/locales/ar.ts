@@ -157,10 +157,10 @@ const ar = {
   detail: {
     back: 'رجوع',
     edit: 'تحرير',
-    editInline: 'تحرير مباشر',
+    editInline: 'تحرير',
     save: 'حفظ',
     saveChanges: 'حفظ التغييرات',
-    editFieldsInline: 'تحرير الحقول مباشرة',
+    editFieldsInline: 'تحرير الحقول',
     share: 'مشاركة',
     duplicate: 'نسخ',
     export: 'تصدير',

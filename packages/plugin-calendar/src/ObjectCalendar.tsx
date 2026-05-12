@@ -27,8 +27,8 @@ import type { ObjectGridSchema, DataSource, ViewData, CalendarConfig } from '@ob
 import { CalendarView, type CalendarEvent } from './CalendarView';
 import { usePullToRefresh } from '@object-ui/mobile';
 import { useNavigationOverlay } from '@object-ui/react';
+import { RecordDetailDrawer } from '@object-ui/plugin-detail';
 import {
-  NavigationOverlay,
   useIsMobile,
   Dialog,
   DialogContent,
@@ -698,22 +698,44 @@ export const ObjectCalendar: React.FC<ObjectCalendarProps> = ({
         </DialogContent>
       </Dialog>
 
-      {navigation.isOverlay && (
-        <NavigationOverlay {...navigation} title="Event Details">
-          {(record) => (
-            <div className="space-y-3">
-              {Object.entries(record).map(([key, value]) => (
-                <div key={key} className="flex flex-col">
-                  <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                    {key.replace(/_/g, ' ')}
-                  </span>
-                  <span className="text-sm">{String(value ?? '—')}</span>
-                </div>
-              ))}
-            </div>
-          )}
-        </NavigationOverlay>
-      )}
+      {navigation.isOverlay && navigation.isOpen && navigation.selectedRecord && (() => {
+        const objectName = dataConfig?.provider === 'object' ? dataConfig.object : schema.objectName;
+        const rec = navigation.selectedRecord as Record<string, any>;
+        const recordId = rec.id ?? rec._id;
+        if (!objectName || recordId == null) return null;
+        const titleText = calendarConfig?.titleField
+          ? String(rec[calendarConfig.titleField] ?? 'Event Details')
+          : 'Event Details';
+        return (
+          <RecordDetailDrawer
+            open
+            onClose={navigation.close}
+            title={titleText}
+            record={rec}
+            objectName={objectName}
+            recordId={recordId}
+            dataSource={dataSource}
+            objectSchema={objectSchema as any}
+            width={(navigation.width as any) ?? 'min(960px, 60vw)'}
+            onFieldSave={async (field, value) => {
+              if (!dataSource?.update) return;
+              await dataSource.update(objectName, String(recordId), { [field]: value });
+              setData((prev) => prev.map((r) =>
+                String(r.id ?? r._id) === String(recordId)
+                  ? { ...r, [field]: value }
+                  : r,
+              ));
+            }}
+            onDelete={async () => {
+              if (!dataSource?.delete) return;
+              await dataSource.delete(objectName, String(recordId));
+              setData((prev) => prev.filter((r) =>
+                String(r.id ?? r._id) !== String(recordId),
+              ));
+            }}
+          />
+        );
+      })()}
     </div>
   );
 };

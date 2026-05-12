@@ -156,10 +156,10 @@ const pt = {
   detail: {
     back: 'Voltar',
     edit: 'Editar',
-    editInline: 'Editar inline',
+    editInline: 'Editar',
     save: 'Salvar',
     saveChanges: 'Salvar alterações',
-    editFieldsInline: 'Editar campos inline',
+    editFieldsInline: 'Editar campos',
     share: 'Compartilhar',
     duplicate: 'Duplicar',
     export: 'Exportar',

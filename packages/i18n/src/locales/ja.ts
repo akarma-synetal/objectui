@@ -156,10 +156,10 @@ const ja = {
   detail: {
     back: '戻る',
     edit: '編集',
-    editInline: 'インライン編集',
+    editInline: '編集',
     save: '保存',
     saveChanges: '変更を保存',
-    editFieldsInline: 'フィールドをインライン編集',
+    editFieldsInline: 'フィールドを編集',
     share: '共有',
     duplicate: '複製',
     export: 'エクスポート',

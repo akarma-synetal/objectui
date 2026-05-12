@@ -14,6 +14,8 @@ import { RelatedList } from './RelatedList';
 import type { DetailViewSchema } from '@object-ui/types';
 
 export { DetailView, DetailSection, DetailTabs, RelatedList };
+export { RecordDetailDrawer } from './RecordDetailDrawer';
+export type { RecordDetailDrawerProps } from './RecordDetailDrawer';
 export { SectionGroup } from './SectionGroup';
 export { HeaderHighlight } from './HeaderHighlight';
 export { inferDetailColumns, isWideFieldType, applyAutoSpan, applyDetailAutoLayout } from './autoLayout';

@@ -15,14 +15,10 @@ import {
   ZoomIn,
   ZoomOut,
   Calendar as CalendarIcon,
-  MoreHorizontal,
   PanelLeftClose,
   PanelLeft,
   Plus,
   CalendarDays,
-  Pencil,
-  Trash2,
-  Eye,
 } from "lucide-react"
 import { 
   cn, 
@@ -34,11 +30,6 @@ import {
   SelectValue,
   Separator,
   useResizeObserver,
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
 } from "@object-ui/components"
 
 const HEADER_HEIGHT = 50;
@@ -106,7 +97,6 @@ export function GanttView({
   endDate,
   onTaskClick,
   onTaskUpdate,
-  onTaskDelete,
   onViewChange,
   onAddClick,
   className,
@@ -552,61 +542,10 @@ export function GanttView({
                     task.end.toLocaleDateString(undefined, { month: 'numeric', day: 'numeric' })
                   )}
                 </div>
-                {/* Row actions: kebab menu with View / Edit / Delete.
-                    Hidden until the row is hovered so it doesn't clutter the
-                    column. Stops propagation so clicking the trigger doesn't
-                    fire the row's onClick (which would open detail). */}
-                {(onTaskClick || onTaskUpdate || onTaskDelete) && (
-                  <div className="ml-1 shrink-0 opacity-0 group-hover/task-row:opacity-100 focus-within:opacity-100">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-6 w-6"
-                          aria-label="Task actions"
-                          data-testid={`gantt-task-actions-${task.id}`}
-                          onClick={(e) => e.stopPropagation()}
-                          onPointerDown={(e) => e.stopPropagation()}
-                        >
-                          <MoreHorizontal className="h-3.5 w-3.5" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
-                        {onTaskClick && (
-                          <DropdownMenuItem onSelect={() => onTaskClick?.(task)}>
-                            <Eye className="h-3.5 w-3.5 mr-2" /> View details
-                          </DropdownMenuItem>
-                        )}
-                        {inlineEdit && onTaskUpdate && (
-                          <DropdownMenuItem onSelect={() => {
-                            setEditingTask(task.id);
-                            setEditValues({
-                              title: task.title,
-                              start: task.start.toLocaleDateString('en-CA'),
-                              end: task.end.toLocaleDateString('en-CA'),
-                              progress: String(task.progress),
-                            });
-                          }}>
-                            <Pencil className="h-3.5 w-3.5 mr-2" /> Edit inline
-                          </DropdownMenuItem>
-                        )}
-                        {onTaskDelete && (
-                          <>
-                            {(onTaskClick || (inlineEdit && onTaskUpdate)) && <DropdownMenuSeparator />}
-                            <DropdownMenuItem
-                              onSelect={() => onTaskDelete?.(task)}
-                              className="text-destructive focus:text-destructive"
-                              data-testid={`gantt-task-delete-${task.id}`}
-                            >
-                              <Trash2 className="h-3.5 w-3.5 mr-2" /> Delete
-                            </DropdownMenuItem>
-                          </>
-                        )}
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </div>
-                )}
+                {/* Row actions removed: View / Edit / Delete are reachable
+                    from the side drawer that opens on row click (DetailView
+                    has inline-edit + a delete in its more-actions menu).
+                    Inline edit is also still triggerable via row double-click. */}
               </div>
               );
             })}

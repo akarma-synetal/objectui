@@ -156,10 +156,10 @@ const es = {
   detail: {
     back: 'Volver',
     edit: 'Editar',
-    editInline: 'Editar en línea',
+    editInline: 'Editar',
     save: 'Guardar',
     saveChanges: 'Guardar cambios',
-    editFieldsInline: 'Editar campos en línea',
+    editFieldsInline: 'Editar campos',
     share: 'Compartir',
     duplicate: 'Duplicar',
     export: 'Exportar',

@@ -238,10 +238,10 @@ const zh = {
   detail: {
     back: '返回',
     edit: '编辑',
-    editInline: '内联编辑',
+    editInline: '编辑',
     save: '保存',
     saveChanges: '保存更改',
-    editFieldsInline: '内联编辑字段',
+    editFieldsInline: '编辑字段',
     share: '分享',
     duplicate: '复制',
     export: '导出',

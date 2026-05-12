@@ -26,12 +26,8 @@ import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import type { ObjectGridSchema, DataSource, ViewData, GanttConfig } from '@object-ui/types';
 import { GanttConfigSchema } from '@objectstack/spec/ui';
 import { useNavigationOverlay } from '@object-ui/react';
-import { DetailView } from '@object-ui/plugin-detail';
+import { RecordDetailDrawer } from '@object-ui/plugin-detail';
 import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
   Dialog,
   DialogContent,
   DialogDescription,
@@ -537,95 +533,38 @@ export const ObjectGantt: React.FC<ObjectGanttProps> = ({
         const rec = navigation.selectedRecord as Record<string, any>;
         const recordId = rec.id ?? rec._id;
         if (!objectName || recordId == null) return null;
-        const drawerWidth = typeof navigation.width === 'number'
-          ? `${navigation.width}px`
-          : (navigation.width as string | undefined);
-        const widthStyle = drawerWidth
-          ? { width: drawerWidth, maxWidth: drawerWidth }
-          : undefined;
-
-        // System / audit fields the user shouldn't edit and that clutter the
-        // drawer. Hidden from the rendered field list entirely.
-        const SYSTEM_FIELDS = new Set([
-          'id', '_id', '__v', 'created_at', 'updated_at', 'createdAt', 'updatedAt',
-          'created_by', 'updated_by', 'organization_id', 'tenant_id', 'owner_id',
-          'deleted_at', 'is_deleted',
-        ]);
-
-        // Build a typed fields list driven by the object schema (so the
-        // detail body knows which fields are dates / selects / lookups,
-        // and the inline editor marks lookup/system fields as readonly
-        // instead of dumping "[object Object]" into a text input).
-        const schemaFields: Record<string, any> = (objectSchema?.fields ?? {}) as Record<string, any>;
-        const orderedNames = Object.keys(schemaFields).length
-          ? Object.keys(schemaFields)
-          : Object.keys(rec);
-        const fields = orderedNames
-          .filter((name) => !SYSTEM_FIELDS.has(name) && !name.startsWith('__'))
-          .filter((name) => name in rec)
-          .map((name) => {
-            const def = schemaFields[name] || {};
-            const isLookup = def.type === 'lookup' || def.type === 'master_detail' || def.type === 'reference';
-            return {
-              name,
-              label: def.label,
-              type: def.type as any,
-              readonly: !!def.readonly || isLookup, // lookups need a relation picker we don't yet wire
-            };
-          });
+        const titleText = ganttConfig?.titleField
+          ? String(rec[ganttConfig.titleField] ?? 'Task Details')
+          : 'Task Details';
 
         return (
-          <Sheet open onOpenChange={(open) => { if (!open) navigation.close(); }}>
-            <SheetContent
-              side="right"
-              className="w-full overflow-y-auto p-0 sm:!max-w-none"
-              style={widthStyle}
-            >
-              <SheetHeader className="px-6 pt-6 pb-2">
-                <SheetTitle>{ganttConfig?.titleField ? String(rec[ganttConfig.titleField] ?? 'Task Details') : 'Task Details'}</SheetTitle>
-              </SheetHeader>
-              <div className="px-6 pb-6">
-                <DetailView
-                  dataSource={dataSource}
-                  inlineEdit
-                  schema={{
-                    type: 'detail-view',
-                    objectName,
-                    resourceId: String(recordId),
-                    data: rec,
-                    showDelete: true,
-                    columns: 2,
-                    fields,
-                  } as any}
-                  onFieldSave={async (field, value) => {
-                    if (!dataSource?.update) return;
-                    try {
-                      await dataSource.update(objectName, String(recordId), { [field]: value });
-                      setData((prev) => prev.map((r) =>
-                        String(r.id ?? r._id) === String(recordId)
-                          ? { ...r, [field]: value }
-                          : r,
-                      ));
-                    } catch (err) {
-                      console.error('[ObjectGantt] inline field save failed:', err);
-                    }
-                  }}
-                  onDelete={async () => {
-                    if (!dataSource?.delete) return;
-                    try {
-                      await dataSource.delete(objectName, String(recordId));
-                      setData((prev) => prev.filter((r) =>
-                        String(r.id ?? r._id) !== String(recordId),
-                      ));
-                      navigation.close();
-                    } catch (err) {
-                      console.error('[ObjectGantt] delete failed:', err);
-                    }
-                  }}
-                />
-              </div>
-            </SheetContent>
-          </Sheet>
+          <RecordDetailDrawer
+            open
+            onClose={navigation.close}
+            title={titleText}
+            record={rec}
+            objectName={objectName}
+            recordId={recordId}
+            dataSource={dataSource}
+            objectSchema={objectSchema as any}
+            width={navigation.width as any}
+            onFieldSave={async (field, value) => {
+              if (!dataSource?.update) return;
+              await dataSource.update(objectName, String(recordId), { [field]: value });
+              setData((prev) => prev.map((r) =>
+                String(r.id ?? r._id) === String(recordId)
+                  ? { ...r, [field]: value }
+                  : r,
+              ));
+            }}
+            onDelete={async () => {
+              if (!dataSource?.delete) return;
+              await dataSource.delete(objectName, String(recordId));
+              setData((prev) => prev.filter((r) =>
+                String(r.id ?? r._id) !== String(recordId),
+              ));
+            }}
+          />
         );
       })()}
 
