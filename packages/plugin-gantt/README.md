@@ -32,8 +32,18 @@ When used through `ObjectGantt` (the wiring the framework uses for the
 - **Delete** — hover a row, open the kebab menu, choose **Delete**. A
   shadcn `<AlertDialog>` asks for confirmation; on confirm `dataSource.delete`
   removes the record (optimistic local removal, reverts on failure).
-- **View details** — click anywhere on a row (or pick **View details** in
-  the kebab) to open the standard `NavigationOverlay` with the full record.
+- **View / Edit / Delete in a side drawer** — click anywhere on a row
+  (or pick **View details** in the kebab) to open a right-side drawer
+  (`NavigationOverlay` in `mode: 'drawer'`, default width `480px`). The
+  drawer renders editable **Title / Start / End / Progress** inputs
+  backed by `dataSource.update` (only changed fields are PATCHed; local
+  state is patched optimistically on success). A red **Delete** button
+  in the drawer reuses the same `<AlertDialog>` confirmation flow.
+  Every other record field is shown read-only below.
+
+  Override by setting `navigation` on the schema, e.g.
+  `{ mode: 'page', basePath: '/console/apps/.../campaign' }` to route
+  to the standalone detail page instead.
 
 
 ### Drag-and-drop rescheduling
