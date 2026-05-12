@@ -198,12 +198,42 @@ export const DetailSection: React.FC<DetailSectionProps> = ({
         </div>
         {isEditing && !field.readonly ? (
           <div className="min-h-[44px] sm:min-h-0">
-            <input
-              type={field.type === 'number' ? 'number' : field.type === 'date' ? 'date' : 'text'}
-              className="w-full px-2 py-1.5 text-sm border rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-ring"
-              value={value != null ? String(value) : ''}
-              onChange={(e) => onFieldChange?.(field.name, e.target.value)}
-            />
+            {(() => {
+              const isDate = field.type === 'date' || field.type === 'datetime';
+              const inputType = field.type === 'number' ? 'number' : isDate ? 'date' : 'text';
+              // <input type="date"> needs a YYYY-MM-DD string; raw ISO
+              // timestamps ("2026-02-14T14:46:20.862Z") leave the picker
+              // blank. Slice down to the date portion so existing values
+              // round-trip correctly.
+              const inputValue = value == null
+                ? ''
+                : isDate
+                  ? (() => {
+                      const s = String(value);
+                      if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0, 10);
+                      const d = new Date(s);
+                      return isNaN(d.getTime()) ? '' : d.toLocaleDateString('en-CA');
+                    })()
+                  : String(value);
+              return (
+                <input
+                  type={inputType}
+                  className="w-full px-2 py-1.5 text-sm border rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-ring"
+                  value={inputValue}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    // Re-emit dates as full ISO so backend validation that
+                    // expects ISO timestamps keeps working.
+                    if (isDate && v) {
+                      const iso = new Date(v + 'T00:00:00').toISOString();
+                      onFieldChange?.(field.name, iso);
+                    } else {
+                      onFieldChange?.(field.name, v);
+                    }
+                  }}
+                />
+              );
+            })()}
           </div>
         ) : (
         <div

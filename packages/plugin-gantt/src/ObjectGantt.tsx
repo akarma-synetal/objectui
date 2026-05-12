@@ -543,6 +543,37 @@ export const ObjectGantt: React.FC<ObjectGanttProps> = ({
         const widthStyle = drawerWidth
           ? { width: drawerWidth, maxWidth: drawerWidth }
           : undefined;
+
+        // System / audit fields the user shouldn't edit and that clutter the
+        // drawer. Hidden from the rendered field list entirely.
+        const SYSTEM_FIELDS = new Set([
+          'id', '_id', '__v', 'created_at', 'updated_at', 'createdAt', 'updatedAt',
+          'created_by', 'updated_by', 'organization_id', 'tenant_id', 'owner_id',
+          'deleted_at', 'is_deleted',
+        ]);
+
+        // Build a typed fields list driven by the object schema (so the
+        // detail body knows which fields are dates / selects / lookups,
+        // and the inline editor marks lookup/system fields as readonly
+        // instead of dumping "[object Object]" into a text input).
+        const schemaFields: Record<string, any> = (objectSchema?.fields ?? {}) as Record<string, any>;
+        const orderedNames = Object.keys(schemaFields).length
+          ? Object.keys(schemaFields)
+          : Object.keys(rec);
+        const fields = orderedNames
+          .filter((name) => !SYSTEM_FIELDS.has(name) && !name.startsWith('__'))
+          .filter((name) => name in rec)
+          .map((name) => {
+            const def = schemaFields[name] || {};
+            const isLookup = def.type === 'lookup' || def.type === 'master_detail' || def.type === 'reference';
+            return {
+              name,
+              label: def.label,
+              type: def.type as any,
+              readonly: !!def.readonly || isLookup, // lookups need a relation picker we don't yet wire
+            };
+          });
+
         return (
           <Sheet open onOpenChange={(open) => { if (!open) navigation.close(); }}>
             <SheetContent
@@ -562,12 +593,9 @@ export const ObjectGantt: React.FC<ObjectGanttProps> = ({
                     objectName,
                     resourceId: String(recordId),
                     data: rec,
-                    showEdit: true,
                     showDelete: true,
                     columns: 2,
-                    fields: Object.keys(rec)
-                      .filter((k) => k !== 'id' && k !== '_id' && !k.startsWith('__'))
-                      .map((name) => ({ name })),
+                    fields,
                   } as any}
                   onFieldSave={async (field, value) => {
                     if (!dataSource?.update) return;
