@@ -34,12 +34,15 @@ When used through `ObjectGantt` (the wiring the framework uses for the
   removes the record (optimistic local removal, reverts on failure).
 - **View / Edit / Delete in a side drawer** — click anywhere on a row
   (or pick **View details** in the kebab) to open a right-side drawer
-  (`NavigationOverlay` in `mode: 'drawer'`, default width `480px`). The
-  drawer renders editable **Title / Start / End / Progress** inputs
-  backed by `dataSource.update` (only changed fields are PATCHed; local
-  state is patched optimistically on success). A red **Delete** button
-  in the drawer reuses the same `<AlertDialog>` confirmation flow.
-  Every other record field is shown read-only below.
+  containing the standard `<DetailView>` from `@object-ui/plugin-detail`.
+  The drawer ships the same record-header chrome used everywhere else
+  (badges, summary chips, **Edit** + **Inline edit** buttons, and a
+  **…** more-actions menu with **Delete**). Edits via inline-edit save
+  through `dataSource.update` and merge into the local timeline state;
+  delete confirms via the platform standard dialog and removes the row
+  on success. Fields are auto-derived from the record (object schema is
+  fetched by `DetailView` itself when `dataSource.getObjectSchema` is
+  available).
 
   Override by setting `navigation` on the schema, e.g.
   `{ mode: 'page', basePath: '/console/apps/.../campaign' }` to route

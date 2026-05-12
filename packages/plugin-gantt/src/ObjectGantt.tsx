@@ -26,8 +26,12 @@ import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import type { ObjectGridSchema, DataSource, ViewData, GanttConfig } from '@object-ui/types';
 import { GanttConfigSchema } from '@objectstack/spec/ui';
 import { useNavigationOverlay } from '@object-ui/react';
+import { DetailView } from '@object-ui/plugin-detail';
 import {
-  NavigationOverlay,
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
   Dialog,
   DialogContent,
   DialogDescription,
@@ -145,188 +149,6 @@ function getGanttConfig(schema: ObjectGridSchema | any): GanttConfig | null {
   
   return null;
 }
-
-/**
- * TaskDetailPanel — editable side-panel content for a single task record.
- *
- * Renders form fields for the gantt's title/start/end/progress (mapped via
- * ganttConfig), plus optionally any extra fields that exist on the record
- * (read-only). A "Save" button persists changes via dataSource.update;
- * "Delete" delegates back to ObjectGantt to open the AlertDialog confirmation.
- */
-interface TaskDetailPanelProps {
-  record: Record<string, unknown>;
-  ganttConfig: GanttConfig | null;
-  objectName: string | undefined;
-  dataSource: DataSource | undefined;
-  onSaved: (updated: Record<string, unknown>) => void;
-  onDelete: () => void;
-}
-
-const TaskDetailPanel: React.FC<TaskDetailPanelProps> = ({
-  record,
-  ganttConfig,
-  objectName,
-  dataSource,
-  onSaved,
-  onDelete,
-}) => {
-  const titleField = ganttConfig?.titleField || 'name';
-  const startDateField = ganttConfig?.startDateField || 'start_date';
-  const endDateField = ganttConfig?.endDateField || 'end_date';
-  const progressField = ganttConfig?.progressField;
-
-  const toDateInput = (v: unknown): string => {
-    if (!v) return '';
-    const d = new Date(v as any);
-    if (isNaN(d.getTime())) return '';
-    return d.toLocaleDateString('en-CA');
-  };
-
-  const initial = React.useMemo(() => ({
-    title: String((record as any)[titleField] ?? ''),
-    start: toDateInput((record as any)[startDateField]),
-    end: toDateInput((record as any)[endDateField]),
-    progress: progressField ? String((record as any)[progressField] ?? '') : '',
-  }), [record, titleField, startDateField, endDateField, progressField]);
-
-  const [form, setForm] = React.useState(initial);
-  const [saving, setSaving] = React.useState(false);
-  const [error, setError] = React.useState<string | undefined>();
-  // Reset form whenever the panel switches to a different record.
-  React.useEffect(() => { setForm(initial); setError(undefined); }, [initial]);
-
-  const dirty =
-    form.title !== initial.title ||
-    form.start !== initial.start ||
-    form.end !== initial.end ||
-    form.progress !== initial.progress;
-
-  const recordId = (record as any).id ?? (record as any)._id;
-
-  const handleSave = async () => {
-    if (!objectName || !dataSource?.update || recordId == null) return;
-    setSaving(true);
-    setError(undefined);
-    const patch: Record<string, unknown> = {};
-    if (form.title !== initial.title) patch[titleField] = form.title;
-    if (form.start !== initial.start) {
-      patch[startDateField] = new Date(form.start).toISOString();
-    }
-    if (form.end !== initial.end) {
-      patch[endDateField] = new Date(form.end).toISOString();
-    }
-    if (progressField && form.progress !== initial.progress) {
-      const n = Number(form.progress);
-      if (!Number.isNaN(n)) patch[progressField] = n;
-    }
-    try {
-      await dataSource.update(objectName, String(recordId), patch);
-      onSaved({ ...record, ...patch });
-    } catch (err: any) {
-      setError(err?.message || String(err));
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  // Render extra fields read-only so the user has a full picture.
-  const extraFields = Object.entries(record).filter(([key]) => (
-    key !== titleField &&
-    key !== startDateField &&
-    key !== endDateField &&
-    key !== progressField &&
-    key !== 'id' && key !== '_id'
-  ));
-
-  return (
-    <div className="space-y-4">
-      <div className="space-y-1.5">
-        <Label htmlFor="gantt-detail-title">Title</Label>
-        <Input
-          id="gantt-detail-title"
-          value={form.title}
-          onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
-          disabled={saving}
-          data-testid="gantt-detail-title"
-        />
-      </div>
-      <div className="grid grid-cols-2 gap-3">
-        <div className="space-y-1.5">
-          <Label htmlFor="gantt-detail-start">Start</Label>
-          <Input
-            id="gantt-detail-start"
-            type="date"
-            value={form.start}
-            onChange={(e) => setForm((f) => ({ ...f, start: e.target.value }))}
-            disabled={saving}
-          />
-        </div>
-        <div className="space-y-1.5">
-          <Label htmlFor="gantt-detail-end">End</Label>
-          <Input
-            id="gantt-detail-end"
-            type="date"
-            value={form.end}
-            onChange={(e) => setForm((f) => ({ ...f, end: e.target.value }))}
-            disabled={saving}
-          />
-        </div>
-      </div>
-      {progressField && (
-        <div className="space-y-1.5">
-          <Label htmlFor="gantt-detail-progress">Progress (%)</Label>
-          <Input
-            id="gantt-detail-progress"
-            type="number"
-            min={0}
-            max={100}
-            value={form.progress}
-            onChange={(e) => setForm((f) => ({ ...f, progress: e.target.value }))}
-            disabled={saving}
-          />
-        </div>
-      )}
-      {error && <p className="text-sm text-destructive">{error}</p>}
-      <div className="flex items-center justify-between gap-2 pt-2 border-t">
-        <Button
-          variant="ghost"
-          className="text-destructive hover:text-destructive hover:bg-destructive/10"
-          onClick={onDelete}
-          disabled={saving}
-          data-testid="gantt-detail-delete"
-        >
-          Delete
-        </Button>
-        <Button
-          onClick={handleSave}
-          disabled={saving || !dirty || !form.title.trim()}
-          data-testid="gantt-detail-save"
-        >
-          {saving ? 'Saving…' : 'Save'}
-        </Button>
-      </div>
-
-      {extraFields.length > 0 && (
-        <div className="pt-3 border-t space-y-2">
-          <p className="text-xs uppercase tracking-wide text-muted-foreground">Other fields</p>
-          {extraFields.map(([key, value]) => (
-            <div key={key} className="flex flex-col">
-              <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">
-                {key.replace(/_/g, ' ')}
-              </span>
-              <span className="text-sm break-words">{
-                value == null ? '—'
-                  : typeof value === 'object' ? JSON.stringify(value)
-                  : String(value)
-              }</span>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-};
 
 export const ObjectGantt: React.FC<ObjectGanttProps> = ({
   schema,
@@ -710,39 +532,74 @@ export const ObjectGantt: React.FC<ObjectGanttProps> = ({
           inlineEdit
         />
       </div>
-      {navigation.isOverlay && (
-        <NavigationOverlay {...navigation} title="Task Details">
-          {(record) => (
-            <TaskDetailPanel
-              record={record}
-              ganttConfig={ganttConfig}
-              objectName={dataConfig?.provider === 'object' ? dataConfig.object : schema.objectName}
-              dataSource={dataSource}
-              onSaved={(updated) => {
-                setData((prev) => prev.map((r) =>
-                  String(r.id ?? r._id) === String(updated.id ?? updated._id)
-                    ? { ...r, ...updated }
-                    : r,
-                ));
-              }}
-              onDelete={() => {
-                navigation.close();
-                // Reuse the existing AlertDialog confirmation flow.
-                const taskFromRecord: GanttTask = {
-                  id: (record as any).id ?? (record as any)._id,
-                  title: String((record as any)[ganttConfig.titleField] ?? (record as any).name ?? ''),
-                  start: new Date((record as any)[ganttConfig.startDateField]),
-                  end: new Date((record as any)[ganttConfig.endDateField]),
-                  progress: 0,
-                  dependencies: [],
-                  data: record,
-                };
-                setPendingDelete(taskFromRecord);
-              }}
-            />
-          )}
-        </NavigationOverlay>
-      )}
+      {navigation.isOverlay && navigation.isOpen && navigation.selectedRecord && (() => {
+        const objectName = dataConfig?.provider === 'object' ? dataConfig.object : schema.objectName;
+        const rec = navigation.selectedRecord as Record<string, any>;
+        const recordId = rec.id ?? rec._id;
+        if (!objectName || recordId == null) return null;
+        const drawerWidth = typeof navigation.width === 'number'
+          ? `${navigation.width}px`
+          : (navigation.width as string | undefined);
+        const widthStyle = drawerWidth
+          ? { width: drawerWidth, maxWidth: drawerWidth }
+          : undefined;
+        return (
+          <Sheet open onOpenChange={(open) => { if (!open) navigation.close(); }}>
+            <SheetContent
+              side="right"
+              className="w-full sm:max-w-2xl overflow-y-auto p-0"
+              style={widthStyle}
+            >
+              <SheetHeader className="px-6 pt-6 pb-2">
+                <SheetTitle>{ganttConfig?.titleField ? String(rec[ganttConfig.titleField] ?? 'Task Details') : 'Task Details'}</SheetTitle>
+              </SheetHeader>
+              <div className="px-6 pb-6">
+                <DetailView
+                  dataSource={dataSource}
+                  inlineEdit
+                  schema={{
+                    type: 'detail-view',
+                    objectName,
+                    resourceId: String(recordId),
+                    data: rec,
+                    showEdit: true,
+                    showDelete: true,
+                    columns: 2,
+                    fields: Object.keys(rec)
+                      .filter((k) => k !== 'id' && k !== '_id' && !k.startsWith('__'))
+                      .map((name) => ({ name })),
+                  } as any}
+                  onFieldSave={async (field, value) => {
+                    if (!dataSource?.update) return;
+                    try {
+                      await dataSource.update(objectName, String(recordId), { [field]: value });
+                      setData((prev) => prev.map((r) =>
+                        String(r.id ?? r._id) === String(recordId)
+                          ? { ...r, [field]: value }
+                          : r,
+                      ));
+                    } catch (err) {
+                      console.error('[ObjectGantt] inline field save failed:', err);
+                    }
+                  }}
+                  onDelete={async () => {
+                    if (!dataSource?.delete) return;
+                    try {
+                      await dataSource.delete(objectName, String(recordId));
+                      setData((prev) => prev.filter((r) =>
+                        String(r.id ?? r._id) !== String(recordId),
+                      ));
+                      navigation.close();
+                    } catch (err) {
+                      console.error('[ObjectGantt] delete failed:', err);
+                    }
+                  }}
+                />
+              </div>
+            </SheetContent>
+          </Sheet>
+        );
+      })()}
 
       {/* Quick-create dialog */}
       <Dialog open={!!quickCreate} onOpenChange={(open) => { if (!open) setQuickCreate(null); }}>
