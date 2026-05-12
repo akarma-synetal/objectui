@@ -242,28 +242,33 @@ export function RecordDetailDrawer({
             className="hidden sm:block absolute left-0 top-0 h-full w-1.5 cursor-col-resize select-none bg-transparent hover:bg-primary/30 active:bg-primary/50 transition-colors z-10"
           />
         )}
-        <SheetHeader className="px-6 pt-6 pb-2">
-          <div className="flex items-center justify-between gap-2">
-            <SheetTitle className="truncate">{title}</SheetTitle>
-            {fullPageHref && (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="gap-2 shrink-0"
-                    onClick={() => window.open(fullPageHref, '_blank', 'noopener')}
-                  >
-                    <ExternalLink className="h-4 w-4" />
-                    <span className="hidden sm:inline">{t('detail.openInNewTab')}</span>
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>{t('detail.openInNewTab')}</TooltipContent>
-              </Tooltip>
-            )}
-          </div>
+        {/* Accessible title for screen readers — DetailView's own
+            HeaderHighlight renders the visible title, so we hide ours
+            visually to avoid the duplicate-heading look. */}
+        <SheetHeader className="sr-only">
+          <SheetTitle>{title}</SheetTitle>
         </SheetHeader>
-        <div className="px-6 pb-6">
+        {/* "Open in new tab" — icon-only ghost button, tucked next to
+            the built-in close (X) button at the top-right of the
+            drawer. Kept subtle on purpose: the primary action surface
+            is the DetailView header inside. */}
+        {fullPageHref && (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                aria-label={t('detail.openInNewTab')}
+                className="absolute right-12 top-3 h-8 w-8 text-muted-foreground hover:text-foreground z-10"
+                onClick={() => window.open(fullPageHref, '_blank', 'noopener')}
+              >
+                <ExternalLink className="h-4 w-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>{t('detail.openInNewTab')}</TooltipContent>
+          </Tooltip>
+        )}
+        <div className="px-6 pt-6 pb-6">
           <DetailView
             dataSource={dataSource}
             inlineEdit
