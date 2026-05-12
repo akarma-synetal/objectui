@@ -26,7 +26,6 @@ import {
   SheetContent,
   SheetHeader,
   SheetTitle,
-  Button,
   Tooltip,
   TooltipContent,
   TooltipTrigger,
@@ -230,6 +229,12 @@ export function RecordDetailDrawer({
         side="right"
         className="w-full overflow-y-auto p-0 sm:!max-w-none"
         style={widthStyle}
+        // Suppress Radix's default auto-focus on open. The drawer is for
+        // browsing/inspecting a record, not for immediate keyboard entry,
+        // so auto-focusing the Close button (or the first focusable
+        // child) flashes a focus ring on mount which feels jarring.
+        // Keyboard users can still Tab in normally.
+        onOpenAutoFocus={(e) => e.preventDefault()}
       >
         {/* Drag handle on the left edge — only rendered on >= sm screens
             where pointer-resize is meaningful. */}
@@ -248,22 +253,22 @@ export function RecordDetailDrawer({
         <SheetHeader className="sr-only">
           <SheetTitle>{title}</SheetTitle>
         </SheetHeader>
-        {/* "Open in new tab" — icon-only ghost button, tucked next to
-            the built-in close (X) button at the top-right of the
-            drawer. Kept subtle on purpose: the primary action surface
-            is the DetailView header inside. */}
+        {/* "Open in new tab" — bare icon button styled identically to
+            the built-in Close (X) so the two affordances line up
+            pixel-perfect at the top-right. Both are 16px icons with
+            opacity-70 → 100 on hover; we just sit at right-10 to leave
+            room for the X at right-4. */}
         {fullPageHref && (
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
+              <button
+                type="button"
                 aria-label={t('detail.openInNewTab')}
-                className="absolute right-12 top-3 h-8 w-8 text-muted-foreground hover:text-foreground z-10"
+                className="absolute right-10 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 z-10"
                 onClick={() => window.open(fullPageHref, '_blank', 'noopener')}
               >
                 <ExternalLink className="h-4 w-4" />
-              </Button>
+              </button>
             </TooltipTrigger>
             <TooltipContent>{t('detail.openInNewTab')}</TooltipContent>
           </Tooltip>
