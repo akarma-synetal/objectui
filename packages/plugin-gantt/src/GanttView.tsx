@@ -22,11 +22,6 @@ import {
 import { 
   cn, 
   Button, 
-  Select, 
-  SelectContent, 
-  SelectItem, 
-  SelectTrigger, 
-  SelectValue,
   Separator,
   useResizeObserver,
 } from "@object-ui/components"
@@ -72,16 +67,26 @@ export interface GanttTask {
   dependencies?: (string | number)[]
 }
 
+/**
+ * @deprecated The day/week/month/quarter view-mode dropdown was removed
+ * because all four values rendered the same daily-column timeline.
+ * Kept exported only to avoid breaking downstream type imports; the
+ * `viewMode` / `onViewChange` props on `GanttViewProps` are no-ops.
+ * Re-introduce real semantics here when timeline granularity is
+ * implemented.
+ */
 export type GanttViewMode = 'day' | 'week' | 'month' | 'quarter';
 
 export interface GanttViewProps {
   tasks: GanttTask[]
+  /** @deprecated no-op — see {@link GanttViewMode} */
   viewMode?: GanttViewMode
   startDate?: Date
   endDate?: Date
   onTaskClick?: (task: GanttTask) => void
   onTaskUpdate?: (task: GanttTask, changes: Partial<Pick<GanttTask, 'title' | 'start' | 'end' | 'progress'>>) => void
   onTaskDelete?: (task: GanttTask) => void
+  /** @deprecated no-op — see {@link GanttViewMode} */
   onViewChange?: (view: GanttViewMode) => void
   className?: string
   /** Enable inline editing of task fields */
@@ -90,12 +95,10 @@ export interface GanttViewProps {
 
 export function GanttView({
   tasks,
-  viewMode = 'month',
   startDate,
   endDate,
   onTaskClick,
   onTaskUpdate,
-  onViewChange,
   className,
   inlineEdit = false,
 }: GanttViewProps) {
@@ -352,17 +355,12 @@ export function GanttView({
         </div>
         
         <div className="flex items-center gap-2">
-          <Select value={viewMode} onValueChange={(v) => onViewChange?.(v as GanttViewMode)}>
-            <SelectTrigger className="w-[100px] sm:w-[120px] h-8">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="day">Day View</SelectItem>
-              <SelectItem value="week">Week View</SelectItem>
-              <SelectItem value="month">Month View</SelectItem>
-              <SelectItem value="quarter">Quarter View</SelectItem>
-            </SelectContent>
-          </Select>
+          {/* View-mode select removed — it was cosmetic only. The
+              timeline always iterates one day per column regardless of
+              the chosen value, and the only knob that actually changes
+              column density is the Zoom in/out below. Re-introduce a
+              real Select here when day/week/month/quarter rendering is
+              actually implemented in `timeColumns` + `tickWidth`. */}
           <div className="flex bg-muted rounded-md p-1">
             <Button
               variant="ghost"
