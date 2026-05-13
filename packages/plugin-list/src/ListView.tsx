@@ -1757,7 +1757,12 @@ export const ListView = React.forwardRef<ListViewHandle, ListViewProps>(({
 
       {/* View Content */}
       <div key={currentView} className="flex-1 min-h-0 bg-background relative overflow-hidden animate-in fade-in-0 duration-200">
-        {!loading && data.length === 0 ? (
+        {/* Empty state is rendered here ONLY for tabular/list-like views.
+            Structural views (kanban/calendar/gallery/gantt/timeline/map) own
+            their own empty rendering so their column/lane/grid structure
+            stays visible — otherwise users see a generic "No items found"
+            on Task Board / Calendar etc. even though the view exists. */}
+        {!loading && data.length === 0 && (currentView === 'grid' || currentView === 'list') ? (
           (() => {
             const iconName = schema.emptyState?.icon;
             const ResolvedIcon: LucideIcon = iconName
