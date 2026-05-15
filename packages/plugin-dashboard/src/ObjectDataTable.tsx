@@ -292,8 +292,36 @@ export const ObjectDataTable: React.FC<ObjectDataTableProps> = ({ schema, dataSo
       return withHeaders.map(enrich);
     }
     if (finalData.length === 0) return [];
-    const keys = Object.keys(finalData[0]).filter(k => !k.startsWith('_'));
-    return keys.map(k => enrich({ header: buildHeader(k), accessorKey: k }));
+
+    // Auto-derived columns should hide framework/system audit fields by
+    // default. Users wanting them can pass an explicit `columns` whitelist.
+    const SYSTEM_FIELDS = new Set([
+      'id',
+      'organization_id',
+      'tenant_id',
+      'created_at',
+      'updated_at',
+      'created_by',
+      'updated_by',
+      'deleted_at',
+      'deleted_by',
+      'version',
+      '_id',
+      '__typename',
+    ]);
+    const isSystemField = (name: string, def?: any): boolean => {
+      if (def && (def.isSystem === true || def.system === true)) return true;
+      return SYSTEM_FIELDS.has(name);
+    };
+
+    // Prefer the objectSchema field order (declaration order = author intent)
+    // and drop system fields. Fall back to the row's keys when no schema
+    // is loaded, applying the same denylist.
+    const orderedKeys = Object.keys(fieldsByName).length > 0
+      ? Object.keys(fieldsByName).filter((k) => !isSystemField(k, fieldsByName[k]))
+      : Object.keys(finalData[0]).filter((k) => !k.startsWith('_') && !isSystemField(k));
+
+    return orderedKeys.map((k) => enrich({ header: buildHeader(k), accessorKey: k }));
   }, [schema.columns, schema.objectName, finalData, objectSchema, fieldLabel, fieldOptionLabel]);
 
   // Note: per-cell select-label translation that used to happen here is now
