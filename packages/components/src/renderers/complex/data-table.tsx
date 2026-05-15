@@ -751,10 +751,13 @@ const DataTableRenderer = ({ schema }: { schema: DataTableSchema }) => {
         </div>
       )}
 
-      {/* Table - horizontal scroll indicator via inset shadow on mobile */}
+      {/* Table - horizontal scroll indicator via inset shadow on mobile.
+          When `borderless`, drop the rounded frame AND the inset shadow so
+          the table sits flush against its container without a floating
+          right-edge gradient that looked odd without a surrounding border. */}
       <div className={cn(
-        "flex-1 min-h-0 overflow-auto relative bg-background [-webkit-overflow-scrolling:touch] shadow-[inset_-8px_0_8px_-8px_rgba(0,0,0,0.08)]",
-        !borderless && "rounded-md border",
+        "flex-1 min-h-0 overflow-auto relative bg-background [-webkit-overflow-scrolling:touch]",
+        !borderless && "rounded-md border shadow-[inset_-8px_0_8px_-8px_rgba(0,0,0,0.08)]",
       )}>
         <Table>
           {caption && <TableCaption>{caption}</TableCaption>}

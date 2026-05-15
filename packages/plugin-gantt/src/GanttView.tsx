@@ -335,7 +335,7 @@ export function GanttView({
   };
 
   return (
-    <div ref={containerRef} className={cn("flex flex-col h-full bg-background border rounded-lg overflow-hidden min-w-0", className)}>
+    <div ref={containerRef} className={cn("flex flex-col h-full bg-background overflow-hidden min-w-0", className)}>
       {/* Toolbar */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 p-2 border-b bg-card">
         <div className="flex items-center gap-2">

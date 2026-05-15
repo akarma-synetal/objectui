@@ -238,18 +238,61 @@ export const ObjectKanban: React.FC<ObjectKanbanProps> = ({
         if (n >= 1_000) return `$${Math.round(n / 1_000)}K`;
         return `$${n}`;
       };
+      // Detect strings that look like opaque foreign-key IDs so we don't dump
+      // gibberish into card descriptions when the server didn't expand the lookup.
+      const OPAQUE_ID_RE = /^[A-Za-z0-9_-]{12,32}$/;
+      const isOpaqueId = (v: unknown): boolean => {
+        if (typeof v !== 'string') return false;
+        if (!OPAQUE_ID_RE.test(v)) return false;
+        const hasUpper = /[A-Z]/.test(v);
+        const hasLower = /[a-z]/.test(v);
+        const hasDigitOrSep = /[0-9_-]/.test(v);
+        return (hasUpper && hasLower) || (hasUpper && hasDigitOrSep) || (hasLower && hasDigitOrSep);
+      };
+      // Pull a human-readable display string from a field. Prefers expanded
+      // record's `.name`, skips raw FK IDs, and skips lookup-typed fields whose
+      // value didn't get expanded (so we never show "8UY9zHWBfjYjYor4").
+      const resolveDisplay = (key: string): string | undefined => {
+        const raw = (item as any)[key];
+        if (raw == null || raw === '') return undefined;
+        if (typeof raw === 'object') {
+          const obj = raw as Record<string, unknown>;
+          const candidates = ['name', 'full_name', 'display_name', 'label', 'title', 'username'];
+          for (const c of candidates) {
+            const v = obj[c];
+            if (typeof v === 'string' && v.trim()) return v.trim();
+          }
+          return undefined;
+        }
+        if (typeof raw !== 'string') return String(raw);
+        const def = objectDef?.fields?.[key];
+        const isLookup =
+          def?.type === 'lookup' || def?.type === 'master_detail' || def?.type === 'reference';
+        if (isLookup && isOpaqueId(raw)) return undefined;
+        if (isOpaqueId(raw)) return undefined;
+        return raw;
+      };
+
       const descParts: string[] = [];
       const moneyField = ['amount', 'value', 'deal_value', 'expected_value', 'opportunity_value']
         .find(k => typeof item[k] === 'number');
       if (moneyField) descParts.push(fmtMoney(item[moneyField] as number));
-      const orgField = ['company', 'company_name', 'account', 'account_name', 'organization']
-        .find(k => typeof item[k] === 'string' && item[k]);
-      if (orgField && (!resolvedTitle || !String(resolvedTitle).includes(item[orgField]))) {
-        descParts.push(item[orgField]);
+      const orgKeys = ['company', 'company_name', 'account', 'account_name', 'organization'];
+      let orgDisplay: string | undefined;
+      for (const k of orgKeys) {
+        const d = resolveDisplay(k);
+        if (d) { orgDisplay = d; break; }
       }
-      const ownerField = ['owner', 'owner_name', 'assignee', 'assignee_name']
-        .find(k => typeof item[k] === 'string' && item[k]);
-      if (ownerField) descParts.push(`@${item[ownerField]}`);
+      if (orgDisplay && (!resolvedTitle || !String(resolvedTitle).includes(orgDisplay))) {
+        descParts.push(orgDisplay);
+      }
+      const ownerKeys = ['owner', 'owner_name', 'assignee', 'assignee_name'];
+      let ownerDisplay: string | undefined;
+      for (const k of ownerKeys) {
+        const d = resolveDisplay(k);
+        if (d) { ownerDisplay = d; break; }
+      }
+      if (ownerDisplay) descParts.push(`@${ownerDisplay}`);
 
       const badgeFields = ['priority', 'severity', 'industry', 'rating'];
       const cardBadges: Array<{ label: string; variant?: any; colorClass?: string }> = [];
@@ -267,14 +310,24 @@ export const ObjectKanban: React.FC<ObjectKanbanProps> = ({
         }
       }
 
+      // Treat raw-ID-shaped description as missing so we synthesize a real one
+      // from semantic fields below (avoids "8UY9zHWBfjYjYor4" appearing as subtitle).
+      const incomingDesc = (item as any).description;
+      const descMissing =
+        incomingDesc == null ||
+        incomingDesc === '' ||
+        (typeof incomingDesc === 'string' && isOpaqueId(incomingDesc));
+
       return {
         ...item,
         // Ensure id exists
         id: item.id || item._id,
         // Map title
         title: resolvedTitle || 'Untitled',
-        ...(item.description == null && descParts.length > 0
+        ...(descMissing && descParts.length > 0
           ? { description: descParts.join(' · ') }
+          : descMissing
+          ? { description: undefined }
           : {}),
         ...(!Array.isArray(item.badges) && cardBadges.length > 0
           ? { badges: cardBadges }

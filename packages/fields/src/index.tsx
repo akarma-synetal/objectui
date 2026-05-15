@@ -12,6 +12,103 @@ import { ComponentRegistry } from '@object-ui/core';
 import { Badge, Avatar, AvatarFallback, Button, Checkbox, EmptyValue, cn } from '@object-ui/components';
 import { Check, X, Copy, Phone as PhoneIcon } from 'lucide-react';
 import { useObjectTranslation } from '@object-ui/react';
+import { SchemaRendererContext as _SchemaRendererContext } from '@object-ui/react';
+
+// Module-level cache so multiple renderers fetching the same lookup ID
+// only trigger one network call. Keyed by `${objectName}:${id}`.
+type LookupCacheEntry =
+  | { state: 'pending'; promise: Promise<void> }
+  | { state: 'ok'; name: string | undefined }
+  | { state: 'err' };
+const lookupNameCache: Map<string, LookupCacheEntry> = new Map();
+
+/**
+ * Pick the most reasonable display name from an arbitrary record object.
+ * Tries common name-like keys in priority order, then falls back to undefined.
+ */
+function pickRecordDisplayName(record: Record<string, unknown> | null | undefined): string | undefined {
+  if (!record || typeof record !== 'object') return undefined;
+  const candidates = ['name', 'full_name', 'display_name', 'label', 'title', 'subject', 'username', 'email'];
+  for (const k of candidates) {
+    const v = record[k];
+    if (typeof v === 'string' && v.trim()) return v.trim();
+    if (typeof v === 'number') return String(v);
+  }
+  return undefined;
+}
+
+/**
+ * Heuristic: detect strings that look like opaque foreign-key IDs (e.g. nanoid
+ * or BSON ObjectId). Used so we don't display random gibberish to users when
+ * a lookup wasn't expanded.
+ */
+export function isLikelyOpaqueId(v: unknown): boolean {
+  if (typeof v !== 'string') return false;
+  // 12-32 chars, only [A-Za-z0-9_-], no whitespace.
+  if (!/^[A-Za-z0-9_-]{12,32}$/.test(v)) return false;
+  // Must have BOTH upper- and lower-case letters (real words rarely do at this length).
+  // Also accept tokens that contain `_` or `-` separators alongside any case mix.
+  const hasUpper = /[A-Z]/.test(v);
+  const hasLower = /[a-z]/.test(v);
+  const hasDigitOrSep = /[0-9_-]/.test(v);
+  return (hasUpper && hasLower) || (hasUpper && hasDigitOrSep) || (hasLower && hasDigitOrSep);
+}
+
+/**
+ * Fetch-on-demand resolver for foreign-key IDs that weren't expanded by the
+ * server. Reads `dataSource` from SchemaRendererContext; safely no-ops if
+ * the context isn't installed. Returns the resolved display name or
+ * `undefined` while pending or unresolvable.
+ */
+function useLookupName(referenceTo: string | undefined, value: unknown): string | undefined {
+  const ctx = React.useContext(_SchemaRendererContext);
+  const dataSource = ctx?.dataSource;
+  const [, force] = React.useState(0);
+
+  const isResolvable =
+    !!referenceTo &&
+    !!dataSource &&
+    typeof dataSource.find === 'function' &&
+    (typeof value === 'string' || typeof value === 'number') &&
+    value !== '';
+  const cacheKey = isResolvable ? `${referenceTo}:${String(value)}` : '';
+
+  React.useEffect(() => {
+    if (!isResolvable) return;
+    const existing = lookupNameCache.get(cacheKey);
+    if (existing && existing.state !== 'pending' && (existing as any).promise == null) return;
+    if (existing?.state === 'pending') return;
+
+    const promise: Promise<void> = (async () => {
+      try {
+        let record: Record<string, unknown> | undefined;
+        if (typeof (dataSource as any).findOne === 'function') {
+          record = await (dataSource as any).findOne(referenceTo, value);
+        } else {
+          const result = await (dataSource as any).find(referenceTo, {
+            $filter: { id: value },
+            options: { $top: 1 },
+          });
+          const records: any[] = Array.isArray(result)
+            ? result
+            : (result?.value || result?.data || []);
+          record = records[0];
+        }
+        const name = pickRecordDisplayName(record);
+        lookupNameCache.set(cacheKey, { state: 'ok', name });
+      } catch {
+        lookupNameCache.set(cacheKey, { state: 'err' });
+      }
+      force((n) => n + 1);
+    })();
+
+    lookupNameCache.set(cacheKey, { state: 'pending', promise });
+  }, [cacheKey, isResolvable, referenceTo, value, dataSource]);
+
+  if (!isResolvable) return undefined;
+  const entry = lookupNameCache.get(cacheKey);
+  return entry?.state === 'ok' ? entry.name : undefined;
+}
 
 /**
  * Safe label resolver for cell-level UI strings. Falls back to the English
@@ -901,21 +998,62 @@ export function ImageCellRenderer({ value }: CellRendererProps): React.ReactElem
 }
 
 /**
- * Lookup/Master-Detail field cell renderer
+ * Lookup/Master-Detail field cell renderer.
+ *
+ * Display order:
+ * 1. Embedded record object (`{ id, name, ... }` from `$expand`) → use its name
+ * 2. Static `field.options[]` (e.g. when the lookup is a closed enum) → look up label
+ * 3. Fetch-on-demand: when the value is a primitive ID and `field.reference_to`
+ *    is known, resolve via dataSource and show the related record's display name.
+ *    Falls back to a muted placeholder while pending and on failure.
  */
 export function LookupCellRenderer({ value, field }: CellRendererProps): React.ReactElement {
+  const referenceTo = (field as { reference_to?: string }).reference_to;
+
+  // Pick the FIRST primitive id we see (for arrays, only the first one is auto-resolved
+  // to keep the cell cheap; multi-value lookups should generally be expanded server-side).
+  const primaryPrimitiveId = (() => {
+    if (Array.isArray(value)) {
+      const firstPrimitive = value.find(
+        (v) => v != null && (typeof v === 'string' || typeof v === 'number') && v !== '',
+      );
+      return firstPrimitive;
+    }
+    if (
+      value != null &&
+      value !== '' &&
+      (typeof value === 'string' || typeof value === 'number') &&
+      typeof value !== 'object'
+    ) {
+      return value;
+    }
+    return undefined;
+  })();
+
+  // Always call the hook (rules of hooks). It safely no-ops when inputs are missing.
+  const resolvedName = useLookupName(referenceTo, primaryPrimitiveId);
+
   if (value == null || value === '') return <EmptyValue />;
 
   const options: Array<{ value: unknown; label: string }> =
     (field as { options?: Array<{ value: unknown; label: string }> }).options || [];
 
-  // Resolve a primitive ID to a label via options if available
-  const resolveLabel = (val: unknown): string => {
+  // Resolve a primitive ID to a label. Order:
+  //   options → server-resolved name (via useLookupName) → muted placeholder for opaque IDs → raw value
+  const resolveLabel = (val: unknown): { text: string; muted: boolean } => {
     if (options.length > 0) {
       const found = options.find((opt) => String(opt.value) === String(val));
-      if (found) return found.label;
+      if (found) return { text: found.label, muted: false };
     }
-    return String(val);
+    if (val === primaryPrimitiveId && resolvedName) {
+      return { text: resolvedName, muted: false };
+    }
+    if (isLikelyOpaqueId(val)) {
+      // Don't dump a random-looking ID at the user. Show a soft placeholder
+      // that conveys "this is a reference, name unavailable".
+      return { text: '—', muted: true };
+    }
+    return { text: String(val), muted: false };
   };
 
   if (Array.isArray(value)) {
@@ -923,15 +1061,23 @@ export function LookupCellRenderer({ value, field }: CellRendererProps): React.R
       <div className="flex flex-wrap gap-1">
         {value.map((item, idx) => {
           let label: string;
+          let muted = false;
           if (item != null && typeof item === 'object') {
-            label = item.name || item.label || item.id || item._id || String(item);
+            label = pickRecordDisplayName(item as Record<string, unknown>) || String((item as any).id || (item as any)._id || '[Object]');
           } else {
-            label = resolveLabel(item);
+            const r = resolveLabel(item);
+            label = r.text;
+            muted = r.muted;
           }
           return (
             <span
               key={idx}
-              className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-50 text-gray-700 dark:bg-gray-800/50 dark:text-gray-200"
+              className={cn(
+                'inline-flex items-center px-2 py-0.5 rounded text-xs font-medium',
+                muted
+                  ? 'bg-muted/40 text-muted-foreground'
+                  : 'bg-gray-50 text-gray-700 dark:bg-gray-800/50 dark:text-gray-200',
+              )}
             >
               {label}
             </span>
@@ -940,14 +1086,17 @@ export function LookupCellRenderer({ value, field }: CellRendererProps): React.R
       </div>
     );
   }
-  
+
   if (typeof value === 'object' && value !== null) {
-    const label = value.name || value.label || value.id || value._id || '[Object]';
+    const label =
+      pickRecordDisplayName(value as Record<string, unknown>) ||
+      String((value as any).id || (value as any)._id || '[Object]');
     return <span className="truncate">{label}</span>;
   }
-  
-  // Primitive value (e.g. raw ID): try to resolve from options
-  return <span className="truncate">{resolveLabel(value)}</span>;
+
+  // Primitive value (e.g. raw ID): try options → resolver → opaque-ID placeholder → raw
+  const { text, muted } = resolveLabel(value);
+  return <span className={cn('truncate', muted && 'text-muted-foreground')}>{text}</span>;
 }
 
 /**

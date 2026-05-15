@@ -605,7 +605,7 @@ export const ObjectCalendar: React.FC<ObjectCalendarProps> = ({
           {isRefreshing ? 'Refreshing…' : 'Pull to refresh'}
         </div>
       )}
-      <div className="border rounded-lg bg-background h-[calc(100vh-120px)] sm:h-[calc(100vh-160px)] md:h-[calc(100vh-200px)] min-h-[400px] sm:min-h-[600px]">
+      <div className="bg-background h-[calc(100vh-120px)] sm:h-[calc(100vh-160px)] md:h-[calc(100vh-200px)] min-h-[400px] sm:min-h-[600px]">
         <CalendarView
           events={events}
           currentDate={currentDate}

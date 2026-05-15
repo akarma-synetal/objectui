@@ -672,11 +672,62 @@ export const ListView = React.forwardRef<ListViewHandle, ListViewProps>(({
     return () => { isMounted = false; };
   }, [schema.objectName, dataSource]);
 
-  // Auto-compute $expand fields from objectDef (lookup / master_detail)
-  const expandFields = React.useMemo(
-    () => buildExpandFields(objectDef?.fields, schema.fields),
-    [objectDef?.fields, schema.fields],
-  );
+  // Auto-compute $expand fields from objectDef (lookup / master_detail).
+  //
+  // Important: include not only the user-declared `schema.fields` (table
+  // columns) but also the runtime fields used by alternate view types
+  // (kanban cardFields, calendar dateField, gallery coverField, etc.).
+  // Otherwise a kanban whose card shows `account` would request
+  // `?select=...,account,...` but never `populate=account`, so the server
+  // returns the bare FK ID instead of the expanded record. This is why
+  // list view shows "Initech Solutions" but kanban used to show
+  // "8UY9zHWBfjYjYor4" for the same field.
+  const expandFields = React.useMemo(() => {
+    const baseColumns = Array.isArray(schema.fields)
+      ? (schema.fields as any[])
+          .map((f) => (typeof f === 'string' ? f : f?.field))
+          .filter((v): v is string => typeof v === 'string' && v.length > 0)
+      : [];
+    const collected = new Set<string>(baseColumns);
+    const collectViewFields = (v: any) => {
+      if (!v) return;
+      const candidates = [
+        v.groupField, v.groupBy,
+        v.titleField, v.cardTitle,
+        v.startDateField, v.endDateField, v.dateField, v.endField,
+        v.colorField, v.allDayField,
+        v.coverField, v.imageField, v.subtitleField,
+        v.swimlaneField, v.valueField,
+        ...(Array.isArray(v.cardFields) ? v.cardFields : []),
+        ...(Array.isArray(v.visibleFields) ? v.visibleFields : []),
+        ...(Array.isArray(v.metaFields) ? v.metaFields : []),
+      ];
+      for (const f of candidates) {
+        if (typeof f === 'string' && f) collected.add(f);
+      }
+    };
+    collectViewFields((schema as any).kanban);
+    collectViewFields((schema as any).options?.kanban);
+    collectViewFields((schema as any).calendar);
+    collectViewFields((schema as any).options?.calendar);
+    collectViewFields((schema as any).gallery);
+    collectViewFields((schema as any).options?.gallery);
+    collectViewFields((schema as any).timeline);
+    collectViewFields((schema as any).options?.timeline);
+    collectViewFields((schema as any).gantt);
+    collectViewFields((schema as any).options?.gantt);
+    const augmented = collected.size > 0 ? Array.from(collected) : undefined;
+    return buildExpandFields(objectDef?.fields, augmented);
+  }, [
+    objectDef?.fields,
+    schema.fields,
+    (schema as any).kanban,
+    (schema as any).calendar,
+    (schema as any).gallery,
+    (schema as any).timeline,
+    (schema as any).gantt,
+    (schema as any).options,
+  ]);
 
   // Fetch data effect — supports schema.data (ViewDataSchema) provider modes
   React.useEffect(() => {

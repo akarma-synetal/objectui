@@ -270,7 +270,7 @@ function KanbanColumnView({
       aria-label={column.title}
       style={columnStyle}
       className={cn(
-        "flex flex-col rounded-lg border border-border bg-card/20 backdrop-blur-sm shadow-xl snap-start max-h-full min-h-0",
+        "flex flex-col rounded-lg border border-border bg-muted/20 snap-start max-h-full min-h-0",
         widthClasses,
         column.className
       )}
@@ -546,7 +546,7 @@ function KanbanBoardInner({ columns, onCardMove, onCardClick, className, dnd, qu
 
       {swimlanes ? (
         /* Swimlane (2D) layout */
-        <div className={cn("flex flex-col gap-1 p-2 sm:p-4 min-w-0 overflow-hidden", className)} role="region" aria-label="Kanban board with swimlanes">
+        <div className={cn("flex flex-col gap-2 px-4 sm:px-6 py-3 sm:py-4 min-w-0 overflow-hidden", className)} role="region" aria-label="Kanban board with swimlanes">
           {/* Column headers */}
           <div className="flex gap-3 sm:gap-4 pl-36 sm:pl-44 overflow-x-auto">
             {boardColumns.map(col => (
@@ -603,7 +603,7 @@ function KanbanBoardInner({ columns, onCardMove, onCardClick, className, dnd, qu
         </div>
       ) : (
         /* Standard flat layout */
-        <div className={cn("flex gap-3 sm:gap-4 overflow-x-auto snap-x snap-mandatory p-2 sm:p-4 bg-muted/10 rounded-lg [-webkit-overflow-scrolling:touch] min-w-0 min-h-0 h-full", className)} role="region" aria-label="Kanban board">
+        <div className={cn("flex gap-3 sm:gap-4 overflow-x-auto snap-x snap-mandatory px-4 sm:px-6 py-3 sm:py-4 [-webkit-overflow-scrolling:touch] min-w-0 min-h-0 h-full", className)} role="region" aria-label="Kanban board">
           {boardColumns.map((column) => (
             <KanbanColumnView
               key={column.id}

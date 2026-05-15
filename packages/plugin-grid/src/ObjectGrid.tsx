@@ -1376,6 +1376,11 @@ export const ObjectGrid: React.FC<ObjectGridProps> = ({
     selectable: selectionMode,
     sortable: true,
     exportable: operations?.export,
+    // Flat list view: drop the rounded outer frame so the table sits flush
+    // beneath the toolbar's `border-b`. Matches the Airtable-style grouped
+    // mode introduced for `buildGroupTableSchema`. Metadata can re-enable
+    // the frame by setting `borderless: false` on the schema.
+    borderless: true,
     // RowActionMenu column (from columnsWithActions) already handles edit/delete
     // actions via onEdit/onDelete props. Only enable DataTable's built-in action
     // column for inline-editing save/cancel (editable grids with onRowSave).
