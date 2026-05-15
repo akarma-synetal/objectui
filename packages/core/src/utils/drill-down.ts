@@ -40,6 +40,8 @@ export interface DrillEvent {
   colLabel?: string;
   /** Chart: x-axis / category value. */
   category?: string;
+  /** Chart: human-readable label for the category (when raw differs from display). */
+  categoryLabel?: string;
   /** Chart: series name (multi-series charts). */
   series?: string;
   /** Aggregated value at the click point. */
@@ -170,7 +172,8 @@ export function resolveDrillTitle(
   const parts: string[] = [];
   if (event.rowLabel) parts.push(event.rowLabel);
   if (event.colLabel) parts.push(event.colLabel);
-  if (event.category) parts.push(event.category);
+  if (event.categoryLabel) parts.push(event.categoryLabel);
+  else if (event.category) parts.push(event.category);
   if (event.series) parts.push(event.series);
   return parts.length > 0 ? parts.join(' × ') : fallback;
 }
