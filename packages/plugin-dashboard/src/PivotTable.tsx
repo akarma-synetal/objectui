@@ -9,6 +9,7 @@
 import React, { useMemo } from 'react';
 import type { PivotTableSchema, PivotAggregation } from '@object-ui/types';
 import { cn } from '@object-ui/components';
+import { isDrillEnabled, type DrillEvent } from '@object-ui/core';
 
 export interface PivotTableProps {
   schema: PivotTableSchema;
@@ -24,6 +25,12 @@ export interface PivotTableProps {
   columnLabels?: Record<string, string>;
   /** Optional display label for the row field name (e.g. "Stage" for "stage"). */
   rowFieldLabel?: string;
+  /**
+   * Drill-down click handler. When provided **and** `schema.drillDown` is
+   * enabled, cells / row & column headers / totals become interactive.
+   * Receives the click context which is forwarded to the drill-down engine.
+   */
+  onDrillDown?: (event: DrillEvent) => void;
 }
 
 /** Apply a simple format string to a number. Supports prefix/suffix like "$,.2f". */
@@ -107,7 +114,7 @@ function aggregate(values: number[], fn: PivotAggregation): number {
  * Renders a matrix where rows correspond to `rowField`, columns to
  * `columnField`, and cells show the aggregated `valueField`.
  */
-export const PivotTable: React.FC<PivotTableProps> = ({ schema, className, rowLabels, columnLabels, rowFieldLabel }) => {
+export const PivotTable: React.FC<PivotTableProps> = ({ schema, className, rowLabels, columnLabels, rowFieldLabel, onDrillDown }) => {
   const {
     title,
     rowField,
@@ -119,7 +126,27 @@ export const PivotTable: React.FC<PivotTableProps> = ({ schema, className, rowLa
     showColumnTotals = false,
     format,
     columnColors,
+    drillDown,
   } = schema;
+
+  const drillEnabled = isDrillEnabled(drillDown) && typeof onDrillDown === 'function';
+  const fireDrill = (ev: DrillEvent) => {
+    if (!drillEnabled) return;
+    onDrillDown!({
+      ...ev,
+      rowLabel: ev.rowKey !== undefined ? (rowLabels?.[ev.rowKey] ?? ev.rowKey) : ev.rowLabel,
+      colLabel: ev.colKey !== undefined ? (columnLabels?.[ev.colKey] ?? ev.colKey) : ev.colLabel,
+    });
+  };
+  const drillKey = (handler: () => void): React.KeyboardEventHandler => (e) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      handler();
+    }
+  };
+  const cellInteractive = drillEnabled
+    ? 'cursor-pointer hover:bg-accent/40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring focus-visible:outline-offset-[-2px]'
+    : '';
 
   // Ensure data is always an array – provider config objects must not reach iteration
   const data = Array.isArray(rawData) ? rawData : [];
@@ -219,19 +246,28 @@ export const PivotTable: React.FC<PivotTableProps> = ({ schema, className, rowLa
         <thead>
           <tr className="border-b border-border">
             <th className="text-left p-2 font-medium text-muted-foreground whitespace-nowrap">{rowFieldLabel || rowField}</th>
-            {colKeys.map((col) => (
-              <th
-                key={col}
-                className={cn(
-                  'text-right p-2 font-medium whitespace-nowrap',
-                  col === '' && 'italic text-muted-foreground/70',
-                  columnColors?.[col] ?? 'text-muted-foreground',
-                )}
-                title={col === '' ? `${columnField}: (empty)` : `${columnField}: ${col}`}
-              >
-                {displayKey(col, columnLabels)}
-              </th>
-            ))}
+            {colKeys.map((col) => {
+              const onClick = () => fireDrill({ scope: 'column', colKey: col });
+              return (
+                <th
+                  key={col}
+                  className={cn(
+                    'text-right p-2 font-medium whitespace-nowrap',
+                    col === '' && 'italic text-muted-foreground/70',
+                    columnColors?.[col] ?? 'text-muted-foreground',
+                    cellInteractive,
+                  )}
+                  title={col === '' ? `${columnField}: (empty)` : `${columnField}: ${col}`}
+                  role={drillEnabled ? 'button' : undefined}
+                  tabIndex={drillEnabled ? 0 : undefined}
+                  onClick={drillEnabled ? onClick : undefined}
+                  onKeyDown={drillEnabled ? drillKey(onClick) : undefined}
+                  aria-label={drillEnabled ? `Drill into ${columnField}: ${col || '(empty)'}` : undefined}
+                >
+                  {displayKey(col, columnLabels)}
+                </th>
+              );
+            })}
             {showRowTotals && (
               <th className="text-right p-2 font-semibold text-muted-foreground bg-muted/20 whitespace-nowrap">Total</th>
             )}
@@ -240,20 +276,49 @@ export const PivotTable: React.FC<PivotTableProps> = ({ schema, className, rowLa
         <tbody>
           {rowKeys.map((row) => (
             <tr key={row} className="border-b border-border/50 hover:bg-muted/30">
-              <td className={cn('p-2 font-medium whitespace-nowrap', row === '' && 'italic text-muted-foreground/70')}>{displayKey(row, rowLabels)}</td>
-              {colKeys.map((col) => (
-                <td
-                  key={col}
-                  className={cn(
-                    'text-right p-2 tabular-nums',
-                    columnColors?.[col],
-                  )}
-                >
-                  {fmt(matrix[row]?.[col] ?? 0)}
-                </td>
-              ))}
+              <td
+                className={cn(
+                  'p-2 font-medium whitespace-nowrap',
+                  row === '' && 'italic text-muted-foreground/70',
+                  cellInteractive,
+                )}
+                role={drillEnabled ? 'button' : undefined}
+                tabIndex={drillEnabled ? 0 : undefined}
+                onClick={drillEnabled ? () => fireDrill({ scope: 'row', rowKey: row }) : undefined}
+                onKeyDown={drillEnabled ? drillKey(() => fireDrill({ scope: 'row', rowKey: row })) : undefined}
+                aria-label={drillEnabled ? `Drill into ${rowField}: ${row || '(empty)'}` : undefined}
+              >
+                {displayKey(row, rowLabels)}
+              </td>
+              {colKeys.map((col) => {
+                const value = matrix[row]?.[col] ?? 0;
+                const onClick = () => fireDrill({ scope: 'cell', rowKey: row, colKey: col, value });
+                return (
+                  <td
+                    key={col}
+                    className={cn(
+                      'text-right p-2 tabular-nums',
+                      columnColors?.[col],
+                      cellInteractive,
+                    )}
+                    role={drillEnabled ? 'button' : undefined}
+                    tabIndex={drillEnabled ? 0 : undefined}
+                    onClick={drillEnabled ? onClick : undefined}
+                    onKeyDown={drillEnabled ? drillKey(onClick) : undefined}
+                    aria-label={drillEnabled ? `Drill into ${rowField}=${row || '(empty)'}, ${columnField}=${col || '(empty)'}` : undefined}
+                  >
+                    {fmt(value)}
+                  </td>
+                );
+              })}
               {showRowTotals && (
-                <td className="text-right p-2 font-semibold tabular-nums bg-muted/20">
+                <td
+                  className={cn('text-right p-2 font-semibold tabular-nums bg-muted/20', cellInteractive)}
+                  role={drillEnabled ? 'button' : undefined}
+                  tabIndex={drillEnabled ? 0 : undefined}
+                  onClick={drillEnabled ? () => fireDrill({ scope: 'row', rowKey: row, value: rowTotals[row] ?? 0 }) : undefined}
+                  onKeyDown={drillEnabled ? drillKey(() => fireDrill({ scope: 'row', rowKey: row, value: rowTotals[row] ?? 0 })) : undefined}
+                >
                   {fmt(rowTotals[row] ?? 0)}
                 </td>
               )}
@@ -265,12 +330,25 @@ export const PivotTable: React.FC<PivotTableProps> = ({ schema, className, rowLa
             <tr className="border-t-2 border-border font-semibold bg-muted/40">
               <td className="p-2">Total</td>
               {colKeys.map((col) => (
-                <td key={col} className="text-right p-2 tabular-nums">
+                <td
+                  key={col}
+                  className={cn('text-right p-2 tabular-nums', cellInteractive)}
+                  role={drillEnabled ? 'button' : undefined}
+                  tabIndex={drillEnabled ? 0 : undefined}
+                  onClick={drillEnabled ? () => fireDrill({ scope: 'column', colKey: col, value: colTotals[col] ?? 0 }) : undefined}
+                  onKeyDown={drillEnabled ? drillKey(() => fireDrill({ scope: 'column', colKey: col, value: colTotals[col] ?? 0 })) : undefined}
+                >
                   {fmt(colTotals[col] ?? 0)}
                 </td>
               ))}
               {showRowTotals && (
-                <td className="text-right p-2 tabular-nums font-bold">
+                <td
+                  className={cn('text-right p-2 tabular-nums font-bold', cellInteractive)}
+                  role={drillEnabled ? 'button' : undefined}
+                  tabIndex={drillEnabled ? 0 : undefined}
+                  onClick={drillEnabled ? () => fireDrill({ scope: 'total', value: grandTotal }) : undefined}
+                  onKeyDown={drillEnabled ? drillKey(() => fireDrill({ scope: 'total', value: grandTotal })) : undefined}
+                >
                   {fmt(grandTotal)}
                 </td>
               )}

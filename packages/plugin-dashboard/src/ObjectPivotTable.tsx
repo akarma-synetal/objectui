@@ -8,9 +8,10 @@
 
 import React, { useState, useEffect, useContext } from 'react';
 import { useDataScope, SchemaRendererContext } from '@object-ui/react';
-import { extractRecords } from '@object-ui/core';
+import { extractRecords, computeDrillFilter, isDrillEnabled, resolveDrillTitle, type DrillEvent } from '@object-ui/core';
 import { Skeleton, cn } from '@object-ui/components';
 import { PivotTable } from './PivotTable';
+import { DrillDownDrawer } from './DrillDownDrawer';
 import type { PivotTableSchema } from '@object-ui/types';
 
 export interface ObjectPivotTableProps {
@@ -51,6 +52,9 @@ export const ObjectPivotTable: React.FC<ObjectPivotTableProps> = ({ schema, data
   // top-left header cell.
   const [fieldLabelMaps, setFieldLabelMaps] = useState<Record<string, Record<string, string>>>({});
   const [fieldNameLabels, setFieldNameLabels] = useState<Record<string, string>>({});
+  // Drill-down click event — declared with the other hooks (above any
+  // conditional early return) to keep React's hook order stable.
+  const [drillEvent, setDrillEvent] = useState<DrillEvent | null>(null);
 
   useEffect(() => {
     if (!dataSource || !schema.objectName) return;
@@ -197,5 +201,47 @@ export const ObjectPivotTable: React.FC<ObjectPivotTableProps> = ({ schema, data
   const colLabels = schema.columnField ? fieldLabelMaps[schema.columnField] : undefined;
   const rowFieldLabel = schema.rowField ? fieldNameLabels[schema.rowField] : undefined;
 
-  return <PivotTable schema={finalSchema} className={className} rowLabels={rowLabels} columnLabels={colLabels} rowFieldLabel={rowFieldLabel} />;
+  // --- Drill-down wiring ---------------------------------------------------
+  const drillDown = (schema as any).drillDown;
+
+  const handleDrillDown = isDrillEnabled(drillDown)
+    ? (event: DrillEvent) => setDrillEvent(event)
+    : undefined;
+
+  const renderDrillDrawer = () => {
+    if (!drillEvent || !schema.objectName) return null;
+    const baseFilter = computeDrillFilter(drillDown, drillEvent, {
+      rowField: schema.rowField,
+      columnField: schema.columnField,
+    });
+    const merged = { ...(schema.filter || {}), ...baseFilter };
+    const title = resolveDrillTitle(drillDown, drillEvent, schema.title || 'Details');
+    return (
+      <DrillDownDrawer
+        open
+        onClose={() => setDrillEvent(null)}
+        title={title}
+        target={drillDown?.target ?? 'drawer'}
+        objectName={schema.objectName}
+        filter={merged}
+        dataSource={dataSource}
+        columns={drillDown?.columns}
+        maxRows={drillDown?.maxRows}
+      />
+    );
+  };
+
+  return (
+    <>
+      <PivotTable
+        schema={finalSchema}
+        className={className}
+        rowLabels={rowLabels}
+        columnLabels={colLabels}
+        rowFieldLabel={rowFieldLabel}
+        onDrillDown={handleDrillDown}
+      />
+      {renderDrillDrawer()}
+    </>
+  );
 };

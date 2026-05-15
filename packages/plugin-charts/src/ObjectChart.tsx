@@ -1,8 +1,9 @@
 
 import React, { useState, useEffect, useContext, useCallback, useMemo, useRef } from 'react';
-import { useDataScope, SchemaRendererContext } from '@object-ui/react';
+import { useDataScope, SchemaRendererContext, SchemaRenderer } from '@object-ui/react';
 import { ChartRenderer } from './ChartRenderer';
-import { ComponentRegistry, extractRecords } from '@object-ui/core';
+import { ComponentRegistry, extractRecords, computeDrillFilter, isDrillEnabled, resolveDrillTitle, type DrillEvent } from '@object-ui/core';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, Dialog, DialogContent, DialogHeader, DialogTitle } from '@object-ui/components';
 import { AlertCircle } from 'lucide-react';
 import { useSafeFieldLabel } from '@object-ui/i18n';
 
@@ -225,6 +226,9 @@ export const ObjectChart = (props: any) => {
   const [fetchedData, setFetchedData] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Drill-down click event — must be declared with the other hooks (above
+  // any conditional early return) to keep hook order stable between renders.
+  const [drillEvent, setDrillEvent] = useState<DrillEvent | null>(null);
 
   // Stable JSON keys for aggregate/filter so that callers passing a fresh
   // object literal on each render (e.g. DashboardRenderer.getComponentSchema)
@@ -343,7 +347,64 @@ export const ObjectChart = (props: any) => {
       return <div className={"flex items-center justify-center text-muted-foreground text-sm p-4 " + (schema.className || '')} data-testid="chart-no-datasource">No data source available for &ldquo;{schema.objectName}&rdquo;</div>;
   }
 
-  return <ChartRenderer {...props} schema={finalSchema} />;
+  // --- Drill-down --------------------------------------------------------
+  // Charts can opt into drill-down via `schema.drillDown`. Clicking a bar
+  // segment / pie slice opens a Sheet rendering the underlying records,
+  // filtered by the click context (category → groupBy field). The drilled
+  // table is rendered via SchemaRenderer + the registered "object-data-table"
+  // component (provided by plugin-dashboard).
+  const drillDown = (schema as any).drillDown;
+  const groupByField = schema.aggregate?.groupBy || schema.xAxisKey;
+
+  const onChartClick = isDrillEnabled(drillDown)
+    ? (ev: { category?: string; series?: string; value?: number }) =>
+        setDrillEvent({ ...ev, scope: 'cell' })
+    : undefined;
+
+  const drillDrawer = drillEvent && schema.objectName ? (() => {
+    const baseFilter = computeDrillFilter(drillDown, drillEvent, { groupByField });
+    const merged = { ...(schema.filter || {}), ...baseFilter };
+    const title = resolveDrillTitle(drillDown, drillEvent, schema.title || 'Details');
+    const target = drillDown?.target ?? 'drawer';
+    const tableSchema = {
+      type: 'object-data-table',
+      objectName: schema.objectName,
+      filter: merged,
+      pagination: true,
+      pageSize: drillDown?.maxRows,
+      columns: drillDown?.columns?.map((c: string) => ({ accessorKey: c, header: c })),
+    };
+    const body = (
+      <div className="overflow-auto" data-testid="chart-drill-body">
+        <SchemaRenderer schema={tableSchema} dataSource={dataSource} />
+      </div>
+    );
+    if (target === 'dialog') {
+      return (
+        <Dialog open onOpenChange={(v) => !v && setDrillEvent(null)}>
+          <DialogContent className="max-w-4xl">
+            <DialogHeader><DialogTitle>{title}</DialogTitle></DialogHeader>
+            {body}
+          </DialogContent>
+        </Dialog>
+      );
+    }
+    return (
+      <Sheet open onOpenChange={(v) => !v && setDrillEvent(null)}>
+        <SheetContent side="right" className="w-full sm:max-w-2xl md:max-w-3xl lg:max-w-4xl flex flex-col">
+          <SheetHeader><SheetTitle>{title}</SheetTitle></SheetHeader>
+          <div className="flex-1 overflow-hidden mt-2">{body}</div>
+        </SheetContent>
+      </Sheet>
+    );
+  })() : null;
+
+  return (
+    <>
+      <ChartRenderer {...props} schema={finalSchema} onChartClick={onChartClick} />
+      {drillDrawer}
+    </>
+  );
 };
 
 // Register it

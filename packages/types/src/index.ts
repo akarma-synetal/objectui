@@ -159,6 +159,7 @@ export type {
   ChartSchema,
   PivotAggregation,
   PivotTableSchema,
+  DrillDownConfig,
   TimelineEvent,
   TimelineSchema,
   KbdSchema,
