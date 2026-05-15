@@ -12,6 +12,7 @@ import { extractRecords } from '@object-ui/core';
 import { Skeleton, cn } from '@object-ui/components';
 import { useSafeFieldLabel } from '@object-ui/i18n';
 import { getCellRenderer, resolveCellRendererType, formatCurrency, formatPercent, formatDate } from '@object-ui/fields';
+import { resolveDateMacros } from './utils';
 
 export interface ObjectDataTableProps {
   schema: {
@@ -152,7 +153,7 @@ export const ObjectDataTable: React.FC<ObjectDataTableProps> = ({ schema, dataSo
           // cells can render the related record's display name instead of a
           // bare FK id. Adapters that don't understand `$expand` ignore it.
           const expand = computeLookupExpand(schema, objectSchema);
-          const params: any = { $filter: schema.filter };
+          const params: any = { $filter: resolveDateMacros(schema.filter) };
           if (expand.length) params.$expand = expand;
           const results = await dataSource.find(schema.objectName, params);
           data = extractRecords(results);

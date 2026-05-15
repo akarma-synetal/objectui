@@ -12,6 +12,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, Dialog, DialogContent, Di
 import { isDrillEnabled, resolveDrillTitle } from '@object-ui/core';
 import type { DrillDownConfig } from '@object-ui/types';
 import { MetricWidget } from './MetricWidget';
+import { resolveDateMacros } from './utils';
 
 /**
  * ObjectMetricWidget — Data-bound metric widget.
@@ -104,7 +105,15 @@ export const ObjectMetricWidget: React.FC<ObjectMetricWidgetProps> = ({
   // pass fresh `aggregate` / `filter` object references each render
   // (e.g. DashboardRenderer.getComponentSchema rebuilds these on every render).
   const aggregateKey = useMemo(() => (aggregate ? JSON.stringify(aggregate) : ''), [aggregate]);
-  const filterKey = useMemo(() => (filter ? JSON.stringify(filter) : ''), [filter]);
+
+  // Resolve relative-date macros (e.g. "{current_quarter_start}") so the
+  // server sees a real ISO date and the drill-down `find()` later sees the
+  // exact same filter as the aggregate query.
+  const resolvedFilter = useMemo(() => resolveDateMacros(filter), [filter]);
+  const resolvedFilterKey = useMemo(
+    () => (resolvedFilter ? JSON.stringify(resolvedFilter) : ''),
+    [resolvedFilter],
+  );
 
   const fetchMetric = useCallback(async (ds: any, mounted: { current: boolean }) => {
     if (!ds || !objectName) return;
@@ -122,7 +131,7 @@ export const ObjectMetricWidget: React.FC<ObjectMetricWidgetProps> = ({
           field: aggregate.field,
           function: aggregate.function,
           groupBy: aggregate.groupBy || '_all',
-          filter,
+          filter: resolvedFilter,
         });
         const data = Array.isArray(results) ? results : [];
 
@@ -137,7 +146,7 @@ export const ObjectMetricWidget: React.FC<ObjectMetricWidgetProps> = ({
         }
       } else if (typeof ds.find === 'function') {
         // Fallback: count records
-        const results = await ds.find(objectName, { $filter: filter });
+        const results = await ds.find(objectName, { $filter: resolvedFilter });
         const records = Array.isArray(results) ? results : results?.data || results?.records || [];
         value = records.length;
       } else {
@@ -156,7 +165,7 @@ export const ObjectMetricWidget: React.FC<ObjectMetricWidgetProps> = ({
       if (mounted.current) setLoading(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [objectName, aggregateKey, filterKey]);
+  }, [objectName, aggregateKey, resolvedFilterKey]);
 
   useEffect(() => {
     const mounted = { current: true };
@@ -198,7 +207,7 @@ export const ObjectMetricWidget: React.FC<ObjectMetricWidgetProps> = ({
     const tableSchema = {
       type: 'object-data-table',
       objectName,
-      filter,
+      filter: resolvedFilter,
       pageSize: 25,
       drillDown: { enabled: false },
     } as any;
@@ -225,7 +234,7 @@ export const ObjectMetricWidget: React.FC<ObjectMetricWidgetProps> = ({
         </SheetContent>
       </Sheet>
     );
-  }, [drillEnabled, drillDown, objectName, filter, drawerTitle]);
+  }, [drillEnabled, drillDown, objectName, resolvedFilter, drawerTitle]);
 
   return (
     <>

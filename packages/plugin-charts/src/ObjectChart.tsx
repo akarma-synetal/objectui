@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useContext, useCallback, useMemo, useRef } from 'react';
 import { useDataScope, SchemaRendererContext, SchemaRenderer } from '@object-ui/react';
 import { ChartRenderer } from './ChartRenderer';
-import { ComponentRegistry, extractRecords, computeDrillFilter, isDrillEnabled, resolveDrillTitle, type DrillEvent } from '@object-ui/core';
+import { ComponentRegistry, extractRecords, computeDrillFilter, isDrillEnabled, resolveDrillTitle, resolveDateMacros, type DrillEvent } from '@object-ui/core';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, Dialog, DialogContent, DialogHeader, DialogTitle } from '@object-ui/components';
 import { AlertCircle } from 'lucide-react';
 import { useSafeFieldLabel } from '@object-ui/i18n';
@@ -266,6 +266,10 @@ export const ObjectChart = (props: any) => {
       }
       try {
           let data: any[];
+          // Resolve relative-date macros (e.g. "{current_quarter_start}")
+          // so both aggregate and find see real ISO dates and any drill-down
+          // filter further down the line stays consistent.
+          const resolvedFilter = resolveDateMacros(schema.filter);
 
           // Prefer server-side aggregation when aggregate config is provided
           // and dataSource supports the aggregate() method.
@@ -274,13 +278,13 @@ export const ObjectChart = (props: any) => {
                   field: schema.aggregate.field,
                   function: schema.aggregate.function,
                   groupBy: schema.aggregate.groupBy,
-                  filter: schema.filter,
+                  filter: resolvedFilter,
               });
               data = Array.isArray(results) ? results : [];
           } else if (typeof ds.find === 'function') {
               // Fallback: fetch all records and aggregate client-side
               const results = await ds.find(schema.objectName, {
-                 $filter: schema.filter
+                 $filter: resolvedFilter
               });
               
               data = extractRecords(results);

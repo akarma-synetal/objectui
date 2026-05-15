@@ -12,6 +12,7 @@ import { extractRecords, computeDrillFilter, isDrillEnabled, resolveDrillTitle, 
 import { Skeleton, cn } from '@object-ui/components';
 import { PivotTable } from './PivotTable';
 import { DrillDownDrawer } from './DrillDownDrawer';
+import { resolveDateMacros } from './utils';
 import type { PivotTableSchema } from '@object-ui/types';
 
 export interface ObjectPivotTableProps {
@@ -100,7 +101,7 @@ export const ObjectPivotTable: React.FC<ObjectPivotTableProps> = ({ schema, data
 
         if (typeof dataSource.find === 'function') {
           const results = await dataSource.find(schema.objectName, {
-            $filter: schema.filter,
+            $filter: resolveDateMacros(schema.filter),
           });
           data = extractRecords(results);
         } else {
