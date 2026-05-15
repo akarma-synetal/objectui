@@ -3,6 +3,66 @@ import { Card, CardContent, CardHeader, CardTitle, getLazyIcon } from '@object-u
 import { cn } from '@object-ui/components';
 import { ArrowDownIcon, ArrowUpIcon, MinusIcon, AlertCircle, Loader2 } from 'lucide-react';
 
+/**
+ * Lightweight numeric formatter for metric widgets.
+ *
+ * Honors a numeral.js-style `format` pattern:
+ * - `'0,0'` / `'0,0.00'` → thousands separators with explicit decimals
+ * - leading `$/¥/€/£` or `currency` prop → currency formatting
+ * - trailing `%` → percent (assumes already in 0-100 unless < 1)
+ *
+ * When no format is given but the value is a finite number, defaults to
+ * thousands separators with no decimals — that's what users expect for
+ * KPI cards (`1,930,000` not `1930000`).
+ */
+function formatMetricValue(
+  value: string | number,
+  format?: string,
+  currency?: string,
+): string {
+  if (value == null) return '';
+  if (typeof value === 'string') {
+    // If the string is a pure number, format it; else pass through.
+    const n = Number(value);
+    if (!isFinite(n) || value.trim() === '') return value;
+    return formatMetricValue(n, format, currency);
+  }
+  if (!isFinite(value as number)) return String(value);
+
+  const symbolMap: Record<string, string> = { '$': 'USD', '¥': 'JPY', '€': 'EUR', '£': 'GBP' };
+  const trimmed = (format || '').trim();
+  const isCurrency = !!currency || (trimmed.length > 0 && symbolMap[trimmed[0]] !== undefined);
+  const isPercent = trimmed.endsWith('%');
+
+  // Determine decimals from the format pattern (e.g. '0,0.00' → 2)
+  const decimalsMatch = trimmed.match(/0\.(0+)/);
+  const decimals = decimalsMatch ? decimalsMatch[1].length : 0;
+
+  if (isCurrency) {
+    const code = currency || symbolMap[trimmed[0]] || 'USD';
+    try {
+      return new Intl.NumberFormat('en-US', {
+        style: 'currency',
+        currency: code,
+        minimumFractionDigits: decimals,
+        maximumFractionDigits: decimals,
+      }).format(value as number);
+    } catch {
+      return `${code} ${(value as number).toFixed(decimals)}`;
+    }
+  }
+
+  if (isPercent) {
+    const v = (value as number) > 1 ? (value as number) : (value as number) * 100;
+    return `${v.toFixed(decimals)}%`;
+  }
+
+  return new Intl.NumberFormat('en-US', {
+    minimumFractionDigits: decimals,
+    maximumFractionDigits: decimals,
+  }).format(value as number);
+}
+
 /** Resolve an I18nLabel (string or {key, defaultValue}) to a plain string. */
 function resolveLabel(label: string | { key?: string; defaultValue?: string } | undefined): string | undefined {
   if (label === undefined || label === null) return undefined;
@@ -48,6 +108,14 @@ export interface MetricWidgetProps {
   error?: string | null;
   /** Visual color variant — tints the icon container while keeping the card neutral. */
   colorVariant?: MetricColorVariant;
+  /** numeral.js-style format pattern (e.g. `'0,0'`, `'0,0.00'`, `'$0,0'`, `'0%'`). */
+  format?: string;
+  /** ISO currency code (e.g. `'USD'`); enables currency formatting on numeric values. */
+  currency?: string;
+  /** Static prefix appended in front of the formatted value (e.g. `'$'`, `'¥'`). */
+  prefix?: string;
+  /** Static suffix appended after the formatted value (e.g. `' /mo'`). */
+  suffix?: string;
 }
 
 export const MetricWidget = ({
@@ -60,9 +128,20 @@ export const MetricWidget = ({
   loading,
   error,
   colorVariant = 'default',
+  format,
+  currency,
+  prefix,
+  suffix,
   ...props
 }: MetricWidgetProps) => {
   const iconClasses = VARIANT_ICON_CLASSES[colorVariant] || VARIANT_ICON_CLASSES.default;
+
+  const displayValue = useMemo(() => {
+    const formatted = typeof value === 'number' || (typeof value === 'string' && value.trim() !== '' && isFinite(Number(value)))
+      ? formatMetricValue(value, format, currency)
+      : (value ?? '');
+    return `${prefix ?? ''}${formatted}${suffix ?? ''}`;
+  }, [value, format, currency, prefix, suffix]);
 
   // Resolve icon if it's a string — uses lazy resolver so we don't pull
   // the entire lucide-react namespace into the bundle.
@@ -104,7 +183,7 @@ export const MetricWidget = ({
           </div>
         ) : (
           <>
-            <div className="text-2xl font-bold truncate">{value}</div>
+            <div className="text-2xl font-bold truncate">{displayValue}</div>
             {(trend || description) && (
               <div className="text-xs text-muted-foreground mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 min-w-0">
                 {trend && (

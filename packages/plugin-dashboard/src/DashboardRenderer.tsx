@@ -256,6 +256,10 @@ export const DashboardRenderer = forwardRef<HTMLDivElement, DashboardRendererPro
                     icon: options.icon,
                     description: options.description,
                     colorVariant: (widget as any).colorVariant,
+                    format: options.format,
+                    currency: options.currency,
+                    prefix: options.prefix,
+                    suffix: options.suffix,
                 };
             }
 

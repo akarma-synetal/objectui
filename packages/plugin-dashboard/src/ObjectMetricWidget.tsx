@@ -52,6 +52,14 @@ export interface ObjectMetricWidgetProps {
   dataSource?: any;
   /** Visual color variant for the icon container */
   colorVariant?: 'default' | 'blue' | 'teal' | 'orange' | 'purple' | 'success' | 'warning' | 'danger';
+  /** Number format pattern (e.g. `'0,0'`, `'0,0.00'`, `'$0,0'`, `'0%'`). */
+  format?: string;
+  /** ISO currency code (e.g. `'USD'`); enables currency formatting on numeric values. */
+  currency?: string;
+  /** Static prefix appended in front of the formatted value (e.g. `'$'`, `'¥'`). */
+  prefix?: string;
+  /** Static suffix appended after the formatted value (e.g. `' /mo'`). */
+  suffix?: string;
 }
 
 export const ObjectMetricWidget: React.FC<ObjectMetricWidgetProps> = ({
@@ -66,6 +74,10 @@ export const ObjectMetricWidget: React.FC<ObjectMetricWidgetProps> = ({
   description,
   dataSource: propDataSource,
   colorVariant,
+  format,
+  currency,
+  prefix,
+  suffix,
 }) => {
   const context = useContext(SchemaRendererContext);
   const dataSource = propDataSource || context?.dataSource;
@@ -165,6 +177,10 @@ export const ObjectMetricWidget: React.FC<ObjectMetricWidgetProps> = ({
       loading={loading}
       error={error}
       colorVariant={colorVariant}
+      format={format}
+      currency={currency}
+      prefix={prefix}
+      suffix={suffix}
     />
   );
 };
