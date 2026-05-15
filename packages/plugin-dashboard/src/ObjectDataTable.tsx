@@ -262,7 +262,18 @@ export const ObjectDataTable: React.FC<ObjectDataTableProps> = ({ schema, dataSo
         decimals: (col as any).decimals ?? meta?.decimals,
       };
 
-      if (typeof col.cell === 'function') return { ...col, ...fieldMeta };
+      // Numeric-flavoured columns look better right-aligned (tabular-nums
+      // already on the cell). Honor an explicit `align` if the author set one.
+      const NUMERIC_TYPES = new Set([
+        'currency', 'money', 'number', 'integer', 'decimal', 'float', 'percent', 'percentage',
+      ]);
+      const inferredAlign = (col as any).align
+        ?? ((NUMERIC_TYPES.has(fieldMeta.type as string) ||
+            (typeof fieldMeta.format === 'string' && /^[\$¥€£]|%$|0/.test(fieldMeta.format)))
+          ? 'right'
+          : undefined);
+
+      if (typeof col.cell === 'function') return { ...col, ...fieldMeta, align: inferredAlign };
 
       const cell = (value: any): React.ReactNode => {
         if (value == null || value === '') return '';
@@ -285,7 +296,7 @@ export const ObjectDataTable: React.FC<ObjectDataTableProps> = ({ schema, dataSo
         const Renderer = getCellRenderer(resolveCellRendererType(fieldMeta as any));
         return <Renderer value={value} field={fieldMeta as any} />;
       };
-      return { ...col, ...fieldMeta, cell };
+      return { ...col, ...fieldMeta, align: inferredAlign, cell };
     };
 
     if (schema.columns && schema.columns.length > 0) {
