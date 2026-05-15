@@ -30,7 +30,11 @@ test.beforeAll(async () => {
     const timer = setTimeout(() => controller.abort(), 5_000);
     const response = await fetch(`${DOCS_BASE}/docs`, { signal: controller.signal });
     clearTimeout(timer);
-    docsAvailable = response.status < 500;
+    // Require a successful response — a 404 from another server (e.g. the
+    // framework backend running on the same port during local dev) would
+    // otherwise mark the suite as available and cause every test to fail
+    // with a 404 from the wrong host.
+    docsAvailable = response.ok;
   } catch {
     docsAvailable = false;
   }
