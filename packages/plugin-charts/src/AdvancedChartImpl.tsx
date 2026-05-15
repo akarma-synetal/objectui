@@ -235,6 +235,18 @@ export default function AdvancedChartImpl({
   if (chartType === 'funnel') {
     const dataKey = series[0]?.dataKey || 'value';
     const palette = getPalette();
+    const handleFunnelClick = onChartClick
+      ? (entry: any) => {
+          if (!entry) return;
+          onChartClick({
+            category: entry?.payload?.[xAxisKey] ?? entry?.[xAxisKey],
+            value: entry?.payload?.[dataKey] ?? entry?.[dataKey],
+          });
+        }
+      : undefined;
+    const funnelClickProps = handleFunnelClick
+      ? { onClick: handleFunnelClick, style: { cursor: 'pointer' as const } }
+      : {};
     return (
       <ChartContainer config={config} className={className}>
         <FunnelChart>
@@ -244,6 +256,7 @@ export default function AdvancedChartImpl({
             data={data}
             nameKey={xAxisKey}
             isAnimationActive
+            {...funnelClickProps}
           >
             <LabelList position="right" fill="hsl(var(--foreground))" stroke="none" dataKey={xAxisKey} />
             {data.map((_entry, idx) => (

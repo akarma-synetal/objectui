@@ -40,6 +40,25 @@ const CHART_COLORS = [
   'hsl(var(--chart-5))',
 ];
 
+/**
+ * Chart sub-types that have a meaningful drill-down interaction.
+ * Mirrors WidgetConfigPanel.DRILL_DOWN_TYPES and the click-handler wiring
+ * in plugin-charts/AdvancedChartImpl. Scatter and funnel are excluded
+ * because no onChartClick is wired for them today.
+ */
+const DRILLABLE_CHART_TYPES = new Set([
+  'bar', 'horizontal-bar', 'line', 'area', 'pie', 'donut', 'funnel',
+]);
+
+/**
+ * Default-on policy for charts: object-backed widgets get drill-down
+ * enabled by default when the chart type supports it. Authors can
+ * disable explicitly with `drillDown: { enabled: false }`.
+ */
+function defaultChartDrill(chartType: string): { enabled: true } | undefined {
+  return DRILLABLE_CHART_TYPES.has(chartType) ? { enabled: true } : undefined;
+}
+
 export interface DashboardRendererProps {
   schema: DashboardSchema;
   className?: string;
@@ -317,7 +336,7 @@ export const DashboardRenderer = forwardRef<HTMLDivElement, DashboardRendererPro
                             label: objectForLabel ? fieldLabel(objectForLabel, effectiveYField, effectiveYField) : effectiveYField,
                         }],
                         colors: CHART_COLORS,
-                        drillDown: options.drillDown,
+                        drillDown: options.drillDown ?? defaultChartDrill(resolvedWidgetType),
                         className: "h-[200px] sm:h-[250px] md:h-[300px]"
                     };
                 }
@@ -339,7 +358,7 @@ export const DashboardRenderer = forwardRef<HTMLDivElement, DashboardRendererPro
                         xAxisKey: xAxisKey,
                         series: [{ dataKey: yKey, label: fieldLabel(widget.object, yKey, yKey) }],
                         colors: CHART_COLORS,
-                        drillDown: options.drillDown,
+                        drillDown: options.drillDown ?? defaultChartDrill(resolvedWidgetType),
                         className: "h-[200px] sm:h-[250px] md:h-[300px]"
                     };
                 }

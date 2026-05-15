@@ -105,9 +105,19 @@ export function DashboardWithConfig({
       actionUrl: widget.actionUrl ?? options.actionUrl ?? '',
       // Drill-down lives under options.drillDown — flatten so the panel
       // can edit it as plain top-level switches. Default ON for object-
-      // backed pivot widgets (mirrors DashboardRenderer phase-1 policy).
+      // backed pivot widgets and for object-backed drillable chart types
+      // (mirrors DashboardRenderer policy).
       drillDownEnabled: options.drillDown?.enabled
-        ?? (widget.type === 'pivot' && !!widget.object ? true : false),
+        ?? (!!widget.object && (
+          widget.type === 'pivot' ||
+          widget.type === 'bar' ||
+          widget.type === 'horizontal-bar' ||
+          widget.type === 'line' ||
+          widget.type === 'area' ||
+          widget.type === 'pie' ||
+          widget.type === 'donut' ||
+          widget.type === 'funnel'
+        ) ? true : false),
       drillDownTarget: options.drillDown?.target ?? 'drawer',
       layoutW: widget.layout?.w ?? 1,
       layoutH: widget.layout?.h ?? 1,
