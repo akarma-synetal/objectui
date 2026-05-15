@@ -128,6 +128,22 @@ export function formatCompactCurrency(value: number, currency: string = 'USD'): 
 }
 
 /**
+ * Format a plain number with thousands separators, no currency symbol.
+ * Used as a safe fallback when a currency-typed field has no `currency`
+ * configured — we'd rather render `1,234.50` than silently assume USD.
+ */
+export function formatNumber(value: number, decimals: number = 2): string {
+  try {
+    return new Intl.NumberFormat('en-US', {
+      minimumFractionDigits: decimals,
+      maximumFractionDigits: decimals,
+    }).format(value);
+  } catch {
+    return value.toFixed(decimals);
+  }
+}
+
+/**
  * Format percent value
  * Handles both decimal (0.8 = 80%) and whole number (80 = 80%) inputs.
  */
@@ -255,9 +271,11 @@ export function CurrencyCellRenderer({ value, field }: CellRendererProps): React
   
   const safe = coerceToSafeValue(value);
   const currencyField = field as any;
-  const currency = currencyField.currency || 'USD';
+  const currency: string | undefined = currencyField.currency;
   const num = Number(safe);
-  const formatted = !isNaN(num) ? formatCurrency(num, currency) : String(safe);
+  const formatted = !isNaN(num)
+    ? (currency ? formatCurrency(num, currency) : formatNumber(num, currencyField.decimals ?? 2))
+    : String(safe);
   
   return <span className="tabular-nums font-medium whitespace-nowrap">{formatted}</span>;
 }

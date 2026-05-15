@@ -268,7 +268,11 @@ export const ObjectDataTable: React.FC<ObjectDataTableProps> = ({ schema, dataSo
         if (value == null || value === '') return '';
         const fmt = fieldMeta.format;
         if (typeof fmt === 'string' && /^\$|¥|€|£/.test(fmt) && typeof value === 'number') {
-          return formatCurrency(value, fieldMeta.currency || 'USD');
+          // Honor explicit `currency`; else infer from the leading symbol so
+          // we never silently fall back to USD when the author wrote `¥`/`€`.
+          const symbolMap: Record<string, string> = { '$': 'USD', '¥': 'JPY', '€': 'EUR', '£': 'GBP' };
+          const inferred = symbolMap[fmt[0]];
+          return formatCurrency(value, fieldMeta.currency || inferred);
         }
         if (typeof fmt === 'string' && /%/.test(fmt) && typeof value === 'number') {
           const decimals = (fmt.match(/0\.(0+)%/) || [, ''])[1].length;
