@@ -116,6 +116,8 @@ export interface MetricWidgetProps {
   prefix?: string;
   /** Static suffix appended after the formatted value (e.g. `' /mo'`). */
   suffix?: string;
+  /** When set, the entire card becomes clickable and emits this handler. */
+  onClick?: () => void;
 }
 
 export const MetricWidget = ({
@@ -132,6 +134,7 @@ export const MetricWidget = ({
   currency,
   prefix,
   suffix,
+  onClick,
   ...props
 }: MetricWidgetProps) => {
   const iconClasses = VARIANT_ICON_CLASSES[colorVariant] || VARIANT_ICON_CLASSES.default;
@@ -154,7 +157,23 @@ export const MetricWidget = ({
   }, [icon]);
 
   return (
-    <Card className={cn("h-full overflow-hidden", className)} {...props}>
+    <Card
+      className={cn(
+        "h-full overflow-hidden",
+        onClick && "cursor-pointer transition-colors hover:bg-accent/40 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none",
+        className,
+      )}
+      onClick={onClick}
+      role={onClick ? 'button' : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      onKeyDown={onClick ? (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          onClick();
+        }
+      } : undefined}
+      {...props}
+    >
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
         <CardTitle className="text-sm font-medium truncate">
           {resolveLabel(label)}

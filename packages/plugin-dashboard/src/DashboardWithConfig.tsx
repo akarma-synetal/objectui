@@ -110,6 +110,7 @@ export function DashboardWithConfig({
       drillDownEnabled: options.drillDown?.enabled
         ?? (!!widget.object && (
           widget.type === 'pivot' ||
+          widget.type === 'metric' ||
           widget.type === 'bar' ||
           widget.type === 'horizontal-bar' ||
           widget.type === 'line' ||

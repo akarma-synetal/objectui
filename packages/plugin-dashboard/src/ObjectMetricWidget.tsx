@@ -7,7 +7,10 @@
  */
 
 import React, { useState, useEffect, useContext, useCallback, useMemo } from 'react';
-import { SchemaRendererContext } from '@object-ui/react';
+import { SchemaRendererContext, SchemaRenderer } from '@object-ui/react';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, Dialog, DialogContent, DialogHeader, DialogTitle } from '@object-ui/components';
+import { isDrillEnabled, resolveDrillTitle } from '@object-ui/core';
+import type { DrillDownConfig } from '@object-ui/types';
 import { MetricWidget } from './MetricWidget';
 
 /**
@@ -60,6 +63,14 @@ export interface ObjectMetricWidgetProps {
   prefix?: string;
   /** Static suffix appended after the formatted value (e.g. `' /mo'`). */
   suffix?: string;
+  /**
+   * Drill-down config. When enabled, clicking the metric card opens a
+   * drawer (or modal) showing the underlying records that contributed
+   * to this metric, filtered by the same `filter` used for aggregation.
+   */
+  drillDown?: DrillDownConfig;
+  /** Title for the drill-down panel; defaults to the metric label. */
+  title?: string | { key?: string; defaultValue?: string };
 }
 
 export const ObjectMetricWidget: React.FC<ObjectMetricWidgetProps> = ({
@@ -78,9 +89,12 @@ export const ObjectMetricWidget: React.FC<ObjectMetricWidgetProps> = ({
   currency,
   prefix,
   suffix,
+  drillDown,
+  title,
 }) => {
   const context = useContext(SchemaRendererContext);
   const dataSource = propDataSource || context?.dataSource;
+  const [drillOpen, setDrillOpen] = useState(false);
 
   const [fetchedValue, setFetchedValue] = useState<string | number | null>(null);
   const [loading, setLoading] = useState(false);
@@ -166,21 +180,72 @@ export const ObjectMetricWidget: React.FC<ObjectMetricWidgetProps> = ({
     ? fetchedValue
     : (!dataSource ? (fallbackValue ?? '—') : '—');
 
+  // --- Drill-down --------------------------------------------------------
+  // KPI cards drill into the underlying records they aggregate. The drill
+  // table reuses the metric's own `filter` (no additional category narrowing
+  // — the whole metric is the slice). Falls back to the metric label as
+  // drawer title when no explicit `drillDown.title` template is set.
+  const drillEnabled = isDrillEnabled(drillDown) && !!objectName && !!dataSource;
+  const drawerTitle = useMemo(() => {
+    const labelText = typeof label === 'string' ? label : (label?.defaultValue || '');
+    const titleText = typeof title === 'string' ? title : (title?.defaultValue || '');
+    return resolveDrillTitle(drillDown, {}, titleText || labelText || 'Details');
+  }, [drillDown, label, title]);
+
+  const drillDrawer = useMemo(() => {
+    if (!drillEnabled) return null;
+    const target = drillDown?.target ?? 'drawer';
+    const tableSchema = {
+      type: 'object-data-table',
+      objectName,
+      filter,
+      pageSize: 25,
+      drillDown: { enabled: false },
+    } as any;
+    const body = (
+      <div className="h-full overflow-auto">
+        <SchemaRenderer schema={tableSchema} />
+      </div>
+    );
+    if (target === 'modal') {
+      return (
+        <Dialog open onOpenChange={(v) => !v && setDrillOpen(false)}>
+          <DialogContent className="max-w-4xl">
+            <DialogHeader><DialogTitle>{drawerTitle}</DialogTitle></DialogHeader>
+            {body}
+          </DialogContent>
+        </Dialog>
+      );
+    }
+    return (
+      <Sheet open onOpenChange={(v) => !v && setDrillOpen(false)}>
+        <SheetContent side="right" className="w-full sm:max-w-2xl md:max-w-3xl lg:max-w-4xl flex flex-col">
+          <SheetHeader><SheetTitle>{drawerTitle}</SheetTitle></SheetHeader>
+          <div className="flex-1 overflow-hidden mt-2">{body}</div>
+        </SheetContent>
+      </Sheet>
+    );
+  }, [drillEnabled, drillDown, objectName, filter, drawerTitle]);
+
   return (
-    <MetricWidget
-      label={label}
-      value={displayValue}
-      trend={trend}
-      icon={icon}
-      className={className}
-      description={description}
-      loading={loading}
-      error={error}
-      colorVariant={colorVariant}
-      format={format}
-      currency={currency}
-      prefix={prefix}
-      suffix={suffix}
-    />
+    <>
+      <MetricWidget
+        label={label}
+        value={displayValue}
+        trend={trend}
+        icon={icon}
+        className={className}
+        description={description}
+        loading={loading}
+        error={error}
+        colorVariant={colorVariant}
+        format={format}
+        currency={currency}
+        prefix={prefix}
+        suffix={suffix}
+        onClick={drillEnabled ? () => setDrillOpen(true) : undefined}
+      />
+      {drillOpen && drillDrawer}
+    </>
   );
 };

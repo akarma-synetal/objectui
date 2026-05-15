@@ -279,6 +279,8 @@ export const DashboardRenderer = forwardRef<HTMLDivElement, DashboardRendererPro
                     currency: options.currency,
                     prefix: options.prefix,
                     suffix: options.suffix,
+                    drillDown: options.drillDown ?? { enabled: true },
+                    title: options.label || tWidgetTitle(widget) || '',
                 };
             }
 

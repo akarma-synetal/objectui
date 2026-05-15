@@ -77,7 +77,7 @@ const CATEGORY_GROUPED_TYPES = [...CHART_TYPES];
 // Widget types that support drill-down (clicking a cell/segment opens a
 // filtered list of underlying records). Pairs with the @object-ui/core
 // `drill-down` helpers.
-const DRILL_DOWN_TYPES = ['pivot', 'bar', 'horizontal-bar', 'line', 'area', 'pie', 'donut', 'funnel'];
+const DRILL_DOWN_TYPES = ['pivot', 'metric', 'bar', 'horizontal-bar', 'line', 'area', 'pie', 'donut', 'funnel'];
 
 function isChartType(t: string | undefined): boolean {
   return !!t && CHART_TYPES.includes(t);
