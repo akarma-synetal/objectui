@@ -26,7 +26,7 @@ import {
 } from '@object-ui/components';
 import { ChevronDown, ChevronRight, Copy, Check, Eye, EyeOff } from 'lucide-react';
 import { SchemaRenderer } from '@object-ui/react';
-import { getCellRenderer, resolveCellRendererType } from '@object-ui/fields';
+import { getCellRenderer, resolveCellRendererType, SelectField, BooleanField } from '@object-ui/fields';
 import type { DetailViewSection as DetailViewSectionType, DetailViewField, FieldMetadata } from '@object-ui/types';
 import { applyDetailAutoLayout } from './autoLayout';
 import { useDetailTranslation } from './useDetailTranslation';
@@ -160,27 +160,28 @@ export const DetailSection: React.FC<DetailSectionProps> = ({
     // column count at each breakpoint, preventing implicit columns on mobile.
     const spanClass = getResponsiveSpanClass(field.span, effectiveColumns);
 
+    // Enrich field with objectSchema metadata once — used by both the
+    // read-only cell renderer and the inline-edit widget so that things
+    // like select options, currency code, lookup target, etc. are
+    // available in either mode.
+    const objectDefField = objectSchema?.fields?.[field.name];
+    const enrichedField: Record<string, any> = { ...field };
+    if (objectDefField) {
+      if (!field.type && objectDefField.type) enrichedField.type = objectDefField.type;
+      if (objectDefField.options && !enrichedField.options) enrichedField.options = objectDefField.options;
+      if (objectDefField.currency && !enrichedField.currency) enrichedField.currency = objectDefField.currency;
+      if (objectDefField.precision !== undefined && enrichedField.precision === undefined) enrichedField.precision = objectDefField.precision;
+      if (objectDefField.format && !enrichedField.format) enrichedField.format = objectDefField.format;
+      const refTarget = objectDefField.reference_to || objectDefField.reference;
+      if (refTarget && !enrichedField.reference_to) enrichedField.reference_to = refTarget;
+      if (objectDefField.reference_field && !enrichedField.reference_field) enrichedField.reference_field = objectDefField.reference_field;
+    }
+    if (objectName && Array.isArray(enrichedField.options) && enrichedField.options.length > 0) {
+      enrichedField.options = translateOptions(objectName, field.name, enrichedField.options as any);
+    }
+
     const displayValue = (() => {
       if (value === null || value === undefined) return <span className="text-muted-foreground/50 text-xs italic">—</span>;
-      // Enrich field with objectSchema metadata — merge missing properties
-      // even when field.type is explicitly set (e.g., type: 'lookup' without reference_to)
-      const objectDefField = objectSchema?.fields?.[field.name];
-      const enrichedField: Record<string, any> = { ...field };
-      if (objectDefField) {
-        if (!field.type && objectDefField.type) enrichedField.type = objectDefField.type;
-        if (objectDefField.options && !enrichedField.options) enrichedField.options = objectDefField.options;
-        if (objectDefField.currency && !enrichedField.currency) enrichedField.currency = objectDefField.currency;
-        if (objectDefField.precision !== undefined && enrichedField.precision === undefined) enrichedField.precision = objectDefField.precision;
-        if (objectDefField.format && !enrichedField.format) enrichedField.format = objectDefField.format;
-        const refTarget = objectDefField.reference_to || objectDefField.reference;
-        if (refTarget && !enrichedField.reference_to) enrichedField.reference_to = refTarget;
-        if (objectDefField.reference_field && !enrichedField.reference_field) enrichedField.reference_field = objectDefField.reference_field;
-      }
-      // i18n: translate select-field option labels so cell renderers
-      // (e.g. SelectCellRenderer / status badge) display localized text.
-      if (objectName && Array.isArray(enrichedField.options) && enrichedField.options.length > 0) {
-        enrichedField.options = translateOptions(objectName, field.name, enrichedField.options as any);
-      }
       // Use type-aware cell renderer; respect format hints (e.g.
       // text + format: 'phone' → PhoneCellRenderer with tel: link).
       const resolvedType = resolveCellRendererType(enrichedField as { type?: string; format?: string }) || field.type;
@@ -204,8 +205,30 @@ export const DetailSection: React.FC<DetailSectionProps> = ({
         {isEditing && !field.readonly ? (
           <div className="min-h-[44px] sm:min-h-0">
             {(() => {
-              const isDate = field.type === 'date' || field.type === 'datetime';
-              const inputType = field.type === 'number' ? 'number' : isDate ? 'date' : 'text';
+              const editType = enrichedField.type || field.type;
+              // Picklist → real Select widget so users see localized
+              // option labels and can't free-type invalid values.
+              if (editType === 'select' && Array.isArray(enrichedField.options) && enrichedField.options.length > 0) {
+                return (
+                  <SelectField
+                    field={enrichedField as any}
+                    value={value == null ? '' : String(value)}
+                    onChange={(v) => onFieldChange?.(field.name, v)}
+                  />
+                );
+              }
+              // Boolean → Switch widget instead of free-text "true"/"false".
+              if (editType === 'boolean') {
+                return (
+                  <BooleanField
+                    field={enrichedField as any}
+                    value={!!value}
+                    onChange={(v) => onFieldChange?.(field.name, v)}
+                  />
+                );
+              }
+              const isDate = editType === 'date' || editType === 'datetime';
+              const inputType = editType === 'number' ? 'number' : isDate ? 'date' : 'text';
               // <input type="date"> needs a YYYY-MM-DD string; raw ISO
               // timestamps ("2026-02-14T14:46:20.862Z") leave the picker
               // blank. Slice down to the date portion so existing values

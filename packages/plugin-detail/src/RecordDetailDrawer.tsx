@@ -211,11 +211,26 @@ export function RecordDetailDrawer({
         def.type === 'lookup' ||
         def.type === 'master_detail' ||
         def.type === 'reference';
+      // Carry through the full field metadata so DetailView's inline-edit
+      // mode can resolve the correct widget (e.g. a select with options
+      // rather than a free-form text input). DetailSection performs the
+      // same enrichment when rendering a record detail page; without this
+      // fan-out the drawer rendered a plaintext input for every picklist.
       return {
         name,
         label: def.label,
         type: def.type as any,
         readonly: !!def.readonly || isLookup,
+        options: def.options,
+        currency: def.currency,
+        precision: def.precision,
+        format: def.format,
+        reference_to: def.reference_to ?? def.referenceTo ?? def.target,
+        reference_field: def.reference_field ?? def.referenceField,
+        required: def.required,
+        validation: def.validation,
+        placeholder: def.placeholder,
+        description: def.description,
       };
     });
 
