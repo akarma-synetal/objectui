@@ -140,6 +140,18 @@ const ko = {
     deleteCard: '카드 삭제',
     deleteColumn: '열 삭제',
   },
+  timeline: {
+    bucket: {
+      overdue: '기한 초과',
+      today: '오늘',
+      tomorrow: '내일',
+      thisWeek: '이번 주',
+      nextWeek: '다음 주',
+      later: '나중',
+      noDate: '날짜 없음',
+      unassigned: '미할당',
+    },
+  },
   view: {
     rename: '이름 변경',
     duplicateView: '뷰 복제',

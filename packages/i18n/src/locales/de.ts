@@ -140,6 +140,18 @@ const de = {
     deleteCard: 'Karte löschen',
     deleteColumn: 'Spalte löschen',
   },
+  timeline: {
+    bucket: {
+      overdue: 'Überfällig',
+      today: 'Heute',
+      tomorrow: 'Morgen',
+      thisWeek: 'Diese Woche',
+      nextWeek: 'Nächste Woche',
+      later: 'Später',
+      noDate: 'Kein Datum',
+      unassigned: 'Nicht zugewiesen',
+    },
+  },
   view: {
     rename: 'Umbenennen',
     duplicateView: 'Ansicht duplizieren',

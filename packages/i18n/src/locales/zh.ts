@@ -214,6 +214,18 @@ const zh = {
     deleteCard: '删除卡片',
     deleteColumn: '删除列',
   },
+  timeline: {
+    bucket: {
+      overdue: '已逾期',
+      today: '今天',
+      tomorrow: '明天',
+      thisWeek: '本周',
+      nextWeek: '下周',
+      later: '更晚',
+      noDate: '无日期',
+      unassigned: '未分配',
+    },
+  },
   view: {
     rename: '重命名',
     duplicateView: '复制视图',

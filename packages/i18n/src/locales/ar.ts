@@ -141,6 +141,18 @@ const ar = {
     deleteCard: 'حذف بطاقة',
     deleteColumn: 'حذف عمود',
   },
+  timeline: {
+    bucket: {
+      overdue: 'متأخر',
+      today: 'اليوم',
+      tomorrow: 'غداً',
+      thisWeek: 'هذا الأسبوع',
+      nextWeek: 'الأسبوع القادم',
+      later: 'لاحقاً',
+      noDate: 'بدون تاريخ',
+      unassigned: 'غير معين',
+    },
+  },
   view: {
     rename: 'إعادة تسمية',
     duplicateView: 'تكرار العرض',

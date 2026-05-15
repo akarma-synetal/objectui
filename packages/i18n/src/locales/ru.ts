@@ -140,6 +140,18 @@ const ru = {
     deleteCard: 'Удалить карточку',
     deleteColumn: 'Удалить колонку',
   },
+  timeline: {
+    bucket: {
+      overdue: 'Просрочено',
+      today: 'Сегодня',
+      tomorrow: 'Завтра',
+      thisWeek: 'На этой неделе',
+      nextWeek: 'На следующей неделе',
+      later: 'Позже',
+      noDate: 'Без даты',
+      unassigned: 'Не назначено',
+    },
+  },
   view: {
     rename: 'Переименовать',
     duplicateView: 'Дублировать представление',

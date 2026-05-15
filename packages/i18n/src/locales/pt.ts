@@ -140,6 +140,18 @@ const pt = {
     deleteCard: 'Excluir cartão',
     deleteColumn: 'Excluir coluna',
   },
+  timeline: {
+    bucket: {
+      overdue: 'Atrasado',
+      today: 'Hoje',
+      tomorrow: 'Amanhã',
+      thisWeek: 'Esta semana',
+      nextWeek: 'Próxima semana',
+      later: 'Mais tarde',
+      noDate: 'Sem data',
+      unassigned: 'Não atribuído',
+    },
+  },
   view: {
     rename: 'Renomear',
     duplicateView: 'Duplicar visualização',

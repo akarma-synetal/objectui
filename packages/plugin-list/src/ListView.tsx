@@ -803,6 +803,7 @@ export const ListView = React.forwardRef<ListViewHandle, ListViewProps>(({
               v.swimlaneField, v.valueField,
               ...(Array.isArray(v.cardFields) ? v.cardFields : []),
               ...(Array.isArray(v.visibleFields) ? v.visibleFields : []),
+              ...(Array.isArray(v.metaFields) ? v.metaFields : []),
             ];
             for (const f of candidates) {
               if (typeof f === 'string' && f) required.add(f);
@@ -816,6 +817,18 @@ export const ListView = React.forwardRef<ListViewHandle, ListViewProps>(({
           collectViewFields(schema.options?.gallery);
           collectViewFields(schema.timeline);
           collectViewFields(schema.options?.timeline);
+          // Timeline plugin shows status / priority chips inline. Auto-include
+          // them when no explicit metaFields was configured so views like
+          // `task_timeline` ({ columns: ['subject', 'status'] }) still get
+          // priority badges out of the box. Inclusion is harmless when the
+          // object lacks these fields — the projection ignores unknown names.
+          {
+            const tCfg: any = schema.timeline ?? schema.options?.timeline;
+            if (tCfg && !Array.isArray(tCfg.metaFields)) {
+              required.add('status');
+              required.add('priority');
+            }
+          }
           collectViewFields(schema.gantt);
           collectViewFields(schema.options?.gantt);
 

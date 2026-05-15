@@ -140,6 +140,18 @@ const fr = {
     deleteCard: 'Supprimer la carte',
     deleteColumn: 'Supprimer la colonne',
   },
+  timeline: {
+    bucket: {
+      overdue: 'En retard',
+      today: "Aujourd'hui",
+      tomorrow: 'Demain',
+      thisWeek: 'Cette semaine',
+      nextWeek: 'Semaine prochaine',
+      later: 'Plus tard',
+      noDate: 'Sans date',
+      unassigned: 'Non attribué',
+    },
+  },
   view: {
     rename: 'Renommer',
     duplicateView: 'Dupliquer la vue',

@@ -214,6 +214,18 @@ const en = {
     deleteCard: 'Delete card',
     deleteColumn: 'Delete column',
   },
+  timeline: {
+    bucket: {
+      overdue: 'Overdue',
+      today: 'Today',
+      tomorrow: 'Tomorrow',
+      thisWeek: 'This week',
+      nextWeek: 'Next week',
+      later: 'Later',
+      noDate: 'No date',
+      unassigned: 'Unassigned',
+    },
+  },
   view: {
     rename: 'Rename',
     duplicateView: 'Duplicate View',

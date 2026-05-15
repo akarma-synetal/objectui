@@ -6,14 +6,31 @@
  * LICENSE file in the root directory of this source tree.
  */
 
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import type { DataSource, TimelineSchema, TimelineConfig } from '@object-ui/types';
-import { useDataScope, useNavigationOverlay } from '@object-ui/react';
+import { useDataScope, useNavigationOverlay, useObjectLabel } from '@object-ui/react';
 import { NavigationOverlay } from '@object-ui/components';
 import { extractRecords, buildExpandFields } from '@object-ui/core';
 import { usePullToRefresh } from '@object-ui/mobile';
 import { z } from 'zod';
 import { TimelineRenderer } from './renderer';
+import { useTimelineTranslation } from './useTimelineTranslation';
+
+/**
+ * Wrap `useObjectLabel` so the timeline keeps rendering when no
+ * I18nProvider is mounted (Storybook / standalone tests).
+ */
+function useSafeObjectLabel() {
+  try {
+    return useObjectLabel();
+  } catch {
+    return {
+      fieldOptionLabel: (_o: string, _f: string, _v: string, fallback: string) => fallback,
+      translateOptions: <T extends { value: string; label: string }>(_o: string, _f: string, opts: T[]) => opts,
+      fieldLabel: (_o: string, _f: string, fallback: string) => fallback,
+    } as any;
+  }
+}
 
 const TimelineMappingSchema = z.object({
   title: z.string().optional(),
@@ -139,36 +156,167 @@ export const ObjectTimeline: React.FC<ObjectTimelineProps> = ({
   }, [schema.objectName, dataSource, boundData, schema.items, (props as any).data, refreshKey, objectDef]);
 
   const rawData = (props as any).data || boundData || fetchedData;
+  const { t } = useTimelineTranslation();
+  const { fieldOptionLabel } = useSafeObjectLabel();
 
-  // Transform data to items if we have raw data and no explicit items
-  let effectiveItems = schema.items;
-  
-  if (!effectiveItems && rawData && Array.isArray(rawData)) {
-      // Resolve TimelineConfig with backwards-compatible fallbacks
-      const titleField = timelineConfig?.titleField ?? schema.mapping?.title ?? schema.titleField ?? 'name';
-      // Spec-compliant: prefer timeline.startDateField, fallback to flat props
-      const startDateField = timelineConfig?.startDateField ?? schema.mapping?.date ?? schema.startDateField ?? schema.dateField ?? 'date';
-      const endDateField = timelineConfig?.endDateField ?? schema.endDateField ?? startDateField;
-      const descField = schema.mapping?.description ?? schema.descriptionField ?? 'description';
-      const variantField = schema.mapping?.variant ?? 'variant';
-      const groupByField = timelineConfig?.groupByField ?? schema.groupByField;
-      const colorField = timelineConfig?.colorField ?? schema.colorField;
+  // Resolve TimelineConfig with backwards-compatible fallbacks (computed
+  // outside the items-derivation block so we can also use them for
+  // grouping / color resolution).
+  const titleField = timelineConfig?.titleField ?? schema.mapping?.title ?? schema.titleField ?? 'name';
+  const startDateField = timelineConfig?.startDateField ?? schema.mapping?.date ?? schema.startDateField ?? schema.dateField ?? 'date';
+  const endDateField = timelineConfig?.endDateField ?? schema.endDateField ?? startDateField;
+  const descField = schema.mapping?.description ?? schema.descriptionField ?? 'description';
+  const variantField = schema.mapping?.variant ?? 'variant';
+  const groupByField = timelineConfig?.groupByField ?? schema.groupByField;
+  const colorField = timelineConfig?.colorField ?? schema.colorField;
 
-      effectiveItems = rawData.map(item => ({
-          title: item[titleField],
-          // Support both 'time' (vertical) and 'startDate' (gantt)
-          time: item[startDateField],
-          startDate: item[startDateField], 
-          endDate: item[endDateField],
-          description: item[descField],
-          variant: item[variantField] || 'default',
-          // Spec-compliant: group and color support
-          ...(groupByField ? { group: item[groupByField] } : {}),
-          ...(colorField ? { color: item[colorField] } : {}),
-          // Pass original item for click handlers
-          _data: item
-      }));
-  }
+  // Transform data to items if we have raw data and no explicit items.
+  // Heavy work (sorting, bucket grouping, option-color lookup) happens once
+  // per (data, objectDef) tuple via useMemo so scrolling stays smooth.
+  const effectiveItems = useMemo(() => {
+    if (schema.items) return schema.items;
+    if (!rawData || !Array.isArray(rawData)) return [];
+
+    const fields: Record<string, any> = (objectDef?.fields ?? {}) as Record<string, any>;
+    const objectName: string = schema.objectName || '';
+
+    /** Build a quick `value → option` lookup for select fields so we can
+     *  map raw values to their localized label / chip color. */
+    const optionMap = (fieldName: string | undefined): Record<string, any> => {
+      if (!fieldName || !fields[fieldName]?.options) return {};
+      const map: Record<string, any> = {};
+      for (const opt of fields[fieldName].options as Array<any>) {
+        if (opt && opt.value != null) map[String(opt.value)] = opt;
+      }
+      return map;
+    };
+
+    const colorOptions = optionMap(colorField);
+
+    /** Which fields appear as inline chips beside the title.
+     *  Spec config: `timeline.metaFields: string[]`.
+     *  Heuristic default: `['status', 'priority']` — limited to fields that
+     *  actually exist in objectDef so non-CRM objects don't render fake
+     *  chips. */
+    const metaFieldNames: string[] = Array.isArray((timelineConfig as any)?.metaFields)
+      ? (timelineConfig as any).metaFields.filter((f: any) => typeof f === 'string' && f)
+      : ['status', 'priority'].filter((f) => fields[f]);
+    const metaOptionMaps: Record<string, Record<string, any>> = {};
+    for (const f of metaFieldNames) metaOptionMaps[f] = optionMap(f);
+
+    // Resolve the marker color for an item: prefer the explicit `color`
+    // attribute on the matching select option, else use the raw value if
+    // it already looks like a CSS color.
+    const resolveColor = (value: any): string | undefined => {
+      if (value == null || value === '') return undefined;
+      const opt = colorOptions[String(value)];
+      if (opt?.color) return String(opt.color);
+      const s = String(value);
+      if (/^#([0-9a-f]{3}){1,2}$/i.test(s) || s.startsWith('rgb') || s.startsWith('hsl')) return s;
+      return undefined;
+    };
+
+    // Resolve the localized label (and color, when known) for a select
+    // field. Used for both the explicit groupBy label and the inline
+    // status / priority badges.
+    const resolveOptionMeta = (
+      fieldName: string,
+      value: any,
+      options: Record<string, any>,
+    ): { label: string; color?: string } | null => {
+      if (value == null || value === '') return null;
+      const opt = options[String(value)];
+      const label = opt?.label
+        ? fieldOptionLabel(objectName, fieldName, String(value), opt.label)
+        : String(value);
+      return { label, color: opt?.color };
+    };
+
+    const mapped = rawData.map((item: any) => {
+      const startRaw = item[startDateField];
+      const endRaw = item[endDateField];
+      const colorRaw = colorField ? item[colorField] : undefined;
+      const groupRaw = groupByField ? item[groupByField] : undefined;
+
+      const meta: Array<{ key: string; label: string; color?: string }> = [];
+      if (objectName) {
+        for (const f of metaFieldNames) {
+          const m = resolveOptionMeta(f, item[f], metaOptionMaps[f] || {});
+          if (m) meta.push({ key: f, label: m.label, color: m.color });
+        }
+      }
+
+      return {
+        title: item[titleField],
+        time: startRaw,
+        startDate: startRaw,
+        endDate: endRaw,
+        description: item[descField],
+        variant: item[variantField] || 'default',
+        color: resolveColor(colorRaw),
+        group: groupRaw,
+        meta,
+        _data: item,
+      };
+    });
+
+    // Sort by start date ascending; nulls sink to the end so users see
+    // upcoming work first.
+    mapped.sort((a, b) => {
+      const ta = a.startDate ? new Date(a.startDate).getTime() : Number.POSITIVE_INFINITY;
+      const tb = b.startDate ? new Date(b.startDate).getTime() : Number.POSITIVE_INFINITY;
+      return ta - tb;
+    });
+
+    // Decide on a final group label for each item:
+    //   - explicit groupBy → use the localized field-option label (or
+    //     "Unassigned" when null);
+    //   - otherwise → date bucket (Overdue / Today / Tomorrow / This week
+    //     / Next week / Later / No date) so the timeline doesn't render
+    //     as one undifferentiated stripe.
+    const now = new Date();
+    const startOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+    const today = startOfDay(now);
+    const day = 86400000;
+    const startOfWeek = today - ((now.getDay() + 6) % 7) * day; // Monday
+    const endOfWeek = startOfWeek + 7 * day;
+    const endOfNextWeek = endOfWeek + 7 * day;
+
+    const dateBucket = (raw: any): string => {
+      if (!raw) return t('timeline.bucket.noDate');
+      const ts = startOfDay(new Date(raw));
+      if (Number.isNaN(ts)) return t('timeline.bucket.noDate');
+      if (ts < today) return t('timeline.bucket.overdue');
+      if (ts === today) return t('timeline.bucket.today');
+      if (ts === today + day) return t('timeline.bucket.tomorrow');
+      if (ts < endOfWeek) return t('timeline.bucket.thisWeek');
+      if (ts < endOfNextWeek) return t('timeline.bucket.nextWeek');
+      return t('timeline.bucket.later');
+    };
+
+    if (groupByField) {
+      const allEmpty = mapped.every((m) => m.group == null || m.group === '');
+      if (!allEmpty) {
+        const groupSelectOptions = optionMap(groupByField);
+        return mapped.map((m) => {
+          const meta = resolveOptionMeta(groupByField, m.group, groupSelectOptions);
+          return {
+            ...m,
+            group: meta
+              ? meta.label
+              : (m.group != null && m.group !== ''
+                  ? String(m.group)
+                  : t('timeline.bucket.unassigned')),
+          };
+        });
+      }
+      // Fall through to date bucketing — explicit groupBy field exists
+      // but every record's value is empty, so a single empty lane would
+      // be useless.
+    }
+
+    return mapped.map((m) => ({ ...m, group: dateBucket(m.startDate) }));
+  }, [schema.items, rawData, objectDef, schema.objectName, titleField, startDateField, endDateField, descField, variantField, colorField, groupByField, t, fieldOptionLabel]);
 
   const handleRefresh = useCallback(async () => {
     setRefreshKey(k => k + 1);

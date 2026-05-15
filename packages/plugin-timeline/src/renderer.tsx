@@ -6,6 +6,7 @@
  * LICENSE file in the root directory of this source tree.
  */
 
+import * as React from 'react';
 import { ComponentRegistry } from '@object-ui/core';
 import type { TimelineSchema } from '@object-ui/types';
 import {
@@ -85,6 +86,43 @@ function formatDate(dateString: string, format?: string): string {
   return date.toISOString().split('T')[0];
 }
 
+/**
+ * Render an inline option chip for the per-item metadata strip
+ * (status, priority, …). Uses the option color when supplied so the
+ * chip visually echoes the marker, falling back to a neutral pill
+ * when the option has no color metadata.
+ */
+function MetaChip({ label, color }: { label: string; color?: string }) {
+  const style = color
+    ? { backgroundColor: `${color}22`, color, borderColor: `${color}55` }
+    : undefined;
+  return (
+    <span
+      className={cn(
+        'inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium',
+        !color && 'bg-muted text-muted-foreground border-transparent'
+      )}
+      style={style}
+    >
+      {label}
+    </span>
+  );
+}
+
+/** Group adjacent items that share the same `group` key (already in
+ *  display order) into a single section so the renderer can drop a
+ *  sticky header above each bucket. */
+function groupAdjacent<T extends { group?: string | null }>(items: T[]): Array<{ key: string; items: T[] }> {
+  const out: Array<{ key: string; items: T[] }> = [];
+  for (const it of items) {
+    const key = it.group == null ? '' : String(it.group);
+    const last = out[out.length - 1];
+    if (last && last.key === key) last.items.push(it);
+    else out.push({ key, items: [it] });
+  }
+  return out;
+}
+
 export const TimelineRenderer = ({ schema, className, ...props }: { schema: TimelineSchema; className?: string; [key: string]: any }) => {
     const {
       variant = 'vertical',
@@ -95,28 +133,95 @@ export const TimelineRenderer = ({ schema, className, ...props }: { schema: Time
 
     // Vertical Timeline
     if (variant === 'vertical') {
+      // Detect whether the data was annotated with a `group` key
+      // (ObjectTimeline does this for both explicit groupBy and the
+      // automatic date bucketing fallback). When present we render
+      // sticky bucket headers; when absent we keep the historical flat
+      // list so JSON-defined timelines aren't visually disturbed.
+      const groups = groupAdjacent(items as Array<any>);
+      const hasGroups = groups.some((g) => g.key !== '');
+
+      const renderItem = (item: any, key: React.Key) => {
+        // Custom CSS color from objectDef option metadata overrides the
+        // CVA variant — that lets the marker reflect the live status
+        // colour (e.g. amber for "in progress") without us hard-coding
+        // every status into the variants enum.
+        const markerStyle = item.color
+          ? { backgroundColor: `${item.color}33`, borderColor: item.color }
+          : undefined;
+        const dateLabel = item.time
+          ? formatDate(item.time, dateFormat)
+          : (item.startDate ? formatDate(item.startDate, dateFormat) : '');
+        const endLabel = item.endDate && item.endDate !== item.startDate
+          ? formatDate(item.endDate, dateFormat)
+          : '';
+        const meta = Array.isArray(item.meta) ? item.meta : [];
+        return (
+          <TimelineItem
+            key={key}
+            density="compact"
+            className={cn(item.className, onItemClick && 'cursor-pointer')}
+            onClick={() => onItemClick?.(item)}
+          >
+            <TimelineMarker
+              variant={item.color ? 'default' : (item.variant || 'default')}
+              style={markerStyle}
+            >
+              {item.icon && <span className="text-xs">{item.icon}</span>}
+            </TimelineMarker>
+            <TimelineContent>
+              {(dateLabel || endLabel) && (
+                <TimelineTime
+                  dateTime={item.time || item.startDate}
+                  className="!mb-1 text-xs"
+                >
+                  {dateLabel}
+                  {endLabel && <span className="text-muted-foreground/70"> → {endLabel}</span>}
+                </TimelineTime>
+              )}
+              {item.title && <TimelineTitle className="text-sm sm:text-base mb-1">{item.title}</TimelineTitle>}
+              {meta.length > 0 && (
+                <div className="flex flex-wrap gap-1.5 mt-1 mb-1">
+                  {meta.map((m: any) => (
+                    <MetaChip key={m.key} label={m.label} color={m.color} />
+                  ))}
+                </div>
+              )}
+              {item.description && (
+                <TimelineDescription className="text-sm text-muted-foreground line-clamp-2 sm:line-clamp-none">
+                  {item.description}
+                </TimelineDescription>
+              )}
+              {item.content && renderChildren(item.content)}
+            </TimelineContent>
+          </TimelineItem>
+        );
+      };
+
+      if (!hasGroups) {
+        return (
+          <Timeline className={className} {...props}>
+            {(items as Array<any>).map((item, index) => renderItem(item, index))}
+          </Timeline>
+        );
+      }
+
       return (
-        <Timeline className={className} {...props}>
-          {items.map((item: any, index: number) => (
-            <TimelineItem key={index} className={cn(item.className, onItemClick && 'cursor-pointer')} onClick={() => onItemClick?.(item)}>
-              <TimelineMarker variant={item.variant || 'default'}>
-                {item.icon && <span className="text-xs">{item.icon}</span>}
-              </TimelineMarker>
-              <TimelineContent>
-                {item.time && (
-                  <TimelineTime dateTime={item.time}>
-                    {formatDate(item.time, dateFormat)}
-                  </TimelineTime>
-                )}
-                {item.title && <TimelineTitle>{item.title}</TimelineTitle>}
-                {item.description && (
-                  <TimelineDescription className="line-clamp-2 sm:line-clamp-none">{item.description}</TimelineDescription>
-                )}
-                {item.content && renderChildren(item.content)}
-              </TimelineContent>
-            </TimelineItem>
+        <div className={cn('px-4 sm:px-6 py-2', className)} {...props}>
+          {groups.map((g, gi) => (
+            <section key={`${g.key}-${gi}`} className="mb-4">
+              <header className="sticky top-0 z-10 -mx-4 sm:-mx-6 px-4 sm:px-6 py-1.5 backdrop-blur bg-background/90 text-xs font-semibold uppercase tracking-wide text-muted-foreground border-b">
+                <span>{g.key}</span>
+                <span className="ml-2 text-muted-foreground/60 font-normal normal-case">
+                  {g.items.length}
+                </span>
+              </header>
+              <Timeline className="mt-3">
+                {g.items.map((item, index) => renderItem(item, `${gi}-${index}`))}
+              </Timeline>
+            </section>
           ))}
-        </Timeline>
+        </div>
       );
     }
 

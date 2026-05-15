@@ -140,6 +140,18 @@ const ja = {
     deleteCard: 'カードを削除',
     deleteColumn: 'カラムを削除',
   },
+  timeline: {
+    bucket: {
+      overdue: '期限超過',
+      today: '今日',
+      tomorrow: '明日',
+      thisWeek: '今週',
+      nextWeek: '来週',
+      later: '後ほど',
+      noDate: '日付なし',
+      unassigned: '未割当',
+    },
+  },
   view: {
     rename: '名前を変更',
     duplicateView: 'ビューを複製',
