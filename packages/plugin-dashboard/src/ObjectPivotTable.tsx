@@ -44,6 +44,43 @@ export const ObjectPivotTable: React.FC<ObjectPivotTableProps> = ({ schema, data
   const [fetchedData, setFetchedData] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Per-field value→label maps and field-name→display-label mapping derived
+  // from the referenced object's schema. Lets the pivot table render
+  // select-field display labels (e.g. "Web") instead of raw stored values
+  // (e.g. "web"), and use the field's display label (e.g. "Stage") in the
+  // top-left header cell.
+  const [fieldLabelMaps, setFieldLabelMaps] = useState<Record<string, Record<string, string>>>({});
+  const [fieldNameLabels, setFieldNameLabels] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    if (!dataSource || !schema.objectName) return;
+    const getSchema = (dataSource as any).getObjectSchema;
+    if (typeof getSchema !== 'function') return;
+    let alive = true;
+    Promise.resolve(getSchema.call(dataSource, schema.objectName))
+      .then((s: any) => {
+        if (!alive || !s?.fields) return;
+        const maps: Record<string, Record<string, string>> = {};
+        const nameLabels: Record<string, string> = {};
+        for (const [fieldName, fieldDef] of Object.entries<any>(s.fields)) {
+          if (fieldDef?.label) nameLabels[fieldName] = String(fieldDef.label);
+          const opts = fieldDef?.options;
+          if (Array.isArray(opts) && opts.length > 0) {
+            const m: Record<string, string> = {};
+            for (const opt of opts) {
+              if (opt && opt.value !== undefined && opt.label !== undefined) {
+                m[String(opt.value)] = String(opt.label);
+              }
+            }
+            if (Object.keys(m).length > 0) maps[fieldName] = m;
+          }
+        }
+        setFieldLabelMaps(maps);
+        setFieldNameLabels(nameLabels);
+      })
+      .catch(() => { /* silently fall back to raw values */ });
+    return () => { alive = false; };
+  }, [dataSource, schema.objectName]);
 
   useEffect(() => {
     let isMounted = true;
@@ -156,5 +193,9 @@ export const ObjectPivotTable: React.FC<ObjectPivotTableProps> = ({ schema, data
     data: finalData,
   };
 
-  return <PivotTable schema={finalSchema} className={className} />;
+  const rowLabels = schema.rowField ? fieldLabelMaps[schema.rowField] : undefined;
+  const colLabels = schema.columnField ? fieldLabelMaps[schema.columnField] : undefined;
+  const rowFieldLabel = schema.rowField ? fieldNameLabels[schema.rowField] : undefined;
+
+  return <PivotTable schema={finalSchema} className={className} rowLabels={rowLabels} columnLabels={colLabels} rowFieldLabel={rowFieldLabel} />;
 };

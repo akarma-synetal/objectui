@@ -13,6 +13,17 @@ import { cn } from '@object-ui/components';
 export interface PivotTableProps {
   schema: PivotTableSchema;
   className?: string;
+  /**
+   * Optional value→label map for the row field. Callers (e.g.
+   * ObjectPivotTable) derive this from the referenced object's schema so the
+   * pivot displays select-field labels (e.g. "Proposal") instead of raw
+   * stored values (e.g. "proposal").
+   */
+  rowLabels?: Record<string, string>;
+  /** Same as rowLabels but for the column field. */
+  columnLabels?: Record<string, string>;
+  /** Optional display label for the row field name (e.g. "Stage" for "stage"). */
+  rowFieldLabel?: string;
 }
 
 /** Apply a simple format string to a number. Supports prefix/suffix like "$,.2f". */
@@ -66,8 +77,9 @@ function formatValue(value: number, format?: string): string {
 /** Friendly display label for an empty/null column or row key. */
 const EMPTY_KEY_LABEL = '—';
 
-function displayKey(key: string): string {
-  return key === '' ? EMPTY_KEY_LABEL : key;
+function displayKey(key: string, labels?: Record<string, string>): string {
+  if (key === '') return EMPTY_KEY_LABEL;
+  return labels?.[key] ?? key;
 }
 
 /** Aggregate an array of numbers with the given function. */
@@ -95,7 +107,7 @@ function aggregate(values: number[], fn: PivotAggregation): number {
  * Renders a matrix where rows correspond to `rowField`, columns to
  * `columnField`, and cells show the aggregated `valueField`.
  */
-export const PivotTable: React.FC<PivotTableProps> = ({ schema, className }) => {
+export const PivotTable: React.FC<PivotTableProps> = ({ schema, className, rowLabels, columnLabels, rowFieldLabel }) => {
   const {
     title,
     rowField,
@@ -206,7 +218,7 @@ export const PivotTable: React.FC<PivotTableProps> = ({ schema, className }) => 
       <table className="w-full text-sm border-collapse table-auto" role="table">
         <thead>
           <tr className="border-b border-border">
-            <th className="text-left p-2 font-medium text-muted-foreground whitespace-nowrap">{rowField}</th>
+            <th className="text-left p-2 font-medium text-muted-foreground whitespace-nowrap">{rowFieldLabel || rowField}</th>
             {colKeys.map((col) => (
               <th
                 key={col}
@@ -217,7 +229,7 @@ export const PivotTable: React.FC<PivotTableProps> = ({ schema, className }) => 
                 )}
                 title={col === '' ? `${columnField}: (empty)` : `${columnField}: ${col}`}
               >
-                {displayKey(col)}
+                {displayKey(col, columnLabels)}
               </th>
             ))}
             {showRowTotals && (
@@ -228,7 +240,7 @@ export const PivotTable: React.FC<PivotTableProps> = ({ schema, className }) => 
         <tbody>
           {rowKeys.map((row) => (
             <tr key={row} className="border-b border-border/50 hover:bg-muted/30">
-              <td className={cn('p-2 font-medium whitespace-nowrap', row === '' && 'italic text-muted-foreground/70')}>{displayKey(row)}</td>
+              <td className={cn('p-2 font-medium whitespace-nowrap', row === '' && 'italic text-muted-foreground/70')}>{displayKey(row, rowLabels)}</td>
               {colKeys.map((col) => (
                 <td
                   key={col}
