@@ -317,6 +317,7 @@ export const DashboardRenderer = forwardRef<HTMLDivElement, DashboardRendererPro
                             label: objectForLabel ? fieldLabel(objectForLabel, effectiveYField, effectiveYField) : effectiveYField,
                         }],
                         colors: CHART_COLORS,
+                        drillDown: options.drillDown,
                         className: "h-[200px] sm:h-[250px] md:h-[300px]"
                     };
                 }
@@ -338,6 +339,7 @@ export const DashboardRenderer = forwardRef<HTMLDivElement, DashboardRendererPro
                         xAxisKey: xAxisKey,
                         series: [{ dataKey: yKey, label: fieldLabel(widget.object, yKey, yKey) }],
                         colors: CHART_COLORS,
+                        drillDown: options.drillDown,
                         className: "h-[200px] sm:h-[250px] md:h-[300px]"
                     };
                 }
