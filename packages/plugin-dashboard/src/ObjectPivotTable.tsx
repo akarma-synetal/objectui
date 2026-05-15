@@ -6,8 +6,9 @@
  * LICENSE file in the root directory of this source tree.
  */
 
-import React, { useState, useEffect, useContext } from 'react';
+import React, { useState, useEffect, useContext, useRef } from 'react';
 import { useDataScope, SchemaRendererContext } from '@object-ui/react';
+import { useSafeFieldLabel } from '@object-ui/i18n';
 import { extractRecords, computeDrillFilter, isDrillEnabled, resolveDrillTitle, type DrillEvent } from '@object-ui/core';
 import { Skeleton, cn } from '@object-ui/components';
 import { PivotTable } from './PivotTable';
@@ -57,6 +58,18 @@ export const ObjectPivotTable: React.FC<ObjectPivotTableProps> = ({ schema, data
   // conditional early return) to keep React's hook order stable.
   const [drillEvent, setDrillEvent] = useState<DrillEvent | null>(null);
 
+  // i18n: translate field display labels and select option labels via the
+  // standard object/field translation conventions. Held behind refs so the
+  // metadata-derivation effect doesn't need them in its dep array (the i18n
+  // hook returns fresh function identities each render).
+  const { fieldLabel, fieldOptionLabel } = useSafeFieldLabel();
+  const fieldLabelRef = useRef(fieldLabel);
+  const fieldOptionLabelRef = useRef(fieldOptionLabel);
+  useEffect(() => {
+    fieldLabelRef.current = fieldLabel;
+    fieldOptionLabelRef.current = fieldOptionLabel;
+  }, [fieldLabel, fieldOptionLabel]);
+
   useEffect(() => {
     if (!dataSource || !schema.objectName) return;
     const getSchema = (dataSource as any).getObjectSchema;
@@ -65,16 +78,20 @@ export const ObjectPivotTable: React.FC<ObjectPivotTableProps> = ({ schema, data
     Promise.resolve(getSchema.call(dataSource, schema.objectName))
       .then((s: any) => {
         if (!alive || !s?.fields) return;
+        const objectName = schema.objectName!;
         const maps: Record<string, Record<string, string>> = {};
         const nameLabels: Record<string, string> = {};
         for (const [fieldName, fieldDef] of Object.entries<any>(s.fields)) {
-          if (fieldDef?.label) nameLabels[fieldName] = String(fieldDef.label);
+          const rawLabel = fieldDef?.label ? String(fieldDef.label) : fieldName;
+          nameLabels[fieldName] = fieldLabelRef.current(objectName, fieldName, rawLabel);
           const opts = fieldDef?.options;
           if (Array.isArray(opts) && opts.length > 0) {
             const m: Record<string, string> = {};
             for (const opt of opts) {
               if (opt && opt.value !== undefined && opt.label !== undefined) {
-                m[String(opt.value)] = String(opt.label);
+                const value = String(opt.value);
+                const fallback = String(opt.label);
+                m[value] = fieldOptionLabelRef.current(objectName, fieldName, value, fallback);
               }
             }
             if (Object.keys(m).length > 0) maps[fieldName] = m;
