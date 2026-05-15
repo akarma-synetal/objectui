@@ -11,6 +11,23 @@ import type { FieldMetadata, SelectOptionMetadata } from '@object-ui/types';
 import { ComponentRegistry } from '@object-ui/core';
 import { Badge, Avatar, AvatarFallback, Button, Checkbox, EmptyValue } from '@object-ui/components';
 import { Check, X, Copy, Phone as PhoneIcon } from 'lucide-react';
+import { useObjectTranslation } from '@object-ui/react';
+
+/**
+ * Safe label resolver for cell-level UI strings. Falls back to the English
+ * default when no I18nProvider is available or when the key is missing.
+ */
+function useFieldLabel() {
+  try {
+    const { t } = useObjectTranslation();
+    return (key: string, fallback: string) => {
+      const v = t(key);
+      return !v || v === key ? fallback : v;
+    };
+  } catch {
+    return (_k: string, fallback: string) => fallback;
+  }
+}
 
 import { TextField } from './widgets/TextField';
 import { NumberField } from './widgets/NumberField';
@@ -636,7 +653,8 @@ export function SelectCellRenderer({ value, field }: CellRendererProps): React.R
  */
 export function EmailCellRenderer({ value }: CellRendererProps): React.ReactElement {
   if (!value) return <EmptyValue />;
-  
+
+  const label = useFieldLabel();
   const safe = String(coerceToSafeValue(value) ?? '');
   const [copied, setCopied] = React.useState(false);
 
@@ -667,7 +685,7 @@ export function EmailCellRenderer({ value }: CellRendererProps): React.ReactElem
         type="button"
         className="opacity-0 group-hover/email:opacity-100 transition-opacity p-0.5 rounded hover:bg-muted"
         onClick={handleCopy}
-        aria-label="Copy email"
+        aria-label={label('detail.copyEmail', 'Copy email')}
       >
         {copied ? (
           <Check className="h-3 w-3 text-green-600" />
@@ -709,7 +727,8 @@ export function UrlCellRenderer({ value }: CellRendererProps): React.ReactElemen
  */
 export function PhoneCellRenderer({ value }: CellRendererProps): React.ReactElement {
   if (!value) return <EmptyValue />;
-  
+
+  const label = useFieldLabel();
   const safe = String(coerceToSafeValue(value) ?? '');
   const [copied, setCopied] = React.useState(false);
 
@@ -736,7 +755,7 @@ export function PhoneCellRenderer({ value }: CellRendererProps): React.ReactElem
         type="button"
         className="opacity-0 group-hover/phone:opacity-100 transition-opacity p-0.5 rounded hover:bg-muted"
         onClick={handleCopy}
-        aria-label="Copy phone number"
+        aria-label={label('detail.copyPhone', 'Copy phone number')}
       >
         {copied ? (
           <Check className="h-3 w-3 text-green-600" />

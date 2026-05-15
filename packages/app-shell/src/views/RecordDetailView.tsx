@@ -650,7 +650,7 @@ export function RecordDetailView({ dataSource, objects, onEdit }: RecordDetailVi
               key={actionRefreshKey}
               schema={detailSchema}
               dataSource={dataSource}
-              objectLabel={objectDef.label}
+              objectLabel={objectLabel({ name: objectDef.name, label: objectDef.label })}
               onDataLoaded={(record) => {
                 if (!record || typeof record !== 'object') return;
                 // Resolve the same way DetailView's header does, so the

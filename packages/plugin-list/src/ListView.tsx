@@ -223,6 +223,7 @@ const LIST_DEFAULT_TRANSLATIONS: Record<string, string> = {
   'list.share': 'Share',
   'list.print': 'Print',
   'list.hideFieldsTitle': 'Hide Fields',
+  'table.rowsPerPage': 'Rows per page',
 };
 
 /**
@@ -1902,7 +1903,7 @@ export const ListView = React.forwardRef<ListViewHandle, ListViewProps>(({
           )}
           {schema.pagination?.pageSizeOptions && schema.pagination.pageSizeOptions.length > 0 && (
             <div className="ml-auto flex items-center gap-2">
-              <span>Rows per page</span>
+              <span>{t('table.rowsPerPage', { defaultValue: 'Rows per page' })}</span>
               <select
                 data-testid="page-size-selector"
                 className="h-7 w-[72px] px-2 py-1 text-xs rounded-md border border-input bg-background"

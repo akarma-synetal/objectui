@@ -10,7 +10,17 @@ import * as React from 'react';
 import { cn, Button, Popover, PopoverContent, PopoverTrigger, LookupValuePicker } from '@object-ui/components';
 import { ChevronDown, X, Plus, SlidersHorizontal } from 'lucide-react';
 import type { ListViewSchema } from '@object-ui/types';
-import { useSafeFieldLabel } from '@object-ui/i18n';
+import { useSafeFieldLabel, useObjectTranslation } from '@object-ui/i18n';
+
+function useMoreLabel(): string {
+  try {
+    const { t } = useObjectTranslation();
+    const v = t('common.more');
+    return !v || v === 'common.more' ? 'More' : v;
+  } catch {
+    return 'More';
+  }
+}
 
 /** Resolved option with optional count */
 interface ResolvedOption {
@@ -205,6 +215,7 @@ interface DropdownFiltersProps {
 
 function DropdownFilters({ fields, objectDef, data, onFilterChange, maxVisible, className }: DropdownFiltersProps) {
   const { fieldLabel, translateOptions } = useSafeFieldLabel();
+  const moreLabel = useMoreLabel();
   const objectName: string | undefined = objectDef?.name;
   const [selectedValues, setSelectedValues] = React.useState<
     Record<string, (string | number | boolean)[]>
@@ -382,7 +393,7 @@ function DropdownFilters({ fields, objectDef, data, onFilterChange, maxVisible, 
                   data-testid="user-filters-more"
                   className="inline-flex items-center gap-1 rounded-full border border-border bg-background hover:bg-accent text-foreground h-7 px-2.5 text-xs font-medium transition-colors shrink-0"
                 >
-                  <span>More</span>
+                  <span>{moreLabel}</span>
                   <span className="flex h-4 min-w-[16px] items-center justify-center rounded-full bg-muted text-[10px] font-medium">
                     {overflowFields.length}
                   </span>

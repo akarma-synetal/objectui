@@ -10,6 +10,17 @@ import React, { useMemo } from 'react';
 import type { PivotTableSchema, PivotAggregation } from '@object-ui/types';
 import { cn } from '@object-ui/components';
 import { isDrillEnabled, type DrillEvent } from '@object-ui/core';
+import { useObjectTranslation } from '@object-ui/i18n';
+
+function useTotalLabel(): string {
+  try {
+    const { t } = useObjectTranslation();
+    const v = t('dashboard.total');
+    return !v || v === 'dashboard.total' ? 'Total' : v;
+  } catch {
+    return 'Total';
+  }
+}
 
 export interface PivotTableProps {
   schema: PivotTableSchema;
@@ -128,6 +139,7 @@ export const PivotTable: React.FC<PivotTableProps> = ({ schema, className, rowLa
     columnColors,
     drillDown,
   } = schema;
+  const totalLabel = useTotalLabel();
 
   const drillEnabled = isDrillEnabled(drillDown) && typeof onDrillDown === 'function';
   const fireDrill = (ev: DrillEvent) => {
@@ -269,7 +281,7 @@ export const PivotTable: React.FC<PivotTableProps> = ({ schema, className, rowLa
               );
             })}
             {showRowTotals && (
-              <th className="text-right p-2 font-semibold text-muted-foreground bg-muted/20 whitespace-nowrap">Total</th>
+              <th className="text-right p-2 font-semibold text-muted-foreground bg-muted/20 whitespace-nowrap">{totalLabel}</th>
             )}
           </tr>
         </thead>
@@ -328,7 +340,7 @@ export const PivotTable: React.FC<PivotTableProps> = ({ schema, className, rowLa
         {showColumnTotals && (
           <tfoot>
             <tr className="border-t-2 border-border font-semibold bg-muted/40">
-              <td className="p-2">Total</td>
+              <td className="p-2">{totalLabel}</td>
               {colKeys.map((col) => (
                 <td
                   key={col}
