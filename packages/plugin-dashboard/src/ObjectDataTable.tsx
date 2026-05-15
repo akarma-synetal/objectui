@@ -98,17 +98,27 @@ export function computeLookupExpand(
   } else {
     for (const [name, def] of Object.entries(objectSchema.fields)) fieldsByName[name] = { name, ...(def as any) };
   }
+  const isLookup = (t: unknown) =>
+    t === 'lookup' || t === 'reference' || t === 'master_detail' || t === 'user' || t === 'owner';
+
   const cols = Array.isArray(schema.columns) ? schema.columns : [];
-  const accessors = cols
-    .map((c: any) => (typeof c === 'string' ? c : (c.accessorKey || c.name)))
-    .filter(Boolean);
   const out = new Set<string>();
-  for (const acc of accessors) {
-    const def = fieldsByName[acc];
-    if (!def) continue;
-    const t = def.type;
-    if (t === 'lookup' || t === 'reference' || t === 'master_detail' || t === 'user' || t === 'owner') {
-      out.add(acc);
+
+  if (cols.length > 0) {
+    // Explicit columns whitelist: only expand the relations the user asked for.
+    const accessors = cols
+      .map((c: any) => (typeof c === 'string' ? c : (c.accessorKey || c.name)))
+      .filter(Boolean);
+    for (const acc of accessors) {
+      const def = fieldsByName[acc];
+      if (def && isLookup(def.type)) out.add(acc);
+    }
+  } else {
+    // No columns whitelist (auto-derive mode, e.g. drill-down drawer):
+    // expand every lookup-type field known from the schema so cells show
+    // the related record's display name instead of a bare FK id.
+    for (const [name, def] of Object.entries(fieldsByName)) {
+      if (isLookup((def as any)?.type)) out.add(name);
     }
   }
   return Array.from(out);
