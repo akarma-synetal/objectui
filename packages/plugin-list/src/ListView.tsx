@@ -1314,9 +1314,9 @@ export const ListView = React.forwardRef<ListViewHandle, ListViewProps>(({
           {isRefreshing ? t('list.refreshing') : t('list.pullToRefresh')}
         </div>
       )}
-      {/* Airtable-style Toolbar — Row 1: View tabs */}
+      {/* Unified toolbar — Row 1: View tabs (when present) */}
       {showViewSwitcher && (
-        <div className="border-b px-4 py-1 flex items-center bg-background">
+        <div className="px-4 py-1 flex items-center bg-background">
           <ViewSwitcher
             currentView={currentView}
             availableViews={availableViews}
@@ -1325,25 +1325,29 @@ export const ListView = React.forwardRef<ListViewHandle, ListViewProps>(({
         </div>
       )}
 
-      {/* View Tabs */}
-      {schema.tabs && schema.tabs.length > 0 && (
-        <TabBar
-          tabs={schema.tabs}
-          activeTab={activeTab}
-          onTabChange={handleTabChange}
-        />
-      )}
-
-      {/* View Description */}
+      {/* View Description (single line, no border duplication) */}
       {schema.description && (schema.appearance?.showDescription !== false) && (
-        <div className="border-b px-4 py-1.5 text-xs text-muted-foreground bg-background" data-testid="view-description">
+        <div className="px-4 pt-1.5 text-xs text-muted-foreground bg-background" data-testid="view-description">
           {typeof schema.description === 'string' ? schema.description : ''}
         </div>
       )}
 
-      {/* Airtable-style Toolbar — UserFilter badges (left) + Tool buttons (right) */}
+      {/* Unified toolbar — Tabs + UserFilters (left) + Tool buttons (right) on one row */}
       <div className="border-b px-2 sm:px-4 py-1 flex items-center justify-between gap-1 sm:gap-2 bg-background">
-        <div className="flex items-center gap-0.5 overflow-x-auto min-w-0">
+        <div className="flex items-center gap-2 overflow-x-auto min-w-0">
+          {/* View Tabs — inline */}
+          {schema.tabs && schema.tabs.length > 0 && (
+            <TabBar
+              tabs={schema.tabs}
+              activeTab={activeTab}
+              onTabChange={handleTabChange}
+              className="!px-0 !py-0 shrink-0"
+            />
+          )}
+          {/* Vertical divider between tabs and user filters */}
+          {schema.tabs && schema.tabs.length > 0 && resolvedUserFilters && (
+            <div className="h-4 w-px bg-border/60 mx-1 shrink-0" />
+          )}
           {/* User Filters — inline in toolbar (Airtable Interfaces-style) */}
           {resolvedUserFilters && (
               <div className="shrink-0 min-w-0" data-testid="user-filters">
@@ -1358,7 +1362,7 @@ export const ListView = React.forwardRef<ListViewHandle, ListViewProps>(({
           )}
         </div>
 
-        <div className="flex items-center gap-0.5 shrink-0">
+        <div className="flex items-center gap-0 shrink-0">
           {/* Hide Fields */}
           {toolbarFlags.showHideFields && (
           <Popover open={showHideFields} onOpenChange={setShowHideFields}>
@@ -1374,7 +1378,7 @@ export const ListView = React.forwardRef<ListViewHandle, ListViewProps>(({
                 <EyeOff className="h-3.5 w-3.5 mr-1.5" />
                 <span className="hidden sm:inline">{t('list.hideFields')}</span>
                 {hiddenFields.size > 0 && (
-                  <span className="ml-1 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-primary/10 text-[10px] font-medium text-primary">
+                  <span className="ml-1 flex h-4 min-w-[16px] items-center justify-center text-[10px] font-medium text-muted-foreground tabular-nums">
                     {hiddenFields.size}
                   </span>
                 )}
@@ -1435,13 +1439,13 @@ export const ListView = React.forwardRef<ListViewHandle, ListViewProps>(({
                 size="sm"
                 className={cn(
                   "h-7 px-2 text-muted-foreground hover:text-primary text-xs transition-colors duration-150",
-                  hasFilters && "bg-primary/10 border border-primary/20 text-primary"
+                  hasFilters && "text-foreground font-medium"
                 )}
               >
                 <SlidersHorizontal className="h-3.5 w-3.5 mr-1.5" />
                 <span className="hidden sm:inline">{t('list.filter')}</span>
                 {hasFilters && (
-                  <span className="ml-1 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-primary/10 text-[10px] font-medium text-primary">
+                  <span className="ml-1 flex h-4 min-w-[16px] items-center justify-center text-[10px] font-medium text-muted-foreground tabular-nums">
                     {currentFilters.conditions?.length || 0}
                   </span>
                 )}
@@ -1474,13 +1478,13 @@ export const ListView = React.forwardRef<ListViewHandle, ListViewProps>(({
                 size="sm"
                 className={cn(
                   "h-7 px-2 text-muted-foreground hover:text-primary text-xs transition-colors duration-150",
-                  groupingConfig && "bg-primary/10 border border-primary/20 text-primary"
+                  groupingConfig && "text-foreground font-medium"
                 )}
               >
                 <Group className="h-3.5 w-3.5 mr-1.5" />
                 <span className="hidden sm:inline">{t('list.group')}</span>
                 {groupingConfig && groupingConfig.fields?.length > 0 && (
-                  <span className="ml-1 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-primary/10 text-[10px] font-medium text-primary">
+                  <span className="ml-1 flex h-4 min-w-[16px] items-center justify-center text-[10px] font-medium text-muted-foreground tabular-nums">
                     {groupingConfig.fields.length}
                   </span>
                 )}
@@ -1523,13 +1527,13 @@ export const ListView = React.forwardRef<ListViewHandle, ListViewProps>(({
                 size="sm"
                 className={cn(
                   "h-7 px-2 text-muted-foreground hover:text-primary text-xs transition-colors duration-150",
-                  currentSort.length > 0 && "bg-primary/10 border border-primary/20 text-primary"
+                  currentSort.length > 0 && "text-foreground font-medium"
                 )}
               >
                 <ArrowUpDown className="h-3.5 w-3.5 mr-1.5" />
                 <span className="hidden sm:inline">{t('list.sort')}</span>
                 {currentSort.length > 0 && (
-                  <span className="ml-1 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-primary/10 text-[10px] font-medium text-primary">
+                  <span className="ml-1 flex h-4 min-w-[16px] items-center justify-center text-[10px] font-medium text-muted-foreground tabular-nums">
                     {currentSort.length}
                   </span>
                 )}
@@ -1567,7 +1571,7 @@ export const ListView = React.forwardRef<ListViewHandle, ListViewProps>(({
                 size="sm"
                 className={cn(
                   "h-7 px-2 text-muted-foreground hover:text-primary text-xs transition-colors duration-150",
-                  rowColorConfig && "bg-primary/10 border border-primary/20 text-primary"
+                  rowColorConfig && "text-foreground font-medium"
                 )}
               >
                 <Paintbrush className="h-3.5 w-3.5 mr-1.5" />
@@ -1620,7 +1624,7 @@ export const ListView = React.forwardRef<ListViewHandle, ListViewProps>(({
                 aria-label={`Density: ${density.mode}`}
                 className={cn(
                   "h-7 w-7 p-0 text-muted-foreground hover:text-primary transition-colors duration-150",
-                  density.mode !== 'compact' && "bg-primary/10 border border-primary/20 text-primary"
+                  density.mode !== 'compact' && "text-foreground font-medium"
                 )}
                 onClick={density.cycle}
                 title={`Density: ${density.mode} (click to cycle)`}
@@ -1712,7 +1716,7 @@ export const ListView = React.forwardRef<ListViewHandle, ListViewProps>(({
                   size="sm"
                   className={cn(
                     "h-7 w-7 p-0 text-muted-foreground hover:text-primary text-xs transition-colors duration-150",
-                    searchTerm && "bg-primary/10 border border-primary/20 text-primary"
+                    searchTerm && "text-foreground font-medium"
                   )}
                   data-testid="search-icon-button"
                   title={t('list.search')}

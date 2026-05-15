@@ -649,9 +649,10 @@ describe('ListView', () => {
       renderWithProvider(<ListView schema={schema} />);
       fireEvent.click(screen.getByTestId('search-icon-button'));
       fireEvent.change(screen.getByPlaceholderText(/search/i), { target: { value: 'test' } });
-      // The search icon button should have active styling class
+      // The search icon button should have active styling (foreground text + medium weight)
       const searchBtn = screen.getByTestId('search-icon-button');
-      expect(searchBtn.className).toContain('bg-primary');
+      expect(searchBtn.className).toContain('text-foreground');
+      expect(searchBtn.className).toContain('font-medium');
     });
   });
 

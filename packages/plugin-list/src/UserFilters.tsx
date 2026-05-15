@@ -8,7 +8,7 @@
 
 import * as React from 'react';
 import { cn, Button, Popover, PopoverContent, PopoverTrigger, LookupValuePicker } from '@object-ui/components';
-import { ChevronDown, X, Plus, SlidersHorizontal } from 'lucide-react';
+import { ChevronDown, X, Plus } from 'lucide-react';
 import type { ListViewSchema } from '@object-ui/types';
 import { useSafeFieldLabel, useObjectTranslation } from '@object-ui/i18n';
 
@@ -280,21 +280,21 @@ function DropdownFilters({ fields, objectDef, data, onFilterChange, maxVisible, 
           <button
             data-testid={`filter-badge-${f.field}`}
             className={cn(
-              'inline-flex items-center gap-1 rounded-full border h-7 px-2.5 text-xs font-medium transition-colors shrink-0',
+              'inline-flex items-center gap-1 h-7 px-2 text-xs transition-colors shrink-0 rounded-md',
               hasSelection
-                ? 'border-primary/30 bg-primary/5 text-primary'
-                : 'border-border bg-background hover:bg-accent text-foreground',
+                ? 'text-foreground font-medium'
+                : 'text-muted-foreground hover:text-foreground',
             )}
           >
             <span className="truncate max-w-[100px]">{f.label || f.field}</span>
             {hasSelection && (
-              <span className="flex h-4 min-w-[16px] items-center justify-center rounded-full bg-primary/10 text-[10px]">
+              <span className="text-[10px] text-muted-foreground/80 tabular-nums">
                 {selected.length}
               </span>
             )}
             {hasSelection ? (
               <X
-                className="h-3 w-3 opacity-60"
+                className="h-3 w-3 opacity-60 hover:opacity-100"
                 data-testid={`filter-clear-${f.field}`}
                 onClick={e => {
                   e.stopPropagation();
@@ -377,8 +377,7 @@ function DropdownFilters({ fields, objectDef, data, onFilterChange, maxVisible, 
   };
 
   return (
-    <div className={cn('flex items-center gap-1 overflow-x-auto', className)} data-testid="user-filters-dropdown">
-      <SlidersHorizontal className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+    <div className={cn('flex items-center gap-0.5 overflow-x-auto', className)} data-testid="user-filters-dropdown">
       {resolvedFields.length === 0 ? (
         <span className="text-xs text-muted-foreground" data-testid="user-filters-empty">
           No filter fields
@@ -391,10 +390,10 @@ function DropdownFilters({ fields, objectDef, data, onFilterChange, maxVisible, 
               <PopoverTrigger asChild>
                 <button
                   data-testid="user-filters-more"
-                  className="inline-flex items-center gap-1 rounded-full border border-border bg-background hover:bg-accent text-foreground h-7 px-2.5 text-xs font-medium transition-colors shrink-0"
+                  className="inline-flex items-center gap-1 h-7 px-2 text-xs text-muted-foreground hover:text-foreground transition-colors shrink-0 rounded-md"
                 >
                   <span>{moreLabel}</span>
-                  <span className="flex h-4 min-w-[16px] items-center justify-center rounded-full bg-muted text-[10px] font-medium">
+                  <span className="text-[10px] text-muted-foreground/80 tabular-nums">
                     {overflowFields.length}
                   </span>
                   <ChevronDown className="h-3 w-3 opacity-60" />

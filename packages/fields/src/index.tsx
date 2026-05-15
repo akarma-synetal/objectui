@@ -9,7 +9,7 @@
 import React from 'react';
 import type { FieldMetadata, SelectOptionMetadata } from '@object-ui/types';
 import { ComponentRegistry } from '@object-ui/core';
-import { Badge, Avatar, AvatarFallback, Button, Checkbox, EmptyValue } from '@object-ui/components';
+import { Badge, Avatar, AvatarFallback, Button, Checkbox, EmptyValue, cn } from '@object-ui/components';
 import { Check, X, Copy, Phone as PhoneIcon } from 'lucide-react';
 import { useObjectTranslation } from '@object-ui/react';
 
@@ -560,6 +560,22 @@ const BADGE_COLOR_MAP: Record<string, string> = {
   pink: 'bg-pink-50 text-pink-700 border-pink-200 dark:bg-pink-950/40 dark:text-pink-300 dark:border-pink-900/60',
 };
 
+// Solid color → Tailwind background class for the small dot used by the
+// `appearance: 'dot'` rendering of select/status fields. Uses the -500 shade
+// for both light and dark modes so the dot remains a clear visual anchor
+// without becoming a heavy color block.
+const DOT_COLOR_MAP: Record<string, string> = {
+  gray: 'bg-gray-400 dark:bg-gray-500',
+  red: 'bg-red-500',
+  orange: 'bg-orange-500',
+  yellow: 'bg-yellow-500',
+  green: 'bg-green-500',
+  blue: 'bg-blue-500',
+  indigo: 'bg-indigo-500',
+  purple: 'bg-purple-500',
+  pink: 'bg-pink-500',
+};
+
 // Color palette used by the deterministic fallback when no schema/semantic
 // color matches. Excludes 'gray' to ensure visual contrast between values.
 const BADGE_FALLBACK_PALETTE: readonly string[] = [
@@ -591,11 +607,22 @@ function getBadgeColorClasses(color?: string, val?: unknown): string {
 }
 
 /**
- * Select field cell renderer (with badges)
+ * Select field cell renderer.
+ *
+ * Two visual styles, controlled by `field.appearance` (renderer-level option,
+ * not part of the `@objectstack/spec` field schema):
+ *   - `'badge'` (default for spec compatibility): soft-pill colored badge.
+ *   - `'dot'`: a small colored dot followed by the option label. Used by
+ *     dense list/grid contexts to keep the table visually quiet — repeated
+ *     filled badges across many rows create heavy visual noise.
+ *
+ * Metadata always wins: callers can pass `appearance: 'badge'` on the field
+ * descriptor to force the legacy badge in any context.
  */
 export function SelectCellRenderer({ value, field }: CellRendererProps): React.ReactElement {
   const selectField = field as any;
   const options: SelectOptionMetadata[] = selectField.options || [];
+  const appearance: 'badge' | 'dot' = selectField.appearance === 'dot' ? 'dot' : 'badge';
 
   if (value == null || value === '') return <EmptyValue />;
 
@@ -610,42 +637,47 @@ export function SelectCellRenderer({ value, field }: CellRendererProps): React.R
     return options.find(opt => String(opt.value).toLowerCase() === norm);
   };
 
+  const renderOne = (val: any, key?: number): React.ReactElement => {
+    const option = findOption(val);
+    const label = option?.label || humanizeLabel(String(val));
+
+    if (appearance === 'dot') {
+      // Resolve a real CSS color for the dot. Prefer explicit option color,
+      // then semantic mapping for the value, then deterministic palette.
+      const colorName = option?.color
+        || SEMANTIC_COLOR_MAP[String(val).toLowerCase().replace(/[\s-]/g, '_')]
+        || hashToColor(String(val).toLowerCase().replace(/[\s-]/g, '_'));
+      const dotClass = DOT_COLOR_MAP[colorName] || DOT_COLOR_MAP.gray;
+      return (
+        <span key={key} className="inline-flex items-center gap-1.5 text-sm">
+          <span className={cn('h-1.5 w-1.5 rounded-full shrink-0', dotClass)} aria-hidden="true" />
+          <span className="truncate">{label}</span>
+        </span>
+      );
+    }
+
+    const colorClasses = getBadgeColorClasses(option?.color, val);
+    return (
+      <Badge
+        key={key}
+        variant="outline"
+        className={colorClasses}
+      >
+        {label}
+      </Badge>
+    );
+  };
+
   // Handle multiple values
   if (Array.isArray(value)) {
     return (
-      <div className="flex flex-wrap gap-1">
-        {value.map((val, idx) => {
-          const option = findOption(val);
-          const label = option?.label || humanizeLabel(String(val));
-          const colorClasses = getBadgeColorClasses(option?.color, val);
-
-          return (
-            <Badge
-              key={idx}
-              variant="outline"
-              className={colorClasses}
-            >
-              {label}
-            </Badge>
-          );
-        })}
+      <div className={cn('flex flex-wrap', appearance === 'dot' ? 'gap-x-3 gap-y-1' : 'gap-1')}>
+        {value.map((val, idx) => renderOne(val, idx))}
       </div>
     );
   }
 
-  // Handle single value
-  const option = findOption(value);
-  const label = option?.label || humanizeLabel(String(value));
-  const colorClasses = getBadgeColorClasses(option?.color, value);
-  
-  return (
-    <Badge
-      variant="outline"
-      className={colorClasses}
-    >
-      {label}
-    </Badge>
-  );
+  return renderOne(value);
 }
 
 /**

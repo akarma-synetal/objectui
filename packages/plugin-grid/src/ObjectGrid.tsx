@@ -728,6 +728,12 @@ export const ObjectGrid: React.FC<ObjectGridProps> = ({
               const uniqueValues = Array.from(new Set(data.map(row => row[col.accessorKey]).filter(Boolean)));
               fieldMeta.options = uniqueValues.map((v: any) => ({ value: v, label: humanizeLabel(String(v)) }));
             }
+            // Pass through metadata-defined appearance only — never override
+            // the field's display style from the renderer. This keeps list
+            // cells visually consistent with detail / form rendering.
+            if ((col as any).appearance != null) {
+              fieldMeta.appearance = (col as any).appearance;
+            }
 
             return {
               ...col,
@@ -776,6 +782,13 @@ export const ObjectGrid: React.FC<ObjectGridProps> = ({
               }
               if ((col as any).options) {
                 fieldMeta.options = translateOptions(schema.objectName, col.field, (col as any).options);
+              }
+              // Honor metadata-defined appearance only (col.appearance or
+              // objectDef field.appearance). When unset, the cell renders
+              // its default badge style — same as detail / form views.
+              const explicitAppearance = (col as any).appearance ?? objectDefField?.appearance;
+              if (explicitAppearance != null) {
+                fieldMeta.appearance = explicitAppearance;
               }
 
               // Auto-link primary field (first column) to record detail (Airtable-style)
@@ -930,6 +943,9 @@ export const ObjectGrid: React.FC<ObjectGridProps> = ({
             const uniqueValues = Array.from(new Set(data.map(row => row[fieldName]).filter(Boolean)));
             fieldMeta.options = uniqueValues.map((v: any) => ({ value: v, label: humanizeLabel(String(v)) }));
           }
+          if ((resolvedType === 'select' || resolvedType === 'status') && (fieldDef as any)?.appearance != null) {
+            fieldMeta.appearance = (fieldDef as any).appearance;
+          }
 
           const numericTypes = ['number', 'currency', 'percent'];
           const inferredAlign = resolvedType && numericTypes.includes(resolvedType) ? 'right' as const : undefined;
@@ -1003,6 +1019,9 @@ export const ObjectGrid: React.FC<ObjectGridProps> = ({
             const uniqueValues = Array.from(new Set(data.map(row => row[fieldName]).filter(Boolean)));
             fieldMeta.options = uniqueValues.map((v: any) => ({ value: v, label: humanizeLabel(String(v)) }));
           }
+          if ((resolvedType === 'select' || resolvedType === 'status') && (fieldDef as any)?.appearance != null) {
+            fieldMeta.appearance = (fieldDef as any).appearance;
+          }
 
           const numericTypes = ['number', 'currency', 'percent'];
           const inferredAlign = resolvedType && numericTypes.includes(resolvedType) ? 'right' as const : undefined;
@@ -1070,11 +1089,12 @@ export const ObjectGrid: React.FC<ObjectGridProps> = ({
       const translatedField = field.options
         ? { ...field, options: translateOptions(schema.objectName, fieldName, field.options) }
         : field;
+      const fieldForCell: any = translatedField;
       generatedColumns.push({
         header: schema.objectName ? resolveFieldLabel(schema.objectName, fieldName, field.label || fieldName) : field.label || fieldName,
         accessorKey: fieldName,
         ...(numericTypes.includes(field.type) && { align: 'right' }),
-        cell: (value: any) => <CellRenderer value={value} field={translatedField} />,
+        cell: (value: any) => <CellRenderer value={value} field={fieldForCell} />,
         sortable: field.sortable !== false,
       });
     });

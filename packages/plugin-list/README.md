@@ -12,6 +12,27 @@ ListView plugin for ObjectUI - A unified view component with view type switching
 - **Flexible Configuration**: Configure available view types per object
 - **Custom Templates**: Support for custom view options per view type
 
+## Visual density defaults (renderer-only, metadata always wins)
+
+The toolbar and cell renderers are tuned for low visual noise on dense tables:
+
+- **Unified toolbar row**: view tabs (`schema.tabs`), user filters and tool
+  buttons share a single bordered row. The previous stacked rows (`tabs` /
+  `description` / `toolbar`) are collapsed into one separator line.
+- **Flat user-filter pills**: `userFilters` (dropdown mode) render as ghost
+  text + count. Active state is shown via `text-foreground font-medium`
+  rather than a filled / bordered pill.
+- **Quiet active state for tool buttons**: filter / group / sort / color /
+  density / search no longer paint a `bg-primary/10 border` block when
+  active — they switch to `text-foreground font-medium` and rely on the
+  trailing count for emphasis.
+- **Dot-style select/status cells (opt-in)**: the cell renderer supports
+  `appearance: 'dot'` to render `● label` instead of a filled badge for
+  high-density tables. **This is opt-in** — by default select/status
+  cells render as filled badges in both list and detail views, keeping
+  visual consistency across views. Set `appearance: 'dot'` on the field
+  (or column) in metadata when you want the lighter style.
+
 ## Installation
 
 ```bash
