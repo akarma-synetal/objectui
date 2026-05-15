@@ -143,7 +143,12 @@ export const MetricWidget = ({
     const formatted = typeof value === 'number' || (typeof value === 'string' && value.trim() !== '' && isFinite(Number(value)))
       ? formatMetricValue(value, format, currency)
       : (value ?? '');
-    return `${prefix ?? ''}${formatted}${suffix ?? ''}`;
+    const formattedStr = String(formatted);
+    // Avoid duplicating a currency-style prefix/suffix that the formatter
+    // already produced (e.g. format='$0,0' + prefix='$' → '$$0').
+    const effectivePrefix = prefix && formattedStr.startsWith(prefix) ? '' : (prefix ?? '');
+    const effectiveSuffix = suffix && formattedStr.endsWith(suffix) ? '' : (suffix ?? '');
+    return `${effectivePrefix}${formattedStr}${effectiveSuffix}`;
   }, [value, format, currency, prefix, suffix]);
 
   // Resolve icon if it's a string — uses lazy resolver so we don't pull
