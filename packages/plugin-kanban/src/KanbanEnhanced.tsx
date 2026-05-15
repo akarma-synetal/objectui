@@ -146,7 +146,11 @@ function SortableCard({ card, conditionalFormatting }: { card: KanbanCard; condi
           <CardContent className="p-4 pt-0">
             <div className="flex flex-wrap gap-1">
               {card.badges.map((badge, index) => (
-                <Badge key={index} variant={badge.variant || "default"} className="text-xs">
+                <Badge
+                  key={index}
+                  variant={badge.colorClass ? "outline" : (badge.variant || "default")}
+                  className={cn("text-xs font-normal", badge.colorClass)}
+                >
                   {badge.label}
                 </Badge>
               ))}

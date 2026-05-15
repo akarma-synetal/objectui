@@ -38,6 +38,7 @@ import {
   AlertDialogTitle,
 } from '@object-ui/components';
 import { extractRecords, buildExpandFields } from '@object-ui/core';
+import { getSemanticColorName, getSemanticHex } from '@object-ui/fields';
 import { GanttView, type GanttTask } from './GanttView';
 
 export interface ObjectGanttProps {
@@ -284,7 +285,20 @@ export const ObjectGantt: React.FC<ObjectGanttProps> = ({
       const title = resolveTitle(record);
       const progress = progressField ? record[progressField] : 0;
       const dependencies = dependenciesField ? record[dependenciesField] : [];
-      const color = colorField ? record[colorField] : undefined;
+      // Bar color resolution:
+      //   1. explicit `colorField` value (hex or semantic name) — metadata wins.
+      //   2. fall back to the record's status / state / priority field so
+      //      the timeline reflects the same color story as list/kanban.
+      //   3. if neither exists, GanttView paints the platform default blue.
+      let color = colorField ? record[colorField] : undefined;
+      if (!color) {
+        const fallbackVal =
+          record.status ?? record.state ?? record.priority ?? record.severity;
+        if (fallbackVal != null && fallbackVal !== '') {
+          const name = getSemanticColorName(undefined, fallbackVal);
+          if (name) color = getSemanticHex(name);
+        }
+      }
 
       return {
         id: record.id || record._id || `task-${index}`,

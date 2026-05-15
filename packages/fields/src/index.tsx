@@ -328,7 +328,7 @@ export function PercentCellRenderer({ value, field }: CellRendererProps): React.
   return (
     <div className="flex items-center gap-2">
       <div
-        className="h-1.5 w-16 rounded-full bg-muted overflow-hidden shrink-0"
+        className="h-1.5 w-16 rounded-full bg-muted ring-1 ring-inset ring-border/60 overflow-hidden shrink-0"
         role="progressbar"
         aria-valuenow={clampedBar}
         aria-valuemin={0}
@@ -604,6 +604,50 @@ export function getBadgeColorClasses(color?: string, val?: unknown): string {
   // Deterministic fallback so distinct values are visually distinguishable
   // even when metadata declares no colors.
   return BADGE_COLOR_MAP[hashToColor(key)];
+}
+
+/**
+ * Resolve a semantic color name (e.g. "red", "green") for a value, suitable
+ * for callers that need a raw color token rather than CSS classes (for
+ * example, the Gantt renderer paints bars via inline styles).
+ *
+ * Resolution order: explicit option color → semantic value mapping →
+ * deterministic hash fallback. Returns `undefined` only when no value is
+ * supplied so the caller can fall back to its own default.
+ */
+export function getSemanticColorName(color?: string, val?: unknown): string | undefined {
+  if (color && BADGE_COLOR_MAP[color]) return color;
+  if (val == null || val === '') return undefined;
+  const key = String(val).toLowerCase().replace(/[\s-]/g, '_');
+  const semantic = SEMANTIC_COLOR_MAP[key];
+  if (semantic) return semantic;
+  return hashToColor(key);
+}
+
+// Resolved hex values for the -500 shade of each palette color. Mirrors
+// `DOT_COLOR_MAP` and is consumed by callers that paint via inline styles
+// (e.g. Gantt task bars, where Tailwind classes can't be applied to dynamic
+// `style={}` values).
+const COLOR_NAME_HEX: Record<string, string> = {
+  gray: '#6b7280',
+  red: '#ef4444',
+  orange: '#f97316',
+  yellow: '#eab308',
+  green: '#22c55e',
+  blue: '#3b82f6',
+  indigo: '#6366f1',
+  purple: '#a855f7',
+  pink: '#ec4899',
+};
+
+/**
+ * Map a semantic color name to its Tailwind -500 hex value. Used by
+ * inline-style consumers (Gantt bars). Falls back to the supplied default
+ * (or the platform default blue) when the name is unrecognized.
+ */
+export function getSemanticHex(name?: string, fallback: string = '#3b82f6'): string {
+  if (!name) return fallback;
+  return COLOR_NAME_HEX[name] ?? fallback;
 }
 
 /**

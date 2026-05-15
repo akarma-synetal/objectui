@@ -11,6 +11,7 @@ import type { DataSource } from '@object-ui/types';
 import { useDataScope, useNavigationOverlay, useSafeFieldLabel } from '@object-ui/react';
 import { RecordDetailDrawer, deriveRecordPageHref } from '@object-ui/plugin-detail';
 import { extractRecords, buildExpandFields } from '@object-ui/core';
+import { getBadgeColorClasses } from '@object-ui/fields';
 import { KanbanRenderer } from './index';
 import { KanbanSchema } from './types';
 
@@ -251,11 +252,17 @@ export const ObjectKanban: React.FC<ObjectKanbanProps> = ({
       if (ownerField) descParts.push(`@${item[ownerField]}`);
 
       const badgeFields = ['priority', 'severity', 'industry', 'rating'];
-      const cardBadges: Array<{ label: string; variant?: any }> = [];
+      const cardBadges: Array<{ label: string; variant?: any; colorClass?: string }> = [];
       for (const f of badgeFields) {
         const v = item[f];
         if (v != null && v !== '') {
-          cardBadges.push({ label: String(v), variant: 'secondary' });
+          const fieldDef = objectDef?.fields?.[f];
+          const option = fieldDef?.options?.find((o: any) =>
+            String(o.value).toLowerCase() === String(v).toLowerCase()
+          );
+          const label = option?.label || String(v);
+          const colorClass = getBadgeColorClasses(option?.color, v);
+          cardBadges.push({ label, colorClass });
           if (cardBadges.length >= 2) break;
         }
       }

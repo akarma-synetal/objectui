@@ -11,9 +11,10 @@ import { __resolveEventColorForTest as resolveEventColor } from './CalendarView'
 
 describe('resolveEventColor', () => {
   it('returns default palette entry for null / empty input', () => {
-    expect(resolveEventColor(undefined)).toEqual({ className: 'bg-blue-500 text-white' });
-    expect(resolveEventColor(null)).toEqual({ className: 'bg-blue-500 text-white' });
-    expect(resolveEventColor('')).toEqual({ className: 'bg-blue-500 text-white' });
+    const expected = 'bg-blue-100 text-blue-900 border border-blue-200';
+    expect(resolveEventColor(undefined)).toEqual({ className: expected });
+    expect(resolveEventColor(null)).toEqual({ className: expected });
+    expect(resolveEventColor('')).toEqual({ className: expected });
   });
 
   it('passes through hex colors via inline style', () => {

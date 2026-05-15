@@ -25,22 +25,23 @@ import {
 } from "@object-ui/components"
 import { useObjectTranslation } from "@object-ui/i18n"
 
-const DEFAULT_EVENT_COLOR = "bg-blue-500 text-white"
+const DEFAULT_EVENT_COLOR = "bg-blue-100 text-blue-900 border border-blue-200"
 const STABLE_DEFAULT_DATE = new Date()
 
-// Curated 8-stop palette for categorical event colors. Each entry pairs a
-// solid Tailwind background with a readable foreground so the labels stay
-// legible even when the data binds `colorField` to a non-color attribute
-// such as `channel`, `status`, or `industry`.
+// Curated 8-stop palette for categorical event colors. Soft tinted backgrounds
+// (`bg-*-100`) with darker readable text (`text-*-900`) keep the calendar
+// visually quiet — matching the same tonal range used by list/grid badges
+// (see `getBadgeColorClasses` in `@object-ui/fields`). Avoids the harsh,
+// over-saturated solid palette that competes with the rest of the chrome.
 const CATEGORICAL_PALETTE: ReadonlyArray<string> = [
-  "bg-blue-500 text-white",
-  "bg-emerald-500 text-white",
-  "bg-amber-500 text-black",
-  "bg-rose-500 text-white",
-  "bg-violet-500 text-white",
-  "bg-cyan-500 text-black",
-  "bg-orange-500 text-white",
-  "bg-fuchsia-500 text-white",
+  "bg-blue-100 text-blue-900 border border-blue-200",
+  "bg-emerald-100 text-emerald-900 border border-emerald-200",
+  "bg-amber-100 text-amber-900 border border-amber-200",
+  "bg-rose-100 text-rose-900 border border-rose-200",
+  "bg-violet-100 text-violet-900 border border-violet-200",
+  "bg-cyan-100 text-cyan-900 border border-cyan-200",
+  "bg-orange-100 text-orange-900 border border-orange-200",
+  "bg-fuchsia-100 text-fuchsia-900 border border-fuchsia-200",
 ]
 
 // Hex colors (#abc, #aabbcc) are treated as direct values via inline style.

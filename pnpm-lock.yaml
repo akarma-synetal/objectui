@@ -1939,6 +1939,9 @@ importers:
       '@object-ui/core':
         specifier: workspace:*
         version: link:../core
+      '@object-ui/fields':
+        specifier: workspace:*
+        version: link:../fields
       '@object-ui/plugin-detail':
         specifier: workspace:*
         version: link:../plugin-detail

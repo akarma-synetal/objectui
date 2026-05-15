@@ -15,7 +15,16 @@ export interface KanbanCard {
   id: string;
   title: string;
   description?: string;
-  badges?: Array<{ label: string; variant?: "default" | "secondary" | "destructive" | "outline" }>;
+  badges?: Array<{
+    label: string;
+    variant?: "default" | "secondary" | "destructive" | "outline";
+    /**
+     * Optional Tailwind class string applied to the badge. When set, it
+     * overrides `variant` so callers can reuse the same color palette as
+     * list/grid cells (see `getBadgeColorClasses` in `@object-ui/fields`).
+     */
+    colorClass?: string;
+  }>;
   [key: string]: any;
 }
 
