@@ -271,10 +271,13 @@ export function CurrencyCellRenderer({ value, field }: CellRendererProps): React
   
   const safe = coerceToSafeValue(value);
   const currencyField = field as any;
-  const currency: string | undefined = currencyField.currency;
+  // Honor both `currency` (legacy/grid configs) and `defaultCurrency`
+  // (the canonical key from `@objectstack/spec` Field.currency()).
+  const currency: string | undefined = currencyField.currency || currencyField.defaultCurrency;
   const num = Number(safe);
+  const decimals = currencyField.precision ?? currencyField.scale ?? currencyField.decimals ?? 2;
   const formatted = !isNaN(num)
-    ? (currency ? formatCurrency(num, currency) : formatNumber(num, currencyField.decimals ?? 2))
+    ? (currency ? formatCurrency(num, currency) : formatNumber(num, decimals))
     : String(safe);
   
   return <span className="tabular-nums font-medium whitespace-nowrap">{formatted}</span>;

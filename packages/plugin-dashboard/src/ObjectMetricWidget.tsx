@@ -100,6 +100,48 @@ export const ObjectMetricWidget: React.FC<ObjectMetricWidgetProps> = ({
   const [fetchedValue, setFetchedValue] = useState<string | number | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [objectSchema, setObjectSchema] = useState<any>(null);
+
+  // Fetch object schema so we can derive currency/precision from the
+  // aggregated field's metadata. This lets dashboard configs omit the
+  // redundant `format: '$0,0'` / `prefix: '$'` for `Field.currency()` fields.
+  useEffect(() => {
+    let mounted = true;
+    if (!dataSource || !objectName || typeof dataSource.getObjectSchema !== 'function') return;
+    dataSource.getObjectSchema(objectName)
+      .then((s: any) => { if (mounted) setObjectSchema(s); })
+      .catch(() => { /* metadata lookup is best-effort */ });
+    return () => { mounted = false; };
+  }, [dataSource, objectName]);
+
+  // Resolve the field definition for the aggregated field (e.g. 'amount').
+  const valueFieldDef = useMemo(() => {
+    const fieldName = aggregate?.field;
+    if (!fieldName || !objectSchema?.fields) return null;
+    const fields = objectSchema.fields;
+    if (Array.isArray(fields)) return fields.find((f: any) => f?.name === fieldName) || null;
+    return fields[fieldName] || null;
+  }, [objectSchema, aggregate?.field]);
+
+  // Derive format/currency from the field metadata when the dashboard config
+  // doesn't override them. Honors `Field.currency({ defaultCurrency, precision })`.
+  const inferredFormat = useMemo(() => {
+    if (format) return format;
+    if (!valueFieldDef) return undefined;
+    if (valueFieldDef.type === 'currency') {
+      const decimals = valueFieldDef.precision ?? valueFieldDef.scale ?? 0;
+      return decimals > 0 ? `0,0.${'0'.repeat(decimals)}` : '0,0';
+    }
+    if (valueFieldDef.type === 'percent') return '0,0%';
+    if (valueFieldDef.type === 'number' || valueFieldDef.type === 'integer') return '0,0';
+    return undefined;
+  }, [format, valueFieldDef]);
+
+  const inferredCurrency = useMemo(() => {
+    if (currency) return currency;
+    if (valueFieldDef?.type !== 'currency') return undefined;
+    return valueFieldDef.defaultCurrency || valueFieldDef.currency || undefined;
+  }, [currency, valueFieldDef]);
 
   // Stable JSON keys to prevent infinite refetch loops when callers
   // pass fresh `aggregate` / `filter` object references each render
@@ -248,8 +290,8 @@ export const ObjectMetricWidget: React.FC<ObjectMetricWidgetProps> = ({
         loading={loading}
         error={error}
         colorVariant={colorVariant}
-        format={format}
-        currency={currency}
+        format={inferredFormat}
+        currency={inferredCurrency}
         prefix={prefix}
         suffix={suffix}
         onClick={drillEnabled ? () => setDrillOpen(true) : undefined}

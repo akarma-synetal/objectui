@@ -269,8 +269,8 @@ export const ObjectDataTable: React.FC<ObjectDataTableProps> = ({ schema, dataSo
         options,
         referenceTo,
         format: col.format ?? meta?.format,
-        currency: (col as any).currency ?? meta?.currency,
-        decimals: (col as any).decimals ?? meta?.decimals,
+        currency: (col as any).currency ?? meta?.currency ?? meta?.defaultCurrency,
+        decimals: (col as any).decimals ?? meta?.decimals ?? meta?.precision ?? meta?.scale,
       };
 
       // Numeric-flavoured columns look better right-aligned (tabular-nums
