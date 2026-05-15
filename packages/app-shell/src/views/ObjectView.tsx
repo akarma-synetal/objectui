@@ -1606,8 +1606,8 @@ export function ObjectView({ dataSource, objects, onEdit, externalRefreshKey }: 
                         title={objectLabel(objectDef)}
                         mainContent={
                             <div className="flex-1 min-w-0 relative h-full flex flex-col">
-                                <div className="flex-1 relative overflow-hidden p-3 sm:p-4">
-                                    <div className="h-full overflow-auto rounded-lg border bg-card shadow-xs">
+                                <div className="flex-1 relative overflow-hidden">
+                                    <div className="h-full overflow-auto">
                                         <PluginObjectView
                                             schema={objectViewSchema}
                                             dataSource={dataSource}
@@ -1646,8 +1646,8 @@ export function ObjectView({ dataSource, objects, onEdit, externalRefreshKey }: 
                     </NavigationOverlay>
                 ) : (
                 <div className="flex-1 min-w-0 relative h-full flex flex-col">
-                    <div className="flex-1 relative overflow-hidden p-3 sm:p-4">
-                        <div className="h-full overflow-auto rounded-lg border bg-card shadow-xs">
+                    <div className="flex-1 relative overflow-hidden">
+                        <div className="h-full overflow-auto">
                             <PluginObjectView
                                 schema={objectViewSchema}
                                 dataSource={dataSource}

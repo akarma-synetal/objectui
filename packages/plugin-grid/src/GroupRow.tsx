@@ -8,6 +8,7 @@
 
 import React from 'react';
 import { ChevronRight, ChevronDown } from 'lucide-react';
+import { cn } from '@object-ui/components';
 import type { AggregationResult } from './useGroupedData';
 
 export interface GroupRowProps {
@@ -21,6 +22,19 @@ export interface GroupRowProps {
   collapsed: boolean;
   /** Computed aggregation results for this group */
   aggregations?: AggregationResult[];
+  /**
+   * Small grey caption shown above the group header (the field label being
+   * grouped on, e.g. "Status"). When omitted, the caption row is skipped —
+   * useful for nested subgroups that share the parent's caption space.
+   */
+  fieldLabel?: string;
+  /**
+   * Optional Tailwind class string applied to the group label "pill". Use
+   * `getBadgeColorClasses(...)` from `@object-ui/fields` to derive a color
+   * matching the cell badge of the same field value. When omitted, the
+   * label renders as plain text with a subtle muted background.
+   */
+  labelColorClass?: string;
   /** Callback when the group header is clicked to toggle collapse */
   onToggle: (key: string) => void;
   /** Children to render when not collapsed (the group content) */
@@ -28,8 +42,13 @@ export interface GroupRowProps {
 }
 
 /**
- * GroupRow renders a collapsible group header with field value, record count,
- * and optional aggregation summary. Used by ObjectGrid for grouped rendering.
+ * GroupRow renders a collapsible group header followed by its children.
+ *
+ * Visual style follows Airtable's grouped-list pattern: no surrounding
+ * border, a small grey field-name caption above (optional), and a header
+ * row consisting of a chevron, a colored "pill" label, and a count. The
+ * children render directly underneath with a small left rail rather than
+ * a nested rounded card, which keeps multi-level grouping legible.
  */
 export const GroupRow: React.FC<GroupRowProps> = ({
   groupKey,
@@ -37,21 +56,33 @@ export const GroupRow: React.FC<GroupRowProps> = ({
   count,
   collapsed,
   aggregations,
+  fieldLabel,
+  labelColorClass,
   onToggle,
   children,
 }) => {
+  const pillClass = labelColorClass
+    ? cn('inline-flex items-center rounded-md border px-2 py-0.5 text-xs font-medium', labelColorClass)
+    : 'inline-flex items-center rounded-md bg-muted px-2 py-0.5 text-xs font-medium text-foreground';
+
   return (
-    <div className="border rounded-md" data-testid={`group-row-${groupKey}`}>
+    <div data-testid={`group-row-${groupKey}`} className="group/grouprow">
+      {fieldLabel && (
+        <div className="px-1 pb-1 text-[11px] font-medium text-muted-foreground tracking-wide group-label-caption">
+          {fieldLabel}
+        </div>
+      )}
       <button
         type="button"
-        className="flex w-full items-center gap-2 px-3 py-2 text-sm font-medium text-left bg-muted/50 hover:bg-muted transition-colors"
+        className="flex w-full items-center gap-2 px-1 py-1 text-sm text-left rounded-md hover:bg-muted/40 transition-colors"
         onClick={() => onToggle(groupKey)}
         aria-expanded={!collapsed}
       >
         {collapsed
-          ? <ChevronRight className="h-4 w-4 shrink-0" />
-          : <ChevronDown className="h-4 w-4 shrink-0" />}
-        <span className="group-label">{label}</span>
+          ? <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+          : <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />}
+        <span className={cn(pillClass, 'group-label')}>{label}</span>
+        <span className="text-xs text-muted-foreground tabular-nums group-count">{count}</span>
         {aggregations && aggregations.length > 0 && (
           <span className="ml-2 text-xs text-muted-foreground group-aggregations">
             {aggregations.map((agg) => (
@@ -61,9 +92,12 @@ export const GroupRow: React.FC<GroupRowProps> = ({
             ))}
           </span>
         )}
-        <span className="ml-auto text-xs text-muted-foreground group-count">({count})</span>
       </button>
-      {!collapsed && children}
+      {!collapsed && (
+        <div className="mt-1 ml-1.5 pl-3 border-l border-border/60">
+          {children}
+        </div>
+      )}
     </div>
   );
 };

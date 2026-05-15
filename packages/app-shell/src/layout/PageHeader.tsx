@@ -54,19 +54,19 @@ export function PageHeader({
   return (
     <div
       className={cn(
-        'flex justify-between items-center gap-3 py-2.5 sm:py-3 px-3 sm:px-4 border-b shrink-0 bg-background z-10',
+        'flex justify-between items-center gap-3 py-1.5 sm:py-2 px-3 sm:px-4 border-b shrink-0 bg-background z-10',
         className,
       )}
       data-testid={testId ?? 'page-header'}
     >
-      <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
+      <div className="flex items-center gap-2 sm:gap-2.5 min-w-0 flex-1">
         {icon && (
-          <div className="bg-primary/10 p-1.5 sm:p-2 rounded-md shrink-0 text-primary">
+          <div className="bg-primary/10 p-1 sm:p-1.5 rounded-md shrink-0 text-primary">
             {icon}
           </div>
         )}
         <div className="min-w-0">
-          <h1 className="text-base sm:text-lg font-semibold tracking-tight text-foreground truncate">
+          <h1 className="text-sm sm:text-base font-semibold tracking-tight text-foreground truncate">
             {title}
           </h1>
           {description && (

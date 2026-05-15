@@ -303,6 +303,13 @@ export interface TableSchema extends BaseSchema {
 export interface DataTableSchema extends BaseSchema {
   type: 'data-table';
   /**
+   * Render the table without its outer rounded border. Useful when the
+   * table is embedded inside a parent container that already provides
+   * visual framing (e.g. grouped rows, sub-tables).
+   * @default false
+   */
+  borderless?: boolean;
+  /**
    * Table caption
    */
   caption?: string;

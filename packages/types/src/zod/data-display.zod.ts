@@ -131,6 +131,7 @@ export const TableSchema = BaseSchema.extend({
 export const DataTableSchema = BaseSchema.extend({
   type: z.literal('data-table'),
   caption: z.string().optional().describe('Table caption'),
+  borderless: z.boolean().optional().describe('Render the table without its outer rounded border (for embedding inside grouped rows or other containers).'),
   toolbar: z.union([SchemaNodeSchema, z.array(SchemaNodeSchema)]).optional().describe('Toolbar content'),
   columns: z.array(TableColumnSchema).describe('Table columns'),
   data: z.array(z.any()).describe('Table data'),

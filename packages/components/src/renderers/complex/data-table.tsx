@@ -182,6 +182,7 @@ const DataTableRenderer = ({ schema }: { schema: DataTableSchema }) => {
     frozenColumns = 0,
     showRowNumbers = false,
     showAddRow = false,
+    borderless = false,
   } = schema;
 
   // i18n support for pagination labels
@@ -751,7 +752,10 @@ const DataTableRenderer = ({ schema }: { schema: DataTableSchema }) => {
       )}
 
       {/* Table - horizontal scroll indicator via inset shadow on mobile */}
-      <div className="rounded-md border flex-1 min-h-0 overflow-auto relative bg-background [-webkit-overflow-scrolling:touch] shadow-[inset_-8px_0_8px_-8px_rgba(0,0,0,0.08)]">
+      <div className={cn(
+        "flex-1 min-h-0 overflow-auto relative bg-background [-webkit-overflow-scrolling:touch] shadow-[inset_-8px_0_8px_-8px_rgba(0,0,0,0.08)]",
+        !borderless && "rounded-md border",
+      )}>
         <Table>
           {caption && <TableCaption>{caption}</TableCaption>}
           <TableHeader className="sticky top-0 bg-muted/30 z-10">

@@ -595,7 +595,7 @@ function hashToColor(value: string): string {
   return BADGE_FALLBACK_PALETTE[idx];
 }
 
-function getBadgeColorClasses(color?: string, val?: unknown): string {
+export function getBadgeColorClasses(color?: string, val?: unknown): string {
   if (color && BADGE_COLOR_MAP[color]) return BADGE_COLOR_MAP[color];
   if (val == null || val === '') return 'bg-muted text-muted-foreground border-border';
   const key = String(val).toLowerCase().replace(/[\s-]/g, '_');

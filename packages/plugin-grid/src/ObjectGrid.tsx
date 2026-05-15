@@ -25,7 +25,7 @@ import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import type { ObjectGridSchema, DataSource, ListColumn, ViewData } from '@object-ui/types';
 import type { I18nLabel } from '@objectstack/spec/ui';
 import { SchemaRenderer, useDataScope, useNavigationOverlay, useAction, useObjectTranslation, useSafeFieldLabel } from '@object-ui/react';
-import { getCellRenderer, resolveCellRendererType, formatCurrency, formatCompactCurrency, formatDate, formatPercent, humanizeLabel } from '@object-ui/fields';
+import { getCellRenderer, resolveCellRendererType, formatCurrency, formatCompactCurrency, formatDate, formatPercent, humanizeLabel, getBadgeColorClasses } from '@object-ui/fields';
 import {
   Badge, Button, NavigationOverlay, EmptyValue,
   Popover, PopoverContent, PopoverTrigger,
@@ -1429,6 +1429,10 @@ export const ObjectGrid: React.FC<ObjectGridProps> = ({
     data: groupRows,
     pagination: false,
     searchable: false,
+    // Embedded inside a GroupRow which already provides visual framing.
+    // Drop the table's outer rounded border so groups look like Airtable's
+    // flat sub-tables rather than nested cards.
+    borderless: true,
   });
 
   // Build record detail title
@@ -1793,20 +1797,45 @@ export const ObjectGrid: React.FC<ObjectGridProps> = ({
   // Render grid content: grouped (recursive nested headers + leaf table) or
   // flat (single table). Multi-level grouping renders one `GroupRow` per level
   // with progressive indentation; the deepest level hosts the data table.
+  // Resolve the small grey caption (field label) and a soft colored pill
+  // class for a group header. Only fields of type select/status get colored
+  // pills — matching the cell renderer's color scheme so the same value
+  // looks the same in the grouped header and the cell.
+  const resolveGroupHeader = (field: string, label: string) => {
+    const fieldDef = objectSchema?.fields?.[field] as any;
+    const fieldLabel = schema.objectName
+      ? resolveFieldLabel(schema.objectName, field, fieldDef?.label || field)
+      : (fieldDef?.label || field);
+    let labelColorClass: string | undefined;
+    const ftype = fieldDef?.type;
+    if (ftype === 'select' || ftype === 'status') {
+      const opts = fieldDef?.options
+        ? translateOptions(schema.objectName, field, fieldDef.options)
+        : undefined;
+      const matched = Array.isArray(opts)
+        ? opts.find((o: any) => String(o.label) === label || String(o.value) === label)
+        : undefined;
+      labelColorClass = getBadgeColorClasses(matched?.color, matched?.value ?? label);
+    }
+    return { fieldLabel, labelColorClass };
+  };
+
   const renderGroup = (group: typeof groups[number]): React.ReactNode => {
-    const indentStyle = group.depth > 0 ? { marginLeft: group.depth * 16 } : undefined;
+    const { fieldLabel, labelColorClass } = resolveGroupHeader(group.field, group.label);
     return (
-      <div key={group.key} style={indentStyle}>
+      <div key={group.key}>
         <GroupRow
           groupKey={group.key}
           label={group.label}
           count={group.rows.length}
           collapsed={group.collapsed}
           aggregations={group.aggregations}
+          fieldLabel={group.depth === 0 ? fieldLabel : undefined}
+          labelColorClass={labelColorClass}
           onToggle={toggleGroup}
         >
           {group.subgroups.length > 0 ? (
-            <div className="space-y-2 p-2">
+            <div className="space-y-4 mt-2">
               {group.subgroups.map(renderGroup)}
             </div>
           ) : (
@@ -1818,7 +1847,7 @@ export const ObjectGrid: React.FC<ObjectGridProps> = ({
   };
 
   const gridContent = isGrouped ? (
-    <div className="space-y-2">{groups.map(renderGroup)}</div>
+    <div className="space-y-4 px-3 sm:px-4 pt-2 pb-4">{groups.map(renderGroup)}</div>
   ) : (
     <>
       <SchemaRenderer schema={dataTableSchema} />
