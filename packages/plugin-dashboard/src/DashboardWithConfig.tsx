@@ -104,8 +104,10 @@ export function DashboardWithConfig({
       colorVariant: widget.colorVariant ?? options.colorVariant ?? 'default',
       actionUrl: widget.actionUrl ?? options.actionUrl ?? '',
       // Drill-down lives under options.drillDown — flatten so the panel
-      // can edit it as plain top-level switches.
-      drillDownEnabled: !!options.drillDown?.enabled,
+      // can edit it as plain top-level switches. Default ON for object-
+      // backed pivot widgets (mirrors DashboardRenderer phase-1 policy).
+      drillDownEnabled: options.drillDown?.enabled
+        ?? (widget.type === 'pivot' && !!widget.object ? true : false),
       drillDownTarget: options.drillDown?.target ?? 'drawer',
       layoutW: widget.layout?.w ?? 1,
       layoutH: widget.layout?.h ?? 1,

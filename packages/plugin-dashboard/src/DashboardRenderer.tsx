@@ -418,9 +418,19 @@ export const DashboardRenderer = forwardRef<HTMLDivElement, DashboardRendererPro
                     format: w.format ?? options.format,
                 };
 
+                // Phase-1 default-on policy: object-backed pivot tables enable
+                // drill-down by default. Authors can disable explicitly with
+                // `drillDown: { enabled: false }` on widget options. Static
+                // (data-array) pivots stay opt-in because we cannot derive a
+                // server-side filter for them.
+                const isObjectPivot = isObjectProvider(widgetData) || (!widgetData && !!widget.object);
+                const pivotOptions = (isObjectPivot && options.drillDown === undefined)
+                    ? { ...options, drillDown: { enabled: true } }
+                    : options;
+
                 // provider: 'object' — use ObjectPivotTable for async data loading
                 if (isObjectProvider(widgetData)) {
-                    const { data: _data, ...restOptions } = options;
+                    const { data: _data, ...restOptions } = pivotOptions;
                     return {
                         type: 'object-pivot',
                         ...restOptions,
@@ -435,7 +445,7 @@ export const DashboardRenderer = forwardRef<HTMLDivElement, DashboardRendererPro
                 if (!widgetData && widget.object) {
                     return {
                         type: 'object-pivot',
-                        ...options,
+                        ...pivotOptions,
                         ...pivotProps,
                         objectName: widget.object,
                         filter: widget.filter,
