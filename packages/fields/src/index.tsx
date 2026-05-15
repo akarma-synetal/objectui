@@ -579,18 +579,29 @@ function getBadgeColorClasses(color?: string, val?: unknown): string {
 export function SelectCellRenderer({ value, field }: CellRendererProps): React.ReactElement {
   const selectField = field as any;
   const options: SelectOptionMetadata[] = selectField.options || [];
-  
+
   if (value == null || value === '') return <EmptyValue />;
-  
+
+  // Match a stored value to a configured option, falling back to a
+  // case-insensitive comparison so seed data with mixed case
+  // (e.g. "Referral" stored, "referral" defined) still resolves to the
+  // localized option label.
+  const findOption = (val: any): SelectOptionMetadata | undefined => {
+    const exact = options.find(opt => opt.value === val);
+    if (exact) return exact;
+    const norm = String(val).toLowerCase();
+    return options.find(opt => String(opt.value).toLowerCase() === norm);
+  };
+
   // Handle multiple values
   if (Array.isArray(value)) {
     return (
       <div className="flex flex-wrap gap-1">
         {value.map((val, idx) => {
-          const option = options.find(opt => opt.value === val);
+          const option = findOption(val);
           const label = option?.label || humanizeLabel(String(val));
           const colorClasses = getBadgeColorClasses(option?.color, val);
-          
+
           return (
             <Badge
               key={idx}
@@ -604,9 +615,9 @@ export function SelectCellRenderer({ value, field }: CellRendererProps): React.R
       </div>
     );
   }
-  
+
   // Handle single value
-  const option = options.find(opt => opt.value === value);
+  const option = findOption(value);
   const label = option?.label || humanizeLabel(String(value));
   const colorClasses = getBadgeColorClasses(option?.color, value);
   

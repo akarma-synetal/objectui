@@ -38,7 +38,7 @@ import { SectionGroup } from './SectionGroup';
 import { HeaderHighlight } from './HeaderHighlight';
 import { RecordComments } from './RecordComments';
 import { ActivityTimeline } from './ActivityTimeline';
-import { SchemaRenderer } from '@object-ui/react';
+import { SchemaRenderer, useSafeFieldLabel } from '@object-ui/react';
 import { buildExpandFields } from '@object-ui/core';
 import type { DetailViewSchema, DataSource, ActionSchema, SchemaNode } from '@object-ui/types';
 import { useDetailTranslation } from './useDetailTranslation';
@@ -168,6 +168,7 @@ export const DetailView: React.FC<DetailViewProps> = ({
   const [objectSchema, setObjectSchema] = React.useState<any>(null);
   const [idCopied, setIdCopied] = React.useState(false);
   const { t } = useDetailTranslation();
+  const { fieldOptionLabel } = useSafeFieldLabel();
 
   // Fire onDataLoaded whenever the record changes so hosts can publish it
   // (e.g. to the navigation breadcrumb or document title).
@@ -667,6 +668,21 @@ export const DetailView: React.FC<DetailViewProps> = ({
                         const normalized = num <= 1 ? num * 100 : num;
                         percentValue = Math.max(0, Math.min(100, normalized));
                       }
+                    } else if (ftype === 'select' || ftype === 'status' || ftype === 'multiselect') {
+                      // Resolve raw option label from field metadata as
+                      // fallback, then translate via i18n resolver.
+                      const opts = (sectionField as any)?.options || objField?.options;
+                      let fallback = String(val);
+                      if (Array.isArray(opts)) {
+                        const m = opts.find((o: any) => String(o?.value ?? o) === String(val));
+                        if (m?.label) fallback = m.label;
+                      } else if (opts && typeof opts === 'object') {
+                        const m = (opts as any)[String(val)];
+                        if (m?.label) fallback = m.label;
+                      }
+                      display = schema.objectName
+                        ? fieldOptionLabel(schema.objectName, fieldName, String(val), fallback)
+                        : fallback;
                     }
                   } catch {
                     /* fall back to String(val) */
