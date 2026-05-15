@@ -63,6 +63,13 @@ function formatValue(value: number, format?: string): string {
   return prefix + formatted + suffix;
 }
 
+/** Friendly display label for an empty/null column or row key. */
+const EMPTY_KEY_LABEL = '—';
+
+function displayKey(key: string): string {
+  return key === '' ? EMPTY_KEY_LABEL : key;
+}
+
 /** Aggregate an array of numbers with the given function. */
 function aggregate(values: number[], fn: PivotAggregation): number {
   if (values.length === 0) return 0;
@@ -196,30 +203,32 @@ export const PivotTable: React.FC<PivotTableProps> = ({ schema, className }) => 
       {title && (
         <h3 className="text-sm font-semibold mb-2">{title}</h3>
       )}
-      <table className="w-full text-sm border-collapse" role="table">
+      <table className="w-full text-sm border-collapse table-auto" role="table">
         <thead>
           <tr className="border-b border-border">
-            <th className="text-left p-2 font-medium text-muted-foreground">{rowField}</th>
+            <th className="text-left p-2 font-medium text-muted-foreground whitespace-nowrap">{rowField}</th>
             {colKeys.map((col) => (
               <th
                 key={col}
                 className={cn(
-                  'text-right p-2 font-medium',
+                  'text-right p-2 font-medium whitespace-nowrap',
+                  col === '' && 'italic text-muted-foreground/70',
                   columnColors?.[col] ?? 'text-muted-foreground',
                 )}
+                title={col === '' ? `${columnField}: (empty)` : `${columnField}: ${col}`}
               >
-                {col}
+                {displayKey(col)}
               </th>
             ))}
             {showRowTotals && (
-              <th className="text-right p-2 font-semibold text-muted-foreground bg-muted/20">Total</th>
+              <th className="text-right p-2 font-semibold text-muted-foreground bg-muted/20 whitespace-nowrap">Total</th>
             )}
           </tr>
         </thead>
         <tbody>
           {rowKeys.map((row) => (
             <tr key={row} className="border-b border-border/50 hover:bg-muted/30">
-              <td className="p-2 font-medium">{row}</td>
+              <td className={cn('p-2 font-medium whitespace-nowrap', row === '' && 'italic text-muted-foreground/70')}>{displayKey(row)}</td>
               {colKeys.map((col) => (
                 <td
                   key={col}
