@@ -83,7 +83,8 @@ export const ObjectGallery: React.FC<ObjectGalleryProps> = (props) => {
         return ((value as any).label ?? (value as any).name ?? (value as any).id ?? JSON.stringify(value));
       }
       const fieldDef = objectDef?.fields?.[field];
-      const isSelectLike = fieldDef?.type === 'select' || fieldDef?.type === 'status' || fieldDef?.type === 'multiselect';
+      const fieldType = fieldDef?.type;
+      const isSelectLike = fieldType === 'select' || fieldType === 'status' || fieldType === 'multiselect';
       if (isSelectLike && schema.objectName) {
         // Find the raw option label as fallback (handles both array & keyed-object option shapes)
         let fallback = String(value);
@@ -95,6 +96,25 @@ export const ObjectGallery: React.FC<ObjectGalleryProps> = (props) => {
           if (m) fallback = m.label ?? fallback;
         }
         return fieldOptionLabel(schema.objectName, field, String(value), fallback);
+      }
+      // Numeric formatting — currency / number / percent fields render as
+      // plain integers without separators otherwise (e.g. `5000000`).
+      const num = typeof value === 'number' ? value : Number(value);
+      if (Number.isFinite(num)) {
+        if (fieldType === 'currency') {
+          const code = (fieldDef as any)?.currency || (fieldDef as any)?.options?.currency || 'USD';
+          try {
+            return new Intl.NumberFormat(undefined, { style: 'currency', currency: code, maximumFractionDigits: 0 }).format(num);
+          } catch {
+            return new Intl.NumberFormat().format(num);
+          }
+        }
+        if (fieldType === 'percent') {
+          return new Intl.NumberFormat(undefined, { style: 'percent', maximumFractionDigits: 2 }).format(num > 1 ? num / 100 : num);
+        }
+        if (fieldType === 'number') {
+          return new Intl.NumberFormat().format(num);
+        }
       }
       return String(value);
     }, [objectDef, schema.objectName, fieldOptionLabel]);

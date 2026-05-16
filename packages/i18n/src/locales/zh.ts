@@ -213,6 +213,8 @@ const zh = {
     moveCard: '移动卡片',
     deleteCard: '删除卡片',
     deleteColumn: '删除列',
+    noCards: '暂无卡片',
+    cardTitlePlaceholder: '输入卡片标题...',
   },
   timeline: {
     bucket: {
@@ -250,6 +252,8 @@ const zh = {
     dragToReorder: '拖动排序',
     defaultView: '默认视图',
     tabActionsFor: '{{name}} 的视图操作',
+    readonlyAriaLabel: '只读视图',
+    readonlyTooltip: '系统视图 — 复制后可自定义。',
   },
   detail: {
     back: '返回',
@@ -454,6 +458,16 @@ const zh = {
     saveLayout: '保存布局',
     resetLayout: '重置布局',
     total: '总计',
+    noDataAvailable: '暂无数据',
+    noDataSourceFor: '没有可用的数据源：',
+    trend: {
+      vsLastQuarter: '较上季度',
+      vsLastMonth: '较上月',
+      vsLastWeek: '较上周',
+      vsLastYear: '较去年',
+      vsYesterday: '较昨日',
+      vsPreviousPeriod: '较上期',
+    },
   },
   configPanel: {
     save: '保存',

@@ -22,6 +22,16 @@ function useTotalLabel(): string {
   }
 }
 
+function useNoDataLabel(): string {
+  try {
+    const { t } = useObjectTranslation();
+    const v = t('dashboard.noDataAvailable');
+    return !v || v === 'dashboard.noDataAvailable' ? 'No data available' : v;
+  } catch {
+    return 'No data available';
+  }
+}
+
 export interface PivotTableProps {
   schema: PivotTableSchema;
   className?: string;
@@ -140,6 +150,7 @@ export const PivotTable: React.FC<PivotTableProps> = ({ schema, className, rowLa
     drillDown,
   } = schema;
   const totalLabel = useTotalLabel();
+  const noDataLabel = useNoDataLabel();
 
   const drillEnabled = isDrillEnabled(drillDown) && typeof onDrillDown === 'function';
   const fireDrill = (ev: DrillEvent) => {
@@ -243,7 +254,7 @@ export const PivotTable: React.FC<PivotTableProps> = ({ schema, className, rowLa
             <rect x="3" y="14" width="7" height="7" />
             <rect x="14" y="14" width="7" height="7" />
           </svg>
-          <p className="text-xs">No data available</p>
+          <p className="text-xs">{noDataLabel}</p>
         </div>
       </div>
     );

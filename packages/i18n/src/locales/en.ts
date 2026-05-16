@@ -213,6 +213,8 @@ const en = {
     moveCard: 'Move card',
     deleteCard: 'Delete card',
     deleteColumn: 'Delete column',
+    noCards: 'No cards',
+    cardTitlePlaceholder: 'Enter card title...',
   },
   timeline: {
     bucket: {
@@ -250,6 +252,8 @@ const en = {
     dragToReorder: 'Drag to reorder',
     defaultView: 'Default view',
     tabActionsFor: 'View actions for {{name}}',
+    readonlyAriaLabel: 'Read-only view',
+    readonlyTooltip: 'System view — duplicate to customize.',
   },
   detail: {
     back: 'Back',
@@ -454,6 +458,16 @@ const en = {
     saveLayout: 'Save layout',
     resetLayout: 'Reset layout',
     total: 'Total',
+    noDataAvailable: 'No data available',
+    noDataSourceFor: 'No data source available for',
+    trend: {
+      vsLastQuarter: 'vs last quarter',
+      vsLastMonth: 'vs last month',
+      vsLastWeek: 'vs last week',
+      vsLastYear: 'vs last year',
+      vsYesterday: 'vs yesterday',
+      vsPreviousPeriod: 'vs previous period',
+    },
   },
   configPanel: {
     save: 'Save',

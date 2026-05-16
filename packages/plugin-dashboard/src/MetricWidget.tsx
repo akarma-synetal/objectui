@@ -1,7 +1,49 @@
 import React, { useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, getLazyIcon } from '@object-ui/components';
 import { cn } from '@object-ui/components';
+import { createSafeTranslation } from '@object-ui/i18n';
 import { ArrowDownIcon, ArrowUpIcon, MinusIcon, AlertCircle, Loader2 } from 'lucide-react';
+
+const TREND_LABEL_DEFAULTS: Record<string, string> = {
+  'dashboard.trend.vsLastQuarter': 'vs last quarter',
+  'dashboard.trend.vsLastMonth': 'vs last month',
+  'dashboard.trend.vsLastWeek': 'vs last week',
+  'dashboard.trend.vsLastYear': 'vs last year',
+  'dashboard.trend.vsYesterday': 'vs yesterday',
+  'dashboard.trend.vsPreviousPeriod': 'vs previous period',
+};
+
+const useTrendT = createSafeTranslation(TREND_LABEL_DEFAULTS, 'dashboard.trend.vsLastQuarter');
+
+/**
+ * Map a server-provided English trend phrase ("vs last quarter") to its
+ * canonical i18n key so we can translate it without requiring backends to
+ * emit `{key, defaultValue}` objects.
+ */
+function trendLabelKey(label: string): string | undefined {
+  const normalized = label.trim().toLowerCase().replace(/\s+/g, ' ');
+  switch (normalized) {
+    case 'vs last quarter':
+    case 'vs previous quarter':
+      return 'dashboard.trend.vsLastQuarter';
+    case 'vs last month':
+    case 'vs previous month':
+      return 'dashboard.trend.vsLastMonth';
+    case 'vs last week':
+    case 'vs previous week':
+      return 'dashboard.trend.vsLastWeek';
+    case 'vs last year':
+    case 'vs previous year':
+      return 'dashboard.trend.vsLastYear';
+    case 'vs yesterday':
+      return 'dashboard.trend.vsYesterday';
+    case 'vs previous period':
+    case 'vs prior period':
+      return 'dashboard.trend.vsPreviousPeriod';
+    default:
+      return undefined;
+  }
+}
 
 /**
  * Lightweight numeric formatter for metric widgets.
@@ -138,6 +180,14 @@ export const MetricWidget = ({
   ...props
 }: MetricWidgetProps) => {
   const iconClasses = VARIANT_ICON_CLASSES[colorVariant] || VARIANT_ICON_CLASSES.default;
+  const { t: tTrend } = useTrendT();
+
+  const localizedTrendLabel = useMemo(() => {
+    const raw = resolveLabel(description) || resolveLabel(trend?.label);
+    if (!raw) return raw;
+    const key = trendLabelKey(raw);
+    return key ? tTrend(key) : raw;
+  }, [description, trend?.label, tTrend]);
 
   const displayValue = useMemo(() => {
     const formatted = typeof value === 'number' || (typeof value === 'string' && value.trim() !== '' && isFinite(Number(value)))
@@ -223,7 +273,7 @@ export const MetricWidget = ({
                     {trend.value}%
                   </span>
                 )}
-                <span className="truncate min-w-0">{resolveLabel(description) || resolveLabel(trend?.label)}</span>
+                <span className="truncate min-w-0">{localizedTrendLabel}</span>
               </div>
             )}
           </>

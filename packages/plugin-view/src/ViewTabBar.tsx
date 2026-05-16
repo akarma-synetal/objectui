@@ -472,12 +472,12 @@ export const ViewTabBar: React.FC<ViewTabBarProps> = ({
             <TooltipTrigger asChild>
               <Lock
                 data-testid={`view-tab-readonly-${view.id}`}
-                aria-label="Read-only view"
+                aria-label={viewTabLabel('view.readonlyAriaLabel', 'Read-only view')}
                 className="h-3 w-3 text-muted-foreground shrink-0"
               />
             </TooltipTrigger>
             <TooltipContent side="bottom" className="text-xs">
-              {view.readonlyReason || 'System view — duplicate to customize.'}
+              {view.readonlyReason || viewTabLabel('view.readonlyTooltip', 'System view — duplicate to customize.')}
             </TooltipContent>
           </Tooltip>
         )}

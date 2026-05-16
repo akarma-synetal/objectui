@@ -652,6 +652,7 @@ export function DashboardView({ dataSource }: { dataSource?: any }) {
               onWidgetsReorder={handleWidgetsReorder}
               modalHandler={modalHandler}
               scriptHandlers={scriptHandlers}
+              hideHeaderText
             />
          </div>
 

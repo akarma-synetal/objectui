@@ -139,11 +139,18 @@ export interface DashboardRendererProps {
   modalHandler?: ModalHandler;
   /** Optional named handlers for actionType="script" header actions, keyed by action name (actionUrl). */
   scriptHandlers?: Record<string, (action: ActionDef, context: ActionContext) => Promise<ActionResult> | ActionResult>;
+  /**
+   * When true, suppress the built-in header title and description blocks.
+   * Header actions (if any) are still rendered. Use this when the parent
+   * page chrome (e.g. `DashboardView`) already renders the dashboard's
+   * title/subtitle so we don't display them twice.
+   */
+  hideHeaderText?: boolean;
   [key: string]: any;
 }
 
 export const DashboardRenderer = forwardRef<HTMLDivElement, DashboardRendererProps>(
-  ({ schema, className, dataSource, onRefresh, recordCount, userActions, designMode, selectedWidgetId, onWidgetClick, onWidgetsReorder, modalHandler, scriptHandlers, ...props }, ref) => {
+  ({ schema, className, dataSource, onRefresh, recordCount, userActions, designMode, selectedWidgetId, onWidgetClick, onWidgetsReorder, modalHandler, scriptHandlers, hideHeaderText, ...props }, ref) => {
     // Auto-infer the grid column count when the dashboard schema doesn't
     // specify one. Spec convention is a 12-column grid (widgets use w: 3 for
     // quarter-row KPIs, w: 6 for half-row charts, etc.). If we always default
@@ -721,14 +728,14 @@ export const DashboardRenderer = forwardRef<HTMLDivElement, DashboardRendererPro
 
     const headerSection = schema.header && (
       <div className="col-span-full mb-4">
-        {schema.header.showTitle !== false && schema.title && (
+        {!hideHeaderText && schema.header.showTitle !== false && schema.title && (
           <h2 className="text-lg font-semibold tracking-tight">
             {dashName
               ? dashboardLabel({ name: dashName, label: resolveLabel(schema.title) })
               : resolveLabel(schema.title)}
           </h2>
         )}
-        {schema.header.showDescription !== false && schema.description && (
+        {!hideHeaderText && schema.header.showDescription !== false && schema.description && (
           <p className="text-sm text-muted-foreground mt-1">
             {dashName
               ? dashboardDescription({ name: dashName, description: resolveLabel(schema.description) })

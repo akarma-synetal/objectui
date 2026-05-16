@@ -27,10 +27,22 @@ import {
 import { CSS } from "@dnd-kit/utilities"
 import { Badge, Card, CardHeader, CardTitle, CardDescription, CardContent, ScrollArea, Button, Input, useResizeObserver } from "@object-ui/components"
 import { useHasDndProvider, useDnd } from "@object-ui/react"
+import { createSafeTranslation } from "@object-ui/i18n"
 import { Plus } from "lucide-react"
 
 // Utility function to merge class names (inline to avoid external dependency)
 const cn = (...classes: (string | undefined)[]) => classes.filter(Boolean).join(' ')
+
+// Safe translation hook — falls back to English defaults when no I18nProvider
+// is mounted (e.g. plugin-kanban consumed in a standalone Storybook).
+const useKanbanT = createSafeTranslation(
+  {
+    'kanban.addCard': 'Add card',
+    'kanban.noCards': 'No cards',
+    'kanban.cardTitlePlaceholder': 'Enter card title...',
+  },
+  'kanban.noCards',
+)
 
 const UNCATEGORIZED_LANE = 'Uncategorized'
 
@@ -173,6 +185,7 @@ function SortableCard({ card, onCardClick, conditionalFormatting }: { card: Kanb
 }
 
 function QuickAddForm({ columnId, onAdd }: { columnId: string; onAdd: (columnId: string, title: string) => void }) {
+  const { t } = useKanbanT()
   const [isAdding, setIsAdding] = React.useState(false)
   const [title, setTitle] = React.useState('')
   const inputRef = React.useRef<HTMLInputElement>(null)
@@ -208,7 +221,7 @@ function QuickAddForm({ columnId, onAdd }: { columnId: string; onAdd: (columnId:
         }}
       >
         <Plus className="h-4 w-4 mr-1" />
-        Add Card
+        {t('kanban.addCard')}
       </Button>
     )
   }
@@ -221,7 +234,7 @@ function QuickAddForm({ columnId, onAdd }: { columnId: string; onAdd: (columnId:
         onChange={(e) => setTitle(e.target.value)}
         onKeyDown={handleKeyDown} 
         onBlur={handleSubmit}
-        placeholder="Enter card title..."
+        placeholder={t('kanban.cardTitlePlaceholder')}
         className="text-sm"
         autoFocus
       />
@@ -247,6 +260,7 @@ function KanbanColumnView({
   /** Container-aware width override from useResizeObserver in KanbanBoardInner. */
   columnStyle?: React.CSSProperties
 }) {
+  const { t } = useKanbanT()
   const safeCards = cards || [];
   const { setNodeRef } = useSortable({
     id: column.id,
@@ -299,7 +313,7 @@ function KanbanColumnView({
           <div className="space-y-2" role="list" aria-label={`${column.title} cards`}>
             {safeCards.length === 0 && (
               <div className="flex flex-col items-center justify-center py-8 text-muted-foreground/50">
-                <span className="text-xs">No cards</span>
+                <span className="text-xs">{t('kanban.noCards')}</span>
               </div>
             )}
             {safeCards.map((card) => (

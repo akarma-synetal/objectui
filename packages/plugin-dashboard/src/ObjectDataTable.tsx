@@ -10,7 +10,7 @@ import React, { useState, useEffect, useContext, useMemo } from 'react';
 import { useDataScope, SchemaRendererContext, SchemaRenderer } from '@object-ui/react';
 import { extractRecords } from '@object-ui/core';
 import { Skeleton, cn } from '@object-ui/components';
-import { useSafeFieldLabel } from '@object-ui/i18n';
+import { useSafeFieldLabel, useObjectTranslation } from '@object-ui/i18n';
 import { getCellRenderer, resolveCellRendererType, formatCurrency, formatPercent, formatDate } from '@object-ui/fields';
 import { resolveDateMacros } from './utils';
 
@@ -130,6 +130,15 @@ export const ObjectDataTable: React.FC<ObjectDataTableProps> = ({ schema, dataSo
   const dataSource = propDataSource || context?.dataSource;
   const boundData = useDataScope(schema.bind);
   const { fieldLabel, fieldOptionLabel } = useSafeFieldLabel();
+  let noDataLabel = 'No data available';
+  let noDataSourceLabel = 'No data source available for';
+  try {
+    const { t } = useObjectTranslation();
+    const a = t('dashboard.noDataAvailable');
+    if (a && a !== 'dashboard.noDataAvailable') noDataLabel = a;
+    const b = t('dashboard.noDataSourceFor');
+    if (b && b !== 'dashboard.noDataSourceFor') noDataSourceLabel = b;
+  } catch {/* no i18n provider */}
 
   const [fetchedData, setFetchedData] = useState<any[]>([]);
   const [objectSchema, setObjectSchema] = useState<any>(null);
@@ -400,7 +409,7 @@ export const ObjectDataTable: React.FC<ObjectDataTableProps> = ({ schema, dataSo
     return (
       <div className={cn('overflow-auto', className)}>
         <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
-          <p className="text-xs">No data source available for &ldquo;{schema.objectName}&rdquo;</p>
+          <p className="text-xs">{noDataSourceLabel} &ldquo;{schema.objectName}&rdquo;</p>
         </div>
       </div>
     );
@@ -416,7 +425,7 @@ export const ObjectDataTable: React.FC<ObjectDataTableProps> = ({ schema, dataSo
             <line x1="3" y1="9" x2="21" y2="9" />
             <line x1="9" y1="21" x2="9" y2="9" />
           </svg>
-          <p className="text-xs">No data available</p>
+          <p className="text-xs">{noDataLabel}</p>
         </div>
       </div>
     );

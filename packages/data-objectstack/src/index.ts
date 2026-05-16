@@ -275,6 +275,11 @@ export class ObjectStackAdapter<T = unknown> implements DataSource<T> {
   // multiple sibling components requesting the same dataset on first paint)
   // into a single network round trip.
   private inflightFinds = new Map<string, Promise<QueryResult<T>>>();
+  // Resources that have responded 404 at least once (collection not installed
+  // on this backend). Subsequent find() calls short-circuit to an empty result
+  // so optional collections like sys_presence don't hammer the server with
+  // failing requests on every record open / panel render.
+  private missingResources = new Set<string>();
 
   constructor(config: {
     baseUrl: string;
@@ -470,6 +475,12 @@ export class ObjectStackAdapter<T = unknown> implements DataSource<T> {
    * Converts OData-style params to ObjectStack query options.
    */
   async find(resource: string, params?: QueryParams): Promise<QueryResult<T>> {
+    // Short-circuit when this resource has previously responded 404 — the
+    // collection isn't installed on this backend. Callers (AppHeader,
+    // RecordDetailView, …) treat empty data as "feature unavailable".
+    if (this.missingResources.has(resource)) {
+      return { data: [], total: 0 } as QueryResult<T>;
+    }
     const key = `${resource}::${stableStringify(params)}`;
     const existing = this.inflightFinds.get(key);
     if (existing) return existing;
@@ -489,8 +500,17 @@ export class ObjectStackAdapter<T = unknown> implements DataSource<T> {
       }
 
       const queryOptions = this.convertQueryParams(params);
-      const result: unknown = await this.client.data.find<T>(resource, queryOptions);
-      return this.normalizeQueryResult(result, params);
+      try {
+        const result: unknown = await this.client.data.find<T>(resource, queryOptions);
+        return this.normalizeQueryResult(result, params);
+      } catch (err) {
+        if (is404Error(err)) {
+          // Mark the resource so subsequent calls don't repeat the 404.
+          this.missingResources.add(resource);
+          return { data: [], total: 0 } as QueryResult<T>;
+        }
+        throw err;
+      }
     })();
 
     this.inflightFinds.set(key, promise);
