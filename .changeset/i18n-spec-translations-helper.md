@@ -1,5 +1,5 @@
 ---
-'@object-ui/i18n': minor
+'@object-ui/i18n': patch
 '@object-ui/console': patch
 ---
 
