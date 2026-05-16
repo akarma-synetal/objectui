@@ -287,20 +287,17 @@ through the `onSchemaChange` callback.
 ```
 
 If `onSchemaChange` is **not** provided, layout edits stay in component
-state and are lost on refresh. For demos / Storybook you may opt in to a
-localStorage fallback by passing an explicit, dashboard-scoped key:
+state and are lost on refresh — a `console.warn` is emitted in development
+to flag the missing wiring. The component never writes to `localStorage`
+or any other storage on its own: persistence is the parent's concern,
+delegated to whatever data adapter you have injected (REST, ObjectQL,
+file system, …) per the protocol-agnostic architecture rule.
 
-```tsx
-<DashboardGridLayout
-  schema={dashboard}
-  persistLayoutKey={`dashboard-layout:${dashboard.name}`} // namespace per dashboard
-/>
-```
-
-> ⚠️ The previous default key `'dashboard-layout'` was shared across every
-> dashboard and caused layouts to bleed into each other. The default is now
-> `undefined`; provide `onSchemaChange` for real persistence or set a
-> namespaced key explicitly.
+> ⚠️ **Removed in 3.4:** the legacy `persistLayoutKey` prop and its
+> built-in localStorage fallback have been removed. Previously a shared
+> default key `'dashboard-layout'` caused layouts to bleed across
+> dashboards. If you still want a browser-local cache for a demo, do it
+> in the parent inside `onSchemaChange`.
 
 <!-- release-metadata:v3.3.0 -->
 

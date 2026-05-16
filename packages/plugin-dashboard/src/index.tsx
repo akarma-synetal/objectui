@@ -187,7 +187,6 @@ ComponentRegistry.register(
     icon: 'layout-grid',
     inputs: [
       { name: 'title', type: 'string', label: 'Title' },
-      { name: 'persistLayoutKey', type: 'string', label: 'Layout Storage Key (localStorage fallback only)' },
       { name: 'className', type: 'string', label: 'CSS Class' }
     ],
     defaultProps: {

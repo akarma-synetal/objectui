@@ -142,34 +142,24 @@ export const DashboardGridLayout: React.FC<DashboardGridLayoutProps> = ({
   );
 
   const handleSaveLayout = React.useCallback(() => {
-    // Preferred path: hand the merged schema back to the parent so it can
-    // persist via its data adapter (server / file / etc.).
+    // Hand the merged schema back to the parent so it can persist via its
+    // injected data adapter (server / file / etc.). If no handler is wired,
+    // edits live only in component state — warn in dev so the integrator
+    // knows to wire `onSchemaChange`.
     if (onSchemaChange) {
       onSchemaChange(mergeLayoutIntoSchema(schema, layouts.lg));
-      setEditMode(false);
-      return;
-    }
-    // Fallback: only write to localStorage when the caller explicitly
-    // opted in by passing persistLayoutKey. Avoids the historical bug
-    // where every dashboard shared the default 'dashboard-layout' key.
-    if (typeof window !== 'undefined' && persistLayoutKey) {
-      localStorage.setItem(persistLayoutKey, JSON.stringify(layouts));
     } else if (process.env.NODE_ENV !== 'production') {
       console.warn(
         '[DashboardGridLayout] Layout edits are in-memory only. ' +
-        'Provide `onSchemaChange` (preferred) or `persistLayoutKey` to persist.'
+        'Wire `onSchemaChange` to persist via your data adapter.'
       );
     }
     setEditMode(false);
-  }, [onSchemaChange, schema, layouts, persistLayoutKey]);
+  }, [onSchemaChange, schema, layouts]);
 
   const handleResetLayout = React.useCallback(() => {
-    const defaultLayouts = buildDefaultLayouts(schema);
-    setLayouts(defaultLayouts);
-    if (typeof window !== 'undefined' && persistLayoutKey) {
-      localStorage.removeItem(persistLayoutKey);
-    }
-  }, [schema, persistLayoutKey]);
+    setLayouts(buildDefaultLayouts(schema));
+  }, [schema]);
 
   const getComponentSchema = React.useCallback((widget: DashboardWidgetSchema) => {
     if (widget.component) return widget.component;
