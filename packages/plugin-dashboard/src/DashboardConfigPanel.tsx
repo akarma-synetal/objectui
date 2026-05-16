@@ -89,6 +89,12 @@ const dashboardSchema: ConfigPanelSchema = {
           placeholder: 'Dashboard title',
         },
         {
+          key: 'description',
+          label: 'Description',
+          type: 'textarea',
+          placeholder: 'Short summary shown under the title',
+        },
+        {
           key: 'showDescription',
           label: 'Show description',
           type: 'switch',

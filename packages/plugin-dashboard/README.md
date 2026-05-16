@@ -272,6 +272,21 @@ auto-detection.
 
 ## DashboardGridLayout — persisting drag / resize edits
 
+### DashboardRenderer — design-mode widget reorder
+
+When `DashboardRenderer` is used in design mode (`designMode={true}` plus an
+`onWidgetsReorder` callback), widgets become sortable via
+[**@dnd-kit**](https://dndkit.com/). Dragging a widget over another inserts
+it at that index (insertion semantics, not swap) — the array order *is* the
+visual order because widgets render with `gridColumn: span W`. The renderer
+calls `onWidgetsReorder(nextWidgets)` with the reordered array; the host (e.g.
+`DashboardView`) is responsible for persisting the change via its DataSource.
+
+A 5px pointer-activation distance keeps click-to-select working on the same
+widget surface.
+
+## DashboardGridLayout — persisting drag / resize edits
+
 `DashboardGridLayout` (registered as schema `type: 'dashboard-grid'`) has an
 inline **"Edit Layout"** mode that lets users drag and resize widgets via
 `react-grid-layout`. When the user clicks **Save Layout**, the new grid

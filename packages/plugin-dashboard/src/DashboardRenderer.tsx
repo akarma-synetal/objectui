@@ -10,9 +10,63 @@ import type { DashboardSchema, DashboardWidgetSchema } from '@object-ui/types';
 import { SchemaRenderer, useActionEngine, useObjectLabel } from '@object-ui/react';
 import type { ActionDef, ActionResult, ActionContext, ModalHandler } from '@object-ui/core';
 import { cn, Card, CardHeader, CardTitle, CardContent, Button, getLazyIcon } from '@object-ui/components';
-import { forwardRef, useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { forwardRef, useState, useEffect, useCallback, useMemo, useRef, Fragment } from 'react';
 import { RefreshCw } from 'lucide-react';
+import {
+  DndContext,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  closestCenter,
+  type DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  SortableContext,
+  arrayMove,
+  useSortable,
+  rectSortingStrategy,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import { isObjectProvider } from './utils';
+
+interface SortableWidgetWrapperProps {
+  id: string;
+  disabled?: boolean;
+  gridSpan?: { w: number; h: number };
+  className?: string;
+  children: React.ReactNode;
+}
+
+function SortableWidgetWrapper({ id, disabled, gridSpan, className, children }: SortableWidgetWrapperProps) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging, isOver } = useSortable({
+    id,
+    disabled,
+  });
+  const style: React.CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.4 : 1,
+    ...(gridSpan ? { gridColumn: `span ${gridSpan.w}`, gridRow: `span ${gridSpan.h}` } : {}),
+  };
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={cn(
+        'h-full w-full',
+        className,
+        !disabled && 'cursor-grab active:cursor-grabbing',
+        isOver && !isDragging && 'ring-2 ring-primary ring-offset-2 rounded-lg'
+      )}
+      data-sortable-widget-id={id}
+      {...attributes}
+      {...listeners}
+    >
+      {children}
+    </div>
+  );
+}
 
 /**
  * Resolve a Lucide icon by name (PascalCase or kebab-case).
@@ -74,6 +128,13 @@ export interface DashboardRendererProps {
   selectedWidgetId?: string | null;
   /** Callback when a widget is clicked in design mode */
   onWidgetClick?: (widgetId: string | null) => void;
+  /**
+   * Callback when widgets are reordered via drag-and-drop in design mode.
+   * Receives the next widgets array (with positions swapped). The parent
+   * is expected to persist via its data adapter. When omitted, drag-and-
+   * drop affordances are disabled even in design mode.
+   */
+  onWidgetsReorder?: (widgets: DashboardWidgetSchema[]) => void;
   /** Optional handler for actionType="modal" header actions. Receives a schema and ActionContext. */
   modalHandler?: ModalHandler;
   /** Optional named handlers for actionType="script" header actions, keyed by action name (actionUrl). */
@@ -82,7 +143,7 @@ export interface DashboardRendererProps {
 }
 
 export const DashboardRenderer = forwardRef<HTMLDivElement, DashboardRendererProps>(
-  ({ schema, className, dataSource, onRefresh, recordCount, userActions, designMode, selectedWidgetId, onWidgetClick, modalHandler, scriptHandlers, ...props }, ref) => {
+  ({ schema, className, dataSource, onRefresh, recordCount, userActions, designMode, selectedWidgetId, onWidgetClick, onWidgetsReorder, modalHandler, scriptHandlers, ...props }, ref) => {
     // Auto-infer the grid column count when the dashboard schema doesn't
     // specify one. Spec convention is a 12-column grid (widgets use w: 3 for
     // quarter-row KPIs, w: 6 for half-row charts, etc.). If we always default
@@ -230,6 +291,34 @@ export const DashboardRenderer = forwardRef<HTMLDivElement, DashboardRendererPro
         onWidgetClick(null);
       }
     }, [designMode, onWidgetClick]);
+
+    // --- Drag-and-drop reordering (design mode only) ---------------------
+    // Powered by @dnd-kit. Because each widget renders with
+    // `gridColumn: span W` (no explicit x/y), array order *is* visual order,
+    // so `arrayMove` on the widgets array yields an intuitive insertion-based
+    // reorder (drop between widgets, not just swap).
+    const dragEnabled = !!(designMode && onWidgetsReorder);
+
+    const sensors = useSensors(
+      useSensor(PointerSensor, {
+        // Require a small drag distance so click-to-select still works.
+        activationConstraint: { distance: 5 },
+      })
+    );
+
+    const handleSortableDragEnd = useCallback(
+      (event: DragEndEvent) => {
+        if (!dragEnabled) return;
+        const { active, over } = event;
+        if (!over || active.id === over.id) return;
+        const widgets = schema.widgets ?? [];
+        const oldIndex = widgets.findIndex((w) => w.id === active.id);
+        const newIndex = widgets.findIndex((w) => w.id === over.id);
+        if (oldIndex < 0 || newIndex < 0) return;
+        onWidgetsReorder?.(arrayMove(widgets, oldIndex, newIndex));
+      },
+      [dragEnabled, schema.widgets, onWidgetsReorder]
+    );
 
     const renderWidget = (widget: DashboardWidgetSchema, index: number, forceMobileFullWidth?: boolean) => {
         // Clamp widget span to grid columns to prevent overflow
@@ -570,26 +659,22 @@ export const DashboardRenderer = forwardRef<HTMLDivElement, DashboardRendererPro
             )
           : undefined;
 
-        if (isSelfContained) {
-            return (
-                <div 
-                    key={widgetKey}
-                    className={cn("h-full w-full", designMode && "relative", selectionClasses)}
-                    style={!isMobile && clampedLayout ? {
-                        gridColumn: `span ${clampedLayout.w}`,
-                        gridRow: `span ${clampedLayout.h}`
-                    }: undefined}
-                    {...designModeProps}
-                >
-                     <SchemaRenderer schema={componentSchema} className={cn("h-full w-full", designMode && "pointer-events-none")} dataSource={dataSource} />
-                     {designMode && <div className="absolute inset-0 z-10" aria-hidden="true" data-testid="widget-click-overlay" />}
-                </div>
-            );
-        }
+        const innerGridSpanStyle = !isMobile && clampedLayout && !dragEnabled ? {
+            gridColumn: `span ${clampedLayout.w}`,
+            gridRow: `span ${clampedLayout.h}`,
+        } : undefined;
 
-        return (
+        const renderedNode = isSelfContained ? (
+            <div
+                className={cn("h-full w-full", designMode && "relative", selectionClasses)}
+                style={innerGridSpanStyle}
+                {...designModeProps}
+            >
+                 <SchemaRenderer schema={componentSchema} className={cn("h-full w-full", designMode && "pointer-events-none")} dataSource={dataSource} />
+                 {designMode && <div className="absolute inset-0 z-10" aria-hidden="true" data-testid="widget-click-overlay" />}
+            </div>
+        ) : (
             <Card
-                key={widgetKey}
                 className={cn(
                     "overflow-hidden border-border/50 shadow-sm transition-all hover:shadow-md",
                     "bg-card/50 backdrop-blur-sm",
@@ -597,10 +682,7 @@ export const DashboardRenderer = forwardRef<HTMLDivElement, DashboardRendererPro
                     designMode && "relative",
                     selectionClasses
                 )}
-                style={!isMobile && clampedLayout ? {
-                    gridColumn: `span ${clampedLayout.w}`,
-                    gridRow: `span ${clampedLayout.h}`
-                }: undefined}
+                style={innerGridSpanStyle}
                 {...designModeProps}
             >
                 {resolvedTitle && (
@@ -621,6 +703,20 @@ export const DashboardRenderer = forwardRef<HTMLDivElement, DashboardRendererPro
                 {designMode && <div className="absolute inset-0 z-10" aria-hidden="true" data-testid="widget-click-overlay" />}
             </Card>
         );
+
+        if (dragEnabled && widget.id) {
+            return (
+                <SortableWidgetWrapper
+                    key={widgetKey}
+                    id={widget.id}
+                    gridSpan={!isMobile && clampedLayout ? { w: clampedLayout.w, h: clampedLayout.h } : undefined}
+                >
+                    {renderedNode}
+                </SortableWidgetWrapper>
+            );
+        }
+
+        return <Fragment key={widgetKey}>{renderedNode}</Fragment>;
     };
 
     const headerSection = schema.header && (
@@ -702,36 +798,61 @@ export const DashboardRenderer = forwardRef<HTMLDivElement, DashboardRendererPro
       </div>
     );
 
+    const widgetIds = useMemo(
+      () => (schema.widgets ?? []).map((w) => w.id).filter((id): id is string => !!id),
+      [schema.widgets]
+    );
+
+    const metricIds = useMemo(
+      () => (schema.widgets ?? []).filter((w) => w.type === 'metric').map((w) => w.id).filter((id): id is string => !!id),
+      [schema.widgets]
+    );
+
+    const otherIds = useMemo(
+      () => (schema.widgets ?? []).filter((w) => w.type !== 'metric').map((w) => w.id).filter((id): id is string => !!id),
+      [schema.widgets]
+    );
+
     if (isMobile) {
       // Separate metric widgets from other widgets for better mobile layout
       const metricWidgets = schema.widgets?.filter((w: DashboardWidgetSchema) => w.type === 'metric') || [];
       const otherWidgets = schema.widgets?.filter((w: DashboardWidgetSchema) => w.type !== 'metric') || [];
-      
-      return (
+
+      const mobileBody = (
         <div ref={ref} className={cn("flex flex-col gap-4 px-4", className)} data-user-actions={userActionsAttr} onClick={handleBackgroundClick} {...props}>
           {headerSection}
           {refreshButton}
-          
+
           {/* Metric cards: 2-column grid */}
           {metricWidgets.length > 0 && (
             <div className="grid grid-cols-2 gap-3" onClick={handleBackgroundClick}>
-              {metricWidgets.map((widget: DashboardWidgetSchema, index: number) => renderWidget(widget, index))}
+              <SortableContext items={metricIds} strategy={rectSortingStrategy} disabled={!dragEnabled}>
+                {metricWidgets.map((widget: DashboardWidgetSchema, index: number) => renderWidget(widget, index))}
+              </SortableContext>
             </div>
           )}
-          
+
           {/* Other widgets (charts, tables): full-width vertical stack */}
           {otherWidgets.length > 0 && (
             <div className="flex flex-col gap-4" onClick={handleBackgroundClick}>
-              {otherWidgets.map((widget: DashboardWidgetSchema, index: number) => renderWidget(widget, index, true))}
+              <SortableContext items={otherIds} strategy={verticalListSortingStrategy} disabled={!dragEnabled}>
+                {otherWidgets.map((widget: DashboardWidgetSchema, index: number) => renderWidget(widget, index, true))}
+              </SortableContext>
             </div>
           )}
         </div>
       );
+
+      return dragEnabled ? (
+        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleSortableDragEnd}>
+          {mobileBody}
+        </DndContext>
+      ) : mobileBody;
     }
 
     const hasExplicitColumns = schema.columns != null || inferredColumns !== 4;
 
-    return (
+    const desktopBody = (
       <div
         ref={ref}
         className={cn(
@@ -749,8 +870,16 @@ export const DashboardRenderer = forwardRef<HTMLDivElement, DashboardRendererPro
       >
         {headerSection}
         {refreshButton}
-        {schema.widgets?.map((widget: DashboardWidgetSchema, index: number) => renderWidget(widget, index))}
+        <SortableContext items={widgetIds} strategy={rectSortingStrategy} disabled={!dragEnabled}>
+          {schema.widgets?.map((widget: DashboardWidgetSchema, index: number) => renderWidget(widget, index))}
+        </SortableContext>
       </div>
     );
+
+    return dragEnabled ? (
+      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleSortableDragEnd}>
+        {desktopBody}
+      </DndContext>
+    ) : desktopBody;
   }
 );

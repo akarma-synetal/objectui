@@ -97,6 +97,21 @@ export interface NavigationItem {
   /** Required permissions to see/access this item */
   requiredPermissions?: string[];
 
+  /**
+   * Runtime capability gate — name of an object that must be registered
+   * in the runtime's SchemaRegistry for this entry to render. Used to
+   * hide cloud-only nav entries (e.g. `sys_app`, `sys_package`) in
+   * single-project runtimes that don't register those objects.
+   */
+  requiresObject?: string;
+
+  /**
+   * Runtime capability gate — name of a kernel service that must be
+   * registered for this entry to render. Mirrors `requiresObject` for
+   * service-bound features.
+   */
+  requiresService?: string;
+
   // -- UX Enhancements --
 
   /** Badge text or count */

@@ -157,7 +157,7 @@ export function UnifiedSidebar({ activeAppName }: UnifiedSidebarProps) {
   const { recentItems } = useRecentItems();
   const { favorites, removeFavorite } = useFavorites();
 
-  const { apps: metadataApps } = useMetadata();
+  const { apps: metadataApps, objects: metadataObjects } = useMetadata();
   const apps = metadataApps || [];
   const activeApps = apps.filter((a: any) => a.active !== false);
   const activeApp = activeApps.find((a: any) => a.name === (activeAppName || currentAppName)) || activeApps[0];
@@ -221,6 +221,23 @@ export function UnifiedSidebar({ activeAppName }: UnifiedSidebarProps) {
     [can],
   );
 
+  // Runtime capability gate: hide nav items targeting objects/services
+  // not registered in this runtime (e.g. cloud-only `sys_app`).
+  const registeredObjectNames = React.useMemo(
+    () => new Set<string>((metadataObjects || []).map((o: any) => o?.name).filter(Boolean)),
+    [metadataObjects],
+  );
+  const checkCap = React.useCallback(
+    (kind: 'object' | 'service', name: string): boolean => {
+      if (kind === 'object') {
+        if (registeredObjectNames.size === 0) return true;
+        return registeredObjectNames.has(name);
+      }
+      return true;
+    },
+    [registeredObjectNames],
+  );
+
   const basePath = context === 'app' && activeApp ? `/apps/${activeApp.name}` : '';
 
   return (
@@ -266,6 +283,7 @@ export function UnifiedSidebar({ activeAppName }: UnifiedSidebarProps) {
              basePath={basePath}
              evaluateVisibility={evalVis}
              checkPermission={checkPerm}
+             checkCapability={checkCap}
              enablePinning={!isMobile}
              onPinToggle={togglePin}
              enableReorder={!isMobile}

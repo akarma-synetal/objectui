@@ -86,6 +86,21 @@ export type VisibilityEvaluator = (
  */
 export type PermissionChecker = (permissions: string[]) => boolean;
 
+/**
+ * Callback to check whether the runtime advertises the named capabilities.
+ *
+ * Used to gate navigation entries that target objects or services which
+ * may not exist in every runtime (e.g. `sys_app` / `sys_package` only
+ * live in the cloud control-plane). When `requiresObject` or
+ * `requiresService` is set on a navigation item and the checker returns
+ * `false`, the item is hidden — preventing the 404-when-clicked trap.
+ *
+ * When not provided, capability gates default to *pass* (i.e. always
+ * shown) so navigation works in environments that haven't wired up a
+ * runtime capability probe yet.
+ */
+export type CapabilityChecker = (kind: 'object' | 'service', name: string) => boolean;
+
 export interface NavigationRendererProps {
   /** Navigation items to render */
   items: NavigationItem[];
@@ -101,6 +116,9 @@ export interface NavigationRendererProps {
 
   /** Optional permission checker for `requiredPermissions` */
   checkPermission?: PermissionChecker;
+
+  /** Optional runtime-capability checker for `requiresObject` / `requiresService` */
+  checkCapability?: CapabilityChecker;
 
   /** Called when an `action`-type item is clicked */
   onAction?: (item: NavigationItem) => void;
@@ -234,6 +252,8 @@ const defaultVisibility: VisibilityEvaluator = (expr) => {
 
 const defaultPermission: PermissionChecker = () => true;
 
+const defaultCapability: CapabilityChecker = () => true;
+
 // ---------------------------------------------------------------------------
 // Internal helper: resolve href from NavigationItem
 // ---------------------------------------------------------------------------
@@ -305,6 +325,7 @@ function SortableNavigationItem({
   basePath,
   evalVis,
   checkPerm,
+  checkCap,
   onAction,
   enablePinning,
   onPinToggle,
@@ -318,6 +339,7 @@ function SortableNavigationItem({
   basePath: string;
   evalVis: VisibilityEvaluator;
   checkPerm: PermissionChecker;
+  checkCap: CapabilityChecker;
   onAction?: (item: NavigationItem) => void;
   enablePinning?: boolean;
   onPinToggle?: (itemId: string, pinned: boolean) => void;
@@ -350,6 +372,7 @@ function SortableNavigationItem({
         basePath={basePath}
         evalVis={evalVis}
         checkPerm={checkPerm}
+        checkCap={checkCap}
         onAction={onAction}
         enablePinning={enablePinning}
         onPinToggle={onPinToggle}
@@ -372,6 +395,7 @@ function NavigationItemRenderer({
   basePath,
   evalVis,
   checkPerm,
+  checkCap,
   onAction,
   enablePinning,
   onPinToggle,
@@ -385,6 +409,7 @@ function NavigationItemRenderer({
   basePath: string;
   evalVis: VisibilityEvaluator;
   checkPerm: PermissionChecker;
+  checkCap: CapabilityChecker;
   onAction?: (item: NavigationItem) => void;
   enablePinning?: boolean;
   onPinToggle?: (itemId: string, pinned: boolean) => void;
@@ -402,6 +427,14 @@ function NavigationItemRenderer({
 
   // --- Permission guard ---
   if (item.requiredPermissions?.length && !checkPerm(item.requiredPermissions)) return null;
+
+  // --- Capability guard (runtime-feature gates) ---
+  // Hide entries whose required object/service is not registered in this
+  // runtime — e.g. `sys_app` only exists when the tenant service is loaded.
+  const requiresObject = (item as any).requiresObject as string | undefined;
+  const requiresService = (item as any).requiresService as string | undefined;
+  if (requiresObject && !checkCap('object', requiresObject)) return null;
+  if (requiresService && !checkCap('service', requiresService)) return null;
 
   // --- Separator ---
   if (item.type === 'separator') {
@@ -437,6 +470,7 @@ function NavigationItemRenderer({
                     basePath={basePath}
                     evalVis={evalVis}
                     checkPerm={checkPerm}
+                    checkCap={checkCap}
                     onAction={onAction}
                     enablePinning={enablePinning}
                     onPinToggle={onPinToggle}
@@ -607,6 +641,7 @@ export function NavigationRenderer({
   basePath = '',
   evaluateVisibility: evalVis = defaultVisibility,
   checkPermission: checkPerm = defaultPermission,
+  checkCapability: checkCap = defaultCapability,
   onAction,
   searchQuery,
   enablePinning,
@@ -659,6 +694,7 @@ export function NavigationRenderer({
     basePath,
     evalVis,
     checkPerm,
+    checkCap,
     onAction,
     enablePinning,
     onPinToggle,

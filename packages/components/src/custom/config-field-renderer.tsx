@@ -9,6 +9,7 @@
 import * as React from 'react';
 import { Settings } from 'lucide-react';
 import { Input } from '../ui/input';
+import { Textarea } from '../ui/textarea';
 import { Switch } from '../ui/switch';
 import { Checkbox } from '../ui/checkbox';
 import { Slider } from '../ui/slider';
@@ -73,6 +74,22 @@ export function ConfigFieldRenderer({
             value={effectiveValue ?? ''}
             placeholder={field.placeholder}
             disabled={effectiveDisabled}
+            onChange={(e) => onChange(e.target.value)}
+          />
+        </ConfigRow>
+      );
+      break;
+
+    case 'textarea':
+      content = (
+        <ConfigRow label={field.label} className="flex-col items-stretch gap-1">
+          <Textarea
+            data-testid={`config-field-${field.key}`}
+            className="min-h-[60px] w-full text-xs"
+            value={effectiveValue ?? ''}
+            placeholder={field.placeholder}
+            disabled={effectiveDisabled}
+            rows={3}
             onChange={(e) => onChange(e.target.value)}
           />
         </ConfigRow>

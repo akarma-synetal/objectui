@@ -167,7 +167,7 @@ export function AppSidebar({ activeAppName, onAppChange }: { activeAppName: stri
   const { recentItems } = useRecentItems();
   const { favorites, removeFavorite } = useFavorites();
   
-  const { apps: metadataApps } = useMetadata();
+  const { apps: metadataApps, objects: metadataObjects } = useMetadata();
   const apps = metadataApps || [];
   // Filter out inactive apps
   const activeApps = apps.filter((a: any) => a.active !== false);
@@ -232,6 +232,30 @@ export function AppSidebar({ activeAppName, onAppChange }: { activeAppName: stri
       return can(object, action as any);
     }),
     [can],
+  );
+
+  // Runtime capability checker — gates nav entries with `requiresObject` /
+  // `requiresService` against the runtime's actual SchemaRegistry contents.
+  // Currently we only probe registered objects (sourced from the metadata
+  // provider, which fetches `GET /api/v1/meta/object` on mount). Service
+  // gates default to pass since there is no client-side service registry
+  // probe yet — callers should wire one when needed.
+  const registeredObjectNames = React.useMemo(
+    () => new Set<string>((metadataObjects || []).map((o: any) => o?.name).filter(Boolean)),
+    [metadataObjects],
+  );
+  const checkCap = React.useCallback(
+    (kind: 'object' | 'service', name: string): boolean => {
+      if (kind === 'object') {
+        // While metadata is still loading we have an empty set; show
+        // entries by default to avoid a "menu flicker" where everything
+        // disappears momentarily on first render.
+        if (registeredObjectNames.size === 0) return true;
+        return registeredObjectNames.has(name);
+      }
+      return true;
+    },
+    [registeredObjectNames],
   );
 
   const basePath = activeApp ? `/apps/${activeAppName}` : '';
@@ -401,6 +425,7 @@ export function AppSidebar({ activeAppName, onAppChange }: { activeAppName: stri
              basePath={basePath}
              evaluateVisibility={evalVis}
              checkPermission={checkPerm}
+             checkCapability={checkCap}
              searchQuery={navSearchQuery}
              enablePinning
              onPinToggle={togglePin}

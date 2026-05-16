@@ -57,7 +57,7 @@ const WIDGET_TYPES = [
   { type: 'line', label: 'Line Chart', Icon: LineChart },
   { type: 'pie', label: 'Pie Chart', Icon: PieChart },
   { type: 'table', label: 'Table', Icon: Table2 },
-  { type: 'grid', label: 'Grid', Icon: LayoutGrid },
+  { type: 'pivot', label: 'Pivot', Icon: LayoutGrid },
 ];
 
 let widgetCounter = 0;
@@ -167,6 +167,7 @@ function extractDashboardConfig(schema: DashboardSchema | null | undefined): Rec
     rowHeight: String(s.rowHeight ?? '120'),
     refreshInterval: String(s.refreshInterval ?? '0'),
     title: s.title ?? '',
+    description: s.description ?? '',
     showDescription: s.showDescription ?? true,
     theme: s.theme ?? 'auto',
   };
@@ -349,6 +350,21 @@ export function DashboardView({ dataSource }: { dataSource?: any }) {
     [editSchema, selectedWidgetId, saveSchema],
   );
 
+  // Reorder widgets via drag-and-drop from DashboardRenderer's design mode.
+  const handleWidgetsReorder = useCallback(
+    (nextWidgets: any[]) => {
+      const baseSchema = editSchema || (dashboard as DashboardSchema | undefined);
+      if (!baseSchema) return;
+      const newSchema: DashboardSchema = {
+        ...baseSchema,
+        widgets: nextWidgets,
+      } as DashboardSchema;
+      setEditSchema(newSchema);
+      saveSchema(newSchema);
+    },
+    [editSchema, dashboard, saveSchema],
+  );
+
   // ---- Dashboard config panel handlers ------------------------------------
   // Stabilize config reference: only recompute after explicit actions (panel
   // open, save, widget add). configVersion is incremented on those actions.
@@ -374,6 +390,7 @@ export function DashboardView({ dataSource }: { dataSource?: any }) {
         rowHeight: toNum(config.rowHeight, editSchema.rowHeight),
         refreshInterval: toNum(config.refreshInterval, 0) ?? 0,
         title: config.title,
+        description: config.description,
         showDescription: config.showDescription,
         theme: config.theme,
       } as DashboardSchema;
@@ -480,6 +497,33 @@ export function DashboardView({ dataSource }: { dataSource?: any }) {
     }));
   }, [selectedWidget?.object, metadataObjects]);
 
+  // ---- Runtime capability gate (must run before guards to respect Rules of Hooks)
+  // Hide widgets whose `requiresObject` is not registered (mirrors
+  // NavigationItem.requiresObject for nav entries). Defaults to widget.object
+  // when not set, so any object-bound widget disappears gracefully when its
+  // backing object isn't in this runtime (e.g. cloud-only
+  // `sys_package_installation` on system_overview).
+  const registeredObjectNamesForFilter = useMemo(
+    () => new Set<string>((metadataObjects || []).map((o: any) => o?.name).filter(Boolean)),
+    [metadataObjects],
+  );
+  const previewSchemaSrc = editSchema || dashboard;
+  const previewSchema = useMemo(() => {
+    if (!previewSchemaSrc) return previewSchemaSrc;
+    // Defer pruning until metadata has actually loaded — otherwise the
+    // empty Set would hide every object-bound widget on first render.
+    if (registeredObjectNamesForFilter.size === 0) return previewSchemaSrc;
+    const widgets = (previewSchemaSrc as any).widgets;
+    if (!Array.isArray(widgets) || widgets.length === 0) return previewSchemaSrc;
+    const filtered = widgets.filter((w: any) => {
+      const required = w?.requiresObject ?? w?.object;
+      if (!required) return true;
+      return registeredObjectNamesForFilter.has(required);
+    });
+    if (filtered.length === widgets.length) return previewSchemaSrc;
+    return { ...previewSchemaSrc, widgets: filtered };
+  }, [previewSchemaSrc, registeredObjectNamesForFilter]);
+
   // ---- Loading / not-found guards -----------------------------------------
   if (isLoading) {
     return <SkeletonDashboard />;
@@ -501,18 +545,35 @@ export function DashboardView({ dataSource }: { dataSource?: any }) {
     );
   }
 
-  const previewSchema = editSchema || dashboard;
 
   return (
     <div className="flex flex-col h-full overflow-hidden bg-background">
       {/* ── Header ───────────────────────────────────────────────── */}
       <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-3 sm:gap-4 p-4 sm:p-6 border-b shrink-0">
         <div className="min-w-0 flex-1">
-          <h1 className="text-lg sm:text-xl md:text-2xl font-bold tracking-tight truncate">{dashboardLabel({ name: dashboard.name, label: resolveI18nLabel(dashboard.label, t) }) || dashboard.name}</h1>
           {(() => {
+            // Per @objectstack/spec, DashboardSchema.title is "the dashboard
+            // title displayed in the header". We prefer it when present so
+            // edits made through the config panel (which writes `title`) are
+            // visible after save/reload. Falls back to `label` (the metadata
+            // display name) and finally to the raw `name`. We also follow
+            // `previewSchema` instead of the cached `dashboard` so the H1
+            // updates live while the user is typing in the config panel.
+            const headerSrc = (previewSchema as any) || dashboard;
+            const resolvedTitle = resolveI18nLabel(headerSrc.title, t);
+            const resolvedLabel = resolveI18nLabel(dashboard.label, t);
+            const fallbackLabel = dashboardLabel({ name: dashboard.name, label: resolvedLabel });
+            const display = resolvedTitle || fallbackLabel || dashboard.name;
+            return (
+              <h1 className="text-lg sm:text-xl md:text-2xl font-bold tracking-tight truncate">{display}</h1>
+            );
+          })()}
+          {(() => {
+            const headerSrc = (previewSchema as any) || dashboard;
+            const rawDesc = headerSrc.description ?? dashboard.description;
             const desc = dashboardDescription({
               name: dashboard.name,
-              description: resolveI18nLabel(dashboard.description, t),
+              description: resolveI18nLabel(rawDesc, t),
             });
             return desc ? (
               <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{desc}</p>
@@ -560,6 +621,7 @@ export function DashboardView({ dataSource }: { dataSource?: any }) {
               designMode={configPanelOpen}
               selectedWidgetId={selectedWidgetId}
               onWidgetClick={setSelectedWidgetId}
+              onWidgetsReorder={handleWidgetsReorder}
               modalHandler={modalHandler}
               scriptHandlers={scriptHandlers}
             />

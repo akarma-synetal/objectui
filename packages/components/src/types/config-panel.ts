@@ -16,6 +16,7 @@
 /** Supported control types for config fields */
 export type ControlType =
   | 'input'
+  | 'textarea'
   | 'switch'
   | 'select'
   | 'checkbox'

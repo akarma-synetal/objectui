@@ -45,6 +45,7 @@ import {
   resolveLabel,
   type VisibilityEvaluator,
   type PermissionChecker,
+  type CapabilityChecker,
 } from './NavigationRenderer';
 
 // ---------------------------------------------------------------------------
@@ -69,6 +70,9 @@ export interface AppSchemaRendererProps {
 
   /** Optional permission checker passed to NavigationRenderer */
   checkPermission?: PermissionChecker;
+
+  /** Optional capability checker passed to NavigationRenderer (gates `requiresObject` / `requiresService`) */
+  checkCapability?: CapabilityChecker;
 
   /** Called when an action-type navigation item is clicked */
   onAction?: (item: NavigationItem) => void;
@@ -328,6 +332,7 @@ function InternalSidebar({
           basePath={basePath}
           evaluateVisibility={evalVis}
           checkPermission={checkPerm}
+          checkCapability={checkCap}
           onAction={onAction}
           searchQuery={searchQuery}
           enablePinning={enablePinning}
@@ -380,6 +385,7 @@ export function AppSchemaRenderer({
   mobileNavMode = 'drawer',
   evaluateVisibility: evalVisProp,
   checkPermission: checkPermProp,
+  checkCapability: checkCapProp,
   onAction,
   navbar,
   sidebarHeader,
@@ -400,6 +406,7 @@ export function AppSchemaRenderer({
     return true;
   });
   const checkPerm: PermissionChecker = checkPermProp ?? (() => true);
+  const checkCap: CapabilityChecker = checkCapProp ?? (() => true);
 
   // --- Resolve navigation from legacy `menu` or modern `navigation`/`areas` ---
   const legacyNavigation = useMemo(
