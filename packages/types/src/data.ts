@@ -266,6 +266,36 @@ export interface DataSource<T = any> {
   updateViewConfig?(objectName: string, viewId: string, config: Record<string, any>): Promise<Record<string, any> | void>;
 
   /**
+   * List user-created overlay views for an object (ADR-0005 metadata
+   * customization overlay). Returns view specs (not physical sys_view
+   * records). Implementations route to
+   * `GET /api/v1/meta/view` and filter client-side by `data.object`.
+   */
+  listViews?(objectName: string): Promise<any[]>;
+
+  /**
+   * Create a new overlay view. The view's `name` field is the stable
+   * identifier; if omitted, a unique snake_case name is generated.
+   * Routes to `PUT /api/v1/meta/view/:name`.
+   */
+  createView?(objectName: string, spec: Record<string, any>): Promise<Record<string, any> | void>;
+
+  /**
+   * Apply a partial update to an overlay view (read-merge-write because
+   * overlay rows store the full view document). Routes to
+   * `PUT /api/v1/meta/view/:name`.
+   */
+  updateView?(objectName: string, viewName: string, partial: Record<string, any>): Promise<Record<string, any> | void>;
+
+  /**
+   * Delete an overlay view. Routes to `DELETE /api/v1/meta/view/:name`,
+   * which resets to the artifact default if one exists or removes the
+   * overlay entirely if it was a user-created view.
+   */
+  deleteView?(objectName: string, viewName: string): Promise<{ deleted: boolean }>;
+
+
+  /**
    * Get an application definition by name or ID.
    * Used by app shells to render server-defined navigation, branding, and layout.
    * Optional — implementations may return null to fall back to static config.

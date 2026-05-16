@@ -447,18 +447,20 @@ export function ObjectView({ dataSource, objects, onEdit, externalRefreshKey }: 
                 const incomingColumns = Array.isArray(config.columns) && config.columns.length > 0
                     ? config.columns
                     : defaultColumns;
-                // Translate NamedListView spec shape (type, label, kanban, chart,
-                // gantt, etc., columns, filter, sort) into the sys_view storage
-                // shape (view_type, label, object_name, *_json columns).
-                // Per spec: front-end follows the protocol, the persistence
-                // boundary owns the mapping to physical columns.
-                const payload = toSysViewPayload(
-                    { ...config, columns: incomingColumns },
-                    objectName,
-                    { defaultColumns },
-                );
-                const created = await dataSource.create('sys_view', payload);
-                createdId = created?.id ?? created?._id;
+                // ADR-0005 overlay path — write the full spec under a unique
+                // `name` via the metadata customization API instead of into
+                // the physical `sys_view` table (whose columns no longer
+                // accommodate the spec shape: arrays, nested objects, etc.).
+                const spec = { ...config, columns: incomingColumns };
+                if (typeof (dataSource as any)?.createView === 'function') {
+                    const created = await (dataSource as any).createView(objectName, spec);
+                    createdId = (created as any)?.name || (config as any)?.name;
+                } else if (dataSource?.create) {
+                    // Legacy fallback for adapters that don't expose createView.
+                    const payload = toSysViewPayload(spec, objectName, { defaultColumns });
+                    const created = await dataSource.create('sys_view', payload);
+                    createdId = created?.id ?? created?._id;
+                }
             }
             setShowViewConfigPanel(false);
             setViewConfigPanelMode('edit');
@@ -527,7 +529,39 @@ export function ObjectView({ dataSource, objects, onEdit, externalRefreshKey }: 
     const [savedViews, setSavedViews] = useState<any[]>([]);
     useEffect(() => {
         let cancelled = false;
-        if (!dataSource?.find || !objectName) {
+        if (!objectName) {
+            setSavedViews([]);
+            return;
+        }
+        // ADR-0005: use the metadata overlay API instead of writing to
+        // the physical `sys_view` table (which has incompatible columns).
+        // Falls back to the legacy `find('sys_view', ...)` path only when
+        // the adapter doesn't expose `listViews` (e.g. test mocks).
+        if (typeof (dataSource as any)?.listViews === 'function') {
+            (dataSource as any).listViews(objectName)
+                .then((rows: any[]) => {
+                    if (cancelled) return;
+                    // Normalize: ensure each view has an `id` for ViewTabBar
+                    // (which is name-keyed downstream). Stamp `objectName`
+                    // so the defensive filter in handlers still works.
+                    const normalized = (rows || []).map((sv: any) => ({
+                        ...sv,
+                        // Overlay rows are keyed by `name`. Prefer that as the
+                        // tab id so a duplicate's `id` field (which may have
+                        // been copied verbatim from the source artifact) does
+                        // not collide with the source's view id during dedup.
+                        id: sv.name || sv.id,
+                        objectName: sv.objectName || sv.object || objectName,
+                    }));
+                    setSavedViews(normalized);
+                })
+                .catch((err: any) => {
+                    console.error('[ObjectView] Failed to load overlay views:', err);
+                    if (!cancelled) setSavedViews([]);
+                });
+            return () => { cancelled = true; };
+        }
+        if (!dataSource?.find) {
             setSavedViews([]);
             return;
         }
@@ -812,19 +846,23 @@ export function ObjectView({ dataSource, objects, onEdit, externalRefreshKey }: 
     }, [savedViews]);
 
     const handleRenameView = useCallback(async (vid: string, newName: string) => {
-        if (!dataSource?.update) return;
         if (!isSavedView(vid)) {
             toast.error(t('console.objectView.cannotEditMetaView') || 'Built-in views cannot be renamed.');
             return;
         }
         try {
-            await dataSource.update('sys_view', vid, { label: newName });
+            // ADR-0005 overlay path — `vid` is the view's `name` field
+            if (typeof (dataSource as any)?.updateView === 'function') {
+                await (dataSource as any).updateView(objectName, vid, { label: newName });
+            } else if (dataSource?.update) {
+                await dataSource.update('sys_view', vid, { label: newName });
+            }
             setRefreshKey(k => k + 1);
         } catch (err) {
             console.error('[ViewTabBar] Failed to rename view:', err);
             toast.error(t('objectViewActions.renameFailed'));
         }
-    }, [dataSource, isSavedView, t]);
+    }, [dataSource, objectName, isSavedView, t]);
 
     // Promise-based confirm/param dialogs — declared early so destructive
     // handlers (delete, etc.) can `await confirmHandler(...)` for a proper
@@ -845,7 +883,7 @@ export function ObjectView({ dataSource, objects, onEdit, externalRefreshKey }: 
     }, []);
 
     const handleDeleteView = useCallback(async (vid: string) => {
-        if (!dataSource?.delete) return;
+        if (!dataSource) return;
         if (!isSavedView(vid)) {
             toast.error(t('console.objectView.cannotDeleteMetaView') || 'Built-in views cannot be deleted.');
             return;
@@ -863,7 +901,11 @@ export function ObjectView({ dataSource, objects, onEdit, externalRefreshKey }: 
         );
         if (!confirmed) return;
         try {
-            await dataSource.delete('sys_view', vid);
+            if (typeof (dataSource as any)?.deleteView === 'function') {
+                await (dataSource as any).deleteView(objectName, vid);
+            } else if (dataSource?.delete) {
+                await dataSource.delete('sys_view', vid);
+            }
             // If we deleted the active view, fall back to the first remaining view.
             if (vid === activeViewId) {
                 const fallback = views.find((v: any) => v.id !== vid);
@@ -877,33 +919,40 @@ export function ObjectView({ dataSource, objects, onEdit, externalRefreshKey }: 
     }, [dataSource, isSavedView, activeViewId, views, viewId, navigate, t, confirmHandler]);
 
     const handleDuplicateView = useCallback(async (vid: string) => {
-        if (!dataSource?.create) return;
+        if (!dataSource) return;
         const source = views.find((v: any) => v.id === vid);
         if (!source) return;
         try {
-            // `source` is in NamedListView spec shape (columns: [...],
-            // bulkActions: [...], rowActions: [...], pagination, navigation,
-            // emptyState, exportOptions, type, ...). Sending it straight to
-            // `sys_view` blows up because:
-            //   1) those keys don't exist as physical columns (knex emits
-            //      `table sys_view has no column named bulkActions`), and
-            //   2) raw arrays get expanded by knex as positional bindings,
-            //      mangling the INSERT.
-            // We must translate through toSysViewPayload like the create path
-            // does, then override label/flags for the duplicate semantics.
-            const duplicateConfig = {
-                ...source,
+            // ADR-0005 overlay path — store the full NamedListView spec
+            // shape directly under a unique `name`. No legacy sys_view
+            // column-flattening required.
+            const baseName = String(source.name || vid).toLowerCase()
+                .replace(/[^a-z0-9_]+/g, '_').replace(/^_+|_+$/g, '') || 'view';
+            const newName = `${baseName}_copy_${Date.now().toString(36)}`;
+            // Drop `id` so the overlay row is keyed purely by `name`; copying
+            // the source's `id` would collide with the source view in the
+            // tab-bar dedup logic and silently shadow it.
+            const { id: _omitId, ...rest } = source as any;
+            const spec = {
+                ...rest,
+                name: newName,
                 label: `${source.label || vid} (Copy)`,
                 isDefault: false,
                 isPinned: false,
+                data: source.data || { provider: 'object', object: objectName },
+                object: source.object || objectName,
             };
-            const payload = toSysViewPayload(duplicateConfig, objectName);
-            const created = await dataSource.create('sys_view', payload);
-            const newId = created?.id ?? created?._id;
+            let newId: string | undefined;
+            if (typeof (dataSource as any)?.createView === 'function') {
+                const created = await (dataSource as any).createView(objectName, spec);
+                newId = (created as any)?.name || newName;
+            } else if (dataSource?.create) {
+                const payload = toSysViewPayload(spec, objectName);
+                const created = await dataSource.create('sys_view', payload);
+                newId = created?.id ?? created?._id;
+            }
             setRefreshKey(k => k + 1);
-            // Auto-activate the duplicate (Airtable parity). Only navigate
-            // once the server hands back a real id — otherwise we'd push a
-            // route that resolves to nothing.
+            // Auto-activate the duplicate (Airtable parity).
             if (newId) {
                 if (viewId) {
                     navigate(`../${newId}`, { relative: 'path' });
@@ -918,21 +967,25 @@ export function ObjectView({ dataSource, objects, onEdit, externalRefreshKey }: 
     }, [dataSource, views, objectName, navigate, viewId]);
 
     const handlePinView = useCallback(async (vid: string, pinned: boolean) => {
-        if (!dataSource?.update) return;
+        if (!dataSource) return;
         if (!isSavedView(vid)) {
             toast.error(t('console.objectView.cannotEditMetaView') || 'Built-in views cannot be pinned.');
             return;
         }
         try {
-            await dataSource.update('sys_view', vid, { isPinned: pinned });
+            if (typeof (dataSource as any)?.updateView === 'function') {
+                await (dataSource as any).updateView(objectName, vid, { isPinned: pinned });
+            } else if (dataSource?.update) {
+                await dataSource.update('sys_view', vid, { isPinned: pinned });
+            }
             setRefreshKey(k => k + 1);
         } catch (err) {
             console.error('[ViewTabBar] Failed to pin view:', err);
         }
-    }, [dataSource, isSavedView, t]);
+    }, [dataSource, objectName, isSavedView, t]);
 
     const handleSetDefaultView = useCallback(async (vid: string) => {
-        if (!dataSource?.update) return;
+        if (!dataSource) return;
         if (!isSavedView(vid)) {
             toast.error(
                 t('console.objectView.cannotEditMetaView')
@@ -942,17 +995,27 @@ export function ObjectView({ dataSource, objects, onEdit, externalRefreshKey }: 
         }
         try {
             // Clear `isDefault` on all other saved views, then set this one.
+            const hasOverlay = typeof (dataSource as any)?.updateView === 'function';
             const updates = savedViews
                 .filter((sv: any) => (sv.id || sv._id) !== vid && sv.isDefault)
-                .map((sv: any) => dataSource.update('sys_view', sv.id || sv._id, { isDefault: false }));
-            updates.push(dataSource.update('sys_view', vid, { isDefault: true }));
+                .map((sv: any) => {
+                    const id = sv.id || sv._id;
+                    return hasOverlay
+                        ? (dataSource as any).updateView(objectName, id, { isDefault: false })
+                        : dataSource.update!('sys_view', id, { isDefault: false });
+                });
+            updates.push(
+                hasOverlay
+                    ? (dataSource as any).updateView(objectName, vid, { isDefault: true })
+                    : dataSource.update!('sys_view', vid, { isDefault: true }),
+            );
             await Promise.all(updates);
             setRefreshKey(k => k + 1);
         } catch (err) {
             console.error('[ViewTabBar] Failed to set default view:', err);
             toast.error('Failed to set default view');
         }
-    }, [dataSource, savedViews, isSavedView, t]);
+    }, [dataSource, objectName, savedViews, isSavedView, t]);
 
     const handleReorderViews = useCallback(async (orderedIds: string[]) => {
         // Persist order for ALL views (incl. metadata) in localStorage so the
@@ -965,11 +1028,15 @@ export function ObjectView({ dataSource, objects, onEdit, externalRefreshKey }: 
         } catch { /* ignore */ }
         // Best-effort: also persist `sortOrder` on each saved view so other
         // sessions / users can pick up the order from the backend.
-        if (dataSource?.update) {
+        if (dataSource) {
+            const hasOverlay = typeof (dataSource as any)?.updateView === 'function';
             const savedIdSet = new Set(savedViews.map((sv: any) => sv.id || sv._id));
             const updates = orderedIds
                 .filter(id => savedIdSet.has(id))
-                .map((id, idx) => dataSource.update('sys_view', id, { sortOrder: idx }));
+                .map((id, idx) => hasOverlay
+                    ? (dataSource as any).updateView(objectName, id, { sortOrder: idx })
+                    : dataSource.update?.('sys_view', id, { sortOrder: idx }))
+                .filter(Boolean);
             try {
                 await Promise.all(updates);
             } catch (err) {

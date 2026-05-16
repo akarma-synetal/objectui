@@ -1116,16 +1116,23 @@ export class ObjectStackAdapter<T = unknown> implements DataSource<T> {
   ): Promise<Record<string, any> | void> {
     await this.connect();
     try {
+      // ADR-0005 metadata customization overlay: persist views under
+      // `type='view'` (NOT `type=<objectName>` — that was a pre-overlay
+      // misuse that hit `/api/v1/meta/<objectName>/<viewId>`, which the
+      // server never wired). The view's `data.object` field is what
+      // associates it back to the object on read.
+      const merged = { ...(config || {}), object: (config as any)?.object || objectName, name: viewId };
       const result: any = await this.client.meta.saveItem(
-        objectName,
+        'view',
         viewId,
-        config
+        merged
       );
       // Invalidate cached read so next getView reflects the change
       const cacheKey = `view:${objectName}:${viewId}`;
       this.metadataCache.invalidate?.(cacheKey);
       // Also invalidate the batch override map so listViewOverrides re-fetches
       this.metadataCache.invalidate?.(`view-overrides:${objectName}`);
+      this.metadataCache.invalidate?.(`views:${objectName}`);
       if (result && result.item) return result.item;
       return result ?? undefined;
     } catch (err) {
@@ -1135,6 +1142,134 @@ export class ObjectStackAdapter<T = unknown> implements DataSource<T> {
       throw err;
     }
   }
+
+  /**
+   * List user-created views for a given object via the metadata overlay
+   * API (ADR-0005). Replaces the legacy `find('sys_view', {...})` path
+   * that wrote to a physical `sys_view` table whose columns no longer
+   * match the view spec shape.
+   *
+   * Returns view spec objects with their canonical `name` as identifier.
+   * Filters by `data.object === objectName` (or top-level `object`)
+   * client-side because the metadata index is name-only, not field-typed.
+   */
+  async listViews(objectName: string): Promise<any[]> {
+    await this.connect();
+    try {
+      const result: any = await this.client.meta.getItems('view');
+      const items: any[] = Array.isArray(result?.items)
+        ? result.items
+        : Array.isArray(result) ? result : [];
+      return items.filter((v: any) => {
+        if (!v) return false;
+        // Handle both bare view spec and `{list: {...}}` artifact wrapper
+        const spec = v.list ?? v;
+        const obj = spec?.data?.object ?? spec?.object ?? spec?.objectName;
+        return obj === objectName;
+      }).map((v: any) => v.list ?? v);
+    } catch (err) {
+      console.warn('[OBJECTSTACKDataSource] listViews failed:', err);
+      return [];
+    }
+  }
+
+  /**
+   * Create a new overlay view for an object. The view's `name` is the
+   * stable identifier — must be unique within the project scope. Returns
+   * the persisted view spec (or undefined when the server doesn't echo).
+   *
+   * Generates a snake_case name if `spec.name` is not provided by appending
+   * a short timestamp suffix to the source-name hint.
+   */
+  async createView(
+    objectName: string,
+    spec: Record<string, any>,
+  ): Promise<Record<string, any> | void> {
+    await this.connect();
+    let name = String(spec?.name || '').trim();
+    if (!name) {
+      const base = String(spec?.label || objectName || 'view')
+        .toLowerCase()
+        .replace(/[^a-z0-9_]+/g, '_')
+        .replace(/^_+|_+$/g, '')
+        .slice(0, 40) || 'view';
+      const suffix = Date.now().toString(36);
+      name = `${base}_${suffix}`;
+    }
+    const fullSpec = {
+      ...spec,
+      name,
+      object: spec?.object || objectName,
+      data: spec?.data || { provider: 'object', object: objectName },
+    };
+    try {
+      const result: any = await this.client.meta.saveItem('view', name, fullSpec);
+      this.metadataCache.invalidate?.(`views:${objectName}`);
+      if (result && result.item) return result.item;
+      return fullSpec;
+    } catch (err) {
+      throw err;
+    }
+  }
+
+  /**
+   * Apply a partial update to an existing overlay view. Reads the current
+   * overlay (or seeds from artifact), merges, and writes back. ADR-0005
+   * overlay rows store the *full* view document, so partial updates require
+   * a read-merge-write cycle.
+   */
+  async updateView(
+    objectName: string,
+    viewName: string,
+    partial: Record<string, any>,
+  ): Promise<Record<string, any> | void> {
+    await this.connect();
+    let current: any = {};
+    try {
+      const r: any = await this.client.meta.getItem('view', viewName);
+      current = (r && (r.item || r)) || {};
+      // Some endpoints return the bare item; others wrap as {type,name,item}
+      if (current?.list) current = current.list;
+    } catch {
+      // Treat missing as create-equivalent
+    }
+    const merged = {
+      ...current,
+      ...partial,
+      name: viewName,
+      object: current?.object || (current as any)?.data?.object || objectName,
+    };
+    try {
+      const result: any = await this.client.meta.saveItem('view', viewName, merged);
+      this.metadataCache.invalidate?.(`views:${objectName}`);
+      this.metadataCache.invalidate?.(`view:${objectName}:${viewName}`);
+      if (result && result.item) return result.item;
+      return merged;
+    } catch (err) {
+      throw err;
+    }
+  }
+
+  /**
+   * Delete an overlay view (reset to artifact default if one exists, or
+   * remove entirely if it was a user-created view). Routes to
+   * `DELETE /api/v1/meta/view/:name`.
+   */
+  async deleteView(
+    objectName: string,
+    viewName: string,
+  ): Promise<{ deleted: boolean }> {
+    await this.connect();
+    try {
+      const result: any = await this.client.meta.deleteItem('view', viewName);
+      this.metadataCache.invalidate?.(`views:${objectName}`);
+      this.metadataCache.invalidate?.(`view:${objectName}:${viewName}`);
+      return { deleted: !!(result?.deleted ?? result?.reset ?? true) };
+    } catch (err) {
+      throw err;
+    }
+  }
+
 
   /**
    * Get an application definition by name or ID.
