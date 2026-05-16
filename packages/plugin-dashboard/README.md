@@ -270,6 +270,38 @@ auto-detection.
 }
 ```
 
+## DashboardGridLayout — persisting drag / resize edits
+
+`DashboardGridLayout` (registered as schema `type: 'dashboard-grid'`) has an
+inline **"Edit Layout"** mode that lets users drag and resize widgets via
+`react-grid-layout`. When the user clicks **Save Layout**, the new grid
+coordinates are merged back into `schema.widgets[].layout` and handed off
+through the `onSchemaChange` callback.
+
+```tsx
+<DashboardGridLayout
+  schema={dashboard}
+  // ✅ Preferred — write the updated schema through your data adapter.
+  onSchemaChange={(next) => client.meta.saveItem('dashboard', next.name, next)}
+/>
+```
+
+If `onSchemaChange` is **not** provided, layout edits stay in component
+state and are lost on refresh. For demos / Storybook you may opt in to a
+localStorage fallback by passing an explicit, dashboard-scoped key:
+
+```tsx
+<DashboardGridLayout
+  schema={dashboard}
+  persistLayoutKey={`dashboard-layout:${dashboard.name}`} // namespace per dashboard
+/>
+```
+
+> ⚠️ The previous default key `'dashboard-layout'` was shared across every
+> dashboard and caused layouts to bleed into each other. The default is now
+> `undefined`; provide `onSchemaChange` for real persistence or set a
+> namespaced key explicitly.
+
 <!-- release-metadata:v3.3.0 -->
 
 ## Compatibility

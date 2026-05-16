@@ -34,17 +34,62 @@ const CHART_COLORS = [
 export interface DashboardGridLayoutProps {
   schema: DashboardSchema;
   className?: string;
+  /**
+   * Fires on every drag/resize tick with the raw react-grid-layout payload.
+   * Useful for live previews; NOT a persistence hook.
+   */
   onLayoutChange?: (layout: RGLLayout[]) => void;
-  persistLayoutKey?: string;
+  /**
+   * Canonical persistence hook. When the user clicks "Save Layout", the
+   * grid coordinates are merged back into `schema.widgets[].layout` and the
+   * resulting `DashboardSchema` is passed to this callback. The parent is
+   * expected to forward it to its data adapter (e.g. `client.meta.saveItem`).
+   *
+   * If omitted, layout edits stay in memory only — the component does not
+   * persist to localStorage or anywhere else (per Rule #1 Protocol Agnostic:
+   * persistence is the parent's responsibility, not the renderer's).
+   */
+  onSchemaChange?: (schema: DashboardSchema) => void;
   /** Callback invoked when dashboard refresh is triggered (manual or auto) */
   onRefresh?: () => void;
+}
+
+/** Merge react-grid-layout coordinates back into a DashboardSchema's widgets. */
+export function mergeLayoutIntoSchema(
+  schema: DashboardSchema,
+  layout: RGLLayout[],
+): DashboardSchema {
+  if (!schema.widgets?.length) return schema;
+  const byId = new Map(layout.map((l) => [l.i, l]));
+  const widgets = schema.widgets.map((w, index) => {
+    const id = w.id || `widget-${index}`;
+    const l = byId.get(id);
+    if (!l) return w;
+    return {
+      ...w,
+      layout: { x: l.x, y: l.y, w: l.w, h: l.h },
+    };
+  });
+  return { ...schema, widgets };
+}
+
+function buildDefaultLayouts(schema: DashboardSchema): { lg: RGLLayout[] } {
+  return {
+    lg: schema.widgets?.map((widget: DashboardWidgetSchema, index: number) => ({
+      i: widget.id || `widget-${index}`,
+      x: widget.layout?.x ?? (index % 4) * 3,
+      y: widget.layout?.y ?? Math.floor(index / 4) * 4,
+      w: widget.layout?.w ?? 3,
+      h: widget.layout?.h ?? 4,
+    })) || [],
+  };
 }
 
 export const DashboardGridLayout: React.FC<DashboardGridLayoutProps> = ({
   schema,
   className,
   onLayoutChange,
-  persistLayoutKey = 'dashboard-layout',
+  onSchemaChange,
   onRefresh,
 }) => {
   const { width, containerRef, mounted } = useContainerWidth();
@@ -68,30 +113,25 @@ export const DashboardGridLayout: React.FC<DashboardGridLayoutProps> = ({
       if (intervalRef.current) clearInterval(intervalRef.current);
     };
   }, [schema.refreshInterval, onRefresh, handleRefresh]);
-  const [layouts, setLayouts] = React.useState<{ lg: RGLLayout[] }>(() => {
-    // Try to load saved layout
-    if (typeof window !== 'undefined' && persistLayoutKey) {
-      const saved = localStorage.getItem(persistLayoutKey);
-      if (saved) {
-        try {
-          return JSON.parse(saved);
-        } catch (e) {
-          console.error('Failed to parse saved layout:', e);
-        }
-      }
-    }
+  const [layouts, setLayouts] = React.useState<{ lg: RGLLayout[] }>(
+    () => buildDefaultLayouts(schema),
+  );
 
-    // Default layout from schema
-    return {
-      lg: schema.widgets?.map((widget: DashboardWidgetSchema, index: number) => ({
-        i: widget.id || `widget-${index}`,
-        x: widget.layout?.x || (index % 4) * 3,
-        y: widget.layout?.y || Math.floor(index / 4) * 4,
-        w: widget.layout?.w || 3,
-        h: widget.layout?.h || 4,
-      })) || [],
-    };
-  });
+  // Re-derive layouts whenever the underlying schema changes (e.g. parent
+  // re-fetches after a save, widgets are added/removed). Previously the
+  // useState initializer ran once and the grid drifted from the schema.
+  const widgetsSignature = React.useMemo(
+    () => JSON.stringify(schema.widgets?.map((w, i) => ({
+      i: w.id || `widget-${i}`,
+      x: w.layout?.x, y: w.layout?.y, w: w.layout?.w, h: w.layout?.h,
+    })) ?? []),
+    [schema.widgets],
+  );
+  React.useEffect(() => {
+    setLayouts(buildDefaultLayouts(schema));
+    // widgetsSignature captures the only fields we care about for re-sync
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [widgetsSignature]);
 
   const handleLayoutChange = React.useCallback(
     (layout: Layout, allLayouts: ResponsiveLayouts) => {
@@ -102,27 +142,34 @@ export const DashboardGridLayout: React.FC<DashboardGridLayoutProps> = ({
   );
 
   const handleSaveLayout = React.useCallback(() => {
+    // Preferred path: hand the merged schema back to the parent so it can
+    // persist via its data adapter (server / file / etc.).
+    if (onSchemaChange) {
+      onSchemaChange(mergeLayoutIntoSchema(schema, layouts.lg));
+      setEditMode(false);
+      return;
+    }
+    // Fallback: only write to localStorage when the caller explicitly
+    // opted in by passing persistLayoutKey. Avoids the historical bug
+    // where every dashboard shared the default 'dashboard-layout' key.
     if (typeof window !== 'undefined' && persistLayoutKey) {
       localStorage.setItem(persistLayoutKey, JSON.stringify(layouts));
+    } else if (process.env.NODE_ENV !== 'production') {
+      console.warn(
+        '[DashboardGridLayout] Layout edits are in-memory only. ' +
+        'Provide `onSchemaChange` (preferred) or `persistLayoutKey` to persist.'
+      );
     }
     setEditMode(false);
-  }, [layouts, persistLayoutKey]);
+  }, [onSchemaChange, schema, layouts, persistLayoutKey]);
 
   const handleResetLayout = React.useCallback(() => {
-    const defaultLayouts = {
-      lg: schema.widgets?.map((widget: DashboardWidgetSchema, index: number) => ({
-        i: widget.id || `widget-${index}`,
-        x: widget.layout?.x || (index % 4) * 3,
-        y: widget.layout?.y || Math.floor(index / 4) * 4,
-        w: widget.layout?.w || 3,
-        h: widget.layout?.h || 4,
-      })) || [],
-    };
+    const defaultLayouts = buildDefaultLayouts(schema);
     setLayouts(defaultLayouts);
     if (typeof window !== 'undefined' && persistLayoutKey) {
       localStorage.removeItem(persistLayoutKey);
     }
-  }, [schema.widgets, persistLayoutKey]);
+  }, [schema, persistLayoutKey]);
 
   const getComponentSchema = React.useCallback((widget: DashboardWidgetSchema) => {
     if (widget.component) return widget.component;

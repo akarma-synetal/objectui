@@ -285,7 +285,12 @@ export function DashboardView({ dataSource }: { dataSource?: any }) {
         // Refresh metadata cache so closing the config panel shows saved data
         refresh().catch(() => {});
       } catch (err) {
+        // Surface the failure — previously this was a silent console.warn,
+        // which produced "I saw it work, then refresh wiped it" reports
+        // because the optimistic state update masked a server-side reject.
+        const message = err instanceof Error ? err.message : String(err);
         console.warn('[DashboardView] Auto-save failed:', err);
+        toast.error(`Failed to save dashboard: ${message}`);
       }
     },
     [adapter, dashboardName, refresh],

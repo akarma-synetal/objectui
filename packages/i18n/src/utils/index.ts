@@ -19,3 +19,9 @@ export {
   type SpecNumberFormat,
   type SpecLocaleConfig,
 } from './spec-formatters';
+
+export {
+  isSpecTranslationData,
+  transformSpecTranslations,
+  type SpecTranslationData,
+} from './spec-translations';

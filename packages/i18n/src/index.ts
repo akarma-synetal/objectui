@@ -79,3 +79,12 @@ export {
   type SpecNumberFormat,
   type SpecLocaleConfig,
 } from './utils/index';
+
+// Spec TranslationData → flat namespace transform (consumed by
+// `useObjectLabel`). Exposed so apps don't have to copy/paste — see
+// `apps/console/src/loadLanguage.ts` for the canonical consumer.
+export {
+  isSpecTranslationData,
+  transformSpecTranslations,
+  type SpecTranslationData,
+} from './utils/index';
