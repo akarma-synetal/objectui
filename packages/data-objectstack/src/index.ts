@@ -1188,11 +1188,17 @@ export class ObjectStackAdapter<T = unknown> implements DataSource<T> {
     await this.connect();
     let name = String(spec?.name || '').trim();
     if (!name) {
-      const base = String(spec?.label || objectName || 'view')
+      let base = String(spec?.label || objectName || 'view')
         .toLowerCase()
         .replace(/[^a-z0-9_]+/g, '_')
         .replace(/^_+|_+$/g, '')
-        .slice(0, 40) || 'view';
+        .slice(0, 40);
+      // Spec requires snake_case starting with a letter or underscore.
+      // Labels like "表格 1" collapse to "1" after non-ascii stripping, so we
+      // need a fallback / prefix to keep the identifier valid.
+      if (!base || /^[0-9]/.test(base)) {
+        base = base ? `view_${base}` : 'view';
+      }
       const suffix = Date.now().toString(36);
       name = `${base}_${suffix}`;
     }

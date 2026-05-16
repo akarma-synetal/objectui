@@ -451,7 +451,20 @@ export function ObjectView({ dataSource, objects, onEdit, externalRefreshKey }: 
                 // `name` via the metadata customization API instead of into
                 // the physical `sys_view` table (whose columns no longer
                 // accommodate the spec shape: arrays, nested objects, etc.).
-                const spec = { ...config, columns: incomingColumns };
+                const spec: Record<string, any> = { ...config, columns: incomingColumns };
+                // Per @objectstack/spec, certain view types nest their card/field
+                // list inside their type-specific subconfig (e.g. kanban.columns,
+                // gallery.visibleFields). The CreateViewDialog only collects
+                // required *picker* fields; we mirror the resolved column list
+                // into the subconfig here so the spec validator accepts the row.
+                if (config.type === 'kanban') {
+                    spec.kanban = { ...(spec.kanban || {}), columns: incomingColumns };
+                } else if (config.type === 'gallery') {
+                    const existing = spec.gallery || {};
+                    if (!Array.isArray(existing.visibleFields) || existing.visibleFields.length === 0) {
+                        spec.gallery = { ...existing, visibleFields: incomingColumns };
+                    }
+                }
                 if (typeof (dataSource as any)?.createView === 'function') {
                     const created = await (dataSource as any).createView(objectName, spec);
                     createdId = (created as any)?.name || (config as any)?.name;

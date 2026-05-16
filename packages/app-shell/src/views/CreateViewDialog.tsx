@@ -165,14 +165,26 @@ const REQUIRED_FIELDS_BY_TYPE: Record<string, RequiredFieldDef[]> = {
       filter: (f) => f.type === 'date',
       preferred: PRIMARY_DATE_PREFERRED,
     },
+    {
+      key: 'titleField',
+      i18nKey: 'console.objectView.titleField',
+      helpI18nKey: 'console.objectView.titleFieldHelp',
+      filter: (f) => f.type === 'text',
+    },
   ],
   timeline: [
     {
-      key: 'dateField',
-      i18nKey: 'console.objectView.dateField',
+      key: 'startDateField',
+      i18nKey: 'console.objectView.startDateField',
       helpI18nKey: 'console.objectView.timelineDateFieldHelp',
       filter: (f) => f.type === 'date',
       preferred: PRIMARY_DATE_PREFERRED,
+    },
+    {
+      key: 'titleField',
+      i18nKey: 'console.objectView.titleField',
+      helpI18nKey: 'console.objectView.titleFieldHelp',
+      filter: (f) => f.type === 'text',
     },
   ],
   gantt: [
@@ -190,10 +202,16 @@ const REQUIRED_FIELDS_BY_TYPE: Record<string, RequiredFieldDef[]> = {
       filter: (f) => f.type === 'date',
       preferred: END_DATE_PREFERRED,
     },
+    {
+      key: 'titleField',
+      i18nKey: 'console.objectView.titleField',
+      helpI18nKey: 'console.objectView.titleFieldHelp',
+      filter: (f) => f.type === 'text',
+    },
   ],
   gallery: [
     {
-      key: 'imageField',
+      key: 'coverField',
       i18nKey: 'console.objectView.imageField',
       helpI18nKey: 'console.objectView.imageFieldHelp',
       filter: (f) => isImageLikeField(f),
