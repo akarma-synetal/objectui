@@ -58,6 +58,112 @@ const VIEW_TYPE_ICONS: Record<string, ComponentType<{ className?: string }>> = {
 const FALLBACK_USER = { id: 'current-user', name: 'Demo User' };
 
 /**
+ * Translate a NamedListView spec object (shape: `type`, `label`, `columns`,
+ * `filter`, `sort`, `kanban`/`chart`/`gantt`/... sub-blocks, `bulkActions`,
+ * `rowActions`, `pagination`, ...) into the `sys_view` storage shape that the
+ * server's `sys_view` object schema actually exposes (snake_case scalars +
+ * `*_json` text columns for complex shapes).
+ *
+ * The server rejects any other column name (`bulkActions`, `objectName`,
+ * `isPinned`, ...) with `table sys_view has no column named …`, and knex
+ * flattens raw arrays into positional bindings which mangles the SQL — so
+ * every write path that targets `sys_view` MUST go through this helper.
+ */
+function toSysViewPayload(
+    config: Record<string, any>,
+    objectName: string | undefined,
+    opts: { defaultColumns?: string[] } = {},
+): Record<string, any> {
+    const VIEW_TYPE_KEYS = [
+        'kanban', 'calendar', 'timeline', 'gantt',
+        'gallery', 'map', 'chart', 'grid',
+    ] as const;
+    // Fold view-type-specific sub-blocks plus any non-storage NamedListView
+    // fields into a single `config_json` blob so the round-trip preserves
+    // everything the renderer might need (bulkActions, rowActions, pagination,
+    // navigation, emptyState, exportOptions, rowHeight, isPinned, isDefault,
+    // visibility, sortOrder, …).
+    const subConfig: Record<string, any> = {};
+    for (const k of VIEW_TYPE_KEYS) {
+        if (config[k] && typeof config[k] === 'object') {
+            Object.assign(subConfig, config[k]);
+        }
+    }
+    const EXTRA_CONFIG_KEYS = [
+        'bulkActions', 'rowActions', 'pagination', 'navigation',
+        'emptyState', 'exportOptions', 'rowHeight',
+        'isPinned', 'isDefault', 'visibility', 'sortOrder',
+        'showSort',
+    ];
+    for (const k of EXTRA_CONFIG_KEYS) {
+        if (config[k] !== undefined) subConfig[k] = config[k];
+    }
+
+    const incomingColumns = Array.isArray(config.columns) && config.columns.length > 0
+        ? config.columns
+        : (opts.defaultColumns ?? []);
+    const viewType = (config.type as string) || 'grid';
+    const baseLabel = (config.label as string) || (config.name as string) || 'Untitled View';
+    const slug = baseLabel
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '_')
+        .replace(/^_+|_+$/g, '')
+        .slice(0, 60) || 'view';
+
+    return {
+        name: `${slug}_${Date.now().toString(36)}`,
+        label: baseLabel,
+        object_name: objectName,
+        view_type: viewType,
+        columns_json: JSON.stringify(incomingColumns),
+        filters_json: config.filter ? JSON.stringify(config.filter) : null,
+        sort_json: config.sort ? JSON.stringify(config.sort) : null,
+        config_json: Object.keys(subConfig).length > 0
+            ? JSON.stringify(subConfig)
+            : null,
+        page_size: config.pageSize ?? 25,
+        show_search: config.showSearch !== false,
+        show_filters: config.showFilters !== false,
+        managed_by: 'user',
+    };
+}
+
+/**
+ * Inverse of {@link toSysViewPayload}. Decodes a raw `sys_view` record
+ * (snake_case fields + `*_json` text columns) back into the NamedListView
+ * spec shape (`type`, `columns`, `filter`, `sort`, plus everything stashed
+ * inside `config_json`) so the rest of the UI — ViewTabBar, ListView, the
+ * grid renderer — can consume it without caring about the storage layer.
+ *
+ * Robust to fixtures/mocks that already store the spec shape directly
+ * (older tests, the in-memory dev adapter): if `*_json` is missing we fall
+ * back to `sv.columns` / `sv.filter` / `sv.sort` as-is.
+ */
+function fromSysViewRecord(sv: Record<string, any>): Record<string, any> {
+    const parse = (raw: any): any => {
+        if (raw == null) return undefined;
+        if (typeof raw !== 'string') return raw;
+        try { return JSON.parse(raw); } catch { return undefined; }
+    };
+    const columns = parse(sv.columns_json) ?? sv.columns;
+    const filter = parse(sv.filters_json) ?? sv.filter;
+    const sort = parse(sv.sort_json) ?? sv.sort;
+    const extra = parse(sv.config_json) ?? {};
+    return {
+        ...sv,
+        ...extra,
+        type: sv.view_type ?? sv.type ?? 'grid',
+        objectName: sv.object_name ?? sv.objectName,
+        columns,
+        filter,
+        sort,
+        showSearch: sv.show_search ?? sv.showSearch,
+        showFilters: sv.show_filters ?? sv.showFilters,
+        pageSize: sv.page_size ?? sv.pageSize,
+    };
+}
+
+/**
  * DrawerDetailContent — extracted component for NavigationOverlay content.
  * Needs to be a proper component (not a render prop) so it can use hooks
  * for data fetching, comment handling, etc.
@@ -346,39 +452,11 @@ export function ObjectView({ dataSource, objects, onEdit, externalRefreshKey }: 
                 // shape (view_type, label, object_name, *_json columns).
                 // Per spec: front-end follows the protocol, the persistence
                 // boundary owns the mapping to physical columns.
-                const VIEW_TYPE_KEYS = [
-                    'kanban', 'calendar', 'timeline', 'gantt',
-                    'gallery', 'map', 'chart', 'grid',
-                ] as const;
-                const subConfig: Record<string, any> = {};
-                for (const k of VIEW_TYPE_KEYS) {
-                    if (config[k] && typeof config[k] === 'object') {
-                        Object.assign(subConfig, config[k]);
-                    }
-                }
-                const viewType = (config.type as string) || 'grid';
-                const baseLabel = (config.label as string) || (config.name as string) || 'Untitled View';
-                const slug = baseLabel
-                    .toLowerCase()
-                    .replace(/[^a-z0-9]+/g, '_')
-                    .replace(/^_+|_+$/g, '')
-                    .slice(0, 60) || 'view';
-                const payload: Record<string, any> = {
-                    name: `${slug}_${Date.now().toString(36)}`,
-                    label: baseLabel,
-                    object_name: objectName,
-                    view_type: viewType,
-                    columns_json: JSON.stringify(incomingColumns),
-                    filters_json: config.filter ? JSON.stringify(config.filter) : null,
-                    sort_json: config.sort ? JSON.stringify(config.sort) : null,
-                    config_json: Object.keys(subConfig).length > 0
-                        ? JSON.stringify(subConfig)
-                        : null,
-                    page_size: config.pageSize ?? 25,
-                    show_search: config.showSearch !== false,
-                    show_filters: config.showFilters !== false,
-                    managed_by: 'user',
-                };
+                const payload = toSysViewPayload(
+                    { ...config, columns: incomingColumns },
+                    objectName,
+                    { defaultColumns },
+                );
                 const created = await dataSource.create('sys_view', payload);
                 createdId = created?.id ?? created?._id;
             }
@@ -455,7 +533,7 @@ export function ObjectView({ dataSource, objects, onEdit, externalRefreshKey }: 
         }
         dataSource
             .find('sys_view', {
-                $filter: ['objectName', '=', objectName],
+                $filter: ['object_name', '=', objectName],
                 $orderby: [{ field: 'created_at', order: 'asc' }],
                 $top: 200,
             })
@@ -470,8 +548,12 @@ export function ObjectView({ dataSource, objects, onEdit, externalRefreshKey }: 
                 // Defensive client-side filter: only keep rows that look like
                 // sys_view records for *this* object. Adapters that don't
                 // honour $filter (or test mocks that ignore it) won't pollute
-                // the view list with arbitrary records.
-                const filtered = rows.filter(r => r && r.objectName === objectName);
+                // the view list with arbitrary records. Match either casing —
+                // the storage column is `object_name`, but older mock fixtures
+                // and tests may still emit `objectName`.
+                const filtered = rows
+                    .filter(r => r && (r.object_name === objectName || r.objectName === objectName))
+                    .map(fromSysViewRecord);
                 setSavedViews(filtered);
             })
             .catch((err: any) => {
@@ -799,23 +881,35 @@ export function ObjectView({ dataSource, objects, onEdit, externalRefreshKey }: 
         const source = views.find((v: any) => v.id === vid);
         if (!source) return;
         try {
-            const { id: _omit, created_at, updated_at, ...rest } = source as any;
-            const newId = `view_${Date.now()}`;
-            const payload = {
-                ...rest,
-                objectName,
-                id: newId,
+            // `source` is in NamedListView spec shape (columns: [...],
+            // bulkActions: [...], rowActions: [...], pagination, navigation,
+            // emptyState, exportOptions, type, ...). Sending it straight to
+            // `sys_view` blows up because:
+            //   1) those keys don't exist as physical columns (knex emits
+            //      `table sys_view has no column named bulkActions`), and
+            //   2) raw arrays get expanded by knex as positional bindings,
+            //      mangling the INSERT.
+            // We must translate through toSysViewPayload like the create path
+            // does, then override label/flags for the duplicate semantics.
+            const duplicateConfig = {
+                ...source,
                 label: `${source.label || vid} (Copy)`,
                 isDefault: false,
                 isPinned: false,
             };
-            await dataSource.create('sys_view', payload);
+            const payload = toSysViewPayload(duplicateConfig, objectName);
+            const created = await dataSource.create('sys_view', payload);
+            const newId = created?.id ?? created?._id;
             setRefreshKey(k => k + 1);
-            // Auto-activate the duplicate (Airtable parity).
-            if (viewId) {
-                navigate(`../${newId}`, { relative: 'path' });
-            } else {
-                navigate(`view/${newId}`);
+            // Auto-activate the duplicate (Airtable parity). Only navigate
+            // once the server hands back a real id — otherwise we'd push a
+            // route that resolves to nothing.
+            if (newId) {
+                if (viewId) {
+                    navigate(`../${newId}`, { relative: 'path' });
+                } else {
+                    navigate(`view/${newId}`);
+                }
             }
         } catch (err) {
             console.error('[ViewTabBar] Failed to duplicate view:', err);
