@@ -31,8 +31,6 @@ const WIDGET_TYPE_OPTIONS = [
   { value: 'funnel', label: 'Funnel' },
   { value: 'table', label: 'Table' },
   { value: 'pivot', label: 'Pivot Table' },
-  { value: 'list', label: 'List' },
-  { value: 'custom', label: 'Custom' },
 ];
 
 const COLOR_VARIANT_OPTIONS = [

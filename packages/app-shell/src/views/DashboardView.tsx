@@ -108,6 +108,15 @@ const TOP_LEVEL_WIDGET_KEYS = new Set([
   'layoutW',
   'layoutH',
   'id',
+  // Spec-declared top-level fields that the renderer reads directly off the
+  // widget (not from options). Keeping them here ensures the unflatten path
+  // does not silently drop them into options where the renderer ignores them.
+  'searchable',
+  'pagination',
+  // Drill-down virtual flat keys are handled explicitly below — listing them
+  // here keeps the generic options-collector from duplicating them.
+  'drillDownEnabled',
+  'drillDownTarget',
 ]);
 
 function flattenWidgetConfig(widget: DashboardWidgetSchema): Record<string, any> {
@@ -115,6 +124,7 @@ function flattenWidgetConfig(widget: DashboardWidgetSchema): Record<string, any>
   // on collision. This surfaces type-specific options (pivot/table/chart axes,
   // list itemTemplate, etc.) so they appear pre-filled in the config panel.
   const options = ((widget as any).options ?? {}) as Record<string, any>;
+  const drillDown = (options.drillDown ?? {}) as Record<string, any>;
   return {
     ...options,
     title: widget.title ?? '',
@@ -128,6 +138,11 @@ function flattenWidgetConfig(widget: DashboardWidgetSchema): Record<string, any>
     layoutH: widget.layout?.h ?? 1,
     colorVariant: widget.colorVariant ?? options.colorVariant ?? 'default',
     actionUrl: widget.actionUrl ?? options.actionUrl ?? '',
+    searchable: (widget as any).searchable ?? options.searchable ?? false,
+    pagination: (widget as any).pagination ?? options.pagination ?? false,
+    // Surface drill-down nested shape as flat switches for the panel
+    drillDownEnabled: drillDown.enabled ?? false,
+    drillDownTarget: drillDown.target ?? 'drawer',
   };
 }
 
@@ -144,6 +159,17 @@ function unflattenWidgetConfig(
     if (value === undefined) continue;
     newOptions[key] = value;
   }
+  // Re-nest drill-down flat keys back under options.drillDown so the renderer
+  // (which reads `options.drillDown`) picks them up.
+  const drillDownEnabled = config.drillDownEnabled;
+  const drillDownTarget = config.drillDownTarget;
+  if (drillDownEnabled !== undefined || drillDownTarget !== undefined) {
+    newOptions.drillDown = {
+      ...((baseOptions as any).drillDown || {}),
+      ...(drillDownEnabled !== undefined ? { enabled: !!drillDownEnabled } : {}),
+      ...(drillDownTarget !== undefined ? { target: drillDownTarget } : {}),
+    };
+  }
   return {
     title: config.title,
     description: config.description,
@@ -155,6 +181,8 @@ function unflattenWidgetConfig(
     layout: { ...(base.layout || {}), w: config.layoutW, h: config.layoutH } as DashboardWidgetSchema['layout'],
     colorVariant: config.colorVariant,
     actionUrl: config.actionUrl,
+    ...(config.searchable !== undefined ? { searchable: !!config.searchable } : {}),
+    ...(config.pagination !== undefined ? { pagination: !!config.pagination } : {}),
     ...(Object.keys(newOptions).length > 0 ? { options: newOptions } : {}),
   } as Partial<DashboardWidgetSchema>;
 }
