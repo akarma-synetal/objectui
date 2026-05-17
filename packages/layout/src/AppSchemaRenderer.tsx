@@ -236,6 +236,7 @@ function InternalSidebar({
   basePath,
   evalVis,
   checkPerm,
+  checkCap,
   onAction,
   sidebarHeader,
   sidebarFooter,
@@ -253,6 +254,7 @@ function InternalSidebar({
   basePath: string;
   evalVis: VisibilityEvaluator;
   checkPerm: PermissionChecker;
+  checkCap: CapabilityChecker;
   onAction?: (item: NavigationItem) => void;
   sidebarHeader?: React.ReactNode;
   sidebarFooter?: React.ReactNode;
@@ -450,6 +452,7 @@ export function AppSchemaRenderer({
       basePath={basePath}
       evalVis={evalVis}
       checkPerm={checkPerm}
+      checkCap={checkCap}
       onAction={onAction}
       sidebarHeader={sidebarHeader}
       sidebarFooter={sidebarFooter}
