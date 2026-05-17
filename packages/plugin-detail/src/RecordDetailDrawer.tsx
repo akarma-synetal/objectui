@@ -31,6 +31,19 @@ import type { DataSource } from '@object-ui/types';
 import { DetailView } from './DetailView';
 import { useDetailTranslation } from './useDetailTranslation';
 
+/**
+ * Field names hidden from the quick-look drawer / inline edit form.
+ *
+ * Scope: this is the DRAWER allow-list — used to keep the slim sheet UI
+ * focused on author-defined business fields. The full record detail page
+ * (`RecordDetailView`) intentionally renders audit fields in a dedicated,
+ * collapsible "System Information" section instead of hiding them, so
+ * users can see who/when created or last touched a record.
+ *
+ * Keep this in sync with the audit fields auto-injected by the
+ * framework's `applySystemFields` (created_at/created_by/updated_at/
+ * updated_by) plus the legacy/tenant identifiers.
+ */
 const DEFAULT_SYSTEM_FIELDS = new Set([
   'id', '_id', '__v', 'created_at', 'updated_at', 'createdAt', 'updatedAt',
   'created_by', 'updated_by', 'organization_id', 'tenant_id', 'owner_id',

@@ -32,6 +32,15 @@ interface RecordDetailViewProps {
 
 const FALLBACK_USER = { id: 'current-user', name: 'Demo User' };
 
+/**
+ * Audit field names auto-injected by the framework's `applySystemFields`.
+ * Surfaced as a dedicated, collapsed "System Information" section on the
+ * record detail page so they don't clutter the primary content but remain
+ * discoverable. The inline-edit drawer keeps filtering them out via
+ * `DEFAULT_SYSTEM_FIELDS` in `@object-ui/plugin-detail/RecordDetailDrawer`.
+ */
+const AUDIT_FIELD_NAMES = new Set(['created_at', 'created_by', 'updated_at', 'updated_by']);
+
 export function RecordDetailView({ dataSource, objects, onEdit }: RecordDetailViewProps) {
   const { appName, objectName, recordId } = useParams<{
     appName?: string;
@@ -447,7 +456,9 @@ export function RecordDetailView({ dataSource, objects, onEdit }: RecordDetailVi
             // section, DetailSection flattens it (no Card chrome, no
             // redundant "Details" heading).
             showBorder: false as const,
-            fields: Object.keys(objectDef.fields || {}).map(key => {
+            fields: Object.keys(objectDef.fields || {})
+              .filter(key => !AUDIT_FIELD_NAMES.has(key))
+              .map(key => {
               const fieldDef = objectDef.fields[key];
               const refTarget = fieldDef.reference_to || fieldDef.reference;
               return {
@@ -462,6 +473,37 @@ export function RecordDetailView({ dataSource, objects, onEdit }: RecordDetailVi
             }),
           },
         ];
+
+    // Append a dedicated, collapsed "System Information" section listing
+    // audit fields (created/updated at/by) when the schema declares them
+    // and no author-defined section has already surfaced them. The framework
+    // auto-injects these as `system: true, readonly: true` via
+    // `applySystemFields`; rendering them here gives users visibility into
+    // record provenance without polluting the primary content area.
+    const fieldsAlreadyShown = new Set<string>(
+      sections.flatMap((s: any) => (s.fields || []).map((f: any) => f.name))
+    );
+    const auditFieldsToShow = Array.from(AUDIT_FIELD_NAMES).filter(
+      name => objectDef.fields?.[name] && !fieldsAlreadyShown.has(name)
+    );
+    if (auditFieldsToShow.length > 0) {
+      sections.push({
+        title: sectionLabel(objectDef.name, 'system_info', 'System Information'),
+        collapsible: true,
+        defaultCollapsed: true,
+        fields: auditFieldsToShow.map(key => {
+          const fieldDef = objectDef.fields[key];
+          const refTarget = fieldDef.reference_to || fieldDef.reference;
+          return {
+            name: key,
+            label: fieldDef.label || key,
+            type: fieldDef.type || 'text',
+            readonly: true,
+            ...(refTarget && { reference_to: refTarget }),
+          };
+        }),
+      } as any);
+    }
 
     // Filter actions for record_header location and deduplicate by name
     const recordHeaderActions = (() => {
