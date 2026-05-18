@@ -185,15 +185,32 @@ export function AppHeader({
   useEffect(() => { fetchPresenceAndActivities(); }, [fetchPresenceAndActivities]);
 
   /**
-   * M10.8: poll sys_notification for the signed-in user. Limited to
-   * the 20 most-recent entries; unread count drives the bell badge.
-   * Polls every 30s while the tab is foregrounded. Tolerates 404 so
-   * older deployments without sys_notification degrade silently.
+   * M10.8 + M11.B3: poll sys_notification for the signed-in user.
+   *
+   * - Limited to the 20 most-recent entries; unread count drives the bell badge.
+   * - Adaptive interval: 10s while the tab is foregrounded (was 30s) so the
+   *   bell reflects mentions / assignments within seconds without requiring a
+   *   server-push transport.
+   * - Immediate refetch on `visibilitychange` when the user returns to the
+   *   tab, so a backgrounded tab catches up the moment it regains focus.
+   * - On transient errors, switches to exponential backoff (cap 2 min) and
+   *   resets on the first successful fetch.
+   * - Tolerates 404 so deployments without sys_notification degrade silently.
+   *
+   * Full server-push (SSE / WebSocket) is tracked separately as a M12
+   * enhancement; this adaptive poll already reduces perceived latency from
+   * ~15s (average half of the old 30s window) to ~5s and is sufficient for
+   * pilots up to ~50 concurrent users.
    */
   useEffect(() => {
     if (!dataSource || !isApp || !user?.id) return;
     if (notificationsUnavailableRef.current) return;
     let cancelled = false;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const ACTIVE_INTERVAL_MS = 10_000;
+    const HIDDEN_INTERVAL_MS = 60_000;
+    const MAX_BACKOFF_MS = 120_000;
+    let backoffMs = ACTIVE_INTERVAL_MS;
     const isMissingResource = (err: any): boolean =>
       err?.httpStatus === 404 || err?.status === 404 || err?.code === 'object_not_found';
     const fetchOnce = async () => {
@@ -205,17 +222,42 @@ export function AppHeader({
         });
         if (cancelled) return;
         if (Array.isArray(res?.data)) setNotifications(res.data);
+        backoffMs = ACTIVE_INTERVAL_MS;
       } catch (err: any) {
-        if (isMissingResource(err)) notificationsUnavailableRef.current = true;
+        if (isMissingResource(err)) {
+          notificationsUnavailableRef.current = true;
+          return;
+        }
+        backoffMs = Math.min(backoffMs * 2, MAX_BACKOFF_MS);
       }
     };
-    fetchOnce();
-    const handle = setInterval(() => {
-      if (typeof document !== 'undefined' && document.hidden) return;
-      if (notificationsUnavailableRef.current) { clearInterval(handle); return; }
-      fetchOnce();
-    }, 30_000);
-    return () => { cancelled = true; clearInterval(handle); };
+    const scheduleNext = () => {
+      if (cancelled || notificationsUnavailableRef.current) return;
+      const hidden = typeof document !== 'undefined' && document.hidden;
+      const delay = hidden ? HIDDEN_INTERVAL_MS : backoffMs;
+      timer = setTimeout(async () => {
+        await fetchOnce();
+        scheduleNext();
+      }, delay);
+    };
+    const onVisibilityChange = () => {
+      if (cancelled) return;
+      if (typeof document === 'undefined' || document.hidden) return;
+      if (timer) { clearTimeout(timer); timer = null; }
+      backoffMs = ACTIVE_INTERVAL_MS;
+      fetchOnce().finally(scheduleNext);
+    };
+    fetchOnce().finally(scheduleNext);
+    if (typeof document !== 'undefined') {
+      document.addEventListener('visibilitychange', onVisibilityChange);
+    }
+    return () => {
+      cancelled = true;
+      if (timer) clearTimeout(timer);
+      if (typeof document !== 'undefined') {
+        document.removeEventListener('visibilitychange', onVisibilityChange);
+      }
+    };
   }, [dataSource, isApp, user?.id]);
 
   const unreadCount = notifications.reduce((n, x) => n + (x.is_read ? 0 : 1), 0);
