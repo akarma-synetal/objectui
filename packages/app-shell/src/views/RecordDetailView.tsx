@@ -306,6 +306,75 @@ export function RecordDetailView({ dataSource, objects, onEdit }: RecordDetailVi
         }
       })
       .catch(() => {});
+
+    // M10.11: Fetch sys_activity rows for this record and merge into the
+    // timeline. plugin-audit's writers populate sys_activity on every
+    // create/update/delete of objects that opt-in via enable.activities,
+    // so this surface — once wired here — gives us a Salesforce-style
+    // "what happened on this record" feed without any per-app glue.
+    //
+    // We map sys_activity.type to FeedItemType so the existing icon /
+    // colour map in RecordActivityTimeline keeps working:
+    //   created/updated/deleted/system → 'field_change'
+    //   assigned/shared                → 'field_change'
+    //   completed                      → 'task'
+    //   commented/mentioned            → 'comment'  (but skipped — we
+    //                                    already load these from
+    //                                    sys_comment to get reactions
+    //                                    and threading)
+    //
+    // sys_activity is system-owned so a 404 ("table not provisioned",
+    // older schemas without activities) is silently tolerated.
+    const activityTypeToFeed: Record<string, FeedItem['type'] | undefined> = {
+      created:   'field_change',
+      updated:   'field_change',
+      deleted:   'field_change',
+      assigned:  'field_change',
+      shared:    'field_change',
+      system:    'system',
+      completed: 'task',
+      commented: undefined,
+      mentioned: undefined,
+      login:     undefined,
+      logout:    undefined,
+    };
+    dataSource.find('sys_activity', {
+      $filter: { object_name: objectName, record_id: pureRecordId },
+      $orderby: { timestamp: 'asc' },
+      $top: 200,
+    })
+      .then((res: any) => {
+        if (!res?.data?.length) return;
+        const mapped: FeedItem[] = [];
+        for (const row of res.data) {
+          const t = activityTypeToFeed[row.type];
+          if (!t) continue;
+          mapped.push({
+            id: row.id,
+            type: t,
+            actor: row.actor_name ?? 'System',
+            actorAvatarUrl: row.actor_avatar_url ?? undefined,
+            body: row.summary ?? '',
+            createdAt: row.timestamp,
+          } as FeedItem);
+        }
+        if (!mapped.length) return;
+        setFeedItems(prev => {
+          // Merge by id (timeline events are append-only); sort by
+          // createdAt ascending so the activity panel reads as a
+          // chronological narrative.
+          const byId = new Map<string, FeedItem>();
+          for (const item of [...prev, ...mapped]) {
+            byId.set(String(item.id), item);
+          }
+          return Array.from(byId.values()).sort((a, b) => {
+            const ta = a.createdAt ? Date.parse(a.createdAt) : 0;
+            const tb = b.createdAt ? Date.parse(b.createdAt) : 0;
+            return ta - tb;
+          });
+        });
+      })
+      .catch(() => {});
   }, [dataSource, objectName, pureRecordId, currentUser]);
 
   const handleAddComment = useCallback(
