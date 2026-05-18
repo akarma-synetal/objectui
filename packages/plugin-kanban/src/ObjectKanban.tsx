@@ -11,7 +11,7 @@ import type { DataSource } from '@object-ui/types';
 import { useDataScope, useNavigationOverlay, useSafeFieldLabel } from '@object-ui/react';
 import { RecordDetailDrawer, deriveRecordPageHref } from '@object-ui/plugin-detail';
 import { extractRecords, buildExpandFields } from '@object-ui/core';
-import { getBadgeColorClasses } from '@object-ui/fields';
+import { getBadgeColorClasses, formatDate, formatDateTime } from '@object-ui/fields';
 import { KanbanRenderer } from './index';
 import { KanbanSchema } from './types';
 
@@ -303,6 +303,22 @@ export const ObjectKanban: React.FC<ObjectKanbanProps> = ({
             return fmtMoney(raw);
           }
           return String(raw);
+        }
+        // Date / datetime formatting — server returns ISO 8601 strings; the
+        // kanban card subtitle would otherwise show raw "2026-07-17T11:29:13.833Z".
+        // Detect from object def type first, then fall back to common field-name
+        // heuristics (_date, _at, _time suffixes) for inferred types.
+        if (typeof raw === 'string') {
+          const fieldType = def?.type;
+          const dateLikeName = /(_date|_at|_time|_on|_by_date)$|^(date|datetime|created|updated|modified)$/i.test(key);
+          if (fieldType === 'date' || (dateLikeName && fieldType === undefined)) {
+            const formatted = formatDate(raw, 'short');
+            if (formatted && formatted !== '—') return formatted;
+          }
+          if (fieldType === 'datetime' || (dateLikeName && fieldType === undefined && /T\d{2}:\d{2}/.test(raw))) {
+            const formatted = formatDateTime(raw);
+            if (formatted && formatted !== '—') return formatted;
+          }
         }
         // Lookup objects → name
         if (typeof raw === 'object') {
