@@ -50,6 +50,13 @@ export interface KanbanCard {
   id: string
   title: string
   description?: string
+  /**
+   * Synthesized card subtitle (e.g. "Account: Acme · Amount: $150K"). Rendered
+   * in preference to `description` so we don't have to overwrite the record's
+   * real `description` field — which would corrupt detail-view and edit-form
+   * displays once a card is opened.
+   */
+  cardSubtitle?: string
   badges?: Array<{ label: string; variant?: "default" | "secondary" | "destructive" | "outline" }>
   coverImage?: string
   [key: string]: any
@@ -158,9 +165,9 @@ function SortableCard({ card, onCardClick, conditionalFormatting }: { card: Kanb
         )}
         <CardHeader className="p-2 sm:p-4">
           <CardTitle className="text-xs sm:text-sm font-medium tracking-tight text-foreground group-hover:text-primary transition-colors">{card.title}</CardTitle>
-          {card.description && (
+          {(card.cardSubtitle ?? card.description) && (
             <CardDescription className="text-xs text-muted-foreground line-clamp-2 sm:line-clamp-none">
-              {card.description}
+              {card.cardSubtitle ?? card.description}
             </CardDescription>
           )}
         </CardHeader>
@@ -262,7 +269,7 @@ function KanbanColumnView({
 }) {
   const { t } = useKanbanT()
   const safeCards = cards || [];
-  const { setNodeRef } = useSortable({
+  const { setNodeRef, isOver } = useSortable({
     id: column.id,
     data: {
       type: "column",
@@ -284,8 +291,13 @@ function KanbanColumnView({
       aria-label={column.title}
       style={columnStyle}
       className={cn(
-        "flex flex-col rounded-lg border border-border bg-muted/20 snap-start max-h-full min-h-0",
+        "flex flex-col rounded-lg border border-border bg-muted/20 snap-start max-h-full min-h-0 transition-colors",
         widthClasses,
+        // P2-5: when a card is being dragged over this column, highlight the
+        // whole column so users can see exactly which lane will receive the
+        // drop. This is critical for empty columns where there's no card
+        // gap-indicator from SortableContext to show drop position.
+        isOver && "ring-2 ring-primary/60 bg-primary/5",
         column.className
       )}
     >
@@ -312,8 +324,17 @@ function KanbanColumnView({
         >
           <div className="space-y-2" role="list" aria-label={`${column.title} cards`}>
             {safeCards.length === 0 && (
-              <div className="flex flex-col items-center justify-center py-8 text-muted-foreground/50">
-                <span className="text-xs">{t('kanban.noCards')}</span>
+              <div
+                className={cn(
+                  "flex flex-col items-center justify-center py-10 rounded-md border-2 border-dashed transition-colors",
+                  isOver
+                    ? "border-primary/60 bg-primary/10 text-primary"
+                    : "border-border/40 text-muted-foreground/60"
+                )}
+              >
+                <span className="text-xs">
+                  {isOver ? '↓ ' : ''}{t('kanban.noCards')}
+                </span>
               </div>
             )}
             {safeCards.map((card) => (

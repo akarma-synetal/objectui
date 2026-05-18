@@ -274,39 +274,114 @@ export const ObjectKanban: React.FC<ObjectKanbanProps> = ({
       };
 
       const descParts: string[] = [];
-      const moneyField = ['amount', 'value', 'deal_value', 'expected_value', 'opportunity_value']
-        .find(k => typeof item[k] === 'number');
-      if (moneyField) descParts.push(fmtMoney(item[moneyField] as number));
-      const orgKeys = ['company', 'company_name', 'account', 'account_name', 'organization'];
-      let orgDisplay: string | undefined;
-      for (const k of orgKeys) {
-        const d = resolveDisplay(k);
-        if (d) { orgDisplay = d; break; }
-      }
-      if (orgDisplay && (!resolvedTitle || !String(resolvedTitle).includes(orgDisplay))) {
-        descParts.push(orgDisplay);
-      }
-      const ownerKeys = ['owner', 'owner_name', 'assignee', 'assignee_name'];
-      let ownerDisplay: string | undefined;
-      for (const k of ownerKeys) {
-        const d = resolveDisplay(k);
-        if (d) { ownerDisplay = d; break; }
-      }
-      if (ownerDisplay) descParts.push(`@${ownerDisplay}`);
+      // If the view config specifies kanban.columns (passed in as schema.cardFields),
+      // render those fields explicitly — they represent what the user wants to see
+      // on each card. Otherwise fall back to the legacy semantic-field heuristic.
+      const explicitCardFields: string[] = Array.isArray((schema as any).cardFields)
+        ? (schema as any).cardFields
+        : [];
+      // The field used as the card title is implicit (resolved above). Don't
+      // repeat its raw value in the description if the user already sees it.
+      const titleFieldsToSkip = new Set<string>([
+        ...(explicitTitleField ? [explicitTitleField] : []),
+        ...(nameFieldKey ? [nameFieldKey] : []),
+        'name',
+        'full_name',
+        'title',
+        'subject',
+        'display_name',
+      ]);
 
-      const badgeFields = ['priority', 'severity', 'industry', 'rating'];
+      const fmtFieldValue = (key: string): string | undefined => {
+        const def = objectDef?.fields?.[key];
+        const raw = (item as any)[key];
+        if (raw == null || raw === '') return undefined;
+        // Money / currency formatting
+        if (typeof raw === 'number') {
+          const t = def?.type;
+          if (t === 'currency' || /amount|value|revenue|price|cost|total/.test(key)) {
+            return fmtMoney(raw);
+          }
+          return String(raw);
+        }
+        // Lookup objects → name
+        if (typeof raw === 'object') {
+          const d = resolveDisplay(key);
+          return d;
+        }
+        const d = resolveDisplay(key);
+        if (d === undefined) return undefined;
+        // Localized option label for enum/picklist fields
+        const opt = def?.options?.find((o: any) =>
+          String(o.value).toLowerCase() === String(raw).toLowerCase()
+        );
+        return opt?.label || String(d);
+      };
+
       const cardBadges: Array<{ label: string; variant?: any; colorClass?: string }> = [];
-      for (const f of badgeFields) {
-        const v = item[f];
-        if (v != null && v !== '') {
-          const fieldDef = objectDef?.fields?.[f];
-          const option = fieldDef?.options?.find((o: any) =>
-            String(o.value).toLowerCase() === String(v).toLowerCase()
-          );
-          const label = option?.label || String(v);
-          const colorClass = getBadgeColorClasses(option?.color, v);
-          cardBadges.push({ label, colorClass });
-          if (cardBadges.length >= 2) break;
+
+      if (explicitCardFields.length > 0) {
+        // Render the user-specified card fields. Badges for picklists with
+        // configured colors; plain text for everything else.
+        for (const f of explicitCardFields) {
+          if (titleFieldsToSkip.has(f)) continue;
+          const def = objectDef?.fields?.[f];
+          const raw = (item as any)[f];
+          if (raw == null || raw === '') continue;
+          const isPicklist =
+            def?.type === 'picklist' ||
+            def?.type === 'multipicklist' ||
+            (Array.isArray(def?.options) && def!.options.length > 0);
+          if (isPicklist) {
+            const opt = def?.options?.find((o: any) =>
+              String(o.value).toLowerCase() === String(raw).toLowerCase()
+            );
+            const label = opt?.label || String(raw);
+            const colorClass = getBadgeColorClasses(opt?.color, raw);
+            cardBadges.push({ label, colorClass });
+          } else {
+            const v = fmtFieldValue(f);
+            if (v) {
+              const label = def?.label;
+              descParts.push(label ? `${label}: ${v}` : v);
+            }
+          }
+        }
+      } else {
+        // Legacy semantic-field heuristic (no view config provided).
+        const moneyField = ['amount', 'value', 'deal_value', 'expected_value', 'opportunity_value']
+          .find(k => typeof item[k] === 'number');
+        if (moneyField) descParts.push(fmtMoney(item[moneyField] as number));
+        const orgKeys = ['company', 'company_name', 'account', 'account_name', 'organization'];
+        let orgDisplay: string | undefined;
+        for (const k of orgKeys) {
+          const d = resolveDisplay(k);
+          if (d) { orgDisplay = d; break; }
+        }
+        if (orgDisplay && (!resolvedTitle || !String(resolvedTitle).includes(orgDisplay))) {
+          descParts.push(orgDisplay);
+        }
+        const ownerKeys = ['owner', 'owner_name', 'assignee', 'assignee_name'];
+        let ownerDisplay: string | undefined;
+        for (const k of ownerKeys) {
+          const d = resolveDisplay(k);
+          if (d) { ownerDisplay = d; break; }
+        }
+        if (ownerDisplay) descParts.push(`@${ownerDisplay}`);
+
+        const badgeFields = ['priority', 'severity', 'industry', 'rating'];
+        for (const f of badgeFields) {
+          const v = item[f];
+          if (v != null && v !== '') {
+            const fieldDef = objectDef?.fields?.[f];
+            const option = fieldDef?.options?.find((o: any) =>
+              String(o.value).toLowerCase() === String(v).toLowerCase()
+            );
+            const label = option?.label || String(v);
+            const colorClass = getBadgeColorClasses(option?.color, v);
+            cardBadges.push({ label, colorClass });
+            if (cardBadges.length >= 2) break;
+          }
         }
       }
 
@@ -318,17 +393,20 @@ export const ObjectKanban: React.FC<ObjectKanbanProps> = ({
         incomingDesc === '' ||
         (typeof incomingDesc === 'string' && isOpaqueId(incomingDesc));
 
+      // P2-4: keep the original record's `description` field intact so the
+      // detail drawer / edit form show the real value (or empty placeholder
+      // when null). Synthesized text goes to a separate `cardSubtitle`
+      // property that KanbanImpl renders in preference to description.
+      const synthesizedSubtitle =
+        descMissing && descParts.length > 0 ? descParts.join(' · ') : undefined;
+
       return {
         ...item,
         // Ensure id exists
         id: item.id || item._id,
         // Map title
         title: resolvedTitle || 'Untitled',
-        ...(descMissing && descParts.length > 0
-          ? { description: descParts.join(' · ') }
-          : descMissing
-          ? { description: undefined }
-          : {}),
+        ...(synthesizedSubtitle ? { cardSubtitle: synthesizedSubtitle } : {}),
         ...(!Array.isArray(item.badges) && cardBadges.length > 0
           ? { badges: cardBadges }
           : {}),
