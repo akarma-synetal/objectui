@@ -1657,6 +1657,11 @@ export function ObjectView({ dataSource, objects, onEdit, externalRefreshKey }: 
                         })),
                         size: 'sm',
                         variant: 'outline',
+                        // On mobile, collapse all schema-driven toolbar actions
+                        // into a single overflow menu so the icon-only New /
+                        // Import buttons stay visible without pushing the page
+                        // title off-screen.
+                        mobileMaxVisible: 0,
                       }} />
                     )}
 

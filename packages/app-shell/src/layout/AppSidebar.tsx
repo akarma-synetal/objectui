@@ -599,7 +599,22 @@ export function AppSidebar({ activeAppName, onAppChange }: { activeAppName: stri
     </Sidebar>
     {isMobile && (
       <div className="fixed bottom-0 left-0 right-0 z-50 flex items-center justify-around border-t bg-background/95 backdrop-blur-sm px-2 py-1 sm:hidden safe-area-bottom">
-        {(activeApp ? resolvedNavigation : systemFallbackNavigation).filter((n: any) => n.type !== 'group').slice(0, 5).map((item: any) => {
+        {(() => {
+          // Flatten group items so apps that organise navigation into groups
+          // (e.g. Setup → Overview / Administration / …) still surface real
+          // leaf links in the mobile bottom nav instead of rendering nothing.
+          const source = activeApp ? resolvedNavigation : systemFallbackNavigation;
+          const leaves: any[] = [];
+          for (const item of source as any[]) {
+            if (item.type === 'group') {
+              for (const child of (item.children || item.items || [])) {
+                if (child && child.type !== 'group') leaves.push(child);
+              }
+            } else {
+              leaves.push(item);
+            }
+          }
+          return leaves.slice(0, 5).map((item: any) => {
           const NavIcon = getIcon(item.icon);
           const baseUrl = activeApp ? `/apps/${activeAppName}` : '';
           let href = item.url || '#';
@@ -615,7 +630,8 @@ export function AppSidebar({ activeAppName, onAppChange }: { activeAppName: stri
               <span className="text-[10px] truncate max-w-[60px]">{resolveI18nLabel(item.label, t)}</span>
             </Link>
           );
-        })}
+          });
+        })()}
       </div>
     )}
     </>

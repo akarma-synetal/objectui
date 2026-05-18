@@ -183,10 +183,22 @@ function MobileBottomNav({
   basePath: string;
 }) {
   const location = useLocation();
-  // Show up to 5 non-group leaf items
-  const leaves = items
-    .filter((n) => n.type !== 'group' && n.type !== 'separator')
-    .slice(0, 5);
+  // Show up to 5 non-group leaf items. Flatten group children so apps that
+  // organise navigation into groups (e.g. Setup → Overview / Administration /
+  // …) still surface real links in the mobile bottom nav.
+  const collectLeaves = (list: typeof items): typeof items => {
+    const out: typeof items = [];
+    for (const item of list) {
+      if (item.type === 'separator') continue;
+      if (item.type === 'group') {
+        out.push(...collectLeaves(item.children || []));
+      } else {
+        out.push(item);
+      }
+    }
+    return out;
+  };
+  const leaves = collectLeaves(items).slice(0, 5);
 
   if (leaves.length === 0) return null;
 

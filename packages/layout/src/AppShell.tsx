@@ -246,7 +246,7 @@ export function AppShell({
       <div className="flex flex-1 min-h-0 w-full">
         {sidebar}
         <SidebarInset className="min-w-0">
-          <main className={cn("flex-1 min-w-0 overflow-auto p-3 sm:p-4 md:p-6", className)}>
+          <main className={cn("flex-1 min-w-0 overflow-auto p-3 sm:p-4 md:p-6 pb-20 sm:pb-4 md:pb-6", className)}>
             {children}
           </main>
         </SidebarInset>

@@ -61,9 +61,12 @@ export function HomePage() {
     return (
       <div className="flex flex-1 items-center justify-center p-6">
         <Empty>
-          <EmptyTitle>Welcome to ObjectUI</EmptyTitle>
+          <EmptyTitle>{t('home.welcome', { defaultValue: 'Welcome to ObjectUI' })}</EmptyTitle>
           <EmptyDescription>
-            Get started by creating your first application or configure your system settings.
+            {t('home.welcomeDescription', {
+              defaultValue:
+                'Get started by creating your first application or configure your system settings.',
+            })}
           </EmptyDescription>
           <div className="mt-6 flex flex-col sm:flex-row items-center gap-3">
             <Button
@@ -71,7 +74,7 @@ export function HomePage() {
               data-testid="create-first-app-btn"
             >
               <Plus className="mr-2 h-4 w-4" />
-              Create Your First App
+              {t('home.createFirstApp', { defaultValue: 'Create Your First App' })}
             </Button>
             <Button
               variant="outline"
@@ -79,7 +82,7 @@ export function HomePage() {
               data-testid="go-to-settings-btn"
             >
               <Settings className="mr-2 h-4 w-4" />
-              System Settings
+              {t('home.systemSettings', { defaultValue: 'System Settings' })}
             </Button>
           </div>
         </Empty>

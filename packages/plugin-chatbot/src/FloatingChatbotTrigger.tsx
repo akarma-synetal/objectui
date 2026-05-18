@@ -51,7 +51,10 @@ export function FloatingChatbotTrigger({
       onClick={toggle}
       className={cn(
         "fixed z-50 rounded-full shadow-lg transition-transform hover:scale-105",
-        position === "bottom-right" ? "right-6 bottom-6" : "left-6 bottom-6",
+        // Lift the FAB above the mobile bottom navigation bar (~56px) so it
+        // doesn't sit on top of the nav icons. On desktop we use the
+        // standard 24px gap from the bottom edge.
+        position === "bottom-right" ? "right-6 bottom-20 sm:bottom-6" : "left-6 bottom-20 sm:bottom-6",
         className
       )}
       style={{ width: size, height: size }}
