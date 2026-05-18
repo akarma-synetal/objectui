@@ -27,7 +27,7 @@
     "@object-ui/react": "workspace:*",
     "@object-ui/types": "workspace:*",
     "@tanstack/react-virtual": "^3.13.24",
-    "lucide-react": "^1.14.0"
+    "lucide-react": "^1.16.0"
   },
   "peerDependencies": {
     "react": "^18.0.0 || ^19.0.0",
@@ -35,10 +35,10 @@
   },
   "devDependencies": {
     "@object-ui/data-objectstack": "workspace:*",
-    "@vitejs/plugin-react": "^6.0.1",
+    "@vitejs/plugin-react": "^6.0.2",
     "msw": "^2.14.6",
     "typescript": "^6.0.3",
-    "vite": "^8.0.12",
+    "vite": "^8.0.13",
     "vite-plugin-dts": "^5.0.0"
   },
   "keywords": [
