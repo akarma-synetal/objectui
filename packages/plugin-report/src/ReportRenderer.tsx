@@ -1,106 +1,102 @@
-import React from 'react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@object-ui/components';
-import { ComponentRegistry } from '@object-ui/core';
+/**
+ * ReportRenderer
+ *
+ * Thin dispatcher that routes a report schema to the correct renderer based
+ * on whether it is a spec-native `SpecReport` (preferred) or a legacy
+ * presentation-layer schema (`data`/`columns`/`chart`).
+ *
+ * Dispatch table:
+ * | report.type            | Renderer                          |
+ * |------------------------|-----------------------------------|
+ * | tabular | summary      | <SpecReportGrid>                  |
+ * | matrix                 | placeholder (M2)                  |
+ * | joined                 | placeholder (M3)                  |
+ * | (legacy / no type)     | <LegacyReportRenderer>            |
+ *
+ * Host apps can:
+ * - Pass a `SpecReport` plus a `dataSource` to drive a live, drillable report.
+ * - Pass a legacy `{ data, columns, chart }` schema for backwards compatibility.
+ */
+
+import * as React from 'react';
+import type { ActionRunner } from '@object-ui/core';
+import { isSpecReport, type SpecReport, type DataSource } from '@object-ui/types';
+import { LegacyReportRenderer, type LegacyReportRendererProps } from './LegacyReportRenderer';
+import { SpecReportGrid } from './SpecReportGrid';
+import type { DrillOpenIn, DrillView } from './drill';
+
+export type ReportRendererSchema = SpecReport | LegacyReportRendererProps['schema'];
 
 export interface ReportRendererProps {
-  schema: {
-    type: string;
-    id?: string;
-    title?: string;
-    description?: string;
-    chart?: any; // Chart definition
-    data?: any[]; // Report data
-    columns?: any[]; // Report columns
-    className?: string;
-  };
+  /** Either a spec-native `SpecReport` or a legacy presentation schema. */
+  schema: ReportRendererSchema;
+  /** Required for spec reports unless `rows` is provided. */
+  dataSource?: DataSource | Record<string, unknown>;
+  /** Pre-fetched rows (skips data fetch). */
+  rows?: Array<Record<string, unknown>>;
+  /** Runtime filter merged on top of `report.filter`. */
+  runtimeFilter?: Record<string, unknown>;
+  /** Action runner used to dispatch `drill` actions on row click. */
+  actionRunner?: ActionRunner;
+  /** Default view for drill targets. */
+  drillView?: DrillView;
+  /** Where the drill target should open. */
+  drillOpenIn?: DrillOpenIn;
+  /** Optional class for the outer container. */
+  className?: string;
 }
 
-export const ReportRenderer: React.FC<ReportRendererProps> = ({ schema }) => {
-  const { title, description, data, columns } = schema;
-  
-  // Get chart component type but don't store the component itself
-  const chartType = schema.chart?.type || 'chart';
-  const hasChart = !!schema.chart;
-  
-  // In test environment, force fallback to simple table to avoid AG Grid complexity in JSDOM
-  const isTest = process.env.NODE_ENV === 'test';
-  const showGrid = !isTest;
+const PLACEHOLDER_BANNER: React.CSSProperties = {
+  border: '1px dashed var(--color-border, #d4d4d8)',
+  borderRadius: 8,
+  padding: 16,
+  color: 'var(--color-muted-foreground, #71717a)',
+  background: 'var(--color-muted, #f4f4f5)',
+  fontSize: 13,
+};
 
-  return (
-    <Card className={`h-full flex flex-col ${schema.className || ''}`}>
-      <CardHeader>
-        {title && <CardTitle>{title}</CardTitle>}
-        {description && <CardDescription>{description}</CardDescription>}
-      </CardHeader>
-      <CardContent className="flex-1 overflow-auto space-y-4">
-        {/* Render Chart Section if present */}
-        {hasChart && (() => {
-          // Resolve chart component logic
-          // 1. Try resolving using chart definition's type (e.g. 'chart', 'bar-chart')
-          // 2. Fallback to 'chart' generic renderer if specific type found
-          const specificType = schema.chart?.type;
-          let ChartComponent = specificType ? ComponentRegistry.get(specificType) : null;
-          
-          if (!ChartComponent) {
-             ChartComponent = ComponentRegistry.get('chart');
-          }
-          
-          if (!ChartComponent) {
-              return (
-                  <div className="min-h-[100px] border rounded-md p-4 bg-muted/20 text-muted-foreground flex items-center justify-center">
-                      Unknown component type: {specificType || 'chart'}
-                  </div>
-              )
-          }
+export const ReportRenderer: React.FC<ReportRendererProps> = ({
+  schema,
+  dataSource,
+  rows,
+  runtimeFilter,
+  actionRunner,
+  drillView,
+  drillOpenIn,
+  className,
+}) => {
+  if (isSpecReport(schema)) {
+    const reportType = schema.type ?? 'tabular';
 
-          return (
-            <div className="min-h-[300px] border rounded-lg p-4 bg-background/50">
-              <ChartComponent schema={{ ...schema.chart, data: schema.chart.data || data }} />
-            </div>
-          );
-        })()}
+    if (reportType === 'matrix') {
+      return (
+        <div className={className} style={PLACEHOLDER_BANNER} data-testid="report-matrix-placeholder">
+          Matrix report (<code>{schema.name}</code>) is not yet supported. Coming in M2.
+        </div>
+      );
+    }
+    if (reportType === 'joined') {
+      return (
+        <div className={className} style={PLACEHOLDER_BANNER} data-testid="report-joined-placeholder">
+          Joined report (<code>{schema.name}</code>) is not yet supported. Coming in M3.
+        </div>
+      );
+    }
 
-        {/* Render Data Grid Section */}
-        {data && data.length > 0 && (
-          <div className="border rounded-lg">
-             {(() => {
-               const GridComponent = showGrid ? (ComponentRegistry.get('aggrid') || ComponentRegistry.get('table')) : null;
-               return GridComponent ? (
-                  <GridComponent 
-                    schema={{ 
-                      type: 'aggrid', 
-                      rowData: data, 
-                      columnDefs: columns,
-                      domLayout: 'autoHeight'
-                    }}
-                  />
-              ) : (
-                 // Simple Fallback Table if Grid plugin missing
-                 <div className="overflow-x-auto">
-                     <table className="w-full text-sm text-left">
-                         <thead className="text-xs uppercase bg-muted">
-                             <tr>
-                                 {columns?.map((col: any) => (
-                                     <th key={col.field} className="px-6 py-3">{col.headerName || col.label || col.field}</th>
-                                 ))}
-                             </tr>
-                         </thead>
-                         <tbody>
-                             {data.map((row: any, i: number) => (
-                                 <tr key={i} className="bg-background border-b">
-                                     {columns?.map((col: any) => (
-                                         <td key={col.field} className="px-6 py-4">{row[col.field]}</td>
-                                     ))}
-                                 </tr>
-                             ))}
-                         </tbody>
-                     </table>
-                 </div>
-              );
-             })()}
-          </div>
-        )}
-      </CardContent>
-    </Card>
-  );
+    return (
+      <SpecReportGrid
+        report={schema}
+        dataSource={dataSource as DataSource | undefined}
+        rows={rows}
+        runtimeFilter={runtimeFilter}
+        actionRunner={actionRunner}
+        drillView={drillView}
+        drillOpenIn={drillOpenIn}
+        className={className}
+      />
+    );
+  }
+
+  // Legacy path — preserves backwards compatibility with the pre-spec schema.
+  return <LegacyReportRenderer schema={schema as LegacyReportRendererProps['schema']} />;
 };

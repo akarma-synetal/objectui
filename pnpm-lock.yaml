@@ -2165,6 +2165,9 @@ importers:
       '@object-ui/fields':
         specifier: workspace:*
         version: link:../fields
+      '@object-ui/plugin-grid':
+        specifier: workspace:*
+        version: link:../plugin-grid
       '@object-ui/react':
         specifier: workspace:*
         version: link:../react

@@ -9,7 +9,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import '@testing-library/jest-dom';
-import { ReportRenderer } from '../ReportRenderer';
+import { LegacyReportRenderer as ReportRenderer } from '../LegacyReportRenderer';
 import { ComponentRegistry } from '@object-ui/core';
 
 // Mock ComponentRegistry

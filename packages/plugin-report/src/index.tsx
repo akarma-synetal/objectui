@@ -8,11 +8,29 @@
 
 import { ComponentRegistry } from '@object-ui/core';
 import { ReportRenderer } from './ReportRenderer';
+import { LegacyReportRenderer } from './LegacyReportRenderer';
 import { ReportViewer } from './ReportViewer';
 import { ReportBuilder } from './ReportBuilder';
 import { ReportConfigPanel } from './ReportConfigPanel';
+import { SpecReportGrid } from './SpecReportGrid';
 
-export { ReportRenderer, ReportViewer, ReportBuilder, ReportConfigPanel };
+export { ReportRenderer, LegacyReportRenderer, ReportViewer, ReportBuilder, ReportConfigPanel, SpecReportGrid };
+export type { ReportRendererProps, ReportRendererSchema } from './ReportRenderer';
+export type { LegacyReportRendererProps } from './LegacyReportRenderer';
+export type { SpecReportGridProps } from './SpecReportGrid';
+export {
+  buildDrillAction,
+  createDrillHandler,
+  registerDrillHandler,
+  isDrillAction,
+} from './drill';
+export type {
+  DrillActionDef,
+  DrillHandlerOptions,
+  DrillNavigateTarget,
+  DrillOpenIn,
+  DrillView,
+} from './drill';
 export type { AvailableField } from './ReportConfigPanel';
 export { formatValue } from './formatValue';
 export { exportReport, exportAsCSV, exportAsJSON, exportAsHTML, exportAsPDF, exportAsExcel } from './ReportExportEngine';
@@ -29,7 +47,24 @@ export type {
   ScheduleTriggerCallback,
 } from './LiveReportExporter';
 
-// Register report component
+// Spec-native report execution
+export {
+  useReportData,
+  columnKey,
+  bucketDate,
+  groupingValue,
+  aggregateRows,
+  groupAndAggregate,
+  mergeFilters,
+  collectFields,
+} from './hooks/useReportData';
+export type {
+  ReportRow,
+  UseReportDataResult,
+  UseReportDataOptions,
+} from './hooks/useReportData';
+
+// Register report component (dispatches spec vs legacy automatically)
 ComponentRegistry.register(
   'report',
   ReportRenderer,
@@ -41,6 +76,21 @@ ComponentRegistry.register(
         { name: 'title', type: 'string', label: 'Title' },
         { name: 'description', type: 'string', label: 'Description' },
         { name: 'chart', type: 'code', label: 'Chart Configuration' },
+    ]
+  }
+);
+
+// Spec-native alias — same dispatcher, explicit name for spec-driven hosts.
+ComponentRegistry.register(
+  'spec-report',
+  ReportRenderer,
+  {
+    namespace: 'report',
+    label: 'Spec Report',
+    category: 'Report',
+    inputs: [
+        { name: 'objectName', type: 'string', label: 'Object Name' },
+        { name: 'type', type: 'string', label: 'Report Type' },
     ]
   }
 );

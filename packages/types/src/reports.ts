@@ -7,9 +7,27 @@
  */
 
 /**
- * @object-ui/types - Report Schema
- * 
- * Defines report configuration for data aggregation, visualization, and export.
+ * @object-ui/types - Report Presentation Schema
+ *
+ * Defines the ObjectUI runtime *presentation* layer for reports:
+ * sections, toolbar config, schedule UI, conditional formatting,
+ * export presets, etc. These are UX enhancements that the
+ * `@objectstack/spec` UI Protocol intentionally does not prescribe.
+ *
+ * ## Layering
+ *
+ * - **Protocol / definition:** `./spec-report.ts` re-exports the
+ *   authoritative spec `Report` under `SpecReport`. JSON authored
+ *   against the spec must work with ObjectUI without rewriting.
+ *
+ * - **Presentation (this file):** `ReportSchema`, `ReportSection`,
+ *   `ReportSchedule`, etc. Drive the legacy `ReportRenderer` /
+ *   `ReportViewer` / `ReportBuilder`. Will be gradually thinned as
+ *   spec-native renderers take over (see plugin-report roadmap).
+ *
+ * Use {@link specReportToPresentation} (from `./spec-report`) to
+ * convert a spec `Report` into this presentation shape during the
+ * migration window.
  */
 
 import type { BaseSchema, SchemaNode } from './base';

@@ -590,7 +590,7 @@ export const ObjectGrid: React.FC<ObjectGridProps> = ({
   const { groups, isGrouped, toggleGroup } = useGroupedData(
     schema.grouping,
     data,
-    undefined,
+    schema.aggregations,
     groupValueFormatter,
   );
 

@@ -28,6 +28,7 @@
     "@object-ui/components": "workspace:*",
     "@object-ui/core": "workspace:*",
     "@object-ui/fields": "workspace:*",
+    "@object-ui/plugin-grid": "workspace:*",
     "@object-ui/react": "workspace:*",
     "@object-ui/types": "workspace:*",
     "clsx": "^2.1.1",

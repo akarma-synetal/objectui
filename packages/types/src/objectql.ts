@@ -521,6 +521,17 @@ export interface ObjectGridSchema extends BaseSchema {
   grouping?: GroupingConfig;
 
   /**
+   * Per-group aggregations to display in group headers (e.g. SUM(amount) per region).
+   * ObjectUI-specific (not in @objectstack/spec for ObjectGrid; sourced from the
+   * Report protocol when ObjectGrid is rendered as a Summary report body).
+   * @example [{ field: 'amount', type: 'sum' }, { field: 'id', type: 'count_distinct' }]
+   */
+  aggregations?: Array<{
+    field: string;
+    type: 'sum' | 'count' | 'avg' | 'min' | 'max' | 'count_distinct';
+  }>;
+
+  /**
    * Row Color Configuration (Airtable-style)
    * Colors rows based on field values.
    * Aligned with @objectstack/spec RowColorConfigSchema.

@@ -1,0 +1,278 @@
+/**
+ * ObjectUI
+ * Copyright (c) 2024-present ObjectStack Inc.
+ *
+ * This source code is licensed under the MIT license found in the
+ * LICENSE file in the root directory of this source tree.
+ */
+
+/**
+ * @object-ui/types - Spec Report Bridge
+ *
+ * This module re-exports the authoritative `Report` protocol types defined in
+ * `@objectstack/spec` (UI Protocol). It is intentionally separated from the
+ * legacy `reports.ts` module so we can introduce spec compliance without
+ * breaking existing consumers.
+ *
+ * ## Two layers, on purpose
+ *
+ * 1. **Definition layer (this file, `Spec*` prefixed):** What a Report *is* —
+ *    the data shape that survives storage, transport, AI generation, and
+ *    cross-stack reuse. Mirrors `@objectstack/spec` exactly.
+ *
+ * 2. **Presentation layer (`reports.ts`, kept as `ReportSchema`):** How the
+ *    ObjectUI runtime *renders* a report — sections, toolbar config, schedule
+ *    UI, conditional formatting, export buttons. These are ObjectUI-specific
+ *    UX enhancements that the protocol does not (and should not) prescribe.
+ *
+ * ## Why both
+ *
+ * - JSON authored against the spec must render in ObjectUI without rewriting.
+ * - ObjectUI can still ship richer UX (sections, schedules, export presets)
+ *   without polluting the protocol.
+ * - A converter (`specReportToPresentation`) lets the legacy renderer keep
+ *   working while we migrate to spec-native rendering.
+ *
+ * ## Aggregation naming
+ *
+ * The UI spec uses `aggregate: 'unique'` while the data layer (ObjectQL,
+ * `@objectstack/spec/data`) uses `count_distinct`. Use {@link mapAggregateToQL}
+ * when translating a Report column into an ObjectQL `AggregationNode`.
+ */
+
+import type {
+  Report as SpecReportType_,
+  ReportInput as SpecReportInputType_,
+  ReportColumn as SpecReportColumnType_,
+  ReportColumnInput as SpecReportColumnInputType_,
+  ReportGrouping as SpecReportGroupingType_,
+  ReportGroupingInput as SpecReportGroupingInputType_,
+  ReportChart as SpecReportChartType_,
+  ReportChartInput as SpecReportChartInputType_,
+} from '@objectstack/spec/ui';
+
+import {
+  ReportSchema as SpecReportSchema_,
+  ReportColumnSchema as SpecReportColumnSchema_,
+  ReportGroupingSchema as SpecReportGroupingSchema_,
+  ReportChartSchema as SpecReportChartSchema_,
+  ReportType as SpecReportTypeEnum_,
+  Report as SpecReportFactory_,
+} from '@objectstack/spec/ui';
+
+// ---------------------------------------------------------------------------
+// Type re-exports (Spec* prefix to avoid collision with legacy reports.ts)
+// ---------------------------------------------------------------------------
+
+export type SpecReport = SpecReportType_;
+export type SpecReportInput = SpecReportInputType_;
+export type SpecReportColumn = SpecReportColumnType_;
+export type SpecReportColumnInput = SpecReportColumnInputType_;
+export type SpecReportGrouping = SpecReportGroupingType_;
+export type SpecReportGroupingInput = SpecReportGroupingInputType_;
+export type SpecReportChart = SpecReportChartType_;
+export type SpecReportChartInput = SpecReportChartInputType_;
+
+/**
+ * The four report types defined by the UI Protocol.
+ *
+ * - `tabular`   — flat list, no grouping (think: "filtered SELECT")
+ * - `summary`   — row-wise grouping with aggregations (a.k.a. grouped report)
+ * - `matrix`    — row × column pivot (cross-tab)
+ * - `joined`    — multiple independent report blocks stacked vertically
+ */
+export type SpecReportTypeName = 'tabular' | 'summary' | 'matrix' | 'joined';
+
+/**
+ * Aggregation enum as it appears in the *UI* Report spec
+ * (`@objectstack/spec/ui` Report.columns[].aggregate).
+ *
+ * Note that this intentionally differs from the data-layer `AggregationFunction`
+ * enum used in ObjectQL — see {@link mapAggregateToQL}.
+ */
+export type SpecReportAggregate = 'sum' | 'avg' | 'max' | 'min' | 'count' | 'unique';
+
+/**
+ * Date granularity for time-based grouping
+ * (`Report.groupingsDown[].dateGranularity`).
+ */
+export type SpecReportDateGranularity = 'day' | 'week' | 'month' | 'quarter' | 'year';
+
+// ---------------------------------------------------------------------------
+// Schema (Zod) re-exports
+// ---------------------------------------------------------------------------
+
+export const SpecReportSchema = SpecReportSchema_;
+export const SpecReportColumnSchema = SpecReportColumnSchema_;
+export const SpecReportGroupingSchema = SpecReportGroupingSchema_;
+export const SpecReportChartSchema = SpecReportChartSchema_;
+export const SpecReportTypeEnum = SpecReportTypeEnum_;
+
+/**
+ * Spec factory helper (`Report.create`).
+ * Validates the input against the spec and returns a typed `SpecReport`.
+ */
+export const SpecReport = SpecReportFactory_;
+
+// ---------------------------------------------------------------------------
+// Aggregate mapping: UI spec → data layer (ObjectQL)
+// ---------------------------------------------------------------------------
+
+/**
+ * The aggregation enum used by the ObjectQL data layer.
+ * Kept as a string union (rather than importing the value from
+ * `@objectstack/spec/data`) so this types-only package stays
+ * runtime-dependency-free.
+ */
+export type QLAggregationFunction =
+  | 'count'
+  | 'sum'
+  | 'avg'
+  | 'min'
+  | 'max'
+  | 'count_distinct'
+  | 'array_agg'
+  | 'string_agg';
+
+/**
+ * Translate a UI-layer aggregate name into the corresponding ObjectQL
+ * `AggregationFunction`. The only non-trivial mapping is `unique → count_distinct`.
+ *
+ * @example
+ * mapAggregateToQL('unique') // 'count_distinct'
+ * mapAggregateToQL('sum')    // 'sum'
+ */
+export function mapAggregateToQL(aggregate: SpecReportAggregate): QLAggregationFunction {
+  switch (aggregate) {
+    case 'unique': return 'count_distinct';
+    case 'sum':
+    case 'avg':
+    case 'min':
+    case 'max':
+    case 'count':
+      return aggregate;
+    default: {
+      // Exhaustiveness check
+      const _exhaustive: never = aggregate;
+      void _exhaustive;
+      return 'count';
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Adapter: spec Report → legacy presentation ReportSchema
+// ---------------------------------------------------------------------------
+
+// Lightweight structural type for the legacy presentation schema. We don't
+// import `ReportSchema` from `./reports` here to avoid a circular module load
+// at type-resolution time (some downstream tooling crashes on that). The shape
+// is intentionally permissive: the adapter only fills the fields it knows about.
+export interface LegacyReportPresentationLike {
+  type: 'report';
+  title?: string;
+  description?: string;
+  reportType?: 'tabular' | 'summary' | 'matrix';
+  fields?: Array<{
+    name: string;
+    label?: string;
+    aggregation?: 'sum' | 'avg' | 'min' | 'max' | 'count' | 'distinct';
+  }>;
+  groupBy?: Array<{
+    field: string;
+    label?: string;
+    sort?: 'asc' | 'desc';
+    dateGranularity?: SpecReportDateGranularity;
+  }>;
+}
+
+function resolveLabel(label: unknown, fallback: string): string {
+  // I18nLabel in the current spec is a plain string. We accept an object form
+  // (`{ default: string, translations?: Record<string,string> }`) defensively
+  // in case the spec evolves towards a richer i18n shape.
+  if (typeof label === 'string') return label;
+  if (label && typeof label === 'object') {
+    const def = (label as { default?: unknown }).default;
+    if (typeof def === 'string') return def;
+  }
+  return fallback;
+}
+
+/**
+ * Map a UI-spec aggregate to the legacy presentation aggregation enum.
+ * Legacy uses `'distinct'` where spec uses `'unique'`.
+ */
+function aggregateToLegacy(
+  aggregate: SpecReportAggregate | undefined,
+): LegacyReportPresentationLike['fields'] extends Array<infer F>
+  ? F extends { aggregation?: infer A }
+    ? A
+    : undefined
+  : undefined {
+  if (!aggregate) return undefined as any;
+  if (aggregate === 'unique') return 'distinct' as any;
+  return aggregate as any;
+}
+
+/**
+ * Convert a spec `Report` into the legacy presentation `ReportSchema` so the
+ * existing `ReportRenderer`/`ReportViewer` can render it during migration.
+ *
+ * This is a **lossy** conversion — spec-only concepts (`groupingsAcross`,
+ * `responsive`, `aria`, `performance`) are dropped. The intended migration
+ * path is to deprecate the legacy renderers in favour of spec-native ones
+ * (see plugin-report roadmap M1–M2).
+ */
+export function specReportToPresentation(report: SpecReport): LegacyReportPresentationLike {
+  const reportType = (report.type ?? 'tabular') as SpecReportTypeName;
+
+  // The legacy schema only knows tabular/summary/matrix; collapse `joined` to
+  // `tabular` so it at least renders something. A real `joined` renderer is a
+  // separate milestone.
+  const legacyReportType: 'tabular' | 'summary' | 'matrix' =
+    reportType === 'joined' || reportType === 'tabular'
+      ? 'tabular'
+      : reportType;
+
+  const fields: NonNullable<LegacyReportPresentationLike['fields']> = (report.columns ?? []).map(
+    (col) => ({
+      name: col.field,
+      label: resolveLabel(col.label, col.field),
+      aggregation: aggregateToLegacy(col.aggregate as SpecReportAggregate | undefined),
+    }),
+  );
+
+  const groupBy: NonNullable<LegacyReportPresentationLike['groupBy']> = (
+    report.groupingsDown ?? []
+  ).map((g) => ({
+    field: g.field,
+    sort: g.sortOrder ?? 'asc',
+    dateGranularity: g.dateGranularity,
+  }));
+
+  return {
+    type: 'report',
+    title: resolveLabel(report.label, report.name),
+    description: report.description
+      ? resolveLabel(report.description, '')
+      : undefined,
+    reportType: legacyReportType,
+    fields,
+    groupBy: groupBy.length > 0 ? groupBy : undefined,
+  };
+}
+
+/**
+ * Type guard: does this object look like a spec `Report` (vs. a legacy
+ * presentation `ReportSchema`)?
+ *
+ * Heuristic: spec reports carry `name` + `objectName` + `columns`, while
+ * legacy presentation schemas carry `type: 'report'` + `fields`.
+ */
+export function isSpecReport(value: unknown): value is SpecReport {
+  if (!value || typeof value !== 'object') return false;
+  const v = value as Record<string, unknown>;
+  return typeof v.name === 'string'
+    && typeof v.objectName === 'string'
+    && Array.isArray(v.columns);
+}

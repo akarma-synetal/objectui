@@ -10,7 +10,7 @@ import { useState, useMemo, useCallback } from 'react';
 import type { GroupingConfig } from '@object-ui/types';
 
 /** Supported aggregation function types. */
-export type AggregationType = 'sum' | 'count' | 'avg' | 'min' | 'max';
+export type AggregationType = 'sum' | 'count' | 'avg' | 'min' | 'max' | 'count_distinct';
 
 /** Describes a single aggregation to compute per group. */
 export interface AggregationConfig {
@@ -161,15 +161,24 @@ function computeAggregations(
   configs: AggregationConfig[],
 ): AggregationResult[] {
   return configs.map(({ field, type }) => {
+    if (type === 'count_distinct') {
+      const set = new Set<unknown>();
+      for (const r of rows) {
+        const v = r[field];
+        if (v != null && v !== '') set.add(v);
+      }
+      return { field, type, value: set.size };
+    }
+    if (type === 'count') {
+      // count includes nulls (row count for the bucket).
+      return { field, type, value: rows.length };
+    }
     const nums = rows
       .map((r) => Number(r[field]))
       .filter((n) => Number.isFinite(n));
 
     let value: number;
     switch (type) {
-      case 'count':
-        value = nums.length;
-        break;
       case 'sum':
         value = nums.reduce((a, b) => a + b, 0);
         break;

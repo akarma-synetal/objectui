@@ -649,7 +649,9 @@ export type {
 } from './theme';
 
 export type {
-  // Report System
+  // Report Presentation Layer (ObjectUI-specific UX enhancements:
+  // sections, schedule, export presets, conditional formatting, etc.).
+  // For the protocol-level Report definition, use `Spec*` exports below.
   ReportSchema,
   ReportType,
   ReportExportFormat,
@@ -664,6 +666,40 @@ export type {
   ReportBuilderSchema,
   ReportViewerSchema,
 } from './reports';
+
+// ---------------------------------------------------------------------------
+// Spec Report Bridge
+//
+// Authoritative report protocol from @objectstack/spec, re-exported under
+// `Spec*` names so they coexist with the legacy presentation `ReportSchema`.
+// See `./spec-report.ts` for the layering rationale.
+// ---------------------------------------------------------------------------
+export type {
+  SpecReportInput,
+  SpecReportColumn,
+  SpecReportColumnInput,
+  SpecReportGrouping,
+  SpecReportGroupingInput,
+  SpecReportChart,
+  SpecReportChartInput,
+  SpecReportTypeName,
+  SpecReportAggregate,
+  SpecReportDateGranularity,
+  QLAggregationFunction,
+  LegacyReportPresentationLike,
+} from './spec-report';
+
+export {
+  SpecReportSchema,
+  SpecReportColumnSchema,
+  SpecReportGroupingSchema,
+  SpecReportChartSchema,
+  SpecReportTypeEnum,
+  SpecReport,
+  mapAggregateToQL,
+  specReportToPresentation,
+  isSpecReport,
+} from './spec-report';
 
 export type {
   // Workflow System
