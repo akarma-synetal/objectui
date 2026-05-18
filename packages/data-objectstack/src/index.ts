@@ -1437,6 +1437,24 @@ export class ObjectStackAdapter<T = unknown> implements DataSource<T> {
   async aggregate(resource: string, params: { field: string; function: string; groupBy: string; filter?: any }): Promise<any[]> {
     await this.connect();
 
+    // Spec-shape detection: when the caller passes the spec
+    // `{ groupBy: GroupByNode[], aggregations: AggregationNode[], where? }`
+    // (used by @object-ui/plugin-report's useReportData), this adapter's
+    // legacy single-field/single-function signature can't satisfy it. Throw
+    // so callers can fall back to find() + client-side aggregation.
+    // M3 will add a v2 aggregate path that posts the spec shape directly to
+    // the server's /aggregate endpoint.
+    const looksLikeSpecShape =
+      params != null &&
+      (Array.isArray((params as any).groupBy) ||
+        Array.isArray((params as any).aggregations) ||
+        (params as any).where !== undefined);
+    if (looksLikeSpecShape) {
+      throw new Error(
+        '[data-objectstack] aggregate(): spec-shape (groupBy[]/aggregations[]) not yet supported; use find() fallback.',
+      );
+    }
+
     try {
       // Build measure name in the format expected by the backend analytics
       // service (memory-analytics / cube).  For 'count' the measure key is

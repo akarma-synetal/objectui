@@ -63,6 +63,14 @@ test-screenshots
 test-results
 playwright-report
 
+# Stray screenshots / traces in repo root (agents: save to /tmp/ instead)
+/*.png
+/*.jpg
+/*.jpeg
+/*.webp
+/*.heapsnapshot
+/*.trace
+
 # Vite timestamp files
 *.timestamp-*.mjs
 

@@ -682,12 +682,24 @@ export function useReportData(
         ? buildAggregateQuery(report, runtimeFilter, maxRows)
         : null;
       if (aggregateQuery && typeof dataSource.aggregate === 'function') {
-        const raw = await dataSource.aggregate(report.objectName, aggregateQuery);
-        const extracted = extractRecords(raw);
-        if (seq !== fetchSeq.current) return;
-        setRawRows(extracted);
-        setServerAggregated(true);
-        return;
+        try {
+          const raw = await dataSource.aggregate(report.objectName, aggregateQuery);
+          const extracted = extractRecords(raw);
+          if (seq !== fetchSeq.current) return;
+          setRawRows(extracted);
+          setServerAggregated(true);
+          return;
+        } catch (aggErr) {
+          // Adapter may not yet support spec-shape aggregate (e.g. older
+          // data-objectstack with single-field signature). Fall through to
+          // client-side aggregation via find().
+          if (typeof console !== 'undefined' && console.warn) {
+            console.warn(
+              '[useReportData] dataSource.aggregate() failed, falling back to find():',
+              aggErr,
+            );
+          }
+        }
       }
 
       if (typeof dataSource.find !== 'function') {
