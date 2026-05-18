@@ -15,6 +15,7 @@ import { DefaultAppContent, LoadingScreen } from '@object-ui/app-shell';
 const SystemHubPage = lazy(() => import('./pages/system/SystemHubPage').then(m => ({ default: m.SystemHubPage })));
 const AppManagementPage = lazy(() => import('./pages/system/AppManagementPage').then(m => ({ default: m.AppManagementPage })));
 const ProfilePage = lazy(() => import('./pages/system/ProfilePage').then(m => ({ default: m.ProfilePage })));
+const ApprovalsInboxPage = lazy(() => import('./pages/system/ApprovalsInboxPage').then(m => ({ default: m.ApprovalsInboxPage })));
 
 const ENABLE_LEGACY_METADATA_EDITOR = import.meta.env.VITE_LEGACY_METADATA_EDITOR === 'true';
 const MetadataManagerPage = lazy(() => import('./legacy/MetadataManagerPage').then(m => ({ default: m.MetadataManagerPage })));
@@ -39,6 +40,7 @@ const systemRoutes = (
     <Route path="system" element={<Suspense fallback={<LoadingScreen />}><SystemHubPage /></Suspense>} />
     <Route path="system/apps" element={<Suspense fallback={<LoadingScreen />}><AppManagementPage /></Suspense>} />
     <Route path="system/profile" element={<Suspense fallback={<LoadingScreen />}><ProfilePage /></Suspense>} />
+    <Route path="system/approvals" element={<Suspense fallback={<LoadingScreen />}><ApprovalsInboxPage /></Suspense>} />
     {ENABLE_LEGACY_METADATA_EDITOR && (
       <>
         <Route path="system/objects" element={<ObjectRedirect />} />

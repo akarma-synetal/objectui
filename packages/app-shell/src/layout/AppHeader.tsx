@@ -41,6 +41,7 @@ import {
   User as UserIcon,
   Boxes,
   Bell,
+  CheckSquare,
 } from 'lucide-react';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
@@ -141,6 +142,10 @@ export function AppHeader({
   const presenceUnavailableRef = useRef(false);
   const activityUnavailableRef = useRef(false);
   const notificationsUnavailableRef = useRef(false);
+
+  /** M11.C15: pending approvals count for the topbar shortcut. */
+  const [pendingApprovalsCount, setPendingApprovalsCount] = useState(0);
+  const approvalsUnavailableRef = useRef(false);
 
   const fetchPresenceAndActivities = useCallback(async () => {
     if (!dataSource || !isApp) return;
@@ -259,6 +264,49 @@ export function AppHeader({
       }
     };
   }, [dataSource, isApp, user?.id]);
+
+  /**
+   * M11.C15: poll pending-approvals count for the topbar shortcut badge.
+   * Hits the framework's `/api/v1/data/approvals/requests?status=pending`
+   * endpoint with the user's identities (id, email, role:<r>). Degrades
+   * silently to zero on 404 (approvals plugin not installed).
+   */
+  useEffect(() => {
+    if (!isApp || !user?.id) return;
+    if (approvalsUnavailableRef.current) return;
+    const serverUrl = (import.meta.env?.VITE_SERVER_URL || '').replace(/\/$/, '');
+    const base = `${serverUrl}/api/v1/data/approvals/requests`;
+    const identities: string[] = [];
+    if (user.id) identities.push(user.id);
+    if ((user as any).email) identities.push((user as any).email);
+    for (const r of ((user as any).roles || []) as string[]) {
+      if (r) identities.push(`role:${r}`);
+    }
+    let cancelled = false;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const POLL_MS = 30_000;
+    const fetchOnce = async () => {
+      try {
+        const seen = new Set<string>();
+        if (identities.length === 0) return;
+        for (const id of identities) {
+          const qs = new URLSearchParams({ status: 'pending', approverId: id });
+          const res = await fetch(`${base}?${qs}`, { credentials: 'include' });
+          if (res.status === 404) { approvalsUnavailableRef.current = true; return; }
+          if (!res.ok) return;
+          const payload = await res.json().catch(() => null);
+          for (const row of (payload?.data || []) as { id: string }[]) seen.add(row.id);
+        }
+        if (!cancelled) setPendingApprovalsCount(seen.size);
+      } catch { /* transient — keep last value */ }
+    };
+    const schedule = () => {
+      if (cancelled || approvalsUnavailableRef.current) return;
+      timer = setTimeout(async () => { await fetchOnce(); schedule(); }, POLL_MS);
+    };
+    fetchOnce().finally(schedule);
+    return () => { cancelled = true; if (timer) clearTimeout(timer); };
+  }, [isApp, user?.id]);
 
   const unreadCount = notifications.reduce((n, x) => n + (x.is_read ? 0 : 1), 0);
 
@@ -528,6 +576,28 @@ export function AppHeader({
           <div className="hidden sm:flex shrink-0">
             <ActivityFeed activities={activeActivities} />
           </div>
+
+          {/* M11.C15: Approvals Inbox shortcut */}
+          {pendingApprovalsCount >= 0 && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 relative shrink-0"
+              aria-label={t('sidebar.approvals', { defaultValue: 'Approvals' })}
+              title={t('sidebar.approvals', { defaultValue: 'Approvals' }) as string}
+              onClick={() => {
+                const app = currentAppName ?? params.appName;
+                navigate(app ? `/apps/${app}/system/approvals` : '/apps/setup/system/approvals');
+              }}
+            >
+              <CheckSquare className="h-4 w-4" />
+              {pendingApprovalsCount > 0 && (
+                <span className="absolute -top-0.5 -right-0.5 h-4 min-w-[16px] rounded-full bg-amber-500 text-[10px] leading-4 text-white text-center px-1">
+                  {pendingApprovalsCount > 9 ? '9+' : pendingApprovalsCount}
+                </span>
+              )}
+            </Button>
+          )}
 
           {/* M10.8: Notifications Bell */}
           <DropdownMenu>
