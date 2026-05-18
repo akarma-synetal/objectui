@@ -268,9 +268,13 @@ export function RecordDetailView({ dataSource, objects, onEdit }: RecordDetailVi
     return () => { cancelled = true; };
   }, [dataSource, pureRecordId, childRelations]);
 
-  const currentUser = user
-    ? { id: user.id, name: user.name, avatar: user.image }
-    : FALLBACK_USER;
+  // Memoize so the object identity is stable across renders — otherwise
+  // any effect that depends on it (e.g. the feed loader below) would
+  // re-fire every render and create an infinite request loop.
+  const currentUser = useMemo(
+    () => (user ? { id: user.id, name: user.name, avatar: user.image } : FALLBACK_USER),
+    [user?.id, user?.name, user?.image],
+  );
 
   // Fetch presence and comments from API
   useEffect(() => {
@@ -375,13 +379,20 @@ export function RecordDetailView({ dataSource, objects, onEdit }: RecordDetailVi
         for (const row of res.data) {
           const t = activityTypeToFeed[row.type];
           if (!t) continue;
+          // Prefer the explicit `timestamp` column, but tolerate older
+          // rows where the driver leaked the literal "NOW()" — fall
+          // back to created_at (always a real ISO date).
+          let when = row.timestamp;
+          if (!when || when === 'NOW()' || Number.isNaN(Date.parse(when))) {
+            when = row.created_at;
+          }
           mapped.push({
             id: row.id,
             type: t,
             actor: row.actor_name ?? 'System',
             actorAvatarUrl: row.actor_avatar_url ?? undefined,
             body: row.summary ?? '',
-            createdAt: row.timestamp,
+            createdAt: when,
           } as FeedItem);
         }
         if (!mapped.length) return;
