@@ -282,28 +282,54 @@ export function RecordDetailView({ dataSource, objects, onEdit }: RecordDetailVi
       .then((res: any) => { if (res.data?.length) setRecordViewers(res.data); })
       .catch(() => {});
 
-    // Fetch persisted comments and map to FeedItem[]
-    dataSource.find('sys_comment', { $filter: { threadId }, $orderby: { createdAt: 'asc' } })
+    // M10.10: Fetch persisted comments from sys_comment. Field names
+    // are snake_case to match the platform-objects schema
+    // (`packages/platform-objects/src/audit/sys-comment.object.ts`):
+    // thread_id, author_id, author_name, author_avatar_url, body,
+    // reactions (JSON string), parent_id, created_at, updated_at.
+    //
+    // Reactions are stored as a JSON object of `{ emoji: string[] }`
+    // (one array of user-ids per emoji). The aggregator below counts
+    // entries and flags the currently-signed-in user.
+    const parseReactions = (raw: unknown): FeedItem['reactions'] => {
+      if (!raw) return undefined;
+      let parsed: Record<string, string[]> | undefined;
+      if (typeof raw === 'string') {
+        try { parsed = JSON.parse(raw); } catch { return undefined; }
+      } else if (typeof raw === 'object') {
+        parsed = raw as Record<string, string[]>;
+      }
+      if (!parsed) return undefined;
+      return Object.entries(parsed).map(([emoji, userIds]) => ({
+        emoji,
+        count: Array.isArray(userIds) ? userIds.length : 0,
+        reacted: Array.isArray(userIds) && userIds.includes(currentUser.id),
+      }));
+    };
+
+    dataSource.find('sys_comment', { $filter: { thread_id: threadId }, $orderby: { created_at: 'asc' } })
       .then((res: any) => {
-        if (res.data?.length) {
-          setFeedItems(res.data.map((c: any) => ({
-            id: c.id,
-            type: 'comment' as const,
-            actor: c.author?.name ?? 'Unknown',
-            actorAvatarUrl: c.author?.avatar,
-            body: c.content,
-            createdAt: c.createdAt,
-            updatedAt: c.updatedAt,
-            parentId: c.parentId,
-            reactions: c.reactions
-              ? Object.entries(c.reactions as Record<string, string[]>).map(([emoji, userIds]) => ({
-                  emoji,
-                  count: userIds.length,
-                  reacted: userIds.includes(currentUser.id),
-                }))
-              : undefined,
-          })));
-        }
+        if (!res?.data?.length) return;
+        const mapped: FeedItem[] = res.data.map((c: any) => ({
+          id: c.id,
+          type: 'comment' as const,
+          actor: c.author_name ?? 'Unknown',
+          actorAvatarUrl: c.author_avatar_url ?? undefined,
+          body: c.body ?? '',
+          createdAt: c.created_at,
+          updatedAt: c.updated_at,
+          parentId: c.parent_id ?? undefined,
+          reactions: parseReactions(c.reactions),
+        }));
+        setFeedItems(prev => {
+          const byId = new Map<string, FeedItem>();
+          for (const item of [...prev, ...mapped]) byId.set(String(item.id), item);
+          return Array.from(byId.values()).sort((a, b) => {
+            const ta = a.createdAt ? Date.parse(a.createdAt) : 0;
+            const tb = b.createdAt ? Date.parse(b.createdAt) : 0;
+            return ta - tb;
+          });
+        });
       })
       .catch(() => {});
 
@@ -388,16 +414,18 @@ export function RecordDetailView({ dataSource, objects, onEdit }: RecordDetailVi
         createdAt: new Date().toISOString(),
       };
       setFeedItems(prev => [...prev, newItem]);
-      // Persist to backend
+      // Persist to backend (M10.10: snake_case fields per sys_comment schema)
       if (dataSource) {
         const threadId = `${objectName}:${pureRecordId}`;
         dataSource.create('sys_comment', {
           id: newItem.id,
-          threadId,
-          author: currentUser,
-          content: text,
-          mentions: [],
-          createdAt: newItem.createdAt,
+          thread_id: threadId,
+          author_id: currentUser.id,
+          author_name: currentUser.name,
+          author_avatar_url: 'avatar' in currentUser ? (currentUser as any).avatar : undefined,
+          body: text,
+          mentions: '[]',
+          created_at: newItem.createdAt,
         }).catch(() => {});
       }
     },
@@ -428,12 +456,14 @@ export function RecordDetailView({ dataSource, objects, onEdit }: RecordDetailVi
         const threadId = `${objectName}:${pureRecordId}`;
         dataSource.create('sys_comment', {
           id: newItem.id,
-          threadId,
-          author: currentUser,
-          content: text,
-          mentions: [],
-          createdAt: newItem.createdAt,
-          parentId,
+          thread_id: threadId,
+          author_id: currentUser.id,
+          author_name: currentUser.name,
+          author_avatar_url: 'avatar' in currentUser ? (currentUser as any).avatar : undefined,
+          body: text,
+          mentions: '[]',
+          created_at: newItem.createdAt,
+          parent_id: parentId,
         }).catch(() => {});
       }
     },
@@ -462,10 +492,29 @@ export function RecordDetailView({ dataSource, objects, onEdit }: RecordDetailVi
           reactions.push({ emoji, count: 1, reacted: true });
         }
         const updated = { ...item, reactions };
-        // Persist reaction toggle to backend
+        // Persist reactions to backend as JSON. The schema stores
+        // `reactions` as a textarea JSON string of `{ emoji: userIds[] }`,
+        // so we rebuild the canonical shape from the optimistic local
+        // state before writing back. A failed update silently keeps the
+        // optimistic UI change (best-effort, surfaced by RUM if needed).
         if (dataSource) {
+          const userId = currentUser.id;
+          const remoteShape: Record<string, string[]> = {};
+          for (const r of reactions) {
+            // We don't have the original user-id list locally, so we
+            // approximate by emitting the signed-in user when they are
+            // the (only known) reactor. This is an over-simplification
+            // for single-user pilot installs and will be replaced by a
+            // proper backend reaction endpoint in M11.
+            const ids: string[] = [];
+            if (r.reacted) ids.push(userId);
+            // Pad with a synthetic marker so count is preserved across
+            // refreshes from other clients (best-effort).
+            while (ids.length < r.count) ids.push('__other__');
+            remoteShape[r.emoji] = ids;
+          }
           dataSource.update('sys_comment', String(itemId), {
-            $toggleReaction: { emoji, userId: currentUser.id },
+            reactions: JSON.stringify(remoteShape),
           }).catch(() => {});
         }
         return updated;
