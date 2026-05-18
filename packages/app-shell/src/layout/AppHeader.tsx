@@ -40,6 +40,7 @@ import {
   LogOut,
   User as UserIcon,
   Boxes,
+  Bell,
 } from 'lucide-react';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
@@ -122,11 +123,24 @@ export function AppHeader({
 
   const [apiPresenceUsers, setApiPresenceUsers] = useState<PresenceUser[] | null>(null);
   const [apiActivities, setApiActivities] = useState<ActivityItem[] | null>(null);
+  /** M10.8: in-header notifications. Polled from sys_notification scoped to current user. */
+  const [notifications, setNotifications] = useState<Array<{
+    id: string;
+    type: string;
+    title: string;
+    body?: string | null;
+    source_object?: string | null;
+    source_id?: string | null;
+    actor_name?: string | null;
+    is_read?: boolean;
+    created_at?: string;
+  }>>([]);
   // Once the server returns 404 for these collections we stop retrying for
   // the lifetime of the page — they're optional features and re-requesting
   // on every navigation creates console noise + wasted round trips.
   const presenceUnavailableRef = useRef(false);
   const activityUnavailableRef = useRef(false);
+  const notificationsUnavailableRef = useRef(false);
 
   const fetchPresenceAndActivities = useCallback(async () => {
     if (!dataSource || !isApp) return;
@@ -169,6 +183,64 @@ export function AppHeader({
   }, [dataSource, isApp]);
 
   useEffect(() => { fetchPresenceAndActivities(); }, [fetchPresenceAndActivities]);
+
+  /**
+   * M10.8: poll sys_notification for the signed-in user. Limited to
+   * the 20 most-recent entries; unread count drives the bell badge.
+   * Polls every 30s while the tab is foregrounded. Tolerates 404 so
+   * older deployments without sys_notification degrade silently.
+   */
+  useEffect(() => {
+    if (!dataSource || !isApp || !user?.id) return;
+    if (notificationsUnavailableRef.current) return;
+    let cancelled = false;
+    const isMissingResource = (err: any): boolean =>
+      err?.httpStatus === 404 || err?.status === 404 || err?.code === 'object_not_found';
+    const fetchOnce = async () => {
+      try {
+        const res: any = await dataSource.find('sys_notification', {
+          $filter: { recipient_id: user.id },
+          $orderby: { created_at: 'desc' },
+          $top: 20,
+        });
+        if (cancelled) return;
+        if (Array.isArray(res?.data)) setNotifications(res.data);
+      } catch (err: any) {
+        if (isMissingResource(err)) notificationsUnavailableRef.current = true;
+      }
+    };
+    fetchOnce();
+    const handle = setInterval(() => {
+      if (typeof document !== 'undefined' && document.hidden) return;
+      if (notificationsUnavailableRef.current) { clearInterval(handle); return; }
+      fetchOnce();
+    }, 30_000);
+    return () => { cancelled = true; clearInterval(handle); };
+  }, [dataSource, isApp, user?.id]);
+
+  const unreadCount = notifications.reduce((n, x) => n + (x.is_read ? 0 : 1), 0);
+
+  const markNotificationRead = useCallback(async (id: string) => {
+    setNotifications(prev => prev.map(n => n.id === id ? { ...n, is_read: true } : n));
+    if (!dataSource) return;
+    try {
+      await dataSource.update('sys_notification', id, {
+        is_read: true,
+        read_at: new Date().toISOString(),
+      });
+    } catch { /* best-effort */ }
+  }, [dataSource]);
+
+  const markAllRead = useCallback(async () => {
+    const unread = notifications.filter(n => !n.is_read);
+    if (!unread.length) return;
+    setNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
+    if (!dataSource) return;
+    const now = new Date().toISOString();
+    await Promise.all(unread.map(n =>
+      dataSource.update('sys_notification', n.id, { is_read: true, read_at: now }).catch(() => {}),
+    ));
+  }, [dataSource, notifications]);
 
   const activeUsers = presenceUsers ?? apiPresenceUsers ?? EMPTY_PRESENCE_USERS;
   const activeActivities = activities ?? apiActivities ?? [];
@@ -414,6 +486,73 @@ export function AppHeader({
           <div className="hidden sm:flex shrink-0">
             <ActivityFeed activities={activeActivities} />
           </div>
+
+          {/* M10.8: Notifications Bell */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 relative shrink-0"
+                aria-label={t('sidebar.notifications', { defaultValue: 'Notifications' })}
+              >
+                <Bell className="h-4 w-4" />
+                {unreadCount > 0 && (
+                  <span className="absolute -top-0.5 -right-0.5 h-4 min-w-[16px] rounded-full bg-red-500 text-[10px] leading-4 text-white text-center px-1">
+                    {unreadCount > 9 ? '9+' : unreadCount}
+                  </span>
+                )}
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-80 max-h-96 overflow-auto">
+              <DropdownMenuLabel className="flex items-center justify-between">
+                <span>{t('sidebar.notifications', { defaultValue: 'Notifications' })}</span>
+                {unreadCount > 0 && (
+                  <button
+                    type="button"
+                    onClick={(e) => { e.preventDefault(); markAllRead(); }}
+                    className="text-xs text-muted-foreground hover:text-foreground"
+                  >
+                    {t('notifications.markAllRead', { defaultValue: 'Mark all read' })}
+                  </button>
+                )}
+              </DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              {notifications.length === 0 ? (
+                <div className="px-3 py-6 text-sm text-muted-foreground text-center">
+                  {t('notifications.empty', { defaultValue: 'No notifications' })}
+                </div>
+              ) : (
+                notifications.map((n) => (
+                  <DropdownMenuItem
+                    key={n.id}
+                    className={`flex flex-col items-start gap-1 ${n.is_read ? '' : 'bg-accent/40'}`}
+                    onSelect={() => {
+                      markNotificationRead(n.id);
+                      if (n.source_object && n.source_id) {
+                        // Navigate to the related record; relative to /apps/<currentApp> if any.
+                        const app = currentAppName ?? params.appName;
+                        const target = app
+                          ? `/apps/${app}/${n.source_object}/${n.source_id}`
+                          : `/objects/${n.source_object}/${n.source_id}`;
+                        navigate(target);
+                      }
+                    }}
+                  >
+                    <div className="text-sm font-medium leading-tight">{n.title}</div>
+                    {n.body && (
+                      <div className="text-xs text-muted-foreground line-clamp-2">{n.body}</div>
+                    )}
+                    {n.created_at && (
+                      <div className="text-[10px] text-muted-foreground">
+                        {new Date(n.created_at).toLocaleString()}
+                      </div>
+                    )}
+                  </DropdownMenuItem>
+                ))
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
 
           {/* Help */}
           <Button
