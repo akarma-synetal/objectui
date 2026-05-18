@@ -23,6 +23,7 @@ import type { ActionRunner } from '@object-ui/core';
 import { isSpecReport, type SpecReport, type DataSource } from '@object-ui/types';
 import { LegacyReportRenderer, type LegacyReportRendererProps } from './LegacyReportRenderer';
 import { SpecReportGrid } from './SpecReportGrid';
+import { MatrixRenderer } from './MatrixRenderer';
 import type { DrillOpenIn, DrillView } from './drill';
 
 export type ReportRendererSchema = SpecReport | LegacyReportRendererProps['schema'];
@@ -70,9 +71,16 @@ export const ReportRenderer: React.FC<ReportRendererProps> = ({
 
     if (reportType === 'matrix') {
       return (
-        <div className={className} style={PLACEHOLDER_BANNER} data-testid="report-matrix-placeholder">
-          Matrix report (<code>{schema.name}</code>) is not yet supported. Coming in M2.
-        </div>
+        <MatrixRenderer
+          report={schema}
+          dataSource={dataSource as DataSource | undefined}
+          rows={rows}
+          runtimeFilter={runtimeFilter}
+          actionRunner={actionRunner}
+          drillView={drillView}
+          drillOpenIn={drillOpenIn}
+          className={className}
+        />
       );
     }
     if (reportType === 'joined') {

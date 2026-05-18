@@ -13,6 +13,12 @@ vi.mock('../SpecReportGrid', () => ({
   ),
 }));
 
+vi.mock('../MatrixRenderer', () => ({
+  MatrixRenderer: (props: { report: SpecReport }) => (
+    <div data-testid="matrix-renderer-stub">{props.report.name}</div>
+  ),
+}));
+
 vi.mock('../LegacyReportRenderer', () => ({
   LegacyReportRenderer: (props: { schema: { title?: string } }) => (
     <div data-testid="legacy-renderer-stub">{props.schema.title}</div>
@@ -42,9 +48,9 @@ describe('ReportRenderer dispatcher', () => {
     expect(screen.getByTestId('spec-report-grid-stub')).toBeInTheDocument();
   });
 
-  it('shows matrix placeholder for spec matrix reports', () => {
-    render(<ReportRenderer schema={{ ...baseSpec, type: 'matrix' }} rows={[]} />);
-    expect(screen.getByTestId('report-matrix-placeholder')).toBeInTheDocument();
+  it('routes spec matrix reports to MatrixRenderer', () => {
+    render(<ReportRenderer schema={{ ...baseSpec, type: 'matrix', groupingsAcross: [{ field: 'q' }] }} rows={[]} />);
+    expect(screen.getByTestId('matrix-renderer-stub')).toBeInTheDocument();
     expect(screen.queryByTestId('spec-report-grid-stub')).not.toBeInTheDocument();
   });
 

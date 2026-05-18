@@ -13,11 +13,13 @@ import { ReportViewer } from './ReportViewer';
 import { ReportBuilder } from './ReportBuilder';
 import { ReportConfigPanel } from './ReportConfigPanel';
 import { SpecReportGrid } from './SpecReportGrid';
+import { MatrixRenderer } from './MatrixRenderer';
 
-export { ReportRenderer, LegacyReportRenderer, ReportViewer, ReportBuilder, ReportConfigPanel, SpecReportGrid };
+export { ReportRenderer, LegacyReportRenderer, ReportViewer, ReportBuilder, ReportConfigPanel, SpecReportGrid, MatrixRenderer };
 export type { ReportRendererProps, ReportRendererSchema } from './ReportRenderer';
 export type { LegacyReportRendererProps } from './LegacyReportRenderer';
 export type { SpecReportGridProps } from './SpecReportGrid';
+export type { MatrixRendererProps, MatrixCellClickArgs } from './MatrixRenderer';
 export {
   buildDrillAction,
   createDrillHandler,
@@ -55,11 +57,15 @@ export {
   groupingValue,
   aggregateRows,
   groupAndAggregate,
+  pivotRows,
+  buildAggregateQuery,
   mergeFilters,
   collectFields,
 } from './hooks/useReportData';
 export type {
   ReportRow,
+  PivotHeader,
+  PivotMatrix,
   UseReportDataResult,
   UseReportDataOptions,
 } from './hooks/useReportData';

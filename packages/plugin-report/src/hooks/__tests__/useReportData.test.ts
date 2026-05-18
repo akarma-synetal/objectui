@@ -15,6 +15,8 @@ import {
   groupingValue,
   aggregateRows,
   groupAndAggregate,
+  pivotRows,
+  buildAggregateQuery,
   mergeFilters,
   collectFields,
 } from '../useReportData';
@@ -280,7 +282,7 @@ describe('useReportData', () => {
     expect(find.mock.calls.length).toBe(before + 1);
   });
 
-  it('handles a matrix report with groupingsDown + groupingsAcross', async () => {
+  it('handles a matrix report: rows show down-only nesting, pivot exposes 2D matrix', async () => {
     const matrix = SpecReport.create({
       name: 'matrix_demo',
       label: 'Matrix',
@@ -291,10 +293,218 @@ describe('useReportData', () => {
       columns: [{ field: 'amount', aggregate: 'sum' }],
     });
     const { result } = renderHook(() => useReportData(matrix, { rows: dataset }));
-    await waitFor(() => expect(result.current.rows.length).toBeGreaterThan(0));
-    // Two regions × respective quarters in children
+    await waitFor(() => expect(result.current.rows.length).toBe(2));
+    // rows: down-only nesting (no children since groupingsAcross moved to pivot)
     const east = result.current.rows.find((r) => r.groupKey.region === 'East')!;
-    expect(east.children).toBeDefined();
-    expect(east.children!.length).toBe(2); // Q1, Q2
+    expect(east.children).toBeUndefined();
+    // pivot: 2 regions × 2 quarters
+    expect(result.current.pivot).not.toBeNull();
+    expect(result.current.pivot!.rowHeaders).toHaveLength(2);
+    expect(result.current.pivot!.colHeaders).toHaveLength(2);
+  });
+});
+
+describe('pivotRows', () => {
+  const cols = [{ field: 'amount', aggregate: 'sum' as const }];
+  const down = [{ field: 'region' }];
+  const across = [{ field: 'quarter' }];
+
+  it('builds row × col headers from raw rows', () => {
+    const m = pivotRows(dataset, cols, down, across);
+    expect(m.rowHeaders.map((h) => h.path[0])).toEqual(['East', 'West']);
+    expect(m.colHeaders.map((h) => h.path[0])).toEqual(['2024-Q1', '2024-Q2']);
+  });
+
+  it('computes per-cell aggregates', () => {
+    const m = pivotRows(dataset, cols, down, across);
+    const east = m.rowHeaders.find((h) => h.path[0] === 'East')!;
+    const q1 = m.colHeaders.find((h) => h.path[0] === '2024-Q1')!;
+    expect(m.cells[east.id][q1.id]['amount__sum']).toBe(300); // 100 + 200
+  });
+
+  it('omits empty cells (sparse matrix)', () => {
+    const sparse = dataset.filter((r) => !(r.region === 'West' && r.quarter === '2024-Q2'));
+    const m = pivotRows(sparse, cols, down, across);
+    const west = m.rowHeaders.find((h) => h.path[0] === 'West')!;
+    const q2 = m.colHeaders.find((h) => h.path[0] === '2024-Q2')!;
+    expect(m.cells[west.id][q2.id]).toBeUndefined();
+  });
+
+  it('computes row, column, and grand totals', () => {
+    const m = pivotRows(dataset, cols, down, across);
+    const east = m.rowHeaders.find((h) => h.path[0] === 'East')!;
+    const q1 = m.colHeaders.find((h) => h.path[0] === '2024-Q1')!;
+    expect(m.rowTotals[east.id]['amount__sum']).toBe(450); // 100+200+150
+    expect(m.colTotals[q1.id]['amount__sum']).toBe(600);   // 100+200+300
+    expect(m.grandTotal['amount__sum']).toBe(750);          // 100+200+150+300+null
+  });
+
+  it('honours desc sort on groupings', () => {
+    const m = pivotRows(dataset, cols, [{ field: 'region', sort: 'desc' }], across);
+    expect(m.rowHeaders.map((h) => h.path[0])).toEqual(['West', 'East']);
+  });
+
+  it('degenerates gracefully when one dimension is empty', () => {
+    const m = pivotRows(dataset, cols, down, []);
+    expect(m.colHeaders).toEqual([{ key: {}, path: [], id: '' }]);
+    const east = m.rowHeaders.find((h) => h.path[0] === 'East')!;
+    expect(m.cells[east.id]['']['amount__sum']).toBe(450);
+  });
+});
+
+describe('buildAggregateQuery', () => {
+  const baseReport = SpecReport.create({
+    name: 'opp_funnel',
+    label: 'Funnel',
+    objectName: 'opportunity',
+    type: 'summary',
+    groupingsDown: [{ field: 'stage' }],
+    columns: [
+      { field: 'amount', aggregate: 'sum' },
+      { field: 'owner', aggregate: 'unique' },
+    ],
+  });
+
+  it('emits structured groupBy + aggregations with alias matching columnKey', () => {
+    const q = buildAggregateQuery(baseReport, undefined, 1000)!;
+    expect(q.object).toBe('opportunity');
+    expect(q.groupBy).toEqual(['stage']);
+    expect(q.aggregations).toEqual([
+      { function: 'sum', field: 'amount', alias: 'amount__sum' },
+      { function: 'count_distinct', field: 'owner', alias: 'owner__unique' },
+    ]);
+    expect(q.limit).toBe(1000);
+  });
+
+  it('encodes dateGranularity as a structured groupBy item', () => {
+    const r = SpecReport.create({
+      name: 'opp_quarter',
+      label: 'Quarter',
+      objectName: 'opportunity',
+      type: 'summary',
+      groupingsDown: [{ field: 'closed_at', dateGranularity: 'quarter' }],
+      columns: [{ field: 'amount', aggregate: 'sum' }],
+    });
+    const q = buildAggregateQuery(r, undefined, 100)!;
+    expect(q.groupBy).toEqual([{ field: 'closed_at', dateGranularity: 'quarter' }]);
+  });
+
+  it('returns null when nothing to aggregate', () => {
+    const r = SpecReport.create({
+      name: 'flat',
+      label: 'Flat',
+      objectName: 'opportunity',
+      type: 'tabular',
+      columns: [{ field: 'amount' }, { field: 'stage' }], // no aggregate
+    });
+    expect(buildAggregateQuery(r, undefined, 100)).toBeNull();
+  });
+
+  it('merges runtimeFilter into where', () => {
+    const q = buildAggregateQuery(
+      baseReport,
+      { stage: { $ne: 'lost' } },
+      100,
+    )!;
+    expect(q.where).toEqual({ stage: { $ne: 'lost' } });
+  });
+});
+
+describe('useReportData server-aggregation path', () => {
+  it('uses dataSource.aggregate when available and report needs aggregation', async () => {
+    const aggregate = vi.fn().mockResolvedValue([
+      { stage: 'won', amount__sum: 1000 },
+      { stage: 'lost', amount__sum: 200 },
+    ]);
+    const find = vi.fn();
+    const dataSource = { find, aggregate };
+    const report = SpecReport.create({
+      name: 'rep',
+      label: 'R',
+      objectName: 'opp',
+      type: 'summary',
+      groupingsDown: [{ field: 'stage' }],
+      columns: [{ field: 'amount', aggregate: 'sum' }],
+    });
+    const { result } = renderHook(() => useReportData(report, { dataSource }));
+    await waitFor(() => expect(result.current.rows.length).toBe(2));
+    expect(aggregate).toHaveBeenCalledTimes(1);
+    expect(find).not.toHaveBeenCalled();
+    // Rows should use the server-supplied aggregated values (no re-aggregation).
+    const won = result.current.rows.find((r) => r.groupKey.stage === 'won');
+    expect(won!.values['amount__sum']).toBe(1000);
+    // Grand total = sum of bucketed sums.
+    expect(result.current.totals['amount__sum']).toBe(1200);
+  });
+
+  it('falls back to dataSource.find when adapter has no .aggregate', async () => {
+    const find = vi.fn().mockResolvedValue([
+      { stage: 'won', amount: 100 },
+      { stage: 'won', amount: 200 },
+      { stage: 'lost', amount: 50 },
+    ]);
+    const dataSource = { find };
+    const report = SpecReport.create({
+      name: 'rep',
+      label: 'R',
+      objectName: 'opp',
+      type: 'summary',
+      groupingsDown: [{ field: 'stage' }],
+      columns: [{ field: 'amount', aggregate: 'sum' }],
+    });
+    const { result } = renderHook(() => useReportData(report, { dataSource }));
+    await waitFor(() => expect(result.current.rows.length).toBe(2));
+    expect(find).toHaveBeenCalledTimes(1);
+    const won = result.current.rows.find((r) => r.groupKey.stage === 'won');
+    expect(won!.values['amount__sum']).toBe(300);
+  });
+
+  it('honours preferServerAggregation=false to force client path', async () => {
+    const aggregate = vi.fn().mockResolvedValue([]);
+    const find = vi.fn().mockResolvedValue([{ stage: 'won', amount: 1 }]);
+    const dataSource = { find, aggregate };
+    const report = SpecReport.create({
+      name: 'rep',
+      label: 'R',
+      objectName: 'opp',
+      type: 'summary',
+      groupingsDown: [{ field: 'stage' }],
+      columns: [{ field: 'amount', aggregate: 'sum' }],
+    });
+    const { result } = renderHook(() =>
+      useReportData(report, { dataSource, preferServerAggregation: false }),
+    );
+    await waitFor(() => expect(result.current.rows.length).toBe(1));
+    expect(aggregate).not.toHaveBeenCalled();
+    expect(find).toHaveBeenCalledTimes(1);
+  });
+
+  it('builds a pivot from server-aggregated rows for matrix reports', async () => {
+    const aggregate = vi.fn().mockResolvedValue([
+      { region: 'East', quarter: '2024-Q1', amount__sum: 300 },
+      { region: 'East', quarter: '2024-Q2', amount__sum: 150 },
+      { region: 'West', quarter: '2024-Q1', amount__sum: 300 },
+    ]);
+    const dataSource = { find: vi.fn(), aggregate };
+    const report = SpecReport.create({
+      name: 'matrix_srv',
+      label: 'MatrixSrv',
+      objectName: 'opp',
+      type: 'matrix',
+      groupingsDown: [{ field: 'region' }],
+      groupingsAcross: [{ field: 'quarter' }],
+      columns: [{ field: 'amount', aggregate: 'sum' }],
+    });
+    const { result } = renderHook(() => useReportData(report, { dataSource }));
+    await waitFor(() => expect(result.current.pivot).not.toBeNull());
+    const pivot = result.current.pivot!;
+    expect(pivot.rowHeaders).toHaveLength(2);
+    expect(pivot.colHeaders).toHaveLength(2);
+    const east = pivot.rowHeaders.find((h) => h.path[0] === 'East')!;
+    const q1 = pivot.colHeaders.find((h) => h.path[0] === '2024-Q1')!;
+    expect(pivot.cells[east.id][q1.id]['amount__sum']).toBe(300);
+    // Row total East = 300 + 150 = 450; grand = 750.
+    expect(pivot.rowTotals[east.id]['amount__sum']).toBe(450);
+    expect(pivot.grandTotal['amount__sum']).toBe(750);
   });
 });

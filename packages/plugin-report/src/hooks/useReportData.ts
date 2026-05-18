@@ -53,23 +53,72 @@ export interface UseReportDataResult {
   rows: ReportRow[];
   rawRows: Record<string, unknown>[];
   totals: Record<string, unknown>;
+  /** Pivoted matrix shape — populated when `report.groupingsAcross` is non-empty. */
+  pivot: PivotMatrix | null;
   loading: boolean;
   error: Error | null;
   refetch: () => Promise<void>;
   drillDown: (groupKey: Record<string, unknown>) => Record<string, unknown>[];
 }
 
+/**
+ * 2D pivot output. `rowHeaders` × `colHeaders` form the matrix; `cells[rowId][colId]`
+ * holds the per-cell aggregated values keyed by `columnKey()`. Totals are
+ * pre-computed so the renderer doesn't need to re-aggregate.
+ */
+export interface PivotHeader {
+  /** Group key path, e.g. `{ region: 'EMEA' }` (row) or `{ closeQuarter: '2024-Q1' }` (col). */
+  key: Record<string, unknown>;
+  /** Display labels in nesting order. */
+  path: string[];
+  /** Stable id derived from `path` — use as React key + lookup key into `cells`. */
+  id: string;
+}
+
+export interface PivotMatrix {
+  rowHeaders: PivotHeader[];
+  colHeaders: PivotHeader[];
+  /** `cells[rowId][colId] = { 'amount__sum': 1200, ... }`. Missing cells are absent (renderer fills with 0/—). */
+  cells: Record<string, Record<string, Record<string, unknown>>>;
+  /** Row totals across all columns, keyed by `rowId`. */
+  rowTotals: Record<string, Record<string, unknown>>;
+  /** Column totals across all rows, keyed by `colId`. */
+  colTotals: Record<string, Record<string, unknown>>;
+  /** Grand total across the entire matrix. */
+  grandTotal: Record<string, unknown>;
+  columns: readonly SpecReportColumn[];
+  downGroupings: readonly SpecReportGrouping[];
+  acrossGroupings: readonly SpecReportGrouping[];
+}
+
 export interface UseReportDataOptions {
-  /** Adapter exposing `find(resource, params)`. If absent, the hook stays idle. */
-  dataSource?: { find?: (resource: string, params?: Record<string, unknown>) => Promise<unknown> };
+  /**
+   * Adapter exposing `find(resource, params)` and optionally `aggregate(resource, query)`.
+   * - When `.aggregate` is present, the hook prefers it for reports with date
+   *   bucketing or pure aggregations — the server then runs DATE_TRUNC + GROUP
+   *   BY natively and returns one row per bucket.
+   * - When only `.find` is present, the hook falls back to raw rows + client
+   *   bucketing (see `bucketDate` / `groupingValue`).
+   * If the hook stays idle, no fetch happens.
+   */
+  dataSource?: {
+    find?: (resource: string, params?: Record<string, unknown>) => Promise<unknown>;
+    aggregate?: (resource: string, query: Record<string, unknown>) => Promise<unknown>;
+  };
   /** Filter merged on top of `report.filter` via `$and` (e.g., URL params, user selections). */
   runtimeFilter?: Record<string, unknown>;
   /** Optional `$top` cap for the raw fetch. Defaults to 5000. */
   maxRows?: number;
   /** When `false`, skips fetching. Defaults to `true`. */
   enabled?: boolean;
-  /** Pre-fetched rows. When provided, bypasses `dataSource.find()` entirely. */
+  /** Pre-fetched rows. When provided, bypasses `dataSource` entirely. */
   rows?: Record<string, unknown>[];
+  /**
+   * When true (default), prefer `dataSource.aggregate()` for reports that
+   * carry date granularity or any aggregating column. Set false to force the
+   * client-side path (useful for tests / debugging).
+   */
+  preferServerAggregation?: boolean;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -252,6 +301,258 @@ export function groupAndAggregate(
   return result;
 }
 
+/**
+ * Build a 2D pivot matrix from raw rows. Rows are bucketed by every
+ * `downGroupings` field path; columns by every `acrossGroupings` field path.
+ * Each cell is then aggregated independently with the report's columns.
+ *
+ * - When either dimension is empty, the matrix degenerates: a single header
+ *   with empty path is emitted so the renderer can still display a 1×N or
+ *   N×1 strip without special-casing.
+ * - Header ordering honours each grouping's `sort` ('asc' default, 'desc' opt-in).
+ * - `limit` on the *head* grouping of each dimension is respected (matches
+ *   `groupAndAggregate`); deeper limits are ignored to preserve totals.
+ */
+export function pivotRows(
+  rows: Record<string, unknown>[],
+  columns: readonly SpecReportColumn[],
+  downGroupings: readonly SpecReportGrouping[],
+  acrossGroupings: readonly SpecReportGrouping[],
+): PivotMatrix {
+  const rowHeaders = collectHeaders(rows, downGroupings);
+  const colHeaders = collectHeaders(rows, acrossGroupings);
+  const cells: Record<string, Record<string, Record<string, unknown>>> = {};
+  const rowTotals: Record<string, Record<string, unknown>> = {};
+  const colTotals: Record<string, Record<string, unknown>> = {};
+
+  for (const rh of rowHeaders) {
+    cells[rh.id] = {};
+    const rowSubset = filterByKey(rows, rh.key, downGroupings);
+    rowTotals[rh.id] = aggregateRows(rowSubset, columns);
+
+    for (const ch of colHeaders) {
+      const cellSubset = filterByKey(rowSubset, ch.key, acrossGroupings);
+      if (cellSubset.length === 0) continue;
+      cells[rh.id][ch.id] = aggregateRows(cellSubset, columns);
+    }
+  }
+  for (const ch of colHeaders) {
+    const colSubset = filterByKey(rows, ch.key, acrossGroupings);
+    colTotals[ch.id] = aggregateRows(colSubset, columns);
+  }
+
+  return {
+    rowHeaders,
+    colHeaders,
+    cells,
+    rowTotals,
+    colTotals,
+    grandTotal: aggregateRows(rows, columns),
+    columns,
+    downGroupings,
+    acrossGroupings,
+  };
+}
+
+/**
+ * Walk all grouping fields and enumerate every distinct combination present
+ * in `rows`. Returns headers ordered by each grouping's `sort` direction,
+ * trimmed by the head grouping's `limit` (matching `groupAndAggregate`).
+ */
+function collectHeaders(
+  rows: Record<string, unknown>[],
+  groupings: readonly SpecReportGrouping[],
+): PivotHeader[] {
+  if (groupings.length === 0) {
+    return [{ key: {}, path: [], id: '' }];
+  }
+  // Build distinct path tuples by walking rows once per level.
+  const seen = new Map<string, PivotHeader>();
+  for (const row of rows) {
+    const path: string[] = [];
+    const key: Record<string, unknown> = {};
+    for (const g of groupings) {
+      const v = groupingValue(row, g);
+      path.push(v);
+      key[g.field] = v;
+    }
+    const id = path.join('\u0001');
+    if (!seen.has(id)) seen.set(id, { key, path, id });
+  }
+  const headers = Array.from(seen.values());
+
+  // Multi-level sort: honour each grouping's sort direction.
+  headers.sort((a, b) => {
+    for (let i = 0; i < groupings.length; i++) {
+      const dir = groupings[i].sort === 'desc' ? -1 : 1;
+      const cmp = a.path[i].localeCompare(b.path[i]) * dir;
+      if (cmp !== 0) return cmp;
+    }
+    return 0;
+  });
+
+  const headLimit = groupings[0].limit;
+  if (typeof headLimit === 'number' && headLimit > 0) {
+    // Limit applies to the *top-level* distinct values, keeping all their descendants.
+    const allowedTops = new Set<string>();
+    for (const h of headers) {
+      if (allowedTops.size >= headLimit && !allowedTops.has(h.path[0])) continue;
+      allowedTops.add(h.path[0]);
+    }
+    return headers.filter((h) => allowedTops.has(h.path[0]));
+  }
+  return headers;
+}
+
+function filterByKey(
+  rows: Record<string, unknown>[],
+  key: Record<string, unknown>,
+  groupings: readonly SpecReportGrouping[],
+): Record<string, unknown>[] {
+  const entries = Object.entries(key);
+  if (entries.length === 0) return rows;
+  // Build a projection map so we use the same bucketed value (incl. date trunc).
+  const projectors = new Map<string, SpecReportGrouping>();
+  for (const g of groupings) projectors.set(g.field, g);
+  return rows.filter((row) => {
+    for (const [field, expected] of entries) {
+      const g = projectors.get(field);
+      const actual = g ? groupingValue(row, g) : (row[field] == null ? '(null)' : String(row[field]));
+      if (actual !== String(expected)) return false;
+    }
+    return true;
+  });
+}
+
+/**
+ * Sum the per-column aggregate fields across already-bucketed rows. Used to
+ * recompute grand totals from server-aggregated output. For `sum`/`count`
+ * columns the result is exact; for `avg`/`min`/`max`/`unique` it is a useful
+ * approximation only — for strict accuracy on those, the caller should issue
+ * a second aggregate query without `groupBy`.
+ */
+function sumPreAggregated(
+  rows: Record<string, unknown>[],
+  columns: readonly SpecReportColumn[],
+): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  for (const col of columns) {
+    if (!col.aggregate) continue;
+    const key = columnKey(col);
+    let acc = 0;
+    let n = 0;
+    let min: number | null = null;
+    let max: number | null = null;
+    for (const row of rows) {
+      const v = row[key];
+      if (typeof v !== 'number') continue;
+      acc += v;
+      n += 1;
+      if (min == null || v < min) min = v;
+      if (max == null || v > max) max = v;
+    }
+    if (col.aggregate === 'min') out[key] = min;
+    else if (col.aggregate === 'max') out[key] = max;
+    else if (col.aggregate === 'avg') out[key] = n === 0 ? null : acc / n;
+    else out[key] = acc;
+  }
+  return out;
+}
+
+/**
+ * Reshape already-bucketed rows (e.g. from server-side `aggregate`) into a
+ * pivot matrix. Each input row is expected to carry one entry per group field
+ * plus the per-column aggregate values keyed by `columnKey(col)`. Totals are
+ * recomputed via `sumPreAggregated` (see caveat there).
+ */
+function pivotPreAggregated(
+  rows: Record<string, unknown>[],
+  columns: readonly SpecReportColumn[],
+  downGroupings: readonly SpecReportGrouping[],
+  acrossGroupings: readonly SpecReportGrouping[],
+): PivotMatrix {
+  // Build distinct header sets directly from bucketed rows.
+  const rowHeaders = collectHeadersFromBucketed(rows, downGroupings);
+  const colHeaders = collectHeadersFromBucketed(rows, acrossGroupings);
+  const cells: Record<string, Record<string, Record<string, unknown>>> = {};
+  const rowTotals: Record<string, Record<string, unknown>> = {};
+  const colTotals: Record<string, Record<string, unknown>> = {};
+
+  for (const rh of rowHeaders) {
+    cells[rh.id] = {};
+    const rowSubset = rows.filter((r) => matchesBucketedKey(r, rh.key));
+    rowTotals[rh.id] = sumPreAggregated(rowSubset, columns);
+    for (const ch of colHeaders) {
+      const cellSubset = rowSubset.filter((r) => matchesBucketedKey(r, ch.key));
+      if (cellSubset.length === 0) continue;
+      // For pivot we expect at most one bucketed row per (down × across).
+      const values: Record<string, unknown> = {};
+      for (const col of columns) {
+        if (!col.aggregate) continue;
+        const key = columnKey(col);
+        values[key] = cellSubset[0][key];
+      }
+      cells[rh.id][ch.id] = values;
+    }
+  }
+  for (const ch of colHeaders) {
+    const colSubset = rows.filter((r) => matchesBucketedKey(r, ch.key));
+    colTotals[ch.id] = sumPreAggregated(colSubset, columns);
+  }
+  return {
+    rowHeaders,
+    colHeaders,
+    cells,
+    rowTotals,
+    colTotals,
+    grandTotal: sumPreAggregated(rows, columns),
+    columns,
+    downGroupings,
+    acrossGroupings,
+  };
+}
+
+function collectHeadersFromBucketed(
+  rows: Record<string, unknown>[],
+  groupings: readonly SpecReportGrouping[],
+): PivotHeader[] {
+  if (groupings.length === 0) return [{ key: {}, path: [], id: '' }];
+  const seen = new Map<string, PivotHeader>();
+  for (const row of rows) {
+    const path: string[] = [];
+    const key: Record<string, unknown> = {};
+    for (const g of groupings) {
+      const v = row[g.field];
+      const s = v == null ? '(null)' : String(v);
+      path.push(s);
+      key[g.field] = s;
+    }
+    const id = path.join('\u0001');
+    if (!seen.has(id)) seen.set(id, { key, path, id });
+  }
+  const headers = Array.from(seen.values());
+  headers.sort((a, b) => {
+    for (let i = 0; i < groupings.length; i++) {
+      const dir = groupings[i].sort === 'desc' ? -1 : 1;
+      const cmp = a.path[i].localeCompare(b.path[i]) * dir;
+      if (cmp !== 0) return cmp;
+    }
+    return 0;
+  });
+  return headers;
+}
+
+function matchesBucketedKey(
+  row: Record<string, unknown>,
+  key: Record<string, unknown>,
+): boolean {
+  for (const [field, expected] of Object.entries(key)) {
+    const actual = row[field] == null ? '(null)' : String(row[field]);
+    if (actual !== String(expected)) return false;
+  }
+  return true;
+}
+
 /** Combine two FilterCondition objects via `$and`, dropping empty ones. */
 export function mergeFilters(
   a: Record<string, unknown> | undefined,
@@ -273,6 +574,45 @@ export function collectFields(report: SpecReport): string[] {
   for (const c of report.columns ?? []) set.add(c.field);
   for (const s of report.sort ?? []) set.add(s.field);
   return Array.from(set);
+}
+
+/**
+ * Build a `QueryAST`-style payload for `dataSource.aggregate()`. Groupings
+ * with `dateGranularity` are emitted as structured objects so spec-aware
+ * backends can do server-side DATE_TRUNC; backends that don't recognise the
+ * field gracefully treat them as the bare field name (the engine's
+ * in-memory fallback handles the rest).
+ *
+ * Returns `null` when the report has no groupings *and* no aggregating
+ * columns — in that case there's no work for `aggregate()` to do and the
+ * hook should stick with `find()`.
+ */
+export function buildAggregateQuery(
+  report: SpecReport,
+  runtimeFilter: Record<string, unknown> | undefined,
+  maxRows: number,
+): Record<string, unknown> | null {
+  const groupings = [...(report.groupingsDown ?? []), ...(report.groupingsAcross ?? [])];
+  const aggregatingCols = (report.columns ?? []).filter((c) => !!c.aggregate);
+  if (groupings.length === 0 && aggregatingCols.length === 0) return null;
+
+  const groupBy = groupings.map((g) =>
+    g.dateGranularity ? { field: g.field, dateGranularity: g.dateGranularity } : g.field,
+  );
+  const aggregations = aggregatingCols.map((c) => ({
+    function: c.aggregate === 'unique' ? 'count_distinct' : c.aggregate!,
+    field: c.field,
+    alias: columnKey(c),
+  }));
+  const where = mergeFilters(
+    report.filter as Record<string, unknown> | undefined,
+    runtimeFilter,
+  );
+  const out: Record<string, unknown> = { object: report.objectName, limit: maxRows };
+  if (groupBy.length > 0) out.groupBy = groupBy;
+  if (aggregations.length > 0) out.aggregations = aggregations;
+  if (where) out.where = where;
+  return out;
 }
 
 /** Test whether a raw row matches every key/value pair in a group key. */
@@ -302,8 +642,21 @@ export function useReportData(
   report: SpecReport | undefined,
   options: UseReportDataOptions = {},
 ): UseReportDataResult {
-  const { dataSource, runtimeFilter, maxRows = 5000, enabled = true, rows: providedRows } = options;
+  const {
+    dataSource,
+    runtimeFilter,
+    maxRows = 5000,
+    enabled = true,
+    rows: providedRows,
+    preferServerAggregation = true,
+  } = options;
   const [rawRows, setRawRows] = useState<Record<string, unknown>[]>(providedRows ?? EMPTY_ROWS);
+  /**
+   * When the server already aggregated, we cache the bucketed rows here and
+   * the post-fetch grouping is a no-op (the rows already have one entry per
+   * bucket with `${field}__${aggregate}` columns).
+   */
+  const [serverAggregated, setServerAggregated] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
   const fetchSeq = useRef(0);
@@ -312,9 +665,10 @@ export function useReportData(
     if (!report || !enabled) return;
     if (providedRows) {
       setRawRows(providedRows);
+      setServerAggregated(false);
       return;
     }
-    if (!dataSource || typeof dataSource.find !== 'function') {
+    if (!dataSource) {
       setRawRows(EMPTY_ROWS);
       return;
     }
@@ -322,6 +676,26 @@ export function useReportData(
     setLoading(true);
     setError(null);
     try {
+      // Prefer server-side aggregation when the adapter supports it AND the
+      // report actually needs aggregating. Falls back to find() otherwise.
+      const aggregateQuery = preferServerAggregation
+        ? buildAggregateQuery(report, runtimeFilter, maxRows)
+        : null;
+      if (aggregateQuery && typeof dataSource.aggregate === 'function') {
+        const raw = await dataSource.aggregate(report.objectName, aggregateQuery);
+        const extracted = extractRecords(raw);
+        if (seq !== fetchSeq.current) return;
+        setRawRows(extracted);
+        setServerAggregated(true);
+        return;
+      }
+
+      if (typeof dataSource.find !== 'function') {
+        setRawRows(EMPTY_ROWS);
+        setServerAggregated(false);
+        return;
+      }
+
       const filter = mergeFilters(
         report.filter as Record<string, unknown> | undefined,
         runtimeFilter,
@@ -338,27 +712,71 @@ export function useReportData(
       const extracted = extractRecords(raw);
       if (seq !== fetchSeq.current) return; // a newer fetch superseded us
       setRawRows(extracted);
+      setServerAggregated(false);
     } catch (err) {
       if (seq !== fetchSeq.current) return;
       setError(err instanceof Error ? err : new Error(String(err)));
       setRawRows(EMPTY_ROWS);
+      setServerAggregated(false);
     } finally {
       if (seq === fetchSeq.current) setLoading(false);
     }
-  }, [report, enabled, providedRows, dataSource, runtimeFilter, maxRows]);
+  }, [report, enabled, providedRows, dataSource, runtimeFilter, maxRows, preferServerAggregation]);
 
   useEffect(() => {
     void fetchOnce();
   }, [fetchOnce]);
 
   // Derive grouped + aggregated output.
-  const { rows, totals } = useMemo(() => {
-    if (!report) return { rows: [] as ReportRow[], totals: {} as Record<string, unknown> };
-    const groupings = [
-      ...(report.groupingsDown ?? []),
-      ...(report.groupingsAcross ?? []),
-    ];
+  const { rows, totals, pivot } = useMemo(() => {
+    if (!report) return { rows: [] as ReportRow[], totals: {} as Record<string, unknown>, pivot: null };
+    const down = report.groupingsDown ?? [];
+    const across = report.groupingsAcross ?? [];
     const cols = report.columns ?? [];
+    const hasPivot = across.length > 0;
+
+    if (serverAggregated) {
+      // Rows are already bucketed: one input row per group. Synthesize the
+      // ReportRow shape without re-aggregating. For pivot reports we reshape
+      // the bucketed rows into a matrix in-place.
+      const allGroupings = [...down, ...across];
+      const synthesised: ReportRow[] = rawRows.map((r) => {
+        const groupKey: Record<string, unknown> = {};
+        const groupPath: string[] = [];
+        for (const g of allGroupings) {
+          const v = r[g.field];
+          groupKey[g.field] = v;
+          groupPath.push(v == null ? '(null)' : String(v));
+        }
+        const values: Record<string, unknown> = { ...r };
+        for (const g of allGroupings) delete values[g.field];
+        return { groupKey, groupPath, values, count: 1 };
+      });
+      const grandTotals = sumPreAggregated(rawRows, cols);
+      const pivotMatrix = hasPivot
+        ? pivotPreAggregated(rawRows, cols, down, across)
+        : null;
+      // For pivot, expose the down-only row totals as the flat `rows` view
+      // (mirrors the client-side branch's down-only nesting). Without down
+      // groupings, fall through to a single grand-total row.
+      const flatRows = hasPivot
+        ? (pivotMatrix
+            ? pivotMatrix.rowHeaders.map((rh) => ({
+                groupKey: rh.key,
+                groupPath: rh.path,
+                values: pivotMatrix.rowTotals[rh.id] ?? {},
+                count: 1,
+              }))
+            : synthesised)
+        : synthesised;
+      return { rows: flatRows, totals: grandTotals, pivot: pivotMatrix };
+    }
+
+    // Client-side aggregation path (raw rows from find()).
+    // For pivot reports, `rows` still reflects the nested down-only view so
+    // tabular/summary fallback rendering keeps working; the pivot matrix is
+    // the canonical shape for matrix renderers.
+    const groupings = hasPivot ? down : [...down, ...across];
     const grouped = groupings.length > 0
       ? groupAndAggregate(rawRows, groupings, cols)
       : rawRows.map((r) => ({
@@ -368,8 +786,9 @@ export function useReportData(
           count: 1,
         }));
     const grandTotals = aggregateRows(rawRows, cols);
-    return { rows: grouped, totals: grandTotals };
-  }, [report, rawRows]);
+    const pivotMatrix = hasPivot ? pivotRows(rawRows, cols, down, across) : null;
+    return { rows: grouped, totals: grandTotals, pivot: pivotMatrix };
+  }, [report, rawRows, serverAggregated]);
 
   const drillDown = useCallback(
     (groupKey: Record<string, unknown>): Record<string, unknown>[] => {
@@ -383,7 +802,7 @@ export function useReportData(
     [report, rawRows],
   );
 
-  return { rows, rawRows, totals, loading, error, refetch: fetchOnce, drillDown };
+  return { rows, rawRows, totals, pivot, loading, error, refetch: fetchOnce, drillDown };
 }
 
 /* -------------------------------------------------------------------------- */
