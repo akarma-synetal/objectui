@@ -674,16 +674,36 @@ export const ObjectView: React.FC<ObjectViewProps> = ({
     }
 
     switch (viewType) {
-      case 'kanban':
+      case 'kanban': {
+        // Per @objectstack/spec, kanban-specific config lives under view.kanban.*
+        // `groupByField` is the canonical name (spec); `groupField` is a legacy alias.
+        // `kanban.columns` (when provided) lists the FIELDS to render on each card —
+        // these are NOT lanes; lanes are derived from the groupBy field's options.
+        const kanbanCfg = viewOptions.kanban || {};
+        const groupBy =
+          kanbanCfg.groupByField ||
+          kanbanCfg.groupField ||
+          'status';
+        // Card display fields: prefer explicit kanban.columns, fall back to the
+        // view's outer columns. Strip out these from the spread below so they
+        // don't leak into schema.columns (which the kanban component interprets
+        // as LANES).
+        const cardFields: string[] =
+          (Array.isArray(kanbanCfg.columns) && kanbanCfg.columns.length > 0
+            ? kanbanCfg.columns
+            : baseProps.fields) || [];
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const { columns: _kanbanColumns, groupByField: _gbf, groupField: _gf, titleField: _tf, ...restKanban } = kanbanCfg;
         return {
           type: 'object-kanban',
           ...baseProps,
-          groupBy: viewOptions.kanban?.groupField || 'status',
-          groupField: viewOptions.kanban?.groupField || 'status',
-          titleField: viewOptions.kanban?.titleField || 'name',
-          cardFields: baseProps.fields || [],
-          ...(viewOptions.kanban || {}),
+          groupBy,
+          groupField: groupBy,
+          titleField: kanbanCfg.titleField || 'name',
+          cardFields,
+          ...restKanban,
         };
+      }
       case 'calendar':
         return {
           type: 'object-calendar',

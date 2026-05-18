@@ -78,6 +78,54 @@ function objectFilterEntryToAST(entry: any): [string, string, any] | null {
   return [String(field), op, entry.value];
 }
 
+/**
+ * Translate any of the filter shapes accepted by ObjectUI into the AST format
+ * understood by the ObjectStack server's `parseFilterAST()`.
+ *
+ * Accepted inputs:
+ *   - `[{ field, operator, value }, ...]` — ViewFilterRule[] from view configs
+ *   - `[field, op, value]`                — single AST tuple (passed through)
+ *   - `['and'|'or', ...children]`         — logical AST node (passed through)
+ *   - `[[...], [...]]`                    — legacy nested AST (passed through)
+ *   - `{ field: value }` / `{ field: { $op: value } }` — MongoDB-style object
+ *
+ * Returns `undefined` when the input is empty/unrecognized so callers can
+ * skip emitting `?filter=` entirely.
+ */
+function translateFilterToAST(filter: unknown): unknown | undefined {
+  if (filter === undefined || filter === null) return undefined;
+
+  if (Array.isArray(filter)) {
+    if (filter.length === 0) return undefined;
+
+    // Object form: [{ field, operator, value }, ...]
+    const first = filter[0];
+    const isObjectForm = filter.length > 0
+      && typeof first === 'object'
+      && first !== null
+      && !Array.isArray(first)
+      && (first as any).field !== undefined;
+    if (isObjectForm) {
+      const tuples = (filter as any[])
+        .map(entry => objectFilterEntryToAST(entry))
+        .filter((t): t is [string, string, any] => t !== null);
+      if (tuples.length === 0) return undefined;
+      if (tuples.length === 1) return tuples[0];
+      return ['and', ...tuples];
+    }
+
+    // Already AST — pass through.
+    return filter;
+  }
+
+  if (typeof filter === 'object') {
+    if (Object.keys(filter as Record<string, unknown>).length === 0) return undefined;
+    return filter;
+  }
+
+  return undefined;
+}
+
 // Module-level discovery cache. Multiple ObjectStackAdapter instances pointed
 // at the same baseUrl (e.g. ConditionalAuthWrapper's throwaway adapter +
 // AdapterProvider's main adapter) would otherwise each fire `/discovery`. By
@@ -844,13 +892,15 @@ export class ObjectStackAdapter<T = unknown> implements DataSource<T> {
       }
     }
 
-    // Filter — drop empty arrays/objects so we don't send `?filter=%5B%5D`
+    // Filter — translate ViewFilterRule[] (`[{field, operator, value}]`)
+    // and other shapes into AST tuples the server understands. Without this,
+    // server-driven views (e.g. `at_risk_accounts`, `hot_leads`) ship raw
+    // `[{field,operator,value}]` arrays which `parseFilterAST` silently
+    // discards, returning every record instead of the filtered subset.
     if (params.$filter !== undefined && params.$filter !== null) {
-      const isEmpty = Array.isArray(params.$filter)
-        ? params.$filter.length === 0
-        : typeof params.$filter === 'object' && Object.keys(params.$filter).length === 0;
-      if (!isEmpty) {
-        queryParams.set('filter', JSON.stringify(params.$filter));
+      const translated = translateFilterToAST(params.$filter);
+      if (translated !== undefined) {
+        queryParams.set('filter', JSON.stringify(translated));
       }
     }
 
