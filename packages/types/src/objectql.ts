@@ -251,6 +251,92 @@ export interface SpecConditionalFormattingRule {
 export type ConditionalFormattingRule = ObjectUIConditionalFormattingRule | SpecConditionalFormattingRule;
 
 /**
+ * Parameter declaration for a bulk action. Rendered as a single field in the
+ * BulkActionDialog params step. Mirrors a minimal FormField shape so existing
+ * field widgets (text/number/select/lookup/boolean/date) can render it.
+ */
+export interface BulkActionParam {
+  /** Parameter name — passed to the runtime handler as params[name]. */
+  name: string;
+  /** Human-readable label (i18n-resolved upstream). */
+  label?: string;
+  /** Optional help text shown beneath the field. */
+  help?: string;
+  /**
+   * Field widget type — one of the standard FieldWidget names.
+   * Common values: 'text' | 'number' | 'select' | 'lookup' | 'boolean' | 'date' | 'datetime' | 'textarea'.
+   */
+  type: string;
+  /** Whether the param is required to enable the Confirm button. */
+  required?: boolean;
+  /** Default value applied when the dialog opens. */
+  default?: unknown;
+  /** Static options for select-style fields. */
+  options?: Array<{ label: string; value: string | number | boolean }>;
+  /** For lookup widgets — the related object name (e.g. 'user'). */
+  object?: string;
+  /** Placeholder text. */
+  placeholder?: string;
+  /**
+   * Catch-all for extra widget-specific configuration (min/max/step/format/...).
+   * Forwarded to the underlying field renderer as-is.
+   */
+  [key: string]: unknown;
+}
+
+/**
+ * Bulk action operation kind. Determines which `dataSource` method the executor
+ * calls per batch. `custom` defers entirely to `onComplete` event handlers and
+ * is intended for callouts (notify/export/...) that don't mutate records.
+ */
+export type BulkActionOperation = 'update' | 'delete' | 'custom';
+
+/**
+ * Rich, schema-driven definition of a bulk action.
+ *
+ * The grid renders one button per def in the BulkActionBar. Clicking it opens
+ * the BulkActionDialog: params form → confirm → progress → result. The executor
+ * batches selected records via `dataSource.bulk(resource, op, items)`.
+ *
+ * Pair with the legacy `bulkActions: string[]` field — `bulkActionDefs` takes
+ * precedence when both are set, but legacy IDs still render alongside as
+ * fallback buttons.
+ */
+export interface BulkActionDef {
+  /** Stable identifier — also used as the action key in audit logs. */
+  name: string;
+  /** Human-readable label shown on the button + dialog header. */
+  label?: string;
+  /** Lucide icon name (e.g. 'user-check', 'trash-2'); falls back to a generic icon. */
+  icon?: string;
+  /** Visual treatment of the action button. */
+  variant?: 'primary' | 'secondary' | 'danger' | 'ghost' | 'outline';
+  /** Operation kind — drives how the executor mutates records. */
+  operation: BulkActionOperation;
+  /**
+   * For `operation: 'update'`, a static patch applied to every selected record
+   * (merged AFTER user-supplied params). Allows declaring fixed-value mass
+   * updates without exposing them in the params form.
+   */
+  patch?: Record<string, unknown>;
+  /**
+   * Parameters collected from the user before execution. Empty/undefined →
+   * dialog skips the params step and jumps straight to confirm.
+   */
+  params?: BulkActionParam[];
+  /** Confirmation text shown above the affected-record summary. */
+  confirmText?: string;
+  /** Custom Confirm button label (default: "Run"). */
+  confirmLabel?: string;
+  /** Permission check expression — disables the button when it returns falsy. */
+  visible?: string;
+  /** Max records the action will operate on; selection above this is blocked. */
+  maxRecords?: number;
+  /** Batch size for the executor loop (default: 200). */
+  batchSize?: number;
+}
+
+/**
  * ObjectGrid Schema
  * A specialized grid component that automatically fetches and displays data from ObjectQL objects.
  * Implements the grid view type from @objectstack/spec view.zod ListView schema.
