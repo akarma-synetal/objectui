@@ -2,14 +2,14 @@
  * Approvals REST helper.
  *
  * Thin fetch wrapper around the framework's approval endpoints
- * (`/api/v1/data/approvals/*`). Sends cookies for auth.
+ * (`/api/v1/approvals/*`). Sends cookies for auth.
  *
  * Mirrors the shape exposed by `@objectstack/plugin-approvals` /
  * `packages/rest/src/rest-server.ts`.
  */
 
 const SERVER_URL = (import.meta.env.VITE_SERVER_URL || '').replace(/\/$/, '');
-const DATA_BASE = `${SERVER_URL}/api/v1/data`;
+const API_BASE = `${SERVER_URL}/api/v1`;
 
 export interface ApprovalProcessRow {
   id: string;
@@ -49,7 +49,7 @@ export interface ApprovalActionRow {
 }
 
 async function call<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(`${DATA_BASE}${path}`, {
+  const res = await fetch(`${API_BASE}${path}`, {
     credentials: 'include',
     headers: { 'Content-Type': 'application/json', ...(init?.headers || {}) },
     ...init,

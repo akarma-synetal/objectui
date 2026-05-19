@@ -267,7 +267,7 @@ export function AppHeader({
 
   /**
    * M11.C15: poll pending-approvals count for the topbar shortcut badge.
-   * Hits the framework's `/api/v1/data/approvals/requests?status=pending`
+   * Hits the framework's `/api/v1/approvals/requests?status=pending`
    * endpoint with the user's identities (id, email, role:<r>). Degrades
    * silently to zero on 404 (approvals plugin not installed).
    */
@@ -275,7 +275,7 @@ export function AppHeader({
     if (!isApp || !user?.id) return;
     if (approvalsUnavailableRef.current) return;
     const serverUrl = (import.meta.env?.VITE_SERVER_URL || '').replace(/\/$/, '');
-    const base = `${serverUrl}/api/v1/data/approvals/requests`;
+    const base = `${serverUrl}/api/v1/approvals/requests`;
     const identities: string[] = [];
     if (user.id) identities.push(user.id);
     if ((user as any).email) identities.push((user as any).email);
