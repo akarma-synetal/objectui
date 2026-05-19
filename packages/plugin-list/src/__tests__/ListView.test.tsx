@@ -303,7 +303,7 @@ describe('ListView', () => {
     renderWithProvider(<ListView schema={schema} />);
     
     // Default density mode is 'compact'
-    const densityButton = screen.getByLabelText('Density: compact');
+    const densityButton = screen.getByLabelText('Density: Compact');
     expect(densityButton).toBeInTheDocument();
   });
 
@@ -362,7 +362,7 @@ describe('ListView', () => {
     };
 
     renderWithProvider(<ListView schema={schema} />);
-    const densityButton = screen.getByLabelText('Density: compact');
+    const densityButton = screen.getByLabelText('Density: Compact');
     expect(densityButton).toBeInTheDocument();
   });
 
@@ -378,7 +378,7 @@ describe('ListView', () => {
     };
 
     renderWithProvider(<ListView schema={schema} />);
-    const densityButton = screen.getByLabelText('Density: spacious');
+    const densityButton = screen.getByLabelText('Density: Spacious');
     expect(densityButton).toBeInTheDocument();
   });
 
@@ -994,7 +994,7 @@ describe('ListView', () => {
       };
 
       renderWithProvider(<ListView schema={schema} />);
-      const densityButton = screen.getByLabelText('Density: compact');
+      const densityButton = screen.getByLabelText('Density: Compact');
       expect(densityButton).toBeInTheDocument();
     });
 
@@ -1009,7 +1009,7 @@ describe('ListView', () => {
       };
 
       renderWithProvider(<ListView schema={schema} />);
-      const densityButton = screen.getByLabelText('Density: spacious');
+      const densityButton = screen.getByLabelText('Density: Spacious');
       expect(densityButton).toBeInTheDocument();
     });
   });

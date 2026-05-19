@@ -224,6 +224,11 @@ const LIST_DEFAULT_TRANSLATIONS: Record<string, string> = {
   'list.print': 'Print',
   'list.hideFieldsTitle': 'Hide Fields',
   'table.rowsPerPage': 'Rows per page',
+  'grid.toolbar.densityMode': 'Density',
+  'grid.toolbar.densityCompact': 'Compact',
+  'grid.toolbar.densityComfortable': 'Comfortable',
+  'grid.toolbar.densitySpacious': 'Spacious',
+  'grid.toolbar.densityCycleHint': '{{label}} (click to cycle)',
 };
 
 /**
@@ -1670,17 +1675,29 @@ export const ListView = React.forwardRef<ListViewHandle, ListViewProps>(({
           {/* Row Height / Density Mode */}
           {toolbarFlags.showDensity && (() => {
             const DensityIcon = density.mode === 'compact' ? Rows4 : density.mode === 'comfortable' ? Rows3 : Rows2;
+            const modeLabel =
+              density.mode === 'compact'
+                ? t('grid.toolbar.densityCompact', { defaultValue: 'Compact' })
+                : density.mode === 'comfortable'
+                  ? t('grid.toolbar.densityComfortable', { defaultValue: 'Comfortable' })
+                  : t('grid.toolbar.densitySpacious', { defaultValue: 'Spacious' });
+            const densityLabel = t('grid.toolbar.densityMode', { defaultValue: 'Density' });
+            const ariaLabel = `${densityLabel}: ${modeLabel}`;
+            const titleLabel = t('grid.toolbar.densityCycleHint', {
+              defaultValue: '{{label}} (click to cycle)',
+              label: ariaLabel,
+            });
             return (
               <Button
                 variant="ghost"
                 size="sm"
-                aria-label={`Density: ${density.mode}`}
+                aria-label={ariaLabel}
                 className={cn(
                   "h-7 w-7 p-0 text-muted-foreground hover:text-primary transition-colors duration-150",
                   density.mode !== 'compact' && "text-foreground font-medium"
                 )}
                 onClick={density.cycle}
-                title={`Density: ${density.mode} (click to cycle)`}
+                title={titleLabel}
               >
                 <DensityIcon className="h-3.5 w-3.5" />
               </Button>
