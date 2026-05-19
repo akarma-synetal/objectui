@@ -109,18 +109,22 @@ describe('JoinedBlocksEditor', () => {
     );
 
     // First block is expanded by default and uses container (account) fields.
-    // ColumnsEditor lists unselected fields as labels — Industry is already
-    // selected so we look for Annual Revenue.
+    // ColumnsEditor moved the field list into a popup picker — open it for block 0
+    // and assert the unselected field appears (Industry is already selected).
     const card1 = screen.getByTestId('joined-block-0');
-    expect(within(card1).getByText('Annual Revenue')).toBeTruthy();
-    expect(within(card1).queryByText('Email')).toBeNull();
+    fireEvent.click(within(card1).getByTestId('columns-picker-trigger'));
+    expect(within(screen.getByTestId('columns-picker-dialog')).getByText('Annual Revenue')).toBeTruthy();
+    expect(within(screen.getByTestId('columns-picker-dialog')).queryByText('Email')).toBeNull();
+    // Close the dialog before expanding the second block.
+    fireEvent.click(screen.getByTestId('columns-picker-cancel'));
 
     // Expand the second block and verify it sees contact fields only.
     const toggle2 = screen.getByTestId('joined-block-toggle-1');
     fireEvent.click(toggle2);
     const card2 = screen.getByTestId('joined-block-1');
-    expect(within(card2).getByText('Email')).toBeTruthy();
-    expect(within(card2).queryByText('Annual Revenue')).toBeNull();
+    fireEvent.click(within(card2).getByTestId('columns-picker-trigger'));
+    expect(within(screen.getByTestId('columns-picker-dialog')).getByText('Email')).toBeTruthy();
+    expect(within(screen.getByTestId('columns-picker-dialog')).queryByText('Annual Revenue')).toBeNull();
   });
 
   it('falls back to availableFields when the resolver returns undefined', () => {
@@ -140,8 +144,10 @@ describe('JoinedBlocksEditor', () => {
     );
 
     const card = screen.getByTestId('joined-block-0');
-    expect(within(card).getByText('Industry')).toBeTruthy();
-    expect(within(card).getByText('Annual Revenue')).toBeTruthy();
+    fireEvent.click(within(card).getByTestId('columns-picker-trigger'));
+    const dialog = screen.getByTestId('columns-picker-dialog');
+    expect(within(dialog).getByText('Industry')).toBeTruthy();
+    expect(within(dialog).getByText('Annual Revenue')).toBeTruthy();
   });
 
   it('add-block appends a uniquely-named block', () => {

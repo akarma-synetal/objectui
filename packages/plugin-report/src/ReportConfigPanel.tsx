@@ -31,6 +31,7 @@ export {
 } from './specFilterAdapter';
 export type { SpecFilterParseResult } from './specFilterAdapter';
 export { ColumnsEditor, normalizeColumns } from './ColumnsEditor';
+import { normalizeColumns } from './ColumnsEditor';
 export { GroupingsBuilder } from './GroupingsBuilder';
 export { ChartConfig } from './ChartConfig';
 

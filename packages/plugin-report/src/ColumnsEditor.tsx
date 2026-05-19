@@ -7,10 +7,11 @@
  */
 
 import * as React from 'react';
-import { Button, Checkbox } from '@object-ui/components';
-import { Plus, Trash2, ArrowUp, ArrowDown } from 'lucide-react';
+import { Button } from '@object-ui/components';
+import { Trash2, ArrowUp, ArrowDown } from 'lucide-react';
 import type { AvailableField, Translator } from './editorTypes';
 import { NONE } from './editorTypes';
+import { FieldPickerDialog } from './FieldPickerDialog';
 
 // ---------------------------------------------------------------------------
 // ColumnsEditor — ordered list of report columns with per-column metadata
@@ -77,15 +78,21 @@ export function ColumnsEditor({
   const selectedFields = new Set(selected.map((c) => c.field));
   const aggregateOptions = buildAggregateOptions(t);
   const formatOptions = buildFormatOptions(t);
-  const [search, setSearch] = React.useState('');
 
-  const toggleField = (fieldValue: string) => {
-    if (selectedFields.has(fieldValue)) {
-      onChange(selected.filter((c) => c.field !== fieldValue));
-    } else {
-      const def = availableFields.find((af) => af.value === fieldValue);
-      onChange([...selected, { field: fieldValue, label: def?.label, type: def?.type || 'string' }]);
-    }
+  const addFields = (fieldValues: string[]) => {
+    if (fieldValues.length === 0) return;
+    const additions = fieldValues
+      .filter((v) => !selectedFields.has(v))
+      .map((v) => {
+        const def = availableFields.find((af) => af.value === v);
+        return { field: v, label: def?.label, type: def?.type || 'string' };
+      });
+    if (additions.length === 0) return;
+    onChange([...selected, ...additions]);
+  };
+
+  const removeField = (fieldValue: string) => {
+    onChange(selected.filter((c) => c.field !== fieldValue));
   };
 
   const updateCol = (field: string, patch: Partial<ColumnDraft>) => {
@@ -107,14 +114,6 @@ export function ColumnsEditor({
       </div>
     );
   }
-
-  const q = search.trim().toLowerCase();
-  const remaining = availableFields.filter((f) => !selectedFields.has(f.value));
-  const filtered = q
-    ? remaining.filter(
-        (f) => f.label.toLowerCase().includes(q) || f.value.toLowerCase().includes(q),
-      )
-    : remaining;
 
   return (
     <div className="space-y-2 py-1" data-testid="columns-editor">
@@ -163,7 +162,7 @@ export function ColumnsEditor({
                   size="sm"
                   variant="ghost"
                   className="row-span-2 h-7 w-7 p-0 shrink-0 self-start"
-                  onClick={() => toggleField(col.field)}
+                  onClick={() => removeField(col.field)}
                   data-testid={`column-remove-${col.field}`}
                   aria-label="Remove column"
                 >
@@ -210,49 +209,23 @@ export function ColumnsEditor({
           })}
         </div>
       )}
-      <div className="border-t pt-2">
-        <div className="flex items-center justify-between gap-2 mb-1.5">
-          <div className="text-xs text-muted-foreground">
-            {t('report.editor.addColumns', 'Add columns')}
-          </div>
-          <span className="text-[10px] text-muted-foreground">
-            {filtered.length}/{remaining.length}
-          </span>
+      <div className="flex items-center justify-between gap-2 pt-1">
+        <div className="text-xs text-muted-foreground">
+          {selected.length > 0
+            ? t('report.editor.columnsCount', '{n} column(s) selected').replace(
+                '{n}',
+                String(selected.length),
+              )
+            : t('report.editor.columnsEmpty', 'No columns selected yet.')}
         </div>
-        <input
-          type="text"
-          className="h-7 w-full text-xs border rounded px-2 bg-background mb-1.5"
-          placeholder={t('report.editor.searchFields', 'Search fields…')}
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          data-testid="columns-search"
+        <FieldPickerDialog
+          availableFields={availableFields}
+          selectedValues={selected.map((c) => c.field)}
+          onAdd={addFields}
+          t={t}
+          testIdPrefix="columns-picker"
+          triggerLabel={t('report.editor.addColumns', 'Add fields')}
         />
-        <div className="space-y-0.5 max-h-56 overflow-auto border rounded bg-background/50 p-1">
-          {filtered.length === 0 ? (
-            <div className="text-[11px] text-muted-foreground px-1.5 py-2 text-center">
-              {q
-                ? t('report.editor.noMatchingFields', 'No fields match your search.')
-                : t('report.editor.noFieldsAvailable', 'All fields already added.')}
-            </div>
-          ) : (
-            filtered.map((f) => (
-              <label
-                key={f.value}
-                className="flex items-center gap-2 px-1.5 py-1 rounded hover:bg-muted/50 text-xs cursor-pointer"
-              >
-                <Checkbox
-                  checked={false}
-                  onCheckedChange={() => toggleField(f.value)}
-                  data-testid={`column-add-${f.value}`}
-                />
-                <span className="flex-1 truncate" title={f.label}>{f.label}</span>
-                {f.type && (
-                  <span className="text-[10px] text-muted-foreground shrink-0">{f.type}</span>
-                )}
-              </label>
-            ))
-          )}
-        </div>
       </div>
     </div>
   );
