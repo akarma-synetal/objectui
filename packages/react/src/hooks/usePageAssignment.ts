@@ -1,0 +1,121 @@
+/**
+ * ObjectUI
+ * Copyright (c) 2024-present ObjectStack Inc.
+ *
+ * This source code is licensed under the MIT license found in the
+ * LICENSE file in the root directory of this source tree.
+ *
+ * `usePageAssignment` — resolve the record PageSchema that should be rendered
+ * for a given object. Walks the metadata cache exposed by `<MetadataProvider>`
+ * and returns the first PageSchema whose `pageType === 'record'` and `object`
+ * matches the requested name.
+ *
+ * Future work (deferred): recordType / profile / app / formFactor filtering
+ * and priority-based selection. For now we return the first match so that
+ * callers can deterministically fall back to the auto-generated DetailView
+ * when no record Page is authored.
+ */
+
+import { useEffect, useMemo, useState } from 'react';
+import { useMetadata } from '../context/AppShellContext';
+
+export interface PageAssignmentOptions {
+  /** Salesforce-style record type filter (reserved for future use). */
+  recordType?: string;
+  /** User profile filter (reserved for future use). */
+  profile?: string;
+  /** Owning app filter (reserved for future use). */
+  app?: string;
+  /** Form factor filter (reserved for future use). */
+  formFactor?: 'desktop' | 'tablet' | 'phone';
+  /** Optional explicit page name override; bypasses object-based lookup. */
+  pageName?: string;
+}
+
+export interface PageAssignmentResult {
+  /** Resolved PageSchema, or null if no record Page is available. */
+  page: any | null;
+  /** True while the metadata cache is still loading the `page` type. */
+  loading: boolean;
+  /** Loader error, if any. */
+  error: Error | null;
+}
+
+function matchesAssignment(_page: any, _opts: PageAssignmentOptions): boolean {
+  // Placeholder — every page matches until rules-based assignment lands.
+  return true;
+}
+
+/**
+ * Resolve the record PageSchema for the given object name. Returns `null`
+ * when no record Page is configured, signalling the caller to fall back
+ * to the auto-generated detail view.
+ */
+export function usePageAssignment(
+  objectName: string | undefined | null,
+  opts: PageAssignmentOptions = {},
+): PageAssignmentResult {
+  const meta = useMetadata();
+  const [ensured, setEnsured] = useState(false);
+  const [ensureError, setEnsureError] = useState<Error | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!meta.ensureType) {
+      setEnsured(true);
+      return;
+    }
+    meta
+      .ensureType('page')
+      .then(() => {
+        if (!cancelled) {
+          setEnsured(true);
+          setEnsureError(null);
+        }
+      })
+      .catch(err => {
+        if (!cancelled) {
+          setEnsureError(err instanceof Error ? err : new Error(String(err)));
+          setEnsured(true);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [meta]);
+
+  const page = useMemo(() => {
+    if (!objectName && !opts.pageName) return null;
+    const pages: any[] = Array.isArray(meta.pages) ? meta.pages : [];
+    if (!pages.length) return null;
+
+    // Explicit page name override wins.
+    if (opts.pageName) {
+      return pages.find(p => p?.name === opts.pageName) ?? null;
+    }
+
+    const candidates = pages.filter(p => {
+      if (!p) return false;
+      const pageType = p.pageType ?? p.type === 'record' ? p.pageType : p.pageType;
+      const isRecord = (p.pageType ?? (p.type === 'record' ? 'record' : undefined)) === 'record';
+      if (!isRecord) return false;
+      if (p.object !== objectName) return false;
+      return matchesAssignment(p, opts);
+    });
+
+    if (!candidates.length) return null;
+
+    // Stable ordering: respect explicit `priority` if present (higher wins),
+    // otherwise fall back to declaration order.
+    candidates.sort((a, b) => (b?.priority ?? 0) - (a?.priority ?? 0));
+    return candidates[0];
+  }, [meta.pages, objectName, opts.pageName, opts.recordType, opts.profile, opts.app, opts.formFactor]);
+
+  return {
+    page,
+    loading: meta.loading || !ensured,
+    error: ensureError ?? meta.error ?? null,
+  };
+}
+
+export default usePageAssignment;

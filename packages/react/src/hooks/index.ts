@@ -34,3 +34,4 @@ export * from './useGlobalUndo';
 export * from './useDebugMode';
 export * from './useActionEngine';
 export * from './useDataRefresh';
+export * from './usePageAssignment';

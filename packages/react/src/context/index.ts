@@ -4,3 +4,4 @@ export * from './ThemeContext';
 export * from './NotificationContext';
 export * from './DndContext';
 export * from './AppShellContext';
+export * from './RecordContext';

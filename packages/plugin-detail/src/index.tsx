@@ -11,9 +11,23 @@ import { DetailView } from './DetailView';
 import { DetailSection } from './DetailSection';
 import { DetailTabs } from './DetailTabs';
 import { RelatedList } from './RelatedList';
+import { RecordDetailsRenderer } from './renderers/record-details';
+import { RecordRelatedListRenderer } from './renderers/record-related-list';
+import { RecordHighlightsRenderer } from './renderers/record-highlights';
+import { RecordActivityRenderer } from './renderers/record-activity';
+import { RecordChatterRenderer } from './renderers/record-chatter';
+import { RecordPathRenderer } from './renderers/record-path';
 import type { DetailViewSchema } from '@object-ui/types';
 
 export { DetailView, DetailSection, DetailTabs, RelatedList };
+export {
+  RecordDetailsRenderer,
+  RecordRelatedListRenderer,
+  RecordHighlightsRenderer,
+  RecordActivityRenderer,
+  RecordChatterRenderer,
+  RecordPathRenderer,
+};
 export { RecordDetailDrawer, deriveRecordPageHref } from './RecordDetailDrawer';
 export type { RecordDetailDrawerProps } from './RecordDetailDrawer';
 export { SectionGroup } from './SectionGroup';
@@ -152,4 +166,53 @@ ComponentRegistry.register('detail', DetailView, {
     { name: 'recordId', type: 'string', label: 'Record ID' },
     { name: 'fields', type: 'array', label: 'Fields' },
   ]
+});
+
+// ---------------------------------------------------------------------------
+// record:* namespace — Salesforce Lightning-style record page components.
+// These renderers consume RecordContext (provided by app-shell's
+// RecordDetailView) and adapt the spec's `RecordXxxComponentProps` onto the
+// legacy plugin-detail components above.
+// ---------------------------------------------------------------------------
+
+ComponentRegistry.register('record:details', RecordDetailsRenderer, {
+  namespace: 'record',
+  category: 'record',
+  label: 'Record Details',
+  icon: 'FileText',
+});
+
+ComponentRegistry.register('record:related_list', RecordRelatedListRenderer, {
+  namespace: 'record',
+  category: 'record',
+  label: 'Related List',
+  icon: 'List',
+});
+
+ComponentRegistry.register('record:highlights', RecordHighlightsRenderer, {
+  namespace: 'record',
+  category: 'record',
+  label: 'Highlights Panel',
+  icon: 'Star',
+});
+
+ComponentRegistry.register('record:activity', RecordActivityRenderer, {
+  namespace: 'record',
+  category: 'record',
+  label: 'Activity Timeline',
+  icon: 'Activity',
+});
+
+ComponentRegistry.register('record:chatter', RecordChatterRenderer, {
+  namespace: 'record',
+  category: 'record',
+  label: 'Chatter Feed',
+  icon: 'MessageSquare',
+});
+
+ComponentRegistry.register('record:path', RecordPathRenderer, {
+  namespace: 'record',
+  category: 'record',
+  label: 'Path / Stepper',
+  icon: 'GitBranch',
 });
