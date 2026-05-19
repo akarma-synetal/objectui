@@ -395,6 +395,15 @@ const zh = {
     loading: '加载中…',
     failedToLoad: '矩阵报表加载失败：{{message}}',
     needsAcross: '矩阵报表至少需要一个 `groupingsAcross` 字段。',
+    aggregate: {
+      count: '计数',
+      countDistinct: '去重计数',
+      sum: '求和',
+      avg: '平均',
+      min: '最小值',
+      max: '最大值',
+      first: '首个',
+    },
   },
   map: {
     searchLocations: '搜索位置…',

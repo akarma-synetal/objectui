@@ -191,6 +191,33 @@ export const MatrixRenderer: React.FC<MatrixRendererProps> = ({
     return map;
   }, [objectSchema, downGroupings, acrossGroupings, report.objectName, fieldLabel, translateOptions]);
 
+  // Resolve a human-friendly label for each measure column. Falls back to:
+  //   1. col.label (explicitly set by the report author)
+  //   2. <translated field label> + ' · ' + <translated aggregate verb>  (e.g. "Annual Revenue · Sum")
+  //   3. <translated field label>  (when no aggregate is set)
+  //   4. the raw columnKey  (e.g. "annual_revenue__sum") as last-resort
+  const columnLabels = React.useMemo(() => {
+    const map = new Map<string, string>();
+    const fields = objectSchema?.fields ?? {};
+    for (const col of columns) {
+      const key = columnKey(col);
+      if (col.label) {
+        map.set(key, String(col.label));
+        continue;
+      }
+      const def = fields[col.field];
+      const baseLabel = def?.label ?? col.field;
+      const translatedField = fieldLabel(report.objectName, col.field, baseLabel);
+      if (col.aggregate) {
+        const aggLabel = t(`report.aggregate.${col.aggregate}`, col.aggregate);
+        map.set(key, `${translatedField} · ${aggLabel}`);
+      } else {
+        map.set(key, translatedField);
+      }
+    }
+    return map;
+  }, [columns, objectSchema, report.objectName, fieldLabel, t]);
+
   const handleCellClick = React.useCallback(
     (rowHeader: PivotHeader, colHeader: PivotHeader, values?: Record<string, unknown>) => {
       const combinedKey = { ...rowHeader.key, ...colHeader.key };
@@ -303,12 +330,12 @@ export const MatrixRenderer: React.FC<MatrixRendererProps> = ({
                   >
                     {isEmpty
                       ? emptyCellText
-                      : renderCellValues(columns, cellValues!, showMultipleValuesPerCell)}
+                      : renderCellValues(columns, cellValues!, showMultipleValuesPerCell, columnLabels)}
                   </td>
                 );
               })}
               <td style={cellStyle({ total: true })}>
-                {renderCellValues(columns, pivot.rowTotals[rh.id] ?? {}, showMultipleValuesPerCell)}
+                {renderCellValues(columns, pivot.rowTotals[rh.id] ?? {}, showMultipleValuesPerCell, columnLabels)}
               </td>
             </tr>
           ))}
@@ -320,11 +347,11 @@ export const MatrixRenderer: React.FC<MatrixRendererProps> = ({
             </th>
             {pivot.colHeaders.map((ch) => (
               <td key={`coltotal-${ch.id}`} style={cellStyle({ total: true })}>
-                {renderCellValues(columns, pivot.colTotals[ch.id] ?? {}, showMultipleValuesPerCell)}
+                {renderCellValues(columns, pivot.colTotals[ch.id] ?? {}, showMultipleValuesPerCell, columnLabels)}
               </td>
             ))}
             <td style={cellStyle({ total: true, grand: true })}>
-              {renderCellValues(columns, pivot.grandTotal, showMultipleValuesPerCell)}
+              {renderCellValues(columns, pivot.grandTotal, showMultipleValuesPerCell, columnLabels)}
             </td>
           </tr>
         </tfoot>
@@ -337,6 +364,7 @@ function renderCellValues(
   columns: readonly SpecReportColumn[],
   values: Record<string, unknown>,
   multi: boolean,
+  columnLabels?: Map<string, string>,
 ): React.ReactNode {
   if (!columns.length) return FALLBACK_LABEL;
   if (!multi) {
@@ -346,7 +374,7 @@ function renderCellValues(
     <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
       {columns.map((col) => {
         const key = columnKey(col);
-        const label = col.label ?? key;
+        const label = columnLabels?.get(key) ?? col.label ?? key;
         return (
           <div key={key} style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
             <span style={{ color: 'var(--color-muted-foreground, #71717a)' }}>{label}</span>

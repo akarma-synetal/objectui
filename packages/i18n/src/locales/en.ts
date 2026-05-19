@@ -395,6 +395,15 @@ const en = {
     loading: 'Loading…',
     failedToLoad: 'Failed to load matrix: {{message}}',
     needsAcross: 'Matrix report requires at least one `groupingsAcross` field.',
+    aggregate: {
+      count: 'Count',
+      countDistinct: 'Distinct Count',
+      sum: 'Sum',
+      avg: 'Average',
+      min: 'Min',
+      max: 'Max',
+      first: 'First',
+    },
   },
   map: {
     searchLocations: 'Search locations…',
