@@ -568,6 +568,31 @@ export interface DetailViewSchema extends BaseSchema {
     icon?: string;
   }>;
   /**
+   * Optional audit history feed for this record. When provided, a "History" tab
+   * is rendered alongside Details/Related. The renderer treats the data as
+   * read-only and never offers edit/delete affordances.
+   *
+   * Producers are expected to fetch only safe columns (e.g. created_at, action,
+   * user_id, user name) and respect field-level permissions before populating
+   * `entries`.
+   */
+  history?: {
+    /** Pre-fetched audit-log entries, newest first. */
+    entries: Array<{
+      id?: string | number;
+      created_at?: string | number | Date;
+      action?: string;
+      user_id?: string | number | null;
+      user_name?: string | null;
+      summary?: string | null;
+      [extra: string]: unknown;
+    }>;
+    /** Renderer shows a skeleton when true. */
+    loading?: boolean;
+    /** Override the default empty-state copy. */
+    emptyText?: string;
+  };
+  /**
    * When true, auto-discover related lists from objectSchema reference fields
    * (lookup, master_detail) when no explicit `related` is provided.
    * Requires a DataSource with getObjectSchema.

@@ -22,6 +22,7 @@ export { inferDetailColumns, isWideFieldType, applyAutoSpan, applyDetailAutoLayo
 export { useDetailTranslation, DETAIL_DEFAULT_TRANSLATIONS, createSafeTranslationHook } from './useDetailTranslation';
 export { RecordComments } from './RecordComments';
 export { ActivityTimeline } from './ActivityTimeline';
+export { HistoryTimeline } from './HistoryTimeline';
 export { InlineCreateRelated } from './InlineCreateRelated';
 export { RichTextCommentInput } from './RichTextCommentInput';
 export { DiffView } from './DiffView';
@@ -47,6 +48,7 @@ export type { SectionGroupProps } from './SectionGroup';
 export type { HeaderHighlightProps } from './HeaderHighlight';
 export type { RecordCommentsProps } from './RecordComments';
 export type { ActivityTimelineProps, ActivityFilterType } from './ActivityTimeline';
+export type { HistoryTimelineProps, HistoryEntry } from './HistoryTimeline';
 export type { InlineCreateRelatedProps, RelatedFieldDefinition, RelatedRecordOption } from './InlineCreateRelated';
 export type { RichTextCommentInputProps, MentionSuggestion } from './RichTextCommentInput';
 export type { DiffViewProps, DiffFieldType, DiffMode, DiffLine } from './DiffView';

@@ -62,6 +62,8 @@ export function RecordDetailView({ dataSource, objects, onEdit }: RecordDetailVi
   const [recordViewers, setRecordViewers] = useState<PresenceUser[]>([]);
   const [actionRefreshKey, setActionRefreshKey] = useState(0);
   const [childRelatedData, setChildRelatedData] = useState<Record<string, any[]>>({});
+  const [historyEntries, setHistoryEntries] = useState<any[] | null>(null);
+  const [historyLoading, setHistoryLoading] = useState(false);
   const [recordTitle, setRecordTitle] = useState<string | undefined>();
   const objectDef = objects.find((o: any) => o.name === objectName);
 
@@ -278,6 +280,57 @@ export function RecordDetailView({ dataSource, objects, onEdit }: RecordDetailVi
     });
     return () => { cancelled = true; };
   }, [dataSource, pureRecordId, childRelations]);
+
+  // ── Audit history fetch ────────────────────────────────────────────
+  // Loads recent sys_audit_log entries for this record so the DetailView can
+  // render a read-only "History" tab. Gated on three preconditions to keep
+  // the network and the UI quiet for objects that opt out of history:
+  //   1) trackHistory must be explicitly true on the object capabilities
+  //      (the framework default is false, so we never speculatively fetch).
+  //   2) sys_audit_log must be present in the registered objects list — if
+  //      the platform-objects package isn't deployed the tab makes no sense.
+  //   3) The object being viewed must not be sys_audit_log itself, to avoid
+  //      a recursive tab on the audit log detail page.
+  // We request only the safe projection (created_at, action, user_id) so the
+  // browser never receives serialized old_value/new_value payloads, which
+  // can contain restricted fields. Field-level redaction in PR2 will harden
+  // this further once a backend-scoped audit endpoint exists.
+  const historyEnabled = useMemo(() => {
+    if (!objectDef) return false;
+    if (objectDef.name === 'sys_audit_log') return false;
+    if (objectDef.enable?.trackHistory !== true) return false;
+    return objects.some((o: any) => o.name === 'sys_audit_log');
+  }, [objectDef, objects]);
+
+  useEffect(() => {
+    if (!dataSource || !pureRecordId || !objectDef || !historyEnabled) {
+      setHistoryEntries(null);
+      return;
+    }
+    let cancelled = false;
+    setHistoryLoading(true);
+    dataSource
+      .find('sys_audit_log', {
+        $filter: { record_id: pureRecordId, object_name: objectDef.name },
+        $orderby: { created_at: 'desc' },
+        $top: 50,
+        $select: ['id', 'created_at', 'action', 'user_id'],
+      })
+      .then((res: any) => {
+        if (cancelled) return;
+        const items = Array.isArray(res) ? res : res?.data || [];
+        setHistoryEntries(items);
+      })
+      .catch((err: any) => {
+        if (cancelled) return;
+        console.warn('[RecordDetailView] Failed to fetch sys_audit_log:', err);
+        setHistoryEntries([]);
+      })
+      .finally(() => {
+        if (!cancelled) setHistoryLoading(false);
+      });
+    return () => { cancelled = true; };
+  }, [dataSource, pureRecordId, objectDef, historyEnabled]);
 
   // Memoize so the object identity is stable across renders — otherwise
   // any effect that depends on it (e.g. the feed loader below) would
@@ -754,6 +807,12 @@ export function RecordDetailView({ dataSource, objects, onEdit }: RecordDetailVi
       sections,
       autoTabs: true,
       autoDiscoverRelated: true,
+      ...(historyEnabled && {
+        history: {
+          entries: historyEntries ?? [],
+          loading: historyLoading && historyEntries === null,
+        },
+      }),
       ...(related.length > 0 && { related }),
       ...(highlightFields.length > 0 && { highlightFields }),
       ...(sectionGroups && sectionGroups.length > 0 && { sectionGroups }),
@@ -766,7 +825,7 @@ export function RecordDetailView({ dataSource, objects, onEdit }: RecordDetailVi
       }),
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [objectDef?.name, pureRecordId, childRelatedData, actionRefreshKey, appName, navigate, dataSource, t, objectLabel, objects]);
+  }, [objectDef?.name, pureRecordId, childRelatedData, actionRefreshKey, appName, navigate, dataSource, t, objectLabel, objects, historyEnabled, historyEntries, historyLoading]);
 
   if (isLoading) {
     return <SkeletonDetail />;

@@ -38,6 +38,7 @@ import { SectionGroup } from './SectionGroup';
 import { HeaderHighlight } from './HeaderHighlight';
 import { RecordComments } from './RecordComments';
 import { ActivityTimeline } from './ActivityTimeline';
+import { HistoryTimeline } from './HistoryTimeline';
 import { RecordMetaFooter } from './RecordMetaFooter';
 import { SchemaRenderer, useSafeFieldLabel } from '@object-ui/react';
 import { buildExpandFields } from '@object-ui/core';
@@ -916,6 +917,7 @@ export const DetailView: React.FC<DetailViewProps> = ({
         const hasRelated = effectiveRelated.length > 0;
         const hasActivity = !!schema.activities && schema.activities.length > 0;
         const hasDiscussion = !!discussionSlot;
+        const hasHistory = !!schema.history;
         const detailsContent = (
           <div className="space-y-3 sm:space-y-4">
             {/* Section Groups */}
@@ -968,7 +970,7 @@ export const DetailView: React.FC<DetailViewProps> = ({
           </div>
         );
 
-        if (!hasRelated && !hasActivity && !hasDiscussion) {
+        if (!hasRelated && !hasActivity && !hasDiscussion && !hasHistory) {
           // Single-tab case: render just the details content without a tab strip.
           return <div className="mt-2">{detailsContent}</div>;
         }
@@ -1010,6 +1012,21 @@ export const DetailView: React.FC<DetailViewProps> = ({
                   className="relative rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent"
                 >
                   {t('detail.discussion', { defaultValue: 'Discussion' })}
+                </TabsTrigger>
+              )}
+              {hasHistory && (
+                <TabsTrigger
+                  value="history"
+                  className="relative rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent"
+                >
+                  <span className="flex items-center gap-1.5">
+                    {t('detail.history', { defaultValue: 'History' })}
+                    {!schema.history!.loading && schema.history!.entries.length > 0 && (
+                      <Badge variant="secondary" className="text-xs bg-primary/10 text-primary border-transparent">
+                        {schema.history!.entries.length}
+                      </Badge>
+                    )}
+                  </span>
                 </TabsTrigger>
               )}
             </TabsList>
@@ -1059,6 +1076,17 @@ export const DetailView: React.FC<DetailViewProps> = ({
             {hasDiscussion && (
               <TabsContent value="discussion" className="mt-4">
                 {discussionSlot}
+              </TabsContent>
+            )}
+
+            {/* History Tab Content */}
+            {hasHistory && (
+              <TabsContent value="history" className="mt-4">
+                <HistoryTimeline
+                  entries={schema.history!.entries}
+                  loading={schema.history!.loading}
+                  emptyText={schema.history!.emptyText ?? t('detail.historyEmpty', { defaultValue: 'No history yet' })}
+                />
               </TabsContent>
             )}
           </Tabs>
