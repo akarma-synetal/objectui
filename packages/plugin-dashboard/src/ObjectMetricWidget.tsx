@@ -65,6 +65,13 @@ export interface ObjectMetricWidgetProps {
   /** Static suffix appended after the formatted value (e.g. `' /mo'`). */
   suffix?: string;
   /**
+   * When true, the displayed value is `1 - value` (clamped to `[0, 1]`).
+   * Useful for "compliance" / "uptime" style gauges that aggregate the
+   * opposite signal (e.g. `avg(is_violated)` → display "compliance rate").
+   * Only applied when the fetched value is a finite number in `[0, 1]`.
+   */
+  invert?: boolean;
+  /**
    * Drill-down config. When enabled, clicking the metric card opens a
    * drawer (or modal) showing the underlying records that contributed
    * to this metric, filtered by the same `filter` used for aggregation.
@@ -90,6 +97,7 @@ export const ObjectMetricWidget: React.FC<ObjectMetricWidgetProps> = ({
   currency,
   prefix,
   suffix,
+  invert,
   drillDown,
   title,
 }) => {
@@ -227,9 +235,14 @@ export const ObjectMetricWidget: React.FC<ObjectMetricWidgetProps> = ({
   // Determine the display value:
   // - If we fetched a value from the server, use it
   // - If there's no data source, use the fallback (demo/static value)
-  const displayValue = fetchedValue !== null
+  let displayValue: string | number = fetchedValue !== null
     ? fetchedValue
     : (!dataSource ? (fallbackValue ?? '—') : '—');
+
+  // Apply `invert` for compliance-style gauges (display 1 - rate).
+  if (invert && typeof displayValue === 'number' && isFinite(displayValue) && displayValue >= 0 && displayValue <= 1) {
+    displayValue = 1 - displayValue;
+  }
 
   // --- Drill-down --------------------------------------------------------
   // KPI cards drill into the underlying records they aggregate. The drill

@@ -396,6 +396,12 @@ export const DashboardRenderer = forwardRef<HTMLDivElement, DashboardRendererPro
                     fallbackValue: options.fallbackValue ?? options.value,
                     icon: options.icon,
                     description: options.description,
+                    colorVariant: (widget as any).colorVariant,
+                    format: options.format,
+                    currency: options.currency,
+                    prefix: options.prefix,
+                    suffix: options.suffix,
+                    invert: options.invert,
                 };
             }
 
