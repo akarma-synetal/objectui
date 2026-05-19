@@ -271,7 +271,21 @@ function BlockCard({
 export interface JoinedBlocksEditorProps {
   value: unknown;
   onChange: (next: JoinedReportBlock[]) => void;
+  /** Default field list — used when a block has no `objectName` override. */
   availableFields: AvailableField[];
+  /**
+   * Optional resolver returning the field list for a given object name.
+   * Used to source the correct fields when a block overrides `objectName`.
+   * If omitted or returns `undefined`, the block uses `availableFields`.
+   */
+  getFieldsForObject?: (objectName: string | undefined) => AvailableField[] | undefined;
+  /**
+   * The container report's `objectName`. When a block omits its own
+   * `objectName`, the editor resolves fields against this name (when a
+   * resolver is provided) so the field list matches the runtime behaviour
+   * of `JoinedReportRenderer` (which inherits the container's object).
+   */
+  containerObjectName?: string;
   t: Translator;
 }
 
@@ -292,9 +306,17 @@ export function JoinedBlocksEditor({
   value,
   onChange,
   availableFields,
+  getFieldsForObject,
+  containerObjectName,
   t,
 }: JoinedBlocksEditorProps) {
   const blocks = normalizeBlocks(value);
+
+  const resolveFields = (block: JoinedReportBlock): AvailableField[] => {
+    if (!getFieldsForObject) return availableFields;
+    const target = block.objectName ?? containerObjectName;
+    return getFieldsForObject(target) ?? availableFields;
+  };
 
   const counts: Record<string, number> = {};
   for (const b of blocks) {
@@ -335,7 +357,7 @@ export function JoinedBlocksEditor({
           block={block}
           index={idx}
           total={blocks.length}
-          availableFields={availableFields}
+          availableFields={resolveFields(block)}
           t={t}
           duplicateName={Boolean(block.name) && (counts[block.name] ?? 0) > 1}
           onChange={(next) => updateBlock(idx, next)}

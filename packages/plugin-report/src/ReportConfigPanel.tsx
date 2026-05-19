@@ -871,6 +871,7 @@ export function ChartConfig({
 function buildReportSchema(
   availableFields: AvailableField[],
   t: Translator,
+  getFieldsForObject?: (objectName: string | undefined) => AvailableField[] | undefined,
 ): ConfigPanelSchema {
   const isSummary = (d: Record<string, any>) => d.type === 'summary';
   const isMatrix = (d: Record<string, any>) => d.type === 'matrix';
@@ -1007,11 +1008,13 @@ function buildReportSchema(
           key: 'blocks',
           label: t('report.editor.blocks'),
           type: 'custom',
-          render: (value: any, onChange: (v: any) => void) => (
+          render: (value: any, onChange: (v: any) => void, draft: Record<string, any>) => (
             <JoinedBlocksEditor
               value={value}
               onChange={onChange}
               availableFields={availableFields}
+              getFieldsForObject={getFieldsForObject}
+              containerObjectName={draft?.objectName}
               t={t}
             />
           ),
@@ -1116,6 +1119,13 @@ export interface ReportConfigPanelProps {
   onSave: (config: Record<string, any>) => void;
   onFieldChange?: (key: string, value: any, draft: Record<string, any>) => void;
   availableFields?: AvailableField[];
+  /**
+   * Optional resolver that returns the field list for a given object name.
+   * Used by `JoinedBlocksEditor` so blocks with an `objectName` override
+   * pick their fields from the right object schema instead of the container's.
+   * If omitted, blocks fall back to `availableFields`.
+   */
+  getFieldsForObject?: (objectName: string | undefined) => AvailableField[] | undefined;
 }
 
 export function ReportConfigPanel({
@@ -1125,6 +1135,7 @@ export function ReportConfigPanel({
   onSave,
   onFieldChange,
   availableFields,
+  getFieldsForObject,
 }: ReportConfigPanelProps) {
   const { t } = useTranslation();
   const tt: Translator = React.useCallback(
@@ -1136,7 +1147,10 @@ export function ReportConfigPanel({
   );
 
   const fields: AvailableField[] = availableFields ?? [];
-  const schema = React.useMemo(() => buildReportSchema(fields, tt), [fields, tt]);
+  const schema = React.useMemo(
+    () => buildReportSchema(fields, tt, getFieldsForObject),
+    [fields, tt, getFieldsForObject],
+  );
 
   const source = React.useMemo(() => config ?? {}, [config]);
   const { draft, isDirty, updateField, discard } = useConfigDraft<Record<string, any>>(source);

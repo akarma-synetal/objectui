@@ -50,31 +50,35 @@ export function ReportView({ dataSource }: { dataSource?: DataSource }) {
   const [reportRuntimeData, setReportRuntimeData] = useState<any[]>([]);
   const [dataLoading, setDataLoading] = useState(false);
 
+  const getFieldsForObject = useCallback(
+    (objName: string | undefined) => {
+      if (!objName || !objects?.length) return undefined;
+      const objDef = objects.find((o: any) => o.name === objName);
+      if (!objDef?.fields) return undefined;
+      const fields = objDef.fields;
+      if (Array.isArray(fields)) {
+        return fields.map((f: any) =>
+          typeof f === 'string'
+            ? { value: f, label: f, type: 'text' }
+            : { value: f.name, label: f.label || f.name, type: f.type || 'text' },
+        );
+      }
+      return Object.entries(fields).map(([name, def]: [string, any]) => ({
+        value: name,
+        label: def.label || name,
+        type: def.type || 'text',
+      }));
+    },
+    [objects],
+  );
+
   // Derive available fields from object schema for filter/sort editors
   // Uses live editSchema when available to respond to objectName changes
   const availableFields = useMemo(() => {
     const liveReport = editSchema || reportData;
     const objName = liveReport?.objectName || liveReport?.dataSource?.object || liveReport?.dataSource?.resource;
-    if (objName && objects?.length) {
-      const objDef = objects.find((o: any) => o.name === objName);
-      if (objDef?.fields) {
-        const fields = objDef.fields;
-        if (Array.isArray(fields)) {
-          return fields.map((f: any) =>
-            typeof f === 'string'
-              ? { value: f, label: f, type: 'text' }
-              : { value: f.name, label: f.label || f.name, type: f.type || 'text' },
-          );
-        }
-        return Object.entries(fields).map(([name, def]: [string, any]) => ({
-          value: name,
-          label: def.label || name,
-          type: def.type || 'text',
-        }));
-      }
-    }
-    return FALLBACK_FIELDS;
-  }, [editSchema, reportData, objects]);
+    return getFieldsForObject(objName) ?? FALLBACK_FIELDS;
+  }, [editSchema, reportData, getFieldsForObject]);
 
   // ---- Save helper --------------------------------------------------------
   const saveSchema = useCallback(
@@ -458,6 +462,7 @@ export function ReportView({ dataSource }: { dataSource?: DataSource }) {
              onSave={handleReportConfigSave}
              onFieldChange={handleReportFieldChange}
              availableFields={availableFields}
+             getFieldsForObject={getFieldsForObject}
            />
          </Suspense>
 
