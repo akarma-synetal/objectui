@@ -40,8 +40,6 @@ import {
   LogOut,
   User as UserIcon,
   Boxes,
-  Bell,
-  CheckSquare,
 } from 'lucide-react';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
@@ -50,7 +48,8 @@ import { PresenceAvatars, type PresenceUser } from '@object-ui/collaboration';
 import { ModeToggle } from './ModeToggle';
 import { LocaleSwitcher } from './LocaleSwitcher';
 import { ConnectionStatus } from './ConnectionStatus';
-import { ActivityFeed, type ActivityItem } from './ActivityFeed';
+import type { ActivityItem } from './ActivityFeed';
+import { InboxPopover } from './InboxPopover';
 import { AppSwitcher } from './AppSwitcher';
 import type { ConnectionState } from '@object-ui/data-objectstack';
 import { useAdapter } from '../providers/AdapterProvider';
@@ -570,101 +569,21 @@ export function AppHeader({
           </Button>
         </div>
 
-        {/* Group 2: Notifications & Help */}
+        {/* Group 2: Inbox (notifications + approvals + activity) & Help */}
         <div data-topbar-group className="flex items-center gap-0.5 shrink-0">
-          {/* Activity Feed */}
-          <div className="hidden sm:flex shrink-0">
-            <ActivityFeed activities={activeActivities} />
-          </div>
-
-          {/* M11.C15: Approvals Inbox shortcut */}
-          {pendingApprovalsCount >= 0 && (
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8 relative shrink-0"
-              aria-label={t('sidebar.approvals', { defaultValue: 'Approvals' })}
-              title={t('sidebar.approvals', { defaultValue: 'Approvals' }) as string}
-              onClick={() => {
-                const app = currentAppName ?? params.appName;
-                navigate(app ? `/apps/${app}/system/approvals` : '/apps/setup/system/approvals');
-              }}
-            >
-              <CheckSquare className="h-4 w-4" />
-              {pendingApprovalsCount > 0 && (
-                <span className="absolute -top-0.5 -right-0.5 h-4 min-w-[16px] rounded-full bg-amber-500 text-[10px] leading-4 text-white text-center px-1">
-                  {pendingApprovalsCount > 9 ? '9+' : pendingApprovalsCount}
-                </span>
-              )}
-            </Button>
-          )}
-
-          {/* M10.8: Notifications Bell */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8 relative shrink-0"
-                aria-label={t('sidebar.notifications', { defaultValue: 'Notifications' })}
-              >
-                <Bell className="h-4 w-4" />
-                {unreadCount > 0 && (
-                  <span className="absolute -top-0.5 -right-0.5 h-4 min-w-[16px] rounded-full bg-red-500 text-[10px] leading-4 text-white text-center px-1">
-                    {unreadCount > 9 ? '9+' : unreadCount}
-                  </span>
-                )}
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-80 max-h-96 overflow-auto">
-              <DropdownMenuLabel className="flex items-center justify-between">
-                <span>{t('sidebar.notifications', { defaultValue: 'Notifications' })}</span>
-                {unreadCount > 0 && (
-                  <button
-                    type="button"
-                    onClick={(e) => { e.preventDefault(); markAllRead(); }}
-                    className="text-xs text-muted-foreground hover:text-foreground"
-                  >
-                    {t('notifications.markAllRead', { defaultValue: 'Mark all read' })}
-                  </button>
-                )}
-              </DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              {notifications.length === 0 ? (
-                <div className="px-3 py-6 text-sm text-muted-foreground text-center">
-                  {t('notifications.empty', { defaultValue: 'No notifications' })}
-                </div>
-              ) : (
-                notifications.map((n) => (
-                  <DropdownMenuItem
-                    key={n.id}
-                    className={`flex flex-col items-start gap-1 ${n.is_read ? '' : 'bg-accent/40'}`}
-                    onSelect={() => {
-                      markNotificationRead(n.id);
-                      if (n.source_object && n.source_id) {
-                        // Navigate to the related record; relative to /apps/<currentApp> if any.
-                        const app = currentAppName ?? params.appName;
-                        const target = app
-                          ? `/apps/${app}/${n.source_object}/${n.source_id}`
-                          : `/objects/${n.source_object}/${n.source_id}`;
-                        navigate(target);
-                      }
-                    }}
-                  >
-                    <div className="text-sm font-medium leading-tight">{n.title}</div>
-                    {n.body && (
-                      <div className="text-xs text-muted-foreground line-clamp-2">{n.body}</div>
-                    )}
-                    {n.created_at && (
-                      <div className="text-[10px] text-muted-foreground">
-                        {new Date(n.created_at).toLocaleString()}
-                      </div>
-                    )}
-                  </DropdownMenuItem>
-                ))
-              )}
-            </DropdownMenuContent>
-          </DropdownMenu>
+          {/*
+           * UX P0-2: a single bell consolidates what used to be three
+           * separate top-bar buttons (ActivityFeed, Approvals, Notifications).
+           * Reduces visual noise and removes the duplicated "9+" badges.
+           */}
+          <InboxPopover
+            notifications={notifications}
+            unreadCount={unreadCount}
+            pendingApprovalsCount={pendingApprovalsCount}
+            activities={activeActivities}
+            onMarkAllRead={markAllRead}
+            onMarkRead={markNotificationRead}
+          />
 
           {/* Help */}
           <Button
@@ -680,19 +599,8 @@ export function AppHeader({
           </Button>
         </div>
 
-        {/* Group 3: Preferences & account */}
-        <div data-topbar-group className="flex items-center gap-0.5 shrink-0">
-          {/* Theme toggle */}
-          <div className="hidden sm:flex shrink-0">
-            <ModeToggle />
-          </div>
-
-          {/* Language switcher */}
-          <div className="hidden sm:flex shrink-0">
-            <LocaleSwitcher />
-          </div>
-
-        {/* User Profile + Organization switcher */}
+        {/* Group 3: Account (theme + lang moved into avatar dropdown) */}
+        <div data-topbar-group className="flex items-center gap-0.5 shrink-0">        {/* User Profile + Organization switcher */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0 rounded-full">
@@ -738,6 +646,31 @@ export function AppHeader({
                 {t('sidebar.settings', { defaultValue: 'Settings' })}
               </DropdownMenuItem>
             </DropdownMenuGroup>
+
+            {/*
+             * UX P0-2: theme + locale switchers used to be standalone
+             * top-bar buttons. They're rarely-used preferences so they live
+             * under the avatar dropdown now, freeing top-bar real estate.
+             * Each is rendered as a non-interactive label + the existing
+             * control so the dropdown handles outside-click / esc cleanly.
+             */}
+            <DropdownMenuSeparator />
+            <DropdownMenuLabel className="text-[11px] font-normal text-muted-foreground uppercase tracking-wide px-2">
+              {t('user.preferences', { defaultValue: 'Preferences' })}
+            </DropdownMenuLabel>
+            <div className="flex items-center justify-between px-2 py-1.5 text-sm">
+              <span className="text-foreground/80">
+                {t('user.theme', { defaultValue: 'Theme' })}
+              </span>
+              <ModeToggle />
+            </div>
+            <div className="flex items-center justify-between px-2 py-1.5 text-sm">
+              <span className="text-foreground/80">
+                {t('user.language', { defaultValue: 'Language' })}
+              </span>
+              <LocaleSwitcher />
+            </div>
+
             {isAuthEnabled && (
               <>
                 <DropdownMenuSeparator />
