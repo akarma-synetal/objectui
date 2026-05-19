@@ -9,15 +9,21 @@
 import React from 'react';
 import { Button } from '@object-ui/components';
 import { Trash2, CheckSquare, X } from 'lucide-react';
+import { LazyIcon, toKebabIconName } from '@object-ui/components';
+import type { BulkActionDef } from '@object-ui/types';
 import { formatActionLabel } from './RowActionMenu';
 
 export interface BulkActionBarProps {
   /** Array of selected row records */
   selectedRows: any[];
-  /** Bulk/batch action identifiers */
+  /** Bulk/batch action identifiers (legacy string list) */
   actions: string[];
-  /** Callback when a bulk action button is clicked */
+  /** Rich action definitions — takes precedence over string ids when both present. */
+  actionDefs?: BulkActionDef[];
+  /** Callback when a legacy string-id bulk action button is clicked */
   onAction?: (action: string, selectedRows: any[]) => void;
+  /** Callback when a rich-def bulk action button is clicked. */
+  onActionDef?: (def: BulkActionDef, selectedRows: any[]) => void;
   /** Callback to clear selection */
   onClearSelection?: () => void;
 }
@@ -25,12 +31,15 @@ export interface BulkActionBarProps {
 export const BulkActionBar: React.FC<BulkActionBarProps> = ({
   selectedRows,
   actions,
+  actionDefs,
   onAction,
+  onActionDef,
   onClearSelection,
 }) => {
-  if (!actions || actions.length === 0 || selectedRows.length === 0) {
-    return null;
-  }
+  const hasDefs = Array.isArray(actionDefs) && actionDefs.length > 0;
+  const hasLegacy = Array.isArray(actions) && actions.length > 0;
+  if (!hasDefs && !hasLegacy) return null;
+  if (selectedRows.length === 0) return null;
 
   return (
     <div
@@ -44,7 +53,28 @@ export const BulkActionBar: React.FC<BulkActionBarProps> = ({
         {selectedRows.length} {selectedRows.length === 1 ? 'item' : 'items'} selected
       </span>
       <div className="flex items-center gap-1.5 ml-3">
-        {actions.map(action => {
+        {hasDefs && actionDefs!.map(def => {
+          const isDestructive = def.variant === 'danger' || def.operation === 'delete';
+          const iconName = def.icon ? toKebabIconName(def.icon) : null;
+          return (
+            <Button
+              key={def.name}
+              variant={isDestructive ? 'destructive' : 'outline'}
+              size="sm"
+              className="h-7 px-2.5 text-xs gap-1.5"
+              onClick={() => onActionDef?.(def, selectedRows)}
+              data-testid={`bulk-action-${def.name}`}
+            >
+              {iconName ? (
+                <LazyIcon name={iconName} className="h-3 w-3" />
+              ) : isDestructive ? (
+                <Trash2 className="h-3 w-3" />
+              ) : null}
+              {def.label ?? formatActionLabel(def.name)}
+            </Button>
+          );
+        })}
+        {!hasDefs && hasLegacy && actions.map(action => {
           const actionStr = String(action).toLowerCase();
           const isDestructive = actionStr.includes('delete') || actionStr.includes('remove') || actionStr.includes('destroy');
           const Icon = isDestructive ? Trash2 : null;

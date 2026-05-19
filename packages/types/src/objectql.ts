@@ -704,6 +704,14 @@ export interface ObjectGridSchema extends BaseSchema {
   bulkSpecActions?: string[];
 
   /**
+   * Rich bulk action definitions. When provided, takes precedence over
+   * `bulkActions` / `bulkSpecActions` (string-id lists) by opening a
+   * BulkActionDialog that collects params, confirms, and executes via
+   * dataSource.bulk(...) with progress + result reporting.
+   */
+  bulkActionDefs?: BulkActionDef[];
+
+  /**
    * Empty state configuration shown when no data is available.
    * Aligned with @objectstack/spec ListViewSchema.emptyState.
    */
@@ -1378,6 +1386,9 @@ export interface NamedListView {
   /** Bulk action identifiers */
   bulkActions?: string[];
 
+  /** Rich bulk action definitions — see BulkActionDef. */
+  bulkActionDefs?: BulkActionDef[];
+
   /** View sharing configuration */
   sharing?: {
     visibility?: 'private' | 'team' | 'organization' | 'public';
@@ -1833,6 +1844,12 @@ export interface ListViewSchema extends BaseSchema {
    * Aligned with @objectstack/spec ListViewSchema.bulkActions.
    */
   bulkActions?: string[];
+
+  /**
+   * Rich bulk action definitions. See BulkActionDef. Takes precedence over
+   * `bulkActions` (string-id list) by opening the BulkActionDialog flow.
+   */
+  bulkActionDefs?: BulkActionDef[];
 
   /**
    * Enable virtual scrolling for large datasets.

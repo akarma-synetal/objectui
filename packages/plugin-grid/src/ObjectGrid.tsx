@@ -40,6 +40,8 @@ import { GroupRow } from './GroupRow';
 import { useColumnSummary } from './useColumnSummary';
 import { RowActionMenu, formatActionLabel } from './components/RowActionMenu';
 import { BulkActionBar } from './components/BulkActionBar';
+import { BulkActionDialog } from './components/BulkActionDialog';
+import type { BulkActionDef } from '@object-ui/types';
 
 // Default English fallback translations for the grid
 const GRID_DEFAULT_TRANSLATIONS: Record<string, string> = {
@@ -1337,13 +1339,16 @@ export const ObjectGrid: React.FC<ObjectGridProps> = ({
   // wired by the consumer). This gives every list a multi-select + delete UX
   // out of the box without forcing each view JSON to declare bulkActions.
   const explicitBulkActions = schema.batchActions ?? (schema as any).bulkActions;
+  const bulkActionDefs: BulkActionDef[] = Array.isArray((schema as any).bulkActionDefs)
+    ? (schema as any).bulkActionDefs
+    : [];
   const effectiveBulkActions: string[] =
     explicitBulkActions && explicitBulkActions.length > 0
       ? explicitBulkActions
-      : canDelete && onBulkDelete
+      : canDelete && onBulkDelete && bulkActionDefs.length === 0
         ? ['delete']
         : [];
-  const hasBulkActions = effectiveBulkActions.length > 0;
+  const hasBulkActions = effectiveBulkActions.length > 0 || bulkActionDefs.length > 0;
   let selectionMode: 'none' | 'single' | 'multiple' | boolean = false;
   if (schema.selection?.type) {
     selectionMode = schema.selection.type === 'none' ? false : schema.selection.type;
@@ -1365,6 +1370,26 @@ export const ObjectGrid: React.FC<ObjectGridProps> = ({
       return;
     }
     executeAction({ type: action, params: { records: rows } });
+  };
+
+  // Rich BulkActionDef dispatcher — opens the BulkActionDialog (params →
+  // confirm → progress → result). When the user closes the dialog after a
+  // run, refresh data so the grid reflects mutations.
+  const [activeBulkDef, setActiveBulkDef] = useState<BulkActionDef | null>(null);
+  const [activeBulkRows, setActiveBulkRows] = useState<any[]>([]);
+  const dispatchBulkActionDef = (def: BulkActionDef, rows: any[]) => {
+    setActiveBulkDef(def);
+    setActiveBulkRows(rows);
+  };
+  const handleBulkDialogClose = (result?: unknown) => {
+    setActiveBulkDef(null);
+    setActiveBulkRows([]);
+    if (result) {
+      // Clear selection after a successful run so the toolbar resets.
+      setSelectedRows([]);
+      // Trigger refresh via the same path used by single-record mutations.
+      setRefreshKey(k => k + 1);
+    }
   };
 
   // Determine pagination settings (support both new and legacy formats)
@@ -1887,6 +1912,18 @@ export const ObjectGrid: React.FC<ObjectGridProps> = ({
     />
   );
 
+  // Rendered BulkActionDialog (shared across both render branches).
+  const bulkDialog = (
+    <BulkActionDialog
+      def={activeBulkDef}
+      rows={activeBulkRows}
+      open={!!activeBulkDef}
+      onClose={handleBulkDialogClose}
+      dataSource={dataSource as any}
+      resource={schema.objectName ?? ''}
+    />
+  );
+
   // For split mode, wrap the grid in the ResizablePanelGroup
   if (navigation.isOverlay && navigation.mode === 'split') {
     return (
@@ -1901,7 +1938,9 @@ export const ObjectGrid: React.FC<ObjectGridProps> = ({
               <BulkActionBar
                 selectedRows={selectedRows}
                 actions={effectiveBulkActions ?? []}
+                actionDefs={bulkActionDefs}
                 onAction={dispatchBulkAction}
+                onActionDef={dispatchBulkActionDef}
                 onClearSelection={() => setSelectedRows([])}
               />
             </>
@@ -1910,6 +1949,7 @@ export const ObjectGrid: React.FC<ObjectGridProps> = ({
           {(record) => renderRecordDetail(record)}
         </NavigationOverlay>
         {exportProgressDialog}
+        {bulkDialog}
       </>
     );
   }
@@ -1929,7 +1969,9 @@ export const ObjectGrid: React.FC<ObjectGridProps> = ({
       <BulkActionBar
         selectedRows={selectedRows}
         actions={effectiveBulkActions ?? []}
+        actionDefs={bulkActionDefs}
         onAction={dispatchBulkAction}
+        onActionDef={dispatchBulkActionDef}
         onClearSelection={() => setSelectedRows([])}
       />
       {navigation.isOverlay && (
@@ -1941,6 +1983,7 @@ export const ObjectGrid: React.FC<ObjectGridProps> = ({
         </NavigationOverlay>
       )}
       {exportProgressDialog}
+      {bulkDialog}
     </div>
   );
 };

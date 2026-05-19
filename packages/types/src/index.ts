@@ -335,6 +335,9 @@ export type {
   ViewNavigationConfig,
   ViewTabBarConfig,
   ObjectQLComponentSchema,
+  BulkActionDef,
+  BulkActionParam,
+  BulkActionOperation,
 } from './objectql';
 
 // ============================================================================
