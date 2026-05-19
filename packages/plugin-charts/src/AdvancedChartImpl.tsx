@@ -73,7 +73,7 @@ const TW_COLORS: Record<string, string> = {
 const resolveColor = (color: string) => TW_COLORS[color] || color;
 
 export interface AdvancedChartImplProps {
-  chartType?: 'bar' | 'horizontal-bar' | 'line' | 'area' | 'pie' | 'donut' | 'radar' | 'scatter' | 'funnel' | 'combo';
+  chartType?: 'bar' | 'column' | 'horizontal-bar' | 'line' | 'area' | 'pie' | 'donut' | 'radar' | 'scatter' | 'funnel' | 'combo';
   data?: Array<Record<string, any>>;
   config?: ChartConfig;
   xAxisKey?: string;
@@ -92,7 +92,7 @@ export interface AdvancedChartImplProps {
  * This component is lazy-loaded to avoid including Recharts in the initial bundle
  */
 export default function AdvancedChartImpl({
-  chartType = 'bar',
+  chartType: rawChartType = 'bar',
   data: rawData = [],
   config = {},
   xAxisKey = 'name',
@@ -100,6 +100,9 @@ export default function AdvancedChartImpl({
   className = '',
   onChartClick,
 }: AdvancedChartImplProps) {
+  // Normalize 'column' → 'bar' (Recharts BarChart is already vertical).
+  // 'column' is the spec-level alias for vertical bars; 'horizontal-bar' stays as-is.
+  const chartType = rawChartType === 'column' ? 'bar' : rawChartType;
   const data = Array.isArray(rawData) ? rawData : [];
   const [isMobile, setIsMobile] = React.useState(false);
 

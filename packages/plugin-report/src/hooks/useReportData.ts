@@ -814,7 +814,7 @@ export function useReportData(
     [report, rawRows],
   );
 
-  return { rows, rawRows, totals, pivot, loading, error, refetch: fetchOnce, drillDown };
+  return { rows, rawRows, totals, pivot, serverAggregated, loading, error, refetch: fetchOnce, drillDown };
 }
 
 /* -------------------------------------------------------------------------- */

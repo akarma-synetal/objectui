@@ -386,22 +386,21 @@ export function ReportView({ dataSource }: { dataSource?: DataSource }) {
 
   // Use live-edited schema for preview (persists after closing panel until metadata refreshes)
   const previewReport = editSchema || reportData;
-  // Spec-shaped reports (matrix, groupingsAcross, or dateGranularity in any
-  // grouping) carry semantics the legacy ReportViewer doesn't understand —
-  // route them through the new ReportRenderer dispatcher which knows how to
-  // pivot and bucket. Plain `tabular`/`summary` reports still use the
-  // legacy viewer so its chart/section pipeline keeps working.
-  const groupingsAll = [
-    ...(previewReport?.groupingsDown ?? []),
-    ...(previewReport?.groupingsAcross ?? []),
-  ];
+  // Route any object-backed spec report (matrix/joined/tabular/summary) through
+  // the spec ReportRenderer dispatcher. It handles aggregation, charts, KPIs
+  // and drill protocol end-to-end. The legacy ReportViewer is only used as a
+  // last resort for fully-legacy schemas that lack `objectName` (e.g. inline
+  // `fields` + `data` arrays from older app code).
   const useSpecRenderer = Boolean(
     previewReport &&
       previewReport.objectName &&
       (previewReport.type === 'matrix' ||
         previewReport.type === 'joined' ||
+        previewReport.type === 'summary' ||
+        previewReport.type === 'tabular' ||
+        previewReport.type === undefined ||
         (Array.isArray(previewReport.groupingsAcross) && previewReport.groupingsAcross.length > 0) ||
-        groupingsAll.some((g: any) => g && g.dateGranularity)),
+        Array.isArray(previewReport.columns)),
   );
   const reportForViewer = mapReportForViewer(previewReport);
   const viewerSchema = {

@@ -23,7 +23,9 @@ import type {
   DataSource,
 } from '@object-ui/types';
 import type { ActionRunner } from '@object-ui/core';
+import { SchemaRenderer } from '@object-ui/react';
 import { useReportData, columnKey } from './hooks/useReportData';
+import { buildChartData } from './buildChartData';
 import { buildDrillAction, type DrillOpenIn, type DrillView } from './drill';
 
 /** Map a spec aggregate to the ObjectGrid aggregations enum. */
@@ -111,7 +113,7 @@ export const SpecReportGrid: React.FC<SpecReportGridProps> = ({
   className,
 }) => {
   const reportType = report.type ?? 'tabular';
-  const { rawRows, totals, loading, error, drillDown } = useReportData(report, {
+  const { rawRows, rows: aggregatedRows, totals, serverAggregated, loading, error, drillDown } = useReportData(report, {
     dataSource: dataSource as { find?: (r: string, p?: Record<string, unknown>) => Promise<unknown> } | undefined,
     rows: providedRows,
     runtimeFilter,
@@ -127,7 +129,38 @@ export const SpecReportGrid: React.FC<SpecReportGridProps> = ({
   }
 
   // Build ObjectGrid schema dynamically from the spec.
+  //
+  // When the data is server-aggregated (rawRows are already buckets, e.g.
+  // `{stage, amount__sum, probability__avg}`), the raw-row columns config
+  // (name/account/close_date/...) does not match the row shape, so the grid
+  // would render empty. Switch to a "bucket grid" schema: groupings + the
+  // aliased aggregate columns. This matches what `useReportData` actually
+  // emits in server-aggregated mode.
   const gridSchema: ObjectGridSchema = React.useMemo(() => {
+    if (serverAggregated) {
+      const groupingCols = (report.groupingsDown ?? []).map((g) => ({
+        field: g.field,
+        label: g.field.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()),
+      }));
+      const measureCols = (report.columns ?? [])
+        .filter((c) => c.aggregate)
+        .map((c) => {
+          const alias = columnKey(c);
+          const baseLabel =
+            (typeof c.label === 'string' ? c.label : null) ?? c.field;
+          return {
+            field: alias,
+            label: `${baseLabel} (${c.aggregate})`,
+            ...(c.format ? { format: c.format } : {}),
+          };
+        });
+      return {
+        type: 'object-grid',
+        objectName: report.objectName,
+        columns: [...groupingCols, ...measureCols] as ObjectGridSchema['columns'],
+      };
+    }
+
     const grouping = reportType === 'summary' ? buildGrouping(report.groupingsDown) : undefined;
     const aggregations = (report.columns ?? [])
       .map((col) => {
@@ -143,7 +176,7 @@ export const SpecReportGrid: React.FC<SpecReportGridProps> = ({
       grouping,
       aggregations: aggregations.length > 0 ? aggregations : undefined,
     };
-  }, [report, reportType]);
+  }, [report, reportType, serverAggregated]);
 
   // Inject pre-fetched rows so ObjectGrid skips its own fetch.
   const gridData = rawRows;
@@ -175,6 +208,19 @@ export const SpecReportGrid: React.FC<SpecReportGridProps> = ({
 
   const wantsRowClick = !!onDrillDown || !!actionRunner;
 
+  // Build a "KPI strip" from totals + aggregating columns. Only render when
+  // we actually have aggregated measures — never push an empty section.
+  const aggregatingCols = (report.columns ?? []).filter((c) => c.aggregate);
+  const hasKpis =
+    reportType === 'summary' && aggregatingCols.length > 0 && totals && Object.keys(totals).length > 0;
+
+  // Build chart schema from aggregated buckets (only for summary + chart configured).
+  const chartSchema = React.useMemo(() => {
+    if (reportType !== 'summary') return null;
+    if (!report.chart || !report.chart.type) return null;
+    return buildChartData({ report, rows: aggregatedRows }).schema;
+  }, [report, aggregatedRows, reportType]);
+
   return (
     <div className={className} data-testid="spec-report-grid" aria-busy={loading || undefined}>
       {error ? (
@@ -182,28 +228,42 @@ export const SpecReportGrid: React.FC<SpecReportGridProps> = ({
           {error.message}
         </div>
       ) : null}
-      {reportType === 'summary' && totals && Object.keys(totals).length > 0 ? (
+      {hasKpis ? (
         <div
-          data-testid="spec-report-totals"
+          data-testid="spec-report-kpis"
+          className="grid gap-3 mb-4"
           style={{
-            display: 'flex',
-            gap: 16,
-            padding: '8px 12px',
-            background: 'rgb(248 250 252)',
-            borderBottom: '1px solid rgb(226 232 240)',
-            fontSize: 13,
-            fontWeight: 600,
+            gridTemplateColumns: `repeat(${Math.min(aggregatingCols.length, 4)}, minmax(0, 1fr))`,
           }}
         >
-          <span>Total:</span>
-          {(report.columns ?? [])
-            .filter((c) => c.aggregate)
-            .map((c) => (
-              <span key={columnKey(c)}>
-                {c.aggregate}({c.field}) ={' '}
-                {String(totals[columnKey(c)] ?? '')}
-              </span>
-            ))}
+          {aggregatingCols.map((c) => {
+            const key = columnKey(c);
+            const value = totals[key];
+            const label =
+              (typeof c.label === 'string' ? c.label : null) ?? `${c.aggregate}(${c.field})`;
+            const display =
+              typeof value === 'number'
+                ? value.toLocaleString(undefined, { maximumFractionDigits: 2 })
+                : String(value ?? '—');
+            return (
+              <div
+                key={key}
+                className="rounded-lg border bg-card p-4"
+                data-testid={`spec-report-kpi-${key}`}
+              >
+                <div className="text-xs uppercase tracking-wide text-muted-foreground">{label}</div>
+                <div className="text-2xl font-semibold mt-1">{display}</div>
+              </div>
+            );
+          })}
+        </div>
+      ) : null}
+      {chartSchema ? (
+        <div className="mb-4" data-testid="spec-report-chart">
+          {chartSchema.title ? (
+            <div className="text-sm font-medium mb-2">{chartSchema.title}</div>
+          ) : null}
+          <SchemaRenderer schema={chartSchema as never} />
         </div>
       ) : null}
       <ObjectGrid
