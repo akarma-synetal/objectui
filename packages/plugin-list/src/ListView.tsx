@@ -1117,6 +1117,7 @@ export const ListView = React.forwardRef<ListViewHandle, ListViewProps>(({
           ...(schema.rowActions ? { rowActions: schema.rowActions } : {}),
           ...((schema as any).rowActionDefs ? { rowActionDefs: (schema as any).rowActionDefs } : {}),
           ...(schema.bulkActions ? { batchActions: schema.bulkActions } : {}),
+          ...((schema as any).bulkActionDefs ? { bulkActionDefs: (schema as any).bulkActionDefs } : {}),
           ...(schema.options?.grid || {}),
         };
       case 'kanban':

@@ -55,6 +55,7 @@ interface ListViewSpec {
   // P1.1 additions
   rowActions?: string[];
   bulkActions?: string[];
+  bulkActionDefs?: any[];
   virtualScroll?: boolean;
   conditionalFormatting?: Array<{ condition: string; style: Record<string, string> }>;
   inlineEdit?: boolean;
@@ -154,6 +155,7 @@ export const bridgeListView: BridgeFn<ListViewSpec> = (
   // P1.1 — Spec Protocol Alignment additions
   if (spec.rowActions) node.rowActions = spec.rowActions;
   if (spec.bulkActions) node.bulkActions = spec.bulkActions;
+  if (spec.bulkActionDefs) node.bulkActionDefs = spec.bulkActionDefs;
   if (spec.virtualScroll != null) node.virtualScroll = spec.virtualScroll;
   if (spec.conditionalFormatting) node.conditionalFormatting = spec.conditionalFormatting;
   if (spec.inlineEdit != null) node.inlineEdit = spec.inlineEdit;

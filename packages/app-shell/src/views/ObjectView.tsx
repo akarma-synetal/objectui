@@ -125,7 +125,7 @@ function toSysViewPayload(
         }
     }
     const EXTRA_CONFIG_KEYS = [
-        'bulkActions', 'rowActions', 'pagination', 'navigation',
+        'bulkActions', 'bulkActionDefs', 'rowActions', 'pagination', 'navigation',
         'emptyState', 'exportOptions', 'rowHeight',
         'isPinned', 'isDefault', 'visibility', 'sortOrder',
         'showSort',
@@ -1596,6 +1596,7 @@ export function ObjectView({ dataSource, objects, onEdit, externalRefreshKey }: 
                     Array.isArray(a?.locations) && a.locations.includes('list_item'))
                 : []),
             bulkActions: viewDef.bulkActions ?? listSchema.bulkActions,
+            bulkActionDefs: (viewDef as any).bulkActionDefs ?? (listSchema as any).bulkActionDefs,
             sharing: viewDef.sharing ?? listSchema.sharing,
             addRecord: viewDef.addRecord ?? listSchema.addRecord,
             conditionalFormatting: viewDef.conditionalFormatting ?? listSchema.conditionalFormatting,
