@@ -13,7 +13,7 @@
  * It automatically creates form fields based on object metadata.
  */
 
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import type { ObjectFormSchema, FormField, FormSchema, DataSource } from '@object-ui/types';
 import { SchemaRenderer, useSafeFieldLabel } from '@object-ui/react';
 import { mapFieldTypeToFormType, buildValidationRules, evaluateCondition, formatFileSize } from '@object-ui/fields';
@@ -64,9 +64,37 @@ export interface ObjectFormProps {
  * ```
  */
 export const ObjectForm: React.FC<ObjectFormProps> = ({
-  schema,
+  schema: rawSchema,
   dataSource,
 }) => {
+  const perms = usePermissions();
+  // Apply field-level permissions to the entire schema (sections + flat
+  // fields) BEFORE dispatching to any variant. This way all variants
+  // (Tabbed/Wizard/Split/Drawer/Modal/Simple) transparently honour FLS.
+  // Fail-open when no provider mounted (perms.isLoaded false).
+  const schema = useMemo<ObjectFormProps['schema']>(() => {
+    if (!perms?.isLoaded) return rawSchema;
+    const gateField = (f: any) => {
+      if (!f?.name) return f;
+      const canRead = perms.checkField(rawSchema.objectName, f.name, 'read');
+      if (!canRead) return null;
+      const canWrite = perms.checkField(rawSchema.objectName, f.name, 'write');
+      if (!canWrite && rawSchema.mode !== 'view') {
+        return { ...f, readOnly: true, disabled: true };
+      }
+      return f;
+    };
+    const filterArr = (arr?: any[]) =>
+      Array.isArray(arr) ? arr.map(gateField).filter(Boolean) : arr;
+    return {
+      ...rawSchema,
+      fields: filterArr(rawSchema.fields as any[]),
+      sections: rawSchema.sections?.map((s: any) => ({
+        ...s,
+        fields: filterArr(s.fields),
+      })),
+    } as ObjectFormProps['schema'];
+  }, [rawSchema, perms]);
   const { sectionLabel } = useSafeFieldLabel();
   const tSec = (s: any) =>
     s?.name ? sectionLabel(schema.objectName, s.name, s.label || s.name) : s?.label;
@@ -215,10 +243,6 @@ const SimpleObjectForm: React.FC<ObjectFormProps> = ({
   // a permissive default (isLoaded:false, checkField always true) so we
   // remain backward-compatible.
   const perms = usePermissions();
-  if (typeof window !== 'undefined') {
-    (window as any).__formPermsDbg = { isLoaded: perms?.isLoaded, objectName: schema.objectName, check: perms?.checkField?.(schema.objectName, 'annual_revenue', 'read') };
-    console.warn('[ObjectForm-DBG]', (window as any).__formPermsDbg);
-  }
   const applyFieldPerms = useCallback(
     (fields: FormField[]): FormField[] => {
       if (!perms?.isLoaded) return fields;

@@ -31,6 +31,7 @@ import { SchemaRenderer, useSafeFieldLabel } from '@object-ui/react';
 import { mapFieldTypeToFormType, buildValidationRules } from '@object-ui/fields';
 import { applyAutoLayout, inferModalSize } from './autoLayout';
 import { sanitizeFormData } from './sanitize';
+import { usePermissions } from '@object-ui/permissions';
 
 export interface ModalFormSectionConfig {
   name?: string;
@@ -131,6 +132,28 @@ export const ModalForm: React.FC<ModalFormProps> = ({
   className,
 }) => {
   const { fieldLabel } = useSafeFieldLabel();
+  const perms = usePermissions();
+  // FLS gate: drop non-readable fields, disable non-editable ones.
+  // Fail-open when no PermissionProvider mounted (perms.isLoaded false).
+  const applyFieldPerms = useCallback(
+    (fields: FormField[]): FormField[] => {
+      if (!perms?.isLoaded) return fields;
+      const out: FormField[] = [];
+      for (const f of fields) {
+        if (!f?.name) { out.push(f); continue; }
+        const canRead = perms.checkField(schema.objectName, f.name, 'read');
+        if (!canRead) continue;
+        const canWrite = perms.checkField(schema.objectName, f.name, 'write');
+        if (!canWrite && schema.mode !== 'view') {
+          out.push({ ...f, readOnly: true, disabled: true });
+        } else {
+          out.push(f);
+        }
+      }
+      return out;
+    },
+    [perms, schema.objectName, schema.mode],
+  );
   const [objectSchema, setObjectSchema] = useState<any>(null);
   const [formFields, setFormFields] = useState<FormField[]>([]);
   const [formData, setFormData] = useState<Record<string, any>>({});
@@ -308,7 +331,17 @@ export const ModalForm: React.FC<ModalFormProps> = ({
       }
 
       let result;
-      const payload = sanitizeFormData(data, objectSchema);
+      let payload = sanitizeFormData(data, objectSchema);
+      // FLS defence-in-depth: strip non-editable fields from payload.
+      // react-hook-form retains state for unmounted/disabled fields; we
+      // must never trust the client to omit them.
+      if (perms?.isLoaded) {
+        const stripped: Record<string, any> = {};
+        for (const k of Object.keys(payload)) {
+          if (perms.checkField(schema.objectName, k, 'write')) stripped[k] = payload[k];
+        }
+        payload = stripped;
+      }
       if (schema.mode === 'create') {
         result = await dataSource.create(schema.objectName, payload);
       } else if (schema.mode === 'edit' && schema.recordId) {
@@ -328,7 +361,7 @@ export const ModalForm: React.FC<ModalFormProps> = ({
     } finally {
       setIsSubmitting(false);
     }
-  }, [schema, dataSource, objectSchema]);
+  }, [schema, dataSource, objectSchema, perms]);
 
   // Handle cancel
   const handleCancel = useCallback(() => {
@@ -404,7 +437,7 @@ export const ModalForm: React.FC<ModalFormProps> = ({
                 <SchemaRenderer
                   schema={{
                     ...baseFormSchema,
-                    fields: buildSectionFields(section),
+                    fields: applyFieldPerms(buildSectionFields(section)),
                     // Actions are in the sticky footer, not inside sections
                   }}
                 />
@@ -426,7 +459,7 @@ export const ModalForm: React.FC<ModalFormProps> = ({
       <SchemaRenderer
         schema={{
           ...baseFormSchema,
-          fields: layoutResult.fields,
+          fields: applyFieldPerms(layoutResult.fields),
           columns: layoutResult.columns,
           ...(containerFieldClass ? { fieldContainerClass: containerFieldClass } : {}),
         }}
