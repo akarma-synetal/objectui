@@ -18,6 +18,7 @@ import { Database, Users } from 'lucide-react';
 import { MetadataPanel, useMetadataInspector } from './MetadataInspector';
 import { SkeletonDetail } from '../skeletons';
 import { ManagedByBanner } from '../components/ManagedByBanner';
+import { resolveCrudAffordances } from '../utils/crudAffordances';
 import { ActionConfirmDialog, type ConfirmDialogState } from './ActionConfirmDialog';
 import { ActionParamDialog, type ParamDialogState } from './ActionParamDialog';
 import { useRecordBreadcrumbTitle } from '../context/NavigationContext';
@@ -750,13 +751,19 @@ export function RecordDetailView({ dataSource, objects, onEdit }: RecordDetailVi
       };
     });
 
+    const affordances = resolveCrudAffordances(objectDef as any);
     return {
       type: 'detail-view' as const,
       objectName: objectDef.name,
       resourceId: pureRecordId,
       showBack: true,
       onBack: 'history',
-      showEdit: true,
+      // Hide the Edit button for objects whose lifecycle isn't user-managed
+      // (approval requests, audit logs, better-auth tables, …).  The
+      // underlying form is also disabled when `managedBy !== 'platform'`
+      // (see plugin-form/ObjectForm), so even if a stray Edit URL is
+      // visited the inputs render read-only.
+      showEdit: affordances.edit,
       title: objectDef.label,
       primaryField,
       sections,

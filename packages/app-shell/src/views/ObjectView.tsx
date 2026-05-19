@@ -33,6 +33,7 @@ import { ViewConfigPanel } from './ViewConfigPanel';
 import { CreateViewDialog } from './CreateViewDialog';
 import { PageHeader } from '../layout/PageHeader';
 import { ManagedByBanner } from '../components/ManagedByBanner';
+import { resolveCrudAffordances } from '../utils/crudAffordances';
 import { useObjectActions } from '../hooks/useObjectActions';
 import { useObjectTranslation, useObjectLabel } from '@object-ui/i18n';
 import { usePermissions } from '@object-ui/permissions';
@@ -525,6 +526,17 @@ export function ObjectView({ dataSource, objects, onEdit, externalRefreshKey }: 
 
     // Refresh trigger — bumped after view CRUD or external data mutations.
     const [refreshKey, setRefreshKey] = useState(0);
+
+    // Resolve which generic CRUD affordances belong in the toolbar for
+    // this object's lifecycle bucket (`managedBy`).  config tables show
+    // New/Edit/Delete but no CSV Import; system / append-only / better-auth
+    // hide the lot — those flows go through purpose-built actions on the
+    // source record (e.g. "Submit for Approval" on an Opportunity creates
+    // an `sys_approval_request`).  Permissions still gate the buttons.
+    const affordances = useMemo(
+      () => resolveCrudAffordances(objectDef as any),
+      [objectDef],
+    );
 
     // Propagate externally-triggered refreshes (e.g. global ModalForm submit)
     // into our internal refreshKey so list/data effects re-run.
@@ -1617,18 +1629,21 @@ export function ObjectView({ dataSource, objects, onEdit, externalRefreshKey }: 
                  actions={
                    <>
                     {/* Primary action - always visible */}
-                    {can(objectDef.name, 'create') && (
+                    {affordances.create && can(objectDef.name, 'create') && (
                     <Button size="sm" onClick={actions.create} className="shadow-none gap-1.5 sm:gap-2 h-8 sm:h-9">
                         <Plus className="h-4 w-4" />
                         <span className="hidden sm:inline">{t('console.objectView.new')}</span>
                     </Button>
                     )}
 
-                    {/* Data import — gated by create permission, since
-                        importing rows is logically a bulk-create operation.
-                        Wires the schema's field map into the existing
-                        ImportWizard from @object-ui/plugin-grid. */}
-                    {can(objectDef.name, 'create') && (
+                    {/* Data import — gated by create permission AND the
+                        object's affordance matrix.  `config` / `system` /
+                        `append-only` / `better-auth` buckets hide this
+                        button — config envelopes have nested JSON that
+                        doesn't round-trip through CSV, and the other
+                        three are not user-authored at all.  See
+                        `resolveCrudAffordances()` for the matrix. */}
+                    {affordances.import && can(objectDef.name, 'create') && (
                     <Button
                         size="sm"
                         variant="outline"
