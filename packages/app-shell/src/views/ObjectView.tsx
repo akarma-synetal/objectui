@@ -60,6 +60,37 @@ const VIEW_TYPE_ICONS: Record<string, ComponentType<{ className?: string }>> = {
 const FALLBACK_USER = { id: 'current-user', name: 'Demo User' };
 
 /**
+ * Replace built-in tokens (e.g. `{current_user_id}`) inside a filter array
+ * with concrete values. Filters from platform-shipped `listViews` or saved
+ * `sys_view` rows may declare context-sensitive predicates like
+ * `{ field: 'submitter_id', operator: 'equals', value: '{current_user_id}' }`
+ * — those need to be substituted before the query reaches the API.
+ *
+ * Recognised tokens:
+ *   • `{current_user_id}` → the authenticated user's id
+ *
+ * Returns a deep-cloned copy with substitutions applied. Non-array input
+ * is returned unchanged.
+ */
+function substituteFilterTokens(filter: any, currentUserId: string | undefined): any {
+    if (!Array.isArray(filter)) return filter;
+    const sub = (v: any): any => {
+        if (typeof v === 'string') {
+            if (v === '{current_user_id}') return currentUserId ?? v;
+            return v;
+        }
+        if (Array.isArray(v)) return v.map(sub);
+        if (v && typeof v === 'object') {
+            const out: any = {};
+            for (const k of Object.keys(v)) out[k] = sub(v[k]);
+            return out;
+        }
+        return v;
+    };
+    return filter.map(sub);
+}
+
+/**
  * Translate a NamedListView spec object (shape: `type`, `label`, `columns`,
  * `filter`, `sort`, `kanban`/`chart`/`gantt`/... sub-blocks, `bulkActions`,
  * `rowActions`, `pagination`, ...) into the `sys_view` storage shape that the
