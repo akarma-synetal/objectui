@@ -384,6 +384,18 @@ const zh = {
     noData: '暂无图表数据',
     loading: '图表加载中...',
   },
+  report: {
+    rowTotal: '行合计',
+    columnTotal: '列合计',
+    grandTotal: '总计',
+    rowsLabel: '行',
+    columnsLabel: '列',
+    allLabel: '(全部)',
+    emptyLabel: '(空)',
+    loading: '加载中…',
+    failedToLoad: '矩阵报表加载失败：{{message}}',
+    needsAcross: '矩阵报表至少需要一个 `groupingsAcross` 字段。',
+  },
   map: {
     searchLocations: '搜索位置…',
     locationDetails: '位置详情',

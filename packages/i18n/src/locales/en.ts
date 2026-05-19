@@ -384,6 +384,18 @@ const en = {
     noData: 'No chart data available',
     loading: 'Loading chart...',
   },
+  report: {
+    rowTotal: 'Row Total',
+    columnTotal: 'Column Total',
+    grandTotal: 'Grand Total',
+    rowsLabel: 'Row',
+    columnsLabel: 'Column',
+    allLabel: '(All)',
+    emptyLabel: '(Empty)',
+    loading: 'Loading…',
+    failedToLoad: 'Failed to load matrix: {{message}}',
+    needsAcross: 'Matrix report requires at least one `groupingsAcross` field.',
+  },
   map: {
     searchLocations: 'Search locations…',
     locationDetails: 'Location Details',

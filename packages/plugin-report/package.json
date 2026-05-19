@@ -28,11 +28,13 @@
     "@object-ui/components": "workspace:*",
     "@object-ui/core": "workspace:*",
     "@object-ui/fields": "workspace:*",
+    "@object-ui/i18n": "workspace:*",
     "@object-ui/plugin-grid": "workspace:*",
     "@object-ui/react": "workspace:*",
     "@object-ui/types": "workspace:*",
     "clsx": "^2.1.1",
     "lucide-react": "^1.16.0",
+    "react-i18next": "^17.0.7",
     "tailwind-merge": "^3.6.0"
   },
   "peerDependencies": {

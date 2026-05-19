@@ -23,10 +23,13 @@
  */
 
 import * as React from 'react';
+import { useTranslation } from 'react-i18next';
 import type { ActionRunner } from '@object-ui/core';
+import { useSafeFieldLabel } from '@object-ui/i18n';
 import type {
   SpecReport,
   SpecReportColumn,
+  SpecReportGrouping,
   DataSource,
 } from '@object-ui/types';
 import { useReportData, columnKey, type PivotHeader } from './hooks/useReportData';
@@ -65,9 +68,48 @@ function formatCellValue(v: unknown): string {
   return String(v);
 }
 
-function HeaderLabel({ path, fallback }: { path: string[]; fallback: string }) {
-  if (path.length === 0) return <>{fallback}</>;
-  return <>{path.join(' / ')}</>;
+/**
+ * Per-grouping-field metadata used to translate raw values (e.g. `'best_case'`)
+ * to display labels (e.g. `'Best Case'`) — i18n-aware.
+ */
+interface GroupingMeta {
+  /** Translated field label (used in the matrix corner cell). */
+  fieldLabel: string;
+  /** value → translated label map; only present for `select` / `status` fields. */
+  options?: Map<string, string>;
+}
+
+function formatPathSegment(rawValue: string | undefined, meta: GroupingMeta | undefined, emptyLabel: string): string {
+  if (rawValue === undefined || rawValue === null || rawValue === '' || rawValue === '(null)') {
+    return emptyLabel;
+  }
+  const options = meta?.options;
+  if (options) {
+    const label = options.get(rawValue);
+    if (label !== undefined && label !== '') return label;
+  }
+  return rawValue;
+}
+
+function HeaderLabel({
+  header,
+  groupings,
+  metaByField,
+  fallback,
+  emptyLabel,
+}: {
+  header: PivotHeader;
+  groupings: readonly SpecReportGrouping[];
+  metaByField: Map<string, GroupingMeta>;
+  fallback: string;
+  emptyLabel: string;
+}) {
+  if (header.path.length === 0) return <>{fallback}</>;
+  const segments = header.path.map((seg, i) => {
+    const field = groupings[i]?.field;
+    return formatPathSegment(seg, field ? metaByField.get(field) : undefined, emptyLabel);
+  });
+  return <>{segments.join(' / ')}</>;
 }
 
 export const MatrixRenderer: React.FC<MatrixRendererProps> = ({
@@ -91,6 +133,64 @@ export const MatrixRenderer: React.FC<MatrixRendererProps> = ({
   const columns = report.columns ?? [];
   const showMultipleValuesPerCell = columns.length > 1;
 
+  // ---- I18n-aware label resolution ---------------------------------------
+  // Matrix headers and row/column segments must show *labels* (e.g. "Best Case"),
+  // not raw select values (e.g. "best_case"). We fetch the object schema once,
+  // then build a per-grouping-field translation table using the same `useObjectLabel`
+  // wiring the rest of the framework uses.
+  const { fieldLabel, translateOptions } = useSafeFieldLabel();
+  const { t } = useTranslation();
+  const emptyLabel = t('report.emptyLabel', '(Empty)');
+  const allFallback = t('report.allLabel', '(All)');
+  const [objectSchema, setObjectSchema] = React.useState<{ fields?: Record<string, any> } | null>(null);
+
+  React.useEffect(() => {
+    const ds = dataSource as any;
+    if (!ds || typeof ds.getObjectSchema !== 'function' || !report.objectName) return;
+    let cancelled = false;
+    ds.getObjectSchema(report.objectName)
+      .then((schema: any) => {
+        if (!cancelled) setObjectSchema(schema ?? null);
+      })
+      .catch(() => {
+        // Schema is best-effort — without it we fall back to raw values.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [dataSource, report.objectName]);
+
+  const downGroupings = report.groupingsDown ?? [];
+  const acrossGroupings = report.groupingsAcross ?? [];
+
+  const metaByField = React.useMemo(() => {
+    const map = new Map<string, GroupingMeta>();
+    const fields = objectSchema?.fields ?? {};
+    const all = [...downGroupings, ...acrossGroupings];
+    for (const g of all) {
+      const def = fields[g.field];
+      const baseLabel = def?.label ?? g.field;
+      const translatedLabel = fieldLabel(report.objectName, g.field, baseLabel);
+
+      // Only translate values when the underlying field is a discrete picklist.
+      // Date-granularity buckets ("2026-Q1"), numbers, ids, etc. should pass
+      // through untouched.
+      const isPicklist = def?.type === 'select' || def?.type === 'status';
+      let options: Map<string, string> | undefined;
+      if (isPicklist && Array.isArray(def?.options) && def.options.length > 0) {
+        const translated = translateOptions(report.objectName, g.field, def.options);
+        options = new Map();
+        for (const opt of translated) {
+          if (opt && opt.value !== undefined && opt.value !== null) {
+            options.set(String(opt.value), opt.label != null ? String(opt.label) : String(opt.value));
+          }
+        }
+      }
+      map.set(g.field, { fieldLabel: translatedLabel, options });
+    }
+    return map;
+  }, [objectSchema, downGroupings, acrossGroupings, report.objectName, fieldLabel, translateOptions]);
+
   const handleCellClick = React.useCallback(
     (rowHeader: PivotHeader, colHeader: PivotHeader, values?: Record<string, unknown>) => {
       const combinedKey = { ...rowHeader.key, ...colHeader.key };
@@ -112,25 +212,28 @@ export const MatrixRenderer: React.FC<MatrixRendererProps> = ({
   if (error) {
     return (
       <div className={className} role="alert" data-testid="matrix-error">
-        Failed to load matrix: {error.message}
+        {t('report.failedToLoad', 'Failed to load matrix: {{message}}', { message: error.message })}
       </div>
     );
   }
 
   if (!pivot) {
-    // Either still loading the first time, or the report has no groupingsAcross.
     return (
       <div className={className} aria-busy={loading || undefined} data-testid="matrix-empty">
         {loading
-          ? 'Loading…'
-          : 'Matrix report requires at least one `groupingsAcross` field.'}
+          ? t('report.loading', 'Loading…')
+          : t('report.needsAcross', 'Matrix report requires at least one `groupingsAcross` field.')}
       </div>
     );
   }
 
   const cellInteractive = !!onCellClick || !!actionRunner;
-  const rowLabel = (report.groupingsDown ?? []).map((g) => g.field).join(' / ') || 'Row';
-  const colLabel = (report.groupingsAcross ?? []).map((g) => g.field).join(' / ') || 'Column';
+  const rowLabel =
+    downGroupings.map((g) => metaByField.get(g.field)?.fieldLabel ?? g.field).join(' / ') ||
+    t('report.rowsLabel', 'Row');
+  const colLabel =
+    acrossGroupings.map((g) => metaByField.get(g.field)?.fieldLabel ?? g.field).join(' / ') ||
+    t('report.columnsLabel', 'Column');
 
   return (
     <div
@@ -154,11 +257,17 @@ export const MatrixRenderer: React.FC<MatrixRendererProps> = ({
             </th>
             {pivot.colHeaders.map((ch) => (
               <th key={`col-${ch.id}`} scope="col" style={cellStyle({ header: true })}>
-                <HeaderLabel path={ch.path} fallback="(All)" />
+                <HeaderLabel
+                  header={ch}
+                  groupings={acrossGroupings}
+                  metaByField={metaByField}
+                  fallback={allFallback}
+                  emptyLabel={emptyLabel}
+                />
               </th>
             ))}
             <th scope="col" style={cellStyle({ header: true, total: true })}>
-              Row Total
+              {t('report.rowTotal', 'Row Total')}
             </th>
           </tr>
         </thead>
@@ -166,7 +275,13 @@ export const MatrixRenderer: React.FC<MatrixRendererProps> = ({
           {pivot.rowHeaders.map((rh) => (
             <tr key={`row-${rh.id}`}>
               <th scope="row" style={cellStyle({ header: true })}>
-                <HeaderLabel path={rh.path} fallback="(All)" />
+                <HeaderLabel
+                  header={rh}
+                  groupings={downGroupings}
+                  metaByField={metaByField}
+                  fallback={allFallback}
+                  emptyLabel={emptyLabel}
+                />
               </th>
               {pivot.colHeaders.map((ch) => {
                 const cellValues = pivot.cells[rh.id]?.[ch.id];
@@ -201,7 +316,7 @@ export const MatrixRenderer: React.FC<MatrixRendererProps> = ({
         <tfoot>
           <tr>
             <th scope="row" style={cellStyle({ header: true, total: true })}>
-              Column Total
+              {t('report.columnTotal', 'Column Total')}
             </th>
             {pivot.colHeaders.map((ch) => (
               <td key={`coltotal-${ch.id}`} style={cellStyle({ total: true })}>

@@ -2165,6 +2165,9 @@ importers:
       '@object-ui/fields':
         specifier: workspace:*
         version: link:../fields
+      '@object-ui/i18n':
+        specifier: workspace:*
+        version: link:../i18n
       '@object-ui/plugin-grid':
         specifier: workspace:*
         version: link:../plugin-grid
@@ -2186,6 +2189,9 @@ importers:
       react-dom:
         specifier: 19.2.6
         version: 19.2.6(react@19.2.6)
+      react-i18next:
+        specifier: ^17.0.7
+        version: 17.0.8(i18next@26.2.0(typescript@6.0.3))(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(typescript@6.0.3)
       tailwind-merge:
         specifier: ^3.6.0
         version: 3.6.0
