@@ -935,13 +935,20 @@ export function ObjectView({ dataSource, objects, onEdit, externalRefreshKey }: 
         });
     }, []);
 
-    const paramCollectionHandler = useCallback((params: ActionParamDef[]) => {
+    const paramCollectionHandler = useCallback((params: ActionParamDef[], action?: any) => {
         return new Promise<Record<string, any> | null>((resolve) => {
+            // List_item actions stash the row record under params._rowRecord
+            // (see ObjectGrid → onRowAction). Pull it out so resolveActionParams
+            // can pre-fill `defaultFromRow` params from the row's current values.
+            const row = action?.params && !Array.isArray(action.params)
+                ? (action.params as Record<string, any>)._rowRecord
+                : undefined;
             const resolved = resolveActionParams(params as any, {
                 objectName: objectName || objectDef?.name || '',
                 objects: objects || [],
                 fieldLabel,
                 fieldOptionLabel,
+                row,
             });
             setParamState({ open: true, params: resolved, resolve });
         });
@@ -1187,7 +1194,31 @@ export function ObjectView({ dataSource, objects, onEdit, externalRefreshKey }: 
             if (isAbsolute) {
                 const baseUrl = import.meta.env.VITE_SERVER_URL || '';
                 const url = targetStr.startsWith('http') ? targetStr : `${baseUrl}${targetStr}`;
-                const body: Record<string, any> = { ...(params as Record<string, any>) };
+                // Row context is stashed on params under `_rowRecord` by the
+                // row-action dispatcher (see ObjectGrid → onRowAction). Pull
+                // it out before assembling the request body.
+                const rawParams = { ...(params as Record<string, any>) };
+                const rowRecord = rawParams._rowRecord as Record<string, any> | undefined;
+                delete rawParams._rowRecord;
+
+                // Apply bodyShape: 'flat' (default) keeps user params at top
+                // level; { wrap: 'data' } nests them under that key while
+                // `recordIdParam` / `organizationId` stay flat (better-auth
+                // organization/update semantics).
+                const wrap = action.bodyShape && typeof action.bodyShape === 'object' && action.bodyShape.wrap
+                    ? action.bodyShape.wrap
+                    : undefined;
+                const body: Record<string, any> = wrap
+                    ? { [wrap]: rawParams }
+                    : { ...rawParams };
+
+                // Inject row id (or chosen row field) for list_item actions.
+                if (rowRecord && action.recordIdParam) {
+                    const rowField = action.recordIdField || 'id';
+                    const rowValue = rowRecord[rowField];
+                    if (rowValue != null) body[action.recordIdParam] = rowValue;
+                }
+
                 // Auto-inject organizationId when the active org is known and
                 // not already set. Most better-auth org-scoped endpoints
                 // accept this shape; harmless for endpoints that ignore it.
@@ -1524,6 +1555,18 @@ export function ObjectView({ dataSource, objects, onEdit, externalRefreshKey }: 
             filterableFields: viewDef.filterableFields ?? listSchema.filterableFields,
             resizable: viewDef.resizable ?? listSchema.resizable,
             rowActions: viewDef.rowActions ?? listSchema.rowActions,
+            /**
+             * Row-context action definitions derived from `objectDef.actions`
+             * filtered by `locations.includes('list_item')`. These are full
+             * `ActionDef` records (with label/icon/variant/params/recordIdParam
+             * /bodyShape) the row menu renders with i18n-correct labels and
+             * dispatches via the action runner; legacy `rowActions: string[]`
+             * remains for back-compat where the action lives elsewhere.
+             */
+            rowActionDefs: (Array.isArray((objectDef as any)?.actions)
+                ? (objectDef as any).actions.filter((a: any) =>
+                    Array.isArray(a?.locations) && a.locations.includes('list_item'))
+                : []),
             bulkActions: viewDef.bulkActions ?? listSchema.bulkActions,
             sharing: viewDef.sharing ?? listSchema.sharing,
             addRecord: viewDef.addRecord ?? listSchema.addRecord,

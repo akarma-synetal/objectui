@@ -163,7 +163,10 @@ export type NavigationHandler = (url: string, options?: {
  * for collecting ActionParam values before action execution.
  * Returns collected values, or null if cancelled.
  */
-export type ParamCollectionHandler = (params: ActionParamDef[]) => Promise<Record<string, any> | null>;
+export type ParamCollectionHandler = (
+  params: ActionParamDef[],
+  action?: ActionDef,
+) => Promise<Record<string, any> | null>;
 
 /**
  * ActionParam definition accepted by the runner.
@@ -311,13 +314,17 @@ export class ActionRunner {
           : (Array.isArray(action.params) ? (action.params as unknown as ActionParamDef[]) : undefined);
       if (paramDefs && paramDefs.length > 0) {
         if (this.paramCollectionHandler) {
-          const collected = await this.paramCollectionHandler(paramDefs);
+          const collected = await this.paramCollectionHandler(paramDefs, action);
           if (collected === null) {
             return { success: false, error: 'Action cancelled by user (params)' };
           }
           // Merge collected params into action.params as a values map for downstream consumers.
-          // (Replace the array form with a values object once collected.)
-          action.params = { ...(Array.isArray(action.params) ? {} : (action.params || {})), ...collected };
+          // Preserve any pre-attached row context (`_rowRecord`) used by list_item
+          // actions so downstream handlers (apiHandler) can inject the row id.
+          const priorParams: Record<string, any> = Array.isArray(action.params) ? {} : (action.params as Record<string, any> || {});
+          const rowRecord = priorParams._rowRecord;
+          action.params = { ...priorParams, ...collected };
+          if (rowRecord !== undefined) (action.params as Record<string, any>)._rowRecord = rowRecord;
         }
       }
 

@@ -43,11 +43,24 @@ export function formatActionLabel(action: string): string {
   return action.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
 }
 
+/** Action definition for row-context menu items. Subset of ActionDef. */
+export interface RowActionDef {
+  name: string;
+  label?: string;
+  icon?: string;
+  variant?: 'primary' | 'secondary' | 'danger' | 'ghost' | 'link';
+  confirmText?: string;
+  /** Original action def — forwarded to the dispatcher untouched. */
+  [key: string]: any;
+}
+
 export interface RowActionMenuProps {
   /** The row data record */
   row: any;
-  /** Custom row action identifiers */
+  /** Custom row action identifiers (legacy, label = mechanical title-case) */
   rowActions?: string[];
+  /** Full action defs — render with proper label/icon/variant from schema. */
+  rowActionDefs?: RowActionDef[];
   /** Whether edit operation is available */
   canEdit?: boolean;
   /** Whether delete operation is available */
@@ -56,18 +69,22 @@ export interface RowActionMenuProps {
   onEdit?: (row: any) => void;
   /** Callback when delete is clicked */
   onDelete?: (row: any) => void;
-  /** Callback when a custom row action is clicked */
+  /** Callback when a custom row action (string id) is clicked */
   onAction?: (action: string, row: any) => void;
+  /** Callback when a schema-driven row action is clicked. */
+  onActionDef?: (def: RowActionDef, row: any) => void;
 }
 
 export const RowActionMenu: React.FC<RowActionMenuProps> = ({
   row,
   rowActions,
+  rowActionDefs,
   canEdit,
   canDelete,
   onEdit,
   onDelete,
   onAction,
+  onActionDef,
 }) => {
   const t = useRowActionTranslation();
   return (
@@ -96,6 +113,16 @@ export const RowActionMenu: React.FC<RowActionMenuProps> = ({
             {t('grid.delete')}
           </DropdownMenuItem>
         )}
+        {rowActionDefs?.map(def => (
+          <DropdownMenuItem
+            key={def.name}
+            onClick={() => onActionDef?.(def, row)}
+            data-testid={`row-action-${def.name}`}
+            className={def.variant === 'danger' ? 'text-destructive focus:text-destructive' : undefined}
+          >
+            {def.label ?? formatActionLabel(def.name)}
+          </DropdownMenuItem>
+        ))}
         {rowActions?.map(action => (
           <DropdownMenuItem
             key={action}

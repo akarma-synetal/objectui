@@ -1244,13 +1244,14 @@ export const ObjectGrid: React.FC<ObjectGridProps> = ({
   // routes them to onEdit / onDelete instead of the generic action runner
   // (which has no 'edit' handler and a parameter-shape mismatch for 'delete').
   const rowActionsList: string[] = Array.isArray(schema.rowActions) ? schema.rowActions : [];
+  const rowActionDefsList: any[] = Array.isArray((schema as any).rowActionDefs) ? (schema as any).rowActionDefs : [];
   const wantEditAction = rowActionsList.includes('edit');
   const wantDeleteAction = rowActionsList.includes('delete');
   const customRowActions = rowActionsList.filter(a => a !== 'edit' && a !== 'delete');
   const canEdit = !!((operations?.update || wantEditAction) && onEdit);
   const canDelete = !!((operations?.delete || wantDeleteAction) && onDelete);
   const hasActions = !!(operations && (operations.update || operations.delete));
-  const hasRowActions = customRowActions.length > 0 || wantEditAction || wantDeleteAction;
+  const hasRowActions = customRowActions.length > 0 || rowActionDefsList.length > 0 || wantEditAction || wantDeleteAction;
 
   const columnsWithActions = (hasActions || hasRowActions) ? [
     ...persistedColumns,
@@ -1261,11 +1262,26 @@ export const ObjectGrid: React.FC<ObjectGridProps> = ({
         <RowActionMenu
           row={row}
           rowActions={customRowActions}
+          rowActionDefs={rowActionDefsList}
           canEdit={canEdit}
           canDelete={canDelete}
           onEdit={onEdit}
           onDelete={onDelete}
           onAction={(action, r) => executeAction({ type: action, params: { record: r } })}
+          onActionDef={(def, r) => {
+            // Dispatch schema-driven row action through the runner. We forward
+            // the full action def so type/target/recordIdParam/bodyShape/etc.
+            // route correctly, attach the row record under `_rowRecord` for the
+            // apiHandler row-id injection, and surface raw `params` as
+            // `actionParams` so the runner shows the param dialog when present.
+            const { params: rawParams, ...rest } = def;
+            const dispatch: any = { ...rest };
+            if (Array.isArray(rawParams) && rawParams.length > 0) {
+              dispatch.actionParams = rawParams;
+            }
+            dispatch.params = { _rowRecord: r };
+            executeAction(dispatch);
+          }}
         />
       ),
       sortable: false,
