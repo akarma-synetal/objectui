@@ -36,6 +36,8 @@ export type {
   DrillView,
 } from './drill';
 export type { AvailableField } from './ReportConfigPanel';
+export { JoinedBlocksEditor, validateJoinedBlocks } from './JoinedBlocksEditor';
+export type { JoinedBlocksEditorProps } from './JoinedBlocksEditor';
 export { formatValue } from './formatValue';
 export { exportReport, exportAsCSV, exportAsJSON, exportAsHTML, exportAsPDF, exportAsExcel } from './ReportExportEngine';
 export { ScheduleConfig } from './ScheduleConfig';

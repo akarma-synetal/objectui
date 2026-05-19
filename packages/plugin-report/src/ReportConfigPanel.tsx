@@ -16,6 +16,7 @@ import {
 } from '@object-ui/components';
 import type { ConfigPanelSchema, ConfigSection } from '@object-ui/components';
 import { Plus, Trash2, AlertTriangle, ArrowUp, ArrowDown } from 'lucide-react';
+import { JoinedBlocksEditor, validateJoinedBlocks } from './JoinedBlocksEditor';
 
 // ---------------------------------------------------------------------------
 // Field definition for filter / sort / grouping / chart sub-editors
@@ -222,7 +223,7 @@ function uiConditionToEntry(c: UICondition): Record<string, any> {
 // SpecFilterAdapter — visual editor that round-trips spec FilterCondition
 // ---------------------------------------------------------------------------
 
-function SpecFilterAdapter({
+export function SpecFilterAdapter({
   availableFields,
   value,
   onChange,
@@ -416,7 +417,7 @@ function buildFormatOptions(t: Translator) {
   ];
 }
 
-function normalizeColumns(value: unknown): ColumnDraft[] {
+export function normalizeColumns(value: unknown): ColumnDraft[] {
   if (!Array.isArray(value)) return [];
   return value.map((f: any) =>
     typeof f === 'string'
@@ -431,7 +432,7 @@ function normalizeColumns(value: unknown): ColumnDraft[] {
   );
 }
 
-function ColumnsEditor({
+export function ColumnsEditor({
   availableFields,
   value,
   onChange,
@@ -593,7 +594,7 @@ type GroupingDraft = {
   dateGranularity?: 'day' | 'week' | 'month' | 'quarter' | 'year';
 };
 
-function GroupingsBuilder({
+export function GroupingsBuilder({
   availableFields,
   value,
   onChange,
@@ -735,7 +736,7 @@ function GroupingsBuilder({
 // ChartConfig — chart subset (type / title / axes / legend / data labels)
 // ---------------------------------------------------------------------------
 
-function ChartConfig({
+export function ChartConfig({
   availableFields,
   columns,
   value,
@@ -932,6 +933,7 @@ function buildReportSchema(
       title: t('report.editor.columns'),
       collapsible: true,
       hint: t('report.editor.columnsHint'),
+      visibleWhen: (d) => d.type !== 'joined',
       fields: [
         {
           key: 'columns',
@@ -982,6 +984,7 @@ function buildReportSchema(
       title: t('report.editor.filters'),
       collapsible: true,
       hint: t('report.editor.filtersHint'),
+      visibleWhen: (d) => d.type !== 'joined',
       fields: [
         {
           key: 'filter',
@@ -989,6 +992,28 @@ function buildReportSchema(
           type: 'custom',
           render: (value: any, onChange: (v: any) => void) => (
             <SpecFilterAdapter availableFields={availableFields} value={value} onChange={onChange} t={t} />
+          ),
+        },
+      ],
+    },
+    {
+      key: 'blocks',
+      title: t('report.editor.blocks'),
+      collapsible: true,
+      hint: t('report.editor.blocksHint'),
+      visibleWhen: (d) => d.type === 'joined',
+      fields: [
+        {
+          key: 'blocks',
+          label: t('report.editor.blocks'),
+          type: 'custom',
+          render: (value: any, onChange: (v: any) => void) => (
+            <JoinedBlocksEditor
+              value={value}
+              onChange={onChange}
+              availableFields={availableFields}
+              t={t}
+            />
           ),
         },
       ],
@@ -1049,6 +1074,11 @@ function collectValidationProblems(draft: Record<string, any>, t: Translator): V
   }
   if (type === 'summary' && downCount === 0) {
     problems.push({ level: 'error', message: t('report.editor.validationSummaryNeedsRows') });
+  }
+  if (type === 'joined') {
+    for (const message of validateJoinedBlocks(draft.blocks, t)) {
+      problems.push({ level: 'error', message });
+    }
   }
   return problems;
 }
