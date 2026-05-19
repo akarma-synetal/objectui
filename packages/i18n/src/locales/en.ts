@@ -124,6 +124,7 @@ const en = {
       densityComfortable: 'Comfortable',
       densitySpacious: 'Spacious',
       densityCycleHint: '{{label}} (click to cycle)',
+      densityCycleShortHint: 'Click to cycle',
     },
     import: {
       title: 'Import {{object}}',
@@ -213,6 +214,8 @@ const en = {
     print: 'Print',
     hideFieldsTitle: 'Hide Fields',
     dataLimitReached: 'Showing first {{limit}} records. More data may be available.',
+    viewSettings: 'View settings',
+    viewSettingsHint: 'Grouping, color, density, and visible fields.',
   },
   kanban: {
     addCard: 'Add card',

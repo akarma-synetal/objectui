@@ -868,6 +868,39 @@ describe('ListView', () => {
       renderWithProvider(<ListView schema={schema} />);
       expect(screen.queryByRole('button', { name: /export/i })).not.toBeInTheDocument();
     });
+
+    // P1-4: compactToolbar collapses appearance/grouping cluster
+    describe('compactToolbar', () => {
+      it('renders View settings trigger when compactToolbar=true', () => {
+        const schema: ListViewSchema = {
+          type: 'list-view',
+          objectName: 'contacts',
+          viewType: 'grid',
+          fields: ['name', 'email'],
+          showDensity: true,
+          showColor: true,
+          showHideFields: true,
+          compactToolbar: true,
+        };
+        renderWithProvider(<ListView schema={schema} />);
+        expect(screen.getByTestId('view-settings-trigger')).toBeInTheDocument();
+        // legacy density button hidden in compact mode
+        expect(screen.queryByLabelText('Density: Compact')).not.toBeInTheDocument();
+      });
+
+      it('renders legacy buttons when compactToolbar is unset', () => {
+        const schema: ListViewSchema = {
+          type: 'list-view',
+          objectName: 'contacts',
+          viewType: 'grid',
+          fields: ['name', 'email'],
+          showDensity: true,
+        };
+        renderWithProvider(<ListView schema={schema} />);
+        expect(screen.queryByTestId('view-settings-trigger')).not.toBeInTheDocument();
+        expect(screen.getByLabelText('Density: Compact')).toBeInTheDocument();
+      });
+    });
   });
 
   // ============================

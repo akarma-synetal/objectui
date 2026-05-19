@@ -14,6 +14,7 @@ import type { FilterGroup } from '@object-ui/components';
 import { ViewSwitcher, ViewType } from './ViewSwitcher';
 import { TabBar } from './components/TabBar';
 import type { ViewTab } from './components/TabBar';
+import { ViewSettingsPopover } from './components/ViewSettingsPopover';
 import { UserFilters } from './UserFilters';
 import { SchemaRenderer, useNavigationOverlay } from '@object-ui/react';
 import { useDensityMode } from '@object-ui/react';
@@ -229,6 +230,9 @@ const LIST_DEFAULT_TRANSLATIONS: Record<string, string> = {
   'grid.toolbar.densityComfortable': 'Comfortable',
   'grid.toolbar.densitySpacious': 'Spacious',
   'grid.toolbar.densityCycleHint': '{{label}} (click to cycle)',
+  'grid.toolbar.densityCycleShortHint': 'Click to cycle',
+  'list.viewSettings': 'View settings',
+  'list.viewSettingsHint': 'Grouping, color, density, and visible fields.',
 };
 
 /**
@@ -343,10 +347,11 @@ export const ListView = React.forwardRef<ListViewHandle, ListViewProps>(({
       showHideFields: schema.showHideFields === true,
       showGroup: schema.showGroup !== false,
       showColor: schema.showColor === true,
+      compactToolbar: schema.compactToolbar === true,
       showAddRecord: addRecordEnabled,
       addRecordPosition: (schema.addRecord?.position === 'bottom' ? 'bottom' : 'top') as 'top' | 'bottom',
     };
-  }, [schema.userActions, schema.showSearch, schema.showSort, schema.showFilters, schema.showDensity, schema.showHideFields, schema.showGroup, schema.showColor, schema.addRecord, schema.userActions?.addRecordForm]);
+  }, [schema.userActions, schema.showSearch, schema.showSort, schema.showFilters, schema.showDensity, schema.showHideFields, schema.showGroup, schema.showColor, schema.compactToolbar, schema.addRecord, schema.userActions?.addRecordForm]);
 
   const [currentView, setCurrentView] = React.useState<ViewType>(
     (schema.viewType as ViewType)
@@ -1422,7 +1427,7 @@ export const ListView = React.forwardRef<ListViewHandle, ListViewProps>(({
 
         <div className="flex items-center gap-0 shrink-0">
           {/* Hide Fields */}
-          {toolbarFlags.showHideFields && (
+          {toolbarFlags.showHideFields && !toolbarFlags.compactToolbar && (
           <Popover open={showHideFields} onOpenChange={setShowHideFields}>
             <PopoverTrigger asChild>
               <Button
@@ -1479,7 +1484,7 @@ export const ListView = React.forwardRef<ListViewHandle, ListViewProps>(({
           )}
 
           {/* --- Separator: Hide Fields | Data Manipulation --- */}
-          {toolbarFlags.showHideFields && (toolbarFlags.showFilters || toolbarFlags.showSort || toolbarFlags.showGroup) && (
+          {toolbarFlags.showHideFields && !toolbarFlags.compactToolbar && (toolbarFlags.showFilters || toolbarFlags.showSort || toolbarFlags.showGroup) && (
             <div className="h-4 w-px bg-border/60 mx-0.5 shrink-0" />
           )}
 
@@ -1528,7 +1533,7 @@ export const ListView = React.forwardRef<ListViewHandle, ListViewProps>(({
           )}
 
           {/* Group */}
-          {toolbarFlags.showGroup && (
+          {toolbarFlags.showGroup && !toolbarFlags.compactToolbar && (
           <Popover open={showGroupPopover} onOpenChange={setShowGroupPopover}>
             <PopoverTrigger asChild>
               <Button
@@ -1616,12 +1621,12 @@ export const ListView = React.forwardRef<ListViewHandle, ListViewProps>(({
           )}
 
           {/* --- Separator: Data Manipulation | Appearance --- */}
-          {(toolbarFlags.showFilters || toolbarFlags.showSort || toolbarFlags.showGroup) && (toolbarFlags.showColor || toolbarFlags.showDensity) && (
+          {!toolbarFlags.compactToolbar && (toolbarFlags.showFilters || toolbarFlags.showSort || toolbarFlags.showGroup) && (toolbarFlags.showColor || toolbarFlags.showDensity) && (
             <div className="h-4 w-px bg-border/60 mx-0.5 shrink-0" />
           )}
 
           {/* Color */}
-          {toolbarFlags.showColor && (
+          {toolbarFlags.showColor && !toolbarFlags.compactToolbar && (
           <Popover open={showColorPopover} onOpenChange={setShowColorPopover}>
             <PopoverTrigger asChild>
               <Button
@@ -1673,7 +1678,7 @@ export const ListView = React.forwardRef<ListViewHandle, ListViewProps>(({
           )}
 
           {/* Row Height / Density Mode */}
-          {toolbarFlags.showDensity && (() => {
+          {toolbarFlags.showDensity && !toolbarFlags.compactToolbar && (() => {
             const DensityIcon = density.mode === 'compact' ? Rows4 : density.mode === 'comfortable' ? Rows3 : Rows2;
             const modeLabel =
               density.mode === 'compact'
@@ -1704,8 +1709,30 @@ export const ListView = React.forwardRef<ListViewHandle, ListViewProps>(({
             );
           })()}
 
+          {/* Compact View Settings popover (P1-4): bundles Group + Color + Density + Hide Fields
+              into a single gear button when schema.compactToolbar is enabled. */}
+          {toolbarFlags.compactToolbar && (
+            toolbarFlags.showGroup || toolbarFlags.showColor || toolbarFlags.showDensity || toolbarFlags.showHideFields
+          ) && (
+            <ViewSettingsPopover
+              t={t as any}
+              allFields={allFields as any}
+              showGroup={toolbarFlags.showGroup}
+              groupingConfig={groupingConfig}
+              setGroupingConfig={setGroupingConfig}
+              showColor={toolbarFlags.showColor}
+              rowColorConfig={rowColorConfig}
+              setRowColorConfig={setRowColorConfig}
+              showDensity={toolbarFlags.showDensity}
+              density={density as any}
+              showHideFields={toolbarFlags.showHideFields}
+              hiddenFields={hiddenFields}
+              updateHiddenFields={updateHiddenFields}
+            />
+          )}
+
           {/* --- Separator: Appearance | Export --- */}
-          {(toolbarFlags.showColor || toolbarFlags.showDensity) && resolvedExportOptions && schema.allowExport !== false && (
+          {(toolbarFlags.showColor || toolbarFlags.showDensity || toolbarFlags.compactToolbar) && resolvedExportOptions && schema.allowExport !== false && (
             <div className="h-4 w-px bg-border/60 mx-0.5 shrink-0" />
           )}
 

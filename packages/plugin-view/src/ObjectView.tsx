@@ -904,6 +904,7 @@ export const ObjectView: React.FC<ObjectViewProps> = ({
           showGroup: activeView?.showGroup ?? (schema as any).showGroup,
           showColor: activeView?.showColor ?? (schema as any).showColor,
           showDensity: activeView?.showDensity ?? (schema as any).showDensity,
+          compactToolbar: activeView?.compactToolbar ?? (schema as any).compactToolbar,
           allowExport: activeView?.allowExport ?? (schema as any).allowExport,
           // Propagate display properties
           striped: activeView?.striped ?? (schema as any).striped,

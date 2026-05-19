@@ -1300,6 +1300,14 @@ export interface NamedListView {
   /** Show density/row-height button in toolbar @default false */
   showDensity?: boolean;
 
+  /**
+   * Collapse the appearance/grouping cluster (Group + Color + Density + Hide Fields)
+   * into a single "View settings" popover button. Reduces toolbar clutter on
+   * data-heavy lists. Filter / Sort / Export remain top-level chips.
+   * @default false
+   */
+  compactToolbar?: boolean;
+
   /** Allow data export @default undefined */
   allowExport?: boolean;
 
@@ -1588,6 +1596,14 @@ export interface ListViewSchema extends BaseSchema {
 
   /** Show density/row-height button in toolbar @default false */
   showDensity?: boolean;
+
+  /**
+   * Collapse the appearance/grouping cluster (Group + Color + Density + Hide Fields)
+   * into a single "View settings" popover button. Reduces toolbar clutter on
+   * data-heavy lists. Filter / Sort / Export remain top-level chips.
+   * @default false
+   */
+  compactToolbar?: boolean;
 
   /** Allow data export @default undefined */
   allowExport?: boolean;

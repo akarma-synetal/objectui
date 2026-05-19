@@ -124,6 +124,7 @@ const zh = {
       densityComfortable: '舒适',
       densitySpacious: '宽松',
       densityCycleHint: '{{label}}（点击切换）',
+      densityCycleShortHint: '点击切换',
     },
     import: {
       title: '导入{{object}}',
@@ -213,6 +214,8 @@ const zh = {
     print: '打印',
     hideFieldsTitle: '隐藏字段',
     dataLimitReached: '显示前 {{limit}} 条记录。可能有更多数据。',
+    viewSettings: '视图设置',
+    viewSettingsHint: '分组、行颜色、密度与可见字段。',
   },
   kanban: {
     addCard: '添加卡片',

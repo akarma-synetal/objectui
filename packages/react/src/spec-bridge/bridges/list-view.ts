@@ -63,6 +63,8 @@ interface ListViewSpec {
   emptyState?: { title?: string; message?: string; icon?: string };
   userActions?: any;
   appearance?: any;
+  /** UX-only hint: collapse appearance/grouping cluster into a single popover. */
+  compactToolbar?: boolean;
   tabs?: any[];
   addRecord?: any;
   showRecordCount?: boolean;
@@ -163,6 +165,7 @@ export const bridgeListView: BridgeFn<ListViewSpec> = (
   if (spec.emptyState) node.emptyState = spec.emptyState;
   if (spec.userActions) node.userActions = spec.userActions;
   if (spec.appearance) node.appearance = spec.appearance;
+  if (spec.compactToolbar != null) node.compactToolbar = spec.compactToolbar;
   if (spec.tabs) node.tabs = spec.tabs;
   if (spec.addRecord) node.addRecord = spec.addRecord;
   if (spec.showRecordCount != null) node.showRecordCount = spec.showRecordCount;
