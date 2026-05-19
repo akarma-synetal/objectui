@@ -399,6 +399,7 @@ export function ReportView({ dataSource }: { dataSource?: DataSource }) {
     previewReport &&
       previewReport.objectName &&
       (previewReport.type === 'matrix' ||
+        previewReport.type === 'joined' ||
         (Array.isArray(previewReport.groupingsAcross) && previewReport.groupingsAcross.length > 0) ||
         groupingsAll.some((g: any) => g && g.dateGranularity)),
   );

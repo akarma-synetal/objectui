@@ -245,6 +245,7 @@ export const ObjectPivotTable: React.FC<ObjectPivotTableProps> = ({ schema, data
         dataSource={dataSource}
         columns={drillDown?.columns}
         maxRows={drillDown?.maxRows}
+        report={(drillDown as any)?.report}
       />
     );
   };

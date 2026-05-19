@@ -696,6 +696,31 @@ export interface DrillDownConfig {
    */
   view?: string;
   /**
+   * Drill into an analytical Report instead of the raw record list. When
+   * provided, the drill-down drawer renders the supplied `SpecReport` (with
+   * `widget.filter ∧ report.filter` merged so the metric's scope is honoured).
+   *
+   * This is the M3 "Dashboard → Report → List → Record" path: the KPI on the
+   * dashboard expands into a multi-dimensional breakdown report; the report
+   * itself can drill into a list of records (via its own row-click drill),
+   * which can drill into a single record.
+   *
+   * Either an inline `SpecReport` JSON or a named report reference is
+   * supported. Implementations may render the named form by resolving it
+   * against an app-level report registry.
+   *
+   * The shape is structural to avoid a circular import with `spec-report.ts`.
+   */
+  report?:
+    | {
+        name: string;
+        objectName: string;
+        type?: 'tabular' | 'summary' | 'matrix' | 'joined';
+        columns: Array<unknown>;
+        [k: string]: unknown;
+      }
+    | { name: string };
+  /**
    * Optional column whitelist for the inline drill list. When omitted the
    * data table renders all default columns.
    */

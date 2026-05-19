@@ -246,22 +246,49 @@ export const ObjectMetricWidget: React.FC<ObjectMetricWidgetProps> = ({
   const drillDrawer = useMemo(() => {
     if (!drillEnabled) return null;
     const target = drillDown?.target ?? 'drawer';
-    const tableSchema = {
-      type: 'object-data-table',
-      objectName,
-      filter: resolvedFilter,
-      pageSize: 25,
-      drillDown: { enabled: false },
-    } as any;
-    const body = (
-      <div className="h-full overflow-auto">
-        <SchemaRenderer schema={tableSchema} />
-      </div>
-    );
+
+    // M3: when drillDown.report is supplied, drill into an analytical Report
+    // (Dashboard → Report → List → Record). The widget's resolvedFilter is
+    // merged into the report so the metric's scope is preserved.
+    const reportConfig = (drillDown as any)?.report;
+    const hasReport = reportConfig && typeof reportConfig === 'object'
+      && (Array.isArray((reportConfig as any).columns) || 'objectName' in reportConfig);
+
+    let body: React.ReactNode;
+    if (hasReport) {
+      const existingFilter = (reportConfig as any).filter;
+      const mergedReportFilter = existingFilter
+        ? (resolvedFilter ? { $and: [existingFilter, resolvedFilter] } : existingFilter)
+        : resolvedFilter;
+      const reportSchema = {
+        type: 'spec-report',
+        ...(reportConfig as Record<string, unknown>),
+        filter: mergedReportFilter,
+      } as any;
+      body = (
+        <div className="h-full overflow-auto">
+          <SchemaRenderer schema={reportSchema} />
+        </div>
+      );
+    } else {
+      const tableSchema = {
+        type: 'object-data-table',
+        objectName,
+        filter: resolvedFilter,
+        pageSize: 25,
+        drillDown: { enabled: false },
+      } as any;
+      body = (
+        <div className="h-full overflow-auto">
+          <SchemaRenderer schema={tableSchema} />
+        </div>
+      );
+    }
+
     if (target === 'modal') {
       return (
         <Dialog open onOpenChange={(v) => !v && setDrillOpen(false)}>
-          <DialogContent className="max-w-4xl">
+          <DialogContent className="max-w-5xl">
             <DialogHeader><DialogTitle>{drawerTitle}</DialogTitle></DialogHeader>
             {body}
           </DialogContent>
@@ -270,7 +297,7 @@ export const ObjectMetricWidget: React.FC<ObjectMetricWidgetProps> = ({
     }
     return (
       <Sheet open onOpenChange={(v) => !v && setDrillOpen(false)}>
-        <SheetContent side="right" className="w-full sm:max-w-2xl md:max-w-3xl lg:max-w-4xl flex flex-col">
+        <SheetContent side="right" className="w-full sm:max-w-2xl md:max-w-3xl lg:max-w-5xl flex flex-col">
           <SheetHeader><SheetTitle>{drawerTitle}</SheetTitle></SheetHeader>
           <div className="flex-1 overflow-hidden mt-2">{body}</div>
         </SheetContent>

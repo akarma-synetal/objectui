@@ -63,16 +63,28 @@ const PLACEHOLDER_BANNER: React.CSSProperties = {
   fontSize: 13,
 };
 
-export const ReportRenderer: React.FC<ReportRendererProps> = ({
-  schema,
-  dataSource,
-  rows,
-  runtimeFilter,
-  actionRunner,
-  drillView,
-  drillOpenIn,
-  className,
-}) => {
+export const ReportRenderer: React.FC<ReportRendererProps> = (props) => {
+  const {
+    dataSource,
+    rows,
+    runtimeFilter,
+    actionRunner,
+    drillView,
+    drillOpenIn,
+    className,
+  } = props;
+  let schema = props.schema;
+  // Unwrap SchemaRenderer wrapper: { type: 'spec-report', report: {...real spec report...} }.
+  // SchemaRenderer registry dispatches on the outer `type`; the actual spec
+  // report (with its own `type: 'matrix' | 'joined' | ...`) lives under `report`.
+  if (
+    schema && typeof schema === 'object'
+    && (schema as Record<string, unknown>).type === 'spec-report'
+    && (schema as Record<string, unknown>).report
+    && typeof (schema as Record<string, unknown>).report === 'object'
+  ) {
+    schema = (schema as Record<string, unknown>).report as ReportRendererSchema;
+  }
   if (isSpecReport(schema)) {
     const reportType = schema.type ?? 'tabular';
 

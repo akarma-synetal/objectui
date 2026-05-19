@@ -303,15 +303,37 @@ export function isSpecReport(value: unknown): value is SpecReport {
  * Status: forward-compatible. When the upstream spec adopts a `blocks` field
  * the only churn here will be replacing this interface with a re-export.
  */
+/**
+ * A single block inside a `type: 'joined'` report.
+ *
+ * The block IS a (constrained) report — its `columns`, `groupingsDown`,
+ * `groupingsAcross`, `filter`, `chart` etc. are merged with the block's own
+ * `objectName` (or the joined container's `objectName` as fallback) at render
+ * time. Blocks cannot themselves be `joined` (no recursion).
+ */
 export interface JoinedReportBlock {
-  /** Stable id within the joined report (used for React keys + drill scoping). */
-  id?: string;
-  /** Display label rendered above the block. Falls back to `report.label`. */
+  /** Stable name within the joined report — used for React keys + drill scoping. */
+  name: string;
+  /** Display label rendered above the block. Falls back to `name`. */
   label?: string | { default: string; translations?: Record<string, string> };
   /** Optional description rendered below the label. */
   description?: string | { default: string; translations?: Record<string, string> };
-  /** The block's own self-contained `SpecReport`. */
-  report: SpecReport;
+  /** Block report type. `joined` is excluded — no recursion. Defaults to `tabular`. */
+  type?: 'tabular' | 'summary' | 'matrix';
+  /** Object queried by this block. Defaults to the container's `objectName`. */
+  objectName?: string;
+  /** Columns to display / aggregate. Same shape as `Report.columns`. */
+  columns: Array<{ field: string; label?: string; aggregate?: string; [k: string]: unknown }>;
+  /** Row groupings. */
+  groupingsDown?: Array<{ field: string; sortOrder?: 'asc' | 'desc'; dateGranularity?: string; [k: string]: unknown }>;
+  /** Column groupings — only meaningful when `type: matrix`. */
+  groupingsAcross?: Array<{ field: string; sortOrder?: 'asc' | 'desc'; dateGranularity?: string; [k: string]: unknown }>;
+  /** Block-specific filter, ANDed with the container filter at render time. */
+  filter?: Record<string, unknown>;
+  /** Optional inline chart configuration. */
+  chart?: Record<string, unknown>;
+  /** Forward-compatibility escape hatch. */
+  [k: string]: unknown;
 }
 
 /**

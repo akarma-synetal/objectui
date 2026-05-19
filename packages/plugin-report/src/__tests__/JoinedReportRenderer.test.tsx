@@ -29,14 +29,13 @@ vi.mock('../ReportRenderer', () => ({
   },
 }));
 
-function makeBlockReport(name: string, extra: Partial<SpecReport> = {}): SpecReport {
+function makeBlock(name: string, extra: Partial<Record<string, unknown>> = {}) {
   return {
     name,
-    objectName: 'opportunity',
-    type: 'tabular',
+    type: 'tabular' as const,
     columns: [{ field: 'amount' }],
     ...extra,
-  } as SpecReport;
+  };
 }
 
 describe('JoinedReportRenderer', () => {
@@ -66,8 +65,8 @@ describe('JoinedReportRenderer', () => {
       type: 'joined',
       columns: [],
       blocks: [
-        { id: 'new', label: 'New customers', description: 'Last 30 days', report: makeBlockReport('new_customers') },
-        { id: 'churn', label: 'Churned', report: makeBlockReport('churned') },
+        makeBlock('new_customers', { label: 'New customers', description: 'Last 30 days' }),
+        makeBlock('churned', { label: 'Churned' }),
       ],
     } as JoinedSpecReport;
 
@@ -75,15 +74,15 @@ describe('JoinedReportRenderer', () => {
 
     const blocks = screen.getAllByTestId('joined-report-block');
     expect(blocks).toHaveLength(2);
-    expect(blocks[0]).toHaveAttribute('data-block-id', 'new');
-    expect(blocks[1]).toHaveAttribute('data-block-id', 'churn');
+    expect(blocks[0]).toHaveAttribute('data-block-id', 'new_customers');
+    expect(blocks[1]).toHaveAttribute('data-block-id', 'churned');
     expect(screen.getByText('New customers')).toBeInTheDocument();
     expect(screen.getByText('Last 30 days')).toBeInTheDocument();
     expect(screen.getByText('Churned')).toBeInTheDocument();
     expect(capturedSchemas.map((s) => s.name)).toEqual(['new_customers', 'churned']);
   });
 
-  it('merges the joined-level filter into every block via $and', () => {
+  it('merges the joined-level filter into every block via $and and inherits container objectName', () => {
     const outer = { owner_id: 'me' };
     const blockFilter = { stage: { $in: ['won', 'lost'] } };
 
@@ -94,17 +93,19 @@ describe('JoinedReportRenderer', () => {
       columns: [],
       filter: outer,
       blocks: [
-        { id: 'a', report: makeBlockReport('a') },                                  // no own filter
-        { id: 'b', report: makeBlockReport('b', { filter: blockFilter as any }) },  // has own filter
+        makeBlock('a'),                                    // no own filter, no own objectName
+        makeBlock('b', { filter: blockFilter, objectName: 'opportunity' }),
       ],
     } as JoinedSpecReport;
 
     render(<JoinedReportRenderer report={joined} />);
 
-    // Block A: outer-only after merge.
+    // Block A: outer-only after merge, inherits container objectName.
     expect(capturedSchemas[0].filter).toEqual(outer);
-    // Block B: $and({owner_id: 'me'}, {stage: ...}) — both constraints present, block last so it can override on collisions.
+    expect(capturedSchemas[0].objectName).toBe('account');
+    // Block B: $and({owner_id: 'me'}, {stage: ...}) and its own objectName.
     expect(capturedSchemas[1].filter).toEqual({ $and: [outer, blockFilter] });
+    expect(capturedSchemas[1].objectName).toBe('opportunity');
   });
 
   it('passes actionRunner, dataSource and drill props to every block', () => {
@@ -115,10 +116,7 @@ describe('JoinedReportRenderer', () => {
       objectName: 'account',
       type: 'joined',
       columns: [],
-      blocks: [
-        { id: 'one', report: makeBlockReport('one') },
-        { id: 'two', report: makeBlockReport('two') },
-      ],
+      blocks: [makeBlock('one'), makeBlock('two')],
     } as JoinedSpecReport;
 
     render(
@@ -141,17 +139,16 @@ describe('JoinedReportRenderer', () => {
     }
   });
 
-  it('falls back to block.report.name for label when block label is missing', () => {
+  it('falls back to block.name when block label is missing', () => {
     const joined: JoinedSpecReport = {
       name: 'no_labels',
       objectName: 'account',
       type: 'joined',
       columns: [],
-      blocks: [{ report: makeBlockReport('unnamed_block') }],
+      blocks: [makeBlock('unnamed_block')],
     } as JoinedSpecReport;
 
     render(<JoinedReportRenderer report={joined} />);
-    // Both the block label and the stub display the name; assert the label heading.
     const block = screen.getByTestId('joined-report-block');
     expect(block.querySelector('h3')).toHaveTextContent('unnamed_block');
   });

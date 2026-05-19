@@ -65,8 +65,8 @@ describe('ReportRenderer dispatcher', () => {
       name: 'joined_demo',
       type: 'joined' as const,
       blocks: [
-        { id: 'b1', report: { ...baseSpec, name: 'block_one' } },
-        { id: 'b2', report: { ...baseSpec, name: 'block_two', type: 'matrix' as const, groupingsAcross: [{ field: 'q' }] } },
+        { name: 'block_one', columns: baseSpec.columns },
+        { name: 'block_two', type: 'matrix' as const, columns: baseSpec.columns, groupingsAcross: [{ field: 'q' }] },
       ],
     };
     render(<ReportRenderer schema={joined as any} rows={[]} />);

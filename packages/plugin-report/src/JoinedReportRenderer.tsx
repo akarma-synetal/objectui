@@ -103,6 +103,7 @@ export const JoinedReportRenderer: React.FC<JoinedReportRendererProps> = ({
 
   const blocks = report.blocks ?? [];
   const outerFilter = report.filter as Record<string, unknown> | undefined;
+  const containerObjectName = (report as any).objectName as string | undefined;
 
   return (
     <div
@@ -112,18 +113,27 @@ export const JoinedReportRenderer: React.FC<JoinedReportRendererProps> = ({
       style={{ display: 'flex', flexDirection: 'column', gap: 24 }}
     >
       {blocks.map((block, index) => {
-        const blockReport = applyInheritedFilter(block.report, outerFilter);
-        const blockLabel = resolveLabel(block.label, resolveLabel(blockReport.label as any, blockReport.name));
+        // Promote the flat block to a self-contained SpecReport. The block's
+        // `objectName` falls back to the joined container's `objectName`, and
+        // its type defaults to `tabular`. The block-level filter is then ANDed
+        // with the outer (container) filter so a top-level scope inherits.
+        const blockObjectName = block.objectName ?? containerObjectName ?? '';
+        const blockReport = {
+          ...block,
+          objectName: blockObjectName,
+          type: (block.type ?? 'tabular') as SpecReport['type'],
+          columns: block.columns ?? [],
+        } as SpecReport;
+        const scopedBlockReport = applyInheritedFilter(blockReport, outerFilter);
+        const blockLabel = resolveLabel(block.label, block.name);
         const blockDescription = block.description
           ? resolveLabel(block.description, '')
-          : blockReport.description
-            ? resolveLabel(blockReport.description as any, '')
-            : '';
-        const key = block.id ?? blockReport.name ?? `block-${index}`;
+          : '';
+        const key = block.name ?? `block-${index}`;
 
         const content = (
           <ReportRenderer
-            schema={blockReport}
+            schema={scopedBlockReport}
             dataSource={dataSource}
             runtimeFilter={runtimeFilter}
             actionRunner={actionRunner}

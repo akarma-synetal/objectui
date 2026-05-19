@@ -22,6 +22,7 @@ import {
   DialogTitle,
   cn,
 } from '@object-ui/components';
+import { SchemaRenderer } from '@object-ui/react';
 import { ObjectDataTable } from './ObjectDataTable';
 
 export interface DrillDownDrawerProps {
@@ -43,6 +44,14 @@ export interface DrillDownDrawerProps {
   maxRows?: number;
   /** Optional className on the inner container. */
   className?: string;
+  /**
+   * M3: drill into an analytical `SpecReport` instead of the raw record list.
+   * When provided the drawer body renders a `spec-report` schema via
+   * `SchemaRenderer`. The widget's `filter` is merged in as an `$and` so the
+   * metric's scope flows into the report. The report itself can drill
+   * further (into a list / record) via its own row-click protocol.
+   */
+  report?: Record<string, unknown>;
 }
 
 export const DrillDownDrawer: React.FC<DrillDownDrawerProps> = ({
@@ -56,27 +65,48 @@ export const DrillDownDrawer: React.FC<DrillDownDrawerProps> = ({
   columns,
   maxRows,
   className,
+  report,
 }) => {
-  const tableSchema = {
-    type: 'object-data-table',
-    objectName,
-    filter,
-    columns: columns?.map((c) => ({ accessorKey: c, header: c })),
-    pagination: true,
-    searchable: false,
-    pageSize: maxRows,
-  };
+  const isReportDrill = report && typeof report === 'object'
+    && (Array.isArray((report as any).columns) || 'objectName' in (report as any));
 
   const body = (
     <div className={cn('overflow-auto', className)} data-testid="drill-down-body">
-      <ObjectDataTable schema={tableSchema} dataSource={dataSource} />
+      {isReportDrill
+        ? (() => {
+            const existingFilter = (report as any).filter;
+            const mergedFilter = existingFilter
+              ? (filter ? { $and: [existingFilter, filter] } : existingFilter)
+              : filter;
+            const reportSchema = {
+              ...(report as Record<string, unknown>),
+              type: 'spec-report',
+              report: { ...(report as Record<string, unknown>), filter: mergedFilter },
+              filter: mergedFilter,
+            };
+            return <SchemaRenderer schema={reportSchema as any} />;
+          })()
+        : (
+          <ObjectDataTable
+            schema={{
+              type: 'object-data-table',
+              objectName,
+              filter,
+              columns: columns?.map((c) => ({ accessorKey: c, header: c })),
+              pagination: true,
+              searchable: false,
+              pageSize: maxRows,
+            }}
+            dataSource={dataSource}
+          />
+        )}
     </div>
   );
 
   if (target === 'dialog') {
     return (
       <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-        <DialogContent className="max-w-4xl">
+        <DialogContent className="max-w-5xl">
           <DialogHeader>
             <DialogTitle>{title}</DialogTitle>
           </DialogHeader>
