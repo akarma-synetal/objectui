@@ -153,9 +153,22 @@ Two drill targets are supported:
 `useReportData()` translates a `Report` into a spec `QueryAST`
 (`{ groupBy, aggregations, where, limit }`) and posts it to
 `POST /api/v1/data/:object/query`. The framework routes the request
-through `engine.aggregate()`, which falls back to in-memory bucketing for
-structured `groupBy` entries (`{ field, dateGranularity }`) that no SQL
-dialect can portably express.
+through `engine.aggregate()`, which **pushes structured `groupBy`
+entries** (`{ field, dateGranularity }`) down to the driver as native
+SQL date functions:
+
+| Dialect    | `day` / `month` / `quarter` / `year` | `week` (ISO-8601) |
+| ---------- | ------------------------------------ | ----------------- |
+| PostgreSQL | `to_char(... AT TIME ZONE 'UTC', ...)` | ✅ `IYYY-"W"IW`  |
+| MySQL      | `date_format(convert_tz(...), ...)`  | ✅ `%x-W%v`      |
+| SQLite     | `strftime(...)`                      | ⚠️ in-memory fallback (no `%V`) |
+
+The driver advertises per-granularity support via
+`supports.queryDateGranularity`. When a granularity isn't supported by
+the current dialect (notably `week` on SQLite), the engine transparently
+falls back to fetching raw rows and bucketing in-memory with
+`bucketDateValue()` — the resulting group key strings are
+**byte-for-byte identical** so drill filters compose without drift.
 
 If the endpoint is unavailable or returns an error, the hook
 **transparently degrades** to `dataSource.find()` + client-side

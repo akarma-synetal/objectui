@@ -77,6 +77,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Server-side `dateGranularity` pushdown.** `useReportData()` reports
+  with `{ groupBy: [{ field, dateGranularity }] }` are now aggregated
+  directly in the database via native SQL (`strftime` / `to_char` /
+  `date_format`) instead of fetching raw rows and bucketing in Node.
+  The framework's `driver-sql` advertises per-granularity support via
+  `IDataDriver.supports.queryDateGranularity` and the engine falls back
+  to in-memory bucketing only when the dialect can't express a given
+  granularity (notably SQLite `week`, which requires `strftime('%V')`
+  added in SQLite 3.46). Output bucket labels (`2026-Q2`, `2026-01-15`,
+  `2026-W23`, …) are byte-for-byte identical between paths so drill
+  `groupKey` filters compose correctly across SQL and in-memory routes.
+  Requires framework ≥ commit `b26d217c`.
+
 - **`ReportRenderer` is now a thin dispatcher** that reads `schema.type`
   and routes to `MatrixRenderer` / `JoinedReportRenderer` /
   `SpecReportGrid` / legacy `ReportRenderer`. It also unwraps the
