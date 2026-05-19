@@ -99,23 +99,8 @@ function buildReportSchema(
         },
       ],
     },
-    {
-      key: 'columns',
-      title: t('report.editor.columns'),
-      collapsible: true,
-      hint: t('report.editor.columnsHint'),
-      visibleWhen: (d) => d.type !== 'joined',
-      fields: [
-        {
-          key: 'columns',
-          label: t('report.editor.columns'),
-          type: 'custom',
-          render: (value: any, onChange: (v: any) => void) => (
-            <ColumnsEditor availableFields={availableFields} value={value} onChange={onChange} t={t} />
-          ),
-        },
-      ],
-    },
+    // Row groupings — placed BEFORE measures so users editing a matrix/summary
+    // see the report's pivot structure first, not the cell values.
     {
       key: 'rows',
       title: t('report.editor.rows'),
@@ -133,6 +118,7 @@ function buildReportSchema(
         },
       ],
     },
+    // Column groupings — matrix only.
     {
       key: 'columnsAxis',
       title: t('report.editor.columnsAxis'),
@@ -146,6 +132,44 @@ function buildReportSchema(
           type: 'custom',
           render: (value: any, onChange: (v: any) => void) => (
             <GroupingsBuilder availableFields={availableFields} value={value} onChange={onChange} t={t} />
+          ),
+        },
+      ],
+    },
+    // Tabular layout: this section is just "Columns" — the visible report columns.
+    {
+      key: 'tabular-columns',
+      title: t('report.editor.columns'),
+      collapsible: true,
+      hint: t('report.editor.columnsHint'),
+      visibleWhen: (d) => d.type !== 'joined' && !isSummary(d) && !isMatrix(d),
+      fields: [
+        {
+          key: 'columns',
+          label: t('report.editor.columns'),
+          type: 'custom',
+          render: (value: any, onChange: (v: any) => void) => (
+            <ColumnsEditor availableFields={availableFields} value={value} onChange={onChange} t={t} />
+          ),
+        },
+      ],
+    },
+    // Summary / matrix layout: this section holds the aggregated *values* for
+    // each cell (pivot Values dropzone). Renamed to disambiguate from the
+    // matrix's "Columns" (pivot axis) section above.
+    {
+      key: 'values',
+      title: t('report.editor.values'),
+      collapsible: true,
+      hint: t('report.editor.valuesHint'),
+      visibleWhen: (d) => isSummary(d) || isMatrix(d),
+      fields: [
+        {
+          key: 'columns',
+          label: t('report.editor.values'),
+          type: 'custom',
+          render: (value: any, onChange: (v: any) => void) => (
+            <ColumnsEditor availableFields={availableFields} value={value} onChange={onChange} t={t} />
           ),
         },
       ],
@@ -353,6 +377,7 @@ export function ReportConfigPanel({
       onSave={handleSave}
       onDiscard={discard}
       headerExtra={<ValidationBanner problems={problems} />}
+      style={{ ['--config-panel-width' as any]: '440px' } as React.CSSProperties}
     />
   );
 }

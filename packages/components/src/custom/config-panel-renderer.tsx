@@ -40,6 +40,8 @@ export interface ConfigPanelRendererProps {
   objectDef?: Record<string, any>;
   /** Additional CSS class name */
   className?: string;
+  /** Additional inline styles applied to the panel root (e.g. to override `--config-panel-width`). */
+  style?: React.CSSProperties;
   /** Label for save button (default: "Save") */
   saveLabel?: string;
   /** Label for discard button (default: "Discard") */
@@ -101,6 +103,7 @@ export function ConfigPanelRenderer({
   headerExtra,
   objectDef,
   className,
+  style,
   saveLabel = 'Save',
   discardLabel = 'Discard',
   panelRef,
@@ -146,6 +149,7 @@ export function ConfigPanelRenderer({
       role={role}
       aria-label={ariaLabel}
       tabIndex={tabIndex}
+      style={style}
       className={cn(
         'absolute inset-y-0 right-0 w-full sm:w-[var(--config-panel-width,280px)] sm:relative border-l bg-background flex flex-col shrink-0 z-20',
         className,
