@@ -531,7 +531,7 @@ export function ObjectView({ dataSource, objects, onEdit, externalRefreshKey }: 
     const [recordCount, setRecordCount] = useState<number | undefined>(undefined);
     
     // Admin users automatically get design tools (no toggle needed)
-    const { user } = useAuth();
+    const { user, activeOrganization } = useAuth();
     const isAdmin = user?.role === 'admin';
     const { can } = usePermissions();
     
@@ -1155,10 +1155,56 @@ export function ObjectView({ dataSource, objects, onEdit, externalRefreshKey }: 
         }
     }, [navigate]);
 
+    // Authenticated fetch for direct backend calls (e.g. flow trigger,
+    // schema actions targeting absolute API paths). Declared before
+    // apiHandler so the latter can close over it.
+    const authFetch = useMemo(() => createAuthenticatedFetch(), []);
+
     const apiHandler = useCallback(async (action: ActionDef) => {
         try {
             const target = action.target || action.name;
             const params = action.params || {};
+
+            // Absolute HTTP target (e.g. /api/v1/auth/organization/invite-member,
+            // http://..., https://...) — bypass dataSource and call the API
+            // directly through the authenticated fetch wrapper so:
+            //   - Authorization: Bearer <token> is injected
+            //   - X-Tenant-ID is injected (multi-tenant routing)
+            //   - Same-origin cookies (better-auth.session_token) ride along
+            //
+            // This is the canonical path for schema actions on managed-by
+            // tables (sys_user/invite_user, sys_session/revoke, …) where
+            // generic CRUD does not apply.
+            const targetStr = typeof target === 'string' ? target : '';
+            const isAbsolute = targetStr.startsWith('/') || /^https?:\/\//i.test(targetStr);
+            if (isAbsolute) {
+                const baseUrl = import.meta.env.VITE_SERVER_URL || '';
+                const url = targetStr.startsWith('http') ? targetStr : `${baseUrl}${targetStr}`;
+                const body: Record<string, any> = { ...(params as Record<string, any>) };
+                // Auto-inject organizationId when the active org is known and
+                // not already set. Most better-auth org-scoped endpoints
+                // accept this shape; harmless for endpoints that ignore it.
+                if (!body.organizationId && activeOrganization?.id) {
+                    body.organizationId = activeOrganization.id;
+                }
+                const res = await authFetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify(body),
+                });
+                if (!res.ok) {
+                    let detail = `HTTP ${res.status}`;
+                    try {
+                        const j = await res.json();
+                        detail = (j as any)?.error || (j as any)?.message || detail;
+                    } catch { /* response body not JSON */ }
+                    return { success: false, error: detail };
+                }
+                const data = await res.json().catch(() => ({}));
+                if (action.refreshAfter !== false) setRefreshKey(k => k + 1);
+                return { success: true, data, reload: action.refreshAfter !== false };
+            }
 
             // Generic list-level API handler: update/execute via dataSource
             if (typeof dataSource.execute === 'function') {
@@ -1175,10 +1221,7 @@ export function ObjectView({ dataSource, objects, onEdit, externalRefreshKey }: 
         } catch (error) {
             return { success: false, error: (error as Error).message };
         }
-    }, [dataSource, objectDef.name]);
-
-    // Authenticated fetch for direct backend calls (e.g. flow trigger).
-    const authFetch = useMemo(() => createAuthenticatedFetch(), []);
+    }, [dataSource, objectDef.name, authFetch, activeOrganization]);
 
     // Flow action handler — POST to /api/v1/automation/{name}/trigger.
     // Triggered when an Action with `type: 'flow'` is invoked from list-level
@@ -1649,7 +1692,15 @@ export function ObjectView({ dataSource, objects, onEdit, externalRefreshKey }: 
 
     return (
         <ActionProvider
-            context={{ objectName: objectDef.name, user: currentUser }}
+            context={{
+                objectName: objectDef.name,
+                user: currentUser,
+                // Expose active org so `type: 'url'` actions can template
+                // `/organizations/${activeOrganization.slug}/...` etc.
+                activeOrganization: activeOrganization
+                  ? { id: activeOrganization.id, slug: activeOrganization.slug, name: activeOrganization.name }
+                  : null,
+            }}
             onConfirm={confirmHandler}
             onToast={toastHandler}
             onNavigate={navigateHandler}
