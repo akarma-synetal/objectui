@@ -20,8 +20,6 @@ import {
   Badge,
   Card,
   CardContent,
-  CardHeader,
-  CardTitle,
   Tabs,
   TabsList,
   TabsTrigger,
@@ -46,6 +44,15 @@ import {
   Alert,
   AlertDescription,
   Separator,
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
 } from '@object-ui/components';
 import { toast } from 'sonner';
 import { useAuth } from '@object-ui/auth';
@@ -82,6 +89,20 @@ function StatusBadge({ status }: { status: string }) {
 function formatDate(s: string | null | undefined): string {
   if (!s) return '—';
   try { return new Date(s).toLocaleString(); } catch { return s; }
+}
+
+/**
+ * Render an actor/approver identifier in a friendly form.
+ *  - emails → shown as-is
+ *  - `role:<name>` → shown as "Role: name"
+ *  - opaque 16+ char IDs → truncated middle (e.g. `5aF9BX3J…wTk`)
+ */
+function formatIdentity(id: string | null | undefined): string {
+  if (!id) return '—';
+  if (id.includes('@')) return id;
+  if (id.startsWith('role:')) return `Role: ${id.slice(5)}`;
+  if (id.length > 14) return `${id.slice(0, 6)}…${id.slice(-4)}`;
+  return id;
 }
 
 export function ApprovalsInboxPage() {
@@ -265,7 +286,7 @@ export function ApprovalsInboxPage() {
         <TabsList>
           <TabsTrigger value="pending">
             My Pending
-            {tab === 'pending' && pendingCount > 0 && (
+            {pendingCount > 0 && (
               <Badge variant="secondary" className="ml-2">{pendingCount}</Badge>
             )}
           </TabsTrigger>
@@ -274,31 +295,24 @@ export function ApprovalsInboxPage() {
         </TabsList>
 
         <TabsContent value={tab} className="mt-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">
-                {tab === 'pending' && (
-                  <span className="text-sm text-muted-foreground font-normal">
-                    Matching identities: {identities.length === 0 ? '(none — showing all pending)' : identities.join(', ')}
-                  </span>
-                )}
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {loading ? (
-                <div className="space-y-2">
-                  <Skeleton className="h-10 w-full" />
-                  <Skeleton className="h-10 w-full" />
-                  <Skeleton className="h-10 w-full" />
-                </div>
-              ) : rows.length === 0 ? (
-                <Empty>
-                  <EmptyTitle>No requests</EmptyTitle>
-                  <EmptyDescription>
-                    {tab === 'pending' ? 'You have no pending approvals.' : 'Nothing here yet.'}
-                  </EmptyDescription>
-                </Empty>
-              ) : (
+          {loading ? (
+            <div className="space-y-2">
+              <Skeleton className="h-10 w-full" />
+              <Skeleton className="h-10 w-full" />
+              <Skeleton className="h-10 w-full" />
+            </div>
+          ) : rows.length === 0 ? (
+            <div className="flex items-center justify-center min-h-[240px] rounded-md border border-dashed">
+              <Empty>
+                <EmptyTitle>No requests</EmptyTitle>
+                <EmptyDescription>
+                  {tab === 'pending' ? 'You have no pending approvals.' : 'Nothing here yet.'}
+                </EmptyDescription>
+              </Empty>
+            </div>
+          ) : (
+            <Card>
+              <CardContent className="p-0">
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -320,7 +334,9 @@ export function ApprovalsInboxPage() {
                       >
                         <TableCell className="font-medium">{r.process_name}</TableCell>
                         <TableCell>{r.object_name}</TableCell>
-                        <TableCell className="font-mono text-xs">{r.record_id}</TableCell>
+                        <TableCell className="font-mono text-xs" title={r.record_id}>
+                          {formatIdentity(r.record_id)}
+                        </TableCell>
                         <TableCell>
                           {r.current_step ? (
                             <span className="text-xs">
@@ -332,8 +348,11 @@ export function ApprovalsInboxPage() {
                           ) : '—'}
                         </TableCell>
                         <TableCell><StatusBadge status={r.status} /></TableCell>
-                        <TableCell className="max-w-[200px] truncate text-xs text-muted-foreground">
-                          {(r.pending_approvers || []).join(', ') || '—'}
+                        <TableCell
+                          className="max-w-[220px] truncate text-xs text-muted-foreground"
+                          title={(r.pending_approvers || []).join(', ')}
+                        >
+                          {(r.pending_approvers || []).map(formatIdentity).join(', ') || '—'}
                         </TableCell>
                         <TableCell className="text-xs whitespace-nowrap">
                           <Clock className="h-3 w-3 inline mr-1" />
@@ -343,9 +362,9 @@ export function ApprovalsInboxPage() {
                     ))}
                   </TableBody>
                 </Table>
-              )}
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          )}
         </TabsContent>
       </Tabs>
 
@@ -370,7 +389,7 @@ export function ApprovalsInboxPage() {
                 <div><div className="text-muted-foreground text-xs">Status</div><StatusBadge status={selected.status} /></div>
                 <div><div className="text-muted-foreground text-xs">Current Step</div>{selected.current_step || '—'}</div>
                 <div><div className="text-muted-foreground text-xs">Step Index</div>{selected.current_step_index ?? '—'}</div>
-                <div><div className="text-muted-foreground text-xs">Submitter</div><span className="font-mono text-xs">{selected.submitter_id || '—'}</span></div>
+                <div><div className="text-muted-foreground text-xs">Submitter</div><span className="font-mono text-xs" title={selected.submitter_id || ''}>{formatIdentity(selected.submitter_id)}</span></div>
                 <div><div className="text-muted-foreground text-xs">Submitted</div>{formatDate(selected.submitted_at)}</div>
                 <div><div className="text-muted-foreground text-xs">Completed</div>{formatDate(selected.completed_at)}</div>
                 <div className="col-span-2">
@@ -378,7 +397,7 @@ export function ApprovalsInboxPage() {
                   <div className="flex flex-wrap gap-1 mt-1">
                     {(selected.pending_approvers || []).length === 0 ? '—' :
                       (selected.pending_approvers || []).map((a, i) => (
-                        <Badge key={i} variant="outline" className="font-mono text-[10px]">{a}</Badge>
+                        <Badge key={i} variant="outline" className="font-mono text-[10px]" title={a}>{formatIdentity(a)}</Badge>
                       ))}
                   </div>
                 </div>
@@ -404,7 +423,7 @@ export function ApprovalsInboxPage() {
                       <Badge variant="outline" className="text-[10px]">{a.action}</Badge>
                       <div className="flex-1">
                         <div>
-                          <span className="font-mono">{a.actor_id || '—'}</span>
+                          <span className="font-mono" title={a.actor_id || ''}>{formatIdentity(a.actor_id)}</span>
                           {a.step_name && <span className="text-muted-foreground"> · {a.step_name} (#{a.step_index})</span>}
                         </div>
                         {a.comment && <div className="text-muted-foreground italic">"{a.comment}"</div>}
@@ -419,22 +438,27 @@ export function ApprovalsInboxPage() {
                 <>
                   <Separator />
                   <div className="space-y-3">
-                    <div>
-                      <Label htmlFor="actor-override" className="text-xs">
-                        Actor (optional override)
-                      </Label>
-                      <input
-                        id="actor-override"
-                        type="text"
-                        value={actorOverride}
-                        onChange={(e) => setActorOverride(e.target.value)}
-                        placeholder={`Auto: ${resolveActor(selected) || '(none)'}`}
-                        className="w-full mt-1 px-3 py-2 text-sm border rounded-md bg-background"
-                      />
-                      <div className="text-[10px] text-muted-foreground mt-1">
-                        e.g. <code>role:sales_manager</code>. Leave blank to use auto-detected.
+                    <details className="group">
+                      <summary className="cursor-pointer text-xs text-muted-foreground hover:text-foreground select-none">
+                        Override actor (advanced)
+                      </summary>
+                      <div className="mt-2">
+                        <Label htmlFor="actor-override" className="text-xs">
+                          Actor
+                        </Label>
+                        <input
+                          id="actor-override"
+                          type="text"
+                          value={actorOverride}
+                          onChange={(e) => setActorOverride(e.target.value)}
+                          placeholder={`Auto: ${resolveActor(selected) || '(none)'}`}
+                          className="w-full mt-1 px-3 py-2 text-sm border rounded-md bg-background"
+                        />
+                        <div className="text-[10px] text-muted-foreground mt-1">
+                          e.g. <code>role:sales_manager</code>. Leave blank to use auto-detected.
+                        </div>
                       </div>
-                    </div>
+                    </details>
                     <div>
                       <Label htmlFor="comment" className="text-xs">Comment (optional)</Label>
                       <Textarea
@@ -454,15 +478,39 @@ export function ApprovalsInboxPage() {
                         <CheckCircle2 className="h-4 w-4 mr-1" />
                         {submitting === 'approve' ? 'Approving…' : 'Approve'}
                       </Button>
-                      <Button
-                        size="sm"
-                        variant="destructive"
-                        onClick={() => doAction('reject')}
-                        disabled={!canApproveReject || submitting !== null}
-                      >
-                        <XCircle className="h-4 w-4 mr-1" />
-                        {submitting === 'reject' ? 'Rejecting…' : 'Reject'}
-                      </Button>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            disabled={!canApproveReject || submitting !== null}
+                            className="border-destructive text-destructive hover:bg-destructive hover:text-destructive-foreground"
+                          >
+                            <XCircle className="h-4 w-4 mr-1" />
+                            {submitting === 'reject' ? 'Rejecting…' : 'Reject'}
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Reject this request?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              This will mark the request as rejected and notify the submitter.
+                              {selected.current_step_index != null && selected.current_step_index > 0
+                                ? ' If the process is multi-step, it returns to the previous step.'
+                                : ''}
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction
+                              onClick={() => doAction('reject')}
+                              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                            >
+                              Reject
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
                       <Button
                         size="sm"
                         variant="outline"
