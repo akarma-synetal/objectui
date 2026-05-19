@@ -36,6 +36,8 @@ export interface RawActionParam {
   placeholder?: string;
   helpText?: string;
   defaultValue?: unknown;
+  /** When true, seed defaultValue from the row record using the field name. */
+  defaultFromRow?: boolean;
 }
 
 /** Field metadata as exposed by `useMetadata().objects[].fields`. */
@@ -70,6 +72,12 @@ export interface ResolveActionParamsContext {
     optionValue: string,
     fallback: string,
   ) => string;
+  /**
+   * Row record providing default values for params with `defaultFromRow` set.
+   * Used by list_item actions (edit/delete dialogs) so the dialog opens with
+   * the row's current values pre-filled.
+   */
+  row?: Record<string, unknown>;
 }
 
 /** Normalise an options entry (allowing bare strings) into label/value pairs. */
@@ -98,6 +106,14 @@ export function resolveActionParam(
   param: RawActionParam,
   ctx: ResolveActionParamsContext,
 ): ActionParamDef {
+  /** Row-context default: when `defaultFromRow` and a row is present, the
+   *  param's defaultValue is the row's value at the field key (or `name`). */
+  const rowKey = param.field ?? param.name;
+  const rowDefault =
+    param.defaultFromRow && ctx.row && rowKey != null && Object.prototype.hasOwnProperty.call(ctx.row, rowKey)
+      ? ctx.row[rowKey]
+      : undefined;
+
   // Inline param — no field reference, just normalise.
   if (!param.field) {
     return {
@@ -108,7 +124,7 @@ export function resolveActionParam(
       options: param.options,
       placeholder: param.placeholder,
       helpText: param.helpText,
-      defaultValue: param.defaultValue,
+      defaultValue: rowDefault ?? param.defaultValue,
     };
   }
 
@@ -128,7 +144,7 @@ export function resolveActionParam(
       options: param.options,
       placeholder: param.placeholder,
       helpText: param.helpText,
-      defaultValue: param.defaultValue,
+      defaultValue: rowDefault ?? param.defaultValue,
     };
   }
 
@@ -146,7 +162,7 @@ export function resolveActionParam(
     options: resolvedOptions,
     placeholder: param.placeholder ?? field.placeholder,
     helpText: param.helpText ?? field.help ?? field.description,
-    defaultValue: param.defaultValue ?? field.defaultValue,
+    defaultValue: rowDefault ?? param.defaultValue ?? field.defaultValue,
   };
 }
 
