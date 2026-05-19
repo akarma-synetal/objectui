@@ -317,6 +317,9 @@ const en = {
     minutesAgo: '{{count}}m ago',
     hoursAgo: '{{count}}h ago',
     daysAgo: '{{count}}d ago',
+    // Record meta footer (audit provenance)
+    createdBy: 'Created by',
+    updatedBy: 'Updated by',
     // Attachments
     dropFilesToUpload: 'Drop files here or click to upload',
     attachmentCount: '{{count}} attachment',

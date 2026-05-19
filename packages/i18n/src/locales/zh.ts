@@ -317,6 +317,9 @@ const zh = {
     minutesAgo: '{{count}}分钟前',
     hoursAgo: '{{count}}小时前',
     daysAgo: '{{count}}天前',
+    // Record meta footer (audit provenance)
+    createdBy: '创建于',
+    updatedBy: '更新于',
     // Attachments
     dropFilesToUpload: '拖拽文件到此处或点击上传',
     attachmentCount: '{{count}} 个附件',
