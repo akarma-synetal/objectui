@@ -105,14 +105,14 @@ export function MePermissionsProvider({
       // pass schema.objectName as "Account" / "account" interchangeably.
       const objKey = (object ?? '').toLowerCase();
       const key = `${objKey}.${field}`;
-      const fieldPerm = data.fields[key] ?? data.fields[`${object}.${field}`];
+      const fieldPerm = data.fields?.[key] ?? data.fields?.[`${object}.${field}`];
       if (fieldPerm) {
         return action === 'read'
           ? fieldPerm.readable !== false
           : fieldPerm.editable !== false;
       }
       // No explicit field-level override → defer to object-level perms.
-      const objPerm = data.objects[objKey] ?? data.objects[object] ?? data.objects['*'];
+      const objPerm = data.objects?.[objKey] ?? data.objects?.[object] ?? data.objects?.['*'];
       if (!objPerm) return true; // permissive default when nothing configured
       return action === 'read'
         ? objPerm.allowRead !== false
@@ -124,7 +124,7 @@ export function MePermissionsProvider({
   const check = useCallback(
     (object: string, action: PermissionAction): PermissionCheckResult => {
       if (!data) return { allowed: false, reason: 'permissions-loading' };
-      const objPerm = data.objects[object] ?? data.objects['*'];
+      const objPerm = data.objects?.[object] ?? data.objects?.['*'];
       const map: Record<string, keyof NonNullable<typeof objPerm>> = {
         read: 'allowRead',
         view: 'allowRead',
@@ -145,7 +145,7 @@ export function MePermissionsProvider({
       if (!data) return [];
       const prefix = `${object}.`;
       const out: FieldLevelPermission[] = [];
-      for (const [key, value] of Object.entries(data.fields)) {
+      for (const [key, value] of Object.entries(data.fields ?? {})) {
         if (!key.startsWith(prefix)) continue;
         const field = key.slice(prefix.length);
         out.push({
