@@ -40,7 +40,7 @@ describe('ActionRunner — ParamCollectionHandler', () => {
       });
 
       expect(paramHandler).toHaveBeenCalledOnce();
-      expect(paramHandler).toHaveBeenCalledWith([
+      expect(paramHandler.mock.calls[0][0]).toEqual([
         { name: 'owner_email', label: 'Owner Email', type: 'text', required: true },
       ]);
       expect(onClick).toHaveBeenCalledOnce();
