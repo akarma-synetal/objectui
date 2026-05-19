@@ -92,6 +92,24 @@ function normalizeToArray(value: FilterCondition["value"]): (string | number | b
   return []
 }
 
+/**
+ * Defensive guard — only accept an external `value` that matches the
+ * `FilterGroup` shape. Reports/Views may persist filters in protocol-native
+ * shapes (e.g. MongoDB-style `{field: value}` from `@objectstack/spec`)
+ * which would otherwise crash the renderer once it reaches
+ * `filterGroup.conditions.length`.
+ */
+function isValidGroup(v: unknown): v is FilterGroup {
+  return (
+    !!v &&
+    typeof v === "object" &&
+    Array.isArray((v as FilterGroup).conditions) &&
+    ((v as FilterGroup).logic === "and" || (v as FilterGroup).logic === "or")
+  )
+}
+
+const EMPTY_GROUP: FilterGroup = { id: "root", logic: "and", conditions: [] }
+
 function FilterBuilder({
   fields = [],
   value,
@@ -100,15 +118,12 @@ function FilterBuilder({
   showClearAll = true,
 }: FilterBuilderProps) {
   const [filterGroup, setFilterGroup] = React.useState<FilterGroup>(
-    value || {
-      id: "root",
-      logic: "and",
-      conditions: [],
-    }
+    isValidGroup(value) ? value : EMPTY_GROUP,
   )
 
   React.useEffect(() => {
-    if (value && JSON.stringify(value) !== JSON.stringify(filterGroup)) {
+    if (!isValidGroup(value)) return
+    if (JSON.stringify(value) !== JSON.stringify(filterGroup)) {
       setFilterGroup(value)
     }
   }, [value])
