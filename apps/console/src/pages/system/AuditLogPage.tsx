@@ -145,7 +145,7 @@ export function AuditLogPage() {
       if (Object.keys(filter).length > 0) {
         params.set('$filter', JSON.stringify(filter));
       }
-      params.set('$orderby', JSON.stringify({ created_at: 'desc' }));
+      params.set('$orderby', 'created_at desc');
       params.set('$top', String(PAGE_SIZE + 1));  // +1 to detect hasMore
       params.set('$skip', String(page * PAGE_SIZE));
 
@@ -157,7 +157,14 @@ export function AuditLogPage() {
         throw new Error(`HTTP ${res.status}: ${body.slice(0, 200) || res.statusText}`);
       }
       const json = await res.json();
-      const items: AuditRow[] = Array.isArray(json) ? json : json?.data || [];
+      // REST envelope: { object, records, total, hasMore }
+      const items: AuditRow[] = Array.isArray(json)
+        ? json
+        : Array.isArray(json?.records)
+          ? json.records
+          : Array.isArray(json?.data)
+            ? json.data
+            : [];
       setHasMore(items.length > PAGE_SIZE);
       setRows(items.slice(0, PAGE_SIZE));
     } catch (err: any) {
