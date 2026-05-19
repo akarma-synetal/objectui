@@ -11,6 +11,7 @@
 import { lazy, Suspense } from 'react';
 import { Route, useParams, useLocation, Navigate } from 'react-router-dom';
 import { DefaultAppContent, LoadingScreen } from '@object-ui/app-shell';
+import { MePermissionsProvider } from '@object-ui/permissions';
 
 const SystemHubPage = lazy(() => import('./pages/system/SystemHubPage').then(m => ({ default: m.SystemHubPage })));
 const AppManagementPage = lazy(() => import('./pages/system/AppManagementPage').then(m => ({ default: m.AppManagementPage })));
@@ -55,5 +56,11 @@ const systemRoutes = (
 );
 
 export function AppContent() {
-  return <DefaultAppContent extraRoutes={systemRoutes} extraRoutesNoApp={systemRoutes} />;
+  const serverUrl = import.meta.env.VITE_SERVER_URL || '';
+  const endpoint = `${serverUrl}/api/v1/auth/me/permissions`;
+  return (
+    <MePermissionsProvider endpoint={endpoint} loadingFallback={<LoadingScreen />}>
+      <DefaultAppContent extraRoutes={systemRoutes} extraRoutesNoApp={systemRoutes} />
+    </MePermissionsProvider>
+  );
 }

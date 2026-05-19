@@ -20,6 +20,7 @@
  */
 
 export { PermissionProvider, type PermissionProviderProps } from './PermissionProvider';
+export { MePermissionsProvider, type MePermissionsProviderProps, type MePermissionsResponse } from './MePermissionsProvider';
 export { usePermissions } from './usePermissions';
 export { useFieldPermissions } from './useFieldPermissions';
 export { PermissionGuard, type PermissionGuardProps } from './PermissionGuard';

@@ -1792,6 +1792,9 @@ importers:
       '@object-ui/fields':
         specifier: workspace:*
         version: link:../fields
+      '@object-ui/permissions':
+        specifier: workspace:*
+        version: link:../permissions
       '@object-ui/react':
         specifier: workspace:*
         version: link:../react
@@ -2000,6 +2003,9 @@ importers:
 
   packages/plugin-list:
     dependencies:
+      '@object-ui/permissions':
+        specifier: workspace:^
+        version: link:../permissions
       lucide-react:
         specifier: ^1.16.0
         version: 1.16.0(react@19.2.6)

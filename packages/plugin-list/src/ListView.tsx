@@ -22,6 +22,7 @@ import type { ListViewSchema } from '@object-ui/types';
 import { usePullToRefresh } from '@object-ui/mobile';
 import { evaluatePlainCondition, normalizeQuickFilter, normalizeQuickFilters, buildExpandFields } from '@object-ui/core';
 import { useObjectTranslation, useObjectLabel, useSafeFieldLabel } from '@object-ui/i18n';
+import { usePermissions } from '@object-ui/permissions';
 
 export interface ListViewProps {
   schema: ListViewSchema;
@@ -1046,6 +1047,11 @@ export const ListView = React.forwardRef<ListViewHandle, ListViewProps>(({
     onRowClick,
   });
 
+  // Field-level permission gate. Filter unreadable columns from the
+  // field list BEFORE any downstream column construction so they also
+  // disappear from the hide-fields popover, filter/sort builders, and
+  // grid `$select`.
+  const perms = usePermissions();
   // Apply hiddenFields and fieldOrder to produce effective fields
   const effectiveFields = React.useMemo(() => {
     let fields = schema.fields || [];
@@ -1054,7 +1060,16 @@ export const ListView = React.forwardRef<ListViewHandle, ListViewProps>(({
     if (!Array.isArray(fields)) {
       fields = [];
     }
-    
+
+    // FLS: drop columns the current user cannot read.
+    if (perms?.isLoaded && schema.objectName) {
+      fields = fields.filter((f: any) => {
+        const fieldName = typeof f === 'string' ? f : (f?.name || f?.fieldName || f?.field);
+        if (!fieldName) return true;
+        return perms.checkField(schema.objectName!, fieldName, 'read');
+      });
+    }
+
     // Remove hidden fields
     if (hiddenFields.size > 0) {
       fields = fields.filter((f: any) => {
@@ -1076,7 +1091,7 @@ export const ListView = React.forwardRef<ListViewHandle, ListViewProps>(({
     }
     
     return fields;
-  }, [schema.fields, hiddenFields, schema.fieldOrder]);
+  }, [schema.fields, schema.objectName, hiddenFields, schema.fieldOrder, perms]);
 
   // Generate the appropriate view component schema
   const viewComponentSchema = React.useMemo(() => {

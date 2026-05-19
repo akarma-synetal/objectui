@@ -18,6 +18,7 @@ import type { ObjectFormSchema, FormField, FormSchema, DataSource } from '@objec
 import { SchemaRenderer, useSafeFieldLabel } from '@object-ui/react';
 import { mapFieldTypeToFormType, buildValidationRules, evaluateCondition, formatFileSize } from '@object-ui/fields';
 import { useIsMobile } from '@object-ui/components';
+import { usePermissions } from '@object-ui/permissions';
 import { TabbedForm } from './TabbedForm';
 import { WizardForm } from './WizardForm';
 import { SplitForm } from './SplitForm';
@@ -209,6 +210,34 @@ const SimpleObjectForm: React.FC<ObjectFormProps> = ({
 }) => {
   const { fieldLabel, sectionLabel } = useSafeFieldLabel();
   const isMobile = useIsMobile();
+  // Field-level permission gate. When the consumer hasn't mounted a
+  // PermissionProvider / MePermissionsProvider, `usePermissions` returns
+  // a permissive default (isLoaded:false, checkField always true) so we
+  // remain backward-compatible.
+  const perms = usePermissions();
+  const applyFieldPerms = useCallback(
+    (fields: FormField[]): FormField[] => {
+      if (!perms?.isLoaded) return fields;
+      const out: FormField[] = [];
+      for (const f of fields) {
+        const canRead = perms.checkField(schema.objectName, f.name, 'read');
+        if (!canRead) continue; // omit hidden fields entirely
+        const canWrite = perms.checkField(schema.objectName, f.name, 'write');
+        if (!canWrite && schema.mode !== 'view') {
+          out.push({
+            ...f,
+            readOnly: true,
+            disabled: true,
+            description: f.description ?? 'You do not have edit access to this field.',
+          });
+        } else {
+          out.push(f);
+        }
+      }
+      return out;
+    },
+    [perms, schema.objectName, schema.mode],
+  );
 
   const [objectSchema, setObjectSchema] = useState<any>(null);
   const [formFields, setFormFields] = useState<FormField[]>([]);
@@ -462,13 +491,26 @@ const SimpleObjectForm: React.FC<ObjectFormProps> = ({
       throw new Error('DataSource is required for form submission (inline mode not configured)');
     }
 
+    // Strip non-editable fields from the payload (FLS — never trust the
+    // client form state; if the user lacked edit access we MUST NOT
+    // include the field in the create/update request).
+    let payload = formData;
+    if (perms?.isLoaded && formData && typeof formData === 'object') {
+      payload = {} as Record<string, unknown>;
+      for (const k of Object.keys(formData)) {
+        if (perms.checkField(schema.objectName, k, 'write')) {
+          (payload as Record<string, unknown>)[k] = formData[k];
+        }
+      }
+    }
+
     try {
       let result;
       
       if (schema.mode === 'create') {
-        result = await dataSource.create(schema.objectName, formData);
+        result = await dataSource.create(schema.objectName, payload);
       } else if (schema.mode === 'edit' && schema.recordId) {
-        result = await dataSource.update(schema.objectName, schema.recordId, formData);
+        result = await dataSource.update(schema.objectName, schema.recordId, payload);
       } else {
         throw new Error('Invalid form mode or missing record ID');
       }
@@ -489,7 +531,7 @@ const SimpleObjectForm: React.FC<ObjectFormProps> = ({
       
       throw err;
     }
-  }, [schema, dataSource, hasInlineFields]);
+  }, [schema, dataSource, hasInlineFields, perms]);
 
   // Handle form cancellation
   const handleCancel = useCallback(() => {
@@ -550,7 +592,7 @@ const SimpleObjectForm: React.FC<ObjectFormProps> = ({
         {schema.sections.map((section, index) => {
           // Filter formFields to only include fields in this section
           const sectionFieldNames = section.fields.map(f => typeof f === 'string' ? f : f.name);
-          const sectionFields = formFields.filter(f => sectionFieldNames.includes(f.name));
+          const sectionFields = applyFieldPerms(formFields.filter(f => sectionFieldNames.includes(f.name)));
           
           return (
             <FormSection
@@ -585,9 +627,10 @@ const SimpleObjectForm: React.FC<ObjectFormProps> = ({
 
   // Apply auto-layout: infer columns and colSpan when not explicitly configured
   const hasSections = schema.sections?.length;
+  const gatedFormFields = applyFieldPerms(formFields);
   const autoLayoutResult = !hasSections
-    ? applyAutoLayout(formFields, objectSchema, schema.columns, schema.mode)
-    : { fields: formFields, columns: schema.columns };
+    ? applyAutoLayout(gatedFormFields, objectSchema, schema.columns, schema.mode)
+    : { fields: gatedFormFields, columns: schema.columns };
 
   // ----- Mobile UX (round 3) -----
   // 1) Propagate fullscreen-textarea opt-in to each textarea field so the
