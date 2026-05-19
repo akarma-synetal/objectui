@@ -39,7 +39,7 @@ import { useMetadata } from '../providers/MetadataProvider';
 import { useAdapter } from '../providers/AdapterProvider';
 import { ExpressionProvider, evaluateVisibility } from '../providers/ExpressionProvider';
 import { SkeletonDetail } from '../skeletons';
-import { ManagedByBanner } from '../components/ManagedByBanner';
+import { ManagedByBadge } from '../components/ManagedByBadge';
 import { useAuth } from '@object-ui/auth';
 import { ExpressionEvaluator } from '@object-ui/core';
 
@@ -242,10 +242,15 @@ export function RecordFormPage({ mode }: RecordFormPageProps) {
             <span className="text-foreground font-medium" data-testid="record-form-page-title">
               {pageTitle}
             </span>
+            {/* Lifecycle bucket badge — see ManagedByBadge.
+                Forms additionally disable inputs for non-`platform`
+                buckets via ObjectForm's own readOnly resolution. */}
+            <ManagedByBadge
+              managedBy={(objectDef as any)?.managedBy}
+              className="ml-1"
+            />
           </nav>
         </header>
-
-        <ManagedByBanner managedBy={(objectDef as any)?.managedBy} />
 
         <div className="flex-1 overflow-auto p-4 sm:p-6">
           <div className="mx-auto max-w-4xl">

@@ -1,0 +1,133 @@
+import { ShieldAlert, Settings2, Lock, Archive } from 'lucide-react';
+import {
+  Badge,
+  Tooltip,
+  TooltipTrigger,
+  TooltipContent,
+  TooltipProvider,
+  cn,
+} from '@object-ui/components';
+
+/**
+ * ManagedByBadge — replaces the verbose, full-width `ManagedByBanner` with
+ * a compact badge that sits next to the page title.
+ *
+ * Rationale (see internal RFC, "platform-managed UX"):
+ *   - Salesforce / ServiceNow / Workday / SAP Fiori never plaster a banner
+ *     explaining their internal architecture across every list/detail
+ *     page. Instead they hide the affordance (the New button), and surface
+ *     a short *contextual* hint only when the user might otherwise be
+ *     confused (typically the empty state or a tooltip).
+ *   - The previous banner exposed engine-internal terminology ("platform
+ *     engine", "audit / monitoring surface") to every end user and repeated
+ *     itself on three pages (list + detail + form) for the same record.
+ *
+ * The badge follows the same five-bucket taxonomy declared by
+ * `@objectstack/spec/data/object.zod.ts` → `ObjectSchemaBase.managedBy`:
+ *   - `platform`     — User-owned business data. **Renders nothing.**
+ *   - `config`       — Admin-authored configuration.
+ *   - `system`       — Engine-managed runtime rows.
+ *   - `append-only`  — Immutable audit log.
+ *   - `better-auth`  — Identity tables owned by better-auth driver.
+ *
+ * Forms still disable inputs and the toolbar still hides New/Import/Delete
+ * via `resolveCrudAffordances()`. This badge purely *labels* the bucket so
+ * users understand at a glance why those affordances are missing — the
+ * detailed explanation lives in the tooltip.
+ *
+ * Empty-state guidance for `system`-bucket lists is rendered separately by
+ * `ObjectView` via `resolveManagedByEmptyState()`.
+ */
+
+type Bucket = 'platform' | 'config' | 'system' | 'append-only' | 'better-auth';
+
+export interface ManagedByBadgeProps {
+  /** The `managedBy` flag from the object schema. */
+  managedBy?: string;
+  /** Optional override for the human-readable system name shown in the tooltip. */
+  label?: string;
+  /** Optional extra classes. */
+  className?: string;
+}
+
+interface Variant {
+  icon: typeof ShieldAlert;
+  /** Short label shown inside the badge itself. */
+  short: string;
+  /** Longer one-line title rendered in the tooltip heading. */
+  title: string;
+  /** Tooltip body. Receives the human-readable identity label (used only by better-auth). */
+  body: (display: string) => string;
+  /** Tailwind classes for the badge surface. */
+  tone: string;
+}
+
+const VARIANTS: Record<Exclude<Bucket, 'platform'>, Variant> = {
+  config: {
+    icon: Settings2,
+    short: 'Admin config',
+    title: 'Administrator configuration',
+    body: () =>
+      'These rows define how the platform behaves at runtime. Author them here; the runtime data they produce lives in a separate table.',
+    tone: 'border-sky-300/60 bg-sky-50 text-sky-900 hover:bg-sky-100 dark:border-sky-500/40 dark:bg-sky-950/40 dark:text-sky-100',
+  },
+  system: {
+    icon: Lock,
+    short: 'System-managed',
+    title: 'Managed by the platform',
+    body: () =>
+      'Rows here are created automatically when actions run on the source record. The list below is a read-only monitoring surface — row-level actions (Approve, Recall, Resend, …) live on each row.',
+    tone: 'border-slate-300/60 bg-slate-50 text-slate-900 hover:bg-slate-100 dark:border-slate-500/40 dark:bg-slate-950/40 dark:text-slate-100',
+  },
+  'append-only': {
+    icon: Archive,
+    short: 'Read-only · Audit log',
+    title: 'Read-only historical record',
+    body: () =>
+      "Immutable audit log. Rows cannot be created, edited, or deleted from the UI — they're written by the platform when events occur. Use Export to download for compliance review.",
+    tone: 'border-zinc-300/60 bg-zinc-50 text-zinc-900 hover:bg-zinc-100 dark:border-zinc-500/40 dark:bg-zinc-950/40 dark:text-zinc-100',
+  },
+  'better-auth': {
+    icon: ShieldAlert,
+    short: 'Identity',
+    title: 'Managed by the identity provider',
+    body: (display) =>
+      `This object's schema is owned by ${display}. Direct edits bypass password hashing, session validation, two-factor checks, and audit hooks. Use the dedicated identity workflows instead (Invite User, Reset Password, Revoke Session, Rotate Key, …).`,
+    tone: 'border-amber-300/60 bg-amber-50 text-amber-900 hover:bg-amber-100 dark:border-amber-500/40 dark:bg-amber-950/40 dark:text-amber-100',
+  },
+};
+
+export function ManagedByBadge({ managedBy, label, className }: ManagedByBadgeProps) {
+  if (!managedBy || managedBy === 'platform') return null;
+  const variant = VARIANTS[managedBy as Exclude<Bucket, 'platform'>];
+  if (!variant) return null;
+  const Icon = variant.icon;
+  const display = label ?? 'better-auth';
+  return (
+    <TooltipProvider delayDuration={200}>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Badge
+            variant="outline"
+            data-testid="managed-by-badge"
+            data-bucket={managedBy}
+            className={cn(
+              'gap-1 font-normal text-[11px] leading-none py-0.5 px-1.5 cursor-help',
+              variant.tone,
+              className,
+            )}
+          >
+            <Icon className="h-3 w-3" aria-hidden="true" />
+            <span>{variant.short}</span>
+          </Badge>
+        </TooltipTrigger>
+        <TooltipContent side="bottom" align="start" className="max-w-xs text-xs leading-relaxed">
+          <p className="font-semibold mb-1">{variant.title}</p>
+          <p className="text-muted-foreground">{variant.body(display)}</p>
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  );
+}
+
+export default ManagedByBadge;

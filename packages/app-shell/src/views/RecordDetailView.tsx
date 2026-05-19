@@ -17,7 +17,7 @@ import { toast } from 'sonner';
 import { Database, Users } from 'lucide-react';
 import { MetadataPanel, useMetadataInspector } from './MetadataInspector';
 import { SkeletonDetail } from '../skeletons';
-import { ManagedByBanner } from '../components/ManagedByBanner';
+import { ManagedByBadge } from '../components/ManagedByBadge';
 import { resolveCrudAffordances } from '../utils/crudAffordances';
 import { ActionConfirmDialog, type ConfirmDialogState } from './ActionConfirmDialog';
 import { ActionParamDialog, type ParamDialogState } from './ActionParamDialog';
@@ -805,8 +805,10 @@ export function RecordDetailView({ dataSource, objects, onEdit }: RecordDetailVi
 
   return (
     <div className="h-full bg-background overflow-hidden flex flex-col relative">
-      <ManagedByBanner managedBy={(objectDef as any)?.managedBy} />
       <div className="absolute top-2 sm:top-4 right-2 sm:right-4 z-50 flex items-center gap-2">
+        {/* Lifecycle bucket indicator. Replaces the previous full-width
+            ManagedByBanner — see ManagedByBadge for the rationale. */}
+        <ManagedByBadge managedBy={(objectDef as any)?.managedBy} />
         {/* Presence: who else is viewing this record */}
         {recordViewers.length > 0 && (
           <div className="flex items-center gap-1.5" title={t('recordDetail.viewersTooltip')}>

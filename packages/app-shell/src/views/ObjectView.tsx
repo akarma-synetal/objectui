@@ -32,8 +32,9 @@ import { MetadataPanel, useMetadataInspector } from './MetadataInspector';
 import { ViewConfigPanel } from './ViewConfigPanel';
 import { CreateViewDialog } from './CreateViewDialog';
 import { PageHeader } from '../layout/PageHeader';
-import { ManagedByBanner } from '../components/ManagedByBanner';
+import { ManagedByBadge } from '../components/ManagedByBadge';
 import { resolveCrudAffordances } from '../utils/crudAffordances';
+import { resolveManagedByEmptyState } from '../utils/managedByEmptyState';
 import { useObjectActions } from '../hooks/useObjectActions';
 import { useObjectTranslation, useObjectLabel } from '@object-ui/i18n';
 import { usePermissions } from '@object-ui/permissions';
@@ -1482,7 +1483,10 @@ export function ObjectView({ dataSource, objects, onEdit, externalRefreshKey }: 
             showRecordCount: viewDef.showRecordCount ?? listSchema.showRecordCount,
             allowPrinting: viewDef.allowPrinting ?? listSchema.allowPrinting,
             virtualScroll: viewDef.virtualScroll ?? listSchema.virtualScroll,
-            emptyState: viewDef.emptyState ?? listSchema.emptyState,
+            emptyState:
+                viewDef.emptyState
+                ?? listSchema.emptyState
+                ?? resolveManagedByEmptyState((objectDef as any)?.managedBy),
             aria: viewDef.aria ?? listSchema.aria,
             tabs: listSchema.tabs,
             // Propagate filter/sort as default filters/sort for data flow
@@ -1653,10 +1657,20 @@ export function ObjectView({ dataSource, objects, onEdit, externalRefreshKey }: 
             handlers={{ api: apiHandler, flow: flowHandler, script: serverActionHandler, modal: serverActionHandler }}
         >
         <div className="h-full flex flex-col bg-background min-w-0 overflow-hidden">
-             <ManagedByBanner managedBy={(objectDef as any)?.managedBy} />
-             {/* 1. Header with breadcrumb + description */}
+             {/* 1. Header with breadcrumb + description.
+                 The managed-by badge sits inline with the title so the
+                 lifecycle bucket (system / config / append-only /
+                 better-auth) is communicated at a glance; the previous
+                 full-width banner was deliberately removed because it
+                 (a) leaked engine-internal terminology and (b) repeated
+                 itself on list/detail/form for the same record. */}
              <PageHeader
-                 title={objectLabel(objectDef)}
+                 title={
+                   <span className="inline-flex items-center gap-2">
+                     <span className="truncate">{objectLabel(objectDef)}</span>
+                     <ManagedByBadge managedBy={(objectDef as any)?.managedBy} />
+                   </span>
+                 }
                  description={objectDef.description ? objectDesc(objectDef) : undefined}
                  icon={(() => { const I = getIcon((objectDef as any)?.icon); return <I className="h-4 w-4" />; })()}
                  actions={
