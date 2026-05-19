@@ -96,9 +96,10 @@ export function ActivityFeed({ activities = [], className }: ActivityFeedProps) 
         >
           <Activity className="h-4 w-4" />
           {activities.length > 0 && (
-            <span className="absolute -top-0.5 -right-0.5 h-3.5 w-3.5 rounded-full bg-primary text-[9px] font-bold text-primary-foreground flex items-center justify-center">
-              {activities.length > 9 ? '9+' : activities.length}
-            </span>
+            <span
+              aria-hidden="true"
+              className="absolute top-1 right-1 h-1.5 w-1.5 rounded-full bg-sky-500 ring-2 ring-background"
+            />
           )}
         </Button>
       </SheetTrigger>
