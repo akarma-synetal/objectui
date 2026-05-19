@@ -45,10 +45,14 @@ export interface FieldPickerDialogProps {
   testIdPrefix?: string;
   /** Allow only a single selection at a time (e.g. picking a single grouping field). */
   singleSelect?: boolean;
+  /** When true (+singleSelect), clicking a row immediately commits and closes. */
+  commitOnSelect?: boolean;
   /** Disable the trigger button. */
   disabled?: boolean;
   /** Extra trigger className. */
   triggerClassName?: string;
+  /** Custom trigger element (e.g. a button showing the currently picked field). */
+  trigger?: React.ReactElement;
 }
 
 export function FieldPickerDialog({
@@ -61,8 +65,10 @@ export function FieldPickerDialog({
   description,
   testIdPrefix = 'field-picker',
   singleSelect = false,
+  commitOnSelect = false,
   disabled = false,
   triggerClassName,
+  trigger,
 }: FieldPickerDialogProps) {
   const [open, setOpen] = React.useState(false);
   const [search, setSearch] = React.useState('');
@@ -87,6 +93,12 @@ export function FieldPickerDialog({
     : remaining;
 
   const togglePending = (fieldValue: string) => {
+    if (singleSelect && commitOnSelect) {
+      // Skip the staged state entirely: commit + close.
+      onAdd([fieldValue]);
+      setOpen(false);
+      return;
+    }
     setPending((prev) => {
       const next = new Set(singleSelect ? [] : prev);
       if (prev.has(fieldValue)) {
@@ -130,17 +142,19 @@ export function FieldPickerDialog({
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          className={triggerClassName ?? 'h-8 gap-1.5'}
-          disabled={disabled || noFieldsAvailable || allAlreadyAdded}
-          data-testid={`${testIdPrefix}-trigger`}
-        >
-          <Plus className="h-3.5 w-3.5" />
-          <span>{resolvedTriggerLabel}</span>
-        </Button>
+        {trigger ?? (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className={triggerClassName ?? 'h-8 gap-1.5'}
+            disabled={disabled || noFieldsAvailable || allAlreadyAdded}
+            data-testid={`${testIdPrefix}-trigger`}
+          >
+            <Plus className="h-3.5 w-3.5" />
+            <span>{resolvedTriggerLabel}</span>
+          </Button>
+        )}
       </DialogTrigger>
       <DialogContent
         className="sm:max-w-md max-w-[92vw] gap-3"
@@ -217,28 +231,30 @@ export function FieldPickerDialog({
             })
           )}
         </div>
-        <DialogFooter className="gap-2 sm:gap-2">
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            onClick={cancel}
-            data-testid={`${testIdPrefix}-cancel`}
-          >
-            {t('common.cancel', 'Cancel')}
-          </Button>
-          <Button
-            type="button"
-            size="sm"
-            onClick={commit}
-            disabled={pending.size === 0}
-            data-testid={`${testIdPrefix}-confirm`}
-          >
-            {pending.size > 0
-              ? t('report.editor.fieldPickerAddN', 'Add {n}').replace('{n}', String(pending.size))
-              : t('report.editor.fieldPickerAdd', 'Add')}
-          </Button>
-        </DialogFooter>
+        {!(singleSelect && commitOnSelect) && (
+          <DialogFooter className="gap-2 sm:gap-2">
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={cancel}
+              data-testid={`${testIdPrefix}-cancel`}
+            >
+              {t('common.cancel', 'Cancel')}
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              onClick={commit}
+              disabled={pending.size === 0}
+              data-testid={`${testIdPrefix}-confirm`}
+            >
+              {pending.size > 0
+                ? t('report.editor.fieldPickerAddN', 'Add {n}').replace('{n}', String(pending.size))
+                : t('report.editor.fieldPickerAdd', 'Add')}
+            </Button>
+          </DialogFooter>
+        )}
       </DialogContent>
     </Dialog>
   );

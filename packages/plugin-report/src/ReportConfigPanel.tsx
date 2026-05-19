@@ -114,7 +114,7 @@ function buildReportSchema(
           label: t('report.editor.grouping'),
           type: 'custom',
           render: (value: any, onChange: (v: any) => void) => (
-            <GroupingsBuilder availableFields={availableFields} value={value} onChange={onChange} t={t} />
+            <GroupingsBuilder availableFields={availableFields} value={value} onChange={onChange} t={t} testIdPrefix="rows-grouping" />
           ),
         },
       ],
@@ -132,7 +132,7 @@ function buildReportSchema(
           label: t('report.editor.grouping'),
           type: 'custom',
           render: (value: any, onChange: (v: any) => void) => (
-            <GroupingsBuilder availableFields={availableFields} value={value} onChange={onChange} t={t} />
+            <GroupingsBuilder availableFields={availableFields} value={value} onChange={onChange} t={t} testIdPrefix="cols-grouping" />
           ),
         },
       ],
