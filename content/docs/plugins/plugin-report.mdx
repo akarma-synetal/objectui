@@ -177,8 +177,8 @@ aggregation. No application code changes required.
 ## Filter-time date helpers (current limitation)
 
 > ⚠️ **Heads-up:** the server does **not** currently evaluate
-> `cel\`...\`` expressions embedded inside filter values (e.g.
-> `{ close_date: { $gte: cel\`daysAgo(30)\` } }`). The unevaluated
+> ``cel`...` `` expressions embedded inside filter values (e.g.
+> ``{ close_date: { $gte: cel`daysAgo(30)` } }``). The unevaluated
 > template object reaches the SQL driver and triggers
 > `SQLite3 can only bind numbers, strings, bigints, buffers, and null`.
 

@@ -38,7 +38,7 @@ describe('SpecReportGrid', () => {
     });
 
     render(<SpecReportGrid report={report} rows={dataset} />);
-    const totals = await screen.findByTestId('spec-report-totals');
+    const totals = await screen.findByTestId('spec-report-kpis');
     expect(totals).toBeInTheDocument();
     // Totals: sum(amount)=600, unique(owner)=2
     expect(totals.textContent).toContain('600');

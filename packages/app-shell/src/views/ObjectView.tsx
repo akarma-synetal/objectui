@@ -1386,8 +1386,9 @@ export function ObjectView({ dataSource, objects, onEdit, externalRefreshKey }: 
             sort: (viewDef as any).sort ?? listSchema.sort,
             filter: (() => {
                 const base = (viewDef as any).filter ?? listSchema.filter;
-                if (!urlFilters.length) return base;
-                const baseArr = Array.isArray(base) ? base : [];
+                const substituted = substituteFilterTokens(base, currentUser.id);
+                if (!urlFilters.length) return substituted;
+                const baseArr = Array.isArray(substituted) ? substituted : [];
                 return [...baseArr, ...urlFilters];
             })(),
             hiddenFields: (viewDef as any).hiddenFields ?? listSchema.hiddenFields,
@@ -1459,7 +1460,8 @@ export function ObjectView({ dataSource, objects, onEdit, externalRefreshKey }: 
                     ...(Array.isArray(viewDef.filter) ? viewDef.filter : []),
                     ...urlFilters,
                 ];
-                return combined.length ? { filters: combined } : {};
+                const substituted = substituteFilterTokens(combined, currentUser.id);
+                return Array.isArray(substituted) && substituted.length ? { filters: substituted } : {};
             })()),
             ...(viewDef.sort?.length ? { sort: viewDef.sort } : {}),
             options: {

@@ -496,7 +496,7 @@ describe('useReportData server-aggregation path', () => {
       columns: [{ field: 'amount', aggregate: 'sum' }],
     });
     const { result } = renderHook(() => useReportData(report, { dataSource }));
-    await waitFor(() => expect(result.current.pivot).not.toBeNull());
+    await waitFor(() => expect(result.current.serverAggregated).toBe(true));
     const pivot = result.current.pivot!;
     expect(pivot.rowHeaders).toHaveLength(2);
     expect(pivot.colHeaders).toHaveLength(2);
