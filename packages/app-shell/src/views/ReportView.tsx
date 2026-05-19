@@ -436,7 +436,7 @@ export function ReportView({ dataSource }: { dataSource?: DataSource }) {
 
       <div className="flex-1 overflow-hidden flex flex-col sm:flex-row relative">
          <div className="flex-1 min-w-0 overflow-auto p-4 sm:p-6 lg:p-8 bg-muted/5">
-             <div className="max-w-5xl mx-auto shadow-sm border rounded-lg sm:rounded-xl bg-background overflow-hidden min-h-150">
+             <div className="w-full shadow-sm border rounded-lg sm:rounded-xl bg-background overflow-hidden min-h-150">
                  <Suspense fallback={<div className="p-8 text-sm text-muted-foreground">Loading report…</div>}>
                    {useSpecRenderer ? (
                      <div className="p-4 sm:p-6">
