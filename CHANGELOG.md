@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **`ManagedByBanner` (@object-ui/app-shell)** — surfaces a warning banner at the top of `ObjectView`, `RecordDetailView`, and `RecordFormPage` when an object's schema declares `managedBy !== 'platform'` (e.g. `'better-auth'`). Tells the user the table is owned by an upstream system and that direct edits bypass the owning system's hashing / session validation / audit hooks. `@object-ui/plugin-form` `ObjectForm` additionally disables every field by default when `managedBy !== 'platform'`. Resolves the silent-data-corruption risk where an admin could open `sys_user` / `sys_account` / `sys_session` etc. in the Console and write directly through the generic data API.
+- **`ObjectSchemaMetadata.managedBy`** — new optional schema field (`'platform' | 'better-auth' | string`); default `'platform'`. Lets the platform mark tables as owned by an upstream system so the Console can render the appropriate guard rails.
+
 ### Fixed
 
 - **CI: `MetadataDetailPage` flaky test (`should display field values

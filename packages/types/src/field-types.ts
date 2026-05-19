@@ -876,6 +876,22 @@ export interface ObjectSchemaMetadata {
   editMode?: 'modal' | 'page';
 
   /**
+   * Identifies the upstream system that owns this object's schema.
+   *
+   * - `undefined` or `'platform'` — ObjectStack owns it; the Console
+   *   may freely render create/edit/delete actions.
+   * - any other string (e.g. `'better-auth'`) — the table is managed
+   *   by a third-party library or service. The Console renders a
+   *   warning banner on list/detail pages and treats the schema as
+   *   read-only by default, because direct writes through the generic
+   *   data API would bypass the owning system's business logic
+   *   (password hashing, session validation, audit hooks, etc.).
+   *
+   * @default 'platform'
+   */
+  managedBy?: 'platform' | 'better-auth' | (string & {});
+
+  /**
    * Cache configuration (Phase 3.1.5)
    */
   cache?: {

@@ -32,6 +32,7 @@ import { MetadataPanel, useMetadataInspector } from './MetadataInspector';
 import { ViewConfigPanel } from './ViewConfigPanel';
 import { CreateViewDialog } from './CreateViewDialog';
 import { PageHeader } from '../layout/PageHeader';
+import { ManagedByBanner } from '../components/ManagedByBanner';
 import { useObjectActions } from '../hooks/useObjectActions';
 import { useObjectTranslation, useObjectLabel } from '@object-ui/i18n';
 import { usePermissions } from '@object-ui/permissions';
@@ -1607,6 +1608,7 @@ export function ObjectView({ dataSource, objects, onEdit, externalRefreshKey }: 
             handlers={{ api: apiHandler, flow: flowHandler, script: serverActionHandler, modal: serverActionHandler }}
         >
         <div className="h-full flex flex-col bg-background min-w-0 overflow-hidden">
+             <ManagedByBanner managedBy={(objectDef as any)?.managedBy} />
              {/* 1. Header with breadcrumb + description */}
              <PageHeader
                  title={objectLabel(objectDef)}

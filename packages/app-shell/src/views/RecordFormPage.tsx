@@ -39,6 +39,7 @@ import { useMetadata } from '../providers/MetadataProvider';
 import { useAdapter } from '../providers/AdapterProvider';
 import { ExpressionProvider, evaluateVisibility } from '../providers/ExpressionProvider';
 import { SkeletonDetail } from '../skeletons';
+import { ManagedByBanner } from '../components/ManagedByBanner';
 import { useAuth } from '@object-ui/auth';
 import { ExpressionEvaluator } from '@object-ui/core';
 
@@ -243,6 +244,8 @@ export function RecordFormPage({ mode }: RecordFormPageProps) {
             </span>
           </nav>
         </header>
+
+        <ManagedByBanner managedBy={(objectDef as any)?.managedBy} />
 
         <div className="flex-1 overflow-auto p-4 sm:p-6">
           <div className="mx-auto max-w-4xl">

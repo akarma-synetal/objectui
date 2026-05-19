@@ -343,7 +343,7 @@ const SimpleObjectForm: React.FC<ObjectFormProps> = ({
           label: fieldLabel(schema.objectName, name, field.label || fieldName),
           type: mapFieldTypeToFormType(field.type),
           required: field.required || false,
-          disabled: schema.readOnly || schema.mode === 'view' || field.readonly,
+          disabled: schema.readOnly || schema.mode === 'view' || field.readonly || (objectSchema?.managedBy && objectSchema.managedBy !== 'platform'),
           placeholder: field.placeholder,
           description: field.help || field.description,
           validation: buildValidationRules(field),
