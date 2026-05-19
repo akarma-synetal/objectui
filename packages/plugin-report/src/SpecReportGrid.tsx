@@ -208,11 +208,14 @@ export const SpecReportGrid: React.FC<SpecReportGridProps> = ({
 
   const wantsRowClick = !!onDrillDown || !!actionRunner;
 
-  // Build a "KPI strip" from totals + aggregating columns. Only render when
-  // we actually have aggregated measures — never push an empty section.
+  // Build a compact "Totals" strip — only when the report actually has
+  // aggregated measures. Tabular and summary reports both get a grand total
+  // strip when aggregates are configured; this is the report identity (one
+  // dataset → its grand total) and is intentionally not styled like a
+  // dashboard KPI grid.
   const aggregatingCols = (report.columns ?? []).filter((c) => c.aggregate);
   const hasKpis =
-    reportType === 'summary' && aggregatingCols.length > 0 && totals && Object.keys(totals).length > 0;
+    aggregatingCols.length > 0 && totals && Object.keys(totals).length > 0;
 
   // Build chart schema from aggregated buckets (only for summary + chart configured).
   const chartSchema = React.useMemo(() => {
@@ -229,13 +232,16 @@ export const SpecReportGrid: React.FC<SpecReportGridProps> = ({
         </div>
       ) : null}
       {hasKpis ? (
+        // Compact "Totals" strip — visually a single row of "label: value"
+        // pairs, NOT a row of dashboard-style KPI cards. The data table below
+        // is the protagonist; this strip is the grand total of the dataset.
         <div
-          data-testid="spec-report-kpis"
-          className="grid gap-3 mb-4"
-          style={{
-            gridTemplateColumns: `repeat(${Math.min(aggregatingCols.length, 4)}, minmax(0, 1fr))`,
-          }}
+          data-testid="spec-report-totals"
+          className="mb-3 flex flex-wrap items-baseline gap-x-6 gap-y-1 rounded-md border bg-muted/40 px-3 py-2 text-sm"
         >
+          <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            Totals
+          </span>
           {aggregatingCols.map((c) => {
             const key = columnKey(c);
             const value = totals[key];
@@ -246,23 +252,23 @@ export const SpecReportGrid: React.FC<SpecReportGridProps> = ({
                 ? value.toLocaleString(undefined, { maximumFractionDigits: 2 })
                 : String(value ?? '—');
             return (
-              <div
+              <span
                 key={key}
-                className="rounded-lg border bg-card p-4"
-                data-testid={`spec-report-kpi-${key}`}
+                data-testid={`spec-report-total-${key}`}
+                className="inline-flex items-baseline gap-1.5"
               >
-                <div className="text-xs uppercase tracking-wide text-muted-foreground">{label}</div>
-                <div className="text-2xl font-semibold mt-1">{display}</div>
-              </div>
+                <span className="text-muted-foreground">{label}:</span>
+                <span className="font-mono font-medium tabular-nums">{display}</span>
+              </span>
             );
           })}
         </div>
       ) : null}
       {chartSchema ? (
+        // Chart is optional and visually subordinate to the table. The chart
+        // component renders its own title (from report.chart.title), so we
+        // don't add a second one here.
         <div className="mb-4" data-testid="spec-report-chart">
-          {chartSchema.title ? (
-            <div className="text-sm font-medium mb-2">{chartSchema.title}</div>
-          ) : null}
           <SchemaRenderer schema={chartSchema as never} />
         </div>
       ) : null}
