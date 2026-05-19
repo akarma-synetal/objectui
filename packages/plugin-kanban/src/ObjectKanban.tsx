@@ -509,6 +509,58 @@ export const ObjectKanban: React.FC<ObjectKanbanProps> = ({
     ? `${schema.objectName.charAt(0).toUpperCase() + schema.objectName.slice(1).replace(/_/g, ' ')} Detail`
     : 'Card Details';
 
+  // Persist cross-column drags by writing the new column id back to the
+  // record's `groupBy` field. Local state is updated optimistically so the
+  // card stays in the target column even after KanbanImpl's reset effect
+  // re-syncs from props; the backend update reconciles asynchronously and
+  // is reverted with a warning if it fails.
+  const handleCardMove = React.useCallback(
+    async (
+      cardId: string,
+      fromColumnId: string,
+      toColumnId: string,
+      _newIndex: number,
+    ) => {
+      void _newIndex;
+      const groupBy = schema.groupBy;
+      const objectName = schema.objectName;
+      if (!groupBy || fromColumnId === toColumnId) return;
+
+      // Optimistic local update so the card visibly stays in the new column.
+      // Skipped when data is owned by a parent (ListView) — the parent's
+      // mutation subscription will refetch and propagate the change.
+      if (!hasExternalData) {
+        setFetchedData((prev) =>
+          prev.map((r) =>
+            String(r.id ?? r._id) === String(cardId)
+              ? { ...r, [groupBy]: toColumnId }
+              : r,
+          ),
+        );
+      }
+
+      if (!objectName || !dataSource?.update) return;
+      try {
+        await dataSource.update(objectName, String(cardId), {
+          [groupBy]: toColumnId,
+        });
+      } catch (err) {
+        console.warn('[ObjectKanban] Failed to persist card move', err);
+        if (!hasExternalData) {
+          // Revert optimistic update on failure
+          setFetchedData((prev) =>
+            prev.map((r) =>
+              String(r.id ?? r._id) === String(cardId)
+                ? { ...r, [groupBy]: fromColumnId }
+                : r,
+            ),
+          );
+        }
+      }
+    },
+    [schema.groupBy, schema.objectName, dataSource, hasExternalData],
+  );
+
   return (
     <>
       <KanbanRenderer schema={{
@@ -517,6 +569,7 @@ export const ObjectKanban: React.FC<ObjectKanbanProps> = ({
           navigation.handleClick(card);
           onCardClick?.(card);
         },
+        onCardMove: handleCardMove,
       }} />
       {navigation.isOverlay && navigation.isOpen && navigation.selectedRecord && (() => {
         const objectName = schema.objectName;

@@ -21,7 +21,6 @@ import { useMetadata } from '../../providers/MetadataProvider';
 import { useRecentItems } from '../../hooks/useRecentItems';
 import { useFavorites } from '../../hooks/useFavorites';
 import { useObjectTranslation } from '@object-ui/i18n';
-import { QuickActions } from './QuickActions';
 import { AppCard } from './AppCard';
 import { RecentApps } from './RecentApps';
 import { StarredApps } from './StarredApps';
@@ -104,9 +103,6 @@ export function HomePage() {
 
       {/* Main Content */}
       <div className="px-4 sm:px-6 py-4 space-y-8">
-        {/* Quick Actions */}
-        <QuickActions />
-
         {/* Starred/Favorite Apps */}
         {starredApps.length > 0 && (
           <StarredApps items={starredApps} />
