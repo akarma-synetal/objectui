@@ -43,6 +43,38 @@ import { BulkActionBar } from './components/BulkActionBar';
 import { BulkActionDialog } from './components/BulkActionDialog';
 import type { BulkActionDef } from '@object-ui/types';
 
+// Clickable text cell that can safely contain other interactive content
+// (e.g., EmailCellRenderer's copy button). Using <button> here would
+// produce an invalid <button> > <button> nesting (hydration error +
+// breaks the inner copy click). role="link" + tabIndex + keyboard
+// handlers preserves accessibility while allowing arbitrary children.
+const LinkCell: React.FC<{
+  testId: string;
+  onActivate: () => void;
+  children: React.ReactNode;
+}> = ({ testId, onActivate, children }) => (
+  <span
+    role="link"
+    tabIndex={0}
+    data-testid={testId}
+    className="text-primary font-medium underline-offset-4 hover:underline cursor-pointer inline-flex items-center gap-1"
+    onClick={(e) => {
+      e.stopPropagation();
+      onActivate();
+    }}
+    onKeyDown={(e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        e.stopPropagation();
+        onActivate();
+      }
+    }}
+  >
+    {children}
+  </span>
+);
+
+
 // Default English fallback translations for the grid
 const GRID_DEFAULT_TRANSLATIONS: Record<string, string> = {
   'grid.actions': 'Actions',
@@ -806,17 +838,12 @@ export const ObjectGrid: React.FC<ObjectGridProps> = ({
                     ? <CellRenderer value={value} field={fieldMeta as any} />
                     : (value != null && value !== '' ? String(value) : <span className="text-muted-foreground/50 text-xs italic">—</span>);
                   return (
-                    <button
-                      type="button"
-                      className="text-primary font-medium underline-offset-4 hover:underline cursor-pointer bg-transparent border-none p-0 text-left font-inherit"
-                      data-testid={isPrimaryField ? 'primary-field-link' : 'link-cell'}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        navigation.handleClick(row);
-                      }}
+                    <LinkCell
+                      testId={isPrimaryField ? 'primary-field-link' : 'link-cell'}
+                      onActivate={() => navigation.handleClick(row)}
                     >
                       {displayContent}
-                    </button>
+                    </LinkCell>
                   );
                 };
               } else if (isLinked) {
@@ -826,17 +853,12 @@ export const ObjectGrid: React.FC<ObjectGridProps> = ({
                     ? <CellRenderer value={value} field={fieldMeta as any} />
                     : (value != null && value !== '' ? String(value) : <span className="text-muted-foreground/50 text-xs italic">—</span>);
                   return (
-                    <button
-                      type="button"
-                      className="text-primary font-medium underline-offset-4 hover:underline cursor-pointer bg-transparent border-none p-0 text-left font-inherit"
-                      data-testid={isPrimaryField ? 'primary-field-link' : 'link-cell'}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        navigation.handleClick(row);
-                      }}
+                    <LinkCell
+                      testId={isPrimaryField ? 'primary-field-link' : 'link-cell'}
+                      onActivate={() => navigation.handleClick(row)}
                     >
                       {displayContent}
-                    </button>
+                    </LinkCell>
                   );
                 };
               } else if (col.action) {
@@ -962,26 +984,22 @@ export const ObjectGrid: React.FC<ObjectGridProps> = ({
             cellRenderer = (value: any, row: any) => {
               const displayContent = <CellRenderer value={value} field={fieldMeta as any} />;
               return (
-                <button
-                  type="button"
-                  className="text-primary font-medium underline-offset-4 hover:underline cursor-pointer bg-transparent border-none p-0 text-left font-inherit"
-                  data-testid="primary-field-link"
-                  onClick={(e) => { e.stopPropagation(); navigation.handleClick(row); }}
+                <LinkCell
+                  testId="primary-field-link"
+                  onActivate={() => navigation.handleClick(row)}
                 >
                   {displayContent}
-                </button>
+                </LinkCell>
               );
             };
           } else if (isPrimaryField) {
             cellRenderer = (value: any, row: any) => (
-              <button
-                type="button"
-                className="text-primary font-medium underline-offset-4 hover:underline cursor-pointer bg-transparent border-none p-0 text-left font-inherit"
-                data-testid="primary-field-link"
-                onClick={(e) => { e.stopPropagation(); navigation.handleClick(row); }}
+              <LinkCell
+                testId="primary-field-link"
+                onActivate={() => navigation.handleClick(row)}
               >
                 {value != null && value !== '' ? String(value) : <span className="text-muted-foreground/50 text-xs italic">—</span>}
-              </button>
+              </LinkCell>
             );
           } else if (CellRenderer) {
             cellRenderer = (value: any) => <CellRenderer value={value} field={fieldMeta as any} />;
