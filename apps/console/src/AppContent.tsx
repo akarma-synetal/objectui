@@ -16,6 +16,7 @@ const SystemHubPage = lazy(() => import('./pages/system/SystemHubPage').then(m =
 const AppManagementPage = lazy(() => import('./pages/system/AppManagementPage').then(m => ({ default: m.AppManagementPage })));
 const ProfilePage = lazy(() => import('./pages/system/ProfilePage').then(m => ({ default: m.ProfilePage })));
 const ApprovalsInboxPage = lazy(() => import('./pages/system/ApprovalsInboxPage').then(m => ({ default: m.ApprovalsInboxPage })));
+const AuditLogPage = lazy(() => import('./pages/system/AuditLogPage').then(m => ({ default: m.AuditLogPage })));
 
 const ENABLE_LEGACY_METADATA_EDITOR = import.meta.env.VITE_LEGACY_METADATA_EDITOR === 'true';
 const MetadataManagerPage = lazy(() => import('./legacy/MetadataManagerPage').then(m => ({ default: m.MetadataManagerPage })));
@@ -41,6 +42,7 @@ const systemRoutes = (
     <Route path="system/apps" element={<Suspense fallback={<LoadingScreen />}><AppManagementPage /></Suspense>} />
     <Route path="system/profile" element={<Suspense fallback={<LoadingScreen />}><ProfilePage /></Suspense>} />
     <Route path="system/approvals" element={<Suspense fallback={<LoadingScreen />}><ApprovalsInboxPage /></Suspense>} />
+    <Route path="system/audit-log" element={<Suspense fallback={<LoadingScreen />}><AuditLogPage /></Suspense>} />
     {ENABLE_LEGACY_METADATA_EDITOR && (
       <>
         <Route path="system/objects" element={<ObjectRedirect />} />
