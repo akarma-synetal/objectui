@@ -32,7 +32,7 @@ export function BooleanField({ value, onChange, field, readonly, ...props }: Fie
                 onCheckedChange={(checked) => onChange(!!checked)}
                 disabled={readonly || domProps.disabled}
             />
-            <Label htmlFor={id}>{label}</Label>
+            <Label htmlFor={id} className="sr-only">{label}</Label>
         </div>
      )
   }
@@ -46,7 +46,7 @@ export function BooleanField({ value, onChange, field, readonly, ...props }: Fie
             onCheckedChange={onChange}
             disabled={readonly || domProps.disabled}
         />
-        <Label htmlFor={id}>{label}</Label>
+        <Label htmlFor={id} className="sr-only">{label}</Label>
     </div>
   );
 }
