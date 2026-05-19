@@ -652,40 +652,40 @@ importers:
         specifier: workspace:*
         version: link:../permissions
       '@object-ui/plugin-calendar':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../plugin-calendar
       '@object-ui/plugin-charts':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../plugin-charts
       '@object-ui/plugin-chatbot':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../plugin-chatbot
       '@object-ui/plugin-dashboard':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../plugin-dashboard
       '@object-ui/plugin-designer':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../plugin-designer
       '@object-ui/plugin-detail':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../plugin-detail
       '@object-ui/plugin-form':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../plugin-form
       '@object-ui/plugin-grid':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../plugin-grid
       '@object-ui/plugin-kanban':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../plugin-kanban
       '@object-ui/plugin-list':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../plugin-list
       '@object-ui/plugin-report':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../plugin-report
       '@object-ui/plugin-view':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../plugin-view
       '@object-ui/react':
         specifier: workspace:*
