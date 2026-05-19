@@ -6,7 +6,7 @@
  * LICENSE file in the root directory of this source tree.
  */
 
-import { useContext } from 'react';
+import { useContext, useMemo } from 'react';
 import type { PermissionAction, PermissionCheckResult } from '@object-ui/types';
 import { PermCtx, type PermissionContextValue } from './PermissionContext';
 
@@ -22,23 +22,28 @@ export function usePermissions(): PermissionContextValue & {
 } {
   const ctx = useContext(PermCtx);
 
-  if (!ctx) {
-    // Return a permissive default when no provider exists
+  // Memoize the returned object so consumers that include `usePermissions()`
+  // in dependency arrays don't re-run on every render. Without this,
+  // downstream `useMemo`/`useEffect` deps see a fresh object each render and
+  // can enter infinite update loops (see DetailView gatedSchema → data
+  // fetch effect, which would re-fire on every render otherwise).
+  return useMemo(() => {
+    if (!ctx) {
+      return {
+        check: (): PermissionCheckResult => ({ allowed: true }),
+        checkField: () => true,
+        getFieldPermissions: () => [],
+        getRowFilter: () => undefined,
+        roles: [],
+        isLoaded: false,
+        can: () => true,
+        cannot: () => false,
+      };
+    }
     return {
-      check: (): PermissionCheckResult => ({ allowed: true }),
-      checkField: () => true,
-      getFieldPermissions: () => [],
-      getRowFilter: () => undefined,
-      roles: [],
-      isLoaded: false,
-      can: () => true,
-      cannot: () => false,
+      ...ctx,
+      can: (object: string, action: PermissionAction) => ctx.check(object, action).allowed,
+      cannot: (object: string, action: PermissionAction) => !ctx.check(object, action).allowed,
     };
-  }
-
-  return {
-    ...ctx,
-    can: (object: string, action: PermissionAction) => ctx.check(object, action).allowed,
-    cannot: (object: string, action: PermissionAction) => !ctx.check(object, action).allowed,
-  };
+  }, [ctx]);
 }
