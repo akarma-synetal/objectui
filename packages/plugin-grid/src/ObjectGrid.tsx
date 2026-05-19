@@ -202,6 +202,8 @@ export const ObjectGrid: React.FC<ObjectGridProps> = ({
   const exportJob = useExportJob({ dataSource });
   const [rowHeightMode, setRowHeightMode] = useState<'compact' | 'short' | 'medium' | 'tall' | 'extra_tall'>(schema.rowHeight ?? 'compact');
   const [selectedRows, setSelectedRows] = useState<any[]>([]);
+  const [activeBulkDef, setActiveBulkDef] = useState<BulkActionDef | null>(null);
+  const [activeBulkRows, setActiveBulkRows] = useState<any[]>([]);
 
   // Sync internal rowHeightMode when schema.rowHeight prop changes (e.g., parent ListView density toggle)
   React.useEffect(() => {
@@ -1375,8 +1377,6 @@ export const ObjectGrid: React.FC<ObjectGridProps> = ({
   // Rich BulkActionDef dispatcher — opens the BulkActionDialog (params →
   // confirm → progress → result). When the user closes the dialog after a
   // run, refresh data so the grid reflects mutations.
-  const [activeBulkDef, setActiveBulkDef] = useState<BulkActionDef | null>(null);
-  const [activeBulkRows, setActiveBulkRows] = useState<any[]>([]);
   const dispatchBulkActionDef = (def: BulkActionDef, rows: any[]) => {
     setActiveBulkDef(def);
     setActiveBulkRows(rows);
