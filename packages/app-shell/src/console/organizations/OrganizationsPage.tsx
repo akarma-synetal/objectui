@@ -7,7 +7,7 @@
  * @module
  */
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Avatar,
   AvatarImage,
@@ -49,6 +49,7 @@ export function OrganizationsPage() {
   const [switchingId, setSwitchingId] = useState<string | null>(null);
 
   const orgList = organizations ?? [];
+
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return orgList;
@@ -77,7 +78,31 @@ export function OrganizationsPage() {
     handleSelect(org);
   };
 
-  if (isOrganizationsLoading) {
+  /**
+   * UX P0-1: auto-skip the picker when the user belongs to exactly one
+   * organization. The picker is friction for >90% of users (single-org
+   * tenants) and only useful when there's an actual choice. We still mount
+   * the page (so direct navigation to `/organizations` works) but redirect
+   * once orgs have finished loading.
+   *
+   * Guarded by a ref so we only auto-redirect once per mount — if the user
+   * later creates a second org and returns here, they'll see the picker.
+   */
+  const autoSelectedRef = useRef(false);
+  useEffect(() => {
+    if (autoSelectedRef.current) return;
+    if (isOrganizationsLoading) return;
+    if (orgList.length !== 1) return;
+    autoSelectedRef.current = true;
+    void handleSelect(orgList[0]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOrganizationsLoading, orgList.length]);
+
+  // Show a spinner while we're either still loading, or about to auto-redirect
+  // because there's only one org. This prevents the picker from briefly
+  // flashing on screen for single-org users.
+  const willAutoSelect = !isOrganizationsLoading && orgList.length === 1;
+  if (isOrganizationsLoading || willAutoSelect) {
     return (
       <div className="flex flex-1 items-center justify-center py-20">
         <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
