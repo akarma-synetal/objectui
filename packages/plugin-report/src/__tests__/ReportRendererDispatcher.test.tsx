@@ -54,9 +54,26 @@ describe('ReportRenderer dispatcher', () => {
     expect(screen.queryByTestId('spec-report-grid-stub')).not.toBeInTheDocument();
   });
 
-  it('shows joined placeholder for spec joined reports', () => {
+  it('shows joined placeholder for spec joined reports without blocks', () => {
     render(<ReportRenderer schema={{ ...baseSpec, type: 'joined' }} rows={[]} />);
     expect(screen.getByTestId('report-joined-placeholder')).toBeInTheDocument();
+  });
+
+  it('routes spec joined reports with blocks to JoinedReportRenderer', () => {
+    const joined = {
+      ...baseSpec,
+      name: 'joined_demo',
+      type: 'joined' as const,
+      blocks: [
+        { id: 'b1', report: { ...baseSpec, name: 'block_one' } },
+        { id: 'b2', report: { ...baseSpec, name: 'block_two', type: 'matrix' as const, groupingsAcross: [{ field: 'q' }] } },
+      ],
+    };
+    render(<ReportRenderer schema={joined as any} rows={[]} />);
+    expect(screen.getByTestId('joined-report')).toBeInTheDocument();
+    expect(screen.getAllByTestId('joined-report-block')).toHaveLength(2);
+    expect(screen.getByTestId('spec-report-grid-stub')).toHaveTextContent('block_one');
+    expect(screen.getByTestId('matrix-renderer-stub')).toHaveTextContent('block_two');
   });
 
   it('falls back to LegacyReportRenderer for non-spec schemas', () => {

@@ -276,3 +276,56 @@ export function isSpecReport(value: unknown): value is SpecReport {
     && typeof v.objectName === 'string'
     && Array.isArray(v.columns);
 }
+
+// ---------------------------------------------------------------------------
+// Joined Report (UI-layer extension to the spec)
+// ---------------------------------------------------------------------------
+
+/**
+ * UI-layer extension for `type: 'joined'` reports.
+ *
+ * The upstream spec (`@objectstack/spec`) declares the `'joined'` report type
+ * but does not yet define how the constituent blocks are carried in the JSON.
+ * ObjectUI bridges that gap with a `blocks` field on the report: each block is
+ * a fully self-contained `SpecReport` rendered independently (its own data
+ * fetch, aggregations, drill), stacked vertically.
+ *
+ * Semantics:
+ *   - `report.filter` is merged into every block as a logical `$and` (block
+ *     filters take precedence on key collisions — they're the "more specific"
+ *     constraint by convention). This lets a top-level report-wide filter
+ *     (e.g. "owner = me") flow down to all blocks without repetition.
+ *   - Each block keeps its own `objectName`, so blocks may query different
+ *     objects (e.g. new customers + churned customers + silent customers).
+ *   - `actionRunner`, `dataSource`, `drillView`, `drillOpenIn` propagate
+ *     uniformly so any block's drill behaves like a standalone report.
+ *
+ * Status: forward-compatible. When the upstream spec adopts a `blocks` field
+ * the only churn here will be replacing this interface with a re-export.
+ */
+export interface JoinedReportBlock {
+  /** Stable id within the joined report (used for React keys + drill scoping). */
+  id?: string;
+  /** Display label rendered above the block. Falls back to `report.label`. */
+  label?: string | { default: string; translations?: Record<string, string> };
+  /** Optional description rendered below the label. */
+  description?: string | { default: string; translations?: Record<string, string> };
+  /** The block's own self-contained `SpecReport`. */
+  report: SpecReport;
+}
+
+/**
+ * A `SpecReport` of `type: 'joined'` carrying its constituent blocks.
+ * Use this as the schema input to `JoinedReportRenderer` / `ReportRenderer`.
+ */
+export type JoinedSpecReport = SpecReport & {
+  type: 'joined';
+  blocks: JoinedReportBlock[];
+};
+
+/** Type guard for joined reports with a `blocks` array. */
+export function isJoinedSpecReport(value: unknown): value is JoinedSpecReport {
+  if (!isSpecReport(value)) return false;
+  const v = value as Record<string, unknown>;
+  return v.type === 'joined' && Array.isArray((v as { blocks?: unknown }).blocks);
+}

@@ -1434,25 +1434,30 @@ export class ObjectStackAdapter<T = unknown> implements DataSource<T> {
    * Falls back to client-side aggregation via find() if the analytics endpoint
    * is not available.
    */
-  async aggregate(resource: string, params: { field: string; function: string; groupBy: string; filter?: any }): Promise<any[]> {
+  async aggregate(resource: string, params: any): Promise<any[]> {
     await this.connect();
 
-    // Spec-shape detection: when the caller passes the spec
-    // `{ groupBy: GroupByNode[], aggregations: AggregationNode[], where? }`
-    // (used by @object-ui/plugin-report's useReportData), this adapter's
-    // legacy single-field/single-function signature can't satisfy it. Throw
-    // so callers can fall back to find() + client-side aggregation.
-    // M3 will add a v2 aggregate path that posts the spec shape directly to
-    // the server's /aggregate endpoint.
+    // Spec-shape aggregation: `{ groupBy: GroupByNode[], aggregations: AggregationNode[], where?, limit? }`
+    // per spec/data/query.zod.ts. Sent directly to the server's POST
+    // /data/:object/query endpoint, which routes through engine.aggregate
+    // and returns bucketed rows with the requested aliases.
     const looksLikeSpecShape =
       params != null &&
       (Array.isArray((params as any).groupBy) ||
         Array.isArray((params as any).aggregations) ||
         (params as any).where !== undefined);
     if (looksLikeSpecShape) {
-      throw new Error(
-        '[data-objectstack] aggregate(): spec-shape (groupBy[]/aggregations[]) not yet supported; use find() fallback.',
-      );
+      const queryAst: Record<string, unknown> = {};
+      if (Array.isArray(params.groupBy)) queryAst.groupBy = params.groupBy;
+      if (Array.isArray(params.aggregations)) queryAst.aggregations = params.aggregations;
+      if (params.where !== undefined) queryAst.where = params.where;
+      if (typeof params.limit === 'number') queryAst.limit = params.limit;
+      const result: any = await this.client.data.query(resource, queryAst as any);
+      // client.data.query returns { object, records, total, hasMore }
+      if (Array.isArray(result)) return result;
+      if (Array.isArray(result?.records)) return result.records;
+      if (Array.isArray(result?.data)) return result.data;
+      return [];
     }
 
     try {

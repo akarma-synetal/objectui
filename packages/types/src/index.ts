@@ -687,6 +687,8 @@ export type {
   SpecReportDateGranularity,
   QLAggregationFunction,
   LegacyReportPresentationLike,
+  JoinedReportBlock,
+  JoinedSpecReport,
 } from './spec-report';
 
 export {
@@ -699,6 +701,7 @@ export {
   mapAggregateToQL,
   specReportToPresentation,
   isSpecReport,
+  isJoinedSpecReport,
 } from './spec-report';
 
 export type {

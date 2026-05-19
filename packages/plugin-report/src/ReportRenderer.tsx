@@ -20,10 +20,17 @@
 
 import * as React from 'react';
 import type { ActionRunner } from '@object-ui/core';
-import { isSpecReport, type SpecReport, type DataSource } from '@object-ui/types';
+import {
+  isJoinedSpecReport,
+  isSpecReport,
+  type JoinedSpecReport,
+  type SpecReport,
+  type DataSource,
+} from '@object-ui/types';
 import { LegacyReportRenderer, type LegacyReportRendererProps } from './LegacyReportRenderer';
 import { SpecReportGrid } from './SpecReportGrid';
 import { MatrixRenderer } from './MatrixRenderer';
+import { JoinedReportRenderer } from './JoinedReportRenderer';
 import type { DrillOpenIn, DrillView } from './drill';
 
 export type ReportRendererSchema = SpecReport | LegacyReportRendererProps['schema'];
@@ -84,9 +91,22 @@ export const ReportRenderer: React.FC<ReportRendererProps> = ({
       );
     }
     if (reportType === 'joined') {
+      if (isJoinedSpecReport(schema)) {
+        return (
+          <JoinedReportRenderer
+            report={schema as JoinedSpecReport}
+            dataSource={dataSource as DataSource | undefined}
+            runtimeFilter={runtimeFilter}
+            actionRunner={actionRunner}
+            drillView={drillView}
+            drillOpenIn={drillOpenIn}
+            className={className}
+          />
+        );
+      }
       return (
         <div className={className} style={PLACEHOLDER_BANNER} data-testid="report-joined-placeholder">
-          Joined report (<code>{schema.name}</code>) is not yet supported. Coming in M3.
+          Joined report (<code>{schema.name}</code>) is missing a <code>blocks</code> array.
         </div>
       );
     }
