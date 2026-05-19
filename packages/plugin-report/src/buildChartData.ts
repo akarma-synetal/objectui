@@ -19,9 +19,19 @@
 import type { ReportRow } from './hooks/useReportData';
 import type { SpecReport, SpecReportColumn } from '@object-ui/types';
 
+export interface ChartAdapterLabelResolvers {
+  /** Resolve a friendly label for a measure column. Used for the chart's y-axis legend. */
+  resolveColumnLabel?: (col: SpecReportColumn) => string | undefined;
+  /** Resolve a friendly label for an implicit `count` measure given the yAxis field. */
+  resolveCountLabel?: (yField: string) => string | undefined;
+  /** Resolve a friendly display label for an x-axis bucket value (e.g. translate picklist values). */
+  resolveAxisValue?: (field: string, rawValue: unknown) => string | undefined;
+}
+
 export interface ChartAdapterInput {
   report: SpecReport;
   rows: ReportRow[];
+  labels?: ChartAdapterLabelResolvers;
 }
 
 export interface ChartAdapterOutput {
@@ -61,7 +71,7 @@ function flattenLeaves(rows: ReportRow[]): ReportRow[] {
   return out;
 }
 
-export function buildChartData({ report, rows }: ChartAdapterInput): ChartAdapterOutput {
+export function buildChartData({ report, rows, labels }: ChartAdapterInput): ChartAdapterOutput {
   const chart = report.chart;
   if (!chart || !chart.type) return { schema: null };
 
@@ -86,16 +96,17 @@ export function buildChartData({ report, rows }: ChartAdapterInput): ChartAdapte
     if (matchingAggCol) {
       measureKey = columnKey(matchingAggCol);
       measureLabel =
-        typeof matchingAggCol.label === 'string'
+        labels?.resolveColumnLabel?.(matchingAggCol) ??
+        (typeof matchingAggCol.label === 'string'
           ? matchingAggCol.label
-          : `${matchingAggCol.aggregate}(${matchingAggCol.field})`;
+          : `${matchingAggCol.aggregate}(${matchingAggCol.field})`);
       useCountFallback = false;
     } else {
       // yAxis points to a non-aggregating column (or doesn't exist at all):
       // treat as implicit count(*). The label uses the yAxis field name
       // so users still get a recognisable axis title.
       measureKey = 'count';
-      measureLabel = `Count of ${yField}`;
+      measureLabel = labels?.resolveCountLabel?.(yField) ?? `Count of ${yField}`;
     }
   }
 
@@ -114,10 +125,14 @@ export function buildChartData({ report, rows }: ChartAdapterInput): ChartAdapte
     else buckets.set(bucketKey, { x: xVal, measure: Number.isFinite(v) ? v : 0 });
   }
 
-  let data = Array.from(buckets.values()).map((b) => ({
-    [xField]: b.x ?? '(null)',
-    [measureKey]: b.measure,
-  }));
+  let data = Array.from(buckets.values()).map((b) => {
+    const translatedX = labels?.resolveAxisValue?.(xField, b.x);
+    const displayX = translatedX ?? (b.x ?? '(null)');
+    return {
+      [xField]: displayX,
+      [measureKey]: b.measure,
+    };
+  });
 
   // Pie / funnel auto-sort desc by measure (descending makes the funnel a
   // funnel and the pie's largest slice render first).

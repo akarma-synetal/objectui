@@ -14,7 +14,9 @@
  */
 
 import * as React from 'react';
+import { useTranslation } from 'react-i18next';
 import { ObjectGrid } from '@object-ui/plugin-grid';
+import { useSafeFieldLabel } from '@object-ui/i18n';
 import type {
   ObjectGridSchema,
   SpecReport,
@@ -113,6 +115,60 @@ export const SpecReportGrid: React.FC<SpecReportGridProps> = ({
   className,
 }) => {
   const reportType = report.type ?? 'tabular';
+  const { t } = useTranslation();
+  const { fieldLabel, translateOptions } = useSafeFieldLabel();
+  const [objectSchema, setObjectSchema] = React.useState<{ fields?: Record<string, any> } | null>(null);
+
+  React.useEffect(() => {
+    const ds = dataSource as any;
+    if (!ds || typeof ds.getObjectSchema !== 'function' || !report.objectName) return;
+    let cancelled = false;
+    ds.getObjectSchema(report.objectName)
+      .then((schema: any) => {
+        if (!cancelled) setObjectSchema(schema ?? null);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [dataSource, report.objectName]);
+
+  // Build a friendly label for any column, optionally combined with its aggregate verb.
+  const resolveColumnLabel = React.useCallback(
+    (col: SpecReportColumn): string => {
+      if (col.label) return String(col.label);
+      const def = objectSchema?.fields?.[col.field];
+      const baseLabel = def?.label ?? col.field;
+      const translatedField = fieldLabel(report.objectName, col.field, baseLabel);
+      if (col.aggregate) {
+        const aggLabel = t(`report.aggregate.${col.aggregate}`, col.aggregate);
+        return `${translatedField} · ${aggLabel}`;
+      }
+      return translatedField;
+    },
+    [objectSchema, report.objectName, fieldLabel, t],
+  );
+
+  // Translate a raw x-axis bucket value when the field is a discrete picklist.
+  const resolveAxisValue = React.useCallback(
+    (field: string, rawValue: unknown): string | undefined => {
+      if (rawValue === undefined || rawValue === null) return undefined;
+      const def = objectSchema?.fields?.[field];
+      if (!def) return undefined;
+      const isPicklist = def.type === 'select' || def.type === 'status';
+      if (!isPicklist || !Array.isArray(def.options) || def.options.length === 0) return undefined;
+      const translated = translateOptions(report.objectName, field, def.options);
+      const raw = String(rawValue);
+      for (const opt of translated) {
+        if (opt && opt.value !== undefined && opt.value !== null && String(opt.value) === raw) {
+          return opt.label != null ? String(opt.label) : raw;
+        }
+      }
+      return undefined;
+    },
+    [objectSchema, report.objectName, translateOptions],
+  );
+
   const { rawRows, rows: aggregatedRows, totals, serverAggregated, loading, error, drillDown } = useReportData(report, {
     dataSource: dataSource as { find?: (r: string, p?: Record<string, unknown>) => Promise<unknown> } | undefined,
     rows: providedRows,
@@ -221,8 +277,22 @@ export const SpecReportGrid: React.FC<SpecReportGridProps> = ({
   const chartSchema = React.useMemo(() => {
     if (reportType !== 'summary') return null;
     if (!report.chart || !report.chart.type) return null;
-    return buildChartData({ report, rows: aggregatedRows }).schema;
-  }, [report, aggregatedRows, reportType]);
+    return buildChartData({
+      report,
+      rows: aggregatedRows,
+      labels: {
+        resolveColumnLabel,
+        resolveCountLabel: (yField) => {
+          const def = objectSchema?.fields?.[yField];
+          const baseLabel = def?.label ?? yField;
+          const translatedField = fieldLabel(report.objectName, yField, baseLabel);
+          const countLabel = t('report.aggregate.count', 'Count');
+          return `${translatedField} · ${countLabel}`;
+        },
+        resolveAxisValue,
+      },
+    }).schema;
+  }, [report, aggregatedRows, reportType, resolveColumnLabel, resolveAxisValue, objectSchema, fieldLabel, t]);
 
   return (
     <div className={className} data-testid="spec-report-grid" aria-busy={loading || undefined}>
@@ -240,13 +310,12 @@ export const SpecReportGrid: React.FC<SpecReportGridProps> = ({
           className="mb-3 flex flex-wrap items-baseline gap-x-6 gap-y-1 rounded-md border bg-muted/40 px-3 py-2 text-sm"
         >
           <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-            Totals
+            {t('report.totals', 'Totals')}
           </span>
           {aggregatingCols.map((c) => {
             const key = columnKey(c);
             const value = totals[key];
-            const label =
-              (typeof c.label === 'string' ? c.label : null) ?? `${c.aggregate}(${c.field})`;
+            const label = resolveColumnLabel(c);
             const display =
               typeof value === 'number'
                 ? value.toLocaleString(undefined, { maximumFractionDigits: 2 })

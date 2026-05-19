@@ -388,6 +388,7 @@ const zh = {
     rowTotal: '行合计',
     columnTotal: '列合计',
     grandTotal: '总计',
+    totals: '汇总',
     rowsLabel: '行',
     columnsLabel: '列',
     allLabel: '(全部)',

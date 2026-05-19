@@ -388,6 +388,7 @@ const en = {
     rowTotal: 'Row Total',
     columnTotal: 'Column Total',
     grandTotal: 'Grand Total',
+    totals: 'Totals',
     rowsLabel: 'Row',
     columnsLabel: 'Column',
     allLabel: '(All)',
