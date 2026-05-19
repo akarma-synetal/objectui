@@ -37,6 +37,8 @@ export { MentionAutocomplete, createMentionFromSuggestion } from './MentionAutoc
 export { SubscriptionToggle } from './SubscriptionToggle';
 export { ReactionPicker } from './ReactionPicker';
 export { ThreadedReplies } from './ThreadedReplies';
+export { RecordMetaFooter } from './RecordMetaFooter';
+export type { RecordMetaFooterProps } from './RecordMetaFooter';
 export type { DetailViewProps } from './DetailView';
 export type { DetailSectionProps, VirtualScrollOptions } from './DetailSection';
 export type { DetailTabsProps } from './DetailTabs';

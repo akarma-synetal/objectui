@@ -38,6 +38,7 @@ import { SectionGroup } from './SectionGroup';
 import { HeaderHighlight } from './HeaderHighlight';
 import { RecordComments } from './RecordComments';
 import { ActivityTimeline } from './ActivityTimeline';
+import { RecordMetaFooter } from './RecordMetaFooter';
 import { SchemaRenderer, useSafeFieldLabel } from '@object-ui/react';
 import { buildExpandFields } from '@object-ui/core';
 import type { DetailViewSchema, DataSource, ActionSchema, SchemaNode } from '@object-ui/types';
@@ -1160,6 +1161,16 @@ export const DetailView: React.FC<DetailViewProps> = ({
           )}
         </>
       )}
+
+      {/* Record provenance footer — replaces the old "System Information"
+          section with a low-visual-weight single-line summary of audit
+          fields (created/updated by + when). Renders nothing when none of
+          the audit fields are present on the record. */}
+      <RecordMetaFooter
+        data={{ ...data, ...editedValues }}
+        objectSchema={objectSchema}
+        objectName={schema.objectName}
+      />
 
       {/* Custom Footer */}
       {schema.footer && (

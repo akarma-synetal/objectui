@@ -1,0 +1,160 @@
+/**
+ * resolveActionParams — Resolves field-backed action parameters against
+ * runtime object metadata.
+ *
+ * Action params (`packages/spec/src/ui/action.zod.ts ActionParamSchema`) may
+ * either be declared inline (`{ name, label, type, ... }`) or reference an
+ * existing object field via `{ field, objectOverride? }`. Field-backed
+ * params inherit label (i18n via `fieldLabel()`), type, options, validation,
+ * placeholder, and help text from the object's field definition. Inline
+ * properties on a field-backed param act as overrides.
+ *
+ * The resolver flattens each param to the runtime `ActionParamDef` shape
+ * expected by `ActionParamDialog`, so the dialog itself stays agnostic to
+ * field references.
+ */
+import type { ActionParamDef } from '@object-ui/core';
+
+/**
+ * `ActionParamDialog` switches on raw `FieldType` values
+ * (`text` / `email` / `select` / `textarea` / `number` / `url` / `date` / …),
+ * matching the `FieldType` enum in `@objectstack/spec`. **Do not** route
+ * through `mapFieldTypeToFormType()` here — that helper translates into the
+ * FormField widget vocabulary (`field:select`, …) which the dialog does not
+ * understand.
+ */
+
+/** Raw param as authored on a schema action (post-zod). */
+export interface RawActionParam {
+  name?: string;
+  field?: string;
+  objectOverride?: string;
+  label?: string;
+  type?: string;
+  required?: boolean;
+  options?: Array<{ label: string; value: string }>;
+  placeholder?: string;
+  helpText?: string;
+  defaultValue?: unknown;
+}
+
+/** Field metadata as exposed by `useMetadata().objects[].fields`. */
+interface RuntimeField {
+  type?: string;
+  label?: string;
+  required?: boolean;
+  placeholder?: string;
+  help?: string;
+  description?: string;
+  options?: Array<{ label: string; value: string } | string>;
+  multiple?: boolean;
+  defaultValue?: unknown;
+}
+
+interface RuntimeObject {
+  name?: string;
+  fields?: Record<string, RuntimeField>;
+}
+
+export interface ResolveActionParamsContext {
+  /** Default object name when a param's `objectOverride` is absent. */
+  objectName: string;
+  /** All known runtime objects (`useMetadata().objects`). */
+  objects: RuntimeObject[];
+  /** i18n resolver — `useObjectLabel().fieldLabel`. */
+  fieldLabel: (objectName: string, fieldName: string, fallback: string) => string;
+  /** Optional option-label translator — `useObjectLabel().fieldOptionLabel`. */
+  fieldOptionLabel?: (
+    objectName: string,
+    fieldName: string,
+    optionValue: string,
+    fallback: string,
+  ) => string;
+}
+
+/** Normalise an options entry (allowing bare strings) into label/value pairs. */
+function normaliseOptions(
+  options: Array<{ label: string; value: string } | string> | undefined,
+  objectName: string,
+  fieldName: string,
+  optionLabel?: ResolveActionParamsContext['fieldOptionLabel'],
+): Array<{ label: string; value: string }> | undefined {
+  if (!Array.isArray(options) || options.length === 0) return undefined;
+  return options.map((o) => {
+    const raw = typeof o === 'string' ? { label: o, value: o } : o;
+    const label = optionLabel
+      ? optionLabel(objectName, fieldName, raw.value, raw.label)
+      : raw.label;
+    return { label, value: raw.value };
+  });
+}
+
+/**
+ * Resolve a single raw param against object metadata. Inline params pass
+ * through (with safe defaults); field-backed params inherit from the
+ * referenced field and accept inline overrides on top.
+ */
+export function resolveActionParam(
+  param: RawActionParam,
+  ctx: ResolveActionParamsContext,
+): ActionParamDef {
+  // Inline param — no field reference, just normalise.
+  if (!param.field) {
+    return {
+      name: param.name ?? '',
+      label: param.label ?? param.name ?? '',
+      type: param.type ?? 'text',
+      required: param.required ?? false,
+      options: param.options,
+      placeholder: param.placeholder,
+      helpText: param.helpText,
+      defaultValue: param.defaultValue,
+    };
+  }
+
+  const ownerName = param.objectOverride ?? ctx.objectName;
+  const owner = ctx.objects.find((o) => o?.name === ownerName);
+  const field: RuntimeField | undefined = owner?.fields?.[param.field];
+
+  if (!field) {
+    // Reference target missing — fall back to a plain text input so the
+    // action remains usable in environments where the metadata cache is
+    // partial (e.g. tests).
+    return {
+      name: param.name ?? param.field,
+      label: param.label ?? ctx.fieldLabel(ownerName, param.field, param.field),
+      type: param.type ?? 'text',
+      required: param.required ?? false,
+      options: param.options,
+      placeholder: param.placeholder,
+      helpText: param.helpText,
+      defaultValue: param.defaultValue,
+    };
+  }
+
+  const resolvedType = param.type ?? field.type ?? 'text';
+  const resolvedOptions = param.options
+    ?? normaliseOptions(field.options, ownerName, param.field, ctx.fieldOptionLabel);
+  const resolvedLabel = param.label
+    ?? ctx.fieldLabel(ownerName, param.field, field.label ?? param.field);
+
+  return {
+    name: param.name ?? param.field,
+    label: resolvedLabel,
+    type: resolvedType,
+    required: param.required ?? field.required ?? false,
+    options: resolvedOptions,
+    placeholder: param.placeholder ?? field.placeholder,
+    helpText: param.helpText ?? field.help ?? field.description,
+    defaultValue: param.defaultValue ?? field.defaultValue,
+  };
+}
+
+/** Resolve an array of raw action params. */
+export function resolveActionParams(
+  params: RawActionParam[] | undefined,
+  ctx: ResolveActionParamsContext,
+): ActionParamDef[] {
+  if (!Array.isArray(params)) return [];
+  return params.map((p) => resolveActionParam(p, ctx));
+}

@@ -44,6 +44,7 @@ import { ActionProvider, useNavigationOverlay, SchemaRenderer } from '@object-ui
 import { toast } from 'sonner';
 import { ActionConfirmDialog, type ConfirmDialogState } from './ActionConfirmDialog';
 import { ActionParamDialog, type ParamDialogState } from './ActionParamDialog';
+import { resolveActionParams } from '../utils/resolveActionParams';
 import type { ActionDef, ActionParamDef } from '@object-ui/core';
 
 /** Map view types to Lucide icons (Airtable-style) */
@@ -390,7 +391,7 @@ export function ObjectView({ dataSource, objects, onEdit, externalRefreshKey }: 
     const [searchParams, setSearchParams] = useSearchParams();
     const { showDebug } = useMetadataInspector();
     const { t } = useObjectTranslation();
-    const { objectLabel, objectDescription: objectDesc, viewLabel, actionLabel, actionConfirm, actionSuccess } = useObjectLabel();
+    const { objectLabel, objectDescription: objectDesc, viewLabel, actionLabel, actionConfirm, actionSuccess, fieldLabel, fieldOptionLabel } = useObjectLabel();
     
     // Inline view config panel state (Airtable-style right sidebar)
     const [showViewConfigPanel, setShowViewConfigPanel] = useState(false);
@@ -936,9 +937,15 @@ export function ObjectView({ dataSource, objects, onEdit, externalRefreshKey }: 
 
     const paramCollectionHandler = useCallback((params: ActionParamDef[]) => {
         return new Promise<Record<string, any> | null>((resolve) => {
-            setParamState({ open: true, params, resolve });
+            const resolved = resolveActionParams(params as any, {
+                objectName: objectName || objectDef?.name || '',
+                objects: objects || [],
+                fieldLabel,
+                fieldOptionLabel,
+            });
+            setParamState({ open: true, params: resolved, resolve });
         });
-    }, []);
+    }, [objectName, objectDef, objects, fieldLabel, fieldOptionLabel]);
 
     const handleDeleteView = useCallback(async (vid: string) => {
         if (!dataSource) return;

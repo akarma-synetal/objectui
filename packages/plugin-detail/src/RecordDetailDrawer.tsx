@@ -36,9 +36,9 @@ import { useDetailTranslation } from './useDetailTranslation';
  *
  * Scope: this is the DRAWER allow-list — used to keep the slim sheet UI
  * focused on author-defined business fields. The full record detail page
- * (`RecordDetailView`) intentionally renders audit fields in a dedicated,
- * collapsible "System Information" section instead of hiding them, so
- * users can see who/when created or last touched a record.
+ * (`RecordDetailView`) surfaces audit fields via a compact
+ * `<RecordMetaFooter>` (single-line, muted) rather than a heavy panel, so
+ * users can still see who/when created or last touched a record.
  *
  * Keep this in sync with the audit fields auto-injected by the
  * framework's `applySystemFields` (created_at/created_by/updated_at/

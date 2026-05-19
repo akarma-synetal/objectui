@@ -21,6 +21,7 @@ import { ManagedByBadge } from '../components/ManagedByBadge';
 import { resolveCrudAffordances } from '../utils/crudAffordances';
 import { ActionConfirmDialog, type ConfirmDialogState } from './ActionConfirmDialog';
 import { ActionParamDialog, type ParamDialogState } from './ActionParamDialog';
+import { resolveActionParams } from '../utils/resolveActionParams';
 import { useRecordBreadcrumbTitle } from '../context/NavigationContext';
 import type { DetailViewSchema, FeedItem, HighlightField, SectionGroup } from '@object-ui/types';
 import type { ActionDef, ActionParamDef } from '@object-ui/core';
@@ -36,10 +37,12 @@ const FALLBACK_USER = { id: 'current-user', name: 'Demo User' };
 
 /**
  * Audit field names auto-injected by the framework's `applySystemFields`.
- * Surfaced as a dedicated, collapsed "System Information" section on the
- * record detail page so they don't clutter the primary content but remain
- * discoverable. The inline-edit drawer keeps filtering them out via
- * `DEFAULT_SYSTEM_FIELDS` in `@object-ui/plugin-detail/RecordDetailDrawer`.
+ * Filtered out of the auto-generated body sections — they are rendered
+ * separately as a single subtle one-line `<RecordMetaFooter>` (see
+ * `@object-ui/plugin-detail`) so provenance stays discoverable without a
+ * heavy "System Information" panel. The inline-edit drawer also hides
+ * them via `DEFAULT_SYSTEM_FIELDS` in
+ * `@object-ui/plugin-detail/RecordDetailDrawer`.
  */
 const AUDIT_FIELD_NAMES = new Set(['created_at', 'created_by', 'updated_at', 'updated_by']);
 
@@ -53,7 +56,7 @@ export function RecordDetailView({ dataSource, objects, onEdit }: RecordDetailVi
   const { user } = useAuth();
   const navigate = useNavigate();
   const { t } = useObjectTranslation();
-  const { objectLabel, viewLabel: _vLabel, sectionLabel, actionLabel, actionConfirm, actionSuccess } = useObjectLabel();
+  const { objectLabel, viewLabel: _vLabel, sectionLabel, actionLabel, actionConfirm, actionSuccess, fieldLabel, fieldOptionLabel } = useObjectLabel();
   const [isLoading, setIsLoading] = useState(true);
   const [feedItems, setFeedItems] = useState<FeedItem[]>([]);
   const [recordViewers, setRecordViewers] = useState<PresenceUser[]>([]);
@@ -87,9 +90,15 @@ export function RecordDetailView({ dataSource, objects, onEdit }: RecordDetailVi
 
   const paramCollectionHandler = useCallback((params: ActionParamDef[]) => {
     return new Promise<Record<string, any> | null>((resolve) => {
-      setParamState({ open: true, params, resolve });
+      const resolved = resolveActionParams(params as any, {
+        objectName: objectName || objectDef?.name || '',
+        objects: objects || [],
+        fieldLabel,
+        fieldOptionLabel,
+      });
+      setParamState({ open: true, params: resolved, resolve });
     });
-  }, []);
+  }, [objectName, objectDef, objects, fieldLabel, fieldOptionLabel]);
 
   const toastHandler = useCallback((message: string, options?: { type?: string }) => {
     if (options?.type === 'error') toast.error(message);
@@ -605,36 +614,12 @@ export function RecordDetailView({ dataSource, objects, onEdit }: RecordDetailVi
           },
         ];
 
-    // Append a dedicated, collapsed "System Information" section listing
-    // audit fields (created/updated at/by) when the schema declares them
-    // and no author-defined section has already surfaced them. The framework
-    // auto-injects these as `system: true, readonly: true` via
-    // `applySystemFields`; rendering them here gives users visibility into
-    // record provenance without polluting the primary content area.
-    const fieldsAlreadyShown = new Set<string>(
-      sections.flatMap((s: any) => (s.fields || []).map((f: any) => f.name))
-    );
-    const auditFieldsToShow = Array.from(AUDIT_FIELD_NAMES).filter(
-      name => objectDef.fields?.[name] && !fieldsAlreadyShown.has(name)
-    );
-    if (auditFieldsToShow.length > 0) {
-      sections.push({
-        title: sectionLabel(objectDef.name, 'system_info', 'System Information'),
-        collapsible: true,
-        defaultCollapsed: true,
-        fields: auditFieldsToShow.map(key => {
-          const fieldDef = objectDef.fields[key];
-          const refTarget = fieldDef.reference_to || fieldDef.reference;
-          return {
-            name: key,
-            label: fieldDef.label || key,
-            type: fieldDef.type || 'text',
-            readonly: true,
-            ...(refTarget && { reference_to: refTarget }),
-          };
-        }),
-      } as any);
-    }
+    // Audit fields (created_at/created_by/updated_at/updated_by) are NOT
+    // appended as a section here — they are surfaced by `<RecordMetaFooter>`
+    // (rendered by DetailView) as a single subtle line below the content,
+    // replacing the old card-style "System Information" panel. The inline-edit
+    // drawer continues to hide them via `DEFAULT_SYSTEM_FIELDS` in
+    // `@object-ui/plugin-detail/RecordDetailDrawer`.
 
     // Filter actions for record_header location and deduplicate by name
     const recordHeaderActions = (() => {
