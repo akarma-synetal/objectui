@@ -233,6 +233,7 @@ const ko = {
     mentionSomeone: '멘션하기',
     preview: '미리보기',
     submitComment: '제출 (Ctrl+Enter)',
+    sendComment: '보내기',
     writeComment: '댓글 작성…',
     subscribedTooltip: '구독 중 — 클릭하여 구독 취소',
     unsubscribedTooltip: '알림 구독',

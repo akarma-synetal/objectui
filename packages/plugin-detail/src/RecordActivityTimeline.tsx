@@ -22,6 +22,7 @@ import {
   Phone,
   ChevronDown,
   Loader2,
+  Send,
 } from 'lucide-react';
 import type { FeedItem, FeedItemType, RecordActivityComponentProps, RecordSubscription } from '@object-ui/types';
 import { FieldChangeItem } from './FieldChangeItem';
@@ -59,6 +60,10 @@ export interface RecordActivityTimelineProps {
   onToggleSubscription?: (subscribed: boolean) => void | Promise<void>;
   /** When true, collapse to only the comment input when there are no items */
   collapseWhenEmpty?: boolean;
+  /** Override the panel title (defaults to t('detail.activity')) */
+  titleLabel?: string;
+  /** Override the empty state copy (defaults to t('detail.noActivity')) */
+  emptyLabel?: string;
   className?: string;
 }
 
@@ -145,6 +150,8 @@ export const RecordActivityTimeline: React.FC<RecordActivityTimelineProps> = ({
   subscription,
   onToggleSubscription,
   collapseWhenEmpty = false,
+  titleLabel,
+  emptyLabel,
   className,
 }) => {
   const { t } = useDetailTranslation();
@@ -233,7 +240,7 @@ export const RecordActivityTimeline: React.FC<RecordActivityTimelineProps> = ({
         <div className="flex items-center justify-between">
           <CardTitle className="flex items-center gap-2 text-base">
             <Activity className="h-4 w-4" />
-            {t('detail.activity')}
+            {titleLabel ?? t('detail.activity')}
             <span className="text-sm font-normal text-muted-foreground">
               ({filtered.length})
             </span>
@@ -279,14 +286,15 @@ export const RecordActivityTimeline: React.FC<RecordActivityTimelineProps> = ({
               disabled={isSubmitting}
             />
             <Button
-              size="icon"
               variant="default"
               onClick={handleAddComment}
               disabled={!commentText.trim() || isSubmitting}
-              className="shrink-0 self-end"
+              className="shrink-0 self-end gap-1.5"
               aria-label={t('detail.submitComment')}
+              title={t('detail.submitComment')}
             >
-              <MessageSquare className="h-4 w-4" />
+              <Send className="h-4 w-4" />
+              <span>{t('detail.sendComment')}</span>
             </Button>
           </div>
         )}
@@ -295,7 +303,7 @@ export const RecordActivityTimeline: React.FC<RecordActivityTimelineProps> = ({
         {filtered.length === 0 ? (
           collapseWhenEmpty ? null : (
             <p className="text-sm text-muted-foreground text-center py-4">
-              {t('detail.noActivity')}
+              {emptyLabel ?? t('detail.noActivity')}
             </p>
           )
         ) : (

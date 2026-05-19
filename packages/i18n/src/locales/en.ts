@@ -343,6 +343,7 @@ const en = {
     mentionSomeone: 'Mention someone',
     preview: 'Preview',
     submitComment: 'Submit (Ctrl+Enter)',
+    sendComment: 'Send',
     writeComment: 'Write a comment…',
     // Subscription
     subscribedTooltip: 'Subscribed — click to unsubscribe',

@@ -343,6 +343,7 @@ const zh = {
     mentionSomeone: '提及某人',
     preview: '预览',
     submitComment: '提交 (Ctrl+Enter)',
+    sendComment: '发送',
     writeComment: '写评论…',
     // Subscription
     subscribedTooltip: '已订阅 — 点击取消订阅',

@@ -233,6 +233,7 @@ const es = {
     mentionSomeone: 'Mencionar a alguien',
     preview: 'Vista previa',
     submitComment: 'Enviar (Ctrl+Enter)',
+    sendComment: 'Enviar',
     writeComment: 'Escribe un comentario…',
     subscribedTooltip: 'Suscrito — clic para cancelar suscripción',
     unsubscribedTooltip: 'Suscribirse a notificaciones',

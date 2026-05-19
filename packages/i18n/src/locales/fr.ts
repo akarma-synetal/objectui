@@ -238,6 +238,7 @@ const fr = {
     mentionSomeone: 'Mentionner quelqu\'un',
     preview: 'Aperçu',
     submitComment: 'Envoyer (Ctrl+Entrée)',
+    sendComment: 'Envoyer',
     writeComment: 'Écrire un commentaire…',
     // Subscription
     subscribedTooltip: 'Abonné — cliquez pour vous désabonner',

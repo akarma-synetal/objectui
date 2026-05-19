@@ -147,6 +147,7 @@ export const DETAIL_DEFAULT_TRANSLATIONS: Record<string, string> = {
   'detail.mentionSomeone': 'Mention someone',
   'detail.preview': 'Preview',
   'detail.submitComment': 'Submit (Ctrl+Enter)',
+  'detail.sendComment': 'Send',
   'detail.writeComment': 'Write a comment…',
   // Subscription
   'detail.subscribedTooltip': 'Subscribed — click to unsubscribe',

@@ -238,6 +238,7 @@ const de = {
     mentionSomeone: 'Jemanden erwähnen',
     preview: 'Vorschau',
     submitComment: 'Senden (Strg+Enter)',
+    sendComment: 'Senden',
     writeComment: 'Kommentar schreiben…',
     // Subscription
     subscribedTooltip: 'Abonniert — Klicken zum Abbestellen',

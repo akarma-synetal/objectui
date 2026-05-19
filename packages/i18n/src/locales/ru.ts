@@ -249,6 +249,7 @@ const ru = {
     mentionSomeone: 'Упомянуть кого-то',
     preview: 'Предпросмотр',
     submitComment: 'Отправить (Ctrl+Enter)',
+    sendComment: 'Отправить',
     writeComment: 'Написать комментарий…',
     // Subscription
     subscribedTooltip: 'Подписаны — нажмите для отписки',

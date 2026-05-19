@@ -244,6 +244,7 @@ const ja = {
     mentionSomeone: 'メンションする',
     preview: 'プレビュー',
     submitComment: '送信 (Ctrl+Enter)',
+    sendComment: '送信',
     writeComment: 'コメントを入力…',
     subscribedTooltip: '購読中 — クリックで解除',
     unsubscribedTooltip: '通知を購読',

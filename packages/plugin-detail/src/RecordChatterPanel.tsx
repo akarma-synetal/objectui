@@ -148,6 +148,8 @@ export const RecordChatterPanel: React.FC<RecordChatterPanelProps> = ({
             filterMode={filterMode}
             onFilterChange={onFilterChange}
             collapseWhenEmpty={collapseWhenEmpty}
+            titleLabel={t('detail.discussion')}
+            emptyLabel={t('detail.noCommentsYet')}
             className="border-0 shadow-none"
           />
         </div>
@@ -201,6 +203,8 @@ export const RecordChatterPanel: React.FC<RecordChatterPanelProps> = ({
             filterMode={filterMode}
             onFilterChange={onFilterChange}
             collapseWhenEmpty={collapseWhenEmpty}
+            titleLabel={t('detail.discussion')}
+            emptyLabel={t('detail.noCommentsYet')}
           />
         </div>
       )}

@@ -234,6 +234,7 @@ const ar = {
     mentionSomeone: 'إشارة إلى شخص',
     preview: 'معاينة',
     submitComment: 'إرسال (Ctrl+Enter)',
+    sendComment: 'إرسال',
     writeComment: 'اكتب تعليقاً…',
     subscribedTooltip: 'مشترك — انقر لإلغاء الاشتراك',
     unsubscribedTooltip: 'الاشتراك في الإشعارات',
