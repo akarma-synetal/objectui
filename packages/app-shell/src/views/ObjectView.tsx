@@ -1193,13 +1193,24 @@ export function ObjectView({ dataSource, objects, onEdit, externalRefreshKey }: 
             const isAbsolute = targetStr.startsWith('/') || /^https?:\/\//i.test(targetStr);
             if (isAbsolute) {
                 const baseUrl = import.meta.env.VITE_SERVER_URL || '';
-                const url = targetStr.startsWith('http') ? targetStr : `${baseUrl}${targetStr}`;
                 // Row context is stashed on params under `_rowRecord` by the
                 // row-action dispatcher (see ObjectGrid → onRowAction). Pull
                 // it out before assembling the request body.
                 const rawParams = { ...(params as Record<string, any>) };
                 const rowRecord = rawParams._rowRecord as Record<string, any> | undefined;
                 delete rawParams._rowRecord;
+
+                // Interpolate `{field}` tokens in the target URL from the
+                // row record. Lets actions hit data-API endpoints like
+                // `PATCH /api/v1/sys_api_key/{id}` without bespoke wiring.
+                let resolvedTarget = targetStr;
+                if (rowRecord && /\{[a-z_][a-z0-9_]*\}/i.test(resolvedTarget)) {
+                    resolvedTarget = resolvedTarget.replace(/\{([a-z_][a-z0-9_]*)\}/gi, (_, k) => {
+                        const v = rowRecord[k];
+                        return v == null ? '' : encodeURIComponent(String(v));
+                    });
+                }
+                const url = resolvedTarget.startsWith('http') ? resolvedTarget : `${baseUrl}${resolvedTarget}`;
 
                 // Apply bodyShape: 'flat' (default) keeps user params at top
                 // level; { wrap: 'data' } nests them under that key while
@@ -1219,18 +1230,35 @@ export function ObjectView({ dataSource, objects, onEdit, externalRefreshKey }: 
                     if (rowValue != null) body[action.recordIdParam] = rowValue;
                 }
 
-                // Auto-inject organizationId when the active org is known and
-                // not already set. Most better-auth org-scoped endpoints
-                // accept this shape; harmless for endpoints that ignore it.
-                if (!body.organizationId && activeOrganization?.id) {
+                // Auto-inject organizationId only for better-auth org-scoped
+                // endpoints. Data-API endpoints (/api/v1/{object}/{id}) must
+                // NOT receive a stray organizationId field — that would try
+                // to overwrite the row's tenant column.
+                const isAuthOrgEndpoint = /\/api\/v1\/auth\//.test(resolvedTarget);
+                if (isAuthOrgEndpoint && !body.organizationId && activeOrganization?.id) {
                     body.organizationId = activeOrganization.id;
                 }
-                const res = await authFetch(url, {
-                    method: 'POST',
+
+                // Merge static body fragment last so constants override any
+                // user-collected values (e.g. resend:true on resend-invite,
+                // revoked:true on revoke-api-key).
+                if (action.bodyExtra && typeof action.bodyExtra === 'object') {
+                    Object.assign(body, action.bodyExtra);
+                }
+
+                const method = (action.method || 'POST').toUpperCase();
+                const init: any = {
+                    method,
                     headers: { 'Content-Type': 'application/json' },
                     credentials: 'include',
-                    body: JSON.stringify(body),
-                });
+                };
+                // GET/DELETE conventionally have no body; for everything else
+                // we serialize. (We don't expect GET here today, but keep the
+                // guard for safety.)
+                if (method !== 'GET' && method !== 'DELETE') {
+                    init.body = JSON.stringify(body);
+                }
+                const res = await authFetch(url, init);
                 if (!res.ok) {
                     let detail = `HTTP ${res.status}`;
                     try {
