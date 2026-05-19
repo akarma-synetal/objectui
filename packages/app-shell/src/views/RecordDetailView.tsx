@@ -12,7 +12,7 @@ import { DetailView, RecordChatterPanel } from '@object-ui/plugin-detail';
 import { Empty, EmptyTitle, EmptyDescription } from '@object-ui/components';
 import { PresenceAvatars, type PresenceUser } from '@object-ui/collaboration';
 import { useAuth, createAuthenticatedFetch } from '@object-ui/auth';
-import { ActionProvider, useObjectTranslation, useObjectLabel } from '@object-ui/react';
+import { ActionProvider, useObjectTranslation, useObjectLabel, usePageAssignment, RecordContextProvider, SchemaRenderer } from '@object-ui/react';
 import { toast } from 'sonner';
 import { Database, Users } from 'lucide-react';
 import { MetadataPanel, useMetadataInspector } from './MetadataInspector';
@@ -75,6 +75,33 @@ export function RecordDetailView({ dataSource, objects, onEdit }: RecordDetailVi
   // Navigation code passes `record.id || record._id` directly into the URL
   // without adding any prefix, so no stripping is needed.
   const pureRecordId = recordId;
+
+  // ─── Page Assignment (Salesforce Lightning-style record Pages) ──────
+  // If a PageSchema(pageType='record') is authored for this object, render
+  // it via SchemaRenderer (which dispatches to the registered 'record'
+  // PageRenderer in @object-ui/components). Otherwise we fall through to
+  // the legacy auto-generated DetailView path below.
+  const { page: assignedPage } = usePageAssignment(objectName);
+  const [pageRecord, setPageRecord] = useState<any>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!assignedPage || !pureRecordId || !objectName || !dataSource?.findOne) {
+      setPageRecord(null);
+      return;
+    }
+    dataSource
+      .findOne(objectName, pureRecordId)
+      .then((rec: any) => {
+        if (!cancelled) setPageRecord(rec);
+      })
+      .catch(() => {
+        if (!cancelled) setPageRecord(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [assignedPage, objectName, pureRecordId, dataSource]);
 
   // ─── Action Provider Handlers ───────────────────────────────────────
 
@@ -844,6 +871,31 @@ export function RecordDetailView({ dataSource, objects, onEdit }: RecordDetailVi
           </EmptyDescription>
         </Empty>
       </div>
+    );
+  }
+
+  if (assignedPage) {
+    return (
+      <RecordContextProvider
+        objectName={objectName!}
+        recordId={pureRecordId}
+        data={pageRecord}
+        objectSchema={objectDef}
+        dataSource={dataSource}
+      >
+        <ActionProvider
+          context={{ record: pageRecord || {}, objectName, user: currentUser }}
+          onConfirm={confirmHandler}
+          onToast={toastHandler}
+          onNavigate={navigateHandler}
+          onParamCollection={paramCollectionHandler}
+          handlers={{ api: apiHandler, flow: flowHandler, script: serverActionHandler, modal: serverActionHandler }}
+        >
+          <div className="h-full bg-background overflow-auto p-3 sm:p-4 lg:p-6">
+            <SchemaRenderer schema={assignedPage as any} />
+          </div>
+        </ActionProvider>
+      </RecordContextProvider>
     );
   }
 
