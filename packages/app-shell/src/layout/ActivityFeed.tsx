@@ -17,7 +17,7 @@ import {
   SheetTitle,
   SheetTrigger,
 } from '@object-ui/components';
-import { Bell, Plus, Pencil, Trash2, MessageSquare, Filter } from 'lucide-react';
+import { Activity, Plus, Pencil, Trash2, MessageSquare, Filter } from 'lucide-react';
 import { useObjectTranslation } from '@object-ui/i18n';
 
 export interface ActivityItem {
@@ -94,7 +94,7 @@ export function ActivityFeed({ activities = [], className }: ActivityFeedProps) 
           className={className ?? 'h-8 w-8'}
           aria-label={t('layout.activityFeed.ariaLabel')}
         >
-          <Bell className="h-4 w-4" />
+          <Activity className="h-4 w-4" />
           {activities.length > 0 && (
             <span className="absolute -top-0.5 -right-0.5 h-3.5 w-3.5 rounded-full bg-primary text-[9px] font-bold text-primary-foreground flex items-center justify-center">
               {activities.length > 9 ? '9+' : activities.length}
@@ -141,7 +141,7 @@ export function ActivityFeed({ activities = [], className }: ActivityFeedProps) 
 
         {filteredActivities.length === 0 ? (
           <div className="flex flex-col items-center justify-center gap-2 py-16 text-muted-foreground">
-            <Bell className="h-8 w-8 opacity-40" />
+            <Activity className="h-8 w-8 opacity-40" />
             <p className="text-sm">{t('layout.activityFeed.empty')}</p>
           </div>
         ) : (
