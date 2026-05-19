@@ -928,6 +928,7 @@ export const ObjectView: React.FC<ObjectViewProps> = ({
           resizable: activeView?.resizable ?? (schema as any).resizable,
           hiddenFields: activeView?.hiddenFields ?? (schema as any).hiddenFields,
           rowActions: activeView?.rowActions ?? (schema as any).rowActions,
+          rowActionDefs: (activeView as any)?.rowActionDefs ?? (schema as any).rowActionDefs,
           bulkActions: activeView?.bulkActions ?? (schema as any).bulkActions,
           sharing: activeView?.sharing ?? (schema as any).sharing,
           addRecord: activeView?.addRecord ?? (schema as any).addRecord,

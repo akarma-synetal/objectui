@@ -1115,6 +1115,7 @@ export const ListView = React.forwardRef<ListViewHandle, ListViewProps>(({
           ...(groupingConfig ? { grouping: groupingConfig } : {}),
           ...(rowColorConfig ? { rowColor: rowColorConfig } : {}),
           ...(schema.rowActions ? { rowActions: schema.rowActions } : {}),
+          ...((schema as any).rowActionDefs ? { rowActionDefs: (schema as any).rowActionDefs } : {}),
           ...(schema.bulkActions ? { batchActions: schema.bulkActions } : {}),
           ...(schema.options?.grid || {}),
         };
