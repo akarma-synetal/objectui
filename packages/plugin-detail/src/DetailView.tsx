@@ -42,6 +42,7 @@ import { HistoryTimeline } from './HistoryTimeline';
 import { RecordMetaFooter } from './RecordMetaFooter';
 import { SchemaRenderer, useSafeFieldLabel } from '@object-ui/react';
 import { buildExpandFields } from '@object-ui/core';
+import { usePermissions } from '@object-ui/permissions';
 import type { DetailViewSchema, DataSource, ActionSchema, SchemaNode } from '@object-ui/types';
 import { useDetailTranslation } from './useDetailTranslation';
 
@@ -149,7 +150,7 @@ export interface DetailViewProps {
 }
 
 export const DetailView: React.FC<DetailViewProps> = ({
-  schema,
+  schema: rawSchema,
   dataSource,
   className,
   onEdit,
@@ -162,8 +163,8 @@ export const DetailView: React.FC<DetailViewProps> = ({
   objectLabel,
   onDataLoaded,
 }) => {
-  const [data, setData] = React.useState<any>(schema.data);
-  const [loading, setLoading] = React.useState(!schema.data && !!((schema.api && schema.resourceId) || (dataSource && schema.objectName && schema.resourceId)));
+  const [data, setData] = React.useState<any>(rawSchema.data);
+  const [loading, setLoading] = React.useState(!rawSchema.data && !!((rawSchema.api && rawSchema.resourceId) || (dataSource && rawSchema.objectName && rawSchema.resourceId)));
   const [isFavorite, setIsFavorite] = React.useState(false);
   const [isInlineEditing, setIsInlineEditing] = React.useState(false);
   const [editedValues, setEditedValues] = React.useState<Record<string, any>>({});
@@ -171,6 +172,37 @@ export const DetailView: React.FC<DetailViewProps> = ({
   const [idCopied, setIdCopied] = React.useState(false);
   const { t } = useDetailTranslation();
   const { fieldOptionLabel } = useSafeFieldLabel();
+
+  // Field-level permission gate. Filter section.fields and top-level
+  // fields based on the current user's read permissions BEFORE any
+  // downstream use (summary fields, header highlight, autoTabs body,
+  // section grouping, inline edit lookup, $expand build). When no
+  // PermissionProvider is mounted, `perms.isLoaded` is false and the
+  // schema passes through unchanged.
+  const perms = usePermissions();
+  const gatedSchema = React.useMemo<DetailViewSchema>(() => {
+    if (!perms?.isLoaded || !rawSchema.objectName) return rawSchema;
+    const canRead = (fieldName: string) =>
+      perms.checkField(rawSchema.objectName!, fieldName, 'read');
+    const filterFields = (arr?: any[]): any[] | undefined => {
+      if (!arr) return arr;
+      return arr.filter((f) => {
+        const name = typeof f === 'string' ? f : f?.name;
+        return !name || canRead(name);
+      });
+    };
+    return {
+      ...rawSchema,
+      fields: filterFields(rawSchema.fields as any[]) as any,
+      sections: rawSchema.sections?.map((s) => ({
+        ...s,
+        fields: filterFields(s.fields as any[]) as any,
+      })),
+      summaryFields: filterFields(rawSchema.summaryFields as any[]) as any,
+    };
+  }, [rawSchema, perms]);
+  const schema = gatedSchema;
+
 
   // Fire onDataLoaded whenever the record changes so hosts can publish it
   // (e.g. to the navigation breadcrumb or document title).

@@ -215,6 +215,10 @@ const SimpleObjectForm: React.FC<ObjectFormProps> = ({
   // a permissive default (isLoaded:false, checkField always true) so we
   // remain backward-compatible.
   const perms = usePermissions();
+  if (typeof window !== 'undefined') {
+    (window as any).__formPermsDbg = { isLoaded: perms?.isLoaded, objectName: schema.objectName, check: perms?.checkField?.(schema.objectName, 'annual_revenue', 'read') };
+    console.warn('[ObjectForm-DBG]', (window as any).__formPermsDbg);
+  }
   const applyFieldPerms = useCallback(
     (fields: FormField[]): FormField[] => {
       if (!perms?.isLoaded) return fields;

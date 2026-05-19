@@ -39,8 +39,9 @@ import {
 import type { LucideIcon } from 'lucide-react';
 import type { DataSource, FieldMetadata } from '@object-ui/types';
 import { getCellRenderer, resolveCellRendererType } from '@object-ui/fields';
-import { useDetailTranslation } from './useDetailTranslation';
 import { useSafeFieldLabel } from '@object-ui/react';
+import { usePermissions } from '@object-ui/permissions';
+import { useDetailTranslation } from './useDetailTranslation';
 
 export interface RelatedListProps {
   title: string;
@@ -332,7 +333,18 @@ export const RelatedList: React.FC<RelatedListProps> = ({
   //  - Prefer name-like fields (name, title, subject, ...) first.
   //  - Cap at `maxColumns` to keep the related card readable; users can
   //    click "View All" to see the full list.
+  const perms = usePermissions();
   const effectiveColumns = React.useMemo(() => {
+    const relatedObjectName = objectName || api || '';
+    // FLS: drop columns the current user cannot read on the related object.
+    const filterFLS = (cols: any[]): any[] => {
+      if (!perms?.isLoaded || !relatedObjectName) return cols;
+      return cols.filter((c) => {
+        const key = c?.accessorKey || c?.field || c?.name;
+        if (!key) return true;
+        return perms.checkField(relatedObjectName, String(key), 'read');
+      });
+    };
     const filterFK = (cols: any[]): any[] =>
       referenceField
         ? cols.filter((c) => {
@@ -356,10 +368,10 @@ export const RelatedList: React.FC<RelatedListProps> = ({
       });
     };
 
-    if (columns && columns.length > 0) return pruneEmpty(filterFK(columns));
+    if (columns && columns.length > 0) return pruneEmpty(filterFLS(filterFK(columns)));
     if (!objectSchema?.fields) return [];
 
-    const resolvedObjectName = objectName || api || '';
+    const resolvedObjectName = relatedObjectName;
     const SKIP_TYPES = new Set(['image', 'file', 'attachment', 'rich_text', 'html', 'json']);
     const PRIORITY_NAMES = [
       'name',
@@ -377,6 +389,11 @@ export const RelatedList: React.FC<RelatedListProps> = ({
         if (key === 'id' || key === referenceField) return false;
         if (def?.hidden) return false;
         if (def?.type && SKIP_TYPES.has(def.type)) return false;
+        // FLS: drop unreadable fields from auto-derived columns too.
+        if (perms?.isLoaded && resolvedObjectName
+            && !perms.checkField(resolvedObjectName, key, 'read')) {
+          return false;
+        }
         return true;
       });
 
@@ -437,7 +454,7 @@ export const RelatedList: React.FC<RelatedListProps> = ({
 
     const pruned = pruneEmpty(generated);
     return pruned.slice(0, Math.max(1, maxColumns));
-  }, [columns, objectSchema, objectName, api, resolveFieldLabel, referenceField, relatedData, maxColumns, lookupLabels]);
+  }, [columns, objectSchema, objectName, api, resolveFieldLabel, referenceField, relatedData, maxColumns, lookupLabels, perms]);
 
   const hasRowActions = !!onRowEdit || !!onRowDelete;
 

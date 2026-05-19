@@ -1691,6 +1691,9 @@ importers:
 
   packages/plugin-detail:
     dependencies:
+      '@object-ui/permissions':
+        specifier: workspace:^
+        version: link:../permissions
       lucide-react:
         specifier: ^1.16.0
         version: 1.16.0(react@19.2.6)

@@ -37,6 +37,7 @@
     "@object-ui/components": "workspace:^",
     "@object-ui/core": "workspace:^",
     "@object-ui/fields": "workspace:^",
+    "@object-ui/permissions": "workspace:^",
     "@object-ui/react": "workspace:^",
     "@object-ui/types": "workspace:^",
     "react": "^18.0.0 || ^19.0.0",

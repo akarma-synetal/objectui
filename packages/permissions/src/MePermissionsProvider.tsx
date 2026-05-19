@@ -101,15 +101,18 @@ export function MePermissionsProvider({
   const checkField = useCallback(
     (object: string, field: string, action: 'read' | 'write'): boolean => {
       if (!data) return false; // fail-closed
-      const key = `${object}.${field}`;
-      const fieldPerm = data.fields[key];
+      // Normalize casing — backend stores keys lowercase but callers may
+      // pass schema.objectName as "Account" / "account" interchangeably.
+      const objKey = (object ?? '').toLowerCase();
+      const key = `${objKey}.${field}`;
+      const fieldPerm = data.fields[key] ?? data.fields[`${object}.${field}`];
       if (fieldPerm) {
         return action === 'read'
           ? fieldPerm.readable !== false
           : fieldPerm.editable !== false;
       }
       // No explicit field-level override → defer to object-level perms.
-      const objPerm = data.objects[object] ?? data.objects['*'];
+      const objPerm = data.objects[objKey] ?? data.objects[object] ?? data.objects['*'];
       if (!objPerm) return true; // permissive default when nothing configured
       return action === 'read'
         ? objPerm.allowRead !== false
