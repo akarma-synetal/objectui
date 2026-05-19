@@ -1,11 +1,14 @@
 ---
 title: "Plugin Report"
-description: "Report plugin for Object UI — schema-driven pivot tables, grouped aggregations and printable report layouts"
+description: "Spec-driven reports for Object UI — Tabular, Summary, Matrix and Joined views over any object, with server-side aggregation, drill-down and printable export"
 ---
 
 # @object-ui/plugin-report
 
-Report plugin for Object UI — schema-driven pivot tables, grouped aggregations and printable report layouts
+Spec-driven report engine for Object UI. Renders the four report variants
+defined by `@objectstack/spec` (`tabular` / `summary` / `matrix` / `joined`)
+on top of any `objectName`, with server-side aggregation, multi-level
+grouping, date bucketing, cell drill-down and printable export.
 
 ## Installation
 
@@ -13,23 +16,192 @@ Report plugin for Object UI — schema-driven pivot tables, grouped aggregations
 pnpm add @object-ui/plugin-report
 ```
 
-## Status
+## At a glance
 
-This plugin is part of the v3.3.0 release. For full API reference and usage
-examples, see the package README:
+| Variant   | What it shows                                   | Renderer              |
+| --------- | ----------------------------------------------- | --------------------- |
+| `tabular` | Flat rows, one per record                        | `SpecReportGrid`      |
+| `summary` | Grouped rows + aggregates (single axis)          | `SpecReportGrid`      |
+| `matrix`  | Pivot table — rows × columns + cell aggregates   | `MatrixRenderer`      |
+| `joined`  | Vertically stacked sub-reports (independent data)| `JoinedReportRenderer`|
 
-- 📦 [`@object-ui/plugin-report` on npm](https://www.npmjs.com/package/@object-ui/plugin-report)
-- 📝 [Package README](https://github.com/objectstack-ai/objectui/tree/main/packages/plugin-report)
-- 🐛 [Report an issue](https://github.com/objectstack-ai/objectui/issues)
+All four are dispatched by a single `<ReportRenderer schema={...}>` based
+on `schema.type`. The same schema can also be embedded via the JSON
+component registry as `{ "type": "spec-report", "report": { ... } }` —
+the dispatcher unwraps either shape automatically.
+
+## Quick start
+
+```ts
+import type { ReportInput } from '@objectstack/spec/ui';
+
+export const OpportunitiesByStage: ReportInput = {
+  name: 'opp_by_stage',
+  label: 'Opportunities by Stage',
+  objectName: 'opportunity',
+  type: 'summary',
+  columns: [
+    { field: 'stage',  label: 'Stage' },
+    { field: 'amount', label: 'Amount', aggregate: 'sum' },
+    { field: 'id',     label: 'Deals',  aggregate: 'count' },
+  ],
+  groupingsDown: [{ field: 'stage', sortOrder: 'asc' }],
+};
+```
+
+```tsx
+import { ReportRenderer } from '@object-ui/plugin-report';
+<ReportRenderer schema={OpportunitiesByStage} dataSource={ds} />
+```
+
+## Matrix reports (row × column pivot)
+
+A `matrix` report adds `groupingsAcross` to create columns. Combined with
+`dateGranularity`, you get classic period pivots without writing any SQL:
+
+```ts
+export const PipelineByQuarter: ReportInput = {
+  name: 'pipeline_coverage_by_quarter',
+  objectName: 'opportunity',
+  type: 'matrix',
+  columns: [{ field: 'amount', label: 'Pipeline', aggregate: 'sum' }],
+  groupingsDown:   [{ field: 'forecast_category', sortOrder: 'asc' }],
+  groupingsAcross: [{ field: 'close_date', dateGranularity: 'quarter', sortOrder: 'asc' }],
+};
+```
+
+Supported `dateGranularity` values: `day` / `week` / `month` / `quarter` /
+`year`. The plugin routes these to the server-side aggregator via
+`POST /api/v1/data/:object/query` (spec `{ groupBy, aggregations }`
+shape). When the server can't natively bucket a granularity, the engine
+falls back to in-memory `applyInMemoryAggregation()` — fully transparent
+to the report author.
+
+`MatrixRenderer` renders row totals, column totals and grand total
+automatically and makes every cell click-drillable.
+
+## Joined reports (M3)
+
+A `joined` report stacks N independent sub-reports vertically — perfect
+for early-warning dashboards where each panel asks a different question
+about different data:
+
+```ts
+export const CustomerChurnSignals: ReportInput = {
+  name: 'customer_churn_signals',
+  label: 'Customer Churn Signals',
+  objectName: 'account',          // container default
+  type: 'joined',
+  columns: [],                    // intentionally empty at container level
+  blocks: [
+    {
+      name: 'at_risk_accounts',
+      label: 'At-Risk Accounts',
+      type: 'summary',
+      objectName: 'account',
+      columns: [{ field: 'id', label: 'Accounts', aggregate: 'count' }],
+      groupingsDown: [{ field: 'industry', sortOrder: 'asc' }],
+      filter: { is_active: true, last_activity_date: { $lt: '2026-04-19' } },
+    },
+    {
+      name: 'recently_lost',
+      label: 'Recently Lost Opportunities',
+      type: 'summary',
+      objectName: 'opportunity',  // different object than container — OK
+      columns: [
+        { field: 'amount', label: 'Lost Revenue', aggregate: 'sum' },
+        { field: 'id',     label: 'Deals',        aggregate: 'count' },
+      ],
+      groupingsDown: [{ field: 'owner', sortOrder: 'asc' }],
+      filter: { stage: 'closed_lost', close_date: { $gte: '2026-04-19' } },
+    },
+  ],
+};
+```
+
+Block inheritance rules:
+- `objectName` falls back to the container's if a block omits it.
+- `filter` is ANDed with the container's filter (block keys win on
+  collision).
+- Each block runs its own `useReportData()` call — failures are
+  isolated to that block.
+- `block.type` may be `tabular` / `summary` / `matrix` but **not**
+  `joined` (no recursive composition).
+
+## Drill-down
+
+Every aggregated row / cell is drill-aware. When the user clicks a cell,
+the renderer dispatches a `drill` action (built by `buildDrillAction`)
+through the host's `ActionRunner`. The default handler opens the
+underlying records:
+
+```tsx
+import { registerDrillHandler } from '@object-ui/plugin-report';
+registerDrillHandler(actionRunner, { navigate: router.push });
+```
+
+Two drill targets are supported:
+
+1. **List view** (default): navigates to `/console/apps/<app>/<object>?filter=...`
+2. **Report drawer** (M3): if the calling widget (e.g., a Dashboard
+   pivot) declares `drillDown.report`, the click opens a side drawer
+   that renders that report with the cell's group key merged into its
+   filter — composing **dashboard → report → record** in three clicks.
+
+## Server-side aggregation (M3)
+
+`useReportData()` translates a `Report` into a spec `QueryAST`
+(`{ groupBy, aggregations, where, limit }`) and posts it to
+`POST /api/v1/data/:object/query`. The framework routes the request
+through `engine.aggregate()`, which falls back to in-memory bucketing for
+structured `groupBy` entries (`{ field, dateGranularity }`) that no SQL
+dialect can portably express.
+
+If the endpoint is unavailable or returns an error, the hook
+**transparently degrades** to `dataSource.find()` + client-side
+aggregation. No application code changes required.
+
+## Filter-time date helpers (current limitation)
+
+> ⚠️ **Heads-up:** the server does **not** currently evaluate
+> `cel\`...\`` expressions embedded inside filter values (e.g.
+> `{ close_date: { $gte: cel\`daysAgo(30)\` } }`). The unevaluated
+> template object reaches the SQL driver and triggers
+> `SQLite3 can only bind numbers, strings, bigints, buffers, and null`.
+
+**Workaround pattern** (used by the bundled CRM `customer_churn_signals`
+demo): compute concrete ISO date strings at module load time and treat
+the report as a snapshot of "now".
+
+```ts
+// Module-load helper. Re-evaluates each time the app boots.
+const daysAgo = (n: number): string => {
+  const d = new Date();
+  d.setUTCDate(d.getUTCDate() - n);
+  return d.toISOString().slice(0, 10); // 'YYYY-MM-DD'
+};
+
+filter: {
+  is_active: true,
+  last_activity_date: { $lt: daysAgo(60) },
+}
+```
+
+For long-lived processes that need a sliding window, recompute the
+report on each page render (the hook re-runs on filter change) or wrap
+the date helper in a `useMemo` keyed on a 1-hour bucket.
+
+Native CEL filter-time evaluation is tracked for a future major version
+alongside server-side schedule execution.
 
 ## Type-aware cell rendering
 
-Report cells are rendered through the shared `getCellRenderer` registry
-from `@object-ui/fields`, the same renderer used by `ObjectGrid` and
-list views. This means each column gets the right component for its
-type — `select` becomes a coloured `Badge`, `lookup` becomes a deep
-link, `boolean` becomes ✓/✗, `email`/`url`/`phone` become `mailto:`/
-external/`tel:` links, `image` becomes a thumbnail, and so on.
+Report cells use the shared `getCellRenderer` registry from
+`@object-ui/fields`, the same renderer used by `ObjectGrid` and list
+views. Each column gets the right component for its type —
+`select` becomes a coloured `Badge`, `lookup` becomes a deep link,
+`boolean` becomes ✓/✗, `email`/`url`/`phone` become `mailto:`/external/
+`tel:` links, `image` becomes a thumbnail, and so on.
 
 When a report binds an `objectName`, columns auto-hydrate `type`,
 `options`, `referenceTo`, and `label` from the underlying object so
@@ -50,5 +222,37 @@ always win.
 }
 ```
 
-> **Note:** A rich interactive documentation page for this plugin is coming soon.
-> In the meantime, refer to the package README for schema, props and examples.
+## Schema-driven embedding
+
+Components auto-register with `ComponentRegistry` on import. To embed a
+report inside any JSON schema tree:
+
+```json
+{
+  "type": "spec-report",
+  "report": {
+    "name": "opp_by_stage",
+    "objectName": "opportunity",
+    "type": "summary",
+    "columns": [{ "field": "amount", "aggregate": "sum" }],
+    "groupingsDown": [{ "field": "stage" }]
+  }
+}
+```
+
+The dispatcher unwraps `{type:'spec-report', report:{...}}` and routes
+the inner `type` (`summary`/`matrix`/`joined`) to the correct renderer.
+Passing the report as the top-level schema also works:
+
+```json
+{ "type": "summary", "name": "...", "objectName": "...", "columns": [...] }
+```
+
+## Further reading
+
+- 📦 [`@object-ui/plugin-report` on npm](https://www.npmjs.com/package/@object-ui/plugin-report)
+- 📝 [Package README](https://github.com/objectstack-ai/objectui/tree/main/packages/plugin-report)
+- 🧪 Storybook: `SpecReportGrid` (M1), `MatrixRenderer` (M2),
+  `JoinedReportRenderer` (M3)
+- 🐛 [Report an issue](https://github.com/objectstack-ai/objectui/issues)
+

@@ -4,15 +4,15 @@ Report components for Object UI — build, view, render, and export reports with
 
 ## Features
 
-- 📊 **Report Builder** - Visual drag-and-drop report construction
-- 👁️ **Report Viewer** - Interactive report viewing with toolbar controls
-- 🎨 **Type-aware cells** - select → Badge, lookup → link, boolean → ✓/✗, email/url/phone → mailto/external/tel links, image → thumbnail, etc. (auto-hydrated from object metadata)
-- 🖨️ **Report Renderer** - Render reports from JSON definitions with charts
-- 📤 **Multi-Format Export** - Export to CSV, JSON, HTML, PDF, and Excel
-- 🔄 **Live Data Export** - Export with real-time data via `exportWithLiveData`
-- 📈 **Excel Formulas** - Export Excel files with live formulas via `exportExcelWithFormulas`
-- ⏰ **Schedule Config** - Configure recurring report generation and delivery
-- 📦 **Auto-registered** - Components register with `ComponentRegistry` on import
+- 🧩 **Four spec report variants** — `tabular` / `summary` / `matrix` / `joined`, dispatched by a single `<ReportRenderer schema={...}>`
+- 🧮 **Server-side aggregation** — `useReportData()` posts spec `QueryAST` to `POST /api/v1/data/:object/query`; transparent in-memory fallback
+- 📅 **Date bucketing** — `dateGranularity: day|week|month|quarter|year` on `groupingsAcross` / `groupingsDown`
+- 🪜 **Multi-level grouping + totals** — row totals, column totals, grand totals for matrix; tabular/summary delegate to `ObjectGrid`
+- 🎯 **Cell drill-down** — every aggregated cell dispatches a `drill` action via `ActionRunner`; targets List view or a nested Report (M3)
+- 🧱 **Joined reports** — vertically stacked sub-reports; each block owns its own `objectName`, filter and data fetch
+- 🎨 **Type-aware cells** — `select` → Badge, `lookup` → link, `boolean` → ✓/✗, `email`/`url`/`phone` → links, `image` → thumbnail (auto-hydrated from object metadata)
+- 🖨️ **Multi-format export** — CSV, JSON, HTML, PDF, Excel; live-data and Excel-formula variants
+- 📦 **Auto-registered** — components register with `ComponentRegistry` on import; embed via `{ "type": "spec-report", "report": {...} }`
 
 ## Installation
 
@@ -49,33 +49,115 @@ function EmbeddedReport() {
 }
 ```
 
-## API
+## Spec Reports — the four variants
 
-### ReportBuilder
+The plugin renders any `Report` defined by `@objectstack/spec`:
 
-Visual report construction interface:
+```ts
+import type { ReportInput } from '@objectstack/spec/ui';
+import { ReportRenderer } from '@object-ui/plugin-report';
 
-```tsx
-<ReportBuilder report={initialReport} />
+const report: ReportInput = {
+  name: 'opp_by_stage',
+  objectName: 'opportunity',
+  type: 'summary',
+  columns: [
+    { field: 'stage' },
+    { field: 'amount', aggregate: 'sum' },
+    { field: 'id', label: 'Deals', aggregate: 'count' },
+  ],
+  groupingsDown: [{ field: 'stage', sortOrder: 'asc' }],
+};
+
+<ReportRenderer schema={report} dataSource={ds} />
 ```
 
-### ReportViewer
+| `type`    | Description                                          |
+| --------- | ---------------------------------------------------- |
+| `tabular` | Flat record list                                     |
+| `summary` | Single-axis grouped + aggregated                     |
+| `matrix`  | Row × column pivot with cell aggregates and totals   |
+| `joined`  | Vertically stacked sub-reports, each with own data   |
 
-Interactive report viewer with toolbar:
+### Matrix (row × column pivot)
 
-```tsx
-<ReportViewer report={reportDefinition} showToolbar />
+```ts
+{
+  name: 'pipeline_by_quarter',
+  objectName: 'opportunity',
+  type: 'matrix',
+  columns: [{ field: 'amount', label: 'Pipeline', aggregate: 'sum' }],
+  groupingsDown:   [{ field: 'forecast_category' }],
+  groupingsAcross: [{ field: 'close_date', dateGranularity: 'quarter' }],
+}
 ```
 
-### ReportRenderer
+`dateGranularity` accepts `day | week | month | quarter | year` and is
+pushed down to the server-side aggregator.
 
-Renders a report from a JSON chart configuration:
+### Joined (M3)
 
-```tsx
-<ReportRenderer title="Revenue" description="Q4 Revenue" chart={chartConfig} />
+```ts
+{
+  name: 'churn_signals',
+  objectName: 'account',          // container default
+  type: 'joined',
+  columns: [],
+  blocks: [
+    { name: 'at_risk', type: 'summary', columns: [...], filter: {...} },
+    { name: 'lost',    type: 'summary', objectName: 'opportunity', columns: [...], filter: {...} },
+  ],
+}
 ```
 
-### Export Functions
+Block rules: `objectName` falls back to the container; `filter` is ANDed
+with the container's; each block runs an isolated `useReportData()` call;
+`block.type` must not be `joined` (no recursion).
+
+## Server-side aggregation + drill-down
+
+`useReportData()` translates a `Report` into spec `QueryAST` and posts it
+to `POST /api/v1/data/:object/query`. If the endpoint is unavailable it
+falls back transparently to `dataSource.find()` + client-side aggregation.
+
+Every aggregated cell dispatches a `drill` action through `ActionRunner`:
+
+```tsx
+import { registerDrillHandler } from '@object-ui/plugin-report';
+registerDrillHandler(actionRunner, { navigate: router.push });
+```
+
+Drill targets:
+1. **List view** — default; navigates to the filtered records.
+2. **Report drawer** — if the host widget declares `drillDown.report`,
+   the click opens a side drawer that renders that report scoped to the
+   cell's group key (composes dashboard → report → record).
+
+## Filter-time date helpers — current limitation
+
+The server does **not** currently evaluate `` cel`...` `` expressions
+embedded in filter values. Use module-load ISO strings instead:
+
+```ts
+const daysAgo = (n: number): string => {
+  const d = new Date();
+  d.setUTCDate(d.getUTCDate() - n);
+  return d.toISOString().slice(0, 10);
+};
+
+filter: { close_date: { $gte: daysAgo(30) } }
+```
+
+See the bundled CRM `customer_churn_signals` demo for the full pattern.
+Native filter-time CEL evaluation is tracked for a future major version.
+
+## Legacy components
+
+`ReportBuilder`, `ReportViewer` and the export functions below remain
+available for legacy presentation-layer reports and are not affected by
+the spec-driven pipeline above.
+
+
 
 Export reports in multiple formats:
 

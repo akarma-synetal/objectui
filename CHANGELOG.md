@@ -8,6 +8,104 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+
+- **Spec-driven reports — `tabular` / `summary` / `matrix` / `joined`
+  variants.** `@object-ui/plugin-report` now renders every report shape
+  defined by `@objectstack/spec` (`Report` in `@objectstack/spec/ui`).
+  A single `<ReportRenderer schema={...}>` (also registered as
+  `spec-report` in `ComponentRegistry`) dispatches on `schema.type`.
+  Authors write a JSON `Report` and get a fully wired view with
+  grouping, aggregation, totals and drill-down.
+
+- **`useReportData()` hook with server-side aggregation.** Translates a
+  `Report` into spec `QueryAST` (`{ groupBy, aggregations, where, limit }`)
+  and posts it to `POST /api/v1/data/:object/query`. Supports
+  multi-level `groupingsDown` / `groupingsAcross`, `dateGranularity`
+  (`day` / `week` / `month` / `quarter` / `year`), `unique` aggregation
+  (distinct count), `mergeFilters($and)`, `drillDown(groupKey)`, and
+  pre-fetched `rows` bypass. If the endpoint is unavailable the hook
+  falls back transparently to `dataSource.find()` + client-side
+  aggregation — no application code changes required.
+
+- **`MatrixRenderer` — row × column pivot** with row totals, column
+  totals and grand total. Every cell click dispatches a `drill` action
+  with the combined row/column group key merged into the report filter.
+
+- **`JoinedReportRenderer` — vertically stacked sub-reports.** A
+  `type: 'joined'` report carries `blocks[]`; each block is rendered as
+  its own independent report. Blocks inherit container `objectName`
+  (fallback) and AND their `filter` with the container's; block failures
+  are isolated; `block.type` excludes `'joined'` (no recursion).
+
+- **Drill protocol — `drill` action.** New `DrillActionDef`,
+  `buildDrillAction(report, groupKey, opts)` factory ($and-merges
+  `report.filter` + `runtimeFilter` + `groupKey`),
+  `createDrillHandler({ navigate })` and `registerDrillHandler(runner, opts)`.
+  Hosts inject a `navigate` callback; the handler stays
+  protocol-neutral. Two drill targets:
+  1. **List view** (default) — navigates to the filtered records.
+  2. **Report drawer** — if the calling widget declares
+     `drillDown.report`, the click opens a side drawer rendering that
+     report scoped to the cell's group key, composing
+     **dashboard → report → record** in three clicks.
+
+- **Dashboard → Report drill.** `DrillDownConfig` (in `@object-ui/types`)
+  gains an optional `report` field; `DrillDownDrawer` renders it via
+  `SchemaRenderer` as a `spec-report` instead of the default
+  `ObjectDataTable`. `ObjectPivotTable` and `ObjectMetricWidget` forward
+  `drillDown.report`.
+
+- **`SpecReportGrid` — Tabular/Summary bridge to `ObjectGrid`.** Reuses
+  `useGroupedData` and inherits cell rendering, sorting and
+  virtualization, avoiding a third table implementation. New
+  `count_distinct` aggregation in `useGroupedData.AggregationType`;
+  `count` semantics aligned with SQL `count(*)`.
+
+- **`isSpecReport` / `isJoinedSpecReport` type guards and
+  `specReportToPresentation()` adapter** in
+  `@object-ui/types/spec-report`. Lets hosts distinguish spec reports
+  from legacy presentation schemas.
+
+- **CRM example reports (5 new):** `pipeline_coverage_by_quarter`
+  (matrix, `dateGranularity: quarter`), `opportunity_funnel_by_owner_stage`
+  (summary, 2-level), `lead_inflow_by_month_source`
+  (matrix, `dateGranularity: month`), `cases_opened_by_day_priority`
+  (matrix, `dateGranularity: day`), `customer_churn_signals` (joined,
+  3 blocks: at-risk accounts / silent high-value / recently lost opps).
+  Sales Dashboard `pipeline_stage_by_source` pivot now drills into
+  `pipeline_coverage_by_quarter` via the new report drawer.
+
+### Changed
+
+- **`ReportRenderer` is now a thin dispatcher** that reads `schema.type`
+  and routes to `MatrixRenderer` / `JoinedReportRenderer` /
+  `SpecReportGrid` / legacy `ReportRenderer`. It also unwraps the
+  `{ type: 'spec-report', report: {...} }` wrapper produced by
+  `SchemaRenderer` registry dispatch so the inner `type` reaches the
+  variant router.
+
+- **`@object-ui/types` — `JoinedReportBlock` flattened** to mirror
+  `JoinedReportBlockSchema` in `@objectstack/spec`. Block fields
+  (`name`, `type`, `objectName`, `columns`, `groupingsDown`,
+  `groupingsAcross`, `filter`, …) live at the top level of each block;
+  the previous `block.report.{...}` nesting is gone.
+
+- **`@object-ui/data-objectstack` — `aggregate()` spec-shape detection.**
+  When the payload looks spec-shaped (`groupBy[]` / `aggregations[]` /
+  `where`), the adapter routes directly to `client.data.query()`
+  (`POST .../query`) instead of the single-measure analytics path,
+  unblocking matrix and joined reports.
+
+- **`@object-ui/app-shell` — `ReportView` router.** Reports whose
+  top-level `type` is `matrix` or `joined` (or that carry
+  `dateGranularity`) now render through the spec `ReportRenderer`
+  dispatcher rather than the legacy viewer.
+
+- **`@object-ui/plugin-report` README + plugin docs** rewritten to
+  document the spec variants, `dateGranularity`, drill protocol,
+  server-side aggregation, joined reports, and the filter-time CEL
+  workaround. See `content/docs/plugins/plugin-report.mdx`.
+
 - **`ManagedByBanner` (@object-ui/app-shell)** — surfaces a warning banner at the top of `ObjectView`, `RecordDetailView`, and `RecordFormPage` when an object's schema declares `managedBy !== 'platform'` (e.g. `'better-auth'`). Tells the user the table is owned by an upstream system and that direct edits bypass the owning system's hashing / session validation / audit hooks. `@object-ui/plugin-form` `ObjectForm` additionally disables every field by default when `managedBy !== 'platform'`. Resolves the silent-data-corruption risk where an admin could open `sys_user` / `sys_account` / `sys_session` etc. in the Console and write directly through the generic data API.
 - **`ObjectSchemaMetadata.managedBy`** — new optional schema field (`'platform' | 'better-auth' | string`); default `'platform'`. Lets the platform mark tables as owned by an upstream system so the Console can render the appropriate guard rails.
 
