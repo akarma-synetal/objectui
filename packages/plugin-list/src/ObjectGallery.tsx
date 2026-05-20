@@ -9,9 +9,42 @@
 import React, { useState, useEffect, useCallback, useMemo, useContext } from 'react';
 import { useDataScope, SchemaRendererContext, useNavigationOverlay, useSafeFieldLabel } from '@object-ui/react';
 import { ComponentRegistry, buildExpandFields } from '@object-ui/core';
-import { cn, Card, CardContent, NavigationOverlay } from '@object-ui/components';
+import { cn, Card, CardContent, NavigationOverlay, Button } from '@object-ui/components';
 import type { GalleryConfig, ViewNavigationConfig, GroupingConfig } from '@object-ui/types';
-import { ChevronRight, ChevronDown } from 'lucide-react';
+import { ChevronRight, ChevronDown, LayoutGrid, Grid3x3, Square } from 'lucide-react';
+
+type GalleryDensity = NonNullable<GalleryConfig['cardSize']>;
+
+/**
+ * localStorage key for user-overridden card density. Per-object so a CRM
+ * power user can keep the Accounts view compact while leaving Products
+ * comfortable. Falls back to the schema's `gallery.cardSize` when nothing
+ * is persisted.
+ */
+const DENSITY_KEY = (objectName?: string) =>
+    `objectui:gallery:density:${objectName ?? 'default'}`;
+
+const isDensity = (v: unknown): v is GalleryDensity =>
+    v === 'small' || v === 'medium' || v === 'large';
+
+function readPersistedDensity(objectName?: string): GalleryDensity | null {
+    if (typeof window === 'undefined') return null;
+    try {
+        const v = window.localStorage.getItem(DENSITY_KEY(objectName));
+        return isDensity(v) ? v : null;
+    } catch {
+        return null;
+    }
+}
+
+function writePersistedDensity(objectName: string | undefined, value: GalleryDensity) {
+    if (typeof window === 'undefined') return;
+    try {
+        window.localStorage.setItem(DENSITY_KEY(objectName), value);
+    } catch {
+        /* quota / private mode — silently degrade */
+    }
+}
 
 export interface ObjectGalleryProps {
     schema: {
@@ -71,9 +104,22 @@ export const ObjectGallery: React.FC<ObjectGalleryProps> = (props) => {
     const gallery = schema.gallery;
     const coverField = gallery?.coverField ?? schema.imageField ?? 'image';
     const coverFit = gallery?.coverFit ?? 'cover';
-    const cardSize = gallery?.cardSize ?? 'medium';
+    const schemaCardSize = gallery?.cardSize ?? 'medium';
     const titleField = gallery?.titleField ?? schema.titleField ?? 'name';
     const visibleFields = gallery?.visibleFields;
+
+    // User-controlled card density (compact/standard/comfortable).
+    // Persisted to localStorage per object so the user's preference
+    // survives navigation and reloads. Schema default applies on first
+    // visit and when the user has not overridden the density yet.
+    const [density, setDensity] = useState<GalleryDensity>(
+        () => readPersistedDensity(schema.objectName) ?? schemaCardSize,
+    );
+    const cardSize = density;
+    const updateDensity = useCallback((next: GalleryDensity) => {
+        setDensity(next);
+        writePersistedDensity(schema.objectName, next);
+    }, [schema.objectName]);
 
     // i18n: translate select-field option labels in card cells
     const { fieldOptionLabel } = useSafeFieldLabel();
@@ -313,8 +359,39 @@ export const ObjectGallery: React.FC<ObjectGalleryProps> = (props) => {
         </div>
     );
 
+    const densityToolbar = (
+        <div className="flex items-center justify-end px-4 pt-3 pb-1">
+            <div
+                role="group"
+                aria-label="Card density"
+                className="inline-flex items-center rounded-md border bg-background p-0.5 shadow-sm"
+            >
+                {([
+                    { value: 'large' as const, Icon: Square, label: 'Comfortable' },
+                    { value: 'medium' as const, Icon: Grid3x3, label: 'Standard' },
+                    { value: 'small' as const, Icon: LayoutGrid, label: 'Compact' },
+                ]).map(({ value, Icon, label }) => (
+                    <Button
+                        key={value}
+                        type="button"
+                        size="sm"
+                        variant={cardSize === value ? 'secondary' : 'ghost'}
+                        aria-label={label}
+                        aria-pressed={cardSize === value}
+                        title={label}
+                        className="h-7 w-7 p-0"
+                        onClick={() => updateDensity(value)}
+                    >
+                        <Icon className="h-3.5 w-3.5" />
+                    </Button>
+                ))}
+            </div>
+        </div>
+    );
+
     return (
         <>
+            {densityToolbar}
             {isGrouped ? (
                 <div className="space-y-2">
                     {groupedItems.map((group) => (
