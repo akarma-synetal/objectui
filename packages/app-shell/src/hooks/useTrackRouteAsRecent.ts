@@ -18,7 +18,7 @@
  *
  * @module
  */
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useRecentItems } from '../context/RecentItemsProvider';
 
 interface ObjectLike {
@@ -55,6 +55,12 @@ export function useTrackRouteAsRecent({
 }: UseTrackRouteAsRecentOptions): void {
   const { addRecentItem } = useRecentItems();
 
+  // Hold `objects` in a ref so we don't re-fire the tracking effect every
+  // time the parent passes a new array reference (which would happen on
+  // every render in idiomatic React). Only the route should drive the effect.
+  const objectsRef = useRef(objects);
+  objectsRef.current = objects;
+
   useEffect(() => {
     if (disabled || !appName) return;
 
@@ -67,7 +73,7 @@ export function useTrackRouteAsRecent({
     const basePath = `/${basePathSegment}/${appName}`;
 
     if (seg2 && !ROUTE_PREFIXES.has(seg2)) {
-      const obj = objects.find(o => o.name === seg2);
+      const obj = objectsRef.current.find(o => o.name === seg2);
       if (obj) {
         addRecentItem({
           id: `object:${obj.name}`,
@@ -109,8 +115,8 @@ export function useTrackRouteAsRecent({
       default:
         break;
     }
-    // `addRecentItem` is stable per provider; depending on it would re-run
-    // unnecessarily if a parent re-renders. Pathname is the real driver.
+    // Intentionally drives off route changes only. `addRecentItem` is stable
+    // per provider, and `objects` is read through a ref to avoid loops.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pathname, appName, basePathSegment, disabled, objects]);
+  }, [pathname, appName, basePathSegment, disabled]);
 }
