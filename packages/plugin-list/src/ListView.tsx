@@ -1649,7 +1649,8 @@ export const ListView = React.forwardRef<ListViewHandle, ListViewProps>(({
           </Popover>
           )}
 
-          {/* Sort */}
+          {/* Sort — desktop only. Mobile relies on the (typically pre-sorted)
+              default view; users who need ad-hoc sorting switch to desktop. */}
           {toolbarFlags.showSort && (
           <Popover open={showSort} onOpenChange={setShowSort}>
             <PopoverTrigger asChild>
@@ -1657,7 +1658,7 @@ export const ListView = React.forwardRef<ListViewHandle, ListViewProps>(({
                 variant="ghost"
                 size="sm"
                 className={cn(
-                  "h-7 px-2 text-muted-foreground hover:text-primary text-xs transition-colors duration-150",
+                  "hidden sm:inline-flex h-7 px-2 text-muted-foreground hover:text-primary text-xs transition-colors duration-150",
                   currentSort.length > 0 && "text-foreground font-medium"
                 )}
               >
@@ -1809,30 +1810,13 @@ export const ListView = React.forwardRef<ListViewHandle, ListViewProps>(({
             );
           })()}
 
-          {/* Mobile-only: collapse HideFields/Group/Color/Density into a single
-              settings gear so the toolbar stays scannable on small screens.
-              Mirrors the compactToolbar behavior below but viewport-driven. */}
-          {!toolbarFlags.compactToolbar && (
-            toolbarFlags.showGroup || toolbarFlags.showColor || toolbarFlags.showDensity || toolbarFlags.showHideFields
-          ) && (
-            <div className="sm:hidden">
-              <ViewSettingsPopover
-                t={t as any}
-                allFields={allFields as any}
-                showGroup={toolbarFlags.showGroup}
-                groupingConfig={groupingConfig}
-                setGroupingConfig={setGroupingConfig}
-                showColor={toolbarFlags.showColor}
-                rowColorConfig={rowColorConfig}
-                setRowColorConfig={setRowColorConfig}
-                showDensity={toolbarFlags.showDensity}
-                density={density as any}
-                showHideFields={toolbarFlags.showHideFields}
-                hiddenFields={hiddenFields}
-                updateHiddenFields={updateHiddenFields}
-              />
-            </div>
-          )}
+          {/* (Removed) Previously a mobile-only ViewSettingsPopover gear was
+              rendered here to expose HideFields / Group / Color / Density on
+              phones. Those controls are essentially no-ops on a single-column
+              mobile layout, so on mobile we now drop the gear entirely. The
+              same controls remain available on desktop via the individual
+              buttons above, and on tablet via the existing compactToolbar
+              gear below. */}
 
           {/* Compact View Settings popover (P1-4): bundles Group + Color + Density + Hide Fields
               into a single gear button when schema.compactToolbar is enabled. */}
@@ -1929,7 +1913,10 @@ export const ListView = React.forwardRef<ListViewHandle, ListViewProps>(({
             ) : null;
           })()}
 
-          {/* Search (icon button + popover) */}
+          {/* Search (icon button + popover) — desktop only. The global
+              top-bar search (⌘K) is already prominent on mobile, so an
+              additional list-scoped search popover would be redundant chrome.
+              Filter remains the primary way to narrow data on phones. */}
           {toolbarFlags.showSearch && (
             <Popover open={showSearchPopover} onOpenChange={setShowSearchPopover}>
               <PopoverTrigger asChild>
@@ -1937,7 +1924,7 @@ export const ListView = React.forwardRef<ListViewHandle, ListViewProps>(({
                   variant="ghost"
                   size="sm"
                   className={cn(
-                    "h-7 w-7 p-0 text-muted-foreground hover:text-primary text-xs transition-colors duration-150",
+                    "hidden sm:inline-flex h-7 w-7 p-0 text-muted-foreground hover:text-primary text-xs transition-colors duration-150",
                     searchTerm && "text-foreground font-medium"
                   )}
                   data-testid="search-icon-button"
@@ -1990,9 +1977,10 @@ export const ListView = React.forwardRef<ListViewHandle, ListViewProps>(({
 
       {/* Filters Panel - Removed as it is now in Popover */}
 
-      {/* Quick Filters Row */}
+      {/* Quick Filters Row — desktop only. On mobile the chip row eats too
+          much vertical space; users tap the Filter icon for a full sheet. */}
       {normalizedQuickFilters && normalizedQuickFilters.length > 0 && (
-        <div className="border-b px-2 sm:px-4 py-1 flex items-center gap-1 flex-wrap bg-background" data-testid="quick-filters">
+        <div className="hidden sm:flex border-b px-2 sm:px-4 py-1 items-center gap-1 flex-wrap bg-background" data-testid="quick-filters">
           {normalizedQuickFilters.map((qf: any) => {
             const isActive = activeQuickFilters.has(qf.id);
             const QfIcon: LucideIcon | null = qf.icon

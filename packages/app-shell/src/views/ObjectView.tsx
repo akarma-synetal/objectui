@@ -1683,19 +1683,16 @@ export function ObjectView({ dataSource, objects, onEdit, externalRefreshKey }: 
                     </Button>
                     )}
 
-                    {/* Data import — gated by create permission AND the
-                        object's affordance matrix.  `config` / `system` /
-                        `append-only` / `better-auth` buckets hide this
-                        button — config envelopes have nested JSON that
-                        doesn't round-trip through CSV, and the other
-                        three are not user-authored at all.  See
-                        `resolveCrudAffordances()` for the matrix. */}
+                    {/* Data import — desktop only on phones. CSV imports
+                        are inherently a desk/laptop workflow; the button
+                        was eating header space on mobile next to the
+                        primary "+" action. */}
                     {affordances.import && can(objectDef.name, 'create') && (
                     <Button
                         size="sm"
                         variant="outline"
                         onClick={() => setShowImport(true)}
-                        className="shadow-none gap-1.5 sm:gap-2 h-8 sm:h-9"
+                        className="hidden sm:inline-flex shadow-none gap-1.5 sm:gap-2 h-8 sm:h-9"
                         title={t('console.objectView.importTitle')}
                         data-testid="object-view-import-button"
                     >

@@ -897,14 +897,8 @@ describe('ListView', () => {
           showDensity: true,
         };
         renderWithProvider(<ListView schema={schema} />);
-        // Legacy density button is present for desktop. A mobile-only
-        // gear (sm:hidden wrapper) is also rendered so small screens still
-        // get access to the same settings — both coexist; CSS picks which
-        // is visible at the current breakpoint.
+        expect(screen.queryByTestId('view-settings-trigger')).not.toBeInTheDocument();
         expect(screen.getByLabelText('Density: Compact')).toBeInTheDocument();
-        const mobileGear = screen.queryByTestId('view-settings-trigger');
-        expect(mobileGear).toBeInTheDocument();
-        expect(mobileGear?.closest('.sm\\:hidden')).not.toBeNull();
       });
     });
   });
