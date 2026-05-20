@@ -317,11 +317,14 @@ export const ListView = React.forwardRef<ListViewHandle, ListViewProps>(({
   const { fieldLabel: resolveFieldLabel } = useListFieldLabel();
   const { translateOptions } = useSafeFieldLabel();
 
-  // Kernel level default: Ensure viewType is always defined (default to 'grid')
-  const schema = React.useMemo(() => ({
-    ...propSchema,
-    viewType: propSchema.viewType || 'grid'
-  }), [propSchema]);
+  // Kernel level default: Ensure viewType is always defined (default to 'grid').
+  // Perf: only allocate a new object when the default is actually needed,
+  // otherwise return propSchema as-is so downstream useMemos see a stable
+  // reference when callers already provide viewType (the common case).
+  const schema = React.useMemo(
+    () => (propSchema.viewType ? propSchema : { ...propSchema, viewType: 'grid' }),
+    [propSchema],
+  );
 
   // Convenience: resolve field label with schema.objectName pre-bound
   const tFieldLabel = React.useCallback(

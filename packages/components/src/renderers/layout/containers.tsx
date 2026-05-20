@@ -200,7 +200,7 @@ interface PageAccordionItem {
 }
 
 const PageAccordionRenderer: React.FC<any> = ({ schema, className, ...props }) => {
-  const { designer, rest } = splitDesignerProps(props);
+  const { designer } = splitDesignerProps(props);
   const items: PageAccordionItem[] = schema?.items || [];
   const allowMultiple = !!schema?.allowMultiple;
 
@@ -229,7 +229,6 @@ const PageAccordionRenderer: React.FC<any> = ({ schema, className, ...props }) =
         type="multiple"
         defaultValue={defaultOpen}
         className={className}
-        {...rest}
         {...designer}
       >
         {commonChildren}
@@ -243,7 +242,6 @@ const PageAccordionRenderer: React.FC<any> = ({ schema, className, ...props }) =
       collapsible
       defaultValue={defaultOpen[0]}
       className={className}
-      {...rest}
       {...designer}
     >
       {commonChildren}
@@ -263,11 +261,10 @@ ComponentRegistry.register('page:accordion', PageAccordionRenderer, {
 // ---------------------------------------------------------------------------
 
 const PageSectionRenderer: React.FC<any> = ({ schema, className, ...props }) => {
-  const { designer, rest } = splitDesignerProps(props);
+  const { designer } = splitDesignerProps(props);
   return (
     <section
       className={cn('space-y-4', className)}
-      {...rest}
       {...designer}
     >
       {renderChildren(schema?.children || schema?.body)}
@@ -325,13 +322,12 @@ ComponentRegistry.register('page:header', PageHeaderRenderer, {
 // ---------------------------------------------------------------------------
 
 const PageFooterRenderer: React.FC<any> = ({ schema, className, ...props }) => {
-  const { designer, rest } = splitDesignerProps(props);
+  const { designer } = splitDesignerProps(props);
   return (
     <>
       <Separator className="my-4" />
       <footer
         className={cn('flex items-center justify-between text-sm text-muted-foreground', className)}
-        {...rest}
         {...designer}
       >
         {renderChildren(schema?.children || schema?.body)}
@@ -352,11 +348,10 @@ ComponentRegistry.register('page:footer', PageFooterRenderer, {
 // ---------------------------------------------------------------------------
 
 const PageSidebarRenderer: React.FC<any> = ({ schema, className, ...props }) => {
-  const { designer, rest } = splitDesignerProps(props);
+  const { designer } = splitDesignerProps(props);
   return (
     <aside
       className={cn('flex flex-col gap-4 w-full md:w-80 shrink-0', className)}
-      {...rest}
       {...designer}
     >
       {renderChildren(schema?.children || schema?.body)}
