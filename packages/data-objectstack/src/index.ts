@@ -1790,6 +1790,13 @@ export { CloudOperations } from './cloud';
 export type { CloudDeploymentConfig, CloudHostingConfig, CloudMarketplaceEntry } from './cloud';
 
 export { validatePluginContract, generateContractManifest } from './contracts';
+
+// User-scoped persistence adapter (favorites / recent items / …)
+export { createObjectStackUserStateAdapter } from './userState';
+export type {
+  ObjectStackUserStateAdapterOptions,
+  UserDataAdapter,
+} from './userState';
 export type { PluginContract, PluginExport, PluginAPIContract, ContractValidationResult, ContractValidationError } from './contracts';
 
 export { IntegrationManager } from './integration';

@@ -10,7 +10,7 @@
 import { useNavigate } from 'react-router-dom';
 import { useObjectTranslation } from '@object-ui/i18n';
 import { Card, CardContent } from '@object-ui/components';
-import { Plus, Settings, Database } from 'lucide-react';
+import { Plus, Settings, Database, ArrowUpRight } from 'lucide-react';
 import { cn } from '@object-ui/components';
 
 interface QuickAction {
@@ -19,7 +19,9 @@ interface QuickAction {
   description: string;
   icon: React.ElementType;
   href: string;
-  color: string;
+  iconBg: string;
+  iconText: string;
+  hoverBorder: string;
 }
 
 export function QuickActions() {
@@ -33,7 +35,9 @@ export function QuickActions() {
       description: t('home.quickActions.createAppDesc', { defaultValue: 'Start with a new application' }),
       icon: Plus,
       href: '/create-app',
-      color: 'text-blue-600 dark:text-blue-400',
+      iconBg: 'bg-gradient-to-br from-blue-500/15 to-indigo-500/10 ring-blue-500/20',
+      iconText: 'text-blue-600 dark:text-blue-400',
+      hoverBorder: 'hover:border-blue-500/40',
     },
     {
       id: 'manage-objects',
@@ -41,7 +45,9 @@ export function QuickActions() {
       description: t('home.quickActions.manageObjectsDesc', { defaultValue: 'Configure data models' }),
       icon: Database,
       href: '/apps/setup/system/metadata/object',
-      color: 'text-purple-600 dark:text-purple-400',
+      iconBg: 'bg-gradient-to-br from-violet-500/15 to-purple-500/10 ring-violet-500/20',
+      iconText: 'text-violet-600 dark:text-violet-400',
+      hoverBorder: 'hover:border-violet-500/40',
     },
     {
       id: 'system-settings',
@@ -49,13 +55,15 @@ export function QuickActions() {
       description: t('home.quickActions.systemSettingsDesc', { defaultValue: 'Configure your workspace' }),
       icon: Settings,
       href: '/apps/setup',
-      color: 'text-gray-600 dark:text-gray-400',
+      iconBg: 'bg-gradient-to-br from-emerald-500/15 to-teal-500/10 ring-emerald-500/20',
+      iconText: 'text-emerald-600 dark:text-emerald-400',
+      hoverBorder: 'hover:border-emerald-500/40',
     },
   ];
 
   return (
     <section>
-      <h2 className="text-2xl font-semibold tracking-tight mb-4">
+      <h2 className="text-2xl font-semibold tracking-tight mb-5">
         {t('home.quickActions.title', { defaultValue: 'Quick Actions' })}
       </h2>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -64,7 +72,11 @@ export function QuickActions() {
           return (
             <Card
               key={action.id}
-              className="cursor-pointer hover:shadow-md transition-shadow"
+              className={cn(
+                'group cursor-pointer border border-border/70 bg-card/80 backdrop-blur-sm',
+                'transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md',
+                action.hoverBorder,
+              )}
               onClick={() => navigate(action.href)}
               data-testid={`quick-action-${action.id}`}
               role="link"
@@ -77,14 +89,17 @@ export function QuickActions() {
               }}
               aria-label={action.label}
             >
-              <CardContent className="p-6">
+              <CardContent className="p-5">
                 <div className="flex items-start gap-4">
-                  <div className={cn('p-3 rounded-lg bg-muted', action.color)}>
-                    <Icon className="h-6 w-6" />
+                  <div className={cn('inline-flex h-11 w-11 items-center justify-center rounded-xl ring-1 ring-inset shrink-0', action.iconBg)}>
+                    <Icon className={cn('h-5 w-5', action.iconText)} />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <h3 className="font-semibold text-base mb-1">{action.label}</h3>
-                    <p className="text-sm text-muted-foreground">{action.description}</p>
+                    <div className="flex items-center gap-1.5">
+                      <h3 className="font-semibold text-base leading-tight">{action.label}</h3>
+                      <ArrowUpRight className="h-4 w-4 text-muted-foreground opacity-0 -translate-x-1 transition-all duration-200 group-hover:opacity-100 group-hover:translate-x-0" />
+                    </div>
+                    <p className="text-sm text-muted-foreground mt-1">{action.description}</p>
                   </div>
                 </div>
               </CardContent>

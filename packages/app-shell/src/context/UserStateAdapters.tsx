@@ -1,0 +1,168 @@
+/**
+ * UserStateAdapters
+ *
+ * Injection point for backend persistence of per-user UI state (favorites,
+ * recently-accessed items, …). Keeps `FavoritesProvider` / `RecentItemsProvider`
+ * decoupled from any specific backend (REST, ObjectQL, GraphQL).
+ *
+ * The provider is stateful: a bridge component mounted lower in the tree
+ * (where the data adapter + authenticated user are available) calls
+ * `useAttachUserStateAdapters()` to inject adapters at runtime. While no
+ * adapter is attached, hosting providers transparently fall back to
+ * localStorage-only behaviour.
+ *
+ * @module
+ */
+
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react';
+
+// ---------------------------------------------------------------------------
+// Adapter contract
+// ---------------------------------------------------------------------------
+
+/**
+ * Generic persistence adapter for a user-scoped list.
+ *
+ * Implementations must be safe to call concurrently and should *never*
+ * throw — failures should be swallowed so the hosting provider can degrade
+ * to localStorage-only mode without crashing the UI.
+ */
+export interface UserDataAdapter<T> {
+  /** Load the persisted list for the current user. Resolve to [] when absent. */
+  load(): Promise<T[]>;
+  /** Persist the full list (debounced upstream). Errors are silently ignored. */
+  save(items: T[]): Promise<void>;
+}
+
+export type UserStateKind = 'favorites' | 'recent';
+
+interface UserStateAdaptersValue {
+  favorites: UserDataAdapter<any> | null;
+  recent: UserDataAdapter<any> | null;
+}
+
+interface AttachApi {
+  attach(kind: UserStateKind, adapter: UserDataAdapter<any> | null): void;
+}
+
+// ---------------------------------------------------------------------------
+// Contexts (split read / write so consumers don't re-render unnecessarily)
+// ---------------------------------------------------------------------------
+
+const ReadCtx = createContext<UserStateAdaptersValue>({ favorites: null, recent: null });
+const WriteCtx = createContext<AttachApi | null>(null);
+
+// ---------------------------------------------------------------------------
+// Provider
+// ---------------------------------------------------------------------------
+
+export function UserStateAdaptersProvider({ children }: { children: ReactNode }) {
+  const [adapters, setAdapters] = useState<UserStateAdaptersValue>({
+    favorites: null,
+    recent: null,
+  });
+
+  // Stable attach API so bridge useEffect deps don't churn.
+  const attachRef = useRef<AttachApi>({
+    attach: (kind, adapter) => {
+      setAdapters(prev => (prev[kind] === adapter ? prev : { ...prev, [kind]: adapter }));
+    },
+  });
+
+  return (
+    <WriteCtx.Provider value={attachRef.current}>
+      <ReadCtx.Provider value={adapters}>{children}</ReadCtx.Provider>
+    </WriteCtx.Provider>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Hooks
+// ---------------------------------------------------------------------------
+
+/** Read the currently-attached adapter for a given kind. */
+export function useUserStateAdapter<T>(kind: UserStateKind): UserDataAdapter<T> | null {
+  return useContext(ReadCtx)[kind] as UserDataAdapter<T> | null;
+}
+
+/**
+ * Imperative API used by bridge components to plug an adapter in/out.
+ * Returns a stable function across re-renders.
+ */
+export function useAttachUserStateAdapters() {
+  const ctx = useContext(WriteCtx);
+  return useCallback(
+    (kind: UserStateKind, adapter: UserDataAdapter<any> | null) => {
+      ctx?.attach(kind, adapter);
+    },
+    [ctx],
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Shared helpers (used by FavoritesProvider / RecentItemsProvider)
+// ---------------------------------------------------------------------------
+
+/**
+ * Build a user-scoped localStorage key. Falls back to the unscoped key for
+ * unauthenticated / preview sessions to preserve current behaviour.
+ */
+export function scopedKey(base: string, userId?: string | null): string {
+  return userId ? `${base}:u:${userId}` : base;
+}
+
+/**
+ * Tiny debounced flush helper. Returns `{ schedule, flush, cancel }`.
+ * Designed for the "save full list to backend" pattern.
+ */
+export function createDebouncedFlush<T>(
+  fn: (value: T) => Promise<void> | void,
+  delayMs = 500,
+) {
+  let timer: ReturnType<typeof setTimeout> | null = null;
+  let pending: T | null = null;
+  let hasPending = false;
+
+  const flush = async () => {
+    if (timer) {
+      clearTimeout(timer);
+      timer = null;
+    }
+    if (!hasPending) return;
+    const payload = pending as T;
+    hasPending = false;
+    pending = null;
+    try {
+      await fn(payload);
+    } catch {
+      // Swallow — adapter is responsible for its own error handling.
+    }
+  };
+
+  const schedule = (value: T) => {
+    pending = value;
+    hasPending = true;
+    if (timer) clearTimeout(timer);
+    timer = setTimeout(() => {
+      timer = null;
+      void flush();
+    }, delayMs);
+  };
+
+  const cancel = () => {
+    if (timer) clearTimeout(timer);
+    timer = null;
+    hasPending = false;
+    pending = null;
+  };
+
+  return { schedule, flush, cancel };
+}

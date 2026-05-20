@@ -6,7 +6,7 @@
  * @module
  */
 
-import { Star, StarOff } from 'lucide-react';
+import { Star, StarOff, ArrowUpRight } from 'lucide-react';
 import { Card, CardContent, Button, Badge } from '@object-ui/components';
 import { useObjectTranslation, useObjectLabel } from '@object-ui/i18n';
 import { resolveI18nLabel } from '../../utils';
@@ -18,9 +18,27 @@ interface AppCardProps {
   app: any;
   onClick: () => void;
   isFavorite: boolean;
+  index?: number;
 }
 
-export function AppCard({ app, onClick, isFavorite }: AppCardProps) {
+// Deterministic accent palette for apps that don't declare a brand color.
+const ACCENTS: { from: string; to: string; text: string; ring: string; solid: string }[] = [
+  { from: 'from-blue-500/15',    to: 'to-indigo-500/10',  text: 'text-blue-600 dark:text-blue-400',     ring: 'group-hover:border-blue-500/40',    solid: 'bg-blue-500' },
+  { from: 'from-emerald-500/15', to: 'to-teal-500/10',    text: 'text-emerald-600 dark:text-emerald-400', ring: 'group-hover:border-emerald-500/40', solid: 'bg-emerald-500' },
+  { from: 'from-fuchsia-500/15', to: 'to-pink-500/10',    text: 'text-fuchsia-600 dark:text-fuchsia-400', ring: 'group-hover:border-fuchsia-500/40', solid: 'bg-fuchsia-500' },
+  { from: 'from-amber-500/15',   to: 'to-orange-500/10',  text: 'text-amber-600 dark:text-amber-400',     ring: 'group-hover:border-amber-500/40',   solid: 'bg-amber-500' },
+  { from: 'from-sky-500/15',     to: 'to-cyan-500/10',    text: 'text-sky-600 dark:text-sky-400',         ring: 'group-hover:border-sky-500/40',     solid: 'bg-sky-500' },
+  { from: 'from-violet-500/15',  to: 'to-purple-500/10',  text: 'text-violet-600 dark:text-violet-400',   ring: 'group-hover:border-violet-500/40',  solid: 'bg-violet-500' },
+  { from: 'from-rose-500/15',    to: 'to-red-500/10',     text: 'text-rose-600 dark:text-rose-400',       ring: 'group-hover:border-rose-500/40',    solid: 'bg-rose-500' },
+];
+
+function hashStr(s: string): number {
+  let h = 0;
+  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0;
+  return Math.abs(h);
+}
+
+export function AppCard({ app, onClick, isFavorite, index = 0 }: AppCardProps) {
   const { t } = useObjectTranslation();
   const { appLabel, appDescription } = useObjectLabel();
   const { toggleFavorite } = useFavorites();
@@ -28,7 +46,8 @@ export function AppCard({ app, onClick, isFavorite }: AppCardProps) {
   const Icon = getIcon(app.icon);
   const label = appLabel({ name: app.name, label: resolveI18nLabel(app.label, t) });
   const description = appDescription({ name: app.name, description: resolveI18nLabel(app.description, t) });
-  const primaryColor = app.branding?.primaryColor;
+  const primaryColor: string | undefined = app.branding?.primaryColor;
+  const accent = ACCENTS[(hashStr(app.name) + index) % ACCENTS.length];
 
   const handleToggleFavorite = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -42,16 +61,40 @@ export function AppCard({ app, onClick, isFavorite }: AppCardProps) {
 
   return (
     <Card
-      className="cursor-pointer hover:shadow-lg transition-all group relative"
+      className={cn(
+        'group relative cursor-pointer overflow-hidden border border-border/70 bg-card/80 backdrop-blur-sm',
+        'transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg',
+        !primaryColor && accent.ring,
+      )}
       onClick={onClick}
       data-testid={`app-card-${app.name}`}
+      style={primaryColor ? { borderColor: undefined } : undefined}
     >
-      <CardContent className="p-6">
+      {/* Top accent strip */}
+      <div
+        aria-hidden
+        className={cn('absolute inset-x-0 top-0 h-1', primaryColor ? '' : accent.solid)}
+        style={primaryColor ? { backgroundColor: primaryColor } : undefined}
+      />
+
+      {/* Soft gradient background revealed on hover */}
+      {!primaryColor && (
+        <div
+          aria-hidden
+          className={cn(
+            'absolute inset-0 bg-gradient-to-br opacity-0 transition-opacity duration-300 group-hover:opacity-100',
+            accent.from,
+            accent.to,
+          )}
+        />
+      )}
+
+      <CardContent className="relative p-5">
         {/* Favorite Button */}
         <Button
           variant="ghost"
           size="sm"
-          className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity"
+          className="absolute top-2 right-2 h-8 w-8 p-0 opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity"
           onClick={handleToggleFavorite}
           aria-label={isFavorite
             ? t('common.removeFromFavorites', { defaultValue: 'Remove from favorites' }) + ` — ${label}`
@@ -60,44 +103,53 @@ export function AppCard({ app, onClick, isFavorite }: AppCardProps) {
           data-testid={`favorite-btn-${app.name}`}
         >
           {isFavorite ? (
-            <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
+            <Star className="h-4 w-4 fill-amber-400 text-amber-400" />
           ) : (
             <StarOff className="h-4 w-4" />
           )}
         </Button>
 
-        {/* App Icon */}
+        {/* App Icon tile */}
         <div
-          className={cn('inline-flex p-3 rounded-lg mb-4', primaryColor ? '' : 'bg-primary/10')}
-          style={primaryColor ? { backgroundColor: `${primaryColor}20` } : {}}
+          className={cn(
+            'inline-flex h-14 w-14 items-center justify-center rounded-xl mb-4 ring-1 ring-inset',
+            primaryColor ? '' : cn('bg-gradient-to-br', accent.from, accent.to, 'ring-border/40'),
+          )}
+          style={primaryColor
+            ? { backgroundColor: `${primaryColor}1f`, boxShadow: `inset 0 0 0 1px ${primaryColor}33` }
+            : undefined}
         >
           <Icon
-            className="h-8 w-8"
-            style={primaryColor ? { color: primaryColor } : {}}
+            className={cn('h-7 w-7', primaryColor ? '' : accent.text)}
+            style={primaryColor ? { color: primaryColor } : undefined}
           />
         </div>
 
         {/* App Info */}
         <div>
-          <h3 className="font-semibold text-lg mb-1">{label}</h3>
-          {description && (
-            <p className="text-sm text-muted-foreground line-clamp-2">{description}</p>
-          )}
-          {!description && (
-            <p className="text-sm text-muted-foreground">
-              {t('home.appCard.noDescription', { defaultValue: 'No description' })}
-            </p>
-          )}
+          <div className="flex items-center gap-2">
+            <h3 className="font-semibold text-base sm:text-lg leading-tight truncate">{label}</h3>
+            {app.isDefault && (
+              <Badge variant="secondary" className="shrink-0 text-[10px] px-1.5 py-0">
+                {t('home.appCard.default', { defaultValue: 'Default' })}
+              </Badge>
+            )}
+          </div>
+          <p className={cn(
+            'text-sm text-muted-foreground mt-1.5 line-clamp-2 min-h-[2.5rem]',
+            !description && 'italic',
+          )}>
+            {description || t('home.appCard.noDescription', { defaultValue: 'No description' })}
+          </p>
         </div>
 
-        {/* App Badge (if default) */}
-        {app.isDefault && (
-          <div className="mt-3">
-            <Badge variant="secondary">
-              {t('home.appCard.default', { defaultValue: 'Default' })}
-            </Badge>
-          </div>
-        )}
+        {/* Open affordance */}
+        <div className="mt-4 flex items-center justify-between text-xs font-medium">
+          <span className="inline-flex items-center gap-1 text-muted-foreground transition-colors group-hover:text-foreground">
+            {t('home.open', { defaultValue: 'Open' })}
+            <ArrowUpRight className="h-3.5 w-3.5 transition-transform duration-200 group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+          </span>
+        </div>
       </CardContent>
     </Card>
   );

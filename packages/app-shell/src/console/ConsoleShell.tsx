@@ -10,14 +10,20 @@
  * apps/console/src/App.tsx for one with custom system routes + CreateApp.
  */
 
-import { Suspense, type ReactNode } from 'react';
+import { Suspense, useEffect, type ReactNode } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { AuthGuard, useAuth } from '@object-ui/auth';
 import { SchemaRendererProvider } from '@object-ui/react';
+import { createObjectStackUserStateAdapter } from '@object-ui/data-objectstack';
 import { AdapterProvider, useAdapter } from '../providers/AdapterProvider';
 import { MetadataProvider, useMetadata } from '../providers/MetadataProvider';
 import { NavigationProvider } from '../context/NavigationContext';
 import { FavoritesProvider } from '../context/FavoritesProvider';
+import { RecentItemsProvider } from '../context/RecentItemsProvider';
+import {
+  UserStateAdaptersProvider,
+  useAttachUserStateAdapters,
+} from '../context/UserStateAdapters';
 import { ThemeProvider } from '../chrome/ThemeProvider';
 
 export function LoadingFallback() {
@@ -46,9 +52,13 @@ export function ConsoleShell({ children }: { children: ReactNode }) {
   return (
     <ThemeProvider defaultTheme="system" storageKey="object-ui-theme">
       <NavigationProvider>
-        <FavoritesProvider>
-          <Suspense fallback={<LoadingFallback />}>{children}</Suspense>
-        </FavoritesProvider>
+        <UserStateAdaptersProvider>
+          <FavoritesProvider>
+            <RecentItemsProvider>
+              <Suspense fallback={<LoadingFallback />}>{children}</Suspense>
+            </RecentItemsProvider>
+          </FavoritesProvider>
+        </UserStateAdaptersProvider>
       </NavigationProvider>
     </ThemeProvider>
   );
@@ -74,9 +84,53 @@ function ConnectedShellInner({ children }: { children: ReactNode }) {
   // useDiscovery() (used to gate the global AI chatbot) can resolve it.
   return (
     <SchemaRendererProvider dataSource={adapter}>
-      <MetadataProvider adapter={adapter}>{children}</MetadataProvider>
+      <MetadataProvider adapter={adapter}>
+        <UserStateBridge />
+        {children}
+      </MetadataProvider>
     </SchemaRendererProvider>
   );
+}
+
+/**
+ * UserStateBridge — once we have an authenticated user + a connected data
+ * adapter, plug ObjectStack-backed persistence into the favorites and
+ * recent-items providers. Renders nothing.
+ *
+ * Failure modes (object schema not configured, network errors, etc.) are
+ * absorbed by the adapter itself — the UI then transparently falls back to
+ * localStorage-only behaviour.
+ */
+function UserStateBridge() {
+  const { user } = useAuth();
+  const dataSource = useAdapter();
+  const attach = useAttachUserStateAdapters();
+
+  useEffect(() => {
+    if (!user?.id || !dataSource) {
+      attach('favorites', null);
+      attach('recent', null);
+      return;
+    }
+    const favorites = createObjectStackUserStateAdapter({
+      dataSource,
+      userId: user.id,
+      kind: 'favorites',
+    });
+    const recent = createObjectStackUserStateAdapter({
+      dataSource,
+      userId: user.id,
+      kind: 'recent',
+    });
+    attach('favorites', favorites);
+    attach('recent', recent);
+    return () => {
+      attach('favorites', null);
+      attach('recent', null);
+    };
+  }, [user?.id, dataSource, attach]);
+
+  return null;
 }
 
 /**

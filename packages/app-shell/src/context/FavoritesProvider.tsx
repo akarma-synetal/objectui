@@ -4,18 +4,15 @@
  * React Context + Provider for shared favorites state across all consumers
  * (HomePage, AppCard, AppSidebar, UnifiedSidebar, StarredApps).
  *
- * Replaces the standalone `useFavorites` hook pattern — all callers now share
- * a single state instance so that toggling a star in AppCard immediately
- * reflects in HomePage's Starred section and sidebar.
- *
- * Persistence: localStorage (key: "objectui-favorites", max 20 items).
- *
- * TODO: Migrate persistence to server-side storage via the adapter/API layer
- * (e.g. PUT /api/user/preferences) so favorites sync across devices and browsers.
- * The provider should accept an optional `persistenceAdapter` prop that implements
- * `load(): Promise<FavoriteItem[]>` and `save(items: FavoriteItem[]): Promise<void>`.
- * When the adapter is provided, localStorage should be used only as a fallback
- * during the initial load while the server response is in-flight.
+ * Persistence is **localStorage-first** with optional backend hydration:
+ * - On mount we render synchronously from localStorage (no flash of empty UI).
+ * - If a `UserDataAdapter<FavoriteItem>` is attached via `UserStateAdaptersProvider`
+ *   (see `./UserStateAdapters`), the provider hydrates from the backend and
+ *   writes-through every mutation through a debounced `adapter.save()`.
+ * - localStorage stays in sync so offline / pre-auth sessions still work and
+ *   gives an instant first paint after sign-in.
+ * - The local key is scoped per `user.id` so different accounts on the same
+ *   browser don't cross-contaminate.
  *
  * @module
  */
@@ -26,9 +23,16 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from 'react';
+import { useAuth } from '@object-ui/auth';
+import {
+  createDebouncedFlush,
+  scopedKey,
+  useUserStateAdapter,
+} from './UserStateAdapters';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -57,21 +61,21 @@ interface FavoritesContextValue {
 // Storage helpers
 // ---------------------------------------------------------------------------
 
-const STORAGE_KEY = 'objectui-favorites';
+const STORAGE_BASE_KEY = 'objectui-favorites';
 const MAX_FAVORITES = 20;
 
-function loadFavorites(): FavoriteItem[] {
+function loadFavorites(userId?: string | null): FavoriteItem[] {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = localStorage.getItem(scopedKey(STORAGE_BASE_KEY, userId));
     return raw ? JSON.parse(raw) : [];
   } catch {
     return [];
   }
 }
 
-function saveFavorites(items: FavoriteItem[]) {
+function saveFavorites(items: FavoriteItem[], userId?: string | null) {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
+    localStorage.setItem(scopedKey(STORAGE_BASE_KEY, userId), JSON.stringify(items));
   } catch {
     // Storage full — silently ignore
   }
@@ -92,13 +96,62 @@ interface FavoritesProviderProps {
 }
 
 export function FavoritesProvider({ children }: FavoritesProviderProps) {
-  const [favorites, setFavorites] = useState<FavoriteItem[]>(loadFavorites);
+  const { user } = useAuth();
+  const userId = user?.id ?? null;
+  const adapter = useUserStateAdapter<FavoriteItem>('favorites');
 
-  // Re-sync from storage on mount (handles cases where storage was written
-  // before this provider was mounted, e.g. on initial page load).
+  const [favorites, setFavorites] = useState<FavoriteItem[]>(() => loadFavorites(userId));
+
+  // Re-load from localStorage whenever the active user changes (sign-in /
+  // account switch). Prevents one account from seeing another's favorites.
   useEffect(() => {
-    setFavorites(loadFavorites());
-  }, []);
+    setFavorites(loadFavorites(userId));
+  }, [userId]);
+
+  // Hydrate from backend whenever an adapter is attached (or user changes).
+  // Backend wins on conflict; we then write through to localStorage so the
+  // next reload is instant.
+  const hydrationToken = useRef(0);
+  useEffect(() => {
+    if (!adapter) return;
+    const token = ++hydrationToken.current;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const remote = await adapter.load();
+        if (cancelled || token !== hydrationToken.current) return;
+        // Defensive sanitize: drop unparseable shapes, enforce cap.
+        const sane = (Array.isArray(remote) ? remote : [])
+          .filter(it => it && typeof (it as any).id === 'string')
+          .slice(0, MAX_FAVORITES);
+        setFavorites(sane);
+        saveFavorites(sane, userId);
+      } catch {
+        // Keep localStorage state — adapter degrade-to-noop is acceptable.
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [adapter, userId]);
+
+  // Debounced write-through to backend.
+  const flusher = useMemo(
+    () => createDebouncedFlush<FavoriteItem[]>(async items => {
+      if (adapter) await adapter.save(items);
+    }, 500),
+    [adapter],
+  );
+  // Flush pending writes when the adapter detaches / user changes.
+  useEffect(() => () => { void flusher.flush(); }, [flusher]);
+
+  const commit = useCallback(
+    (next: FavoriteItem[]) => {
+      saveFavorites(next, userId);
+      if (adapter) flusher.schedule(next);
+    },
+    [userId, adapter, flusher],
+  );
 
   const addFavorite = useCallback(
     (item: Omit<FavoriteItem, 'favoritedAt'>) => {
@@ -108,20 +161,23 @@ export function FavoritesProvider({ children }: FavoritesProviderProps) {
           { ...item, favoritedAt: new Date().toISOString() },
           ...prev,
         ].slice(0, MAX_FAVORITES);
-        saveFavorites(updated);
+        commit(updated);
         return updated;
       });
     },
-    [],
+    [commit],
   );
 
-  const removeFavorite = useCallback((id: string) => {
-    setFavorites(prev => {
-      const updated = prev.filter(f => f.id !== id);
-      saveFavorites(updated);
-      return updated;
-    });
-  }, []);
+  const removeFavorite = useCallback(
+    (id: string) => {
+      setFavorites(prev => {
+        const updated = prev.filter(f => f.id !== id);
+        commit(updated);
+        return updated;
+      });
+    },
+    [commit],
+  );
 
   const toggleFavorite = useCallback(
     (item: Omit<FavoriteItem, 'favoritedAt'>) => {
@@ -133,17 +189,17 @@ export function FavoritesProvider({ children }: FavoritesProviderProps) {
               0,
               MAX_FAVORITES,
             );
-        saveFavorites(updated);
+        commit(updated);
         return updated;
       });
     },
-    [],
+    [commit],
   );
 
   const clearFavorites = useCallback(() => {
     setFavorites([]);
-    saveFavorites([]);
-  }, []);
+    commit([]);
+  }, [commit]);
 
   const value = useMemo<FavoritesContextValue>(
     () => ({
@@ -151,13 +207,9 @@ export function FavoritesProvider({ children }: FavoritesProviderProps) {
       addFavorite,
       removeFavorite,
       toggleFavorite,
-      // Inlined here so useMemo sees the freshest `favorites` without needing
-      // a separate useCallback([favorites]) entry in the deps array.
       isFavorite: (id: string) => favorites.some(f => f.id === id),
       clearFavorites,
     }),
-    // addFavorite / removeFavorite / toggleFavorite / clearFavorites are all
-    // stable (useCallback with [] deps) and never cause extra re-renders.
     [favorites, addFavorite, removeFavorite, toggleFavorite, clearFavorites],
   );
 
@@ -194,3 +246,4 @@ export function useFavorites(): FavoritesContextValue {
   }
   return ctx;
 }
+

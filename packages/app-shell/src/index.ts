@@ -114,7 +114,16 @@ export {
 export type { FavoriteItem } from './hooks';
 
 // Context providers
-export { NavigationProvider, useNavigationContext, FavoritesProvider } from './context';
+export {
+  NavigationProvider,
+  useNavigationContext,
+  FavoritesProvider,
+  RecentItemsProvider,
+  UserStateAdaptersProvider,
+  useUserStateAdapter,
+  useAttachUserStateAdapters,
+} from './context';
+export type { UserDataAdapter, UserStateKind } from './context';
 
 // Default page implementations (consumers can partial-override slots)
 export { AppContent as DefaultAppContent } from './console/AppContent';
