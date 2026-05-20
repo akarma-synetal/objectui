@@ -12,8 +12,16 @@
 
 import React from 'react';
 import { useRecordContext } from '@object-ui/react';
+import { useFieldPermissions, usePermissions } from '@object-ui/permissions';
 import type { RecordDetailsComponentProps } from '@object-ui/types';
 import { DetailView } from '../DetailView';
+
+/** Normalize a field entry (string | {field} | {name}) to its machine name. */
+const fieldName = (entry: any): string | null => {
+  if (typeof entry === 'string') return entry;
+  if (entry && typeof entry === 'object') return entry.field || entry.name || null;
+  return null;
+};
 
 const splitDesigner = (props: Record<string, any>) => {
   const { 'data-obj-id': id, 'data-obj-type': type, style, ...rest } = props || {};
@@ -52,6 +60,49 @@ export const RecordDetailsRenderer: React.FC<RecordDetailsRendererProps> = ({
   const layout: 'vertical' | 'horizontal' =
     schema.layout === 'inline' || schema.layout === 'compact' ? 'horizontal' : 'vertical';
 
+  const objectName = ctx.objectName || '';
+  const perms = usePermissions();
+  const { readableFields } = useFieldPermissions(objectName);
+
+  const required: string[] = Array.isArray((schema as any).requiredPermissions)
+    ? (schema as any).requiredPermissions
+    : [];
+  if (required.length > 0 && objectName) {
+    const ok = required.every((p) => perms.can(objectName, p as any));
+    if (!ok) {
+      return (
+        <div className={className} {...designer} role="status" aria-live="polite">
+          <p className="text-sm text-muted-foreground italic">
+            Insufficient permissions to view details.
+          </p>
+        </div>
+      );
+    }
+  }
+
+  const enforceFLS = (schema as any).enforceFieldSecurity === true;
+  const redact: string[] = Array.isArray((schema as any).redactFields)
+    ? (schema as any).redactFields
+    : [];
+  const filterList = (list: any[] | undefined): any[] | undefined => {
+    if (!list) return list;
+    if (!enforceFLS && redact.length === 0) return list;
+    const names = list.map(fieldName).filter((n): n is string => !!n);
+    const allowed = new Set(
+      (enforceFLS && objectName ? readableFields(names) : names)
+        .filter((n) => !redact.includes(n)),
+    );
+    return list.filter((e) => {
+      const n = fieldName(e);
+      return n ? allowed.has(n) : true;
+    });
+  };
+
+  const filteredFields = filterList(schema.fields as any[]);
+  const filteredSections = Array.isArray(schema.sections)
+    ? (schema.sections as any[]).map((s) => ({ ...s, fields: filterList(s.fields) }))
+    : schema.sections;
+
   const synthesized: any = {
     type: 'detail-view',
     objectName: ctx.objectName,
@@ -59,8 +110,8 @@ export const RecordDetailsRenderer: React.FC<RecordDetailsRendererProps> = ({
     data: ctx.data,
     layout,
     columns: schema.columns,
-    sections: schema.sections,
-    fields: schema.fields,
+    sections: filteredSections,
+    fields: filteredFields,
     showBack: false,
   };
 

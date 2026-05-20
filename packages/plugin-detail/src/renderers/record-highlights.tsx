@@ -12,6 +12,7 @@
 
 import React from 'react';
 import { useRecordContext } from '@object-ui/react';
+import { useFieldPermissions, usePermissions } from '@object-ui/permissions';
 import type { RecordHighlightsComponentProps } from '@object-ui/types';
 import { HeaderHighlight } from '../HeaderHighlight';
 
@@ -33,9 +34,42 @@ export const RecordHighlightsRenderer: React.FC<RecordHighlightsRendererProps> =
 }) => {
   const ctx = useRecordContext();
   const { designer } = splitDesigner(props);
+  const objectName = ctx?.objectName || '';
+  const perms = usePermissions();
+  const { readableFields } = useFieldPermissions(objectName);
+
+  // Object-level permission gate (record:* may declare requiredPermissions
+  // like ['read','update'] which all must pass on the active object).
+  const required: string[] = Array.isArray((schema as any).requiredPermissions)
+    ? (schema as any).requiredPermissions
+    : [];
+  if (required.length > 0 && objectName) {
+    const ok = required.every((p) => perms.can(objectName, p as any));
+    if (!ok) {
+      return (
+        <div
+          className={className}
+          {...designer}
+          role="status"
+          aria-live="polite"
+        >
+          <p className="text-sm text-muted-foreground italic">
+            Insufficient permissions to view highlights.
+          </p>
+        </div>
+      );
+    }
+  }
 
   const names: string[] = Array.isArray(schema.fields) ? schema.fields : [];
-  const highlightFields = names.map((name) => ({ name }));
+  const enforceFLS = (schema as any).enforceFieldSecurity === true;
+  const redact: string[] = Array.isArray((schema as any).redactFields)
+    ? (schema as any).redactFields
+    : [];
+  const visibleNames = enforceFLS && objectName
+    ? readableFields(names).filter((n) => !redact.includes(n))
+    : names.filter((n) => !redact.includes(n));
+  const highlightFields = visibleNames.map((name) => ({ name }));
 
   return (
     <div className={className} {...designer}>

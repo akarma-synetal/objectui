@@ -13,8 +13,16 @@
 
 import React from 'react';
 import { useRecordContext } from '@object-ui/react';
+import { useFieldPermissions, usePermissions } from '@object-ui/permissions';
 import type { RecordRelatedListComponentProps } from '@object-ui/types';
 import { RelatedList } from '../RelatedList';
+
+/** Normalize a column entry (string | {field} | {name} | {key}) to its name. */
+const colName = (entry: any): string | null => {
+  if (typeof entry === 'string') return entry;
+  if (entry && typeof entry === 'object') return entry.field || entry.name || entry.key || null;
+  return null;
+};
 
 const splitDesigner = (props: Record<string, any>) => {
   const { 'data-obj-id': id, 'data-obj-type': type, style, ...rest } = props || {};
@@ -48,6 +56,42 @@ export const RecordRelatedListRenderer: React.FC<RecordRelatedListRendererProps>
     );
   }
 
+  const perms = usePermissions();
+  const { readableFields } = useFieldPermissions(objectName);
+
+  const required: string[] = Array.isArray((schema as any).requiredPermissions)
+    ? (schema as any).requiredPermissions
+    : [];
+  if (required.length > 0) {
+    const ok = required.every((p) => perms.can(objectName, p as any));
+    if (!ok) {
+      return (
+        <div className={className} {...designer} role="status" aria-live="polite">
+          <p className="text-sm text-muted-foreground italic">
+            Insufficient permissions to view related list.
+          </p>
+        </div>
+      );
+    }
+  }
+
+  const enforceFLS = (schema as any).enforceFieldSecurity === true;
+  const redact: string[] = Array.isArray((schema as any).redactFields)
+    ? (schema as any).redactFields
+    : [];
+  const rawColumns: any[] = Array.isArray(schema.columns) ? (schema.columns as any[]) : [];
+  let filteredColumns: any[] = rawColumns;
+  if (enforceFLS || redact.length > 0) {
+    const names = rawColumns.map(colName).filter((n): n is string => !!n);
+    const allowed = new Set(
+      (enforceFLS ? readableFields(names) : names).filter((n) => !redact.includes(n)),
+    );
+    filteredColumns = rawColumns.filter((c) => {
+      const n = colName(c);
+      return n ? allowed.has(n) : true;
+    });
+  }
+
   return (
     <div className={className} {...designer}>
       <RelatedList
@@ -56,7 +100,7 @@ export const RecordRelatedListRenderer: React.FC<RecordRelatedListRendererProps>
         api={objectName}
         objectName={objectName}
         referenceField={schema.relationshipField}
-        columns={schema.columns as any}
+        columns={filteredColumns as any}
         pageSize={schema.limit}
         dataSource={ctx?.dataSource as any}
       />
