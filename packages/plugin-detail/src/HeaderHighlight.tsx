@@ -42,13 +42,13 @@ export const HeaderHighlight: React.FC<HeaderHighlightProps> = ({
 
   return (
     <Card className={cn('bg-muted/30 border-dashed', className)}>
-      <CardContent className="py-3 px-4">
+      <CardContent className="@container py-3 px-4">
         <div className={cn(
           'grid gap-4',
           visibleFields.length === 1 ? 'grid-cols-1' :
-          visibleFields.length === 2 ? 'grid-cols-2' :
-          visibleFields.length === 3 ? 'grid-cols-3' :
-          'grid-cols-2 md:grid-cols-4'
+          visibleFields.length === 2 ? 'grid-cols-1 @sm:grid-cols-2' :
+          visibleFields.length === 3 ? 'grid-cols-1 @sm:grid-cols-3' :
+          'grid-cols-1 @sm:grid-cols-2 @xl:grid-cols-4'
         )}>
           {visibleFields.map((field) => {
             const value = data[field.name];
@@ -72,12 +72,12 @@ export const HeaderHighlight: React.FC<HeaderHighlightProps> = ({
             );
 
             return (
-              <div key={field.name} className="flex flex-col gap-0.5">
+              <div key={field.name} className="flex min-w-0 flex-col gap-0.5">
                 <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
                   {field.icon && <span className="mr-1">{field.icon}</span>}
                   {fieldLabel(objectName || '', field.name, field.label)}
                 </span>
-                <span className="text-sm font-semibold truncate">
+                <span className="block min-w-0 truncate text-sm font-semibold">
                   <CellRenderer value={value} field={enrichedField as any} />
                 </span>
               </div>

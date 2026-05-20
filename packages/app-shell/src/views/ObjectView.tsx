@@ -1227,7 +1227,7 @@ export function ObjectView({ dataSource, objects, onEdit, externalRefreshKey }: 
     const detailNavigation: ViewNavigationConfig = useMemo(
         () =>
             activeView?.navigation ??
-            objectDef.navigation ?? { mode: 'drawer', width: 'min(70vw, 960px)' },
+            objectDef.navigation ?? { mode: 'drawer', width: 'min(92vw, 1280px)' },
         [activeView?.navigation, objectDef.navigation]
     );
     const drawerRecordId = searchParams.get('recordId');
@@ -1849,6 +1849,7 @@ export function ObjectView({ dataSource, objects, onEdit, externalRefreshKey }: 
                         title={objectLabel(objectDef)}
                         onExpand={handleExpandDrawer}
                         expandLabel={t('console.objectView.expandToPage', { defaultValue: 'Open as full page' })}
+                        storageKey={`drawer-width:${objectDef.name}`}
                         mainContent={
                             <div className="flex-1 min-w-0 relative h-full flex flex-col">
                                 <div className="flex-1 relative overflow-hidden">
@@ -1958,7 +1959,7 @@ export function ObjectView({ dataSource, objects, onEdit, externalRefreshKey }: 
                  title={objectDef.label}
                  onExpand={handleExpandDrawer}
                  expandLabel={t('console.objectView.expandToPage', { defaultValue: 'Open as full page' })}
-                 className={navOverlay.mode === 'drawer' ? 'sm:max-w-3xl' : undefined}
+                 storageKey={`drawer-width:${objectDef.name}`}
              >
                  {(record: Record<string, unknown>) => {
                      const recordId = (record.id || record._id) as string;

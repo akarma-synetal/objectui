@@ -38,7 +38,7 @@
  */
 
 import React from 'react';
-import { Maximize2 } from 'lucide-react';
+import { Maximize2, X } from 'lucide-react';
 import { cn } from '../lib/utils';
 import {
   Sheet,
@@ -46,6 +46,7 @@ import {
   SheetHeader,
   SheetTitle,
   SheetDescription,
+  SheetClose,
 } from '../ui/sheet';
 import {
   Dialog,
@@ -129,6 +130,17 @@ export interface NavigationOverlayProps {
   onExpand?: () => void;
   /** Optional label for the expand button (accessible name & tooltip). */
   expandLabel?: string;
+  /**
+   * Optional storage key for persisting the user's manually-resized drawer
+   * width (drawer mode only). When provided, the drawer renders a drag
+   * handle on its left edge and remembers the resized width in
+   * `localStorage` across sessions. Use a stable, scoped key such as
+   * `'drawer-width:lead'` so different objects get independent widths.
+   *
+   * When omitted, the drag handle is hidden and width is fully controlled
+   * by the `width` prop / configured ceiling.
+   */
+  storageKey?: string;
 }
 
 /**
@@ -155,6 +167,85 @@ function getWidthStyle(width: string | number | undefined): React.CSSProperties 
   const resolved = resolveWidth(width);
   if (!resolved) return {};
   return { ['--ov-w' as any]: resolved };
+}
+
+/** Hard floor for drag-resize — narrower than this and the body becomes unusable. */
+const DRAWER_MIN_PX = 360;
+/** Soft ceiling — keep at least a thin sliver of underlying page visible. */
+const DRAWER_MAX_VW_FACTOR = 0.95;
+
+/**
+ * Drawer resize state — drag handle on the left edge, value persisted to
+ * localStorage so the same user gets a consistent width across sessions /
+ * objects. Returns `null` when storageKey is absent (resize disabled).
+ */
+function useDrawerResize(storageKey: string | undefined) {
+  const [width, setWidth] = React.useState<number | null>(null);
+  const draggingRef = React.useRef(false);
+
+  // Restore persisted width on mount.
+  React.useEffect(() => {
+    if (!storageKey || typeof window === 'undefined') return;
+    try {
+      const raw = window.localStorage.getItem(`ov:${storageKey}`);
+      if (!raw) return;
+      const n = Number(raw);
+      if (Number.isFinite(n) && n >= DRAWER_MIN_PX) setWidth(n);
+    } catch {
+      // ignore (private mode / quota)
+    }
+  }, [storageKey]);
+
+  const handleMouseDown = React.useCallback((e: React.MouseEvent) => {
+    if (!storageKey || typeof window === 'undefined') return;
+    e.preventDefault();
+    draggingRef.current = true;
+
+    const maxPx = Math.floor(window.innerWidth * DRAWER_MAX_VW_FACTOR);
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+
+    const onMove = (ev: MouseEvent) => {
+      if (!draggingRef.current) return;
+      // Drawer is right-anchored: rightX = window.innerWidth, leftX = mouseX.
+      const next = Math.min(maxPx, Math.max(DRAWER_MIN_PX, window.innerWidth - ev.clientX));
+      setWidth(next);
+    };
+    const onUp = () => {
+      draggingRef.current = false;
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+      // Persist the latest value (read from state via functional setter to
+      // avoid stale closures over the start-of-drag width).
+      setWidth((latest) => {
+        if (latest != null) {
+          try {
+            window.localStorage.setItem(`ov:${storageKey}`, String(latest));
+          } catch {
+            // ignore
+          }
+        }
+        return latest;
+      });
+    };
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+  }, [storageKey]);
+
+  // Double-click handle resets to the host-configured width.
+  const handleDoubleClick = React.useCallback(() => {
+    if (!storageKey || typeof window === 'undefined') return;
+    setWidth(null);
+    try {
+      window.localStorage.removeItem(`ov:${storageKey}`);
+    } catch {
+      // ignore
+    }
+  }, [storageKey]);
+
+  return { width, handleMouseDown, handleDoubleClick, enabled: !!storageKey };
 }
 
 /**
@@ -184,6 +275,7 @@ export const NavigationOverlay: React.FC<NavigationOverlayProps> = ({
   popoverTrigger,
   onExpand,
   expandLabel = 'Open as full page',
+  storageKey,
 }) => {
   // Non-overlay modes don't render anything
   if (mode === 'page' || mode === 'new_window' || mode === 'none') {
@@ -196,6 +288,23 @@ export const NavigationOverlay: React.FC<NavigationOverlayProps> = ({
 
   const widthStyle = getWidthStyle(width);
   const resolvedTitle = title || 'Record Detail';
+  // Resize state lives outside the conditional drawer branch — hooks must
+  // run on every render. The helper itself no-ops when storageKey is
+  // absent, so non-drawer modes pay nothing.
+  const resize = useDrawerResize(mode === 'drawer' ? storageKey : undefined);
+  // Drawer width policy:
+  // - If the user explicitly drag-resized, honor that exact pixel value
+  //   (their choice always wins).
+  // - Otherwise, treat the authored width as a *floor*. On wide monitors,
+  //   weakly-authored values like 600px get bumped up to a healthier
+  //   `min(60vw, 880px)` so the drawer doesn't feel cramped on 1920px
+  //   displays. Strongly-authored larger values still win via `max()`.
+  // - The mobile gate (`sm:` on the className) prevents this from
+  //   affecting phones.
+  const authoredWidthCss = resolveWidth(width) ?? '42rem';
+  const drawerStyle: React.CSSProperties = resize.width != null
+    ? { ['--ov-w' as any]: `${resize.width}px` }
+    : { ['--ov-w' as any]: `max(${authoredWidthCss}, min(60vw, 880px))` };
 
   // Use renderView when both renderView and view are provided; otherwise fallback to children
   const renderContent = (record: Record<string, unknown>) => {
@@ -217,36 +326,68 @@ export const NavigationOverlay: React.FC<NavigationOverlayProps> = ({
             // sensible 2xl ceiling so very wide configs don't dwarf the
             // page. The host's className still wins on more specific tokens.
             'w-screen max-w-none sm:w-full sm:max-w-[var(--ov-w,42rem)] p-0 flex flex-col gap-0 overflow-hidden',
+            // Hide shadcn Sheet's auto-rendered close (X) — it's the LAST
+            // direct <button> child of SheetContent. We render our own close
+            // inside the header so it sits in a single button cluster
+            // visually aligned with the expand action.
+            '[&>button:last-of-type]:hidden',
             className,
           )}
-          style={widthStyle}
+          style={drawerStyle}
         >
-          {/* Expand-to-full-page button — sits to the left of Sheet's own
-              auto-rendered close (X) button. Mirrors Linear/Notion peek mode:
-              the user can pop the drawer out into a permanent route when they
-              want a focused editing context. */}
-          {onExpand && (
-            <button
-              type="button"
-              onClick={onExpand}
-              aria-label={expandLabel}
-              title={expandLabel}
-              className="absolute right-12 top-3 z-20 inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
-            >
-              <Maximize2 className="h-4 w-4" />
-            </button>
+          {/* Drag-resize handle — only rendered on sm+ (mobile uses full
+              viewport so there's nothing meaningful to resize). The
+              4px-wide invisible hit-area sits flush with the left edge;
+              the visible 1px tint reacts on hover so users discover the
+              affordance. Double-click resets to the configured default. */}
+          {resize.enabled && (
+            <div
+              role="separator"
+              aria-orientation="vertical"
+              aria-label="Resize drawer"
+              onMouseDown={resize.handleMouseDown}
+              onDoubleClick={resize.handleDoubleClick}
+              className="hidden sm:block absolute left-0 top-0 bottom-0 z-30 w-1 cursor-col-resize bg-transparent hover:bg-primary/40 active:bg-primary/60 transition-colors"
+              style={{ touchAction: 'none' }}
+            />
           )}
-          {/* Chrome header — visually subdued breadcrumb-style label so it
-              does not compete with the record-title that the embedded
-              content already renders. Title stays in the DOM for a11y
-              (Sheet requires a SheetTitle for screen readers). */}
-          <SheetHeader className="shrink-0 px-4 pt-3 pb-2 border-b bg-muted/30">
-            <SheetTitle className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-              {resolvedTitle}
-            </SheetTitle>
-            {description && (
-              <SheetDescription className="text-xs">{description}</SheetDescription>
-            )}
+          {/* Chrome header — subdued breadcrumb-style label that does not
+              compete with the record-title rendered by the embedded content.
+              Buttons live in the same flex row so they share vertical
+              centering with the title text (no absolute positioning, no
+              pixel-perfect math to maintain). */}
+          <SheetHeader className="shrink-0 flex-row items-center justify-between gap-2 space-y-0 px-4 py-2 border-b bg-muted/30">
+            <div className="min-w-0 flex-1">
+              <SheetTitle className="truncate text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                {resolvedTitle}
+              </SheetTitle>
+              {description && (
+                <SheetDescription className="truncate text-xs">{description}</SheetDescription>
+              )}
+            </div>
+            <div className="flex shrink-0 items-center gap-0.5">
+              {onExpand && (
+                <button
+                  type="button"
+                  onClick={onExpand}
+                  aria-label={expandLabel}
+                  title={expandLabel}
+                  className="inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  <Maximize2 className="h-3.5 w-3.5" />
+                </button>
+              )}
+              <SheetClose asChild>
+                <button
+                  type="button"
+                  aria-label="Close"
+                  title="Close"
+                  className="inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              </SheetClose>
+            </div>
           </SheetHeader>
           <div className="flex-1 min-h-0 overflow-y-auto">
             {renderContent(selectedRecord)}
