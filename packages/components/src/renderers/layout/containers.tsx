@@ -112,6 +112,10 @@ const PageTabsRenderer: React.FC<any> = ({ schema, className, ...props }) => {
     isVertical && 'flex-col h-auto items-stretch p-1',
     type === 'card' && 'bg-transparent gap-1',
     type === 'pill' && 'bg-muted rounded-full p-1 gap-1',
+    // Pin the horizontal tab strip to the top of the scroll container so
+    // users keep their bearings on long record pages. Skipped for vertical
+    // layouts where the strip is a sidebar, not a header.
+    !isVertical && 'sticky top-0 z-20 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60',
   );
 
   const triggerClass = (active = false) => cn(

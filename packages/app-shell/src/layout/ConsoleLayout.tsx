@@ -86,7 +86,7 @@ export function ConsoleLayout({
             onAppChange={onAppChange}
           />
       }
-      className="!p-0 overflow-hidden bg-muted/5"
+      className="!p-0 overflow-y-auto overflow-x-hidden bg-muted/5"
       branding={
         activeApp?.branding
           ? {

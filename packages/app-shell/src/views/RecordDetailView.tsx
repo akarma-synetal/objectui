@@ -1000,7 +1000,7 @@ export function RecordDetailView({ dataSource, objects, onEdit }: RecordDetailVi
           onParamCollection={paramCollectionHandler}
           handlers={{ api: apiHandler, flow: flowHandler, script: serverActionHandler, modal: serverActionHandler, approval: approvalHandler }}
         >
-          <div className="h-full bg-background overflow-auto p-3 sm:p-4 lg:p-6">
+          <div className="bg-background p-3 sm:p-4 lg:p-6">
             <SchemaRenderer schema={assignedPage as any} />
           </div>
         </ActionProvider>
