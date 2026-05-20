@@ -1076,6 +1076,28 @@ const ja = {
       noFieldsAvailable: '利用可能なフィールドがありません。',
     },
   },
+  organizations: {
+    mine: 'マイ組織',
+    title: '組織',
+    heading: 'あなたの組織',
+    subtitle: '続行する組織を選択するか、新しい組織を作成してください。',
+    searchPlaceholder: '組織を検索',
+    new: '新しい組織',
+    current: '現在の組織',
+    manage: '管理',
+    emptyTitle: 'まだ組織がありません',
+    emptyDescription: '最初の組織を作成して開始してください。',
+    noMatches: '検索条件に一致する組織がありません。',
+  },
+  notifications: {
+    empty: '通知はありません',
+    markAllRead: 'すべて既読にする',
+    viewAll: 'すべての通知を表示',
+    approvalsPending: '{{count}} 件の承認待ち',
+    viewApprovals: '承認を表示',
+    noPendingApprovals: '承認待ちはありません',
+    openApprovalsInbox: '承認ボックスを開く',
+  },
 } as const;
 
 export default ja;

@@ -19,6 +19,7 @@
 
 import React from 'react';
 import { ComponentRegistry } from '@object-ui/core';
+import { useRecordContext } from '@object-ui/react';
 import { renderChildren, cn } from '../../lib/utils';
 import {
   Tabs,
@@ -63,6 +64,21 @@ const labelText = (label: any): string => {
   return String(label);
 };
 
+/**
+ * Replace `{field.path}` tokens in a template against the given data object.
+ * Missing fields collapse to an empty string. The result is trimmed and
+ * whitespace-collapsed so partial misses don't leave gaping holes.
+ */
+const interpolate = (template: string, data: any): string => {
+  if (!template || typeof template !== 'string') return template || '';
+  if (!template.includes('{')) return template;
+  const out = template.replace(/\{([a-zA-Z0-9_.]+)\}/g, (_m, path: string) => {
+    const v = path.split('.').reduce<any>((acc, seg) => (acc == null ? acc : acc[seg]), data);
+    return v == null ? '' : String(v);
+  });
+  return out.replace(/\s+/g, ' ').trim();
+};
+
 // ---------------------------------------------------------------------------
 // page:tabs
 // ---------------------------------------------------------------------------
@@ -74,7 +90,7 @@ interface PageTabsItem {
 }
 
 const PageTabsRenderer: React.FC<any> = ({ schema, className, ...props }) => {
-  const { designer, rest } = splitDesignerProps(props);
+  const { designer } = splitDesignerProps(props);
   const items: PageTabsItem[] = schema?.items || [];
   // Tab visual style lives at `properties.type` ('line'|'card'|'pill') — the
   // outer `schema.type` is always 'page:tabs' (the component dispatch key).
@@ -109,7 +125,6 @@ const PageTabsRenderer: React.FC<any> = ({ schema, className, ...props }) => {
       defaultValue={defaultValue}
       orientation={isVertical ? 'vertical' : 'horizontal'}
       className={cn(className, isVertical && 'flex gap-4 w-full')}
-      {...rest}
       {...designer}
     >
       <TabsList className={listClass}>
@@ -144,7 +159,7 @@ ComponentRegistry.register('page:tabs', PageTabsRenderer, {
 // ---------------------------------------------------------------------------
 
 const PageCardRenderer: React.FC<any> = ({ schema, className, ...props }) => {
-  const { designer, rest } = splitDesignerProps(props);
+  const { designer } = splitDesignerProps(props);
   const title = labelText(schema?.title);
   const bordered = schema?.bordered !== false;
   const body = schema?.body;
@@ -153,7 +168,6 @@ const PageCardRenderer: React.FC<any> = ({ schema, className, ...props }) => {
   return (
     <Card
       className={cn(className, !bordered && 'border-0 shadow-none bg-transparent')}
-      {...rest}
       {...designer}
     >
       {title && (
@@ -275,16 +289,15 @@ ComponentRegistry.register('page:section', PageSectionRenderer, {
 // ---------------------------------------------------------------------------
 
 const PageHeaderRenderer: React.FC<any> = ({ schema, className, ...props }) => {
-  const { designer, rest } = splitDesignerProps(props);
-  const title = labelText(schema?.title);
-  const subtitle = labelText(schema?.subtitle);
+  const { designer } = splitDesignerProps(props);
+  const ctx = useRecordContext();
+  const title = interpolate(labelText(schema?.title), ctx?.data);
+  const subtitle = interpolate(labelText(schema?.subtitle), ctx?.data);
   const breadcrumb = schema?.breadcrumb !== false;
-  const actions: string[] = schema?.actions || [];
 
   return (
     <header
       className={cn('flex flex-col gap-2 pb-4 border-b', className)}
-      {...rest}
       {...designer}
     >
       {breadcrumb && (
@@ -295,15 +308,7 @@ const PageHeaderRenderer: React.FC<any> = ({ schema, className, ...props }) => {
           {title && <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>}
           {subtitle && <p className="text-sm text-muted-foreground">{subtitle}</p>}
         </div>
-        {actions.length > 0 && (
-          <div className="flex items-center gap-2" data-page-actions-slot>
-            {actions.map((id) => (
-              <span key={id} className="text-xs text-muted-foreground border rounded px-2 py-1">
-                {id}
-              </span>
-            ))}
-          </div>
-        )}
+        <div data-page-actions-slot />
       </div>
     </header>
   );

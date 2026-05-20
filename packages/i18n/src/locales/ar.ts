@@ -1066,6 +1066,28 @@ const ar = {
       noFieldsAvailable: 'لا توجد حقول متاحة.',
     },
   },
+  organizations: {
+    mine: 'مؤسساتي',
+    title: 'المؤسسات',
+    heading: 'مؤسساتك',
+    subtitle: 'اختر مؤسسة للمتابعة، أو أنشئ مؤسسة جديدة.',
+    searchPlaceholder: 'ابحث عن مؤسسة',
+    new: 'مؤسسة جديدة',
+    current: 'المؤسسة الحالية',
+    manage: 'إدارة',
+    emptyTitle: 'لا توجد مؤسسات بعد',
+    emptyDescription: 'أنشئ مؤسستك الأولى للبدء.',
+    noMatches: 'لا توجد مؤسسات تطابق بحثك.',
+  },
+  notifications: {
+    empty: 'لا توجد إشعارات',
+    markAllRead: 'تعليم الكل كمقروء',
+    viewAll: 'عرض جميع الإشعارات',
+    approvalsPending: '{{count}} موافقات معلقة',
+    viewApprovals: 'عرض الموافقات',
+    noPendingApprovals: 'لا توجد موافقات معلقة',
+    openApprovalsInbox: 'فتح صندوق الموافقات',
+  },
 } as const;
 
 export default ar;

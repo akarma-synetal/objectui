@@ -1085,6 +1085,28 @@ const ru = {
       noFieldsAvailable: 'Полей нет.',
     },
   },
+  organizations: {
+    mine: 'Мои организации',
+    title: 'Организации',
+    heading: 'Ваши организации',
+    subtitle: 'Выберите организацию, чтобы продолжить, или создайте новую.',
+    searchPlaceholder: 'Поиск организации',
+    new: 'Новая организация',
+    current: 'Текущая организация',
+    manage: 'Управление',
+    emptyTitle: 'Пока нет организаций',
+    emptyDescription: 'Создайте свою первую организацию, чтобы начать.',
+    noMatches: 'Нет организаций, соответствующих запросу.',
+  },
+  notifications: {
+    empty: 'Нет уведомлений',
+    markAllRead: 'Отметить все как прочитанные',
+    viewAll: 'Показать все уведомления',
+    approvalsPending: '{{count}} ожидающих утверждений',
+    viewApprovals: 'Показать утверждения',
+    noPendingApprovals: 'Нет ожидающих утверждений',
+    openApprovalsInbox: 'Открыть входящие утверждений',
+  },
 } as const;
 
 export default ru;

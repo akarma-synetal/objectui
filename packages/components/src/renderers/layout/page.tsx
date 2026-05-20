@@ -390,8 +390,9 @@ export const PageRenderer: React.FC<{
       {...pageProps}
     >
       <div className={cn('mx-auto space-y-8', getPageMaxWidth(pageType))}>
-        {/* Page header */}
-        {(schema.title || schema.description) && (
+        {/* Page header — suppressed on record pages (the page:header component
+            in the header region renders the record-bound title instead). */}
+        {pageType !== 'record' && (schema.title || schema.description) && (
           <div className="space-y-2">
             {schema.title && (
               <h1 className="text-3xl font-bold tracking-tight text-foreground">

@@ -1065,6 +1065,28 @@ const ko = {
       noFieldsAvailable: '사용 가능한 필드가 없습니다.',
     },
   },
+  organizations: {
+    mine: '내 조직',
+    title: '조직',
+    heading: '내 조직',
+    subtitle: '계속할 조직을 선택하거나 새 조직을 만드세요.',
+    searchPlaceholder: '조직 검색',
+    new: '새 조직',
+    current: '현재 조직',
+    manage: '관리',
+    emptyTitle: '아직 조직이 없습니다',
+    emptyDescription: '시작하려면 첫 번째 조직을 만드세요.',
+    noMatches: '검색과 일치하는 조직이 없습니다.',
+  },
+  notifications: {
+    empty: '알림 없음',
+    markAllRead: '모두 읽음으로 표시',
+    viewAll: '모든 알림 보기',
+    approvalsPending: '{{count}}건의 승인 대기 중',
+    viewApprovals: '승인 보기',
+    noPendingApprovals: '대기 중인 승인 없음',
+    openApprovalsInbox: '승인 보관함 열기',
+  },
 } as const;
 
 export default ko;

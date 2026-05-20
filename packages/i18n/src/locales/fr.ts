@@ -1079,6 +1079,28 @@ const fr = {
       noFieldsAvailable: 'Aucun champ disponible.',
     },
   },
+  organizations: {
+    mine: 'Mes organisations',
+    title: 'Organisations',
+    heading: 'Vos organisations',
+    subtitle: 'Sélectionnez une organisation pour continuer ou créez-en une nouvelle.',
+    searchPlaceholder: 'Rechercher une organisation',
+    new: 'Nouvelle organisation',
+    current: 'Organisation actuelle',
+    manage: 'Gérer',
+    emptyTitle: 'Aucune organisation pour le moment',
+    emptyDescription: 'Créez votre première organisation pour commencer.',
+    noMatches: 'Aucune organisation ne correspond à votre recherche.',
+  },
+  notifications: {
+    empty: 'Aucune notification',
+    markAllRead: 'Tout marquer comme lu',
+    viewAll: 'Voir toutes les notifications',
+    approvalsPending: '{{count}} approbations en attente',
+    viewApprovals: 'Voir les approbations',
+    noPendingApprovals: 'Aucune approbation en attente',
+    openApprovalsInbox: "Ouvrir la boîte d'approbations",
+  },
 } as const;
 
 export default fr;
