@@ -130,6 +130,20 @@ export const approvalsApi = {
     );
     return { data: out.request, finalized: out.finalized };
   },
+
+  async submit(body: {
+    object: string;
+    recordId: string;
+    processName?: string;
+    submitterId?: string;
+    comment?: string;
+    payload?: Record<string, unknown>;
+  }) {
+    return call<ApprovalRequestRow>(`/approvals/requests`, {
+      method: 'POST',
+      body: JSON.stringify(body),
+    });
+  },
 };
 
 /**

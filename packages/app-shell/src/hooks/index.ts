@@ -13,4 +13,5 @@ export {
 } from './useNavigationSync';
 export { useObjectActions } from './useObjectActions';
 export { useRecentItems, type RecentItem } from './useRecentItems';
+export { useRecordApprovals, type ApprovalProcessLite, type ApprovalRequestLite } from './useRecordApprovals';
 export { useResponsiveSidebar } from './useResponsiveSidebar';

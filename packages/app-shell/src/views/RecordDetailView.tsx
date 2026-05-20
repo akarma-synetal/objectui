@@ -6,7 +6,7 @@
  * the object field definitions.
  */
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { DetailView, RecordChatterPanel } from '@object-ui/plugin-detail';
 import { Empty, EmptyTitle, EmptyDescription } from '@object-ui/components';
@@ -25,6 +25,7 @@ import { resolveActionParams } from '../utils/resolveActionParams';
 import { useRecordBreadcrumbTitle } from '../context/NavigationContext';
 import type { DetailViewSchema, FeedItem, HighlightField, SectionGroup } from '@object-ui/types';
 import type { ActionDef, ActionParamDef } from '@object-ui/core';
+import { useRecordApprovals } from '../hooks/useRecordApprovals';
 import { getRecordDisplayName } from '../utils';
 
 interface RecordDetailViewProps {
@@ -254,6 +255,40 @@ export function RecordDetailView({ dataSource, objects, onEdit }: RecordDetailVi
       return { success: false, error: (error as Error).message };
     }
   }, [authFetch, pureRecordId, objectName]);
+
+  // ─── Approvals ─────────────────────────────────────────────────────
+  // Surfaces "Submit for Approval" / "Recall" buttons on the record header
+  // when an active approval process is registered for this object, and a
+  // status badge when a request exists.
+  const approvals = useRecordApprovals(objectName, pureRecordId, user?.id);
+  // Hold latest approvals snapshot in a ref so the action handler
+  // (memoized once inside ActionRunner) always sees fresh state instead of
+  // the stale closure captured at the first render.
+  const approvalsRef = useRef(approvals);
+  approvalsRef.current = approvals;
+
+  const approvalHandler = useCallback(async (action: ActionDef) => {
+    const target = action.target || action.name;
+    const params = (action.params && !Array.isArray(action.params))
+      ? (action.params as Record<string, any>)
+      : {};
+    try {
+      if (target === 'submit_approval') {
+        await approvalsRef.current.submit({
+          processName: params.processName,
+          comment: params.comment,
+        });
+      } else if (target === 'recall_approval') {
+        await approvalsRef.current.recall({ comment: params.comment });
+      } else {
+        return { success: false, error: `Unknown approval target: ${target}` };
+      }
+      setActionRefreshKey((k) => k + 1);
+      return { success: true, reload: true };
+    } catch (err: any) {
+      return { success: false, error: err?.message || String(err) };
+    }
+  }, []);
 
   // Discover reverse references: other objects with lookup/master_detail fields
   // pointing to the current object (e.g., order_item.order → order).
@@ -704,7 +739,7 @@ export function RecordDetailView({ dataSource, objects, onEdit }: RecordDetailVi
     // Filter actions for record_header location and deduplicate by name
     const recordHeaderActions = (() => {
       const seen = new Set<string>();
-      return (objectDef.actions || []).filter((a: any) => {
+      const base = (objectDef.actions || []).filter((a: any) => {
         if (!a.locations?.includes('record_header')) return false;
         if (!a.name) return true;
         if (seen.has(a.name)) return false;
@@ -720,6 +755,61 @@ export function RecordDetailView({ dataSource, objects, onEdit }: RecordDetailVi
           successMessage: actionSuccess(objectDef.name, a.name, a.successMessage),
         }),
       }));
+
+      // Inject approval actions — only when the approvals plugin is
+      // available and an active process exists for this object.
+      if (approvals.available && approvals.processes.length > 0) {
+        if (approvals.canSubmit) {
+          base.push({
+            name: 'submit_approval',
+            type: 'approval',
+            target: 'submit_approval',
+            label: t('approvals.submitForApproval', { defaultValue: 'Submit for Approval' }),
+            icon: 'send',
+            variant: 'default',
+            locations: ['record_header'],
+            refreshAfter: true,
+            successMessage: t('approvals.submitSuccess', { defaultValue: 'Approval request submitted' }),
+            ...(approvals.processes.length === 1
+              ? { params: { processName: approvals.processes[0].name } }
+              : {
+                  collectParams: [{
+                    name: 'processName',
+                    label: t('approvals.process', { defaultValue: 'Process' }),
+                    type: 'select',
+                    required: true,
+                    options: approvals.processes.map((p) => ({
+                      value: p.name,
+                      label: p.label || p.name,
+                    })),
+                  }, {
+                    name: 'comment',
+                    label: t('approvals.comment', { defaultValue: 'Comment (optional)' }),
+                    type: 'text',
+                    multiline: true,
+                  }],
+                }),
+          });
+        }
+        if (approvals.canRecall) {
+          base.push({
+            name: 'recall_approval',
+            type: 'approval',
+            target: 'recall_approval',
+            label: t('approvals.recall', { defaultValue: 'Recall' }),
+            icon: 'undo',
+            variant: 'outline',
+            locations: ['record_header'],
+            refreshAfter: true,
+            confirmText: t('approvals.recallConfirm', {
+              defaultValue: 'Recall this pending approval request?',
+            }),
+            successMessage: t('approvals.recallSuccess', { defaultValue: 'Approval recalled' }),
+          });
+        }
+      }
+
+      return base;
     })();
 
     // Build highlightFields: exclusively from objectDef metadata (no hardcoded fallback)
@@ -852,7 +942,7 @@ export function RecordDetailView({ dataSource, objects, onEdit }: RecordDetailVi
       }),
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [objectDef?.name, pureRecordId, childRelatedData, actionRefreshKey, appName, navigate, dataSource, t, objectLabel, objects, historyEnabled, historyEntries, historyLoading]);
+  }, [objectDef?.name, pureRecordId, childRelatedData, actionRefreshKey, appName, navigate, dataSource, t, objectLabel, objects, historyEnabled, historyEntries, historyLoading, approvals.available, approvals.processes, approvals.canSubmit, approvals.canRecall, approvals.pendingRequest, approvals.latestRequest]);
 
   if (isLoading) {
     return <SkeletonDetail />;
@@ -889,7 +979,7 @@ export function RecordDetailView({ dataSource, objects, onEdit }: RecordDetailVi
           onToast={toastHandler}
           onNavigate={navigateHandler}
           onParamCollection={paramCollectionHandler}
-          handlers={{ api: apiHandler, flow: flowHandler, script: serverActionHandler, modal: serverActionHandler }}
+          handlers={{ api: apiHandler, flow: flowHandler, script: serverActionHandler, modal: serverActionHandler, approval: approvalHandler }}
         >
           <div className="h-full bg-background overflow-auto p-3 sm:p-4 lg:p-6">
             <SchemaRenderer schema={assignedPage as any} />
@@ -922,7 +1012,7 @@ export function RecordDetailView({ dataSource, objects, onEdit }: RecordDetailVi
             onToast={toastHandler}
             onNavigate={navigateHandler}
             onParamCollection={paramCollectionHandler}
-            handlers={{ api: apiHandler, flow: flowHandler, script: serverActionHandler, modal: serverActionHandler }}
+            handlers={{ api: apiHandler, flow: flowHandler, script: serverActionHandler, modal: serverActionHandler, approval: approvalHandler }}
           >
             <DetailView
               key={actionRefreshKey}
