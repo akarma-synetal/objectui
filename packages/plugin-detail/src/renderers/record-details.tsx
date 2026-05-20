@@ -132,6 +132,10 @@ export const RecordDetailsRenderer: React.FC<RecordDetailsRendererProps> = ({
     sections: filteredSections,
     fields: filteredFields,
     showBack: false,
+    // Suppress DetailView's own Airtable-style header chip. When
+    // record:details is composed under a Lightning page:header the inner
+    // title/star/copy chip would duplicate the surrounding page header.
+    showHeader: schema.showHeader ?? false,
   };
 
   return (

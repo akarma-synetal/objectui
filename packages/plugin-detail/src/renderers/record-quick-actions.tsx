@@ -102,10 +102,19 @@ export const RecordQuickActionsRenderer: React.FC<RecordQuickActionsRendererProp
   const align = schema.align || 'end';
   const justify =
     align === 'start' ? 'justify-start' : align === 'center' ? 'justify-center' : 'justify-end';
+  // When sitting in the record_header region right below the page:header
+  // (the canonical Salesforce Lightning placement), pull the toolbar up so
+  // it visually pairs with the title instead of orphaning on its own row.
+  const inlineWithHeader = location === 'record_header';
 
   return (
     <div
-      className={cn('flex flex-wrap items-center gap-2', justify, className)}
+      className={cn(
+        'flex flex-wrap items-center gap-2',
+        inlineWithHeader && '-mt-12 sm:-mt-14 mb-2 relative z-10',
+        justify,
+        className,
+      )}
       role="toolbar"
       aria-label={schema.aria?.label || 'Quick actions'}
       {...designer}

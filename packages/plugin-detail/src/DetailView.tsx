@@ -644,7 +644,10 @@ export const DetailView: React.FC<DetailViewProps> = ({
   return (
     <TooltipProvider>
       <div className={cn('space-y-6', className)}>
-        {/* Header - Airtable-inspired layout */}
+        {/* Header - Airtable-inspired layout. Suppressed when the host page
+            renders its own `page:header` (e.g. record:details embedded
+            under a Lightning-style page) to avoid a duplicate title chip. */}
+        {schema.showHeader !== false && (
         <div className="flex flex-col sm:flex-row items-start justify-between gap-3 sm:gap-4 pb-4 border-b">
           <div className="flex items-start gap-2 sm:gap-3 flex-1 min-w-0">
             {(schema.showBack ?? true) && (
@@ -929,6 +932,7 @@ export const DetailView: React.FC<DetailViewProps> = ({
             ))}
           </div>
         </div>
+        )}
 
       {/* Custom Header */}
       {schema.header && (
