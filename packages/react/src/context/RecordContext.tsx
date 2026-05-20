@@ -32,6 +32,14 @@ export interface RecordContextValue<TData = any, TObjectSchema = any> {
   error?: Error | null;
   /** Re-fetch the record from the source. */
   refresh?: () => void | Promise<void>;
+  /**
+   * When true, the record is rendered inside a host overlay (drawer,
+   * modal, split-pane preview) rather than as a standalone route. Header
+   * affordances such as the auto "back to list" button should suppress
+   * themselves in this mode because the user already has Close / Expand
+   * controls in the overlay chrome.
+   */
+  embedded?: boolean;
 }
 
 const RecordContext = React.createContext<RecordContextValue | null>(null);
@@ -55,6 +63,7 @@ export const RecordContextProvider: React.FC<RecordContextProviderProps> = ({
     value.loading,
     value.error,
     value.refresh,
+    value.embedded,
   ]);
   return <RecordContext.Provider value={memo}>{children}</RecordContext.Provider>;
 };

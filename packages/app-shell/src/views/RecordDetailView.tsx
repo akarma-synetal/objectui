@@ -1093,6 +1093,7 @@ export function RecordDetailView({ dataSource, objects, onEdit, objectNameOverri
         data={pageRecord}
         objectSchema={objectDef}
         dataSource={dataSource}
+        embedded={embedded}
       >
         <ActionProvider
           context={{ record: pageRecord || {}, objectName, user: currentUser }}

@@ -102,17 +102,41 @@ export function PageHeader({
     ...props
 }: PageHeaderProps) {
     const ctx = useRecordContext();
-    const resolvedTitle = interpolateTitle(title, ctx?.data) || title;
+    const titleHadPlaceholder =
+        typeof title === 'string' && /\{[a-zA-Z0-9_.]+\}/.test(title);
+    const interpolatedTitle = interpolateTitle(title, ctx?.data);
+    // When the original template references record fields (e.g.
+    // `{first_name} {last_name}`) and interpolation can't resolve any of
+    // them (no data, all blanks), do NOT fall back to the raw template —
+    // showing literal `{first_name}` to end-users is the worst outcome.
+    // Prefer an empty title; the host can supply a friendlier fallback by
+    // passing a non-templated `title` prop.
+    const resolvedTitle = interpolatedTitle
+        ? interpolatedTitle
+        : titleHadPlaceholder
+            ? ''
+            : title;
     // `subtitle` wins over `description` when both are present so spec schemas
     // (which use subtitle) override the legacy alias cleanly.
     const secondaryRaw = subtitle ?? description;
-    const resolvedSecondary = interpolateTitle(secondaryRaw, ctx?.data) || secondaryRaw;
+    const secondaryHadPlaceholder =
+        typeof secondaryRaw === 'string' && /\{[a-zA-Z0-9_.]+\}/.test(secondaryRaw);
+    const interpolatedSecondary = interpolateTitle(secondaryRaw, ctx?.data);
+    const resolvedSecondary = interpolatedSecondary
+        ? interpolatedSecondary
+        : secondaryHadPlaceholder
+            ? ''
+            : secondaryRaw;
 
     // Default-on for record pages (a recordId in scope is the cheapest tell
     // that the user navigated from a list view). The host can override with
-    // `showBack={false}` for embedded contexts (drawers, modals).
+    // `showBack={false}` for embedded contexts (drawers, modals). Embedded
+    // contexts also auto-suppress because the overlay chrome already
+    // provides Close / Expand controls — a duplicate back chevron there is
+    // confusing and points to the wrong "back".
     const isRecordPage = !!ctx?.recordId;
-    const shouldShowBack = showBack ?? isRecordPage;
+    const isEmbedded = !!ctx?.embedded;
+    const shouldShowBack = showBack ?? (isRecordPage && !isEmbedded);
     const handleBack = React.useCallback(() => {
         // Strip a trailing `/record/{id}` (or any one-segment leaf) to land
         // on the list view. If the URL doesn't match, fall back to browser
@@ -175,13 +199,15 @@ export function PageHeader({
                         <ArrowLeft className="size-4" />
                     </Button>
                 )}
-                {icon && (
+                {icon && (resolvedTitle || resolvedSecondary) && (
                     <div className="flex-shrink-0 grid place-items-center size-10 rounded-md bg-primary/10 text-primary">
                         {typeof icon === 'string' ? <LazyIcon name={icon} className="size-5" /> : icon}
                     </div>
                 )}
                 <div className="flex flex-col min-w-0 flex-1">
-                    <h1 className="text-2xl font-bold tracking-tight md:text-3xl truncate">{resolvedTitle}</h1>
+                    {resolvedTitle ? (
+                        <h1 className="text-2xl font-bold tracking-tight md:text-3xl truncate">{resolvedTitle}</h1>
+                    ) : null}
                     {resolvedSecondary && <p className="text-sm text-muted-foreground truncate">{resolvedSecondary}</p>}
                 </div>
                 {slot && <div className="flex items-center gap-2 ml-auto">{slot}</div>}

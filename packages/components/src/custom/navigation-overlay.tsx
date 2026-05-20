@@ -141,12 +141,20 @@ function resolveWidth(width: string | number | undefined): string | undefined {
 }
 
 /**
- * Compute CSS style from NavigationConfig width
+ * Compute CSS style from NavigationConfig width.
+ *
+ * Exposes the requested width as a `--ov-w` CSS variable rather than
+ * setting `maxWidth` directly. This lets the overlay's className apply the
+ * cap only above the `sm` breakpoint (`sm:max-w-[var(--ov-w)]`), so on
+ * mobile the drawer can occupy the full viewport — matching the Linear /
+ * Notion / Salesforce mobile peek pattern. Setting an inline maxWidth
+ * unconditionally caps the drawer at e.g. 70vw even on a 390px phone,
+ * leaving an unusable empty strip on the side.
  */
 function getWidthStyle(width: string | number | undefined): React.CSSProperties {
   const resolved = resolveWidth(width);
   if (!resolved) return {};
-  return { maxWidth: resolved, width: '100%' };
+  return { ['--ov-w' as any]: resolved };
 }
 
 /**
@@ -203,7 +211,14 @@ export const NavigationOverlay: React.FC<NavigationOverlayProps> = ({
       <Sheet open={isOpen} onOpenChange={setIsOpen}>
         <SheetContent
           side="right"
-          className={cn('w-full sm:max-w-2xl p-0 flex flex-col gap-0 overflow-hidden', className)}
+          className={cn(
+            // Mobile: full width (no inline cap, no max-w from base sheet).
+            // sm+: honor the host-supplied width via `--ov-w` CSS var with a
+            // sensible 2xl ceiling so very wide configs don't dwarf the
+            // page. The host's className still wins on more specific tokens.
+            'w-screen max-w-none sm:w-full sm:max-w-[var(--ov-w,42rem)] p-0 flex flex-col gap-0 overflow-hidden',
+            className,
+          )}
           style={widthStyle}
         >
           {/* Expand-to-full-page button — sits to the left of Sheet's own
@@ -246,7 +261,10 @@ export const NavigationOverlay: React.FC<NavigationOverlayProps> = ({
     return (
       <Dialog open={isOpen} onOpenChange={setIsOpen}>
         <DialogContent
-          className={cn('max-w-2xl max-h-[90vh] overflow-y-auto', className)}
+          className={cn(
+            'w-[calc(100vw-1rem)] max-w-none sm:max-w-[var(--ov-w,42rem)] max-h-[90vh] overflow-y-auto',
+            className,
+          )}
           style={widthStyle}
         >
           {onExpand && (

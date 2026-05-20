@@ -1958,7 +1958,7 @@ export function ObjectView({ dataSource, objects, onEdit, externalRefreshKey }: 
                  title={objectDef.label}
                  onExpand={handleExpandDrawer}
                  expandLabel={t('console.objectView.expandToPage', { defaultValue: 'Open as full page' })}
-                 className={navOverlay.mode === 'drawer' ? 'w-[90vw] sm:max-w-3xl p-0 overflow-hidden' : undefined}
+                 className={navOverlay.mode === 'drawer' ? 'sm:max-w-3xl' : undefined}
              >
                  {(record: Record<string, unknown>) => {
                      const recordId = (record.id || record._id) as string;
