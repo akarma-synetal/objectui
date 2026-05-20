@@ -763,6 +763,12 @@ export const ListView = React.forwardRef<ListViewHandle, ListViewProps>(({
     (schema as any).options,
   ]);
 
+  // Permissions context — must be read before the data-fetch effect so
+  // the effect can FLS-gate the `$select` projection (preventing the
+  // server from returning denied fields). Also feeds the column-list
+  // gate further down the file.
+  const perms = usePermissions();
+
   // Fetch data effect — supports schema.data (ViewDataSchema) provider modes
   React.useEffect(() => {
     let isMounted = true;
@@ -855,12 +861,20 @@ export const ListView = React.forwardRef<ListViewHandle, ListViewProps>(({
         // Build a $select projection from the columns the listview actually
         // shows (plus required relational keys). This trims server payload
         // significantly for wide objects.
+        //
+        // FLS: also drop columns the current user cannot read. Sending a
+        // denied field in $select would leak the value at the server
+        // boundary even though the UI hides it — server-side trust must
+        // never be defeated by what the client requests.
         const selectFields = (() => {
-          const cols = Array.isArray(schema.fields)
+          const rawCols = Array.isArray(schema.fields)
             ? (schema.fields as any[])
                 .map(f => (typeof f === 'string' ? f : f?.field))
                 .filter((v): v is string => typeof v === 'string' && v.length > 0)
             : [];
+          const cols = (perms?.isLoaded && schema.objectName)
+            ? rawCols.filter(c => perms.checkField(schema.objectName!, c, 'read'))
+            : rawCols;
           if (cols.length === 0) return undefined;
           // Don't speculatively add `_id` / `name` — some backends reject
           // unknown select keys with an empty result set rather than
@@ -974,7 +988,7 @@ export const ListView = React.forwardRef<ListViewHandle, ListViewProps>(({
     fetchData();
     
     return () => { isMounted = false; };
-  }, [schema.objectName, schema.data, dataSource, schema.filters, effectivePageSize, currentSort, currentFilters, activeQuickFilters, normalizedQuickFilters, userFilterConditions, refreshKey, searchTerm, schema.searchableFields, expandFields, objectDefLoaded, schema.refreshTrigger]); // Re-fetch on filter/sort/search/refreshTrigger change
+  }, [schema.objectName, schema.data, dataSource, schema.filters, effectivePageSize, currentSort, currentFilters, activeQuickFilters, normalizedQuickFilters, userFilterConditions, refreshKey, searchTerm, schema.searchableFields, expandFields, objectDefLoaded, schema.refreshTrigger, perms]); // Re-fetch on filter/sort/search/refreshTrigger/perms change
 
   // Available view types based on schema configuration
   const availableViews = React.useMemo(() => {
@@ -1073,8 +1087,8 @@ export const ListView = React.forwardRef<ListViewHandle, ListViewProps>(({
   // Field-level permission gate. Filter unreadable columns from the
   // field list BEFORE any downstream column construction so they also
   // disappear from the hide-fields popover, filter/sort builders, and
-  // grid `$select`.
-  const perms = usePermissions();
+  // grid `$select`. (`perms` was hoisted to before the data-fetch
+  // effect so $select can be gated server-side too.)
   // Apply hiddenFields and fieldOrder to produce effective fields
   const effectiveFields = React.useMemo(() => {
     let fields = schema.fields || [];
