@@ -28,12 +28,26 @@ const lookupNameCache: Map<string, LookupCacheEntry> = new Map();
  */
 function pickRecordDisplayName(record: Record<string, unknown> | null | undefined): string | undefined {
   if (!record || typeof record !== 'object') return undefined;
-  const candidates = ['name', 'full_name', 'display_name', 'label', 'title', 'subject', 'username', 'email'];
+  const candidates = ['name', 'full_name', 'display_name', 'label', 'title', 'subject', 'username'];
   for (const k of candidates) {
     const v = record[k];
     if (typeof v === 'string' && v.trim()) return v.trim();
     if (typeof v === 'number') return String(v);
   }
+  // Salesforce-style: build a composite name from common person-record
+  // fields when no top-level display field is present. Preferred over the
+  // raw `email` fallback below so `Bob Lin` beats `bob.lin@acme.com`.
+  const first = record['first_name'];
+  const last = record['last_name'];
+  const salutation = record['salutation'];
+  const composite = [salutation, first, last]
+    .filter((p) => typeof p === 'string' && (p as string).trim())
+    .map((p) => (p as string).trim())
+    .join(' ');
+  if (composite) return composite;
+  // Email is the last-resort identifier (better than the opaque id).
+  const email = record['email'];
+  if (typeof email === 'string' && email.trim()) return email.trim();
   return undefined;
 }
 

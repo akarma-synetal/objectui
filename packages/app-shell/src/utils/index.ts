@@ -81,14 +81,22 @@ export function formatRecordTitle(titleFormat: string | { source?: string } | un
       if (value == null) break;
       value = (value as any)[p];
     }
-    // Auto-extract display name from expanded reference objects.
+    // Auto-extract display name from expanded reference objects, with a
+    // Salesforce-style fallback chain.
     if (value && typeof value === 'object') {
-      value =
-        (value as any).name ??
-        (value as any).label ??
-        (value as any).display_name ??
-        (value as any).title ??
-        null;
+      const o = value as any;
+      let display: any =
+        o.name ?? o.full_name ?? o.display_name ?? o.label ?? o.title ?? o.subject ?? null;
+      if (display == null || (typeof display === 'string' && !display.trim())) {
+        const composite = [o.salutation, o.first_name, o.last_name]
+          .filter((p: any) => typeof p === 'string' && p.trim())
+          .map((p: string) => p.trim())
+          .join(' ');
+        if (composite) display = composite;
+        else if (typeof o.email === 'string' && o.email.trim()) display = o.email.trim();
+        else display = null;
+      }
+      value = display;
     }
     if (value === null || value === undefined || value === '') {
       return EMPTY_TOKEN;

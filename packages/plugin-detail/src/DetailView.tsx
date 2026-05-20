@@ -92,9 +92,22 @@ function resolveDisplayTitle(
           v = (v as any)[p];
         }
         // When the resolved value is an expanded reference object (no
-        // sub-key was requested) fall back to its display name.
+        // sub-key was requested) fall back to its display name. Tries the
+        // Salesforce-style fallback chain: standard display fields →
+        // `salutation first_name last_name` composite → email.
         if (v && typeof v === 'object') {
-          v = (v as any).name ?? (v as any).label ?? (v as any).display_name ?? (v as any).title ?? null;
+          const o = v as any;
+          let display = o.name ?? o.full_name ?? o.display_name ?? o.label ?? o.title ?? o.subject ?? null;
+          if (display == null || (typeof display === 'string' && !display.trim())) {
+            const composite = [o.salutation, o.first_name, o.last_name]
+              .filter((p: any) => typeof p === 'string' && p.trim())
+              .map((p: string) => p.trim())
+              .join(' ');
+            if (composite) display = composite;
+            else if (typeof o.email === 'string' && o.email.trim()) display = o.email.trim();
+            else display = null;
+          }
+          v = display;
         }
         if (v !== null && v !== undefined && v !== '') {
           any = true;

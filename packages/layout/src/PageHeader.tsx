@@ -49,6 +49,21 @@ export interface PageHeaderProps extends React.HTMLAttributes<HTMLDivElement> {
  * collapsed so partial misses don't leave gaping holes in the header.
  * If no `{` is present, the template is returned as-is.
  */
+// Extract a human display name from an expanded lookup-target object.
+// Salesforce-style fallback chain: standard display fields → composite
+// `salutation first_name last_name` → email.
+const pickExpandedDisplayName = (v: any): string | null => {
+    const direct = v?.name ?? v?.full_name ?? v?.display_name ?? v?.label ?? v?.title ?? v?.subject;
+    if (direct != null && String(direct).trim()) return String(direct);
+    const composite = [v?.salutation, v?.first_name, v?.last_name]
+        .filter((p) => typeof p === 'string' && p.trim())
+        .map((p: string) => p.trim())
+        .join(' ');
+    if (composite) return composite;
+    if (typeof v?.email === 'string' && v.email.trim()) return v.email.trim();
+    return null;
+};
+
 const interpolateTitle = (template: string | undefined, data: unknown): string => {
     if (!template || typeof template !== 'string') return template ?? '';
     if (!template.includes('{')) return template;
@@ -57,11 +72,9 @@ const interpolateTitle = (template: string | undefined, data: unknown): string =
             .split('.')
             .reduce<any>((acc, seg) => (acc == null ? acc : acc[seg]), data);
         if (v == null) return '';
-        // When a lookup field was $expanded, the value is an object like
-        // { id, name, ... } — render the display name instead of [object Object].
         if (typeof v === 'object') {
-            const display = (v as any).name ?? (v as any).label ?? (v as any).display_name ?? (v as any).title;
-            return display == null ? '' : String(display);
+            const display = pickExpandedDisplayName(v);
+            return display == null ? '' : display;
         }
         return String(v);
     });
