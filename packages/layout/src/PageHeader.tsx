@@ -1,11 +1,30 @@
 import React from 'react';
-import { cn } from '@object-ui/components';
-import { useRecordContext } from '@object-ui/react';
+import { cn, LazyIcon } from '@object-ui/components';
+import { useRecordContext, SchemaRenderer } from '@object-ui/react';
 
 export interface PageHeaderProps extends React.HTMLAttributes<HTMLDivElement> {
     title: string;
+    /**
+     * Optional secondary line under the title. Spec schemas use `subtitle`,
+     * the legacy console pages use `description` — both are supported and
+     * resolve {field.path} tokens against the current record context.
+     */
+    subtitle?: string;
     description?: string;
+    /**
+     * Optional icon for the header chip. Accepts either a string Lucide icon
+     * name (resolved via `LazyIcon`, the standard ObjectUI helper) or a
+     * pre-rendered React node.
+     */
+    icon?: React.ReactNode | string;
     action?: React.ReactNode;
+    /**
+     * When rendered from a schema, `SchemaRenderer` injects the full schema
+     * node so we can render its `children` into the right-aligned action
+     * slot (Salesforce Lightning-style header). React children passed at
+     * the JSX call site take precedence over schema children.
+     */
+    schema?: { children?: unknown[] };
 }
 
 /**
@@ -28,32 +47,48 @@ const interpolateTitle = (template: string | undefined, data: unknown): string =
 
 export function PageHeader({
     title,
+    subtitle,
     description,
+    icon,
     action,
+    schema,
     className,
     children,
     ...props
 }: PageHeaderProps) {
     const ctx = useRecordContext();
     const resolvedTitle = interpolateTitle(title, ctx?.data) || title;
-    const resolvedDescription = interpolateTitle(description, ctx?.data) || description;
+    // `subtitle` wins over `description` when both are present so spec schemas
+    // (which use subtitle) override the legacy alias cleanly.
+    const secondaryRaw = subtitle ?? description;
+    const resolvedSecondary = interpolateTitle(secondaryRaw, ctx?.data) || secondaryRaw;
+
+    // Render schema-declared children into the action slot. `SchemaRenderer`
+    // strips `children` from the React tree (treats them as metadata), so
+    // we re-introduce them here for components like `record:quick_actions`
+    // nested under `page:header.children`.
+    const schemaChildren = Array.isArray(schema?.children)
+        ? (schema!.children as any[])
+              .filter(Boolean)
+              .map((child, idx) => (
+                  <SchemaRenderer key={(child?.id as string) || `pgh-child-${idx}`} schema={child} />
+              ))
+        : null;
+    const slot = action || children || schemaChildren;
+
     return (
-        <div className={cn("flex flex-col gap-4 pb-4 md:pb-8", className)} {...props}>
-            {/* Title + primary action sit together (left-aligned). Pushing the
-                action to the far right of the viewport on wide screens
-                disconnects it from the title context. The flex-wrap allows
-                the action to drop to a second row on narrow viewports. */}
-            <div className="flex flex-wrap items-end gap-x-4 gap-y-2">
-                <div className="flex flex-col gap-1 min-w-0">
-                    <h1 className="text-2xl font-bold tracking-tight md:text-3xl truncate">{resolvedTitle}</h1>
-                    {resolvedDescription && <p className="text-sm text-muted-foreground">{resolvedDescription}</p>}
-                </div>
-                {(action || children) && (
-                    <div className="flex items-center gap-2 ml-auto sm:ml-0">
-                        {action}
-                        {children}
+        <div className={cn('flex flex-col gap-3 pb-4 border-b', className)} {...props}>
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+                {icon && (
+                    <div className="flex-shrink-0 grid place-items-center size-10 rounded-md bg-primary/10 text-primary">
+                        {typeof icon === 'string' ? <LazyIcon name={icon} className="size-5" /> : icon}
                     </div>
                 )}
+                <div className="flex flex-col min-w-0 flex-1">
+                    <h1 className="text-2xl font-bold tracking-tight md:text-3xl truncate">{resolvedTitle}</h1>
+                    {resolvedSecondary && <p className="text-sm text-muted-foreground truncate">{resolvedSecondary}</p>}
+                </div>
+                {slot && <div className="flex items-center gap-2 ml-auto">{slot}</div>}
             </div>
         </div>
     );

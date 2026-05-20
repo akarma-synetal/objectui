@@ -98,9 +98,28 @@ export const RecordDetailsRenderer: React.FC<RecordDetailsRendererProps> = ({
     });
   };
 
-  const filteredFields = filterList(schema.fields as any[]);
+  // Normalise field entries to the DetailViewField shape that DetailSection
+  // expects. Schemas authored against `@objectstack/spec` declare fields as
+  // bare strings (`fields: ['first_name', ...]`), but DetailSection reads
+  // `field.name` / `field.label`, so we must coerce string → object form
+  // before handing the schema to DetailView. Object entries pass through.
+  const normaliseField = (entry: any): any => {
+    if (typeof entry === 'string') return { name: entry };
+    if (entry && typeof entry === 'object' && !entry.name && entry.field) {
+      return { ...entry, name: entry.field };
+    }
+    return entry;
+  };
+  const normaliseList = (list: any[] | undefined): any[] | undefined =>
+    Array.isArray(list) ? list.map(normaliseField) : list;
+
+  const filteredFields = normaliseList(filterList(schema.fields as any[]));
   const filteredSections = Array.isArray(schema.sections)
-    ? (schema.sections as any[]).map((s) => ({ ...s, fields: filterList(s.fields) }))
+    ? (schema.sections as any[]).map((s) => ({
+        ...s,
+        title: s.title ?? s.label,
+        fields: normaliseList(filterList(s.fields)),
+      }))
     : schema.sections;
 
   const synthesized: any = {
