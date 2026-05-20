@@ -17,6 +17,7 @@ import { RecordHighlightsRenderer } from './renderers/record-highlights';
 import { RecordActivityRenderer } from './renderers/record-activity';
 import { RecordChatterRenderer } from './renderers/record-chatter';
 import { RecordPathRenderer } from './renderers/record-path';
+import { RecordQuickActionsRenderer } from './renderers/record-quick-actions';
 import type { DetailViewSchema } from '@object-ui/types';
 
 export { DetailView, DetailSection, DetailTabs, RelatedList };
@@ -27,6 +28,7 @@ export {
   RecordActivityRenderer,
   RecordChatterRenderer,
   RecordPathRenderer,
+  RecordQuickActionsRenderer,
 };
 export { RecordDetailDrawer, deriveRecordPageHref } from './RecordDetailDrawer';
 export type { RecordDetailDrawerProps } from './RecordDetailDrawer';
@@ -215,4 +217,11 @@ ComponentRegistry.register('record:path', RecordPathRenderer, {
   category: 'record',
   label: 'Path / Stepper',
   icon: 'GitBranch',
+});
+
+ComponentRegistry.register('record:quick_actions', RecordQuickActionsRenderer, {
+  namespace: 'record',
+  category: 'record',
+  label: 'Quick Actions',
+  icon: 'Zap',
 });

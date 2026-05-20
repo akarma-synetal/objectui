@@ -87,6 +87,15 @@ export function InboxPopover({
     navigate(app ? `/apps/${app}/system/approvals` : '/apps/setup/system/approvals');
   };
 
+  const goToAllNotifications = () => {
+    setOpen(false);
+    // Always route through the setup app's sys_notification list view —
+    // it's the canonical full-page inbox and lives outside per-app sidebars.
+    // The `?view=mine` query selects the "Mine" tab so the user sees their
+    // own notifications by default (matching the popover scope).
+    navigate('/apps/setup/sys_notification?view=mine');
+  };
+
   const handleNotificationClick = (n: InboxNotification) => {
     onMarkRead(n.id);
     if (n.source_object && n.source_id) {
@@ -191,6 +200,18 @@ export function InboxPopover({
                 ))}
               </ul>
             )}
+            {/* Footer link to dedicated /sys_notification list. The popover
+                only shows the 20 most-recent rows; users need a path to the
+                full inbox for bulk operations and older history. */}
+            <div className="border-t px-3 py-2 text-center">
+              <button
+                type="button"
+                onClick={goToAllNotifications}
+                className="text-xs text-primary hover:underline"
+              >
+                {t('notifications.viewAll', { defaultValue: 'View all notifications' })}
+              </button>
+            </div>
           </TabsContent>
 
           <TabsContent value="approvals" className="m-0 max-h-80 overflow-auto">

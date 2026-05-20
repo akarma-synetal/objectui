@@ -1385,6 +1385,7 @@ const zh = {
   notifications: {
     empty: '暂无通知',
     markAllRead: '全部标记为已读',
+    viewAll: '查看全部通知',
     approvalsPending: '{{count}} 条待审批',
     viewApprovals: '查看审批',
     noPendingApprovals: '暂无待审批事项',

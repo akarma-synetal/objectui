@@ -1385,6 +1385,7 @@ const en = {
   notifications: {
     empty: 'No notifications',
     markAllRead: 'Mark all read',
+    viewAll: 'View all notifications',
     approvalsPending: '{{count}} pending approvals',
     viewApprovals: 'View approvals',
     noPendingApprovals: 'No pending approvals',
