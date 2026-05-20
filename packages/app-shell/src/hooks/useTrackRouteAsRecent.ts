@@ -1,0 +1,116 @@
+/**
+ * useTrackRouteAsRecent
+ *
+ * Watches `pathname` and records the current entity (object / dashboard /
+ * page / report) into `RecentItemsProvider`. Encapsulates the URL parsing
+ * logic that previously lived inline in `AppContent.tsx` so it can be reused
+ * by other shells and tested in isolation.
+ *
+ * The hook understands the standard console URL layout:
+ *
+ *   /apps/:appName/:objectName
+ *   /apps/:appName/dashboard/:id
+ *   /apps/:appName/page/:id
+ *   /apps/:appName/report/:id
+ *
+ * Pass `objects` (the list available in the current app) so we can resolve
+ * a human-readable label for object routes.
+ *
+ * @module
+ */
+import { useEffect } from 'react';
+import { useRecentItems } from '../context/RecentItemsProvider';
+
+interface ObjectLike {
+  name: string;
+  label?: string;
+}
+
+export interface UseTrackRouteAsRecentOptions {
+  /** Active route path. Usually `useLocation().pathname`. */
+  pathname: string;
+  /** Currently selected app name. Used to build the `href` and namespace. */
+  appName: string | undefined;
+  /** Objects available in the current app — used to resolve labels. */
+  objects?: ObjectLike[];
+  /** Optional override; defaults to `/apps`. */
+  basePathSegment?: string;
+  /** When `true`, the effect is suspended (e.g. when shell is hydrating). */
+  disabled?: boolean;
+}
+
+/** Segments after `appName` that are NOT object names but route prefixes. */
+const ROUTE_PREFIXES = new Set(['view', 'record', 'page', 'dashboard', 'design', 'report']);
+
+function titleize(slug: string): string {
+  return slug.replace(/[-_]/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+}
+
+export function useTrackRouteAsRecent({
+  pathname,
+  appName,
+  objects = [],
+  basePathSegment = 'apps',
+  disabled = false,
+}: UseTrackRouteAsRecentOptions): void {
+  const { addRecentItem } = useRecentItems();
+
+  useEffect(() => {
+    if (disabled || !appName) return;
+
+    const parts = pathname.split('/').filter(Boolean);
+    // Expect: [basePathSegment, appName, ...rest]
+    if (parts[0] !== basePathSegment || parts[1] !== appName) return;
+
+    const seg2 = parts[2];
+    const seg3 = parts[3];
+    const basePath = `/${basePathSegment}/${appName}`;
+
+    if (seg2 && !ROUTE_PREFIXES.has(seg2)) {
+      const obj = objects.find(o => o.name === seg2);
+      if (obj) {
+        addRecentItem({
+          id: `object:${obj.name}`,
+          label: obj.label || obj.name,
+          href: `${basePath}/${obj.name}`,
+          type: 'object',
+        });
+      }
+      return;
+    }
+
+    if (!seg3) return;
+
+    switch (seg2) {
+      case 'dashboard':
+        addRecentItem({
+          id: `dashboard:${seg3}`,
+          label: titleize(seg3),
+          href: `${basePath}/dashboard/${seg3}`,
+          type: 'dashboard',
+        });
+        break;
+      case 'page':
+        addRecentItem({
+          id: `page:${seg3}`,
+          label: titleize(seg3),
+          href: `${basePath}/page/${seg3}`,
+          type: 'page',
+        });
+        break;
+      case 'report':
+        addRecentItem({
+          id: `report:${seg3}`,
+          label: titleize(seg3),
+          href: `${basePath}/report/${seg3}`,
+          type: 'report',
+        });
+        break;
+      default:
+        break;
+    }
+    // `addRecentItem` is stable per provider; depending on it would re-run
+    // unnecessarily if a parent re-renders. Pathname is the real driver.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pathname, appName, basePathSegment, disabled, objects]);
+}

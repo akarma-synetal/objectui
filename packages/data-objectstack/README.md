@@ -272,6 +272,46 @@ await dataSource.bulk('users', 'delete', [
 - Provides partial success reporting for resilient error handling
 - Atomic operations where supported by the backend
 
+## User-Scoped State Adapter
+
+In addition to the main `DataSource` adapter, this package ships
+`createObjectStackUserStateAdapter` — a small factory that lets Object UI
+persist per-user UI state (favorites, recent items) into ObjectStack.
+
+```typescript
+import { createObjectStackUserStateAdapter } from '@object-ui/data-objectstack';
+import { useAttachUserStateAdapters } from '@object-ui/app-shell';
+
+const favoritesAdapter = createObjectStackUserStateAdapter({
+  dataSource,        // the ObjectStack DataSource
+  userId: user.id,
+  kind: 'favorites', // or 'recent'
+  // resource: 'user_app_state',  // default
+  // onError: (op, err) => console.warn(`[user-state] ${op} failed`, err),
+});
+
+attach('favorites', favoritesAdapter);
+```
+
+### Backend contract
+
+A single object stores one row per `(user_id, kind)` pair:
+
+```yaml
+object: user_app_state
+fields:
+  - { name: user_id,    type: string,   indexed: true }
+  - { name: kind,       type: string,   indexed: true }
+  - { name: payload,    type: json }
+  - { name: updated_at, type: datetime }
+unique: [user_id, kind]
+```
+
+If the object doesn't exist, every call 404s and the UI silently degrades to
+localStorage-only persistence. See
+[User-Scoped State Persistence](../../content/docs/guide/user-state-persistence.md)
+for the full design.
+
 ## API Reference
 
 ### ObjectStackAdapter

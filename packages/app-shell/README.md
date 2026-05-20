@@ -229,6 +229,27 @@ via the action runner, regardless of the object's `editMode`:
 See [`content/docs/guide/record-edit-modes.md`](../../content/docs/guide/record-edit-modes.md)
 for a longer walkthrough.
 
+## User-scoped state (favorites, recent items)
+
+`<ConsoleShell>` includes `FavoritesProvider` and `RecentItemsProvider` —
+shared, user-scoped state for pinned apps and recently visited entities.
+
+Both providers are **localStorage-first**: instant first paint, no flash of
+empty UI. If a `UserDataAdapter` is attached via `UserStateAdaptersProvider`,
+they additionally hydrate from and write through to a backend (debounced).
+The official ObjectStack adapter lives in `@object-ui/data-objectstack`
+(`createObjectStackUserStateAdapter`).
+
+```tsx
+import { useFavorites, useRecentItems } from '@object-ui/app-shell';
+
+const { favorites, toggleFavorite, isFavorite } = useFavorites();
+const { recentItems, addRecentItem } = useRecentItems();
+```
+
+See [User-Scoped State Persistence](../../content/docs/guide/user-state-persistence.md)
+for the adapter contract, backend schema, and how to plug in your own backend.
+
 <!-- release-metadata:v3.3.0 -->
 
 ## Compatibility

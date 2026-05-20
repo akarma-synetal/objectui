@@ -20,7 +20,7 @@ import { useAuth } from '@object-ui/auth';
 import { useMetadata } from '../providers/MetadataProvider';
 import { useAdapter } from '../providers/AdapterProvider';
 import { ExpressionProvider, evaluateVisibility } from '../providers/ExpressionProvider';
-import { useRecentItems } from '../hooks/useRecentItems';
+import { useTrackRouteAsRecent } from '../hooks/useTrackRouteAsRecent';
 import { resolveRecordFormTarget, resolveNavigateCreateUrl, resolveNavigateEditUrl } from '../utils/recordFormNavigation';
 import { ExpressionEvaluator } from '@object-ui/core';
 
@@ -106,7 +106,6 @@ export function AppContent({ extraRoutes, extraRoutesNoApp }: AppContentProps = 
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingRecord, setEditingRecord] = useState<any>(null);
   const [refreshKey, setRefreshKey] = useState(0);
-  const { addRecentItem } = useRecentItems();
 
   const { execute: executeAction, runner } = useActionRunner();
 
@@ -225,47 +224,11 @@ export function AppContent({ extraRoutes, extraRoutesNoApp }: AppContentProps = 
   }, [executeAction]);
 
   // Track recent items on route change.
-  useEffect(() => {
-    if (!activeApp) return;
-    const parts = location.pathname.split('/').filter(Boolean);
-    let objName = parts[2];
-    if (objName === 'view' || objName === 'record' || objName === 'page' || objName === 'dashboard' || objName === 'design') {
-      objName = '';
-    }
-    const basePath = `/apps/${activeApp.name}`;
-    if (objName) {
-      const obj = allObjects.find((o: any) => o.name === objName);
-      if (obj) {
-        addRecentItem({
-          id: `object:${obj.name}`,
-          label: obj.label || obj.name,
-          href: `${basePath}/${obj.name}`,
-          type: 'object',
-        });
-      }
-    } else if (parts[2] === 'dashboard' && parts[3]) {
-      addRecentItem({
-        id: `dashboard:${parts[3]}`,
-        label: parts[3].replace(/[-_]/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase()),
-        href: `${basePath}/dashboard/${parts[3]}`,
-        type: 'dashboard',
-      });
-    } else if (parts[2] === 'page' && parts[3]) {
-      addRecentItem({
-        id: `page:${parts[3]}`,
-        label: parts[3].replace(/[-_]/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase()),
-        href: `${basePath}/page/${parts[3]}`,
-        type: 'page',
-      });
-    } else if (parts[2] === 'report' && parts[3]) {
-      addRecentItem({
-        id: `report:${parts[3]}`,
-        label: parts[3].replace(/[-_]/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase()),
-        href: `${basePath}/report/${parts[3]}`,
-        type: 'report',
-      });
-    }
-  }, [location.pathname, addRecentItem]); // eslint-disable-line react-hooks/exhaustive-deps
+  useTrackRouteAsRecent({
+    pathname: location.pathname,
+    appName: activeApp?.name,
+    objects: allObjects,
+  });
 
   const handleEdit = (record: any) => {
     // Page-mode opt-in: when the object metadata declares

@@ -19,6 +19,7 @@
     "record-edit-modes",
     "console",
     "console-architecture",
+    "user-state-persistence",
     "objectos-integration",
     "troubleshooting",
     "ci-cd-pipeline",
