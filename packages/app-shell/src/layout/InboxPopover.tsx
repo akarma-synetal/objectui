@@ -96,6 +96,14 @@ export function InboxPopover({
     navigate('/apps/setup/sys_notification?view=mine');
   };
 
+  const goToAllActivity = () => {
+    setOpen(false);
+    // Mirror of goToAllNotifications: drill from the popover Activity tab
+    // (capped at 20 rows) into the full sys_activity list page. Org-wide
+    // scope — no `?view=` qualifier — to match what the popover already shows.
+    navigate('/apps/setup/sys_activity');
+  };
+
   const handleNotificationClick = (n: InboxNotification) => {
     onMarkRead(n.id);
     if (n.source_object && n.source_id) {
@@ -268,6 +276,19 @@ export function InboxPopover({
                 ))}
               </ul>
             )}
+            {/* Footer link to dedicated /sys_activity list. Symmetric with
+                the Notifications tab footer — the popover caps at 20 rows;
+                users need a path to the full activity stream. Rendered even
+                in the empty state so users can still browse historical data. */}
+            <div className="border-t px-3 py-2 text-center">
+              <button
+                type="button"
+                onClick={goToAllActivity}
+                className="text-xs text-primary hover:underline"
+              >
+                {t('layout.activityFeed.viewAll', { defaultValue: 'View all activity' })}
+              </button>
+            </div>
           </TabsContent>
         </Tabs>
       </PopoverContent>

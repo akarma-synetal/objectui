@@ -1240,6 +1240,7 @@ const zh = {
       title: '最近动态',
       filter: '筛选',
       empty: '暂无最近动态',
+      viewAll: '查看全部动态',
       ariaLabel: '动态消息',
       typeCreate: '创建',
       typeUpdate: '更新',

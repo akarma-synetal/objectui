@@ -1240,6 +1240,7 @@ const en = {
       title: 'Recent Activity',
       filter: 'Filter',
       empty: 'No recent activity',
+      viewAll: 'View all activity',
       ariaLabel: 'Activity feed',
       typeCreate: 'Create',
       typeUpdate: 'Update',
