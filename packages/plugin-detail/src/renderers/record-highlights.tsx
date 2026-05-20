@@ -61,15 +61,24 @@ export const RecordHighlightsRenderer: React.FC<RecordHighlightsRendererProps> =
     }
   }
 
-  const names: string[] = Array.isArray(schema.fields) ? schema.fields : [];
+  const rawFields: any[] = Array.isArray(schema.fields) ? schema.fields : [];
+  // Normalize: spec accepts either bare strings or { name, label?, icon?, type? }
+  const normalized = rawFields.map((f) =>
+    typeof f === 'string' ? { name: f } : { name: f?.name, label: f?.label, icon: f?.icon, type: f?.type },
+  ).filter((f) => typeof f.name === 'string' && f.name.length > 0);
+
   const enforceFLS = (schema as any).enforceFieldSecurity === true;
   const redact: string[] = Array.isArray((schema as any).redactFields)
     ? (schema as any).redactFields
     : [];
-  const visibleNames = enforceFLS && objectName
-    ? readableFields(names).filter((n) => !redact.includes(n))
-    : names.filter((n) => !redact.includes(n));
-  const highlightFields = visibleNames.map((name) => ({ name }));
+  const allowedNames = enforceFLS && objectName
+    ? new Set(readableFields(normalized.map((f) => f.name)))
+    : null;
+  const highlightFields = normalized.filter((f) => {
+    if (redact.includes(f.name)) return false;
+    if (allowedNames && !allowedNames.has(f.name)) return false;
+    return true;
+  });
 
   return (
     <div className={className} {...designer}>

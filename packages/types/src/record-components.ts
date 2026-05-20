@@ -64,8 +64,8 @@ export interface RecordDetailsComponentProps {
  * Aligned with @objectstack/spec RecordHighlightsProps.
  */
 export interface RecordHighlightsComponentProps {
-  /** Fields to display as highlights */
-  fields: string[];
+  /** Fields to display as highlights — bare names or {name,label?,icon?,type?} for inline overrides */
+  fields: Array<string | { name: string; label?: string; icon?: string; type?: string }>;
   /** Layout mode for highlights display */
   layout?: 'horizontal' | 'vertical' | 'grid';
   /** ARIA accessibility attributes */
