@@ -6,7 +6,7 @@
  * LICENSE file in the root directory of this source tree.
  */
 
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import type { BulkActionDef } from '@object-ui/types';
 
 export interface BulkRowError {
@@ -28,6 +28,17 @@ export interface BulkResult {
   errors: BulkRowError[];
 }
 
+/**
+ * Per-row snapshot of pre-mutation field values, captured so an `update`
+ * batch can be reversed. Captures only the keys the patch touched (we cannot
+ * faithfully undo a `delete` without a soft-delete provider, so the executor
+ * skips snapshotting for non-update operations).
+ */
+export interface BulkSnapshotEntry {
+  id: string;
+  prev: Record<string, unknown>;
+}
+
 export interface BulkExecutorOptions {
   /** ObjectQL resource name (e.g. 'account'). */
   resource: string;
@@ -47,6 +58,10 @@ export interface BulkExecutorOptions {
  * configurable batches, calling `dataSource.update`/`delete` per record. Uses
  * Promise.allSettled so a single failure never aborts the run.
  *
+ * In addition to running, the hook also exposes:
+ *   - `undo()`   — replay the prior values captured during the last update run
+ *   - `retry(id)`— re-attempt a single failed row using the last run's params
+ *
  * Why per-record and not the dataSource.bulk() batch endpoint:
  * - We want per-record success/failure granularity for the result drawer.
  * - The existing `dataSource.bulk()` throws on partial failure, which would
@@ -62,10 +77,21 @@ export function useBulkExecutor({ resource, dataSource }: BulkExecutorOptions) {
     inFlight: false,
   });
   const [result, setResult] = useState<BulkResult | null>(null);
+  // Captured pre-mutation state for the most recent successful update run.
+  // We intentionally keep this in a ref so it survives re-renders without
+  // forcing the dialog to re-mount its result UI.
+  const snapshotRef = useRef<BulkSnapshotEntry[]>([]);
+  const lastRunRef = useRef<{
+    def: BulkActionDef;
+    rows: Array<Record<string, unknown>>;
+    params: Record<string, unknown>;
+  } | null>(null);
 
   const reset = useCallback(() => {
     setProgress({ total: 0, done: 0, failed: 0, inFlight: false });
     setResult(null);
+    snapshotRef.current = [];
+    lastRunRef.current = null;
   }, []);
 
   const run = useCallback(
@@ -83,12 +109,27 @@ export function useBulkExecutor({ resource, dataSource }: BulkExecutorOptions) {
       setResult(null);
       setProgress({ total, done: 0, failed: 0, inFlight: true });
 
-      // Merge declared static patch + user-supplied params for the update op.
-      // params overrides patch so callers can let users tweak defaults.
       const buildPatch = (): Record<string, unknown> => ({
         ...(def.patch ?? {}),
         ...params,
       });
+
+      // Capture pre-mutation values for keys touched by the patch — only
+      // for `update` operations. `delete` is irreversible from the client,
+      // and `custom` actions don't necessarily mutate the record itself.
+      const snapshot: BulkSnapshotEntry[] = [];
+      if (def.operation === 'update') {
+        const patchKeys = Object.keys(buildPatch());
+        for (const row of rows) {
+          const id = String(row.id ?? '');
+          if (!id) continue;
+          const prev: Record<string, unknown> = {};
+          for (const k of patchKeys) {
+            prev[k] = (row as Record<string, unknown>)[k];
+          }
+          snapshot.push({ id, prev });
+        }
+      }
 
       for (let i = 0; i < rows.length; i += batchSize) {
         const batch = rows.slice(i, i + batchSize);
@@ -127,6 +168,11 @@ export function useBulkExecutor({ resource, dataSource }: BulkExecutorOptions) {
       }
 
       const finalResult: BulkResult = { total, succeeded, failed, errors };
+      // Only retain the snapshot for rows that actually succeeded — there's
+      // no point trying to "undo" a row whose mutation never landed.
+      const failedIds = new Set(errors.map(e => e.id));
+      snapshotRef.current = snapshot.filter(s => !failedIds.has(s.id));
+      lastRunRef.current = { def, rows, params };
       setProgress({ total, done: succeeded, failed, inFlight: false });
       setResult(finalResult);
       return finalResult;
@@ -134,5 +180,89 @@ export function useBulkExecutor({ resource, dataSource }: BulkExecutorOptions) {
     [resource, dataSource],
   );
 
-  return { run, progress, result, reset };
+  /**
+   * Reverse the most recent `update` run by replaying each captured snapshot
+   * back through `dataSource.update`. No-op (returns null) when the last run
+   * was a delete/custom operation or when no successful rows were recorded.
+   */
+  const undo = useCallback(async (): Promise<BulkResult | null> => {
+    const snapshot = snapshotRef.current;
+    if (!snapshot.length) return null;
+    const total = snapshot.length;
+    const errors: BulkRowError[] = [];
+    let succeeded = 0;
+    let failed = 0;
+
+    setResult(null);
+    setProgress({ total, done: 0, failed: 0, inFlight: true });
+
+    const settled = await Promise.allSettled(
+      snapshot.map(entry => dataSource.update(resource, entry.id, entry.prev)),
+    );
+    settled.forEach((res, idx) => {
+      if (res.status === 'fulfilled') succeeded += 1;
+      else {
+        failed += 1;
+        errors.push({
+          id: snapshot[idx].id,
+          error: res.reason instanceof Error ? res.reason.message : String(res.reason),
+        });
+      }
+    });
+
+    const undoResult: BulkResult = { total, succeeded, failed, errors };
+    // Clear the snapshot — undoing twice would re-apply the old values
+    // against rows that have already been reverted, which is rarely useful
+    // and easy to do by accident from a sticky toast.
+    snapshotRef.current = [];
+    setProgress({ total, done: succeeded, failed, inFlight: false });
+    setResult(undoResult);
+    return undoResult;
+  }, [resource, dataSource]);
+
+  /**
+   * Re-attempt a single previously-failed row using the same operation +
+   * params as the original run. Returns true on success.
+   */
+  const retry = useCallback(
+    async (rowId: string): Promise<boolean> => {
+      const last = lastRunRef.current;
+      if (!last) return false;
+      const row = last.rows.find(r => String(r.id ?? '') === rowId);
+      if (!row) return false;
+      const patch = { ...(last.def.patch ?? {}), ...last.params };
+      try {
+        switch (last.def.operation) {
+          case 'delete':
+            await dataSource.delete(resource, rowId);
+            break;
+          case 'update':
+            await dataSource.update(resource, rowId, patch);
+            break;
+          case 'custom':
+            return true;
+          default:
+            return false;
+        }
+        // Drop this row from the result's errors list — caller updates the
+        // outer result so the UI reflects the new state.
+        setResult(prev => {
+          if (!prev) return prev;
+          const errors = prev.errors.filter(e => e.id !== rowId);
+          return {
+            ...prev,
+            errors,
+            succeeded: prev.succeeded + 1,
+            failed: Math.max(0, prev.failed - 1),
+          };
+        });
+        return true;
+      } catch {
+        return false;
+      }
+    },
+    [resource, dataSource],
+  );
+
+  return { run, undo, retry, progress, result, reset };
 }

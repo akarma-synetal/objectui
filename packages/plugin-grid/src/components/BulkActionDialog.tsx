@@ -87,13 +87,19 @@ export const BulkActionDialog: React.FC<BulkActionDialogProps> = ({
   const [step, setStep] = useState<Step>('params');
   const [values, setValues] = useState<Record<string, unknown>>(initialParamValues);
   const [lookupCache, setLookupCache] = useState<Record<string, LookupOption[]>>({});
-  const { run, progress, result, reset } = useBulkExecutor({ resource, dataSource });
+  const { run, undo, retry, progress, result, reset } = useBulkExecutor({ resource, dataSource });
+  const [retrying, setRetrying] = useState<string | null>(null);
+  const [undoing, setUndoing] = useState(false);
+  const [undoneAt, setUndoneAt] = useState<number | null>(null);
 
   // Reset internal state whenever the dialog re-opens for a different action.
   useEffect(() => {
     if (!open) return;
     reset();
     setValues(initialParamValues);
+    setUndoneAt(null);
+    setUndoing(false);
+    setRetrying(null);
     // Skip params step when nothing to collect.
     setStep(params.length === 0 ? 'confirm' : 'params');
   }, [open, def?.name, initialParamValues, params.length, reset]);
@@ -162,6 +168,40 @@ export const BulkActionDialog: React.FC<BulkActionDialogProps> = ({
     a.click();
     URL.revokeObjectURL(url);
   }, [result, def?.name]);
+
+  // Undo is only meaningful for `update` runs where at least one row landed.
+  // For delete / custom we never captured a snapshot, so the executor will
+  // refuse the undo — but we hide the button up-front to avoid dead UI.
+  const canUndo =
+    !!def
+    && def.operation === 'update'
+    && !!result
+    && result.succeeded > 0
+    && undoneAt === null;
+
+  const handleUndo = useCallback(async () => {
+    setUndoing(true);
+    try {
+      const undoResult = await undo();
+      if (undoResult) {
+        setUndoneAt(Date.now());
+      }
+    } finally {
+      setUndoing(false);
+    }
+  }, [undo]);
+
+  const handleRetry = useCallback(
+    async (rowId: string) => {
+      setRetrying(rowId);
+      try {
+        await retry(rowId);
+      } finally {
+        setRetrying(null);
+      }
+    },
+    [retry],
+  );
 
   if (!def) return null;
 
@@ -252,25 +292,41 @@ export const BulkActionDialog: React.FC<BulkActionDialogProps> = ({
                 <AlertTriangle className="h-5 w-5 text-amber-500" />
               )}
               <span>
+                {undoneAt !== null ? 'Undone — ' : ''}
                 Succeeded {result.succeeded} / {result.total}
                 {result.failed > 0 && ` · Failed ${result.failed}`}
               </span>
             </div>
             {result.errors.length > 0 && (
               <>
-                <ScrollArea className="max-h-32 rounded border bg-destructive/5 p-2">
-                  <ul className="text-xs space-y-1">
-                    {result.errors.slice(0, 8).map(e => (
-                      <li key={e.id} className="flex gap-2">
+                <ScrollArea className="max-h-48 rounded border bg-destructive/5 p-2" data-testid="bulk-error-inspector">
+                  <ul className="text-xs space-y-1.5">
+                    {result.errors.map(e => (
+                      <li
+                        key={e.id}
+                        className="flex items-start gap-2"
+                        data-testid={`bulk-error-row-${e.id}`}
+                      >
                         <XCircle className="h-3 w-3 mt-0.5 shrink-0 text-destructive" />
-                        <span className="truncate">
-                          <span className="text-muted-foreground">{e.id}:</span> {e.error}
-                        </span>
+                        <div className="min-w-0 flex-1">
+                          <div className="truncate">
+                            <span className="text-muted-foreground">{e.id}:</span> {e.error}
+                          </div>
+                        </div>
+                        {def.operation !== 'custom' && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-5 px-1.5 text-[10px]"
+                            onClick={() => handleRetry(e.id)}
+                            disabled={retrying === e.id}
+                            data-testid={`bulk-error-retry-${e.id}`}
+                          >
+                            {retrying === e.id ? '…' : 'Retry'}
+                          </Button>
+                        )}
                       </li>
                     ))}
-                    {result.errors.length > 8 && (
-                      <li className="text-muted-foreground">… and {result.errors.length - 8} more</li>
-                    )}
                   </ul>
                 </ScrollArea>
                 <Button variant="outline" size="sm" onClick={downloadErrors}>
@@ -308,7 +364,19 @@ export const BulkActionDialog: React.FC<BulkActionDialogProps> = ({
             </Button>
           )}
           {step === 'result' && (
-            <Button onClick={() => onClose(result)}>Done</Button>
+            <>
+              {canUndo && (
+                <Button
+                  variant="outline"
+                  onClick={handleUndo}
+                  disabled={undoing}
+                  data-testid="bulk-undo-button"
+                >
+                  {undoing ? 'Undoing…' : 'Undo'}
+                </Button>
+              )}
+              <Button onClick={() => onClose(result)}>Done</Button>
+            </>
           )}
         </DialogFooter>
       </DialogContent>
