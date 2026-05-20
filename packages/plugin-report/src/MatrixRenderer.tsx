@@ -26,6 +26,7 @@ import * as React from 'react';
 import { useTranslation } from 'react-i18next';
 import type { ActionRunner } from '@object-ui/core';
 import { useSafeFieldLabel } from '@object-ui/i18n';
+import { cn } from '@object-ui/components';
 import type {
   SpecReport,
   SpecReportColumn,
@@ -238,7 +239,14 @@ export const MatrixRenderer: React.FC<MatrixRendererProps> = ({
 
   if (error) {
     return (
-      <div className={className} role="alert" data-testid="matrix-error">
+      <div
+        className={cn(
+          'rounded-md border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive',
+          className,
+        )}
+        role="alert"
+        data-testid="matrix-error"
+      >
         {t('report.failedToLoad', 'Failed to load matrix: {{message}}', { message: error.message })}
       </div>
     );
@@ -246,7 +254,14 @@ export const MatrixRenderer: React.FC<MatrixRendererProps> = ({
 
   if (!pivot) {
     return (
-      <div className={className} aria-busy={loading || undefined} data-testid="matrix-empty">
+      <div
+        className={cn(
+          'rounded-md border border-dashed border-border bg-muted/30 px-4 py-6 text-center text-sm text-muted-foreground',
+          className,
+        )}
+        aria-busy={loading || undefined}
+        data-testid="matrix-empty"
+      >
         {loading
           ? t('report.loading', 'Loading…')
           : t('report.needsAcross', 'Matrix report requires at least one `groupingsAcross` field.')}
@@ -262,28 +277,59 @@ export const MatrixRenderer: React.FC<MatrixRendererProps> = ({
     acrossGroupings.map((g) => metaByField.get(g.field)?.fieldLabel ?? g.field).join(' / ') ||
     t('report.columnsLabel', 'Column');
 
+  // Heatmap intensity is computed against the dominant (first) measure column's
+  // body-cell values only — totals/grand-totals are excluded so they don't
+  // collapse the colour scale.
+  const heatKey = columns.length > 0 ? columnKey(columns[0]) : null;
+  let heatMax = 0;
+  if (heatKey) {
+    for (const rh of pivot.rowHeaders) {
+      for (const ch of pivot.colHeaders) {
+        const v = pivot.cells[rh.id]?.[ch.id]?.[heatKey];
+        if (typeof v === 'number' && v > heatMax) heatMax = v;
+      }
+    }
+  }
+  const heatFor = (values: Record<string, unknown> | undefined): number => {
+    if (!heatKey || heatMax <= 0 || !values) return 0;
+    const v = values[heatKey];
+    if (typeof v !== 'number' || v <= 0) return 0;
+    return Math.min(1, v / heatMax);
+  };
+
   return (
     <div
-      className={className}
+      className={cn(
+        'overflow-auto rounded-lg border border-border bg-card shadow-sm',
+        className,
+      )}
       data-testid="matrix-renderer"
       aria-busy={loading || undefined}
-      style={{ overflow: 'auto' }}
     >
       <table
         role="table"
-        style={{ borderCollapse: 'collapse', minWidth: '100%', fontSize: 13 }}
+        className="w-full border-separate border-spacing-0 text-sm"
       >
         <thead>
           <tr>
             <th
               scope="col"
-              style={cellStyle({ header: true, bold: true })}
+              className={cn(
+                'sticky left-0 top-0 z-30 border-b border-r border-border bg-muted/60',
+                'px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground',
+              )}
               aria-label={`${rowLabel} \u2192 ${colLabel}`}
             >
-              {rowLabel} \ {colLabel}
+              <span className="text-muted-foreground/70">{rowLabel}</span>
+              <span className="mx-1 text-muted-foreground/40">\</span>
+              <span className="text-foreground/80">{colLabel}</span>
             </th>
             {pivot.colHeaders.map((ch) => (
-              <th key={`col-${ch.id}`} scope="col" style={cellStyle({ header: true })}>
+              <th
+                key={`col-${ch.id}`}
+                scope="col"
+                className="sticky top-0 z-20 whitespace-nowrap border-b border-border bg-muted/60 px-3 py-2 text-right text-xs font-semibold text-foreground"
+              >
                 <HeaderLabel
                   header={ch}
                   groupings={acrossGroupings}
@@ -293,15 +339,25 @@ export const MatrixRenderer: React.FC<MatrixRendererProps> = ({
                 />
               </th>
             ))}
-            <th scope="col" style={cellStyle({ header: true, total: true })}>
+            <th
+              scope="col"
+              className="sticky top-0 z-20 whitespace-nowrap border-b border-l border-border bg-muted px-3 py-2 text-right text-xs font-semibold uppercase tracking-wide text-foreground"
+            >
               {t('report.rowTotal', 'Row Total')}
             </th>
           </tr>
         </thead>
         <tbody>
-          {pivot.rowHeaders.map((rh) => (
-            <tr key={`row-${rh.id}`}>
-              <th scope="row" style={cellStyle({ header: true })}>
+          {pivot.rowHeaders.map((rh, rowIdx) => (
+            <tr key={`row-${rh.id}`} className="group">
+              <th
+                scope="row"
+                className={cn(
+                  'sticky left-0 z-10 whitespace-nowrap border-b border-r border-border bg-card px-3 py-2 text-left text-sm font-medium text-foreground',
+                  'group-hover:bg-muted/50',
+                  rowIdx === 0 && 'border-t-0',
+                )}
+              >
                 <HeaderLabel
                   header={rh}
                   groupings={downGroupings}
@@ -313,13 +369,24 @@ export const MatrixRenderer: React.FC<MatrixRendererProps> = ({
               {pivot.colHeaders.map((ch) => {
                 const cellValues = pivot.cells[rh.id]?.[ch.id];
                 const isEmpty = !cellValues;
+                const intensity = heatFor(cellValues);
                 return (
                   <td
                     key={`cell-${rh.id}-${ch.id}`}
-                    style={cellStyle({
-                      interactive: cellInteractive && !isEmpty,
-                      empty: isEmpty,
-                    })}
+                    className={cn(
+                      'border-b border-border px-3 py-2 text-right tabular-nums transition-colors',
+                      isEmpty
+                        ? 'text-muted-foreground/40'
+                        : 'text-foreground',
+                      cellInteractive && !isEmpty &&
+                        'cursor-pointer hover:outline hover:outline-2 hover:-outline-offset-2 hover:outline-primary/50',
+                      'group-hover:bg-muted/30',
+                    )}
+                    style={
+                      intensity > 0
+                        ? { backgroundColor: `rgba(59, 130, 246, ${0.06 + intensity * 0.28})` }
+                        : undefined
+                    }
                     onClick={
                       cellInteractive && !isEmpty
                         ? () => handleCellClick(rh, ch, cellValues)
@@ -334,7 +401,12 @@ export const MatrixRenderer: React.FC<MatrixRendererProps> = ({
                   </td>
                 );
               })}
-              <td style={cellStyle({ total: true })}>
+              <td
+                className={cn(
+                  'border-b border-l border-border bg-muted/40 px-3 py-2 text-right text-sm font-semibold tabular-nums text-foreground',
+                  'group-hover:bg-muted/60',
+                )}
+              >
                 {renderCellValues(columns, pivot.rowTotals[rh.id] ?? {}, showMultipleValuesPerCell, columnLabels)}
               </td>
             </tr>
@@ -342,15 +414,21 @@ export const MatrixRenderer: React.FC<MatrixRendererProps> = ({
         </tbody>
         <tfoot>
           <tr>
-            <th scope="row" style={cellStyle({ header: true, total: true })}>
+            <th
+              scope="row"
+              className="sticky left-0 z-10 whitespace-nowrap border-t-2 border-r border-border bg-muted px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-foreground"
+            >
               {t('report.columnTotal', 'Column Total')}
             </th>
             {pivot.colHeaders.map((ch) => (
-              <td key={`coltotal-${ch.id}`} style={cellStyle({ total: true })}>
+              <td
+                key={`coltotal-${ch.id}`}
+                className="border-t-2 border-border bg-muted/40 px-3 py-2 text-right text-sm font-semibold tabular-nums text-foreground"
+              >
                 {renderCellValues(columns, pivot.colTotals[ch.id] ?? {}, showMultipleValuesPerCell, columnLabels)}
               </td>
             ))}
-            <td style={cellStyle({ total: true, grand: true })}>
+            <td className="border-l border-t-2 border-border bg-primary/10 px-3 py-2 text-right text-sm font-bold tabular-nums text-foreground">
               {renderCellValues(columns, pivot.grandTotal, showMultipleValuesPerCell, columnLabels)}
             </td>
           </tr>
@@ -371,45 +449,17 @@ function renderCellValues(
     return formatCellValue(values[columnKey(columns[0])]);
   }
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+    <div className="flex flex-col gap-0.5">
       {columns.map((col) => {
         const key = columnKey(col);
         const label = columnLabels?.get(key) ?? col.label ?? key;
         return (
-          <div key={key} style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
-            <span style={{ color: 'var(--color-muted-foreground, #71717a)' }}>{label}</span>
-            <span>{formatCellValue(values[key])}</span>
+          <div key={key} className="flex items-baseline justify-between gap-2">
+            <span className="text-xs text-muted-foreground">{label}</span>
+            <span className="tabular-nums">{formatCellValue(values[key])}</span>
           </div>
         );
       })}
     </div>
   );
-}
-
-function cellStyle(opts: {
-  header?: boolean;
-  total?: boolean;
-  grand?: boolean;
-  bold?: boolean;
-  interactive?: boolean;
-  empty?: boolean;
-}): React.CSSProperties {
-  return {
-    border: '1px solid var(--color-border, #e4e4e7)',
-    padding: '6px 10px',
-    textAlign: opts.header ? 'left' : 'right',
-    fontWeight: opts.bold || opts.grand ? 700 : opts.header || opts.total ? 600 : 400,
-    background: opts.grand
-      ? 'var(--color-muted, #f4f4f5)'
-      : opts.total
-      ? 'var(--color-muted, #fafafa)'
-      : opts.header
-      ? 'var(--color-muted, #f9fafb)'
-      : opts.empty
-      ? 'transparent'
-      : 'var(--color-background, #ffffff)',
-    color: opts.empty ? 'var(--color-muted-foreground, #a1a1aa)' : undefined,
-    cursor: opts.interactive ? 'pointer' : undefined,
-    whiteSpace: 'nowrap',
-  };
 }

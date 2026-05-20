@@ -103,6 +103,26 @@ const formatTabCount = (v: number | string): string => {
   return String(n);
 };
 
+/**
+ * Walk a tab's children (depth-first) and return the first
+ * `record:related_list` schema node found. Used to auto-derive a count
+ * for the tab badge when the spec author didn't supply one explicitly.
+ */
+const findFirstRelatedList = (nodes: any): any | null => {
+  if (!nodes) return null;
+  const list = Array.isArray(nodes) ? nodes : [nodes];
+  for (const n of list) {
+    if (!n || typeof n !== 'object') continue;
+    if (n.type === 'record:related_list' || n.type === 'record_related_list') return n;
+    const inner = n.children ?? n.properties?.children ?? n.body ?? n.items;
+    if (inner) {
+      const found = findFirstRelatedList(inner);
+      if (found) return found;
+    }
+  }
+  return null;
+};
+
 const PageTabsRenderer: React.FC<any> = ({ schema, className, ...props }) => {
   const { designer } = splitDesignerProps(props);
   const items: PageTabsItem[] = schema?.items || [];
@@ -112,12 +132,80 @@ const PageTabsRenderer: React.FC<any> = ({ schema, className, ...props }) => {
   const position: 'top' | 'left' = schema?.position || 'top';
   const isVertical = position === 'left';
 
+  // Auto-derive tab counts from any `record:related_list` descendant of
+  // each tab. The fetch is a `limit:1` find so we only consume the `total`
+  // — cheap relative to the eventual list render the user gets when they
+  // open the tab. Spec authors that pass `count` explicitly win.
+  const ctx = useRecordContext();
+  const parentId = ctx?.data?.id;
+  const ds: any = ctx?.dataSource;
+  const [derivedCounts, setDerivedCounts] = React.useState<Record<number, number>>({});
+
+  // Snapshot which tabs (index → derived (objectName, relationshipField))
+  // need a count probe. Cached per items reference so we don't re-walk on
+  // every render.
+  const probeTargets = React.useMemo(() => {
+    const out: Array<{ idx: number; objectName: string; relationshipField?: string }> = [];
+    items.forEach((it, idx) => {
+      if (it.count !== undefined && it.count !== null && it.count !== '') return;
+      const rl = findFirstRelatedList((it as any).children);
+      if (!rl) return;
+      const objectName: string | undefined = rl?.properties?.objectName || rl?.objectName;
+      if (!objectName) return;
+      const relationshipField: string | undefined =
+        rl?.properties?.relationshipField || rl?.relationshipField;
+      out.push({ idx, objectName, relationshipField });
+    });
+    return out;
+  }, [items]);
+
+  React.useEffect(() => {
+    if (!ds || typeof ds.find !== 'function') return;
+    if (!probeTargets.length) return;
+    let cancelled = false;
+    for (const probe of probeTargets) {
+      // Probe with a tiny page; backends that honour OData `$count` populate
+      // `result.total`. If the related field requires a parent id and we
+      // don't have one yet, skip (record context not loaded yet).
+      const where: any = {};
+      if (probe.relationshipField) {
+        if (!parentId) continue;
+        where[probe.relationshipField] = parentId;
+      }
+      Promise.resolve(ds.find(probe.objectName, { where, limit: 1 }))
+        .then((res: any) => {
+          if (cancelled) return;
+          const total =
+            typeof res?.total === 'number'
+              ? res.total
+              : Array.isArray(res?.data)
+                ? res.data.length
+                : Array.isArray(res)
+                  ? res.length
+                  : undefined;
+          if (typeof total === 'number') {
+            setDerivedCounts((prev) => (prev[probe.idx] === total ? prev : { ...prev, [probe.idx]: total }));
+          }
+        })
+        .catch(() => {
+          // Best-effort: a failed count just means the badge won't render.
+        });
+    }
+    return () => {
+      cancelled = true;
+    };
+  }, [ds, probeTargets, parentId]);
+
   // PageTabsProps doesn't carry a value, synthesize one from the index so
   // Radix Tabs (which requires stable values) is happy.
   const itemsWithValue = items.map((it, idx) => ({
     ...it,
     value: `tab-${idx}`,
     labelStr: labelText(it.label),
+    // Explicit spec count wins; otherwise fall back to the derived probe.
+    count: it.count !== undefined && it.count !== null && it.count !== ''
+      ? it.count
+      : derivedCounts[idx],
   }));
 
   const defaultValue = itemsWithValue[0]?.value;
