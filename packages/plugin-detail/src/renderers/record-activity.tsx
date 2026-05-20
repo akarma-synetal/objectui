@@ -33,7 +33,7 @@ export const RecordActivityRenderer: React.FC<RecordActivityRendererProps> = ({
   className,
   ...props
 }) => {
-  const ctx = useRecordContext();
+  useRecordContext();
   const { designer } = splitDesigner(props);
 
   return (
@@ -41,8 +41,6 @@ export const RecordActivityRenderer: React.FC<RecordActivityRendererProps> = ({
       <RecordActivityTimeline
         items={[] as any}
         config={schema as any}
-        objectName={ctx?.objectName as any}
-        recordId={ctx?.recordId as any}
       />
     </div>
   );

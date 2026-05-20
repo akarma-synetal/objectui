@@ -66,7 +66,7 @@ export const RecordDetailsRenderer: React.FC<RecordDetailsRendererProps> = ({
 
   return (
     <div className={className} {...designer}>
-      <DetailView schema={synthesized} dataSource={ctx.dataSource} />
+      <DetailView schema={synthesized} dataSource={ctx.dataSource as any} />
     </div>
   );
 };

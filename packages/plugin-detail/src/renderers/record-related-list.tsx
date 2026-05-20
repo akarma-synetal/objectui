@@ -58,7 +58,7 @@ export const RecordRelatedListRenderer: React.FC<RecordRelatedListRendererProps>
         referenceField={schema.relationshipField}
         columns={schema.columns as any}
         pageSize={schema.limit}
-        dataSource={ctx?.dataSource}
+        dataSource={ctx?.dataSource as any}
       />
     </div>
   );

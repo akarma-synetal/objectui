@@ -135,9 +135,24 @@ export const SchemaRenderer = forwardRef<any, { schema: SchemaNode } & Record<st
     const newSchema = { ...schema };
 
     // COMPAT: Hoist 'properties' up to schema level
-    // This allows support for strict configs that wrap all props in 'properties'
+    // This allows support for strict configs that wrap all props in 'properties'.
+    // IMPORTANT: never let inner `properties.type` / `properties.id` shadow the
+    // outer component descriptor — those identify which renderer to dispatch to
+    // (e.g. 'page:tabs'), whereas inner `type` may be a renderer-specific prop
+    // (e.g. tab visual style: 'line' | 'card' | 'pill'). Keep `properties`
+    // intact on the schema so renderers can still read these collision-prone
+    // keys via `schema.properties.<key>`.
     if (newSchema.properties) {
-        Object.assign(newSchema, newSchema.properties);
+        const outerType = newSchema.type;
+        const outerId = newSchema.id;
+        const props = newSchema.properties;
+        for (const [k, v] of Object.entries(props)) {
+            if (k === 'type' || k === 'id') continue;
+            newSchema[k] = v;
+        }
+        if (outerType !== undefined) newSchema.type = outerType;
+        if (outerId !== undefined) newSchema.id = outerId;
+        newSchema.properties = props;
     }
 
     // Evaluate 'content' (common in Text, Button)

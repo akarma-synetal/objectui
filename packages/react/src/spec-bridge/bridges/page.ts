@@ -77,7 +77,16 @@ function mapComponent(component: PageComponent): SchemaNode {
   if (component.label) node.label = component.label;
   if (component.className) node.className = component.className;
   if (component.properties) {
-    Object.assign(node, component.properties);
+    // Avoid overwriting the component dispatch keys (`type`/`id`) with inner
+    // renderer-specific props. E.g. PageTabsProps.properties.type is the tab
+    // visual style ('line'|'card'|'pill'), NOT the component type.
+    for (const [k, v] of Object.entries(component.properties)) {
+      if (k === 'type' || k === 'id') continue;
+      (node as any)[k] = v;
+    }
+    // Preserve the original `properties` bag so renderers can still read
+    // collision-prone keys via `schema.properties.<key>`.
+    (node as any).properties = component.properties;
   }
   if (component.events) node.events = component.events;
   if (component.visibility) node.visibility = component.visibility;

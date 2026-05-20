@@ -354,11 +354,28 @@ const SimpleObjectForm: React.FC<ObjectFormProps> = ({
     }
   }, [schema.objectName, schema.recordId, schema.mode, schema.initialValues, schema.initialData, dataSource, objectSchema, hasInlineFields]);
 
+  // Normalize a single FormField: if it carries a string `visibleOn`
+  // (spec FormFieldSchema CEL expression — see packages/spec FormFieldSchema),
+  // convert it to a reactive `visible(formData)` predicate so plugin-form
+  // variants honor live field-level visibility. Mirrors the schema-derived
+  // `field.visible_on` branch below.
+  const normalizeVisibility = useCallback((f: any): any => {
+    if (!f || typeof f.visible === 'function') return f;
+    const expr = f.visibleOn;
+    if (typeof expr === 'string' && expr.trim()) {
+      return {
+        ...f,
+        visible: (formData: any) => evaluateCondition(expr, formData),
+      };
+    }
+    return f;
+  }, []);
+
   // Generate form fields from object schema or inline fields
   useEffect(() => {
     // For inline fields, use them directly
     if (hasInlineFields && schema.customFields) {
-      setFormFields(schema.customFields);
+      setFormFields(schema.customFields.map(normalizeVisibility));
       setLoading(false);
       return;
     }
@@ -392,7 +409,7 @@ const SimpleObjectForm: React.FC<ObjectFormProps> = ({
       const customField = schema.customFields?.find(f => f.name === name);
       
       if (customField) {
-        generatedFields.push(customField);
+        generatedFields.push(normalizeVisibility(customField));
       } else if (field) {
         // Auto-generate field from schema
         const formField: FormField = {

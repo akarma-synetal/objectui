@@ -11,6 +11,7 @@ import { App } from './App';
 import { I18nProvider } from '@object-ui/i18n';
 import { MobileProvider } from '@object-ui/mobile';
 import { ComponentRegistry } from '@object-ui/core';
+import { registerPlaceholders } from '@object-ui/components';
 import { loadLanguage } from './loadLanguage';
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -117,6 +118,12 @@ for (const variant of ['report-viewer', 'report-builder', 'spec-report']) {
 
 // Register console-specific schema widgets (object detail page sections)
 import './components/schema/registerObjectDetailWidgets';
+
+// Register placeholder fallbacks for any protocol-defined component types
+// that don't yet have a real renderer (e.g. ai:chat_window). Must run AFTER
+// all real plugin registrations above so it only fills the gaps and never
+// shadows a registered renderer.
+registerPlaceholders();
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>

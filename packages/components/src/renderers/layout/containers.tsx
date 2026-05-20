@@ -76,7 +76,9 @@ interface PageTabsItem {
 const PageTabsRenderer: React.FC<any> = ({ schema, className, ...props }) => {
   const { designer, rest } = splitDesignerProps(props);
   const items: PageTabsItem[] = schema?.items || [];
-  const type: 'line' | 'card' | 'pill' = schema?.type || 'line';
+  // Tab visual style lives at `properties.type` ('line'|'card'|'pill') — the
+  // outer `schema.type` is always 'page:tabs' (the component dispatch key).
+  const type: 'line' | 'card' | 'pill' = schema?.properties?.type || schema?.tabStyle || 'line';
   const position: 'top' | 'left' = schema?.position || 'top';
   const isVertical = position === 'left';
 

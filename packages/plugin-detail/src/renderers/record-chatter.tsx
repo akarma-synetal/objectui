@@ -30,7 +30,7 @@ export const RecordChatterRenderer: React.FC<RecordChatterRendererProps> = ({
   className,
   ...props
 }) => {
-  const ctx = useRecordContext();
+  useRecordContext();
   const { designer } = splitDesigner(props);
 
   return (
@@ -38,8 +38,6 @@ export const RecordChatterRenderer: React.FC<RecordChatterRendererProps> = ({
       <RecordChatterPanel
         items={[] as any}
         config={schema as any}
-        objectName={ctx?.objectName as any}
-        recordId={ctx?.recordId as any}
       />
     </div>
   );
