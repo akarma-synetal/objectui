@@ -47,6 +47,17 @@ const FALLBACK_USER = { id: 'current-user', name: 'Demo User' };
  */
 const AUDIT_FIELD_NAMES = new Set(['created_at', 'created_by', 'updated_at', 'updated_by']);
 
+/**
+ * System/tenant fields that the framework auto-injects on every record but
+ * which carry no business value on a detail page. Hidden from the
+ * auto-generated section (when the object has no explicit form sections).
+ * Authors who really want to show these can still list them in
+ * `objectDef.views.form.sections`.
+ */
+const HIDDEN_SYSTEM_FIELD_NAMES = new Set([
+  'organization_id', 'tenant_id', 'is_deleted', 'deleted_at',
+]);
+
 export function RecordDetailView({ dataSource, objects, onEdit }: RecordDetailViewProps) {
   const { appName, objectName, recordId } = useParams<{
     appName?: string;
@@ -712,7 +723,7 @@ export function RecordDetailView({ dataSource, objects, onEdit }: RecordDetailVi
             // redundant "Details" heading).
             showBorder: false as const,
             fields: Object.keys(objectDef.fields || {})
-              .filter(key => !AUDIT_FIELD_NAMES.has(key))
+              .filter(key => !AUDIT_FIELD_NAMES.has(key) && !HIDDEN_SYSTEM_FIELD_NAMES.has(key))
               .map(key => {
               const fieldDef = objectDef.fields[key];
               const refTarget = fieldDef.reference_to || fieldDef.reference;
