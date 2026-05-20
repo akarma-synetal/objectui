@@ -7,8 +7,15 @@
  */
 
 import * as React from 'react';
-import { cn, Button } from '@object-ui/components';
-import { icons, type LucideIcon } from 'lucide-react';
+import {
+  cn,
+  Button,
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+} from '@object-ui/components';
+import { icons, ChevronDown, type LucideIcon } from 'lucide-react';
 
 export interface ViewTab {
   name: string;
@@ -115,6 +122,83 @@ export const TabBar: React.FC<TabBarProps> = ({
           </Button>
         );
       })}
+    </div>
+  );
+};
+
+/**
+ * Mobile-friendly variant of TabBar: a single dropdown button showing the
+ * current view name + chevron. Tap → DropdownMenu listing every view.
+ *
+ * Pair with TabBar via `hidden sm:flex` / `sm:hidden` wrappers so phones get
+ * the compact dropdown and wider screens get the inline pill row.
+ */
+export const TabBarSelect: React.FC<TabBarProps> = ({
+  tabs,
+  activeTab: controlledActiveTab,
+  onTabChange,
+  className,
+}) => {
+  const visibleTabs = React.useMemo(() => getVisibleTabs(tabs), [tabs]);
+
+  const defaultTab = React.useMemo(() => {
+    const def = visibleTabs.find(t => t.isDefault);
+    return def?.name ?? visibleTabs[0]?.name;
+  }, [visibleTabs]);
+
+  const [internalActiveTab, setInternalActiveTab] = React.useState<string | undefined>(defaultTab);
+  const activeTabName = controlledActiveTab ?? internalActiveTab;
+
+  const activeTab = React.useMemo(
+    () => visibleTabs.find(t => t.name === activeTabName) ?? visibleTabs[0],
+    [visibleTabs, activeTabName],
+  );
+
+  const handlePick = React.useCallback(
+    (tab: ViewTab) => {
+      setInternalActiveTab(tab.name);
+      onTabChange?.(tab);
+    },
+    [onTabChange],
+  );
+
+  if (visibleTabs.length === 0) return null;
+
+  const ActiveIcon = resolveIcon(activeTab?.icon);
+
+  return (
+    <div className={cn('px-2 py-1', className)} data-testid="view-tabs-select">
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-7 px-2 text-xs font-medium text-foreground gap-1.5 max-w-[60vw] truncate"
+            aria-label="Switch view"
+          >
+            {ActiveIcon && <ActiveIcon className="h-3.5 w-3.5 shrink-0" />}
+            <span className="truncate">{activeTab?.label ?? ''}</span>
+            <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="start" className="w-56 max-h-72 overflow-y-auto">
+          {visibleTabs.map(tab => {
+            const TabIcon = resolveIcon(tab.icon);
+            const isActive = activeTabName === tab.name;
+            return (
+              <DropdownMenuItem
+                key={tab.name}
+                onClick={() => handlePick(tab)}
+                className={cn('text-sm', isActive && 'font-medium bg-muted')}
+                data-testid={`view-tab-select-${tab.name}`}
+              >
+                {TabIcon && <TabIcon className="h-3.5 w-3.5 mr-2 shrink-0" />}
+                <span className="truncate">{tab.label}</span>
+              </DropdownMenuItem>
+            );
+          })}
+        </DropdownMenuContent>
+      </DropdownMenu>
     </div>
   );
 };

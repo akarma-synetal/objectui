@@ -12,7 +12,7 @@ import type { SortItem } from '@object-ui/components';
 import { Search, SlidersHorizontal, ArrowUpDown, X, EyeOff, Group, Paintbrush, Ruler, Inbox, Download, AlignJustify, Rows4, Rows3, Rows2, Share2, Printer, Plus, Trash2, CheckSquare, icons, type LucideIcon } from 'lucide-react';
 import type { FilterGroup } from '@object-ui/components';
 import { ViewSwitcher, ViewType } from './ViewSwitcher';
-import { TabBar } from './components/TabBar';
+import { TabBar, TabBarSelect } from './components/TabBar';
 import type { ViewTab } from './components/TabBar';
 import { ViewSettingsPopover } from './components/ViewSettingsPopover';
 import { UserFilters } from './UserFilters';
@@ -1456,21 +1456,28 @@ export const ListView = React.forwardRef<ListViewHandle, ListViewProps>(({
           read as one segmented control rather than a loose bag of icons. */}
       <div className="border-b px-2 sm:px-4 py-1.5 flex items-center justify-between gap-1 sm:gap-2 bg-background">
         <div className="flex items-center gap-2 overflow-x-auto min-w-0">
-          {/* View Tabs — desktop only.
-              Real mobile CRMs (Salesforce, HubSpot, Notion) do not surface
-              view switchers on phones — they pick one sensible default
-              (usually list) and let alternative views live on tablet/desktop.
-              The chrome budget on a 390px viewport is better spent on the
-              content itself. */}
+          {/* View Tabs — split between desktop tab row and a mobile
+              dropdown so phones still get a view switcher (compact, one
+              button) without burning a full row on chip pills. */}
           {schema.tabs && schema.tabs.length > 0 && (
-            <div className="hidden sm:block shrink-0">
-              <TabBar
-                tabs={schema.tabs}
-                activeTab={activeTab}
-                onTabChange={handleTabChange}
-                className="!px-0 !py-0"
-              />
-            </div>
+            <>
+              <div className="hidden sm:block shrink-0">
+                <TabBar
+                  tabs={schema.tabs}
+                  activeTab={activeTab}
+                  onTabChange={handleTabChange}
+                  className="!px-0 !py-0"
+                />
+              </div>
+              <div className="sm:hidden shrink-0">
+                <TabBarSelect
+                  tabs={schema.tabs}
+                  activeTab={activeTab}
+                  onTabChange={handleTabChange}
+                  className="!px-0 !py-0"
+                />
+              </div>
+            </>
           )}
           {/* Vertical divider between tabs and user filters */}
           {schema.tabs && schema.tabs.length > 0 && resolvedUserFilters && (

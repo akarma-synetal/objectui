@@ -31,6 +31,7 @@ import {
   Avatar,
   AvatarImage,
   AvatarFallback,
+  cn,
 } from '@object-ui/components';
 import {
   Search,
@@ -431,10 +432,16 @@ export function AppHeader({
     <div className="flex items-center justify-between w-full h-full">
       {/* ── LEFT: Logo / App / Object path ── */}
       <div className="flex items-center min-w-0 flex-1">
-        {/* Platform logo — links to home */}
+        {/* Platform logo — links to home. Hidden on mobile when inside an
+            app: the sidebar (opened via the SidebarTrigger ☰) already
+            exposes the home affordance, so duplicating it in the topbar
+            just steals horizontal space from the page title. */}
         <Link
           to="/home"
-          className="flex items-center justify-center h-7 w-7 shrink-0 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
+          className={cn(
+            "flex items-center justify-center h-7 w-7 shrink-0 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-colors",
+            isApp && "hidden sm:flex"
+          )}
           title="ObjectStack"
         >
           <Boxes className="h-4 w-4" />
@@ -460,16 +467,20 @@ export function AppHeader({
             {/* Mobile sidebar trigger */}
             <SidebarTrigger className="md:hidden shrink-0 ml-1" aria-label={t('common.toggleSidebar') || 'Toggle sidebar'} />
 
-            {/* App dropdown */}
+            {/* App dropdown — desktop/tablet only. On mobile the sidebar
+                already shows the active app at its top, so a second app
+                pill in the topbar is pure noise. */}
             {activeAppName && onAppChange ? (
               <>
-                <PathSep />
-                <AppSwitcher activeAppName={activeAppName} onAppChange={onAppChange} />
+                <span className="hidden sm:flex items-center"><PathSep /></span>
+                <div className="hidden sm:flex items-center">
+                  <AppSwitcher activeAppName={activeAppName} onAppChange={onAppChange} />
+                </div>
               </>
             ) : appName ? (
               <>
-                <PathSep />
-                <span className="text-sm font-medium text-foreground/80 px-1.5">{appName}</span>
+                <span className="hidden sm:flex items-center"><PathSep /></span>
+                <span className="hidden sm:inline text-sm font-medium text-foreground/80 px-1.5">{appName}</span>
               </>
             ) : null}
 

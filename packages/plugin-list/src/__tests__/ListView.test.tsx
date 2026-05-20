@@ -1265,8 +1265,8 @@ describe('ListView', () => {
       expect(screen.getByTestId('view-tabs')).toBeInTheDocument();
       expect(screen.getByTestId('view-tab-all')).toBeInTheDocument();
       expect(screen.getByTestId('view-tab-active')).toBeInTheDocument();
-      expect(screen.getByText('All Records')).toBeInTheDocument();
-      expect(screen.getByText('Active')).toBeInTheDocument();
+      expect(screen.getAllByText('All Records').length).toBeGreaterThan(0);
+      expect(screen.getAllByText('Active').length).toBeGreaterThan(0);
     });
 
     it('should not render tabs when not configured', () => {
@@ -1295,7 +1295,7 @@ describe('ListView', () => {
 
       renderWithProvider(<ListView schema={schema} />);
       expect(screen.getByTestId('view-tabs')).toBeInTheDocument();
-      expect(screen.getByText('All Records')).toBeInTheDocument();
+      expect(screen.getAllByText('All Records').length).toBeGreaterThan(0);
       expect(screen.queryByText('Hidden Tab')).not.toBeInTheDocument();
     });
   });
