@@ -108,19 +108,33 @@ const formatTabCount = (v: number | string): string => {
  * `record:related_list` schema node found. Used to auto-derive a count
  * for the tab badge when the spec author didn't supply one explicitly.
  */
-const findFirstRelatedList = (nodes: any): any | null => {
-  if (!nodes) return null;
+/**
+ * Walk a tab's children (depth-first) and collect every `record:related_list`
+ * schema node. Used to auto-derive a count for the tab badge when the spec
+ * author didn't supply one explicitly. Multiple lists are summed (Salesforce
+ * "Related" tab convention).
+ */
+const collectRelatedLists = (nodes: any, acc: any[] = []): any[] => {
+  if (!nodes) return acc;
   const list = Array.isArray(nodes) ? nodes : [nodes];
   for (const n of list) {
     if (!n || typeof n !== 'object') continue;
-    if (n.type === 'record:related_list' || n.type === 'record_related_list') return n;
-    const inner = n.children ?? n.properties?.children ?? n.body ?? n.items;
-    if (inner) {
-      const found = findFirstRelatedList(inner);
-      if (found) return found;
+    if (n.type === 'record:related_list' || n.type === 'record_related_list') {
+      acc.push(n);
+      continue; // Don't descend into a related_list's own subtree.
+    }
+    const candidates = [
+      n.children,
+      n.properties?.children,
+      n.properties?.items,
+      n.body,
+      n.items,
+    ];
+    for (const c of candidates) {
+      if (c) collectRelatedLists(c, acc);
     }
   }
-  return null;
+  return acc;
 };
 
 const PageTabsRenderer: React.FC<any> = ({ schema, className, ...props }) => {
@@ -145,51 +159,57 @@ const PageTabsRenderer: React.FC<any> = ({ schema, className, ...props }) => {
   // need a count probe. Cached per items reference so we don't re-walk on
   // every render.
   const probeTargets = React.useMemo(() => {
-    const out: Array<{ idx: number; objectName: string; relationshipField?: string }> = [];
+    // Map tab index → array of probes (one per related_list inside the tab).
+    // The badge sums per-probe totals so a "Related" tab containing an
+    // accordion of multiple related lists still shows a meaningful number.
+    const out = new Map<number, Array<{ objectName: string; relationshipField?: string }>>();
     items.forEach((it, idx) => {
       if (it.count !== undefined && it.count !== null && it.count !== '') return;
-      const rl = findFirstRelatedList((it as any).children);
-      if (!rl) return;
-      const objectName: string | undefined = rl?.properties?.objectName || rl?.objectName;
-      if (!objectName) return;
-      const relationshipField: string | undefined =
-        rl?.properties?.relationshipField || rl?.relationshipField;
-      out.push({ idx, objectName, relationshipField });
+      const lists = collectRelatedLists((it as any).children);
+      const probes: Array<{ objectName: string; relationshipField?: string }> = [];
+      for (const rl of lists) {
+        const objectName: string | undefined = rl?.properties?.objectName || rl?.objectName;
+        if (!objectName) continue;
+        const relationshipField: string | undefined =
+          rl?.properties?.relationshipField || rl?.relationshipField;
+        probes.push({ objectName, relationshipField });
+      }
+      if (probes.length > 0) out.set(idx, probes);
     });
     return out;
   }, [items]);
 
   React.useEffect(() => {
     if (!ds || typeof ds.find !== 'function') return;
-    if (!probeTargets.length) return;
+    if (probeTargets.size === 0) return;
     let cancelled = false;
-    for (const probe of probeTargets) {
-      // Probe with a tiny page; backends that honour OData `$count` populate
-      // `result.total`. If the related field requires a parent id and we
-      // don't have one yet, skip (record context not loaded yet).
-      const where: any = {};
-      if (probe.relationshipField) {
-        if (!parentId) continue;
-        where[probe.relationshipField] = parentId;
-      }
-      Promise.resolve(ds.find(probe.objectName, { where, limit: 1 }))
-        .then((res: any) => {
-          if (cancelled) return;
-          const total =
-            typeof res?.total === 'number'
-              ? res.total
-              : Array.isArray(res?.data)
-                ? res.data.length
-                : Array.isArray(res)
-                  ? res.length
-                  : undefined;
-          if (typeof total === 'number') {
-            setDerivedCounts((prev) => (prev[probe.idx] === total ? prev : { ...prev, [probe.idx]: total }));
+    for (const [idx, probes] of probeTargets) {
+      Promise.all(
+        probes.map((probe) => {
+          const where: any = {};
+          if (probe.relationshipField) {
+            if (!parentId) return Promise.resolve(0);
+            where[probe.relationshipField] = parentId;
           }
-        })
-        .catch(() => {
-          // Best-effort: a failed count just means the badge won't render.
-        });
+          return Promise.resolve(ds.find(probe.objectName, { where, limit: 1 }))
+            .then((res: any) => {
+              const total =
+                typeof res?.total === 'number'
+                  ? res.total
+                  : Array.isArray(res?.data)
+                    ? res.data.length
+                    : Array.isArray(res)
+                      ? res.length
+                      : 0;
+              return typeof total === 'number' ? total : 0;
+            })
+            .catch(() => 0);
+        }),
+      ).then((counts) => {
+        if (cancelled) return;
+        const sum = counts.reduce((a, b) => a + b, 0);
+        setDerivedCounts((prev) => (prev[idx] === sum ? prev : { ...prev, [idx]: sum }));
+      });
     }
     return () => {
       cancelled = true;
