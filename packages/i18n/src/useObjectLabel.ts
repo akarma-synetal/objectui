@@ -17,6 +17,7 @@
  * @module useObjectLabel
  */
 
+import { useMemo } from 'react';
 import { useObjectTranslation } from './provider';
 
 /**
@@ -48,6 +49,12 @@ const BUILTIN_KEYS = new Set([
  */
 export function useObjectLabel() {
   const { t, i18n } = useObjectTranslation();
+
+  // Memoize the entire returned object — all closures below reference `t`/`i18n`
+  // and stay valid until the language changes. Returning a fresh object on every
+  // render was busting downstream `useMemo`/`useCallback` deps in heavy consumers
+  // like ListView.filterFields, causing avoidable recomputation.
+  return useMemo(() => {
 
   /**
    * Discover app namespace(s) from loaded i18next resources.
@@ -352,7 +359,25 @@ export function useObjectLabel() {
       return resolved || undefined;
     },
   };
+  }, [t, i18n]);
 }
+
+/**
+ * Stable identity fallbacks for `useSafeFieldLabel` — referenced from a
+ * module-level constant so consumers using the fallback branch don't get a
+ * fresh object reference on every render (which would invalidate downstream
+ * memoization in heavy components like ListView).
+ */
+const SAFE_FIELD_LABEL_FALLBACK = {
+  fieldLabel: (_objectName: string, _fieldName: string, fallback: string) => fallback,
+  translateOptions: (
+    _objectName: string,
+    _fieldName: string,
+    options: Array<{ value: string; label: string; [key: string]: any }>
+  ) => options,
+  fieldOptionLabel: (_objectName: string, _fieldName: string, _optionValue: string, fallback: string) => fallback,
+  sectionLabel: (_objectName: string, _sectionName: string, fallback: string) => fallback,
+};
 
 /**
  * Safe wrapper for useObjectLabel that falls back to identity functions
@@ -360,19 +385,14 @@ export function useObjectLabel() {
  * may be rendered outside an i18n context.
  */
 export function useSafeFieldLabel() {
+  let resolved: ReturnType<typeof useObjectLabel> | null = null;
   try {
-    const { fieldLabel, translateOptions, fieldOptionLabel, sectionLabel } = useObjectLabel();
-    return { fieldLabel, translateOptions, fieldOptionLabel, sectionLabel };
+    resolved = useObjectLabel();
   } catch {
-    return {
-      fieldLabel: (_objectName: string, _fieldName: string, fallback: string) => fallback,
-      translateOptions: (
-        _objectName: string,
-        _fieldName: string,
-        options: Array<{ value: string; label: string; [key: string]: any }>
-      ) => options,
-      fieldOptionLabel: (_objectName: string, _fieldName: string, _optionValue: string, fallback: string) => fallback,
-      sectionLabel: (_objectName: string, _sectionName: string, fallback: string) => fallback,
-    };
+    resolved = null;
   }
+  // useObjectLabel already returns a stable (memoized) object per language —
+  // pass-through avoids creating a fresh wrapper here. The module-level
+  // fallback object is reused when no provider is mounted.
+  return resolved ?? SAFE_FIELD_LABEL_FALLBACK;
 }

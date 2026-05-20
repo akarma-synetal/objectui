@@ -236,6 +236,22 @@ const LIST_DEFAULT_TRANSLATIONS: Record<string, string> = {
   'list.viewSettingsHint': 'Grouping, color, density, and visible fields.',
 };
 
+// Stable module-level fallback used when no I18nProvider is mounted.
+// Reusing the same function reference across renders keeps downstream
+// `useCallback`/`useMemo` deps stable (otherwise filterFields and tFieldLabel
+// would invalidate every render in the no-provider case).
+const FALLBACK_FIELD_LABEL = (_objectName: string, _fieldName: string, fallback: string) => fallback;
+
+const fallbackListT = (key: string, options?: Record<string, unknown>) => {
+  let value = LIST_DEFAULT_TRANSLATIONS[key] || key;
+  if (options) {
+    for (const [k, v] of Object.entries(options)) {
+      value = value.replace(`{{${k}}}`, String(v));
+    }
+  }
+  return value;
+};
+
 /**
  * Safe wrapper for useObjectTranslation that falls back to English defaults
  * when I18nProvider is not available (e.g., standalone usage outside console).
@@ -246,31 +262,11 @@ function useListViewTranslation() {
     const testValue = result.t('list.recordCount');
     if (testValue === 'list.recordCount') {
       // i18n returned the key itself — not initialized
-      return {
-        t: (key: string, options?: Record<string, unknown>) => {
-          let value = LIST_DEFAULT_TRANSLATIONS[key] || key;
-          if (options) {
-            for (const [k, v] of Object.entries(options)) {
-              value = value.replace(`{{${k}}}`, String(v));
-            }
-          }
-          return value;
-        },
-      };
+      return { t: fallbackListT };
     }
     return { t: result.t };
   } catch {
-    return {
-      t: (key: string, options?: Record<string, unknown>) => {
-        let value = LIST_DEFAULT_TRANSLATIONS[key] || key;
-        if (options) {
-          for (const [k, v] of Object.entries(options)) {
-            value = value.replace(`{{${k}}}`, String(v));
-          }
-        }
-        return value;
-      },
-    };
+    return { t: fallbackListT };
   }
 }
 
@@ -282,9 +278,7 @@ function useListFieldLabel() {
     const { fieldLabel } = useObjectLabel();
     return { fieldLabel };
   } catch {
-    return {
-      fieldLabel: (_objectName: string, _fieldName: string, fallback: string) => fallback,
-    };
+    return { fieldLabel: FALLBACK_FIELD_LABEL };
   }
 }
 
