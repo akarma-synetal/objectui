@@ -240,7 +240,12 @@ export const ObjectChart = (props: any) => {
   }, [fieldOptionLabel]);
   
   const [fetchedData, setFetchedData] = useState<any[]>([]);
-  const [loading, setLoading] = useState(false);
+  // Start in loading state when we will fetch, so the no-data / empty branch
+  // doesn't flash before the fetch effect runs and flips loading to true.
+  const [loading, setLoading] = useState<boolean>(() => {
+    const hasInline = Array.isArray(schema.data) && schema.data.length > 0;
+    return !hasInline && !!schema.objectName;
+  });
   const [error, setError] = useState<string | null>(null);
   // Drill-down click event — must be declared with the other hooks (above
   // any conditional early return) to keep hook order stable between renders.
@@ -259,7 +264,12 @@ export const ObjectChart = (props: any) => {
   );
 
   const fetchData = useCallback(async (ds: any, mounted: { current: boolean }) => {
-      if (!ds || !schema.objectName) return;
+      if (!ds || !schema.objectName) {
+        // No way to fetch — clear loading so the no-datasource / empty state
+        // can render instead of an indefinite "Loading chart data…".
+        if (mounted.current) setLoading(false);
+        return;
+      }
       if (mounted.current) {
         setLoading(true);
         setError(null);
@@ -334,6 +344,9 @@ export const ObjectChart = (props: any) => {
 
     if (schema.objectName && !boundData && !schema.data) {
         fetchData(dataSource, mounted);
+    } else if (mounted.current) {
+        // Have inline / bound data — won't fetch; clear loading.
+        setLoading(false);
     }
     return () => { mounted.current = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps

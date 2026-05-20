@@ -200,6 +200,7 @@ const LIST_DEFAULT_TRANSLATIONS: Record<string, string> = {
   'list.recordCountOne': '{{count}} record',
   'list.noItems': 'No items found',
   'list.noItemsMessage': 'There are no records to display. Try adjusting your filters or adding new data.',
+  'list.loading': 'Loading records…',
   'list.search': 'Search',
   'list.filter': 'Filter',
   'list.filterRecords': 'Filter Records',
@@ -451,7 +452,21 @@ export const ListView = React.forwardRef<ListViewHandle, ListViewProps>(({
   // Data State
   const dataSource = props.dataSource;
   const [data, setData] = React.useState<any[]>([]);
-  const [loading, setLoading] = React.useState(false);
+  // Start in loading state when we will fetch from a dataSource so the empty
+  // state doesn't flash before the first effect runs. Inline data (schema.data
+  // as an array or a `value` provider) starts as not-loading.
+  const [loading, setLoading] = React.useState<boolean>(() => {
+    if (Array.isArray(schema.data)) return false;
+    if (
+      schema.data &&
+      typeof schema.data === 'object' &&
+      (schema.data as any).provider === 'value' &&
+      Array.isArray((schema.data as any).items)
+    ) {
+      return false;
+    }
+    return true;
+  });
   const [objectDef, setObjectDef] = React.useState<any>(null);
   const [objectDefLoaded, setObjectDefLoaded] = React.useState(false);
   const [refreshKey, setRefreshKey] = React.useState(0);
@@ -814,7 +829,12 @@ export const ListView = React.forwardRef<ListViewHandle, ListViewProps>(({
     if (!objectDefLoaded) return;
     
     const fetchData = async () => {
-      if (!dataSource || !schema.objectName) return;
+      if (!dataSource || !schema.objectName) {
+        // No way to fetch — clear the loading state so the empty state
+        // (or downstream view) can render instead of an indefinite skeleton.
+        setLoading(false);
+        return;
+      }
       
       setLoading(true);
       try {
@@ -2018,7 +2038,28 @@ export const ListView = React.forwardRef<ListViewHandle, ListViewProps>(({
             their own empty rendering so their column/lane/grid structure
             stays visible — otherwise users see a generic "No items found"
             on Task Board / Calendar etc. even though the view exists. */}
-        {!loading && data.length === 0 && currentView === 'grid' ? (
+        {/* Loading state — shown when fetching with no data yet. Rendered at
+            the ListView level so every inner view (grid/kanban/calendar/...)
+            gets a consistent indicator instead of momentarily showing an
+            empty state on slow networks. */}
+        {loading && data.length === 0 ? (
+          <div
+            className="flex flex-col h-full min-h-[200px] p-4 gap-2"
+            data-testid="list-loading"
+            role="status"
+            aria-live="polite"
+            aria-busy="true"
+          >
+            <span className="sr-only">{t('list.loading')}</span>
+            {[0, 1, 2, 3, 4, 5].map((i) => (
+              <div
+                key={i}
+                className="h-9 rounded bg-muted/60 animate-pulse"
+                style={{ opacity: Math.max(0.25, 1 - i * 0.12) }}
+              />
+            ))}
+          </div>
+        ) : !loading && data.length === 0 && currentView === 'grid' ? (
           (() => {
             const iconName = schema.emptyState?.icon;
             const ResolvedIcon: LucideIcon = iconName

@@ -142,14 +142,25 @@ export const ObjectDataTable: React.FC<ObjectDataTableProps> = ({ schema, dataSo
 
   const [fetchedData, setFetchedData] = useState<any[]>([]);
   const [objectSchema, setObjectSchema] = useState<any>(null);
-  const [loading, setLoading] = useState(false);
+  // Start in loading state when we will fetch from a dataSource, so the
+  // "No data available" empty state doesn't flash on slow networks before
+  // the fetch effect runs and flips loading to true.
+  const [loading, setLoading] = useState<boolean>(() => {
+    const hasInline = Array.isArray(schema.data) && schema.data.length > 0;
+    return !hasInline && !!(schema.objectName);
+  });
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let isMounted = true;
 
     const fetchData = async () => {
-      if (!dataSource || !schema.objectName) return;
+      if (!dataSource || !schema.objectName) {
+        // No way to fetch — clear loading so the empty / no-datasource state
+        // can render instead of an indefinite skeleton.
+        if (isMounted) setLoading(false);
+        return;
+      }
       if (isMounted) {
         setLoading(true);
         setError(null);
@@ -185,6 +196,10 @@ export const ObjectDataTable: React.FC<ObjectDataTableProps> = ({ schema, dataSo
 
     if (schema.objectName && !boundData && (!schema.data || schema.data.length === 0)) {
       fetchData();
+    } else if (isMounted) {
+      // We have inline / bound data and won't fetch — make sure loading is
+      // cleared (matters when we lazily-initialized it to true).
+      setLoading(false);
     }
 
     return () => { isMounted = false; };
