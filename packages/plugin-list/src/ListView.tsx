@@ -1469,7 +1469,7 @@ export const ListView = React.forwardRef<ListViewHandle, ListViewProps>(({
           )}
         </div>
 
-        <div className="flex items-center gap-0 shrink-0 rounded-lg border border-border/60 bg-muted/30 p-0.5 shadow-[0_1px_2px_rgba(0,0,0,0.03)]">
+        <div className="flex items-center gap-0 shrink-0 rounded-lg border border-border bg-muted/40 p-0.5 shadow-sm">
           {/* Hide Fields */}
           {toolbarFlags.showHideFields && !toolbarFlags.compactToolbar && (
           <Popover open={showHideFields} onOpenChange={setShowHideFields}>

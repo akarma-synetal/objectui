@@ -51,6 +51,28 @@ const ASPECT_CLASSES: Record<NonNullable<GalleryConfig['cardSize']>, string> = {
     large: 'aspect-[16/10]',
 };
 
+/**
+ * Deterministic palette for placeholder card covers (no-image fallback).
+ * Index is derived from a tiny title hash so each record gets a stable —
+ * but visually varied — soft gradient backdrop. Mirrors the home-page
+ * AppCard accent treatment for cross-screen consistency.
+ */
+const PLACEHOLDER_GRADIENTS: ReadonlyArray<{ bg: string; ring: string; text: string }> = [
+    { bg: 'from-indigo-500/15 via-indigo-500/5 to-purple-500/10', ring: 'ring-indigo-500/15', text: 'text-indigo-600/70 dark:text-indigo-300/70' },
+    { bg: 'from-sky-500/15 via-sky-500/5 to-cyan-500/10',          ring: 'ring-sky-500/15',    text: 'text-sky-600/70 dark:text-sky-300/70' },
+    { bg: 'from-emerald-500/15 via-emerald-500/5 to-teal-500/10',  ring: 'ring-emerald-500/15',text: 'text-emerald-600/70 dark:text-emerald-300/70' },
+    { bg: 'from-amber-500/15 via-amber-500/5 to-orange-500/10',    ring: 'ring-amber-500/15',  text: 'text-amber-600/70 dark:text-amber-300/70' },
+    { bg: 'from-rose-500/15 via-rose-500/5 to-pink-500/10',        ring: 'ring-rose-500/15',   text: 'text-rose-600/70 dark:text-rose-300/70' },
+    { bg: 'from-violet-500/15 via-violet-500/5 to-fuchsia-500/10', ring: 'ring-violet-500/15', text: 'text-violet-600/70 dark:text-violet-300/70' },
+];
+
+function pickPlaceholderGradient(seed: string): typeof PLACEHOLDER_GRADIENTS[number] {
+    // djb2-ish lightweight hash — stable across renders, no PRNG.
+    let h = 5381;
+    for (let i = 0; i < seed.length; i++) h = ((h << 5) + h) + seed.charCodeAt(i);
+    return PLACEHOLDER_GRADIENTS[Math.abs(h) % PLACEHOLDER_GRADIENTS.length];
+}
+
 export const ObjectGallery: React.FC<ObjectGalleryProps> = (props) => {
     const { schema } = props;
     const context = useContext(SchemaRendererContext);
@@ -241,42 +263,64 @@ export const ObjectGallery: React.FC<ObjectGalleryProps> = (props) => {
         const id = (item.id ?? item._id ?? i) as string | number;
         const title = String(item[titleField] ?? 'Untitled');
         const imageUrl = item[coverField] as string | undefined;
+        const placeholder = pickPlaceholderGradient(String(id) + '|' + title);
 
         return (
             <Card
                 key={id}
                 role="listitem"
                 className={cn(
-                    'group overflow-hidden transition-all hover:shadow-md',
+                    'group relative overflow-hidden border-border/60 bg-card',
+                    'transition-all duration-200 ease-out',
+                    'hover:shadow-lg hover:border-border hover:-translate-y-0.5',
                     (props.onCardClick || props.onRowClick || schema.navigation) && 'cursor-pointer',
                 )}
                 onClick={() => navigation.handleClick(item)}
             >
-                <div className={cn('w-full overflow-hidden bg-muted relative', ASPECT_CLASSES[cardSize])} hidden={!showCoverArea}>
+                {/* Top accent strip: only shown for text-only cards (no cover
+                    image area). Uses the deterministic palette so each card
+                    has stable but varied personality — mirrors the home-page
+                    AppCard accent treatment. */}
+                {!showCoverArea && (
+                    <div
+                        aria-hidden
+                        className={cn(
+                            'absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r',
+                            placeholder.bg,
+                        )}
+                    />
+                )}
+                <div className={cn('w-full overflow-hidden relative', ASPECT_CLASSES[cardSize])} hidden={!showCoverArea}>
                     {imageUrl ? (
                         <img
                             src={imageUrl}
                             alt={title}
                             className={cn(
-                                'h-full w-full transition-transform group-hover:scale-105',
+                                'h-full w-full transition-transform duration-300 ease-out group-hover:scale-[1.04]',
                                 coverFit === 'cover' && 'object-cover',
                                 coverFit === 'contain' && 'object-contain',
                             )}
                         />
                     ) : (
-                        <div className="flex h-full w-full items-center justify-center bg-secondary/50 text-muted-foreground">
-                            <span className="text-4xl font-light opacity-20">
+                        <div
+                            className={cn(
+                                'flex h-full w-full items-center justify-center bg-gradient-to-br ring-1 ring-inset',
+                                placeholder.bg,
+                                placeholder.ring,
+                            )}
+                        >
+                            <span className={cn('text-5xl font-semibold tracking-tight opacity-90', placeholder.text)}>
                                 {title[0]?.toUpperCase()}
                             </span>
                         </div>
                     )}
                 </div>
-                <CardContent className={cn('p-3', showCoverArea && 'border-t')}>
-                    <h3 className="font-medium truncate text-sm" title={title}>
+                <CardContent className={cn('p-3', showCoverArea && 'border-t border-border/60')}>
+                    <h3 className="font-semibold tracking-tight truncate text-sm leading-tight text-foreground" title={title}>
                         {title}
                     </h3>
                     {visibleFields && visibleFields.length > 0 && (
-                        <div className="mt-1 space-y-1">
+                        <div className="mt-1.5 space-y-1">
                             {visibleFields.map((field) => {
                                 const value = (item as any)[field];
                                 if (value == null || value === '') return null;

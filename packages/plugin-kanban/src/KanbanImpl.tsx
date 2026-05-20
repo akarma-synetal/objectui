@@ -46,6 +46,32 @@ const useKanbanT = createSafeTranslation(
 
 const UNCATEGORIZED_LANE = 'Uncategorized'
 
+/**
+ * Deterministic accent palette for Kanban columns. Each column gets a
+ * stable color derived from its `id`, used for the top accent stripe and
+ * the count badge tint. Mirrors the gallery/home-page accent treatment
+ * for cross-screen consistency.
+ *
+ * Tailwind classes only (so we don't need inline styles or CSS-in-JS).
+ */
+const COLUMN_ACCENTS: ReadonlyArray<{ stripe: string; text: string; ring: string; tint: string }> = [
+  { stripe: 'from-indigo-500 via-indigo-400/70 to-indigo-500/0', text: 'text-indigo-600 dark:text-indigo-300', ring: 'ring-indigo-500/20', tint: 'bg-indigo-500/10' },
+  { stripe: 'from-sky-500 via-sky-400/70 to-sky-500/0',          text: 'text-sky-600 dark:text-sky-300',       ring: 'ring-sky-500/20',    tint: 'bg-sky-500/10' },
+  { stripe: 'from-emerald-500 via-emerald-400/70 to-emerald-500/0', text: 'text-emerald-600 dark:text-emerald-300', ring: 'ring-emerald-500/20', tint: 'bg-emerald-500/10' },
+  { stripe: 'from-amber-500 via-amber-400/70 to-amber-500/0',    text: 'text-amber-600 dark:text-amber-300',   ring: 'ring-amber-500/20',  tint: 'bg-amber-500/10' },
+  { stripe: 'from-rose-500 via-rose-400/70 to-rose-500/0',        text: 'text-rose-600 dark:text-rose-300',     ring: 'ring-rose-500/20',   tint: 'bg-rose-500/10' },
+  { stripe: 'from-violet-500 via-violet-400/70 to-violet-500/0', text: 'text-violet-600 dark:text-violet-300', ring: 'ring-violet-500/20', tint: 'bg-violet-500/10' },
+  { stripe: 'from-cyan-500 via-cyan-400/70 to-cyan-500/0',        text: 'text-cyan-600 dark:text-cyan-300',     ring: 'ring-cyan-500/20',   tint: 'bg-cyan-500/10' },
+  { stripe: 'from-fuchsia-500 via-fuchsia-400/70 to-fuchsia-500/0', text: 'text-fuchsia-600 dark:text-fuchsia-300', ring: 'ring-fuchsia-500/20', tint: 'bg-fuchsia-500/10' },
+]
+
+function pickColumnAccent(seed: string): typeof COLUMN_ACCENTS[number] {
+  // djb2-ish lightweight hash — stable across renders, no PRNG.
+  let h = 5381
+  for (let i = 0; i < seed.length; i++) h = ((h << 5) + h) + seed.charCodeAt(i)
+  return COLUMN_ACCENTS[Math.abs(h) % COLUMN_ACCENTS.length]
+}
+
 export interface KanbanCard {
   id: string
   title: string
@@ -284,6 +310,11 @@ function KanbanColumnView({
     ? "shrink-0"
     : "w-[85vw] sm:w-80 shrink-0";
 
+  // Stable per-column accent (derived from the column id), used for the top
+  // accent stripe and to tint the count badge. Makes the board visually
+  // scannable at a glance even when columns share neutral header styling.
+  const accent = pickColumnAccent(column.id)
+
   return (
     <div
       ref={setNodeRef}
@@ -291,7 +322,7 @@ function KanbanColumnView({
       aria-label={column.title}
       style={columnStyle}
       className={cn(
-        "flex flex-col rounded-lg border border-border bg-muted/20 snap-start max-h-full min-h-0 transition-colors",
+        "relative flex flex-col rounded-xl border border-border/60 bg-muted/15 snap-start max-h-full min-h-0 transition-all duration-200 shadow-sm hover:shadow-md overflow-hidden",
         widthClasses,
         // P2-5: when a card is being dragged over this column, highlight the
         // whole column so users can see exactly which lane will receive the
@@ -301,16 +332,30 @@ function KanbanColumnView({
         column.className
       )}
     >
-      <div className="p-3 sm:p-4 border-b border-border/50 bg-muted/30 rounded-t-lg">
-        <div className="flex items-center justify-between">
-          <h3 id={`kanban-col-${column.id}`} className=" text-xs sm:text-sm font-semibold tracking-wider text-primary/90 uppercase truncate">{column.title}</h3>
-          <div className="flex items-center gap-2">
-            <Badge variant="secondary" className="text-xs tabular-nums">
+      {/* Top accent stripe — deterministic color from column id. Fades to
+          transparent on the right so it visually anchors the title without
+          looking heavy-handed. */}
+      <div
+        aria-hidden
+        className={cn("absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r", accent.stripe)}
+      />
+      <div className="px-3 sm:px-4 pt-3.5 pb-3 border-b border-border/40 bg-gradient-to-b from-background/60 to-transparent">
+        <div className="flex items-center justify-between gap-2">
+          <h3 id={`kanban-col-${column.id}`} className={cn("text-xs sm:text-sm font-semibold tracking-tight truncate", accent.text)}>{column.title}</h3>
+          <div className="flex items-center gap-1.5 shrink-0">
+            <span
+              className={cn(
+                "inline-flex items-center justify-center min-w-[22px] h-[22px] px-1.5 rounded-md text-[11px] font-semibold tabular-nums ring-1 ring-inset",
+                accent.tint,
+                accent.text,
+                accent.ring,
+              )}
+            >
               {safeCards.length}
-              {column.limit && ` / ${column.limit}`}
-            </Badge>
+              {column.limit && <span className="text-muted-foreground/70 font-normal">{` / ${column.limit}`}</span>}
+            </span>
             {isLimitExceeded && (
-              <Badge variant="destructive" className="text-xs">
+              <Badge variant="destructive" className="text-[10px] h-[22px] px-1.5">
                 Full
               </Badge>
             )}
