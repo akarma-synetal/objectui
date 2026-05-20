@@ -636,6 +636,32 @@ export const ListView = React.forwardRef<ListViewHandle, ListViewProps>(({
     onChange: schema.onDensityChange,
   });
 
+  // ── Gallery card density ────────────────────────────────────────────
+  // Separate from the table `density.mode` (which controls rowHeight) —
+  // the gallery uses 3 column counts mapped to `GalleryConfig.cardSize`
+  // (small/medium/large). Persisted per-object so users can keep
+  // Accounts compact while leaving Products comfortable.
+  type GalleryCardSize = 'small' | 'medium' | 'large';
+  const galleryDensityKey = React.useMemo(
+    () => `objectui:gallery:density:${schema.objectName ?? 'default'}`,
+    [schema.objectName],
+  );
+  const [galleryCardSize, setGalleryCardSize] = React.useState<GalleryCardSize>(() => {
+    if (typeof window === 'undefined') return (schema.gallery?.cardSize as GalleryCardSize) ?? 'medium';
+    try {
+      const v = window.localStorage.getItem(galleryDensityKey);
+      if (v === 'small' || v === 'medium' || v === 'large') return v;
+    } catch { /* private mode — fall through */ }
+    return (schema.gallery?.cardSize as GalleryCardSize) ?? 'medium';
+  });
+  const cycleGalleryDensity = React.useCallback(() => {
+    setGalleryCardSize((prev) => {
+      const next: GalleryCardSize = prev === 'large' ? 'medium' : prev === 'medium' ? 'small' : 'large';
+      try { window.localStorage.setItem(galleryDensityKey, next); } catch { /* ignore */ }
+      return next;
+    });
+  }, [galleryDensityKey]);
+
   const handlePullRefresh = React.useCallback(async () => {
     setRefreshKey(k => k + 1);
   }, []);
@@ -1177,6 +1203,9 @@ export const ListView = React.forwardRef<ListViewHandle, ListViewProps>(({
         const mergedGallery = {
           ...(schema.options?.gallery || {}),
           ...(schema.gallery || {}),
+          // User's runtime override from the toolbar density button wins
+          // over schema defaults. Persisted to localStorage in ListView.
+          cardSize: galleryCardSize,
         };
         return {
           type: 'object-gallery',
@@ -1232,7 +1261,7 @@ export const ListView = React.forwardRef<ListViewHandle, ListViewProps>(({
       default:
         return baseProps;
     }
-  }, [currentView, schema, currentSort, effectiveFields, groupingConfig, rowColorConfig, navigation.handleClick, density.mode]);
+  }, [currentView, schema, currentSort, effectiveFields, groupingConfig, rowColorConfig, navigation.handleClick, density.mode, galleryCardSize]);
 
   const hasFilters = currentFilters.conditions && currentFilters.conditions.length > 0;
 
@@ -1692,8 +1721,8 @@ export const ListView = React.forwardRef<ListViewHandle, ListViewProps>(({
           </Popover>
           )}
 
-          {/* Row Height / Density Mode */}
-          {toolbarFlags.showDensity && !toolbarFlags.compactToolbar && (() => {
+          {/* Row Height / Density Mode — table-style density (rowHeight) */}
+          {toolbarFlags.showDensity && !toolbarFlags.compactToolbar && currentView !== 'gallery' && (() => {
             const DensityIcon = density.mode === 'compact' ? Rows4 : density.mode === 'comfortable' ? Rows3 : Rows2;
             const modeLabel =
               density.mode === 'compact'
@@ -1720,6 +1749,38 @@ export const ListView = React.forwardRef<ListViewHandle, ListViewProps>(({
                 title={titleLabel}
               >
                 <DensityIcon className="h-3.5 w-3.5" />
+              </Button>
+            );
+          })()}
+
+          {/* Gallery card density — same toolbar slot, only when gallery view is active */}
+          {toolbarFlags.showDensity && !toolbarFlags.compactToolbar && currentView === 'gallery' && (() => {
+            const GalleryDensityIcon = galleryCardSize === 'small' ? Rows4 : galleryCardSize === 'medium' ? Rows3 : Rows2;
+            const modeLabel =
+              galleryCardSize === 'small'
+                ? t('grid.toolbar.densityCompact', { defaultValue: 'Compact' })
+                : galleryCardSize === 'medium'
+                  ? t('grid.toolbar.densityComfortable', { defaultValue: 'Comfortable' })
+                  : t('grid.toolbar.densitySpacious', { defaultValue: 'Spacious' });
+            const densityLabel = t('grid.toolbar.densityMode', { defaultValue: 'Density' });
+            const ariaLabel = `${densityLabel}: ${modeLabel}`;
+            const titleLabel = t('grid.toolbar.densityCycleHint', {
+              defaultValue: '{{label}} (click to cycle)',
+              label: ariaLabel,
+            });
+            return (
+              <Button
+                variant="ghost"
+                size="sm"
+                aria-label={ariaLabel}
+                className={cn(
+                  "h-7 w-7 p-0 text-muted-foreground hover:text-primary transition-colors duration-150",
+                  galleryCardSize !== 'small' && "text-foreground font-medium",
+                )}
+                onClick={cycleGalleryDensity}
+                title={titleLabel}
+              >
+                <GalleryDensityIcon className="h-3.5 w-3.5" />
               </Button>
             );
           })()}
