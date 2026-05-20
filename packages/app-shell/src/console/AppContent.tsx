@@ -250,6 +250,13 @@ export function AppContent({ extraRoutes, extraRoutesNoApp }: AppContentProps = 
         href: `${basePath}/dashboard/${parts[3]}`,
         type: 'dashboard',
       });
+    } else if (parts[2] === 'page' && parts[3]) {
+      addRecentItem({
+        id: `page:${parts[3]}`,
+        label: parts[3].replace(/[-_]/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase()),
+        href: `${basePath}/page/${parts[3]}`,
+        type: 'page',
+      });
     } else if (parts[2] === 'report' && parts[3]) {
       addRecentItem({
         id: `report:${parts[3]}`,
