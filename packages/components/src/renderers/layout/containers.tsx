@@ -240,7 +240,7 @@ const PageTabsRenderer: React.FC<any> = ({ schema, className, ...props }) => {
     !isVertical && 'sticky top-0 z-20 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60',
   );
 
-  const triggerClass = (active = false) => cn(
+  const triggerClass = () => cn(
     isVertical && 'justify-start',
     type === 'card' && 'data-[state=active]:bg-background data-[state=active]:border data-[state=active]:shadow-sm rounded-md',
     type === 'pill' && 'rounded-full data-[state=active]:bg-background',

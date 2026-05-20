@@ -36,6 +36,7 @@
   "peerDependencies": {
     "@object-ui/components": "workspace:^",
     "@object-ui/core": "workspace:^",
+    "@object-ui/fields": "workspace:^",
     "@object-ui/i18n": "workspace:^",
     "@object-ui/mobile": "workspace:^",
     "@object-ui/permissions": "workspace:^",
@@ -47,6 +48,7 @@
   "devDependencies": {
     "@object-ui/components": "workspace:*",
     "@object-ui/core": "workspace:*",
+    "@object-ui/fields": "workspace:*",
     "@object-ui/i18n": "workspace:*",
     "@object-ui/mobile": "workspace:*",
     "@object-ui/react": "workspace:*",

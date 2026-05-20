@@ -12,6 +12,7 @@ import { ComponentRegistry, buildExpandFields } from '@object-ui/core';
 import { cn, Card, CardContent, NavigationOverlay } from '@object-ui/components';
 import type { GalleryConfig, ViewNavigationConfig, GroupingConfig } from '@object-ui/types';
 import { ChevronRight, ChevronDown } from 'lucide-react';
+import { getCellRenderer, resolveCellRendererType } from '@object-ui/fields';
 
 export interface ObjectGalleryProps {
     schema: {
@@ -77,46 +78,35 @@ export const ObjectGallery: React.FC<ObjectGalleryProps> = (props) => {
 
     // i18n: translate select-field option labels in card cells
     const { fieldOptionLabel } = useSafeFieldLabel();
-    const formatFieldValue = useCallback((field: string, value: unknown): string => {
-      if (value == null || value === '') return '';
-      if (typeof value === 'object') {
-        return ((value as any).label ?? (value as any).name ?? (value as any).id ?? JSON.stringify(value));
+
+    // Build an enriched FieldMetadata for a given field name so the shared
+    // cell renderer pipeline (used by Detail/Grid/Related) receives the
+    // same context: type, options, currency, precision, reference target,
+    // etc. This is what keeps card output visually aligned with the
+    // record detail page.
+    const buildEnrichedField = useCallback((fieldName: string) => {
+      const def = objectDef?.fields?.[fieldName];
+      const enriched: Record<string, any> = { name: fieldName };
+      if (def) {
+        if (def.type) enriched.type = def.type;
+        if (def.label) enriched.label = def.label;
+        if (def.options) enriched.options = def.options;
+        if (def.currency) enriched.currency = def.currency;
+        if (def.precision !== undefined) enriched.precision = def.precision;
+        if (def.format) enriched.format = def.format;
+        const refTarget = (def as any).reference_to || (def as any).reference;
+        if (refTarget) enriched.reference_to = refTarget;
+        if ((def as any).reference_field) enriched.reference_field = (def as any).reference_field;
       }
-      const fieldDef = objectDef?.fields?.[field];
-      const fieldType = fieldDef?.type;
-      const isSelectLike = fieldType === 'select' || fieldType === 'status' || fieldType === 'multiselect';
-      if (isSelectLike && schema.objectName) {
-        // Find the raw option label as fallback (handles both array & keyed-object option shapes)
-        let fallback = String(value);
-        if (Array.isArray(fieldDef.options)) {
-          const m = fieldDef.options.find((o: any) => String(o?.value ?? o) === String(value));
-          if (m) fallback = m.label ?? fallback;
-        } else if (fieldDef.options && typeof fieldDef.options === 'object') {
-          const m = (fieldDef.options as any)[String(value)];
-          if (m) fallback = m.label ?? fallback;
-        }
-        return fieldOptionLabel(schema.objectName, field, String(value), fallback);
+      // Translate select option labels via i18n, falling back to raw labels.
+      if (schema.objectName && Array.isArray(enriched.options)) {
+        enriched.options = enriched.options.map((opt: any) => {
+          const value = String(opt?.value ?? opt);
+          const fallback = String(opt?.label ?? value);
+          return { ...opt, value, label: fieldOptionLabel(schema.objectName!, fieldName, value, fallback) };
+        });
       }
-      // Numeric formatting — currency / number / percent fields render as
-      // plain integers without separators otherwise (e.g. `5000000`).
-      const num = typeof value === 'number' ? value : Number(value);
-      if (Number.isFinite(num)) {
-        if (fieldType === 'currency') {
-          const code = (fieldDef as any)?.currency || (fieldDef as any)?.options?.currency || 'USD';
-          try {
-            return new Intl.NumberFormat(undefined, { style: 'currency', currency: code, maximumFractionDigits: 0 }).format(num);
-          } catch {
-            return new Intl.NumberFormat().format(num);
-          }
-        }
-        if (fieldType === 'percent') {
-          return new Intl.NumberFormat(undefined, { style: 'percent', maximumFractionDigits: 2 }).format(num > 1 ? num / 100 : num);
-        }
-        if (fieldType === 'number') {
-          return new Intl.NumberFormat().format(num);
-        }
-      }
-      return String(value);
+      return enriched;
     }, [objectDef, schema.objectName, fieldOptionLabel]);
 
     // Fetch object definition for metadata
@@ -286,15 +276,26 @@ export const ObjectGallery: React.FC<ObjectGalleryProps> = (props) => {
                         {title}
                     </h3>
                     {visibleFields && visibleFields.length > 0 && (
-                        <div className="mt-1 space-y-0.5">
+                        <div className="mt-1 space-y-1">
                             {visibleFields.map((field) => {
                                 const value = (item as any)[field];
                                 if (value == null || value === '') return null;
-                                const display = formatFieldValue(field, value);
+                                const enriched = buildEnrichedField(field);
+                                const rendererType = resolveCellRendererType(enriched as any) || enriched.type || 'text';
+                                const CellRenderer = getCellRenderer(rendererType);
                                 return (
-                                    <p key={field} className="text-xs text-muted-foreground truncate">
-                                        {display}
-                                    </p>
+                                    <div
+                                        key={field}
+                                        className="text-xs text-muted-foreground truncate [&_*]:!text-xs"
+                                        onClick={(e) => {
+                                            // Prevent navigation when interacting with rich cell
+                                            // content like email/phone/url links inside a card.
+                                            const target = e.target as HTMLElement;
+                                            if (target.closest('a,button')) e.stopPropagation();
+                                        }}
+                                    >
+                                        <CellRenderer value={value} field={enriched as any} />
+                                    </div>
                                 );
                             })}
                         </div>
