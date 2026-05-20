@@ -21,6 +21,7 @@ import React from 'react';
 import { ComponentRegistry } from '@object-ui/core';
 import { useRecordContext } from '@object-ui/react';
 import { renderChildren, cn } from '../../lib/utils';
+import { LazyIcon } from '../../lib/lazy-icon';
 import {
   Tabs,
   TabsList,
@@ -86,8 +87,21 @@ const interpolate = (template: string, data: any): string => {
 interface PageTabsItem {
   label: any;
   icon?: string;
+  /**
+   * Optional badge value rendered after the label (e.g. related-list count).
+   * Numbers >= 1000 are shortened to `1.2k`-style.
+   */
+  count?: number | string;
   children: any[];
 }
+
+const formatTabCount = (v: number | string): string => {
+  const n = typeof v === 'number' ? v : Number(v);
+  if (!Number.isFinite(n)) return String(v);
+  if (n >= 10000) return `${Math.round(n / 1000)}k`;
+  if (n >= 1000) return `${(n / 1000).toFixed(1).replace(/\.0$/, '')}k`;
+  return String(n);
+};
 
 const PageTabsRenderer: React.FC<any> = ({ schema, className, ...props }) => {
   const { designer } = splitDesignerProps(props);
@@ -134,7 +148,22 @@ const PageTabsRenderer: React.FC<any> = ({ schema, className, ...props }) => {
       <TabsList className={listClass}>
         {itemsWithValue.map((item) => (
           <TabsTrigger key={item.value} value={item.value} className={triggerClass()}>
-            {item.labelStr}
+            {item.icon && (
+              <LazyIcon
+                name={item.icon}
+                className="mr-1.5 h-3.5 w-3.5 shrink-0 opacity-70"
+                aria-hidden
+              />
+            )}
+            <span>{item.labelStr}</span>
+            {item.count !== undefined && item.count !== null && item.count !== '' && (
+              <span
+                className="ml-1.5 inline-flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-muted px-1 text-[10px] font-medium leading-none text-muted-foreground"
+                aria-label={`${formatTabCount(item.count)} items`}
+              >
+                {formatTabCount(item.count)}
+              </span>
+            )}
           </TabsTrigger>
         ))}
       </TabsList>

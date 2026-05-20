@@ -28,7 +28,7 @@ import {
 import { Loader2 } from 'lucide-react';
 import { FormSection } from './FormSection';
 import { SchemaRenderer, useSafeFieldLabel } from '@object-ui/react';
-import { mapFieldTypeToFormType, buildValidationRules } from '@object-ui/fields';
+import { mapFieldTypeToFormType, buildValidationRules, evaluateCondition } from '@object-ui/fields';
 import { applyAutoLayout, inferModalSize } from './autoLayout';
 import { sanitizeFormData } from './sanitize';
 import { usePermissions } from '@object-ui/permissions';
@@ -240,14 +240,27 @@ export const ModalForm: React.FC<ModalFormProps> = ({
   const buildSectionFields = useCallback((section: ModalFormSectionConfig): FormField[] => {
     const fields: FormField[] = [];
 
+    // Convert spec-level `visibleOn` CEL string (or object-field `visible_on`
+    // hyphen-cased mirror) into a reactive `visible(formData)` predicate so
+    // FormSection's children honor live field-level visibility.
+    const attachVisibility = (formField: FormField, expr: any): FormField => {
+      if (typeof expr === 'string' && expr.trim()) {
+        return {
+          ...formField,
+          visible: (formData: any) => evaluateCondition(expr, formData),
+        };
+      }
+      return formField;
+    };
+
     for (const fieldDef of section.fields) {
       const fieldName = typeof fieldDef === 'string' ? fieldDef : fieldDef.name;
 
       if (typeof fieldDef === 'object') {
-        fields.push(fieldDef);
+        fields.push(attachVisibility(fieldDef as FormField, (fieldDef as any).visibleOn));
       } else if (objectSchema?.fields?.[fieldName]) {
         const field = objectSchema.fields[fieldName];
-        fields.push({
+        fields.push(attachVisibility({
           name: fieldName,
           label: fieldLabel(schema.objectName, fieldName, field.label || fieldName),
           type: mapFieldTypeToFormType(field.type),
@@ -259,7 +272,7 @@ export const ModalForm: React.FC<ModalFormProps> = ({
           field: field,
           options: field.options,
           multiple: field.multiple,
-        });
+        }, (field as any).visible_on ?? (field as any).visibleOn));
       } else {
         fields.push({
           name: fieldName,
@@ -270,7 +283,7 @@ export const ModalForm: React.FC<ModalFormProps> = ({
     }
 
     return fields;
-  }, [objectSchema, schema.readOnly, schema.mode]);
+  }, [objectSchema, schema.readOnly, schema.mode, schema.objectName]);
 
   // Build fields from flat field list (when no sections)
   useEffect(() => {
