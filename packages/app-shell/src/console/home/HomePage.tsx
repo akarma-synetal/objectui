@@ -27,7 +27,7 @@ import { AppCard } from './AppCard';
 import { RecentApps } from './RecentApps';
 import { StarredApps } from './StarredApps';
 import { Empty, EmptyTitle, EmptyDescription, Button } from '@object-ui/components';
-import { Plus, Settings, Sparkles } from 'lucide-react';
+import { Plus, Settings, Sparkles, Star, Clock, ArrowDown } from 'lucide-react';
 
 function pickGreetingKey(hour: number): string {
   if (hour < 5) return 'home.greetingNight';
@@ -35,6 +35,50 @@ function pickGreetingKey(hour: number): string {
   if (hour < 18) return 'home.greetingAfternoon';
   if (hour < 23) return 'home.greetingEvening';
   return 'home.greetingNight';
+}
+
+/**
+ * Friendly onboarding hint shown above the All Apps grid when the user has
+ * no starred or recent items yet. Replaces per-section empty states (which
+ * would flicker as the backend adapter hydrates).
+ */
+function GettingStartedHint({ t }: { t: (key: string, opts?: any) => string }) {
+  return (
+    <section
+      data-testid="home-getting-started"
+      className="relative overflow-hidden rounded-2xl border border-border/60 bg-card/70 backdrop-blur-sm p-6 sm:p-8"
+    >
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-fuchsia-500/5"
+      />
+      <div className="relative flex flex-col sm:flex-row sm:items-center gap-5">
+        <div className="flex items-center gap-2 shrink-0">
+          <span className="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-amber-500/10 ring-1 ring-amber-500/20 text-amber-600 dark:text-amber-400">
+            <Star className="h-5 w-5" />
+          </span>
+          <span className="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-emerald-500/10 ring-1 ring-emerald-500/20 text-emerald-600 dark:text-emerald-400">
+            <Clock className="h-5 w-5" />
+          </span>
+        </div>
+        <div className="flex-1 min-w-0">
+          <h2 className="text-lg font-semibold tracking-tight">
+            {t('home.gettingStarted.title', { defaultValue: 'Make this home yours' })}
+          </h2>
+          <p className="text-sm text-muted-foreground mt-1 max-w-xl">
+            {t('home.gettingStarted.description', {
+              defaultValue:
+                'Star an app to pin it here for one-click access. Anything you open will show up under Recently Accessed automatically.',
+            })}
+          </p>
+        </div>
+        <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
+          <span>{t('home.gettingStarted.cta', { defaultValue: 'Browse all applications' })}</span>
+          <ArrowDown className="h-3.5 w-3.5" />
+        </div>
+      </div>
+    </section>
+  );
 }
 
 export function HomePage() {
@@ -125,6 +169,9 @@ export function HomePage() {
       {/* Main content */}
       <div className="px-4 sm:px-6 lg:px-8 pb-16">
         <div className="max-w-7xl mx-auto space-y-10">
+          {starredApps.length === 0 && recentApps.length === 0 && (
+            <GettingStartedHint t={t} />
+          )}
           {starredApps.length > 0 && <StarredApps items={starredApps} />}
           {recentApps.length > 0 && <RecentApps items={recentApps} />}
 

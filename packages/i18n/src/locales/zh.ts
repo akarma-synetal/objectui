@@ -1236,6 +1236,14 @@ const zh = {
         record: '记录',
       },
     },
+    starredApps: {
+      title: '收藏',
+    },
+    gettingStarted: {
+      title: '把首页布置成你喜欢的样子',
+      description: '收藏一个应用即可固定到此处，一键直达。打开过的内容会自动出现在「最近访问」中。',
+      cta: '浏览全部应用',
+    },
     appCard: {
       noDescription: '暂无描述',
       default: '默认',

@@ -31,6 +31,7 @@ import { useAuth } from '@object-ui/auth';
 import {
   createDebouncedFlush,
   scopedKey,
+  useStorageSync,
   useUserStateAdapter,
 } from './UserStateAdapters';
 
@@ -98,6 +99,15 @@ export function RecentItemsProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     setRecentItems(loadRecent(userId));
   }, [userId]);
+
+  // Cross-tab sync — see FavoritesProvider for the rationale.
+  useStorageSync<RecentItem[]>(scopedKey(STORAGE_BASE_KEY, userId), value => {
+    setRecentItems(
+      Array.isArray(value)
+        ? value.filter(it => it && typeof (it as any).id === 'string').slice(0, MAX_RECENT)
+        : [],
+    );
+  });
 
   const hydrationToken = useRef(0);
   useEffect(() => {

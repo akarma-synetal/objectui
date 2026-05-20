@@ -31,6 +31,7 @@ import { useAuth } from '@object-ui/auth';
 import {
   createDebouncedFlush,
   scopedKey,
+  useStorageSync,
   useUserStateAdapter,
 } from './UserStateAdapters';
 
@@ -107,6 +108,17 @@ export function FavoritesProvider({ children }: FavoritesProviderProps) {
   useEffect(() => {
     setFavorites(loadFavorites(userId));
   }, [userId]);
+
+  // Cross-tab sync: when another tab writes the same scoped key, mirror the
+  // change locally. `storage` events do not fire in the tab that wrote them,
+  // so this never echoes our own mutations.
+  useStorageSync<FavoriteItem[]>(scopedKey(STORAGE_BASE_KEY, userId), value => {
+    setFavorites(
+      Array.isArray(value)
+        ? value.filter(it => it && typeof (it as any).id === 'string').slice(0, MAX_FAVORITES)
+        : [],
+    );
+  });
 
   // Hydrate from backend whenever an adapter is attached (or user changes).
   // Backend wins on conflict; we then write through to localStorage so the

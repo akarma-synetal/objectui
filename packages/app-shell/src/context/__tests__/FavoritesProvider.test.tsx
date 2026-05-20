@@ -208,6 +208,49 @@ describe('FavoritesProvider', () => {
     expect(result.current.isFavorite('x')).toBe(false);
   });
 
+  it('syncs across tabs via the window storage event', async () => {
+    const { result } = renderHook(() => useFavorites(), { wrapper });
+
+    expect(result.current.favorites).toEqual([]);
+
+    const incoming: FavoriteItem[] = [
+      { id: 'remote', label: 'R', href: '/r', type: 'object', favoritedAt: 't' },
+    ];
+
+    act(() => {
+      window.dispatchEvent(
+        new StorageEvent('storage', {
+          key: 'objectui-favorites:u:user-1',
+          newValue: JSON.stringify(incoming),
+          storageArea: localStorage,
+        }),
+      );
+    });
+
+    await waitFor(() => {
+      expect(result.current.favorites.map(f => f.id)).toEqual(['remote']);
+    });
+  });
+
+  it('ignores storage events for unrelated keys', () => {
+    const { result } = renderHook(() => useFavorites(), { wrapper });
+    act(() => {
+      result.current.addFavorite({ id: 'keep', label: 'K', href: '/k', type: 'object' });
+    });
+
+    act(() => {
+      window.dispatchEvent(
+        new StorageEvent('storage', {
+          key: 'some-other-key',
+          newValue: JSON.stringify([]),
+          storageArea: localStorage,
+        }),
+      );
+    });
+
+    expect(result.current.favorites.map(f => f.id)).toEqual(['keep']);
+  });
+
   it('isolates state by user.id via scoped storage keys', () => {
     mockUser.current = { id: 'user-A' } as any;
     localStorage.setItem(

@@ -18,6 +18,7 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
   useRef,
   useState,
@@ -117,6 +118,40 @@ export function useAttachUserStateAdapters() {
  */
 export function scopedKey(base: string, userId?: string | null): string {
   return userId ? `${base}:u:${userId}` : base;
+}
+
+/**
+ * Subscribe to cross-tab updates of a specific localStorage key. The browser
+ * fires `storage` events only in *other* tabs, so we never echo our own
+ * writes. `onValue` receives the parsed JSON payload (or null if the key was
+ * removed / unparseable).
+ */
+export function useStorageSync<T>(
+  key: string,
+  onValue: (value: T | null) => void,
+): void {
+  // Keep the latest callback in a ref so re-renders of the caller don't
+  // tear down and re-add the window listener.
+  const cbRef = useRef(onValue);
+  cbRef.current = onValue;
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const handler = (e: StorageEvent) => {
+      if (e.key !== key || e.storageArea !== localStorage) return;
+      if (e.newValue == null) {
+        cbRef.current(null);
+        return;
+      }
+      try {
+        cbRef.current(JSON.parse(e.newValue) as T);
+      } catch {
+        cbRef.current(null);
+      }
+    };
+    window.addEventListener('storage', handler);
+    return () => window.removeEventListener('storage', handler);
+  }, [key]);
 }
 
 /**

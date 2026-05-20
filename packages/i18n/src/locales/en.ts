@@ -1236,6 +1236,15 @@ const en = {
         record: 'Record',
       },
     },
+    starredApps: {
+      title: 'Starred',
+    },
+    gettingStarted: {
+      title: 'Make this home yours',
+      description:
+        'Star an app to pin it here for one-click access. Anything you open will show up under Recently Accessed automatically.',
+      cta: 'Browse all applications',
+    },
     appCard: {
       noDescription: 'No description',
       default: 'Default',
