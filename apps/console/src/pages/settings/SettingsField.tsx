@@ -48,6 +48,50 @@ export interface SettingsFieldProps {
   labels?: SettingsLabelHelpers;
 }
 
+function InheritanceBadges({
+  resolved,
+  labels,
+}: {
+  resolved: ResolvedSettingValue;
+  labels?: SettingsLabelHelpers;
+}) {
+  const chain = resolved.cascadeChain;
+  if (!chain || chain.length === 0) return null;
+
+  const effective = chain.find((e) => e.effective) ?? chain[chain.length - 1];
+  const upperWithValue = chain.find(
+    (e) => e !== effective && e.value !== null && e.value !== undefined,
+  );
+
+  const sourceText = (scope: ResolvedSettingValue['source']) =>
+    labels?.sourceLabel?.(scope) ?? scope;
+
+  // "Inherited from <upper>" — effective value came from an upper scope.
+  if (
+    effective.scope !== 'default' &&
+    effective.scope !== 'user' &&
+    effective.scope !== 'tenant'
+  ) {
+    // global/env: show as inherited for downstream scopes
+    return (
+      <Badge variant="outline" className="text-blue-700 border-blue-300 text-[10px]">
+        Inherited from {sourceText(effective.scope)}
+      </Badge>
+    );
+  }
+
+  // "Overrides <upper>" — local value shadows an upper-scope value.
+  if (upperWithValue) {
+    return (
+      <Badge variant="outline" className="text-amber-700 border-amber-300 text-[10px]">
+        Overrides {sourceText(upperWithValue.scope)}
+      </Badge>
+    );
+  }
+
+  return null;
+}
+
 function FieldHeader({
   spec,
   resolved,
@@ -71,6 +115,9 @@ function FieldHeader({
         </Badge>
       ) : null}
       {resolved?.locked ? <EnvLockBadge reason={resolved.lockedReason} /> : null}
+      {resolved && !resolved.locked ? (
+        <InheritanceBadges resolved={resolved} labels={labels} />
+      ) : null}
       {resolved?.source && resolved.source !== 'default' && !resolved.locked ? (
         <span className="text-[11px] text-muted-foreground">
           {labels?.sourceLabel?.(resolved.source) ?? resolved.source}

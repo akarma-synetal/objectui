@@ -93,6 +93,13 @@ export interface ResolvedSettingValue<T = unknown> {
   source: 'env' | 'global' | 'tenant' | 'user' | 'default';
   locked: boolean;
   lockedReason?: string;
+  cascadeChain?: Array<{
+    scope: 'env' | 'global' | 'tenant' | 'user' | 'default';
+    value: unknown;
+    locked?: boolean;
+    lockedReason?: string;
+    effective?: boolean;
+  }>;
 }
 
 export interface SettingsNamespacePayload {
