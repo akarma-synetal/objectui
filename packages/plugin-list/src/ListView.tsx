@@ -1436,8 +1436,11 @@ export const ListView = React.forwardRef<ListViewHandle, ListViewProps>(({
         </div>
       )}
 
-      {/* Unified toolbar — Tabs + UserFilters (left) + Tool buttons (right) on one row */}
-      <div className="border-b px-2 sm:px-4 py-1 flex items-center justify-between gap-1 sm:gap-2 bg-background">
+      {/* Unified toolbar — Tabs + UserFilters (left) + Tool buttons (right) on one row.
+          The right-hand cluster is wrapped in a single rounded pill container
+          with vertical dividers (Linear / Notion style) so utility buttons
+          read as one segmented control rather than a loose bag of icons. */}
+      <div className="border-b px-2 sm:px-4 py-1.5 flex items-center justify-between gap-1 sm:gap-2 bg-background">
         <div className="flex items-center gap-2 overflow-x-auto min-w-0">
           {/* View Tabs — inline */}
           {schema.tabs && schema.tabs.length > 0 && (
@@ -1466,7 +1469,7 @@ export const ListView = React.forwardRef<ListViewHandle, ListViewProps>(({
           )}
         </div>
 
-        <div className="flex items-center gap-0 shrink-0">
+        <div className="flex items-center gap-0 shrink-0 rounded-lg border border-border/60 bg-muted/30 p-0.5 shadow-[0_1px_2px_rgba(0,0,0,0.03)]">
           {/* Hide Fields */}
           {toolbarFlags.showHideFields && !toolbarFlags.compactToolbar && (
           <Popover open={showHideFields} onOpenChange={setShowHideFields}>
@@ -1526,7 +1529,7 @@ export const ListView = React.forwardRef<ListViewHandle, ListViewProps>(({
 
           {/* --- Separator: Hide Fields | Data Manipulation --- */}
           {toolbarFlags.showHideFields && !toolbarFlags.compactToolbar && (toolbarFlags.showFilters || toolbarFlags.showSort || toolbarFlags.showGroup) && (
-            <div className="h-4 w-px bg-border/60 mx-0.5 shrink-0" />
+            <div className="h-5 w-px bg-border/50 mx-1 shrink-0" />
           )}
 
           {/* Filter — universal advanced filter builder.
@@ -1663,7 +1666,7 @@ export const ListView = React.forwardRef<ListViewHandle, ListViewProps>(({
 
           {/* --- Separator: Data Manipulation | Appearance --- */}
           {!toolbarFlags.compactToolbar && (toolbarFlags.showFilters || toolbarFlags.showSort || toolbarFlags.showGroup) && (toolbarFlags.showColor || toolbarFlags.showDensity) && (
-            <div className="h-4 w-px bg-border/60 mx-0.5 shrink-0" />
+            <div className="h-5 w-px bg-border/50 mx-1 shrink-0" />
           )}
 
           {/* Color */}
@@ -1806,7 +1809,7 @@ export const ListView = React.forwardRef<ListViewHandle, ListViewProps>(({
 
           {/* --- Separator: Appearance | Export --- */}
           {(toolbarFlags.showColor || toolbarFlags.showDensity || toolbarFlags.compactToolbar) && resolvedExportOptions && schema.allowExport !== false && (
-            <div className="h-4 w-px bg-border/60 mx-0.5 shrink-0" />
+            <div className="h-5 w-px bg-border/50 mx-1 shrink-0" />
           )}
 
           {/* Export */}
@@ -1873,7 +1876,7 @@ export const ListView = React.forwardRef<ListViewHandle, ListViewProps>(({
           {(() => {
             const hasLeftSideItems = schema.allowPrinting || (schema.sharing?.enabled || schema.sharing?.type) || (resolvedExportOptions && schema.allowExport !== false);
             return toolbarFlags.showSearch && hasLeftSideItems ? (
-              <div className="h-4 w-px bg-border/60 mx-0.5 shrink-0" />
+              <div className="h-5 w-px bg-border/50 mx-1 shrink-0" />
             ) : null;
           })()}
 
