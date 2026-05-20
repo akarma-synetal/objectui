@@ -8,6 +8,7 @@
 
 import { useCallback, useRef, useState } from 'react';
 import type { BulkActionDef } from '@object-ui/types';
+import { RelatedCountStore } from '@object-ui/components';
 
 export interface BulkRowError {
   id: string;
@@ -175,6 +176,13 @@ export function useBulkExecutor({ resource, dataSource }: BulkExecutorOptions) {
       lastRunRef.current = { def, rows, params };
       setProgress({ total, done: succeeded, failed, inFlight: false });
       setResult(finalResult);
+      // Mutating any row in `resource` may have changed how many records
+      // belong to a parent (e.g. deleting Contacts under an Account). Drop
+      // every cached count for this resource so the next page render
+      // re-probes. Cheap — counts are 1-int values.
+      if (succeeded > 0) {
+        RelatedCountStore.invalidate(resource);
+      }
       return finalResult;
     },
     [resource, dataSource],

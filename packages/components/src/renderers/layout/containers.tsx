@@ -22,6 +22,7 @@ import { ComponentRegistry } from '@object-ui/core';
 import { useRecordContext } from '@object-ui/react';
 import { renderChildren, cn } from '../../lib/utils';
 import { LazyIcon } from '../../lib/lazy-icon';
+import { RelatedCountStore, useRelatedCount } from '../../hooks/related-count-store';
 import {
   Tabs,
   TabsList,
@@ -150,18 +151,23 @@ const PageTabsRenderer: React.FC<any> = ({ schema, className, ...props }) => {
   // each tab. The fetch is a `limit:1` find so we only consume the `total`
   // — cheap relative to the eventual list render the user gets when they
   // open the tab. Spec authors that pass `count` explicitly win.
+  //
+  // Counts are kept in a module-scoped store (`RelatedCountStore`) so:
+  //   - sibling tab strips on the same record don't re-probe identical keys
+  //   - bulk mutations elsewhere in the app (delete, create, save) can
+  //     `RelatedCountStore.invalidate(objectName, parentId)` and every
+  //     subscriber updates with no parent re-render.
   const ctx = useRecordContext();
   const parentId = ctx?.data?.id;
   const ds: any = ctx?.dataSource;
-  const [derivedCounts, setDerivedCounts] = React.useState<Record<number, number>>({});
+  // Subscribe to store changes so badges re-render on invalidation /
+  // remote count updates. The actual count lookup is per-tab below.
+  useRelatedCount(undefined, undefined, parentId);
 
   // Snapshot which tabs (index → derived (objectName, relationshipField))
   // need a count probe. Cached per items reference so we don't re-walk on
   // every render.
   const probeTargets = React.useMemo(() => {
-    // Map tab index → array of probes (one per related_list inside the tab).
-    // The badge sums per-probe totals so a "Related" tab containing an
-    // accordion of multiple related lists still shows a meaningful number.
     const out = new Map<number, Array<{ objectName: string; relationshipField?: string }>>();
     items.forEach((it, idx) => {
       if (it.count !== undefined && it.count !== null && it.count !== '') return;
@@ -183,38 +189,41 @@ const PageTabsRenderer: React.FC<any> = ({ schema, className, ...props }) => {
     if (!ds || typeof ds.find !== 'function') return;
     if (probeTargets.size === 0) return;
     let cancelled = false;
-    for (const [idx, probes] of probeTargets) {
-      Promise.all(
-        probes.map((probe) => {
-          const where: any = {};
-          if (probe.relationshipField) {
-            if (!parentId) return Promise.resolve(0);
-            where[probe.relationshipField] = parentId;
-          }
-          return Promise.resolve(ds.find(probe.objectName, { where, limit: 1 }))
-            .then((res: any) => {
-              const total =
-                typeof res?.total === 'number'
-                  ? res.total
-                  : Array.isArray(res?.data)
-                    ? res.data.length
-                    : Array.isArray(res)
-                      ? res.length
-                      : 0;
-              return typeof total === 'number' ? total : 0;
-            })
-            .catch(() => 0);
-        }),
-      ).then((counts) => {
+    for (const probes of probeTargets.values()) {
+      for (const probe of probes) {
+        // RelatedCountStore.fetch is internally deduplicated, so concurrent
+        // mounts of multiple tab strips don't generate redundant requests.
+        void RelatedCountStore.fetch(
+          (object, query) => ds.find(object, query),
+          probe.objectName,
+          probe.relationshipField,
+          parentId,
+        ).catch(() => 0);
         if (cancelled) return;
-        const sum = counts.reduce((a, b) => a + b, 0);
-        setDerivedCounts((prev) => (prev[idx] === sum ? prev : { ...prev, [idx]: sum }));
-      });
+      }
     }
     return () => {
       cancelled = true;
     };
   }, [ds, probeTargets, parentId]);
+
+  // Compute the displayed count by reading the store for every probe target.
+  // useRelatedCount above subscribed us to changes, so any store update —
+  // whether from this effect or from an external invalidate — re-renders.
+  const computeCount = (idx: number): number | undefined => {
+    const probes = probeTargets.get(idx);
+    if (!probes || probes.length === 0) return undefined;
+    let sum = 0;
+    let seenAny = false;
+    for (const p of probes) {
+      const v = RelatedCountStore.get(p.objectName, p.relationshipField, parentId);
+      if (v !== undefined) {
+        sum += v;
+        seenAny = true;
+      }
+    }
+    return seenAny ? sum : undefined;
+  };
 
   // PageTabsProps doesn't carry a value, synthesize one from the index so
   // Radix Tabs (which requires stable values) is happy.
@@ -225,7 +234,7 @@ const PageTabsRenderer: React.FC<any> = ({ schema, className, ...props }) => {
     // Explicit spec count wins; otherwise fall back to the derived probe.
     count: it.count !== undefined && it.count !== null && it.count !== ''
       ? it.count
-      : derivedCounts[idx],
+      : computeCount(idx),
   }));
 
   const defaultValue = itemsWithValue[0]?.value;
