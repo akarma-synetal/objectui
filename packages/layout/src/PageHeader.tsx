@@ -27,12 +27,20 @@ export interface PageHeaderProps extends React.HTMLAttributes<HTMLDivElement> {
      */
     showBack?: boolean;
     /**
+     * Optional inline action list rendered into the header's right-aligned
+     * slot. Accepts an array of `ActionDef` objects (or action ids) and
+     * delegates rendering to the standard `record:quick_actions` widget
+     * with `location: 'record_header'`. Authors no longer need to declare
+     * a sibling `record:quick_actions` node + visual `-mt-12` hack.
+     */
+    actions?: unknown[];
+    /**
      * When rendered from a schema, `SchemaRenderer` injects the full schema
      * node so we can render its `children` into the right-aligned action
      * slot (Salesforce Lightning-style header). React children passed at
      * the JSX call site take precedence over schema children.
      */
-    schema?: { children?: unknown[] };
+    schema?: { children?: unknown[]; actions?: unknown[]; properties?: { actions?: unknown[] } };
 }
 
 /**
@@ -66,6 +74,7 @@ export function PageHeader({
     description,
     icon,
     action,
+    actions,
     showBack,
     schema,
     className,
@@ -111,7 +120,25 @@ export function PageHeader({
                   <SchemaRenderer key={(child?.id as string) || `pgh-child-${idx}`} schema={child} />
               ))
         : null;
-    const slot = action || children || schemaChildren;
+    // First-class `actions` property: render as an inline record:quick_actions
+    // node so authors get the same toolbar (icons, overflow, permissions,
+    // confirm dialogs) without a sibling component + visual hack.
+    const resolvedActions =
+        (Array.isArray(actions) && actions.length > 0 && actions) ||
+        (Array.isArray(schema?.actions) && (schema!.actions as unknown[]).length > 0 && schema!.actions) ||
+        (Array.isArray(schema?.properties?.actions) && (schema!.properties!.actions as unknown[]).length > 0 && schema!.properties!.actions) ||
+        null;
+    const actionsSlot = resolvedActions
+        ? (
+            <SchemaRenderer
+                schema={{
+                    type: 'record:quick_actions',
+                    properties: { actions: resolvedActions, location: 'record_header', align: 'end', inline: true },
+                } as any}
+            />
+        )
+        : null;
+    const slot = action || children || actionsSlot || schemaChildren;
 
     return (
         <div className={cn('flex flex-col gap-3 pb-4 border-b', className)} {...props}>

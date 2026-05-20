@@ -105,7 +105,9 @@ export const RecordQuickActionsRenderer: React.FC<RecordQuickActionsRendererProp
   // When sitting in the record_header region right below the page:header
   // (the canonical Salesforce Lightning placement), pull the toolbar up so
   // it visually pairs with the title instead of orphaning on its own row.
-  const inlineWithHeader = location === 'record_header';
+  // Disabled when rendered inline inside page:header's own action slot
+  // (the `inline` flag is set by PageHeader's first-class `actions` prop).
+  const inlineWithHeader = location === 'record_header' && !schema.inline;
 
   return (
     <div
