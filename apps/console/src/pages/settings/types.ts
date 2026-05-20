@@ -28,7 +28,7 @@ export type SpecifierType =
   | 'json'
   | 'action_button';
 
-export type SpecifierScope = 'tenant' | 'user';
+export type SpecifierScope = 'global' | 'tenant' | 'user';
 
 export interface SpecifierOption {
   value: string | number | boolean;
@@ -90,7 +90,7 @@ export interface SettingsManifest {
 
 export interface ResolvedSettingValue<T = unknown> {
   value: T;
-  source: 'env' | 'tenant' | 'user' | 'default';
+  source: 'env' | 'global' | 'tenant' | 'user' | 'default';
   locked: boolean;
   lockedReason?: string;
 }

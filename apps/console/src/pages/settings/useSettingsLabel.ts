@@ -42,6 +42,8 @@ export interface SettingsLabelHelpers {
   actionLabel: (actionId: string, fallback: string) => string;
   actionConfirm: (actionId: string, fallback: string | undefined) => string | undefined;
   actionSuccess: (actionId: string, fallback: string | undefined) => string | undefined;
+  /** Human label for a `ResolvedSettingValue.source` (env/global/tenant/user/default). */
+  sourceLabel: (source: 'env' | 'global' | 'tenant' | 'user' | 'default') => string;
 }
 
 /**
@@ -85,6 +87,38 @@ export function useSettingsLabel(namespace: string): SettingsLabelHelpers {
       return fallback;
     };
 
+    /** Cross-namespace lookup under `<ns>.settingsCommon.<suffix>`. */
+    const resolveCommon = (suffix: string, fallback: string): string => {
+      try {
+        if (!i18n || typeof i18n.getResourceBundle !== 'function') return fallback;
+        const lang = i18n.language || 'en';
+        const bundle = i18n.getResourceBundle(lang, 'translation') as
+          | Record<string, unknown>
+          | undefined;
+        if (!bundle) return fallback;
+        for (const ns of Object.keys(bundle)) {
+          if (BUILTIN_KEYS.has(ns)) continue;
+          const root = bundle[ns];
+          if (!root || typeof root !== 'object') continue;
+          if (!('settingsCommon' in (root as object))) continue;
+          const key = `${ns}.settingsCommon.${suffix}`;
+          const translated = t(key, { defaultValue: '' });
+          if (translated && translated !== key && translated !== '') return translated;
+        }
+      } catch {
+        // Fall through.
+      }
+      return fallback;
+    };
+
+    const SOURCE_FALLBACKS = {
+      env: 'Env',
+      global: 'Global',
+      tenant: 'Tenant',
+      user: 'User',
+      default: 'Default',
+    } as const;
+
     return {
       title: (fallback) => resolve('title', fallback) ?? fallback,
       description: (fallback) => resolve('description', fallback),
@@ -103,6 +137,8 @@ export function useSettingsLabel(namespace: string): SettingsLabelHelpers {
         resolve(`actions.${actionId}.confirmText`, fallback),
       actionSuccess: (actionId, fallback) =>
         resolve(`actions.${actionId}.successMessage`, fallback),
+      sourceLabel: (source) =>
+        resolveCommon(`sourceLabels.${source}`, SOURCE_FALLBACKS[source] ?? source),
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [namespace, t, i18n, i18n?.language]);

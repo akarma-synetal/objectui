@@ -52,10 +52,12 @@ function FieldHeader({
   spec,
   resolved,
   labelText,
+  labels,
 }: {
   spec: Specifier;
   resolved?: ResolvedSettingValue;
   labelText: string;
+  labels?: SettingsLabelHelpers;
 }) {
   return (
     <div className="flex items-center gap-2">
@@ -70,7 +72,9 @@ function FieldHeader({
       ) : null}
       {resolved?.locked ? <EnvLockBadge reason={resolved.lockedReason} /> : null}
       {resolved?.source && resolved.source !== 'default' && !resolved.locked ? (
-        <span className="text-[11px] text-muted-foreground capitalize">{resolved.source}</span>
+        <span className="text-[11px] text-muted-foreground">
+          {labels?.sourceLabel?.(resolved.source) ?? resolved.source}
+        </span>
       ) : null}
     </div>
   );
@@ -147,7 +151,7 @@ export function SettingsField(props: SettingsFieldProps) {
   if (spec.type === 'title_value') {
     return (
       <div className="flex items-center justify-between py-2">
-        <FieldHeader spec={spec} resolved={resolved} labelText={fieldLabel} />
+        <FieldHeader spec={spec} resolved={resolved} labelText={fieldLabel} labels={labels} />
         <span className="text-sm text-muted-foreground">{String(value ?? '—')}</span>
       </div>
     );
@@ -179,7 +183,7 @@ export function SettingsField(props: SettingsFieldProps) {
 
   const wrapper = (children: React.ReactNode) => (
     <div className="space-y-1.5 py-2">
-      <FieldHeader spec={spec} resolved={resolved} labelText={fieldLabel} />
+      <FieldHeader spec={spec} resolved={resolved} labelText={fieldLabel} labels={labels} />
       {children}
       <FieldDescription description={fieldHelp} />
     </div>
@@ -248,7 +252,7 @@ export function SettingsField(props: SettingsFieldProps) {
       return (
         <div className="flex items-center justify-between py-3">
           <div>
-            <FieldHeader spec={spec} resolved={resolved} labelText={fieldLabel} />
+            <FieldHeader spec={spec} resolved={resolved} labelText={fieldLabel} labels={labels} />
             <FieldDescription description={fieldHelp} />
           </div>
           <Switch
