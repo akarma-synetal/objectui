@@ -1,5 +1,6 @@
 import React from 'react';
-import { cn, LazyIcon } from '@object-ui/components';
+import { cn, LazyIcon, Button } from '@object-ui/components';
+import { ArrowLeft } from 'lucide-react';
 import { useRecordContext, SchemaRenderer } from '@object-ui/react';
 
 export interface PageHeaderProps extends React.HTMLAttributes<HTMLDivElement> {
@@ -18,6 +19,13 @@ export interface PageHeaderProps extends React.HTMLAttributes<HTMLDivElement> {
      */
     icon?: React.ReactNode | string;
     action?: React.ReactNode;
+    /**
+     * Show a back arrow at the left of the header that navigates one level
+     * up the URL (e.g. /apps/{app}/{obj}/record/{id} → /apps/{app}/{obj}).
+     * Defaults to true on record pages and false otherwise — the inference
+     * is based on whether a record context with a recordId is available.
+     */
+    showBack?: boolean;
     /**
      * When rendered from a schema, `SchemaRenderer` injects the full schema
      * node so we can render its `children` into the right-aligned action
@@ -51,6 +59,7 @@ export function PageHeader({
     description,
     icon,
     action,
+    showBack,
     schema,
     className,
     children,
@@ -62,6 +71,27 @@ export function PageHeader({
     // (which use subtitle) override the legacy alias cleanly.
     const secondaryRaw = subtitle ?? description;
     const resolvedSecondary = interpolateTitle(secondaryRaw, ctx?.data) || secondaryRaw;
+
+    // Default-on for record pages (a recordId in scope is the cheapest tell
+    // that the user navigated from a list view). The host can override with
+    // `showBack={false}` for embedded contexts (drawers, modals).
+    const isRecordPage = !!ctx?.recordId;
+    const shouldShowBack = showBack ?? isRecordPage;
+    const handleBack = React.useCallback(() => {
+        // Strip a trailing `/record/{id}` (or any one-segment leaf) to land
+        // on the list view. If the URL doesn't match, fall back to browser
+        // history so deep-linked users still get a usable affordance.
+        if (typeof window === 'undefined') return;
+        const path = window.location.pathname;
+        const parent = path.replace(/\/record\/[^/]+\/?$/, '');
+        if (parent !== path) {
+            window.history.pushState({}, '', parent + window.location.search);
+            // SPA routers listen on popstate, dispatch it so they re-render.
+            window.dispatchEvent(new PopStateEvent('popstate'));
+        } else if (window.history.length > 1) {
+            window.history.back();
+        }
+    }, []);
 
     // Render schema-declared children into the action slot. `SchemaRenderer`
     // strips `children` from the React tree (treats them as metadata), so
@@ -79,6 +109,18 @@ export function PageHeader({
     return (
         <div className={cn('flex flex-col gap-3 pb-4 border-b', className)} {...props}>
             <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+                {shouldShowBack && (
+                    <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        onClick={handleBack}
+                        aria-label="Back to list"
+                        className="flex-shrink-0 -ml-2"
+                    >
+                        <ArrowLeft className="size-4" />
+                    </Button>
+                )}
                 {icon && (
                     <div className="flex-shrink-0 grid place-items-center size-10 rounded-md bg-primary/10 text-primary">
                         {typeof icon === 'string' ? <LazyIcon name={icon} className="size-5" /> : icon}
