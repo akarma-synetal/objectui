@@ -611,6 +611,25 @@ function KanbanBoardInner({ columns, onCardMove, onCardClick, className, dnd, qu
     [boardColumns]
   )
 
+  // Mobile: track which column is currently snapped into view so we can
+  // render a compact dot indicator instead of the noisier "← Swipe to
+  // navigate →" hint that used to live above the board.
+  const flatScrollRef = React.useRef<HTMLDivElement | null>(null)
+  const [activeColumnIndex, setActiveColumnIndex] = React.useState(0)
+  React.useEffect(() => {
+    const el = flatScrollRef.current
+    if (!el) return
+    const handle = () => {
+      const colWidth = el.clientWidth
+      if (colWidth <= 0) return
+      const idx = Math.round(el.scrollLeft / colWidth)
+      setActiveColumnIndex(Math.max(0, Math.min(boardColumns.length - 1, idx)))
+    }
+    handle()
+    el.addEventListener('scroll', handle, { passive: true })
+    return () => el.removeEventListener('scroll', handle)
+  }, [boardColumns.length])
+
   return (
     <DndContext
       sensors={sensors}
@@ -619,10 +638,23 @@ function KanbanBoardInner({ columns, onCardMove, onCardClick, className, dnd, qu
       onDragEnd={handleDragEnd}
     >
       <div ref={boardRef} className="flex flex-col min-w-0 min-h-0 h-full">
-      <div className="flex sm:hidden items-center justify-between px-3 pb-2 text-xs text-muted-foreground">
-        <span>{boardColumns.length} columns</span>
-        <span>← Swipe to navigate →</span>
-      </div>
+      {/* Mobile-only column indicator. Replaces the prior verbose
+          "← Swipe to navigate →" caption with a low-noise dot row that
+          also doubles as a position indicator. Hidden when there is only
+          one column since the affordance is meaningless then. */}
+      {boardColumns.length > 1 && (
+        <div className="flex sm:hidden items-center justify-center gap-1.5 px-3 pb-2" aria-hidden>
+          {boardColumns.map((col, i) => (
+            <span
+              key={col.id}
+              className={cn(
+                "h-1.5 rounded-full transition-all",
+                i === activeColumnIndex ? "w-4 bg-foreground/70" : "w-1.5 bg-muted-foreground/30"
+              )}
+            />
+          ))}
+        </div>
+      )}
 
       {swimlanes ? (
         /* Swimlane (2D) layout */
@@ -683,7 +715,7 @@ function KanbanBoardInner({ columns, onCardMove, onCardClick, className, dnd, qu
         </div>
       ) : (
         /* Standard flat layout */
-        <div className={cn("flex gap-3 sm:gap-4 overflow-x-auto snap-x snap-mandatory px-4 sm:px-6 py-3 sm:py-4 [-webkit-overflow-scrolling:touch] min-w-0 min-h-0 h-full", className)} role="region" aria-label="Kanban board">
+        <div ref={flatScrollRef} className={cn("flex gap-3 sm:gap-4 overflow-x-auto snap-x snap-mandatory px-4 sm:px-6 py-3 sm:py-4 [-webkit-overflow-scrolling:touch] min-w-0 min-h-0 h-full", className)} role="region" aria-label="Kanban board">
           {boardColumns.map((column) => (
             <KanbanColumnView
               key={column.id}

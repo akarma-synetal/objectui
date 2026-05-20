@@ -1484,7 +1484,7 @@ export const ListView = React.forwardRef<ListViewHandle, ListViewProps>(({
         </div>
 
         <div className="flex items-center gap-0 shrink-0 rounded-lg border border-border bg-muted/40 p-0.5 shadow-sm">
-          {/* Hide Fields */}
+          {/* Hide Fields — hidden on mobile (collapsed into ViewSettingsPopover) */}
           {toolbarFlags.showHideFields && !toolbarFlags.compactToolbar && (
           <Popover open={showHideFields} onOpenChange={setShowHideFields}>
             <PopoverTrigger asChild>
@@ -1492,7 +1492,7 @@ export const ListView = React.forwardRef<ListViewHandle, ListViewProps>(({
                 variant="ghost"
                 size="sm"
                 className={cn(
-                  "h-7 px-2 text-muted-foreground hover:text-primary text-xs transition-colors duration-150",
+                  "hidden sm:inline-flex h-7 px-2 text-muted-foreground hover:text-primary text-xs transition-colors duration-150",
                   hiddenFields.size > 0 && "text-primary"
                 )}
               >
@@ -1543,7 +1543,7 @@ export const ListView = React.forwardRef<ListViewHandle, ListViewProps>(({
 
           {/* --- Separator: Hide Fields | Data Manipulation --- */}
           {toolbarFlags.showHideFields && !toolbarFlags.compactToolbar && (toolbarFlags.showFilters || toolbarFlags.showSort || toolbarFlags.showGroup) && (
-            <div className="h-5 w-px bg-border/50 mx-1 shrink-0" />
+            <div className="hidden sm:block h-5 w-px bg-border/50 mx-1 shrink-0" />
           )}
 
           {/* Filter — universal advanced filter builder.
@@ -1590,7 +1590,7 @@ export const ListView = React.forwardRef<ListViewHandle, ListViewProps>(({
           </Popover>
           )}
 
-          {/* Group */}
+          {/* Group — hidden on mobile (collapsed into ViewSettingsPopover) */}
           {toolbarFlags.showGroup && !toolbarFlags.compactToolbar && (
           <Popover open={showGroupPopover} onOpenChange={setShowGroupPopover}>
             <PopoverTrigger asChild>
@@ -1598,7 +1598,7 @@ export const ListView = React.forwardRef<ListViewHandle, ListViewProps>(({
                 variant="ghost"
                 size="sm"
                 className={cn(
-                  "h-7 px-2 text-muted-foreground hover:text-primary text-xs transition-colors duration-150",
+                  "hidden sm:inline-flex h-7 px-2 text-muted-foreground hover:text-primary text-xs transition-colors duration-150",
                   groupingConfig && "text-foreground font-medium"
                 )}
               >
@@ -1680,10 +1680,10 @@ export const ListView = React.forwardRef<ListViewHandle, ListViewProps>(({
 
           {/* --- Separator: Data Manipulation | Appearance --- */}
           {!toolbarFlags.compactToolbar && (toolbarFlags.showFilters || toolbarFlags.showSort || toolbarFlags.showGroup) && (toolbarFlags.showColor || toolbarFlags.showDensity) && (
-            <div className="h-5 w-px bg-border/50 mx-1 shrink-0" />
+            <div className="hidden sm:block h-5 w-px bg-border/50 mx-1 shrink-0" />
           )}
 
-          {/* Color */}
+          {/* Color — hidden on mobile (collapsed into ViewSettingsPopover) */}
           {toolbarFlags.showColor && !toolbarFlags.compactToolbar && (
           <Popover open={showColorPopover} onOpenChange={setShowColorPopover}>
             <PopoverTrigger asChild>
@@ -1691,7 +1691,7 @@ export const ListView = React.forwardRef<ListViewHandle, ListViewProps>(({
                 variant="ghost"
                 size="sm"
                 className={cn(
-                  "h-7 px-2 text-muted-foreground hover:text-primary text-xs transition-colors duration-150",
+                  "hidden sm:inline-flex h-7 px-2 text-muted-foreground hover:text-primary text-xs transition-colors duration-150",
                   rowColorConfig && "text-foreground font-medium"
                 )}
               >
@@ -1756,7 +1756,7 @@ export const ListView = React.forwardRef<ListViewHandle, ListViewProps>(({
                 size="sm"
                 aria-label={ariaLabel}
                 className={cn(
-                  "h-7 w-7 p-0 text-muted-foreground hover:text-primary transition-colors duration-150",
+                  "hidden sm:inline-flex h-7 w-7 p-0 text-muted-foreground hover:text-primary transition-colors duration-150",
                   density.mode !== 'compact' && "text-foreground font-medium"
                 )}
                 onClick={density.cycle}
@@ -1788,7 +1788,7 @@ export const ListView = React.forwardRef<ListViewHandle, ListViewProps>(({
                 size="sm"
                 aria-label={ariaLabel}
                 className={cn(
-                  "h-7 w-7 p-0 text-muted-foreground hover:text-primary transition-colors duration-150",
+                  "hidden sm:inline-flex h-7 w-7 p-0 text-muted-foreground hover:text-primary transition-colors duration-150",
                   galleryCardSize !== 'small' && "text-foreground font-medium",
                 )}
                 onClick={cycleGalleryDensity}
@@ -1798,6 +1798,31 @@ export const ListView = React.forwardRef<ListViewHandle, ListViewProps>(({
               </Button>
             );
           })()}
+
+          {/* Mobile-only: collapse HideFields/Group/Color/Density into a single
+              settings gear so the toolbar stays scannable on small screens.
+              Mirrors the compactToolbar behavior below but viewport-driven. */}
+          {!toolbarFlags.compactToolbar && (
+            toolbarFlags.showGroup || toolbarFlags.showColor || toolbarFlags.showDensity || toolbarFlags.showHideFields
+          ) && (
+            <div className="sm:hidden">
+              <ViewSettingsPopover
+                t={t as any}
+                allFields={allFields as any}
+                showGroup={toolbarFlags.showGroup}
+                groupingConfig={groupingConfig}
+                setGroupingConfig={setGroupingConfig}
+                showColor={toolbarFlags.showColor}
+                rowColorConfig={rowColorConfig}
+                setRowColorConfig={setRowColorConfig}
+                showDensity={toolbarFlags.showDensity}
+                density={density as any}
+                showHideFields={toolbarFlags.showHideFields}
+                hiddenFields={hiddenFields}
+                updateHiddenFields={updateHiddenFields}
+              />
+            </div>
+          )}
 
           {/* Compact View Settings popover (P1-4): bundles Group + Color + Density + Hide Fields
               into a single gear button when schema.compactToolbar is enabled. */}
