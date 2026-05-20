@@ -1035,6 +1035,16 @@ export function LookupCellRenderer({ value, field }: CellRendererProps): React.R
 
   if (value == null || value === '') return <EmptyValue />;
 
+  // Server-side $expand returns the related record as a nested object
+  // (e.g. { id, name }). Render its display name directly — no fetch needed.
+  if (!Array.isArray(value) && typeof value === 'object') {
+    const obj = value as Record<string, unknown>;
+    const display = pickRecordDisplayName(obj) || String(obj.id || obj._id || '');
+    if (display) {
+      return <span className="truncate">{display}</span>;
+    }
+  }
+
   const options: Array<{ value: unknown; label: string }> =
     (field as { options?: Array<{ value: unknown; label: string }> }).options || [];
 

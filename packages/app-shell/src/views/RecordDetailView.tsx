@@ -13,6 +13,7 @@ import { Empty, EmptyTitle, EmptyDescription } from '@object-ui/components';
 import { PresenceAvatars, type PresenceUser } from '@object-ui/collaboration';
 import { useAuth, createAuthenticatedFetch } from '@object-ui/auth';
 import { ActionProvider, useObjectTranslation, useObjectLabel, usePageAssignment, RecordContextProvider, SchemaRenderer } from '@object-ui/react';
+import { buildExpandFields } from '@object-ui/core';
 import { toast } from 'sonner';
 import { Database, Users } from 'lucide-react';
 import { MetadataPanel, useMetadataInspector } from './MetadataInspector';
@@ -102,8 +103,15 @@ export function RecordDetailView({ dataSource, objects, onEdit }: RecordDetailVi
       setPageRecord(null);
       return;
     }
-    dataSource
-      .findOne(objectName, pureRecordId)
+    // Expand lookup/master_detail fields so the page receives display
+    // names (e.g. account.name) rather than raw foreign-key IDs. The
+    // page subtitle interpolation and record:* renderers depend on this.
+    const expandFields = buildExpandFields(objectDef?.fields);
+    const params = expandFields.length > 0 ? { $expand: expandFields } : undefined;
+    const findOnePromise = params
+      ? dataSource.findOne(objectName, pureRecordId, params)
+      : dataSource.findOne(objectName, pureRecordId);
+    findOnePromise
       .then((rec: any) => {
         if (!cancelled) setPageRecord(rec);
       })
@@ -113,7 +121,7 @@ export function RecordDetailView({ dataSource, objects, onEdit }: RecordDetailVi
     return () => {
       cancelled = true;
     };
-  }, [assignedPage, objectName, pureRecordId, dataSource]);
+  }, [assignedPage, objectName, pureRecordId, dataSource, objectDef]);
 
   // ─── Action Provider Handlers ───────────────────────────────────────
 

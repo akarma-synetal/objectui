@@ -48,7 +48,14 @@ const interpolateTitle = (template: string | undefined, data: unknown): string =
         const v = path
             .split('.')
             .reduce<any>((acc, seg) => (acc == null ? acc : acc[seg]), data);
-        return v == null ? '' : String(v);
+        if (v == null) return '';
+        // When a lookup field was $expanded, the value is an object like
+        // { id, name, ... } — render the display name instead of [object Object].
+        if (typeof v === 'object') {
+            const display = (v as any).name ?? (v as any).label ?? (v as any).display_name ?? (v as any).title;
+            return display == null ? '' : String(display);
+        }
+        return String(v);
     });
     return out.replace(/\s+/g, ' ').trim();
 };
