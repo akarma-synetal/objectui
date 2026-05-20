@@ -74,7 +74,22 @@ export function formatRecordTitle(titleFormat: string | { source?: string } | un
 
   let anyResolved = false;
   let out = template.replace(/\{([^{}]+)\}/g, (_match, fieldName) => {
-    const value = record[fieldName.trim()];
+    // Support dotted paths (e.g. `{account.name}`) for $expanded lookups.
+    const parts = String(fieldName).trim().split('.');
+    let value: any = record;
+    for (const p of parts) {
+      if (value == null) break;
+      value = (value as any)[p];
+    }
+    // Auto-extract display name from expanded reference objects.
+    if (value && typeof value === 'object') {
+      value =
+        (value as any).name ??
+        (value as any).label ??
+        (value as any).display_name ??
+        (value as any).title ??
+        null;
+    }
     if (value === null || value === undefined || value === '') {
       return EMPTY_TOKEN;
     }

@@ -83,7 +83,19 @@ function resolveDisplayTitle(
       const SEP = '[-\\u2013\\u2014|/·,:]';
       let any = false;
       const raw = titleFormat.replace(/\{([^{}]+)\}/g, (_m, key) => {
-        const v = (data as any)[key.trim()];
+        // Support dotted paths (e.g. `{account.name}`) so titleFormat can
+        // reference fields on $expanded lookup objects.
+        const parts = String(key).trim().split('.');
+        let v: any = data;
+        for (const p of parts) {
+          if (v == null) break;
+          v = (v as any)[p];
+        }
+        // When the resolved value is an expanded reference object (no
+        // sub-key was requested) fall back to its display name.
+        if (v && typeof v === 'object') {
+          v = (v as any).name ?? (v as any).label ?? (v as any).display_name ?? (v as any).title ?? null;
+        }
         if (v !== null && v !== undefined && v !== '') {
           any = true;
           return String(v);
