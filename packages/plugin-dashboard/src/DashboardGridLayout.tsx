@@ -148,11 +148,15 @@ export const DashboardGridLayout: React.FC<DashboardGridLayoutProps> = ({
     // knows to wire `onSchemaChange`.
     if (onSchemaChange) {
       onSchemaChange(mergeLayoutIntoSchema(schema, layouts.lg));
-    } else if (process.env.NODE_ENV !== 'production') {
-      console.warn(
-        '[DashboardGridLayout] Layout edits are in-memory only. ' +
-        'Wire `onSchemaChange` to persist via your data adapter.'
-      );
+    } else {
+      // Dev-time hint (process may not exist in pure browser bundles, hence the guard).
+      const g = globalThis as { process?: { env?: { NODE_ENV?: string } } };
+      if (g.process?.env?.NODE_ENV !== 'production') {
+        console.warn(
+          '[DashboardGridLayout] Layout edits are in-memory only. ' +
+          'Wire `onSchemaChange` to persist via your data adapter.'
+        );
+      }
     }
     setEditMode(false);
   }, [onSchemaChange, schema, layouts]);

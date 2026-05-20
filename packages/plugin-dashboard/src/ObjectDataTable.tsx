@@ -61,7 +61,7 @@ export function normalizeColumns(columns: (string | Record<string, any>)[]): Nor
         accessorKey: col,
       };
     }
-    return col;
+    return col as NormalizedColumn;
   });
 }
 

@@ -298,7 +298,7 @@ export const ObjectMetricWidget: React.FC<ObjectMetricWidgetProps> = ({
       );
     }
 
-    if (target === 'modal') {
+    if (target === 'dialog') {
       return (
         <Dialog open onOpenChange={(v) => !v && setDrillOpen(false)}>
           <DialogContent className="max-w-5xl">

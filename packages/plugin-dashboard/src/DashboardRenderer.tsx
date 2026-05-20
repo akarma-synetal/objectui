@@ -319,8 +319,8 @@ export const DashboardRenderer = forwardRef<HTMLDivElement, DashboardRendererPro
         const { active, over } = event;
         if (!over || active.id === over.id) return;
         const widgets = schema.widgets ?? [];
-        const oldIndex = widgets.findIndex((w) => w.id === active.id);
-        const newIndex = widgets.findIndex((w) => w.id === over.id);
+        const oldIndex = widgets.findIndex((w: DashboardWidgetSchema) => w.id === active.id);
+        const newIndex = widgets.findIndex((w: DashboardWidgetSchema) => w.id === over.id);
         if (oldIndex < 0 || newIndex < 0) return;
         onWidgetsReorder?.(arrayMove(widgets, oldIndex, newIndex));
       },
@@ -407,7 +407,7 @@ export const DashboardRenderer = forwardRef<HTMLDivElement, DashboardRendererPro
 
             // 'horizontal-bar' uses BarChart with vertical layout; 'funnel' has its own renderer.
             const chartTypeMap: Record<string, string> = {};
-            const resolvedWidgetType = chartTypeMap[widgetType] || widgetType;
+            const resolvedWidgetType = (widgetType && chartTypeMap[widgetType]) || widgetType;
 
             if (resolvedWidgetType === 'bar' || resolvedWidgetType === 'horizontal-bar' || resolvedWidgetType === 'line' || resolvedWidgetType === 'area' || resolvedWidgetType === 'pie' || resolvedWidgetType === 'donut' || resolvedWidgetType === 'scatter' || resolvedWidgetType === 'funnel') {
                 // Support data at widget level or nested inside options
@@ -812,17 +812,17 @@ export const DashboardRenderer = forwardRef<HTMLDivElement, DashboardRendererPro
     );
 
     const widgetIds = useMemo(
-      () => (schema.widgets ?? []).map((w) => w.id).filter((id): id is string => !!id),
+      () => (schema.widgets ?? []).map((w: DashboardWidgetSchema) => w.id).filter((id: string | undefined): id is string => !!id),
       [schema.widgets]
     );
 
     const metricIds = useMemo(
-      () => (schema.widgets ?? []).filter((w) => w.type === 'metric').map((w) => w.id).filter((id): id is string => !!id),
+      () => (schema.widgets ?? []).filter((w: DashboardWidgetSchema) => w.type === 'metric').map((w: DashboardWidgetSchema) => w.id).filter((id: string | undefined): id is string => !!id),
       [schema.widgets]
     );
 
     const otherIds = useMemo(
-      () => (schema.widgets ?? []).filter((w) => w.type !== 'metric').map((w) => w.id).filter((id): id is string => !!id),
+      () => (schema.widgets ?? []).filter((w: DashboardWidgetSchema) => w.type !== 'metric').map((w: DashboardWidgetSchema) => w.id).filter((id: string | undefined): id is string => !!id),
       [schema.widgets]
     );
 
