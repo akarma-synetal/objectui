@@ -33,6 +33,25 @@ interface RecordDetailViewProps {
   dataSource: any;
   objects: any[];
   onEdit: (record: any) => void;
+  /**
+   * When provided, this object name overrides the value derived from the
+   * current URL (`useParams()`). Used when rendering the detail inside a
+   * navigation drawer or split-pane — the parent route owns the URL while
+   * the embedded detail is keyed by an in-memory record selection.
+   */
+  objectNameOverride?: string;
+  /**
+   * When provided, this record id overrides the value derived from the
+   * current URL. See {@link objectNameOverride}.
+   */
+  recordIdOverride?: string;
+  /**
+   * `true` when this view is embedded (drawer / split-pane). Suppresses
+   * side effects that would conflict with the host route — namely the
+   * breadcrumb title publish (the parent route already owns the
+   * breadcrumb).
+   */
+  embedded?: boolean;
 }
 
 const FALLBACK_USER = { id: 'current-user', name: 'Demo User' };
@@ -59,12 +78,15 @@ const HIDDEN_SYSTEM_FIELD_NAMES = new Set([
   'organization_id', 'tenant_id', 'is_deleted', 'deleted_at',
 ]);
 
-export function RecordDetailView({ dataSource, objects, onEdit }: RecordDetailViewProps) {
-  const { appName, objectName, recordId } = useParams<{
+export function RecordDetailView({ dataSource, objects, onEdit, objectNameOverride, recordIdOverride, embedded }: RecordDetailViewProps) {
+  const params = useParams<{
     appName?: string;
     objectName?: string;
     recordId?: string;
   }>();
+  const appName = params.appName;
+  const objectName = objectNameOverride ?? params.objectName;
+  const recordId = recordIdOverride ?? params.recordId;
   const { showDebug } = useMetadataInspector();
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -81,8 +103,9 @@ export function RecordDetailView({ dataSource, objects, onEdit }: RecordDetailVi
   const objectDef = objects.find((o: any) => o.name === objectName);
 
   // Publish record title to the navigation context so the top-bar breadcrumb
-  // can display "Acme Platform Upgrade" instead of "#9U1_MmmxjiGR…".
-  useRecordBreadcrumbTitle(recordTitle);
+  // can display "Acme Platform Upgrade" instead of "#9U1_MmmxjiGR…". Skip
+  // when embedded (drawer/split): the parent list route owns the breadcrumb.
+  useRecordBreadcrumbTitle(embedded ? undefined : recordTitle);
 
   // Use the URL recordId as-is — it contains the actual record id.
   // Navigation code passes `record.id || record._id` directly into the URL
@@ -774,7 +797,17 @@ export function RecordDetailView({ dataSource, objects, onEdit }: RecordDetailVi
           title: sec.name ? sectionLabel(objectDef.name, sec.name, sec.title || sec.name) : sec.title,
           collapsible: sec.collapsible,
           defaultCollapsed: sec.defaultCollapsed,
-          fields: (sec.fields || []).map((f: any) => {
+          fields: (sec.fields || [])
+            .filter((f: any) => {
+              // Honor `hidden: true` on a field def even when the form
+              // section explicitly lists it. Hidden fields are typically
+              // internal artifacts (e.g. database URL, environment id)
+              // that platform actions read but end-users shouldn't see.
+              const fieldName = typeof f === 'string' ? f : f.name;
+              const fieldDef = objectDef.fields?.[fieldName];
+              return !fieldDef?.hidden;
+            })
+            .map((f: any) => {
             const fieldName = typeof f === 'string' ? f : f.name;
             const fieldDef = objectDef.fields[fieldName];
             if (!fieldDef) {
@@ -800,7 +833,7 @@ export function RecordDetailView({ dataSource, objects, onEdit }: RecordDetailVi
             // redundant "Details" heading).
             showBorder: false as const,
             fields: Object.keys(objectDef.fields || {})
-              .filter(key => !AUDIT_FIELD_NAMES.has(key) && !HIDDEN_SYSTEM_FIELD_NAMES.has(key))
+              .filter(key => !AUDIT_FIELD_NAMES.has(key) && !HIDDEN_SYSTEM_FIELD_NAMES.has(key) && !objectDef.fields[key]?.hidden)
               .map(key => {
               const fieldDef = objectDef.fields[key];
               const refTarget = fieldDef.reference_to || fieldDef.reference;
@@ -999,7 +1032,7 @@ export function RecordDetailView({ dataSource, objects, onEdit }: RecordDetailVi
       type: 'detail-view' as const,
       objectName: objectDef.name,
       resourceId: pureRecordId,
-      showBack: true,
+      showBack: !embedded,
       onBack: 'history',
       // Hide the Edit button for objects whose lifecycle isn't user-managed
       // (approval requests, audit logs, better-auth tables, …).  The
@@ -1030,7 +1063,7 @@ export function RecordDetailView({ dataSource, objects, onEdit }: RecordDetailVi
       }),
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [objectDef?.name, pureRecordId, childRelatedData, actionRefreshKey, appName, navigate, dataSource, t, objectLabel, objects, historyEnabled, historyEntries, historyLoading, approvals.available, approvals.processes, approvals.canSubmit, approvals.canRecall, approvals.pendingRequest, approvals.latestRequest]);
+  }, [objectDef?.name, pureRecordId, childRelatedData, actionRefreshKey, appName, navigate, dataSource, t, objectLabel, objects, historyEnabled, historyEntries, historyLoading, approvals.available, approvals.processes, approvals.canSubmit, approvals.canRecall, approvals.pendingRequest, approvals.latestRequest, embedded]);
 
   if (isLoading) {
     return <SkeletonDetail />;

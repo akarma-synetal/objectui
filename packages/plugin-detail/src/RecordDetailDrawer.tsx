@@ -218,6 +218,10 @@ export function RecordDetailDrawer({
   const fields = orderedNames
     .filter((name) => !systemFields.has(name) && !name.startsWith('__'))
     .filter((name) => name in record)
+    // Honor `hidden: true` on the schema field def so internal/system fields
+    // (e.g. database_url, environment_id, is_system) don't leak into the
+    // quick-look drawer.
+    .filter((name) => !schemaFields[name]?.hidden)
     .map((name) => {
       const def = schemaFields[name] || {};
       const isLookup =

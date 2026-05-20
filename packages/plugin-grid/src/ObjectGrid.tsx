@@ -1811,7 +1811,11 @@ export const ObjectGrid: React.FC<ObjectGridProps> = ({
   const renderRecordDetail = (record: any) => {
     const systemFields = ['_id', 'id', 'created_at', 'updated_at', 'created_by', 'updated_by'];
     const entries = Object.entries(record);
-    const regularFields = entries.filter(([key]) => !systemFields.includes(key));
+    // Honor `hidden: true` on the schema field def — internal/system fields
+    // (e.g. database_url, environment_id, is_system) shouldn't leak into the
+    // grid's record-detail drawer just because they're in the record payload.
+    const isHidden = (key: string) => objectSchema?.fields?.[key]?.hidden === true;
+    const regularFields = entries.filter(([key]) => !systemFields.includes(key) && !isHidden(key));
     const metaFields = entries.filter(([key]) => systemFields.includes(key) && key !== '_id' && key !== 'id');
 
     const formatFieldLabel = (key: string): string =>

@@ -140,9 +140,11 @@ export function useNavigationOverlay(
 
   const handleClick = useCallback(
     (record: Record<string, unknown>, event?: HandleClickModifiers) => {
-      // External onRowClick takes full priority
+      // External onRowClick takes full priority. Forward the modifier event
+      // so parent handlers (e.g. ObjectView) can still implement Cmd/Ctrl/
+      // middle-click → open in new tab.
       if (onRowClick) {
-        onRowClick(record);
+        (onRowClick as (r: Record<string, unknown>, e?: HandleClickModifiers) => void)(record, event);
         return;
       }
 

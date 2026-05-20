@@ -275,7 +275,7 @@ export const ObjectGallery: React.FC<ObjectGalleryProps> = (props) => {
                     'hover:shadow-lg hover:border-border hover:-translate-y-0.5',
                     (props.onCardClick || props.onRowClick || schema.navigation) && 'cursor-pointer',
                 )}
-                onClick={() => navigation.handleClick(item)}
+                onClick={(e) => navigation.handleClick(item, e)}
             >
                 {/* Top accent strip: only shown for text-only cards (no cover
                     image area). Uses the deterministic palette so each card

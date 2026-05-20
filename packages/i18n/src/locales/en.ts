@@ -1337,6 +1337,8 @@ const en = {
     description: 'Please provide the required information to continue.',
     selectPlaceholder: 'Select {{label}}',
     requiredError: '{{label}} is required',
+    lookupPlaceholder: 'Paste the {{label}} record id (UUID)',
+    lookupHelpText: 'Enter the record id of the referenced object. A picker is coming soon.',
     cancel: 'Cancel',
     confirm: 'Confirm',
     defaultActionTitle: 'Action',

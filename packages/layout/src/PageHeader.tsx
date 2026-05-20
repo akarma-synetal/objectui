@@ -78,7 +78,14 @@ const interpolateTitle = (template: string | undefined, data: unknown): string =
         }
         return String(v);
     });
-    return out.replace(/\s+/g, ' ').trim();
+    // Strip orphaned separators left behind by empty placeholders
+    // (`Foo -  - Bar` → `Foo - Bar`) and trim trailing punctuation /
+    // whitespace so the resulting label always renders cleanly.
+    return out
+        .replace(/\s*[-–—|/·,:]\s*(?=\s*[-–—|/·,:]|$)/g, '')
+        .replace(/^\s*[-–—|/·,:]\s*/, '')
+        .replace(/\s+/g, ' ')
+        .trim();
 };
 
 export function PageHeader({

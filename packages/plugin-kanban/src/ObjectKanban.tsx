@@ -489,11 +489,17 @@ export const ObjectKanban: React.FC<ObjectKanbanProps> = ({
   };
 
   const navConfig = (schema as any).navigation ?? { mode: 'drawer', width: 'min(960px, 60vw)' };
-  const navIsOverlay = navConfig.mode === 'drawer' || navConfig.mode === 'modal' || navConfig.mode === 'split' || navConfig.mode === 'popover';
+  // When this kanban is embedded in an ObjectView, the parent provides
+  // `onRowClick`/`onCardClick` and owns the unified record-detail overlay.
+  // We must always forward to the parent in that case — otherwise we'd open
+  // a second, plugin-local drawer alongside the parent's, creating the
+  // "two styles of detail view" inconsistency users complained about.
+  const externalClick = onRowClick ?? onCardClick;
+  const navIsOverlay = !externalClick && (navConfig.mode === 'drawer' || navConfig.mode === 'modal' || navConfig.mode === 'split' || navConfig.mode === 'popover');
   const navigation = useNavigationOverlay({
     navigation: navConfig,
     objectName: schema.objectName,
-    onRowClick: navIsOverlay ? undefined : (onRowClick ?? onCardClick),
+    onRowClick: externalClick,
   });
 
   if (error) {
@@ -565,8 +571,8 @@ export const ObjectKanban: React.FC<ObjectKanbanProps> = ({
     <>
       <KanbanRenderer schema={{
         ...effectiveSchema,
-        onCardClick: (card: any) => {
-          navigation.handleClick(card);
+        onCardClick: (card: any, event?: any) => {
+          navigation.handleClick(card, event);
           onCardClick?.(card);
         },
         onCardMove: handleCardMove,

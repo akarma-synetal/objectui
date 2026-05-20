@@ -96,8 +96,13 @@ export function usePageAssignment(
 
     const candidates = pages.filter(p => {
       if (!p) return false;
-      const pageType = p.pageType ?? p.type === 'record' ? p.pageType : p.pageType;
-      const isRecord = (p.pageType ?? (p.type === 'record' ? 'record' : undefined)) === 'record';
+      // Only `pageType: 'record'` (or bare `type: 'record'`) is a
+      // user-facing record-detail page. `pageType: 'record_detail'` is a
+      // distinct concept used by the metadata designer page schemas
+      // (`buildObjectDetailPageSchema`) and must NOT be picked up here —
+      // otherwise opening any record would render the designer widget.
+      const pt = p.pageType ?? (p.type === 'record' ? 'record' : undefined);
+      const isRecord = pt === 'record';
       if (!isRecord) return false;
       if (p.object !== objectName) return false;
       return matchesAssignment(p, opts);

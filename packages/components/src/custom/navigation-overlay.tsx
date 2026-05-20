@@ -203,7 +203,7 @@ export const NavigationOverlay: React.FC<NavigationOverlayProps> = ({
       <Sheet open={isOpen} onOpenChange={setIsOpen}>
         <SheetContent
           side="right"
-          className={cn('w-full sm:max-w-2xl overflow-y-auto', className)}
+          className={cn('w-full sm:max-w-2xl p-0 flex flex-col gap-0 overflow-hidden', className)}
           style={widthStyle}
         >
           {/* Expand-to-full-page button — sits to the left of Sheet's own
@@ -216,16 +216,24 @@ export const NavigationOverlay: React.FC<NavigationOverlayProps> = ({
               onClick={onExpand}
               aria-label={expandLabel}
               title={expandLabel}
-              className="absolute right-12 top-4 z-10 inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
+              className="absolute right-12 top-3 z-20 inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
             >
               <Maximize2 className="h-4 w-4" />
             </button>
           )}
-          <SheetHeader>
-            <SheetTitle>{resolvedTitle}</SheetTitle>
-            {description && <SheetDescription>{description}</SheetDescription>}
+          {/* Chrome header — visually subdued breadcrumb-style label so it
+              does not compete with the record-title that the embedded
+              content already renders. Title stays in the DOM for a11y
+              (Sheet requires a SheetTitle for screen readers). */}
+          <SheetHeader className="shrink-0 px-4 pt-3 pb-2 border-b bg-muted/30">
+            <SheetTitle className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              {resolvedTitle}
+            </SheetTitle>
+            {description && (
+              <SheetDescription className="text-xs">{description}</SheetDescription>
+            )}
           </SheetHeader>
-          <div className="mt-4">
+          <div className="flex-1 min-h-0 overflow-y-auto">
             {renderContent(selectedRecord)}
           </div>
         </SheetContent>

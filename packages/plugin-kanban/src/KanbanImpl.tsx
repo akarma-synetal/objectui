@@ -107,7 +107,7 @@ export interface ConditionalFormattingRule {
 export interface KanbanBoardProps {
   columns: KanbanColumn[]
   onCardMove?: (cardId: string, fromColumnId: string, toColumnId: string, newIndex: number) => void
-  onCardClick?: (card: KanbanCard) => void
+  onCardClick?: (card: KanbanCard, event?: React.MouseEvent) => void
   className?: string
   quickAdd?: boolean
   onQuickAdd?: (columnId: string, title: string) => void
@@ -156,7 +156,7 @@ function getCardStyles(card: KanbanCard, rules?: ConditionalFormattingRule[]): R
   return {}
 }
 
-function SortableCard({ card, onCardClick, conditionalFormatting }: { card: KanbanCard; onCardClick?: (card: KanbanCard) => void; conditionalFormatting?: ConditionalFormattingRule[] }) {
+function SortableCard({ card, onCardClick, conditionalFormatting }: { card: KanbanCard; onCardClick?: (card: KanbanCard, event?: React.MouseEvent) => void; conditionalFormatting?: ConditionalFormattingRule[] }) {
   const {
     attributes,
     listeners,
@@ -176,7 +176,7 @@ function SortableCard({ card, onCardClick, conditionalFormatting }: { card: Kanb
 
   return (
     <div ref={setNodeRef} style={style} {...attributes} {...listeners} role="listitem" aria-label={card.title}
-      onClick={() => onCardClick?.(card)}
+      onClick={(e) => onCardClick?.(card, e)}
     >
       <Card className="mb-2 cursor-grab active:cursor-grabbing border-border border-l-4 border-l-primary/40 bg-card/60 hover:border-primary/40 hover:shadow-lg hover:shadow-primary/10 transition-all duration-300 group touch-manipulation" style={cardStyles}>
         {card.coverImage && (
@@ -286,7 +286,7 @@ function KanbanColumnView({
 }: {
   column: KanbanColumn
   cards: KanbanCard[]
-  onCardClick?: (card: KanbanCard) => void
+  onCardClick?: (card: KanbanCard, event?: React.MouseEvent) => void
   quickAdd?: boolean
   onQuickAdd?: (columnId: string, title: string) => void
   conditionalFormatting?: ConditionalFormattingRule[]

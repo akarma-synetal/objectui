@@ -33,6 +33,7 @@ import { ViewConfigPanel } from './ViewConfigPanel';
 import { CreateViewDialog } from './CreateViewDialog';
 import { PageHeader } from '../layout/PageHeader';
 import { ManagedByBadge } from '../components/ManagedByBadge';
+import { RecordDetailView } from './RecordDetailView';
 import { resolveCrudAffordances } from '../utils/crudAffordances';
 import { resolveManagedByEmptyState } from '../utils/managedByEmptyState';
 import { useObjectActions } from '../hooks/useObjectActions';
@@ -198,192 +199,6 @@ function fromSysViewRecord(sv: Record<string, any>): Record<string, any> {
     };
 }
 
-/**
- * DrawerDetailContent — extracted component for NavigationOverlay content.
- * Needs to be a proper component (not a render prop) so it can use hooks
- * for data fetching, comment handling, etc.
- */
-function DrawerDetailContent({ objectDef, recordId, dataSource, onEdit }: {
-    objectDef: any;
-    recordId: string;
-    dataSource: any;
-    onEdit: (record: any) => void;
-}) {
-    const { user } = useAuth();
-    const currentUser = user
-        ? { id: user.id, name: user.name, avatar: user.image }
-        : FALLBACK_USER;
-
-    const [feedItems, setFeedItems] = useState<FeedItem[]>([]);
-
-    // Fetch persisted comments from API
-    useEffect(() => {
-        if (!dataSource || !objectDef?.name || !recordId) return;
-        const threadId = `${objectDef.name}:${recordId}`;
-        dataSource.find('sys_comment', { $filter: { threadId }, $orderby: { createdAt: 'asc' } })
-            .then((res: any) => {
-                if (res.data?.length) {
-                    setFeedItems(res.data.map((c: any) => ({
-                        id: c.id,
-                        type: 'comment' as const,
-                        actor: c.author?.name ?? 'Unknown',
-                        actorAvatarUrl: c.author?.avatar,
-                        body: c.content,
-                        createdAt: c.createdAt,
-                        updatedAt: c.updatedAt,
-                        parentId: c.parentId,
-                        reactions: c.reactions
-                            ? Object.entries(c.reactions as Record<string, string[]>).map(([emoji, userIds]) => ({
-                                emoji,
-                                count: userIds.length,
-                                reacted: userIds.includes(currentUser.id),
-                            }))
-                            : undefined,
-                    })));
-                }
-            })
-            .catch(() => {});
-    }, [dataSource, objectDef?.name, recordId, currentUser.id]);
-
-    const handleAddComment = useCallback(
-        async (text: string) => {
-            const newItem: FeedItem = {
-                id: crypto.randomUUID(),
-                type: 'comment',
-                actor: currentUser.name,
-                actorAvatarUrl: 'avatar' in currentUser ? (currentUser as any).avatar : undefined,
-                body: text,
-                createdAt: new Date().toISOString(),
-            };
-            setFeedItems(prev => [...prev, newItem]);
-            if (dataSource) {
-                const threadId = `${objectDef.name}:${recordId}`;
-                dataSource.create('sys_comment', {
-                    id: newItem.id,
-                    threadId,
-                    author: currentUser,
-                    content: text,
-                    mentions: [],
-                    createdAt: newItem.createdAt,
-                }).catch(() => {});
-            }
-        },
-        [currentUser, dataSource, objectDef?.name, recordId],
-    );
-
-    const handleAddReply = useCallback(
-        async (parentId: string | number, text: string) => {
-            const newItem: FeedItem = {
-                id: crypto.randomUUID(),
-                type: 'comment',
-                actor: currentUser.name,
-                actorAvatarUrl: 'avatar' in currentUser ? (currentUser as any).avatar : undefined,
-                body: text,
-                createdAt: new Date().toISOString(),
-                parentId,
-            };
-            setFeedItems(prev => {
-                const updated = [...prev, newItem];
-                return updated.map(item =>
-                    item.id === parentId
-                        ? { ...item, replyCount: (item.replyCount ?? 0) + 1 }
-                        : item
-                );
-            });
-            if (dataSource) {
-                const threadId = `${objectDef.name}:${recordId}`;
-                dataSource.create('sys_comment', {
-                    id: newItem.id,
-                    threadId,
-                    author: currentUser,
-                    content: text,
-                    mentions: [],
-                    createdAt: newItem.createdAt,
-                    parentId,
-                }).catch(() => {});
-            }
-        },
-        [currentUser, dataSource, objectDef?.name, recordId],
-    );
-
-    const handleToggleReaction = useCallback(
-        (itemId: string | number, emoji: string) => {
-            setFeedItems(prev => prev.map(item => {
-                if (item.id !== itemId) return item;
-                const reactions = [...(item.reactions ?? [])];
-                const idx = reactions.findIndex(r => r.emoji === emoji);
-                if (idx >= 0) {
-                    const r = reactions[idx];
-                    if (r.reacted) {
-                        if (r.count <= 1) {
-                            reactions.splice(idx, 1);
-                        } else {
-                            reactions[idx] = { ...r, count: r.count - 1, reacted: false };
-                        }
-                    } else {
-                        reactions[idx] = { ...r, count: r.count + 1, reacted: true };
-                    }
-                } else {
-                    reactions.push({ emoji, count: 1, reacted: true });
-                }
-                const updated = { ...item, reactions };
-                if (dataSource) {
-                    dataSource.update('sys_comment', String(itemId), {
-                        $toggleReaction: { emoji, userId: currentUser.id },
-                    }).catch(() => {});
-                }
-                return updated;
-            }));
-        },
-        [currentUser.id, dataSource],
-    );
-
-    return (
-        <div className="h-full bg-background overflow-auto p-3 sm:p-4 lg:p-6">
-            <DetailView
-                schema={{
-                    type: 'detail-view',
-                    objectName: objectDef.name,
-                    resourceId: recordId,
-                    showBack: false,
-                    showEdit: true,
-                    title: objectDef.label,
-                    sections: [
-                        {
-                            title: 'Details',
-                            fields: Object.keys(objectDef.fields || {}).map((key: string) => ({
-                                name: key,
-                                label: objectDef.fields[key].label || key,
-                                type: objectDef.fields[key].type || 'text'
-                            })),
-                        }
-                    ]
-                }}
-                dataSource={dataSource}
-                onEdit={() => onEdit({ id: recordId })}
-            />
-            {/* Discussion panel — collapsible in drawer/overlay mode */}
-            <div className="mt-6 border-t pt-6">
-                <RecordChatterPanel
-                    config={{
-                        position: 'bottom',
-                        collapsible: true,
-                        defaultCollapsed: true,
-                        feed: {
-                            enableReactions: true,
-                            enableThreading: true,
-                            showCommentInput: true,
-                        },
-                    }}
-                    items={feedItems}
-                    onAddComment={handleAddComment}
-                    onAddReply={handleAddReply}
-                    onToggleReaction={handleToggleReaction}
-                />
-            </div>
-        </div>
-    );
-}
 
 export function ObjectView({ dataSource, objects, onEdit, externalRefreshKey }: any) {
     const navigate = useNavigate();
@@ -2065,11 +1880,13 @@ export function ObjectView({ dataSource, objects, onEdit, externalRefreshKey }: 
                         {(record: Record<string, unknown>) => {
                             const recordId = (record.id || record._id) as string;
                             return (
-                                <DrawerDetailContent
-                                    objectDef={objectDef}
-                                    recordId={recordId}
+                                <RecordDetailView
                                     dataSource={dataSource}
+                                    objects={objects}
                                     onEdit={onEdit}
+                                    objectNameOverride={objectDef.name}
+                                    recordIdOverride={recordId}
+                                    embedded
                                 />
                             );
                         }}
@@ -2146,11 +1963,13 @@ export function ObjectView({ dataSource, objects, onEdit, externalRefreshKey }: 
                  {(record: Record<string, unknown>) => {
                      const recordId = (record.id || record._id) as string;
                      return (
-                         <DrawerDetailContent
-                             objectDef={objectDef}
-                             recordId={recordId}
+                         <RecordDetailView
                              dataSource={dataSource}
+                             objects={objects}
                              onEdit={onEdit}
+                             objectNameOverride={objectDef.name}
+                             recordIdOverride={recordId}
+                             embedded
                          />
                      );
                  }}
