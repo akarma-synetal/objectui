@@ -1,0 +1,109 @@
+/**
+ * useSettingsLabel — convention-based i18n hook for SettingsView/SettingsField.
+ *
+ * Mirrors `@object-ui/i18n`'s `useObjectLabel` pattern: discovers any
+ * top-level i18next namespace that contains a `settings` branch and
+ * resolves keys following the standard convention authored against the
+ * `TranslationData.settings.<namespace>.…` tree.
+ *
+ *   settings.<namespace>.title
+ *   settings.<namespace>.description
+ *   settings.<namespace>.groups.<groupKey>.title / .description
+ *   settings.<namespace>.keys.<key>.label / .help / .placeholder
+ *   settings.<namespace>.keys.<key>.options.<value>
+ *   settings.<namespace>.actions.<actionId>.label / .confirmText / .successMessage
+ *
+ * All lookups fall back to the literal authored in the manifest, so an
+ * unconfigured locale gracefully degrades to English (or whatever the
+ * plugin author shipped).
+ */
+
+import { useMemo } from 'react';
+import { useObjectTranslation } from '@object-ui/i18n';
+
+/** Top-level i18next namespaces we never treat as candidate roots. */
+const BUILTIN_KEYS = new Set([
+  'common',
+  'validation',
+  'errors',
+  'system',
+  'auth',
+]);
+
+export interface SettingsLabelHelpers {
+  title: (fallback: string) => string;
+  description: (fallback: string | undefined) => string | undefined;
+  groupTitle: (groupKey: string, fallback: string) => string;
+  groupDescription: (groupKey: string, fallback: string | undefined) => string | undefined;
+  fieldLabel: (key: string, fallback: string) => string;
+  fieldHelp: (key: string, fallback: string | undefined) => string | undefined;
+  fieldPlaceholder: (key: string, fallback: string | undefined) => string | undefined;
+  optionLabel: (key: string, optionValue: string, fallback: string) => string;
+  actionLabel: (actionId: string, fallback: string) => string;
+  actionConfirm: (actionId: string, fallback: string | undefined) => string | undefined;
+  actionSuccess: (actionId: string, fallback: string | undefined) => string | undefined;
+}
+
+/**
+ * Build a SettingsLabelHelpers bound to a given settings `namespace`
+ * (e.g. `'mail'`, `'branding'`).
+ */
+export function useSettingsLabel(namespace: string): SettingsLabelHelpers {
+  const { t, i18n } = useObjectTranslation();
+
+  return useMemo<SettingsLabelHelpers>(() => {
+    const discoverNamespaces = (): string[] => {
+      if (!i18n || typeof i18n.getResourceBundle !== 'function') return [];
+      const lang = i18n.language || 'en';
+      const bundle = i18n.getResourceBundle(lang, 'translation') as
+        | Record<string, unknown>
+        | undefined;
+      if (!bundle) return [];
+      return Object.keys(bundle).filter(
+        (key) =>
+          !BUILTIN_KEYS.has(key) &&
+          bundle[key] &&
+          typeof bundle[key] === 'object' &&
+          (bundle[key] as Record<string, unknown>).settings,
+      );
+    };
+
+    const resolve = (suffix: string, fallback: string | undefined): string | undefined => {
+      if (!namespace) return fallback;
+      try {
+        const namespaces = discoverNamespaces();
+        for (const ns of namespaces) {
+          const key = `${ns}.settings.${namespace}.${suffix}`;
+          const translated = t(key, { defaultValue: '' });
+          if (translated && translated !== key && translated !== '') {
+            return translated;
+          }
+        }
+      } catch {
+        // Graceful degradation when i18n provider is unavailable.
+      }
+      return fallback;
+    };
+
+    return {
+      title: (fallback) => resolve('title', fallback) ?? fallback,
+      description: (fallback) => resolve('description', fallback),
+      groupTitle: (groupKey, fallback) =>
+        resolve(`groups.${groupKey}.title`, fallback) ?? fallback,
+      groupDescription: (groupKey, fallback) =>
+        resolve(`groups.${groupKey}.description`, fallback),
+      fieldLabel: (key, fallback) => resolve(`keys.${key}.label`, fallback) ?? fallback,
+      fieldHelp: (key, fallback) => resolve(`keys.${key}.help`, fallback),
+      fieldPlaceholder: (key, fallback) => resolve(`keys.${key}.placeholder`, fallback),
+      optionLabel: (key, optionValue, fallback) =>
+        resolve(`keys.${key}.options.${optionValue}`, fallback) ?? fallback,
+      actionLabel: (actionId, fallback) =>
+        resolve(`actions.${actionId}.label`, fallback) ?? fallback,
+      actionConfirm: (actionId, fallback) =>
+        resolve(`actions.${actionId}.confirmText`, fallback),
+      actionSuccess: (actionId, fallback) =>
+        resolve(`actions.${actionId}.successMessage`, fallback),
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [namespace, t, i18n, i18n?.language]);
+}

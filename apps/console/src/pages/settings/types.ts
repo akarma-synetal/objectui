@@ -44,6 +44,7 @@ export type SpecifierHandler =
 
 export interface Specifier {
   type: SpecifierType;
+  id?: string;
   key?: string;
   label: string | { defaultValue?: string; key?: string };
   description?: string;

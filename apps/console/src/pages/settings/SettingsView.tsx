@@ -19,6 +19,7 @@ import {
   saveSettingsNamespace,
 } from './api';
 import { resolveLabel, type SettingsNamespacePayload } from './types';
+import { useSettingsLabel } from './useSettingsLabel';
 
 /**
  * Evaluate the manifest's `visible: "${data.foo === 'bar'}"`
@@ -80,6 +81,9 @@ export function SettingsView() {
 
   const dirtyKeys = useMemo(() => Object.keys(draft), [draft]);
 
+  /** i18n helpers bound to this settings namespace. */
+  const labels = useSettingsLabel(namespace);
+
   if (!namespace) {
     return <div className="p-6 text-muted-foreground">No namespace selected.</div>;
   }
@@ -112,6 +116,8 @@ export function SettingsView() {
 
   const { manifest, values } = payload;
   const Icon = manifest.icon ? getIcon(manifest.icon) : null;
+  const title = labels.title(resolveLabel(manifest.label));
+  const description = labels.description(manifest.description);
 
   const onSave = async () => {
     if (dirtyKeys.length === 0) return;
@@ -155,11 +161,11 @@ export function SettingsView() {
         {Icon ? <Icon className="h-7 w-7 mt-0.5 text-muted-foreground" /> : null}
         <div className="flex-1">
           <div className="flex items-center gap-2">
-            <h1 className="text-2xl font-semibold tracking-tight">{resolveLabel(manifest.label)}</h1>
+            <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
             {manifest.beta ? <Badge variant="secondary">Beta</Badge> : null}
           </div>
-          {manifest.description ? (
-            <p className="text-sm text-muted-foreground mt-1">{manifest.description}</p>
+          {description ? (
+            <p className="text-sm text-muted-foreground mt-1">{description}</p>
           ) : null}
         </div>
       </div>
@@ -182,9 +188,10 @@ export function SettingsView() {
                 resolved={resolved}
                 value={current}
                 onChange={(v) => key && setDraft((d) => ({ ...d, [key]: v }))}
-                onAction={spec.type === 'action_button' ? () => onAction(key ?? 'test') : undefined}
+                onAction={spec.type === 'action_button' ? () => onAction(spec.id ?? key ?? 'test') : undefined}
                 locked={resolved?.locked}
                 saving={saving}
+                labels={labels}
               />
             );
           })}

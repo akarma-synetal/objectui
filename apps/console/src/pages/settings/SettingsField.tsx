@@ -32,6 +32,7 @@ import { ChevronRight, Info } from 'lucide-react';
 import { getIcon } from '../../utils/getIcon';
 import { EnvLockBadge } from './EnvLockBadge';
 import { resolveLabel, type Specifier, type ResolvedSettingValue } from './types';
+import type { SettingsLabelHelpers } from './useSettingsLabel';
 
 export interface SettingsFieldProps {
   spec: Specifier;
@@ -43,13 +44,23 @@ export interface SettingsFieldProps {
   saving?: boolean;
   /** True when the specifier should appear disabled (env-locked or saving). */
   locked?: boolean;
+  /** i18n helpers bound to the parent settings namespace. */
+  labels?: SettingsLabelHelpers;
 }
 
-function FieldHeader({ spec, resolved }: { spec: Specifier; resolved?: ResolvedSettingValue }) {
+function FieldHeader({
+  spec,
+  resolved,
+  labelText,
+}: {
+  spec: Specifier;
+  resolved?: ResolvedSettingValue;
+  labelText: string;
+}) {
   return (
     <div className="flex items-center gap-2">
       <Label className="text-sm font-medium">
-        {resolveLabel(spec.label)}
+        {labelText}
         {spec.required ? <span className="ml-0.5 text-destructive">*</span> : null}
       </Label>
       {spec.deprecated ? (
@@ -71,20 +82,34 @@ function FieldDescription({ description }: { description?: string }) {
 }
 
 export function SettingsField(props: SettingsFieldProps) {
-  const { spec, resolved, value, onChange, onAction, locked, saving } = props;
+  const { spec, resolved, value, onChange, onAction, locked, saving, labels } = props;
   const id = useId();
   const disabled = Boolean(locked || saving);
+  const literalLabel = resolveLabel(spec.label);
+  // Field-scoped label/help/placeholder/option resolution. Falls back to the
+  // manifest literal when no translation is registered, so a host that did not
+  // ship a TranslationBundle still renders correctly.
+  const fieldLabel = spec.key && labels
+    ? labels.fieldLabel(spec.key, literalLabel)
+    : literalLabel;
+  const fieldHelp = spec.key && labels
+    ? labels.fieldHelp(spec.key, spec.description)
+    : spec.description;
 
   // -------- Layout-only --------
 
   if (spec.type === 'group') {
+    const groupTitle = spec.id && labels ? labels.groupTitle(spec.id, literalLabel) : literalLabel;
+    const groupDesc = spec.id && labels
+      ? labels.groupDescription(spec.id, spec.description)
+      : spec.description;
     return (
       <div className="pt-6 pb-2">
         <h3 className="text-sm font-semibold tracking-tight text-foreground/90">
-          {resolveLabel(spec.label)}
+          {groupTitle}
         </h3>
-        {spec.description ? (
-          <p className="text-xs text-muted-foreground mt-1">{spec.description}</p>
+        {groupDesc ? (
+          <p className="text-xs text-muted-foreground mt-1">{groupDesc}</p>
         ) : null}
         <Separator className="mt-3" />
       </div>
@@ -96,7 +121,7 @@ export function SettingsField(props: SettingsFieldProps) {
     return (
       <Alert variant={variant as any} className="my-2">
         <Info className="h-4 w-4" />
-        <AlertTitle>{resolveLabel(spec.label)}</AlertTitle>
+        <AlertTitle>{literalLabel}</AlertTitle>
         {spec.bannerText ? <AlertDescription>{spec.bannerText}</AlertDescription> : null}
       </Alert>
     );
@@ -109,7 +134,7 @@ export function SettingsField(props: SettingsFieldProps) {
         className="flex items-center justify-between rounded-md border border-border bg-card px-4 py-3 hover:bg-accent transition-colors"
       >
         <div>
-          <div className="text-sm font-medium">{resolveLabel(spec.label)}</div>
+          <div className="text-sm font-medium">{literalLabel}</div>
           {spec.description ? (
             <div className="text-xs text-muted-foreground">{spec.description}</div>
           ) : null}
@@ -122,7 +147,7 @@ export function SettingsField(props: SettingsFieldProps) {
   if (spec.type === 'title_value') {
     return (
       <div className="flex items-center justify-between py-2">
-        <FieldHeader spec={spec} resolved={resolved} />
+        <FieldHeader spec={spec} resolved={resolved} labelText={fieldLabel} />
         <span className="text-sm text-muted-foreground">{String(value ?? '—')}</span>
       </div>
     );
@@ -130,17 +155,21 @@ export function SettingsField(props: SettingsFieldProps) {
 
   if (spec.type === 'action_button') {
     const Icon = spec.icon ? getIcon(spec.icon) : null;
+    const actionId = spec.id ?? spec.key ?? 'test';
+    const actionLabel = labels
+      ? labels.actionLabel(actionId, literalLabel)
+      : literalLabel;
     return (
       <div className="flex items-center justify-between py-3">
         <div>
-          <div className="text-sm font-medium">{resolveLabel(spec.label)}</div>
+          <div className="text-sm font-medium">{actionLabel}</div>
           {spec.description ? (
             <p className="text-xs text-muted-foreground mt-1">{spec.description}</p>
           ) : null}
         </div>
         <Button size="sm" variant="secondary" onClick={onAction} disabled={saving}>
           {Icon ? <Icon className="h-4 w-4 mr-1.5" /> : null}
-          {resolveLabel(spec.label)}
+          {actionLabel}
         </Button>
       </div>
     );
@@ -150,11 +179,17 @@ export function SettingsField(props: SettingsFieldProps) {
 
   const wrapper = (children: React.ReactNode) => (
     <div className="space-y-1.5 py-2">
-      <FieldHeader spec={spec} resolved={resolved} />
+      <FieldHeader spec={spec} resolved={resolved} labelText={fieldLabel} />
       {children}
-      <FieldDescription description={spec.description} />
+      <FieldDescription description={fieldHelp} />
     </div>
   );
+
+  const renderOptionLabel = (opt: { value: string | number | boolean; label: any }): string => {
+    const literal = typeof opt.label === 'string' ? opt.label : opt.label?.defaultValue ?? String(opt.value);
+    if (!spec.key || !labels) return literal;
+    return labels.optionLabel(spec.key, String(opt.value), literal);
+  };
 
   switch (spec.type) {
     case 'text':
@@ -213,8 +248,8 @@ export function SettingsField(props: SettingsFieldProps) {
       return (
         <div className="flex items-center justify-between py-3">
           <div>
-            <FieldHeader spec={spec} resolved={resolved} />
-            <FieldDescription description={spec.description} />
+            <FieldHeader spec={spec} resolved={resolved} labelText={fieldLabel} />
+            <FieldDescription description={fieldHelp} />
           </div>
           <Switch
             id={id}
@@ -237,7 +272,7 @@ export function SettingsField(props: SettingsFieldProps) {
           <SelectContent>
             {spec.options?.map((opt) => (
               <SelectItem key={String(opt.value)} value={String(opt.value)}>
-                {typeof opt.label === 'string' ? opt.label : opt.label?.defaultValue ?? String(opt.value)}
+                {renderOptionLabel(opt)}
               </SelectItem>
             ))}
           </SelectContent>
@@ -254,7 +289,7 @@ export function SettingsField(props: SettingsFieldProps) {
             <div key={String(opt.value)} className="flex items-center space-x-2">
               <RadioGroupItem value={String(opt.value)} id={`${id}-${opt.value}`} />
               <Label htmlFor={`${id}-${opt.value}`} className="text-sm font-normal">
-                {typeof opt.label === 'string' ? opt.label : opt.label?.defaultValue ?? String(opt.value)}
+                {renderOptionLabel(opt)}
               </Label>
             </div>
           ))}
@@ -278,7 +313,7 @@ export function SettingsField(props: SettingsFieldProps) {
                     onChange(Array.from(next));
                   }}
                 />
-                {typeof opt.label === 'string' ? opt.label : opt.label?.defaultValue ?? v}
+                {renderOptionLabel(opt)}
               </label>
             );
           })}
