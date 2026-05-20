@@ -1,0 +1,336 @@
+/**
+ * <SettingsField> — one row of a settings page. Translates a single
+ * Specifier into the matching shadcn primitive.
+ *
+ * Pure UI: receives `value`, `onChange`, `locked`, and `resolved`
+ * (which carries provenance and lock state).
+ */
+
+import { useId } from 'react';
+import {
+  Input,
+  Textarea,
+  Switch,
+  Label,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  Slider,
+  RadioGroup,
+  RadioGroupItem,
+  Checkbox,
+  Alert,
+  AlertTitle,
+  AlertDescription,
+  Separator,
+  Badge,
+  Button,
+} from '@object-ui/components';
+import { ChevronRight, Info } from 'lucide-react';
+import { getIcon } from '../../utils/getIcon';
+import { EnvLockBadge } from './EnvLockBadge';
+import { resolveLabel, type Specifier, type ResolvedSettingValue } from './types';
+
+export interface SettingsFieldProps {
+  spec: Specifier;
+  resolved?: ResolvedSettingValue;
+  value: unknown;
+  onChange: (next: unknown) => void;
+  onAction?: () => void;
+  /** Whether the whole page is in a saving state. */
+  saving?: boolean;
+  /** True when the specifier should appear disabled (env-locked or saving). */
+  locked?: boolean;
+}
+
+function FieldHeader({ spec, resolved }: { spec: Specifier; resolved?: ResolvedSettingValue }) {
+  return (
+    <div className="flex items-center gap-2">
+      <Label className="text-sm font-medium">
+        {resolveLabel(spec.label)}
+        {spec.required ? <span className="ml-0.5 text-destructive">*</span> : null}
+      </Label>
+      {spec.deprecated ? (
+        <Badge variant="outline" className="text-amber-700 border-amber-300">
+          Deprecated{spec.replacedBy ? ` → ${spec.replacedBy}` : ''}
+        </Badge>
+      ) : null}
+      {resolved?.locked ? <EnvLockBadge reason={resolved.lockedReason} /> : null}
+      {resolved?.source && resolved.source !== 'default' && !resolved.locked ? (
+        <span className="text-[11px] text-muted-foreground capitalize">{resolved.source}</span>
+      ) : null}
+    </div>
+  );
+}
+
+function FieldDescription({ description }: { description?: string }) {
+  if (!description) return null;
+  return <p className="text-xs text-muted-foreground mt-1">{description}</p>;
+}
+
+export function SettingsField(props: SettingsFieldProps) {
+  const { spec, resolved, value, onChange, onAction, locked, saving } = props;
+  const id = useId();
+  const disabled = Boolean(locked || saving);
+
+  // -------- Layout-only --------
+
+  if (spec.type === 'group') {
+    return (
+      <div className="pt-6 pb-2">
+        <h3 className="text-sm font-semibold tracking-tight text-foreground/90">
+          {resolveLabel(spec.label)}
+        </h3>
+        {spec.description ? (
+          <p className="text-xs text-muted-foreground mt-1">{spec.description}</p>
+        ) : null}
+        <Separator className="mt-3" />
+      </div>
+    );
+  }
+
+  if (spec.type === 'info_banner') {
+    const variant = spec.bannerSeverity === 'error' ? 'destructive' : 'default';
+    return (
+      <Alert variant={variant as any} className="my-2">
+        <Info className="h-4 w-4" />
+        <AlertTitle>{resolveLabel(spec.label)}</AlertTitle>
+        {spec.bannerText ? <AlertDescription>{spec.bannerText}</AlertDescription> : null}
+      </Alert>
+    );
+  }
+
+  if (spec.type === 'child_pane') {
+    return (
+      <a
+        href={`#/settings/${spec.childNamespace}`}
+        className="flex items-center justify-between rounded-md border border-border bg-card px-4 py-3 hover:bg-accent transition-colors"
+      >
+        <div>
+          <div className="text-sm font-medium">{resolveLabel(spec.label)}</div>
+          {spec.description ? (
+            <div className="text-xs text-muted-foreground">{spec.description}</div>
+          ) : null}
+        </div>
+        <ChevronRight className="h-4 w-4 text-muted-foreground" />
+      </a>
+    );
+  }
+
+  if (spec.type === 'title_value') {
+    return (
+      <div className="flex items-center justify-between py-2">
+        <FieldHeader spec={spec} resolved={resolved} />
+        <span className="text-sm text-muted-foreground">{String(value ?? '—')}</span>
+      </div>
+    );
+  }
+
+  if (spec.type === 'action_button') {
+    const Icon = spec.icon ? getIcon(spec.icon) : null;
+    return (
+      <div className="flex items-center justify-between py-3">
+        <div>
+          <div className="text-sm font-medium">{resolveLabel(spec.label)}</div>
+          {spec.description ? (
+            <p className="text-xs text-muted-foreground mt-1">{spec.description}</p>
+          ) : null}
+        </div>
+        <Button size="sm" variant="secondary" onClick={onAction} disabled={saving}>
+          {Icon ? <Icon className="h-4 w-4 mr-1.5" /> : null}
+          {resolveLabel(spec.label)}
+        </Button>
+      </div>
+    );
+  }
+
+  // -------- Inputs --------
+
+  const wrapper = (children: React.ReactNode) => (
+    <div className="space-y-1.5 py-2">
+      <FieldHeader spec={spec} resolved={resolved} />
+      {children}
+      <FieldDescription description={spec.description} />
+    </div>
+  );
+
+  switch (spec.type) {
+    case 'text':
+    case 'email':
+    case 'url':
+    case 'phone':
+      return wrapper(
+        <Input
+          id={id}
+          type={spec.type === 'email' ? 'email' : spec.type === 'url' ? 'url' : 'text'}
+          value={(value as string | undefined) ?? ''}
+          minLength={spec.minLength}
+          maxLength={spec.maxLength}
+          pattern={spec.pattern}
+          disabled={disabled}
+          onChange={(e) => onChange(e.target.value)}
+        />,
+      );
+    case 'password':
+      return wrapper(
+        <Input
+          id={id}
+          type="password"
+          autoComplete="new-password"
+          placeholder={value ? '••••••••' : ''}
+          disabled={disabled}
+          onChange={(e) => onChange(e.target.value)}
+        />,
+      );
+    case 'textarea':
+      return wrapper(
+        <Textarea
+          id={id}
+          rows={spec.rows ?? 4}
+          value={(value as string | undefined) ?? ''}
+          minLength={spec.minLength}
+          maxLength={spec.maxLength}
+          disabled={disabled}
+          onChange={(e) => onChange(e.target.value)}
+        />,
+      );
+    case 'number':
+      return wrapper(
+        <Input
+          id={id}
+          type="number"
+          value={value as any}
+          min={spec.min}
+          max={spec.max}
+          step={spec.step}
+          disabled={disabled}
+          onChange={(e) => onChange(e.target.value === '' ? null : Number(e.target.value))}
+        />,
+      );
+    case 'toggle':
+      return (
+        <div className="flex items-center justify-between py-3">
+          <div>
+            <FieldHeader spec={spec} resolved={resolved} />
+            <FieldDescription description={spec.description} />
+          </div>
+          <Switch
+            id={id}
+            checked={Boolean(value)}
+            disabled={disabled}
+            onCheckedChange={(checked) => onChange(checked)}
+          />
+        </div>
+      );
+    case 'select':
+      return wrapper(
+        <Select
+          value={value == null ? undefined : String(value)}
+          onValueChange={(v) => onChange(v)}
+          disabled={disabled}
+        >
+          <SelectTrigger id={id}>
+            <SelectValue placeholder="Select…" />
+          </SelectTrigger>
+          <SelectContent>
+            {spec.options?.map((opt) => (
+              <SelectItem key={String(opt.value)} value={String(opt.value)}>
+                {typeof opt.label === 'string' ? opt.label : opt.label?.defaultValue ?? String(opt.value)}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>,
+      );
+    case 'radio':
+      return wrapper(
+        <RadioGroup
+          value={value == null ? undefined : String(value)}
+          onValueChange={(v) => onChange(v)}
+          disabled={disabled}
+        >
+          {spec.options?.map((opt) => (
+            <div key={String(opt.value)} className="flex items-center space-x-2">
+              <RadioGroupItem value={String(opt.value)} id={`${id}-${opt.value}`} />
+              <Label htmlFor={`${id}-${opt.value}`} className="text-sm font-normal">
+                {typeof opt.label === 'string' ? opt.label : opt.label?.defaultValue ?? String(opt.value)}
+              </Label>
+            </div>
+          ))}
+        </RadioGroup>,
+      );
+    case 'multiselect': {
+      const arr = Array.isArray(value) ? (value as (string | number)[]) : [];
+      return wrapper(
+        <div className="grid grid-cols-2 gap-2">
+          {spec.options?.map((opt) => {
+            const v = String(opt.value);
+            const checked = arr.map(String).includes(v);
+            return (
+              <label key={v} className="flex items-center gap-2 text-sm">
+                <Checkbox
+                  checked={checked}
+                  disabled={disabled}
+                  onCheckedChange={(c) => {
+                    const next = new Set(arr.map(String));
+                    if (c) next.add(v); else next.delete(v);
+                    onChange(Array.from(next));
+                  }}
+                />
+                {typeof opt.label === 'string' ? opt.label : opt.label?.defaultValue ?? v}
+              </label>
+            );
+          })}
+        </div>,
+      );
+    }
+    case 'slider':
+      return wrapper(
+        <div className="flex items-center gap-3">
+          <Slider
+            value={[Number(value ?? spec.min ?? 0)]}
+            min={spec.min ?? 0}
+            max={spec.max ?? 100}
+            step={spec.step ?? 1}
+            disabled={disabled}
+            onValueChange={(v) => onChange(v[0])}
+            className="flex-1"
+          />
+          <span className="text-sm tabular-nums w-12 text-right">{String(value ?? spec.min ?? 0)}</span>
+        </div>,
+      );
+    case 'color':
+      return wrapper(
+        <div className="flex items-center gap-2">
+          <Input
+            id={id}
+            type="color"
+            value={(value as string | undefined) ?? '#000000'}
+            disabled={disabled}
+            onChange={(e) => onChange(e.target.value)}
+            className="w-16 h-9 p-1"
+          />
+          <Input
+            value={(value as string | undefined) ?? ''}
+            disabled={disabled}
+            onChange={(e) => onChange(e.target.value)}
+            className="flex-1 font-mono text-sm"
+          />
+        </div>,
+      );
+    case 'json':
+      return wrapper(
+        <Textarea
+          id={id}
+          rows={spec.rows ?? 6}
+          className="font-mono text-xs"
+          value={typeof value === 'string' ? value : JSON.stringify(value ?? null, null, 2)}
+          disabled={disabled}
+          onChange={(e) => onChange(e.target.value)}
+        />,
+      );
+    default:
+      return wrapper(<div className="text-sm text-muted-foreground">Unsupported specifier type: {spec.type}</div>);
+  }
+}

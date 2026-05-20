@@ -25,6 +25,7 @@ import {
   ScrollText,
   User,
   Loader2,
+  Settings as SettingsIcon,
 } from 'lucide-react';
 import { useAdapter, useMetadata } from '@object-ui/app-shell';
 import { getHubMetadataTypes } from '../../config/metadataTypeRegistry';
@@ -160,6 +161,14 @@ export function SystemHubPage() {
       href: `${basePath}/system/audit-log`,
       countLabel: 'entries',
       count: counts.auditLogs,
+    },
+    {
+      title: 'Settings',
+      description: 'Configure mail, branding, feature flags, and more',
+      icon: SettingsIcon,
+      href: `${basePath}/system/settings`,
+      countLabel: '',
+      count: null,
     },
     {
       title: 'Profile',

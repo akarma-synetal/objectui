@@ -268,6 +268,7 @@ export function AppSidebar({ activeAppName, onAppChange }: { activeAppName: stri
     { id: 'sys-users', label: 'Users', type: 'url' as const, url: '/apps/setup/system/users', icon: 'users' },
     { id: 'sys-orgs', label: 'Organizations', type: 'url' as const, url: '/apps/setup/system/organizations', icon: 'building-2' },
     { id: 'sys-roles', label: 'Roles', type: 'url' as const, url: '/apps/setup/system/roles', icon: 'shield' },
+    { id: 'sys-config', label: 'Configuration', type: 'url' as const, url: '/apps/setup/system/settings', icon: 'sliders-horizontal' },
     { id: 'sys-create-app', label: 'Create App', type: 'url' as const, url: '/create-app', icon: 'plus' },
   ], []);
 
