@@ -94,7 +94,12 @@ const PROTOCOL_COMPONENTS = [
   // 'action:button', 'action:group', 'action:menu', 'action:icon',
 
   // 15. AI
-  'ai:chat_window', 'ai:input', 'ai:suggestion', 'ai:feedback'
+  // 'ai:chat_window' intentionally omitted — the floating chat overlay
+  // (see plugin-chatbot) is the canonical entry point; inline page-level
+  // chat windows are not part of the supported surface. A referencing
+  // page schema will produce a loud "Unknown component type" so the
+  // misconfiguration is fixed at the source rather than silently hidden.
+  'ai:input', 'ai:suggestion', 'ai:feedback'
 ];
 
 export function registerPlaceholders() {

@@ -288,9 +288,14 @@ ComponentRegistry.register('page:section', PageSectionRenderer, {
 const PageHeaderRenderer: React.FC<any> = ({ schema, className, ...props }) => {
   const { designer } = splitDesignerProps(props);
   const ctx = useRecordContext();
-  const title = interpolate(labelText(schema?.title), ctx?.data);
-  const subtitle = interpolate(labelText(schema?.subtitle), ctx?.data);
-  const breadcrumb = schema?.breadcrumb !== false;
+  // Spec bridge may either inline `properties.*` onto the node or preserve
+  // the raw bag (see record:quick_actions for the same pattern). Read from
+  // both so a `{ properties: { title } }` schema is rendered correctly.
+  const titleSrc = schema?.title ?? schema?.properties?.title;
+  const subtitleSrc = schema?.subtitle ?? schema?.properties?.subtitle;
+  const title = interpolate(labelText(titleSrc), ctx?.data);
+  const subtitle = interpolate(labelText(subtitleSrc), ctx?.data);
+  const breadcrumb = (schema?.breadcrumb ?? schema?.properties?.breadcrumb) !== false;
 
   return (
     <header
