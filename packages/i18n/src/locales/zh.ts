@@ -216,6 +216,9 @@ const zh = {
     dataLimitReached: '显示前 {{limit}} 条记录。可能有更多数据。',
     viewSettings: '视图设置',
     viewSettingsHint: '分组、行颜色、密度与可见字段。',
+    addGroup: '添加分组字段',
+    collapsedByDefault: '默认折叠',
+    removeGroup: '删除',
   },
   kanban: {
     addCard: '添加卡片',

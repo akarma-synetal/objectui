@@ -216,6 +216,9 @@ const en = {
     dataLimitReached: 'Showing first {{limit}} records. More data may be available.',
     viewSettings: 'View settings',
     viewSettingsHint: 'Grouping, color, density, and visible fields.',
+    addGroup: 'Add group field',
+    collapsedByDefault: 'Collapsed by default',
+    removeGroup: 'Remove',
   },
   kanban: {
     addCard: 'Add card',

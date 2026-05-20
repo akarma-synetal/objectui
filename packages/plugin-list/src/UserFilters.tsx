@@ -122,11 +122,11 @@ function resolveFields(
   i18n?: {
     objectName?: string;
     fieldLabel: (objectName: string, fieldName: string, fallback: string) => string;
-    translateOptions: <T extends { value: any; label: string; [k: string]: any }>(
+    translateOptions: (
       objectName: string,
       fieldName: string,
-      options: T[]
-    ) => T[];
+      options: Array<{ value: any; label: string; [k: string]: any }>
+    ) => Array<{ value: any; label: string; [k: string]: any }>;
   },
 ): ResolvedField[] {
   return fields.map(f => {

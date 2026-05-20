@@ -1610,9 +1610,9 @@ export const ListView = React.forwardRef<ListViewHandle, ListViewProps>(({
                     fieldOptions={allFields.map((f: any) => ({ value: f.name, label: f.label || f.name }))}
                     maxLevels={3}
                     labels={{
-                      addGroup: t('list.addGroup', 'Add group field'),
-                      collapseTitle: t('list.collapsedByDefault', 'Collapsed by default'),
-                      removeTitle: t('list.removeGroup', 'Remove'),
+                      addGroup: t('list.addGroup', { defaultValue: 'Add group field' }),
+                      collapseTitle: t('list.collapsedByDefault', { defaultValue: 'Collapsed by default' }),
+                      removeTitle: t('list.removeGroup', { defaultValue: 'Remove' }),
                     }}
                     onChange={(next) => setGroupingConfig(next as any)}
                   />
@@ -1971,7 +1971,7 @@ export const ListView = React.forwardRef<ListViewHandle, ListViewProps>(({
             their own empty rendering so their column/lane/grid structure
             stays visible — otherwise users see a generic "No items found"
             on Task Board / Calendar etc. even though the view exists. */}
-        {!loading && data.length === 0 && (currentView === 'grid' || currentView === 'list') ? (
+        {!loading && data.length === 0 && currentView === 'grid' ? (
           (() => {
             const iconName = schema.emptyState?.icon;
             const ResolvedIcon: LucideIcon = iconName
