@@ -1456,22 +1456,32 @@ export const ListView = React.forwardRef<ListViewHandle, ListViewProps>(({
           read as one segmented control rather than a loose bag of icons. */}
       <div className="border-b px-2 sm:px-4 py-1.5 flex items-center justify-between gap-1 sm:gap-2 bg-background">
         <div className="flex items-center gap-2 overflow-x-auto min-w-0">
-          {/* View Tabs — inline */}
+          {/* View Tabs — desktop only.
+              Real mobile CRMs (Salesforce, HubSpot, Notion) do not surface
+              view switchers on phones — they pick one sensible default
+              (usually list) and let alternative views live on tablet/desktop.
+              The chrome budget on a 390px viewport is better spent on the
+              content itself. */}
           {schema.tabs && schema.tabs.length > 0 && (
-            <TabBar
-              tabs={schema.tabs}
-              activeTab={activeTab}
-              onTabChange={handleTabChange}
-              className="!px-0 !py-0 shrink-0"
-            />
+            <div className="hidden sm:block shrink-0">
+              <TabBar
+                tabs={schema.tabs}
+                activeTab={activeTab}
+                onTabChange={handleTabChange}
+                className="!px-0 !py-0"
+              />
+            </div>
           )}
           {/* Vertical divider between tabs and user filters */}
           {schema.tabs && schema.tabs.length > 0 && resolvedUserFilters && (
-            <div className="h-4 w-px bg-border/60 mx-1 shrink-0" />
+            <div className="hidden sm:block h-4 w-px bg-border/60 mx-1 shrink-0" />
           )}
-          {/* User Filters — inline in toolbar (Airtable Interfaces-style) */}
+          {/* User Filters — desktop only. Predefined filter presets that work
+              well as horizontal chip rows on wide screens but eat too much
+              vertical real estate on phones. Mobile users get the Filter
+              icon in the right cluster instead. */}
           {resolvedUserFilters && (
-              <div className="shrink-0 min-w-0" data-testid="user-filters">
+              <div className="hidden sm:block shrink-0 min-w-0" data-testid="user-filters">
                 <UserFilters
                   config={resolvedUserFilters}
                   objectDef={objectDef}
