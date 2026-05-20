@@ -447,41 +447,10 @@ export function UnifiedSidebar({ activeAppName }: UnifiedSidebarProps) {
         <SidebarTrigger className="w-full justify-start pl-2 group-data-[state=collapsed]:justify-center group-data-[state=collapsed]:pl-0" />
       </SidebarFooter>
     </Sidebar>
-    {isMobile && context === 'app' && (
-      <div className="fixed bottom-0 left-0 right-0 z-50 flex items-center justify-around border-t bg-background/95 backdrop-blur-sm px-2 py-1 sm:hidden safe-area-bottom">
-        {(() => {
-          // Flatten group items so apps that organise navigation into groups
-          // (e.g. Setup → Overview / Administration / …) still surface real
-          // leaf links in the mobile bottom nav instead of rendering nothing.
-          const leaves: any[] = [];
-          for (const item of processedNavigation as any[]) {
-            if (item.type === 'group') {
-              for (const child of (item.children || [])) {
-                if (child && child.type !== 'group') leaves.push(child);
-              }
-            } else {
-              leaves.push(item);
-            }
-          }
-          return leaves.slice(0, 5).map((item: any) => {
-          const NavIcon = getIcon(item.icon);
-          let href = item.url || '#';
-          if (item.type === 'object') {
-            href = `${basePath}/${item.objectName}`;
-            if (item.viewName) href += `/view/${item.viewName}`;
-          }
-          else if (item.type === 'dashboard') href = item.dashboardName ? `${basePath}/dashboard/${item.dashboardName}` : '#';
-          else if (item.type === 'page') href = item.pageName ? `${basePath}/page/${item.pageName}` : '#';
-          return (
-            <Link key={item.id} to={href} className="flex flex-col items-center gap-0.5 px-2 py-1.5 text-muted-foreground hover:text-foreground transition-colors min-w-[44px] min-h-[44px] justify-center">
-              <NavIcon className="h-5 w-5" />
-              <span className="text-[10px] truncate max-w-[60px]">{resolveI18nLabel(item.label, t)}</span>
-            </Link>
-          );
-          });
-        })()}
-      </div>
-    )}
+    {/* Mobile bottom-tab navigation removed — the drawer (☰) already
+        surfaces the full navigation tree, so a bottom strip of the
+        first 5 leaves was pure duplication and ate ~52px of vertical
+        space. Pattern follows Notion / Linear (drawer-only). */}
     </>
   );
 }
