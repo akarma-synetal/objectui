@@ -7,7 +7,7 @@
  */
 
 import * as React from 'react';
-import { cn, Button, Input, Popover, PopoverContent, PopoverTrigger, FilterBuilder, SortBuilder, NavigationOverlay, GroupingEditor, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@object-ui/components';
+import { cn, Button, Input, Popover, PopoverContent, PopoverTrigger, FilterBuilder, SortBuilder, NavigationOverlay, GroupingEditor, Select, SelectContent, SelectItem, SelectTrigger, SelectValue, RefreshIndicator } from '@object-ui/components';
 import type { SortItem } from '@object-ui/components';
 import { Search, SlidersHorizontal, ArrowUpDown, X, EyeOff, Group, Paintbrush, Ruler, Inbox, Download, AlignJustify, Rows4, Rows3, Rows2, Share2, Printer, Plus, Trash2, CheckSquare, icons, type LucideIcon } from 'lucide-react';
 import type { FilterGroup } from '@object-ui/components';
@@ -2033,6 +2033,10 @@ export const ListView = React.forwardRef<ListViewHandle, ListViewProps>(({
 
       {/* View Content */}
       <div key={currentView} className="flex-1 min-h-0 bg-background relative overflow-hidden animate-in fade-in-0 duration-200">
+        {/* Re-fetch indicator: thin top progress bar shown when refreshing
+            existing data (filter/sort/search change). Skipped during the
+            initial load — the full skeleton below handles that case. */}
+        <RefreshIndicator active={loading && data.length > 0} />
         {/* Empty state is rendered here ONLY for tabular/list-like views.
             Structural views (kanban/calendar/gallery/gantt/timeline/map) own
             their own empty rendering so their column/lane/grid structure

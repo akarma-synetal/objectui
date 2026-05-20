@@ -29,7 +29,7 @@ import { getCellRenderer, resolveCellRendererType, formatCurrency, formatCompact
 import {
   Badge, Button, NavigationOverlay, EmptyValue,
   Popover, PopoverContent, PopoverTrigger,
-  ExportProgressDialog, useExportJob,
+  ExportProgressDialog, useExportJob, RefreshIndicator,
 } from '@object-ui/components';
 import { usePullToRefresh } from '@object-ui/mobile';
 import { evaluatePlainCondition, buildExpandFields } from '@object-ui/core';
@@ -2029,6 +2029,9 @@ export const ObjectGrid: React.FC<ObjectGridProps> = ({
 
   return (
     <div ref={pullRef} className="relative h-full">
+      {/* Re-fetch indicator while existing rows remain visible (filter/sort
+          change). The initial-load skeleton above handles the empty case. */}
+      <RefreshIndicator active={loading && data.length > 0} />
       {pullDistance > 0 && (
         <div
           className="flex items-center justify-center text-xs text-muted-foreground"

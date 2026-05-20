@@ -9,7 +9,7 @@
 import React, { useState, useEffect, useContext, useMemo } from 'react';
 import { useDataScope, SchemaRendererContext, SchemaRenderer } from '@object-ui/react';
 import { extractRecords } from '@object-ui/core';
-import { Skeleton, cn } from '@object-ui/components';
+import { Skeleton, RefreshIndicator, cn } from '@object-ui/components';
 import { useSafeFieldLabel, useObjectTranslation } from '@object-ui/i18n';
 import { getCellRenderer, resolveCellRendererType, formatCurrency, formatPercent, formatDate } from '@object-ui/fields';
 import { resolveDateMacros } from './utils';
@@ -446,7 +446,9 @@ export const ObjectDataTable: React.FC<ObjectDataTableProps> = ({ schema, dataSo
     );
   }
 
-  // Delegate to data-table via SchemaRenderer
+  // Delegate to data-table via SchemaRenderer. Wrap in a positioned container
+  // so the re-fetch indicator can anchor to the top of the table when a
+  // refresh is in flight while existing rows remain visible.
   const tableSchema = {
     ...schema,
     type: 'data-table',
@@ -454,5 +456,10 @@ export const ObjectDataTable: React.FC<ObjectDataTableProps> = ({ schema, dataSo
     columns: derivedColumns,
   };
 
-  return <SchemaRenderer schema={tableSchema} className={className} />;
+  return (
+    <div className={cn('relative', className)}>
+      <RefreshIndicator active={loading && finalData.length > 0} />
+      <SchemaRenderer schema={tableSchema} className={className} />
+    </div>
+  );
 };

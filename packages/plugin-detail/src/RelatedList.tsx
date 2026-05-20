@@ -129,7 +129,10 @@ export const RelatedList: React.FC<RelatedListProps> = ({
   const dataProvided = data !== undefined;
   const initialData = data ?? [];
   const [relatedData, setRelatedData] = React.useState(initialData);
-  const [loading, setLoading] = React.useState(false);
+  // Start in loading state when we'll auto-fetch (api provided and caller
+  // didn't pass data), so the empty state doesn't flash before the fetch
+  // effect runs.
+  const [loading, setLoading] = React.useState<boolean>(() => !!api && !dataProvided);
   const [currentPage, setCurrentPage] = React.useState(0);
   const [sortField, setSortField] = React.useState<string | null>(null);
   const [sortDirection, setSortDirection] = React.useState<'asc' | 'desc'>('asc');

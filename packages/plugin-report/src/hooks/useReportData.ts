@@ -657,7 +657,13 @@ export function useReportData(
    * bucket with `${field}__${aggregate}` columns).
    */
   const [serverAggregated, setServerAggregated] = useState(false);
-  const [loading, setLoading] = useState(false);
+  // Start in loading state when we expect to fetch (have a report + enabled +
+  // dataSource and no inline rows). This prevents the report viewer from
+  // flashing an empty/"no data" state on slow networks before fetchOnce runs.
+  const [loading, setLoading] = useState<boolean>(() => {
+    if (providedRows) return false;
+    return !!(report && enabled && dataSource);
+  });
   const [error, setError] = useState<Error | null>(null);
   const fetchSeq = useRef(0);
 

@@ -3,7 +3,7 @@ import React, { useState, useEffect, useContext, useCallback, useMemo, useRef } 
 import { useDataScope, SchemaRendererContext, SchemaRenderer } from '@object-ui/react';
 import { ChartRenderer } from './ChartRenderer';
 import { ComponentRegistry, extractRecords, computeDrillFilter, isDrillEnabled, resolveDrillTitle, resolveDateMacros, type DrillEvent } from '@object-ui/core';
-import { Sheet, SheetContent, SheetHeader, SheetTitle, Dialog, DialogContent, DialogHeader, DialogTitle } from '@object-ui/components';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, Dialog, DialogContent, DialogHeader, DialogTitle, RefreshIndicator } from '@object-ui/components';
 import { AlertCircle } from 'lucide-react';
 import { useSafeFieldLabel } from '@object-ui/i18n';
 
@@ -463,10 +463,11 @@ export const ObjectChart = (props: any) => {
   })() : null;
 
   return (
-    <>
+    <div className="relative">
+      <RefreshIndicator active={loading && finalData.length > 0} />
       <ChartRenderer {...props} schema={finalSchema} onChartClick={onChartClick} />
       {drillDrawer}
-    </>
+    </div>
   );
 };
 

@@ -96,7 +96,14 @@ export const ObjectTimeline: React.FC<ObjectTimelineProps> = ({
   ...props
 }) => {
   const [fetchedData, setFetchedData] = useState<any[]>([]);
-  const [loading, setLoading] = useState(false);
+  // Start in loading state when we'll fetch from a dataSource so the timeline
+  // doesn't render as a blank/empty surface on slow networks before the fetch
+  // effect can flip loading to true.
+  const [loading, setLoading] = useState<boolean>(() => {
+    const hasInlineItems = Array.isArray(schema.items) && schema.items.length > 0;
+    const hasInlineData = Array.isArray((props as any).data) && (props as any).data.length > 0;
+    return !hasInlineItems && !hasInlineData && !!schema.objectName;
+  });
   const [error, setError] = useState<Error | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
   const [objectDef, setObjectDef] = useState<any>(null);
@@ -131,7 +138,11 @@ export const ObjectTimeline: React.FC<ObjectTimelineProps> = ({
 
   useEffect(() => {
     const fetchData = async () => {
-        if (!dataSource || typeof dataSource.find !== 'function' || !schema.objectName) return;
+        if (!dataSource || typeof dataSource.find !== 'function' || !schema.objectName) {
+            // Can't fetch — clear loading so we don't sit in skeleton forever.
+            setLoading(false);
+            return;
+        }
         setLoading(true);
         try {
             // Auto-inject $expand for lookup/master_detail fields
@@ -152,6 +163,9 @@ export const ObjectTimeline: React.FC<ObjectTimelineProps> = ({
 
     if (schema.objectName && !boundData && !schema.items && !(props as any).data) {
         fetchData();
+    } else {
+        // Have inline / bound items — won't fetch; clear loading.
+        setLoading(false);
     }
   }, [schema.objectName, dataSource, boundData, schema.items, (props as any).data, refreshKey, objectDef]);
 
@@ -351,8 +365,31 @@ export const ObjectTimeline: React.FC<ObjectTimelineProps> = ({
 
   if (error) {
       return (
-        <div className="p-4 text-red-500">
+        <div className="p-4 text-destructive" data-testid="timeline-error" role="alert">
             Error loading timeline: {error.message}
+        </div>
+      );
+  }
+
+  if (loading && (!effectiveItems || effectiveItems.length === 0)) {
+      return (
+        <div
+          className="flex flex-col h-full min-h-[200px] p-4 gap-3"
+          data-testid="timeline-loading"
+          role="status"
+          aria-live="polite"
+          aria-busy="true"
+        >
+          <span className="sr-only">Loading timeline…</span>
+          {[0, 1, 2, 3].map((i) => (
+            <div key={i} className="flex items-start gap-3" style={{ opacity: Math.max(0.3, 1 - i * 0.18) }}>
+              <div className="h-3 w-3 rounded-full bg-muted/70 animate-pulse mt-1.5 shrink-0" />
+              <div className="flex-1 space-y-2">
+                <div className="h-4 w-1/3 rounded bg-muted/70 animate-pulse" />
+                <div className="h-3 w-2/3 rounded bg-muted/50 animate-pulse" />
+              </div>
+            </div>
+          ))}
         </div>
       );
   }
