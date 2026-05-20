@@ -24,8 +24,19 @@ import type { ViewTabItem } from '@object-ui/plugin-view';
 // Plugin registration is handled by the host app (e.g. apps/console/src/main.tsx
 // uses ComponentRegistry.registerLazy so heavy plugins stay code-split).
 // Do NOT add eager `import '@object-ui/plugin-*'` side-effect imports here.
-import { Button, Empty, EmptyTitle, EmptyDescription, NavigationOverlay } from '@object-ui/components';
-import { Plus, Upload, Table as TableIcon, KanbanSquare, Calendar, LayoutGrid, Activity, GanttChart, MapPin, BarChart3 } from 'lucide-react';
+import {
+  Button,
+  Empty,
+  EmptyTitle,
+  EmptyDescription,
+  NavigationOverlay,
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  cn,
+} from '@object-ui/components';
+import { Plus, Upload, Table as TableIcon, KanbanSquare, Calendar, LayoutGrid, Activity, GanttChart, MapPin, BarChart3, ChevronDown, Lock } from 'lucide-react';
 import { getIcon } from '../utils/getIcon';
 import type { ListViewSchema, ViewNavigationConfig, FeedItem } from '@object-ui/types';
 import { MetadataPanel, useMetadataInspector } from './MetadataInspector';
@@ -1795,7 +1806,8 @@ export function ObjectView({ dataSource, objects, onEdit, externalRefreshKey }: 
                  } as ViewTabItem;
                });
                return (
-               <div className="border-b px-3 sm:px-4 bg-background overflow-x-auto shrink-0">
+               <>
+               <div className="hidden sm:block border-b px-3 sm:px-4 bg-background overflow-x-auto shrink-0">
                  <ViewTabBar
                    views={viewTabItems}
                    activeViewId={activeViewId}
@@ -1834,6 +1846,50 @@ export function ObjectView({ dataSource, objects, onEdit, externalRefreshKey }: 
                    />
                  )}
                </div>
+               {(() => {
+                 const activeItem = viewTabItems.find(v => v.id === activeViewId) ?? viewTabItems[0];
+                 const ActiveIcon = activeItem
+                   ? VIEW_TYPE_ICONS[activeItem.type as keyof typeof VIEW_TYPE_ICONS]
+                   : undefined;
+                 return (
+                   <div className="sm:hidden border-b px-3 py-1.5 bg-background shrink-0">
+                     <DropdownMenu>
+                       <DropdownMenuTrigger asChild>
+                         <Button
+                           variant="ghost"
+                           size="sm"
+                           className="h-8 px-2 text-sm font-medium gap-1.5 max-w-full"
+                           aria-label="Switch view"
+                         >
+                           {ActiveIcon ? <ActiveIcon className="h-4 w-4 shrink-0 text-muted-foreground" /> : null}
+                           <span className="truncate">{activeItem?.label ?? ''}</span>
+                           {activeItem?.readonly ? <Lock className="h-3 w-3 shrink-0 text-muted-foreground" /> : null}
+                           <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />
+                         </Button>
+                       </DropdownMenuTrigger>
+                       <DropdownMenuContent align="start" className="w-64 max-h-[60vh] overflow-y-auto">
+                         {viewTabItems.map(v => {
+                           const Icon = VIEW_TYPE_ICONS[v.type as keyof typeof VIEW_TYPE_ICONS];
+                           const isActive = v.id === activeViewId;
+                           return (
+                             <DropdownMenuItem
+                               key={v.id}
+                               onClick={() => handleViewChange(v.id)}
+                               className={cn('text-sm gap-2', isActive && 'font-medium bg-muted')}
+                               data-testid={`mobile-view-${v.id}`}
+                             >
+                               {Icon ? <Icon className="h-4 w-4 shrink-0 text-muted-foreground" /> : null}
+                               <span className="truncate flex-1">{v.label}</span>
+                               {v.readonly ? <Lock className="h-3 w-3 shrink-0 text-muted-foreground" /> : null}
+                             </DropdownMenuItem>
+                           );
+                         })}
+                       </DropdownMenuContent>
+                     </DropdownMenu>
+                   </div>
+                 );
+               })()}
+               </>
                );
              })()}
 
