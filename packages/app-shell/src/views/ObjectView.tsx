@@ -1674,7 +1674,15 @@ export function ObjectView({ dataSource, objects, onEdit, externalRefreshKey }: 
                  better-auth) is communicated at a glance; the previous
                  full-width banner was deliberately removed because it
                  (a) leaked engine-internal terminology and (b) repeated
-                 itself on list/detail/form for the same record. */}
+                 itself on list/detail/form for the same record.
+
+                 Mobile: hide the entire PageHeader. The title is already
+                 surfaced in the top bar (e.g. "线索"), so re-rendering
+                 the icon-pill + title again wastes ~60px of viewport
+                 chrome that real-app conventions (Gmail / Notion / Linear)
+                 reclaim for content. The create / import / overflow
+                 actions move to a floating action button (see below). */}
+             <div className="hidden sm:block">
              <PageHeader
                  title={
                    <span className="inline-flex items-center gap-2">
@@ -1746,6 +1754,24 @@ export function ObjectView({ dataSource, objects, onEdit, externalRefreshKey }: 
                    </>
                  }
              />
+             </div>
+
+             {/* Floating "+" action button — phone-only counterpart to the
+                 PageHeader's primary create action we just hid. Positioned
+                 above the bottom mobile-nav (h-12 + safe-area) so it
+                 doesn't collide with it. Hidden on tablets/desktops
+                 because the inline header button is already visible. */}
+             {affordances.create && can(objectDef.name, 'create') && (
+               <button
+                 type="button"
+                 onClick={actions.create}
+                 className="sm:hidden fixed right-4 bottom-36 z-40 h-12 w-12 rounded-full bg-primary text-primary-foreground shadow-lg active:scale-95 transition-transform inline-flex items-center justify-center"
+                 aria-label={t('console.objectView.new')}
+                 data-testid="mobile-fab-create"
+               >
+                 <Plus className="h-5 w-5" />
+               </button>
+             )}
 
              {/* CSV Import wizard (lazy-loaded) — opened from the toolbar
                  button above. On completion we bump refreshKey to re-fetch

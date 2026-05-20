@@ -20,6 +20,7 @@ import {
   Sidebar,
   SidebarContent,
   SidebarFooter,
+  SidebarHeader,
   SidebarGroup,
   SidebarGroupLabel,
   SidebarGroupContent,
@@ -35,6 +36,7 @@ import {
   Star,
   StarOff,
   ChevronRight,
+  Home,
   Layers,
 } from 'lucide-react';
 import { NavigationRenderer } from '@object-ui/layout';
@@ -126,7 +128,7 @@ interface UnifiedSidebarProps {
 }
 
 export function UnifiedSidebar({ activeAppName }: UnifiedSidebarProps) {
-  const { isMobile } = useSidebar();
+  const { isMobile, setOpenMobile } = useSidebar();
   const location = useLocation();
   const { t } = useObjectTranslation();
   const { objectLabel: resolveNavObjectLabel, dashboardLabel: resolveNavDashboardLabel, navGroupLabel: resolveNavGroupLabel } = useObjectLabel();
@@ -243,6 +245,27 @@ export function UnifiedSidebar({ activeAppName }: UnifiedSidebarProps) {
   return (
     <>
     <Sidebar collapsible="icon" className="!top-14 !h-[calc(100svh-3.5rem)]">
+      {/* Mobile-only "Home" affordance — the desktop topbar exposes Home
+          via the platform logo + AppSwitcher pill, but those are hidden
+          on phones. Without this row, users entering an app on mobile
+          have no way back out: there's no path-separator, no back arrow,
+          and the bottom tab bar only switches between objects inside the
+          current app. Render it inside the sheet header so it survives
+          the SidebarHeader vs SidebarContent split. */}
+      {isMobile && context === 'app' && (
+        <SidebarHeader className="border-b p-1.5">
+          <SidebarMenu>
+            <SidebarMenuItem>
+              <SidebarMenuButton asChild className="h-9 text-sm font-medium">
+                <Link to="/home" onClick={() => setOpenMobile(false)} data-testid="mobile-sidebar-home">
+                  <Home className="h-4 w-4" />
+                  <span>{t('home.nav', { defaultValue: 'Home' })}</span>
+                </Link>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          </SidebarMenu>
+        </SidebarHeader>
+      )}
       <SidebarContent className="pt-2">
         <div className="transition-opacity duration-200 ease-in-out">
           {context === 'app' && activeApp ? (
