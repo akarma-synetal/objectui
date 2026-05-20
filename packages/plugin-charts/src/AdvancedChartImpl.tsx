@@ -195,11 +195,56 @@ export default function AdvancedChartImpl({
     'hsl(var(--chart-5))'
   ];
 
+  // Compact numeric formatter for Y-axis ticks (1,200,000 → 1.2M).
+  // Keeps the axis readable when bar/area series have large values.
+  const formatYTick = React.useCallback((value: any): string => {
+    if (value == null || value === '') return '';
+    const num = typeof value === 'number' ? value : Number(value);
+    if (!Number.isFinite(num)) return String(value);
+    try {
+      return new Intl.NumberFormat(undefined, { notation: 'compact', maximumFractionDigits: 1 }).format(num);
+    } catch {
+      return String(num);
+    }
+  }, []);
+
+  // Shared X-axis props for time/categorical axes. Recharts' `minTickGap`
+  // automatically thins ticks that would otherwise overlap, so we no
+  // longer hard-code `interval={0}` (which forced every label and
+  // produced a dense black bar when data spanned hundreds of points).
+  const xAxisCommonProps = React.useMemo(() => ({
+    tickLine: false as const,
+    tickMargin: 10,
+    axisLine: false as const,
+    interval: 'preserveStartEnd' as const,
+    minTickGap: isMobile ? 32 : 48,
+    tickFormatter: formatTick,
+    ...(!isMobile && hasLongLabels && { angle: -35, textAnchor: 'end' as const, height: 60 }),
+  }), [isMobile, hasLongLabels, formatTick]);
+
   // Pie and Donut charts
   if (chartType === 'pie' || chartType === 'donut') {
     const innerRadius = chartType === 'donut' ? 60 : 0;
+    const palette = getPalette();
+    // Augment the chart config with one entry per category value so that
+    // `ChartLegendContent` (which resolves item labels via `config[key]`)
+    // can render the slice labels next to the color swatches. Without
+    // this the legend showed colored dots with no text, because the
+    // upstream config only contained entries for series dataKeys.
+    const pieConfig: ChartConfig = { ...(config as ChartConfig) };
+    data.forEach((entry, index) => {
+      const rawKey = entry?.[xAxisKey];
+      if (rawKey == null || rawKey === '') return;
+      const key = String(rawKey);
+      if (!pieConfig[key]) {
+        pieConfig[key] = {
+          label: key,
+          color: palette[index % palette.length],
+        };
+      }
+    });
     return (
-      <ChartContainer config={config} className={className}>
+      <ChartContainer config={pieConfig} className={className}>
         <PieChart>
           <ChartTooltip cursor={false} content={<ChartTooltipContent hideLabel />} />
           <Pie
@@ -214,11 +259,10 @@ export default function AdvancedChartImpl({
           >
              {data.map((entry, index) => {
                 // 1. Try config by nameKey (category)
-                let c = config[entry[xAxisKey]]?.color;
+                let c = pieConfig[String(entry[xAxisKey])]?.color;
                 
                 // 2. Fallback to palette
                 if (!c) {
-                   const palette = getPalette();
                    c = palette[index % palette.length];
                 }
                 
@@ -226,8 +270,9 @@ export default function AdvancedChartImpl({
              })}
           </Pie>
           <ChartLegend
-            content={<ChartLegendContent nameKey={xAxisKey} />}
-            {...(isMobile && { verticalAlign: "bottom", wrapperStyle: { fontSize: '11px', paddingTop: '8px' } })}
+            verticalAlign="bottom"
+            wrapperStyle={{ fontSize: isMobile ? '11px' : '12px', paddingTop: '8px' }}
+            content={<ChartLegendContent nameKey={xAxisKey} className="flex-wrap" />}
           />
         </PieChart>
       </ChartContainer>
@@ -313,7 +358,7 @@ export default function AdvancedChartImpl({
             name={String(config[xAxisKey]?.label || xAxisKey)}
             tickLine={false}
             axisLine={false}
-            interval={isMobile ? Math.ceil(data.length / 5) : 0}
+            minTickGap={isMobile ? 32 : 48}
           />
           <YAxis 
             type="number"
@@ -321,6 +366,8 @@ export default function AdvancedChartImpl({
             name={String(config[series[0]?.dataKey]?.label || series[0]?.dataKey)}
             tickLine={false}
             axisLine={false}
+            tickFormatter={formatYTick}
+            width={48}
           />
           <ZAxis type="number" range={[60, 400]} />
           <ChartTooltip content={<ChartTooltipContent />} />
@@ -351,17 +398,9 @@ export default function AdvancedChartImpl({
       <ChartContainer config={config} className={className}>
         <BarChart data={data}>
           <CartesianGrid vertical={false} />
-          <XAxis
-            dataKey={xAxisKey}
-            tickLine={false}
-            tickMargin={10}
-            axisLine={false}
-            interval={isMobile ? Math.ceil(data.length / 5) : 0}
-            tickFormatter={formatTick}
-            {...(!isMobile && hasLongLabels && { angle: -35, textAnchor: 'end', height: 60 })}
-          />
-          <YAxis yAxisId="left" tickLine={false} axisLine={false} />
-          <YAxis yAxisId="right" orientation="right" tickLine={false} axisLine={false} />
+          <XAxis dataKey={xAxisKey} {...xAxisCommonProps} />
+          <YAxis yAxisId="left" tickLine={false} axisLine={false} tickFormatter={formatYTick} width={48} />
+          <YAxis yAxisId="right" orientation="right" tickLine={false} axisLine={false} tickFormatter={formatYTick} width={48} />
           <ChartTooltip content={<ChartTooltipContent />} />
           <ChartLegend
             content={<ChartLegendContent />}
@@ -394,7 +433,7 @@ export default function AdvancedChartImpl({
         <CartesianGrid vertical={false} />
         {isHorizontal ? (
           <>
-            <XAxis type="number" tickLine={false} axisLine={false} />
+            <XAxis type="number" tickLine={false} axisLine={false} tickFormatter={formatYTick} />
             <YAxis
               type="category"
               dataKey={xAxisKey}
@@ -405,15 +444,10 @@ export default function AdvancedChartImpl({
             />
           </>
         ) : (
-          <XAxis
-            dataKey={xAxisKey}
-            tickLine={false}
-            tickMargin={10}
-            axisLine={false}
-            interval={isMobile ? Math.ceil(data.length / 5) : 0}
-            tickFormatter={formatTick}
-            {...(!isMobile && hasLongLabels && { angle: -35, textAnchor: 'end', height: 60 })}
-          />
+          <>
+            <XAxis dataKey={xAxisKey} {...xAxisCommonProps} />
+            <YAxis tickLine={false} axisLine={false} tickFormatter={formatYTick} width={48} />
+          </>
         )}
         <ChartTooltip content={<ChartTooltipContent />} />
         <ChartLegend
