@@ -182,6 +182,32 @@ export interface ActionParamDef {
   helpText?: string;
   placeholder?: string;
   validation?: string;
+
+  // ── Lookup-/reference-type metadata ───────────────────────────────
+  // Populated by `resolveActionParams()` when a field-backed param resolves
+  // to a `lookup` or `reference` field. Forwarded to `<LookupField>` inside
+  // `ActionParamDialog` so the user gets a real record picker (popover +
+  // RecordPickerDialog) instead of a plain text input.
+  /** Object name the lookup picker queries (`reference_to` on the field). */
+  referenceTo?: string;
+  /** Field on the referenced record used as the human label (default `name`). */
+  displayField?: string;
+  /** Field used as the option value (default `id`). */
+  idField?: string;
+  /** Optional secondary line shown under the label in the picker. */
+  descriptionField?: string;
+  /** Allow multi-select (renders chip list). */
+  multiple?: boolean;
+  /** Template (e.g. `{first_name} {last_name}`) used to build the label. */
+  titleFormat?: string;
+  /** Column definitions surfaced in the enterprise `RecordPickerDialog`. */
+  lookupColumns?: unknown[];
+  /** Server-side filters applied when querying lookup candidates. */
+  lookupFilters?: unknown[];
+  /** Page size for the typeahead popover. */
+  lookupPageSize?: number;
+  /** Form-field dependencies that gate / parameterise the picker query. */
+  dependsOn?: unknown[];
 }
 
 export class ActionRunner {

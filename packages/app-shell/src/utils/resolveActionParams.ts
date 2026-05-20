@@ -51,6 +51,18 @@ interface RuntimeField {
   options?: Array<{ label: string; value: string } | string>;
   multiple?: boolean;
   defaultValue?: unknown;
+  // ── Lookup-specific metadata (preserved when resolving lookup params) ──
+  reference_to?: string;
+  reference?: string;
+  display_field?: string;
+  reference_field?: string;
+  id_field?: string;
+  description_field?: string;
+  title_format?: string;
+  lookup_columns?: unknown[];
+  lookup_filters?: unknown[];
+  lookup_page_size?: number;
+  depends_on?: unknown[];
 }
 
 interface RuntimeObject {
@@ -154,6 +166,25 @@ export function resolveActionParam(
   const resolvedLabel = param.label
     ?? ctx.fieldLabel(ownerName, param.field, field.label ?? param.field);
 
+  /** Lookup/reference params carry extra picker config that the dialog
+   *  forwards to `<LookupField>`. Without these the picker would fall back
+   *  to a plain text input. */
+  const isLookupResolvedType = resolvedType === 'lookup' || resolvedType === 'reference';
+  const lookupExtras: Partial<ActionParamDef> = isLookupResolvedType
+    ? {
+        referenceTo: field.reference_to ?? field.reference,
+        displayField: field.display_field ?? field.reference_field,
+        idField: field.id_field,
+        descriptionField: field.description_field,
+        multiple: field.multiple,
+        titleFormat: field.title_format,
+        lookupColumns: field.lookup_columns,
+        lookupFilters: field.lookup_filters,
+        lookupPageSize: field.lookup_page_size,
+        dependsOn: field.depends_on,
+      }
+    : {};
+
   return {
     name: param.name ?? param.field,
     label: resolvedLabel,
@@ -163,6 +194,7 @@ export function resolveActionParam(
     placeholder: param.placeholder ?? field.placeholder,
     helpText: param.helpText ?? field.help ?? field.description,
     defaultValue: rowDefault ?? param.defaultValue ?? field.defaultValue,
+    ...lookupExtras,
   };
 }
 

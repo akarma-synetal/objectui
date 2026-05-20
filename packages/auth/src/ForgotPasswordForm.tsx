@@ -9,6 +9,16 @@
 import React, { useState } from 'react';
 import { useAuth } from './useAuth';
 import type { AuthLinkComponentProps } from './types';
+import {
+  AUTH_FIELD_LABEL_CLASS,
+  AUTH_INPUT_CLASS,
+  AUTH_LINK_CLASS,
+  AUTH_PRIMARY_BUTTON_CLASS,
+  AuthErrorBanner,
+  AuthFormHeader,
+  AuthMailIcon,
+  AuthSpinner,
+} from './authStyles';
 
 /** Translatable labels for the ForgotPasswordForm */
 export interface ForgotPasswordFormLabels {
@@ -34,19 +44,39 @@ export interface ForgotPasswordFormProps {
   title?: string;
   /** Custom description */
   description?: string;
+  /** Custom icon shown above the title (defaults to a small key disc) */
+  icon?: React.ReactNode;
   /** Custom link component for SPA navigation (e.g. React Router's Link) */
   linkComponent?: React.ComponentType<AuthLinkComponentProps>;
   /** Override default labels for i18n */
   labels?: ForgotPasswordFormLabels;
+  /** Hide the icon disc above the form title. Defaults to false. */
+  hideIcon?: boolean;
 }
 
 const DefaultLink = ({ href, className, children }: AuthLinkComponentProps) => (
   <a href={href} className={className}>{children}</a>
 );
 
+const DefaultKeyIcon = () => (
+  <svg
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.75"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    className="h-6 w-6"
+    aria-hidden="true"
+  >
+    <path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4" />
+  </svg>
+);
+
 /**
  * Forgot password form component.
- * Sends a password reset email to the user.
+ * Sends a password reset email to the user. Drop inside an `AuthShell`
+ * for a polished split-screen experience.
  *
  * @example
  * ```tsx
@@ -61,7 +91,9 @@ export function ForgotPasswordForm({
   onError,
   loginUrl = '/login',
   title = 'Reset your password',
-  description = 'Enter your email address and we\'ll send you a link to reset your password',
+  description = "Enter your email address and we'll send you a link to reset your password",
+  icon,
+  hideIcon = false,
   linkComponent: LinkComp = DefaultLink,
   labels = {},
 }: ForgotPasswordFormProps) {
@@ -76,7 +108,9 @@ export function ForgotPasswordForm({
     submitButton: labels.submitButton ?? 'Send Reset Link',
     submittingButton: labels.submittingButton ?? 'Sending...',
     successTitle: labels.successTitle ?? 'Check your email',
-    successDescription: labels.successDescription ?? "We've sent a password reset link to {{email}}. Please check your inbox.",
+    successDescription:
+      labels.successDescription ??
+      "We've sent a password reset link to {{email}}. Please check your inbox.",
     backToSignInText: labels.backToSignInText ?? 'Back to sign in',
     rememberPasswordText: labels.rememberPasswordText ?? 'Remember your password?',
     signInText: labels.signInText ?? 'Sign in',
@@ -102,15 +136,20 @@ export function ForgotPasswordForm({
       ? l.successDescription.replace('{{email}}', email)
       : `${l.successDescription} ${email}`;
     return (
-      <div className="mx-auto flex w-full flex-col justify-center space-y-6 sm:w-[380px]">
-        <div className="flex flex-col space-y-2 text-center">
-          <h1 className="text-2xl font-semibold tracking-tight">{l.successTitle}</h1>
-          <p className="text-sm text-muted-foreground">{successMsg}</p>
-        </div>
+      <div className="mx-auto flex w-full flex-col justify-center space-y-7 sm:w-[400px]">
+        <AuthFormHeader
+          icon={
+            <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-500/10 text-emerald-600 ring-1 ring-emerald-500/15 dark:text-emerald-400">
+              <AuthMailIcon />
+            </span>
+          }
+          title={l.successTitle}
+          description={successMsg}
+        />
         {loginUrl && (
-          <p className="px-8 text-center text-sm text-muted-foreground">
-            <LinkComp href={loginUrl} className="text-primary underline-offset-4 hover:underline">
-              {l.backToSignInText}
+          <p className="text-center text-sm text-muted-foreground">
+            <LinkComp href={loginUrl} className={AUTH_LINK_CLASS}>
+              ← {l.backToSignInText}
             </LinkComp>
           </p>
         )}
@@ -119,21 +158,18 @@ export function ForgotPasswordForm({
   }
 
   return (
-    <div className="mx-auto flex w-full flex-col justify-center space-y-6 sm:w-[380px]">
-      <div className="flex flex-col space-y-2 text-center">
-        <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
-        <p className="text-sm text-muted-foreground">{description}</p>
-      </div>
+    <div className="mx-auto flex w-full flex-col justify-center space-y-7 sm:w-[400px]">
+      <AuthFormHeader
+        icon={hideIcon ? undefined : (icon ?? <DefaultKeyIcon />)}
+        title={title}
+        description={description}
+      />
 
       <form onSubmit={handleSubmit} className="space-y-4">
-        {error && (
-          <div className="rounded-md bg-destructive/15 p-3 text-sm text-destructive" role="alert">
-            {error}
-          </div>
-        )}
+        {error && <AuthErrorBanner message={error} />}
 
         <div className="space-y-2">
-          <label htmlFor="forgot-email" className="text-sm font-medium leading-none">
+          <label htmlFor="forgot-email" className={AUTH_FIELD_LABEL_CLASS}>
             {l.emailLabel}
           </label>
           <input
@@ -145,15 +181,12 @@ export function ForgotPasswordForm({
             required
             autoComplete="email"
             disabled={isLoading}
-            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+            className={AUTH_INPUT_CLASS}
           />
         </div>
 
-        <button
-          type="submit"
-          disabled={isLoading}
-          className="inline-flex h-10 w-full items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground ring-offset-background transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50"
-        >
+        <button type="submit" disabled={isLoading} className={AUTH_PRIMARY_BUTTON_CLASS}>
+          {isLoading && <AuthSpinner />}
           {isLoading ? l.submittingButton : l.submitButton}
         </button>
       </form>
@@ -161,7 +194,7 @@ export function ForgotPasswordForm({
       {loginUrl && (
         <p className="px-8 text-center text-sm text-muted-foreground">
           {l.rememberPasswordText}{' '}
-          <LinkComp href={loginUrl} className="text-primary underline-offset-4 hover:underline">
+          <LinkComp href={loginUrl} className={AUTH_LINK_CLASS}>
             {l.signInText}
           </LinkComp>
         </p>

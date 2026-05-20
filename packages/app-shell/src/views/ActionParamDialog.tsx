@@ -31,6 +31,7 @@ import {
 } from '@object-ui/components';
 import { useObjectTranslation } from '@object-ui/i18n';
 import type { ActionParamDef } from '@object-ui/core';
+import { LookupField } from '@object-ui/fields';
 
 export interface ParamDialogState {
   open: boolean;
@@ -164,6 +165,33 @@ export function ActionParamDialog({ state, onOpenChange }: ActionParamDialogProp
                     ))}
                   </SelectContent>
                 </Select>
+              ) : isLookupParam && (param as any).referenceTo ? (
+                // Render a real record picker (popover typeahead +
+                // RecordPickerDialog) when the param resolves to a `lookup`
+                // or `reference` field with a known `referenceTo` target.
+                // `resolveActionParams()` copies the lookup-config from the
+                // underlying object-field; the DataSource is picked up from
+                // the surrounding SchemaRendererContext provided by the host
+                // view (ObjectView / RecordDetailView).
+                <LookupField
+                  value={values[param.name] ?? null}
+                  onChange={(v) => updateValue(param.name, v)}
+                  field={{
+                    name: param.name,
+                    type: 'lookup',
+                    reference_to: (param as any).referenceTo,
+                    display_field: (param as any).displayField,
+                    id_field: (param as any).idField,
+                    description_field: (param as any).descriptionField,
+                    multiple: (param as any).multiple,
+                    title_format: (param as any).titleFormat,
+                    lookup_columns: (param as any).lookupColumns,
+                    lookup_filters: (param as any).lookupFilters,
+                    lookup_page_size: (param as any).lookupPageSize,
+                    depends_on: (param as any).dependsOn,
+                    placeholder: param.placeholder,
+                  } as any}
+                />
               ) : param.type === 'textarea' ? (
                 <Textarea
                   id={param.name}

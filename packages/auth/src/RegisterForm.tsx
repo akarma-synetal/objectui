@@ -10,6 +10,16 @@ import React, { useState } from 'react';
 import { useAuth } from './useAuth';
 import { SocialSignInButtons } from './SocialSignInButtons';
 import type { AuthLinkComponentProps } from './types';
+import {
+  AUTH_FIELD_LABEL_CLASS,
+  AUTH_INPUT_CLASS,
+  AUTH_LINK_CLASS,
+  AUTH_PRIMARY_BUTTON_CLASS,
+  AuthDivider,
+  AuthErrorBanner,
+  AuthFormHeader,
+  AuthSpinner,
+} from './authStyles';
 
 /** Translatable labels for the RegisterForm */
 export interface RegisterFormLabels {
@@ -27,6 +37,8 @@ export interface RegisterFormLabels {
   submittingButton?: string;
   hasAccountText?: string;
   signInText?: string;
+  /** Divider label between social sign-up and email/password (defaults to "or") */
+  orText?: string;
 }
 
 export interface RegisterFormProps {
@@ -40,19 +52,42 @@ export interface RegisterFormProps {
   title?: string;
   /** Custom description */
   description?: string;
+  /** Custom icon shown above the title (defaults to a small user-plus disc) */
+  icon?: React.ReactNode;
   /** Custom link component for SPA navigation (e.g. React Router's Link) */
   linkComponent?: React.ComponentType<AuthLinkComponentProps>;
   /** Override default labels for i18n */
   labels?: RegisterFormLabels;
+  /** Hide the icon disc above the form title. Defaults to false. */
+  hideIcon?: boolean;
 }
 
 const DefaultLink = ({ href, className, children }: AuthLinkComponentProps) => (
   <a href={href} className={className}>{children}</a>
 );
 
+const DefaultUserPlusIcon = () => (
+  <svg
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.75"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    className="h-6 w-6"
+    aria-hidden="true"
+  >
+    <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+    <circle cx="9" cy="7" r="4" />
+    <line x1="19" y1="8" x2="19" y2="14" />
+    <line x1="22" y1="11" x2="16" y2="11" />
+  </svg>
+);
+
 /**
  * Registration form component with name, email, and password fields.
- * Uses Tailwind CSS utility classes for styling.
+ * Uses Tailwind CSS utility classes for styling. Drop inside an `AuthShell`
+ * for a polished split-screen experience.
  *
  * @example
  * ```tsx
@@ -68,6 +103,8 @@ export function RegisterForm({
   loginUrl = '/login',
   title = 'Create an account',
   description = 'Enter your information to get started',
+  icon,
+  hideIcon = false,
   linkComponent: LinkComp = DefaultLink,
   labels = {},
 }: RegisterFormProps) {
@@ -93,6 +130,7 @@ export function RegisterForm({
     submittingButton: labels.submittingButton ?? 'Creating account...',
     hasAccountText: labels.hasAccountText ?? 'Already have an account?',
     signInText: labels.signInText ?? 'Sign in',
+    orText: labels.orText ?? 'or',
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -120,104 +158,106 @@ export function RegisterForm({
   };
 
   return (
-    <div className="mx-auto flex w-full flex-col justify-center space-y-6 sm:w-[380px]">
-      <div className="flex flex-col space-y-2 text-center">
-        <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
-        <p className="text-sm text-muted-foreground">{description}</p>
-      </div>
+    <div className="mx-auto flex w-full flex-col justify-center space-y-7 sm:w-[400px]">
+      <AuthFormHeader
+        icon={hideIcon ? undefined : (icon ?? <DefaultUserPlusIcon />)}
+        title={title}
+        description={description}
+      />
 
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <div className="space-y-5">
         <SocialSignInButtons mode="sign-up" />
 
-        {error && (
-          <div className="rounded-md bg-destructive/15 p-3 text-sm text-destructive" role="alert">
-            {error}
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <AuthDivider label={l.orText} />
+
+          {error && <AuthErrorBanner message={error} />}
+
+          <div className="space-y-2">
+            <label htmlFor="register-name" className={AUTH_FIELD_LABEL_CLASS}>
+              {l.nameLabel}
+            </label>
+            <input
+              id="register-name"
+              type="text"
+              placeholder={l.namePlaceholder}
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              required
+              autoComplete="name"
+              disabled={isLoading}
+              className={AUTH_INPUT_CLASS}
+            />
           </div>
-        )}
 
-        <div className="space-y-2">
-          <label htmlFor="register-name" className="text-sm font-medium leading-none">
-            {l.nameLabel}
-          </label>
-          <input
-            id="register-name"
-            type="text"
-            placeholder={l.namePlaceholder}
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            required
-            autoComplete="name"
+          <div className="space-y-2">
+            <label htmlFor="register-email" className={AUTH_FIELD_LABEL_CLASS}>
+              {l.emailLabel}
+            </label>
+            <input
+              id="register-email"
+              type="email"
+              placeholder={l.emailPlaceholder}
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+              autoComplete="email"
+              disabled={isLoading}
+              className={AUTH_INPUT_CLASS}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <label htmlFor="register-password" className={AUTH_FIELD_LABEL_CLASS}>
+              {l.passwordLabel}
+            </label>
+            <input
+              id="register-password"
+              type="password"
+              placeholder={l.passwordPlaceholder}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              minLength={8}
+              autoComplete="new-password"
+              disabled={isLoading}
+              className={AUTH_INPUT_CLASS}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <label htmlFor="register-confirm-password" className={AUTH_FIELD_LABEL_CLASS}>
+              {l.confirmPasswordLabel}
+            </label>
+            <input
+              id="register-confirm-password"
+              type="password"
+              placeholder={l.confirmPasswordPlaceholder}
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              required
+              minLength={8}
+              autoComplete="new-password"
+              disabled={isLoading}
+              className={AUTH_INPUT_CLASS}
+            />
+          </div>
+
+          <button
+            type="submit"
             disabled={isLoading}
-            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-          />
-        </div>
-
-        <div className="space-y-2">
-          <label htmlFor="register-email" className="text-sm font-medium leading-none">
-            {l.emailLabel}
-          </label>
-          <input
-            id="register-email"
-            type="email"
-            placeholder={l.emailPlaceholder}
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-            autoComplete="email"
-            disabled={isLoading}
-            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-          />
-        </div>
-
-        <div className="space-y-2">
-          <label htmlFor="register-password" className="text-sm font-medium leading-none">
-            {l.passwordLabel}
-          </label>
-          <input
-            id="register-password"
-            type="password"
-            placeholder={l.passwordPlaceholder}
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-            minLength={8}
-            autoComplete="new-password"
-            disabled={isLoading}
-            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-          />
-        </div>
-
-        <div className="space-y-2">
-          <label htmlFor="register-confirm-password" className="text-sm font-medium leading-none">
-            {l.confirmPasswordLabel}
-          </label>
-          <input
-            id="register-confirm-password"
-            type="password"
-            placeholder={l.confirmPasswordPlaceholder}
-            value={confirmPassword}
-            onChange={(e) => setConfirmPassword(e.target.value)}
-            required
-            minLength={8}
-            autoComplete="new-password"
-            disabled={isLoading}
-            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-          />
-        </div>
-
-        <button
-          type="submit"
-          disabled={isLoading}
-          className="inline-flex h-10 w-full items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground ring-offset-background transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50"
-        >
-          {isLoading ? l.submittingButton : l.submitButton}
-        </button>
-      </form>
+            className={AUTH_PRIMARY_BUTTON_CLASS}
+          >
+            {isLoading && <AuthSpinner />}
+            {isLoading ? l.submittingButton : l.submitButton}
+          </button>
+        </form>
+      </div>
 
       {loginUrl && (
         <p className="px-8 text-center text-sm text-muted-foreground">
           {l.hasAccountText}{' '}
-          <LinkComp href={loginUrl} className="text-primary underline-offset-4 hover:underline">
+          <LinkComp href={loginUrl} className={AUTH_LINK_CLASS}>
             {l.signInText}
           </LinkComp>
         </p>
