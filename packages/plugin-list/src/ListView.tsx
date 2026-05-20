@@ -1503,12 +1503,11 @@ export const ListView = React.forwardRef<ListViewHandle, ListViewProps>(({
           {schema.tabs && schema.tabs.length > 0 && resolvedUserFilters && (
             <div className="hidden sm:block h-4 w-px bg-border/60 mx-1 shrink-0" />
           )}
-          {/* User Filters — desktop only. Predefined filter presets that work
-              well as horizontal chip rows on wide screens but eat too much
-              vertical real estate on phones. Mobile users get the Filter
-              icon in the right cluster instead. */}
+          {/* User Filters — predefined filter presets shown as a horizontal
+              chip row. On mobile we keep them visible (single line, scrollable)
+              to match the Airtable Interface pattern. */}
           {resolvedUserFilters && (
-              <div className="hidden sm:block shrink-0 min-w-0" data-testid="user-filters">
+              <div className="shrink-0 min-w-0 overflow-x-auto" data-testid="user-filters">
                 <UserFilters
                   config={resolvedUserFilters}
                   objectDef={objectDef}

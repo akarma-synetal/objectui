@@ -37,6 +37,8 @@ import {
   Search,
   HelpCircle,
   ChevronDown,
+  Check,
+  Lock,
   Settings,
   LogOut,
   User as UserIcon,
@@ -58,6 +60,7 @@ import { useObjectTranslation, useObjectLabel } from '@object-ui/i18n';
 import type { BreadcrumbItem as BreadcrumbItemType } from '@object-ui/types';
 import { useAuth, getUserInitials } from '@object-ui/auth';
 import { useMetadata } from '../providers/MetadataProvider';
+import { useMobileViewSwitcher } from './MobileViewSwitcherContext';
 import { useNavigationContext } from '../context/NavigationContext';
 
 function humanizeSlug(slug: string): string {
@@ -121,6 +124,7 @@ export function AppHeader({
   const { objectLabel, dashboardLabel, pageLabel, reportLabel, viewLabel } = useObjectLabel();
   const { apps: metadataApps, dashboards: metadataDashboards, pages: metadataPages, reports: metadataReports } = useMetadata();
   const { currentAppName, recordTitle } = useNavigationContext();
+  const mobileSwitcher = useMobileViewSwitcher();
 
   const [apiPresenceUsers, setApiPresenceUsers] = useState<PresenceUser[] | null>(null);
   const [apiActivities, setApiActivities] = useState<ActivityItem[] | null>(null);
@@ -524,10 +528,60 @@ export function AppHeader({
               );
             })}
 
-            {/* Mobile: current page label */}
-            <span className="text-sm font-medium sm:hidden truncate min-w-0 ml-1">
-              {lastSegmentLabel}
-            </span>
+            {/* Mobile: current page label or view switcher */}
+            {mobileSwitcher && mobileSwitcher.views.length > 0 ? (
+              mobileSwitcher.views.length > 1 ? (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <button
+                      type="button"
+                      className="sm:hidden flex items-center gap-0.5 min-w-0 ml-1 rounded-md px-1.5 py-1 text-sm font-medium hover:bg-accent active:bg-accent/80 transition-colors"
+                      aria-label="Switch view"
+                    >
+                      <span className="truncate max-w-[180px]">
+                        {mobileSwitcher.triggerLabel ??
+                          mobileSwitcher.views.find((v) => v.id === mobileSwitcher.activeViewId)?.label ??
+                          lastSegmentLabel}
+                      </span>
+                      <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="start" className="min-w-[220px] max-w-[280px]">
+                    {mobileSwitcher.views.map((v) => {
+                      const isActive = v.id === mobileSwitcher.activeViewId;
+                      return (
+                        <DropdownMenuItem
+                          key={v.id}
+                          onSelect={() => {
+                            if (!isActive) mobileSwitcher.onChange(v.id);
+                          }}
+                          className="gap-2"
+                        >
+                          {v.icon ? (
+                            <span className="shrink-0 text-muted-foreground [&>svg]:h-4 [&>svg]:w-4">{v.icon}</span>
+                          ) : null}
+                          <span className="flex-1 truncate">{v.label}</span>
+                          {v.locked ? (
+                            <Lock className="h-3 w-3 shrink-0 text-muted-foreground" aria-hidden />
+                          ) : null}
+                          {isActive ? (
+                            <Check className="h-4 w-4 shrink-0 text-foreground" aria-hidden />
+                          ) : null}
+                        </DropdownMenuItem>
+                      );
+                    })}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              ) : (
+                <span className="text-sm font-medium sm:hidden truncate min-w-0 ml-1">
+                  {mobileSwitcher.triggerLabel ?? mobileSwitcher.views[0].label}
+                </span>
+              )
+            ) : (
+              <span className="text-sm font-medium sm:hidden truncate min-w-0 ml-1">
+                {lastSegmentLabel}
+              </span>
+            )}
           </>
         )}
       </div>

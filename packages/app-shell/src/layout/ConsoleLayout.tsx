@@ -17,6 +17,7 @@ import { useDiscovery } from '@object-ui/react';
 const ConsoleFloatingChatbot = lazy(() => import('./ConsoleFloatingChatbot'));
 import { UnifiedSidebar } from './UnifiedSidebar';
 import { AppHeader } from './AppHeader';
+import { MobileViewSwitcherProvider } from './MobileViewSwitcherContext';
 import { useResponsiveSidebar } from '../hooks/useResponsiveSidebar';
 import { useNavigationContext } from '../context/NavigationContext';
 import { resolveI18nLabel } from '../utils';
@@ -69,6 +70,7 @@ export function ConsoleLayout({
   }, [setContext, setCurrentAppName, activeAppName]);
 
   return (
+    <MobileViewSwitcherProvider>
     <AppShell
       sidebar={
          <UnifiedSidebar
@@ -113,5 +115,6 @@ export function ConsoleLayout({
         </Suspense>
       )}
     </AppShell>
+    </MobileViewSwitcherProvider>
   );
 }
