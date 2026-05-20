@@ -26,6 +26,18 @@ export interface BulkActionBarProps {
   onActionDef?: (def: BulkActionDef, selectedRows: any[]) => void;
   /** Callback to clear selection */
   onClearSelection?: () => void;
+  /**
+   * Cross-page selection — number of rows currently loaded on the page.
+   * When `selectedRows.length === pageSize` and `totalMatching > pageSize`,
+   * we offer to extend the selection across the entire match set.
+   */
+  pageSize?: number;
+  /** Total matching record count from the most recent find. */
+  totalMatching?: number;
+  /** True when the user has opted into the cross-page selection. */
+  allMatchingSelected?: boolean;
+  /** Invoked when the user clicks "Select all N matching". */
+  onSelectAllMatching?: () => void;
 }
 
 export const BulkActionBar: React.FC<BulkActionBarProps> = ({
@@ -35,22 +47,68 @@ export const BulkActionBar: React.FC<BulkActionBarProps> = ({
   onAction,
   onActionDef,
   onClearSelection,
+  pageSize,
+  totalMatching,
+  allMatchingSelected,
+  onSelectAllMatching,
 }) => {
   const hasDefs = Array.isArray(actionDefs) && actionDefs.length > 0;
   const hasLegacy = Array.isArray(actions) && actions.length > 0;
   if (!hasDefs && !hasLegacy) return null;
   if (selectedRows.length === 0) return null;
 
+  // Cross-page affordance: show banner when the user has selected the
+  // entire visible page AND there are more matching records off-screen.
+  const showCrossPageAffordance =
+    !allMatchingSelected
+    && typeof totalMatching === 'number'
+    && typeof pageSize === 'number'
+    && pageSize > 0
+    && selectedRows.length >= pageSize
+    && totalMatching > pageSize;
+
   return (
     <div
-      className="border-t border-primary/30 px-4 py-2 flex items-center gap-2 text-xs bg-primary/10 text-foreground shrink-0 shadow-sm"
+      className="border-t border-primary/30 px-4 py-2 flex flex-col gap-1.5 text-xs bg-primary/10 text-foreground shrink-0 shadow-sm"
       role="region"
       aria-label="Bulk actions"
       data-testid="bulk-actions-bar"
     >
+      {(showCrossPageAffordance || allMatchingSelected) && (
+        <div
+          className="flex items-center gap-2 text-[11px] text-muted-foreground"
+          data-testid="bulk-cross-page-banner"
+        >
+          {allMatchingSelected ? (
+            <>
+              <CheckSquare className="h-3 w-3 text-primary shrink-0" />
+              <span>
+                All {totalMatching} matching records are selected.
+              </span>
+            </>
+          ) : (
+            <>
+              <span>
+                All {pageSize} on this page are selected.
+              </span>
+              <button
+                type="button"
+                className="font-medium text-primary underline-offset-2 hover:underline"
+                onClick={onSelectAllMatching}
+                data-testid="bulk-select-all-matching"
+              >
+                Select all {totalMatching} matching
+              </button>
+            </>
+          )}
+        </div>
+      )}
+      <div className="flex items-center gap-2">
       <CheckSquare className="h-3.5 w-3.5 text-primary shrink-0" />
       <span className="font-medium">
-        {selectedRows.length} {selectedRows.length === 1 ? 'item' : 'items'} selected
+        {allMatchingSelected
+          ? `${totalMatching} items selected (all matches)`
+          : `${selectedRows.length} ${selectedRows.length === 1 ? 'item' : 'items'} selected`}
       </span>
       <div className="flex items-center gap-1.5 ml-3">
         {hasDefs && actionDefs!.map(def => {
@@ -102,6 +160,7 @@ export const BulkActionBar: React.FC<BulkActionBarProps> = ({
         <X className="h-3 w-3" />
         Clear
       </Button>
+      </div>
     </div>
   );
 };

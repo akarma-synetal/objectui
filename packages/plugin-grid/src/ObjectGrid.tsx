@@ -234,8 +234,11 @@ export const ObjectGrid: React.FC<ObjectGridProps> = ({
   const exportJob = useExportJob({ dataSource });
   const [rowHeightMode, setRowHeightMode] = useState<'compact' | 'short' | 'medium' | 'tall' | 'extra_tall'>(schema.rowHeight ?? 'compact');
   const [selectedRows, setSelectedRows] = useState<any[]>([]);
+  const [selectAllMatching, setSelectAllMatching] = useState(false);
+  const [totalMatching, setTotalMatching] = useState<number | undefined>(undefined);
   const [activeBulkDef, setActiveBulkDef] = useState<BulkActionDef | null>(null);
   const [activeBulkRows, setActiveBulkRows] = useState<any[]>([]);
+  const lastFindParamsRef = React.useRef<Record<string, unknown> | null>(null);
 
   // Sync internal rowHeightMode when schema.rowHeight prop changes (e.g., parent ListView density toggle)
   React.useEffect(() => {
@@ -494,6 +497,14 @@ export const ObjectGrid: React.FC<ObjectGridProps> = ({
           const result = await dataSource.find(objectName, params);
           if (cancelled) return;
           setData(result.data || []);
+          // Capture total matching count + the params we used, so the bulk
+          // selection banner can offer "Select all N matching" and the
+          // dispatcher can re-issue the query to expand selection.
+          const totalFromResult = (result as { total?: number }).total;
+          setTotalMatching(typeof totalFromResult === 'number' ? totalFromResult : undefined);
+          lastFindParamsRef.current = { ...params };
+          // Reset cross-page flag whenever the underlying query changes.
+          setSelectAllMatching(false);
         }
       } catch (err) {
         if (!cancelled) {
@@ -1380,24 +1391,59 @@ export const ObjectGrid: React.FC<ObjectGridProps> = ({
     selectionMode = 'multiple';
   }
 
+  // Resolve the rows the bulk action should actually operate on. When
+  // "select all N matching" is active, fan out a paged find against the
+  // current query so we can hand a complete record list to the executor.
+  // (Plain function — placed late in the component body where prior renders
+  // sometimes short-circuit before reaching it; using useCallback here would
+  // tripwire the rules-of-hooks balance.)
+  const resolveBulkRows = async (rowsHint: any[]): Promise<any[]> => {
+    if (!selectAllMatching) return rowsHint;
+    const objectName = schema.objectName;
+    if (!dataSource || !objectName) return rowsHint;
+    const base = { ...(lastFindParamsRef.current ?? {}) } as Record<string, unknown>;
+    delete (base as any).$top;
+    delete (base as any).$skip;
+    const HARD_CAP = 5000;
+    const PAGE = 500;
+    const collected: any[] = [];
+    let skip = 0;
+    while (collected.length < HARD_CAP) {
+      const page = await dataSource.find(objectName, { ...base, $top: PAGE, $skip: skip });
+      const items = page.data ?? [];
+      if (items.length === 0) break;
+      collected.push(...items);
+      if (items.length < PAGE) break;
+      skip += PAGE;
+    }
+    return collected.slice(0, HARD_CAP);
+  };
+
   // Bulk action dispatcher — for the implicit 'delete' action, route through
   // the consumer-provided onBulkDelete (which already knows about confirm +
   // refresh). Other actions fall through to the generic action runner.
   const dispatchBulkAction = (action: string, rows: any[]) => {
-    if (action === 'delete' && onBulkDelete) {
-      onBulkDelete(rows);
-      setSelectedRows([]);
-      return;
-    }
-    executeAction({ type: action, params: { records: rows } });
+    void (async () => {
+      const expanded = await resolveBulkRows(rows);
+      if (action === 'delete' && onBulkDelete) {
+        onBulkDelete(expanded);
+        setSelectedRows([]);
+        setSelectAllMatching(false);
+        return;
+      }
+      executeAction({ type: action, params: { records: expanded } });
+    })();
   };
 
   // Rich BulkActionDef dispatcher — opens the BulkActionDialog (params →
   // confirm → progress → result). When the user closes the dialog after a
   // run, refresh data so the grid reflects mutations.
   const dispatchBulkActionDef = (def: BulkActionDef, rows: any[]) => {
-    setActiveBulkDef(def);
-    setActiveBulkRows(rows);
+    void (async () => {
+      const expanded = await resolveBulkRows(rows);
+      setActiveBulkDef(def);
+      setActiveBulkRows(expanded);
+    })();
   };
   const handleBulkDialogClose = (result?: unknown) => {
     setActiveBulkDef(null);
@@ -1405,6 +1451,7 @@ export const ObjectGrid: React.FC<ObjectGridProps> = ({
     if (result) {
       // Clear selection after a successful run so the toolbar resets.
       setSelectedRows([]);
+      setSelectAllMatching(false);
       // Trigger refresh via the same path used by single-record mutations.
       setRefreshKey(k => k + 1);
     }
@@ -1959,7 +2006,11 @@ export const ObjectGrid: React.FC<ObjectGridProps> = ({
                 actionDefs={bulkActionDefs}
                 onAction={dispatchBulkAction}
                 onActionDef={dispatchBulkActionDef}
-                onClearSelection={() => setSelectedRows([])}
+                onClearSelection={() => { setSelectedRows([]); setSelectAllMatching(false); }}
+                pageSize={data.length}
+                totalMatching={totalMatching}
+                allMatchingSelected={selectAllMatching}
+                onSelectAllMatching={() => setSelectAllMatching(true)}
               />
             </>
           }
@@ -1990,7 +2041,11 @@ export const ObjectGrid: React.FC<ObjectGridProps> = ({
         actionDefs={bulkActionDefs}
         onAction={dispatchBulkAction}
         onActionDef={dispatchBulkActionDef}
-        onClearSelection={() => setSelectedRows([])}
+        onClearSelection={() => { setSelectedRows([]); setSelectAllMatching(false); }}
+        pageSize={data.length}
+        totalMatching={totalMatching}
+        allMatchingSelected={selectAllMatching}
+        onSelectAllMatching={() => setSelectAllMatching(true)}
       />
       {navigation.isOverlay && (
         <NavigationOverlay
