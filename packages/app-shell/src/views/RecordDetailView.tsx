@@ -390,17 +390,86 @@ export function RecordDetailView({ dataSource, objects, onEdit }: RecordDetailVi
     }
     let cancelled = false;
     setHistoryLoading(true);
+
+    // Pull `old_value` and `new_value` so we can render a per-field diff
+    // ("Industry: finance → healthcare") instead of just the action verb.
+    // The backend already authorises sys_audit_log row access; column-level
+    // redaction would need to happen server-side, not by omitting columns here.
     dataSource
       .find('sys_audit_log', {
         $filter: { record_id: pureRecordId, object_name: objectDef.name },
         $orderby: { created_at: 'desc' },
         $top: 50,
-        $select: ['id', 'created_at', 'action', 'user_id'],
+        $select: ['id', 'created_at', 'action', 'user_id', 'old_value', 'new_value'],
       })
-      .then((res: any) => {
+      .then(async (res: any) => {
         if (cancelled) return;
-        const items = Array.isArray(res) ? res : res?.data || [];
-        setHistoryEntries(items);
+        const items: any[] = Array.isArray(res) ? res : res?.data || [];
+
+        // 1) Resolve actor display names + avatars in a single batched call
+        //    so the timeline never falls back to a raw UUID.
+        const userIds = Array.from(
+          new Set(
+            items
+              .map((it) => it?.user_id)
+              .filter((v): v is string => typeof v === 'string' && v.length > 0),
+          ),
+        );
+        let userMap = new Map<string, { name?: string | null; image?: string | null }>();
+        if (userIds.length > 0) {
+          try {
+            const usersRes = await dataSource.find('sys_user', {
+              $filter: { id: { $in: userIds } },
+              $top: userIds.length,
+              $select: ['id', 'name', 'email', 'image'],
+            });
+            const users: any[] = Array.isArray(usersRes) ? usersRes : usersRes?.data || [];
+            userMap = new Map(
+              users.map((u) => [u.id, { name: u.name || u.email || null, image: u.image || null }]),
+            );
+          } catch (err) {
+            console.warn('[RecordDetailView] Failed to resolve audit user names:', err);
+          }
+        }
+
+        // 2) Build a label map for the current object so diff lines show
+        //    "Industry: …" rather than the snake_case "industry: …".
+        const fieldLabels: Record<string, string> = {};
+        for (const [name, def] of Object.entries<any>(objectDef.fields || {})) {
+          if (def?.label) fieldLabels[name] = def.label;
+        }
+
+        const parseJson = (v: any): Record<string, unknown> | null => {
+          if (!v) return null;
+          if (typeof v === 'object') return v as Record<string, unknown>;
+          if (typeof v === 'string') {
+            try { return JSON.parse(v); } catch { return null; }
+          }
+          return null;
+        };
+
+        const enriched = items.map((it) => {
+          const u = it?.user_id ? userMap.get(it.user_id) : undefined;
+          const oldObj = parseJson(it?.old_value) || {};
+          const newObj = parseJson(it?.new_value) || {};
+          const fields = new Set([...Object.keys(oldObj), ...Object.keys(newObj)]);
+          const changes = Array.from(fields)
+            .filter((f) => JSON.stringify(oldObj[f]) !== JSON.stringify(newObj[f]))
+            .map((f) => ({
+              field: f,
+              label: fieldLabels[f] || f,
+              from: oldObj[f],
+              to: newObj[f],
+            }));
+          return {
+            ...it,
+            user_name: u?.name ?? null,
+            user_avatar: u?.image ?? null,
+            changes: changes.length > 0 ? changes : undefined,
+          };
+        });
+
+        setHistoryEntries(enriched);
       })
       .catch((err: any) => {
         if (cancelled) return;
