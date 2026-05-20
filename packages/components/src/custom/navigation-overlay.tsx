@@ -38,6 +38,7 @@
  */
 
 import React from 'react';
+import { Maximize2 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import {
   Sheet,
@@ -117,6 +118,17 @@ export interface NavigationOverlayProps {
    * Popover trigger element (for popover mode).
    */
   popoverTrigger?: React.ReactNode;
+  /**
+   * Optional handler invoked when the user clicks the "Expand to full page"
+   * affordance in the drawer/modal header. Mirrors Linear / Notion / Airtable
+   * peek-to-full-page behavior — the consumer is responsible for closing the
+   * overlay and router-pushing to the full record route.
+   *
+   * When omitted, the expand button is not rendered.
+   */
+  onExpand?: () => void;
+  /** Optional label for the expand button (accessible name & tooltip). */
+  expandLabel?: string;
 }
 
 /**
@@ -162,6 +174,8 @@ export const NavigationOverlay: React.FC<NavigationOverlayProps> = ({
   renderView,
   mainContent,
   popoverTrigger,
+  onExpand,
+  expandLabel = 'Open as full page',
 }) => {
   // Non-overlay modes don't render anything
   if (mode === 'page' || mode === 'new_window' || mode === 'none') {
@@ -192,6 +206,21 @@ export const NavigationOverlay: React.FC<NavigationOverlayProps> = ({
           className={cn('w-full sm:max-w-2xl overflow-y-auto', className)}
           style={widthStyle}
         >
+          {/* Expand-to-full-page button — sits to the left of Sheet's own
+              auto-rendered close (X) button. Mirrors Linear/Notion peek mode:
+              the user can pop the drawer out into a permanent route when they
+              want a focused editing context. */}
+          {onExpand && (
+            <button
+              type="button"
+              onClick={onExpand}
+              aria-label={expandLabel}
+              title={expandLabel}
+              className="absolute right-12 top-4 z-10 inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
+            >
+              <Maximize2 className="h-4 w-4" />
+            </button>
+          )}
           <SheetHeader>
             <SheetTitle>{resolvedTitle}</SheetTitle>
             {description && <SheetDescription>{description}</SheetDescription>}
@@ -212,6 +241,17 @@ export const NavigationOverlay: React.FC<NavigationOverlayProps> = ({
           className={cn('max-w-2xl max-h-[90vh] overflow-y-auto', className)}
           style={widthStyle}
         >
+          {onExpand && (
+            <button
+              type="button"
+              onClick={onExpand}
+              aria-label={expandLabel}
+              title={expandLabel}
+              className="absolute right-12 top-4 z-10 inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
+            >
+              <Maximize2 className="h-4 w-4" />
+            </button>
+          )}
           <DialogHeader>
             <DialogTitle>{resolvedTitle}</DialogTitle>
             {description && <DialogDescription>{description}</DialogDescription>}

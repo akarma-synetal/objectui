@@ -45,6 +45,20 @@ export interface UseNavigationOverlayOptions {
   onRowClick?: (record: Record<string, unknown>) => void;
 }
 
+/**
+ * Optional event-like payload accepted by `handleClick`. We don't depend on
+ * React's synthetic event type to keep this hook framework-agnostic — only
+ * the few fields needed for modifier detection are read.
+ */
+export interface HandleClickModifiers {
+  /** macOS Command key — open in new tab when held */
+  metaKey?: boolean;
+  /** Windows/Linux Control key — open in new tab when held */
+  ctrlKey?: boolean;
+  /** Mouse button — 1 = middle click (treated as new tab) */
+  button?: number;
+}
+
 export interface NavigationOverlayState {
   /** Whether the overlay (drawer/modal/split/popover) is open */
   isOpen: boolean;
@@ -58,8 +72,15 @@ export interface NavigationOverlayState {
   open: (record: Record<string, unknown>) => void;
   /** Set the open state (for controlled Sheet/Dialog `onOpenChange`) */
   setIsOpen: (open: boolean) => void;
-  /** The click handler to attach to rows/items */
-  handleClick: (record: Record<string, unknown>) => void;
+  /**
+   * The click handler to attach to rows/items.
+   *
+   * Accepts an optional event (or any object with `metaKey`/`ctrlKey`/`button`)
+   * to detect modifier clicks. When `Cmd`/`Ctrl`/middle-click is detected, the
+   * record opens in a new browser tab as a full page regardless of the
+   * configured mode — matches Linear / Notion / Airtable convention.
+   */
+  handleClick: (record: Record<string, unknown>, event?: HandleClickModifiers) => void;
   /** The width from NavigationConfig (for drawer/modal/split sizing) */
   width: string | number | undefined;
   /** Whether navigation is an overlay mode (drawer/modal/split/popover) */
@@ -118,11 +139,26 @@ export function useNavigationOverlay(
   }, []);
 
   const handleClick = useCallback(
-    (record: Record<string, unknown>) => {
+    (record: Record<string, unknown>, event?: HandleClickModifiers) => {
       // External onRowClick takes full priority
       if (onRowClick) {
         onRowClick(record);
         return;
+      }
+
+      // Modifier / middle-click → always open in a new browser tab as a full
+      // page. Mirrors browser link convention (Cmd/Ctrl+Click, middle-click)
+      // so users can fan out multiple records into tabs from any list/board/
+      // gallery, regardless of the configured navigation mode.
+      const isModifierClick = !!(
+        event && (event.metaKey || event.ctrlKey || event.button === 1)
+      );
+      if (isModifierClick) {
+        const recordId = record.id || record._id;
+        if (onNavigate && recordId != null) {
+          onNavigate(recordId as string | number, 'new_window');
+          return;
+        }
       }
 
       // No navigation config — default to page navigation
@@ -169,7 +205,7 @@ export function useNavigationOverlay(
         return;
       }
     },
-    [onRowClick, navigation, mode, objectName, onNavigate, isOverlay]
+    [onRowClick, navigation, mode, objectName, onNavigate, isOverlay, view]
   );
 
   return useMemo(

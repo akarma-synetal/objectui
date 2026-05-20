@@ -1401,10 +1401,18 @@ export function ObjectView({ dataSource, objects, onEdit, externalRefreshKey }: 
     }, [dataSource, objectDef.name, refreshKey]);
 
     // Navigation overlay for record detail (supports drawer/modal/split/popover via config)
-    // Priority: activeView.navigation > objectDef.navigation > default page
-    // Memoize to avoid unstable object identity on every render (stale closure prevention)
+    // Priority: activeView.navigation > objectDef.navigation > default drawer.
+    //
+    // Default mode = 'drawer'. Mirrors Linear / Notion / Airtable / Jira where
+    // record peek is the primary interaction and full-page is the upgrade.
+    // Direct URL access (`/record/:id`) still opens as a full page because
+    // RecordDetailView owns its own route — only same-page click navigation
+    // is drawer-by-default. Per-view config can still override (e.g. a heavy
+    // detail object can set `navigation.mode = 'page'`).
     const detailNavigation: ViewNavigationConfig = useMemo(
-        () => activeView?.navigation ?? objectDef.navigation ?? { mode: 'page' },
+        () =>
+            activeView?.navigation ??
+            objectDef.navigation ?? { mode: 'drawer', width: 'min(70vw, 960px)' },
         [activeView?.navigation, objectDef.navigation]
     );
     const drawerRecordId = searchParams.get('recordId');
@@ -1460,6 +1468,53 @@ export function ObjectView({ dataSource, objects, onEdit, externalRefreshKey }: 
         newParams.delete('recordId');
         setSearchParams(newParams);
     };
+    /**
+     * Row-click handler used by all list/grid/gallery/kanban surfaces inside
+     * this object view. Wraps `navOverlay.handleClick` so that drawer-mode
+     * opens are URL-driven (writes `?recordId=…`) — making the drawer state
+     * shareable, refresh-safe, and respected by browser back/forward. The
+     * URL→state sync effect below handles actually opening the drawer.
+     */
+    const handleRowClick = useCallback(
+        (record: any, event?: React.MouseEvent | { metaKey?: boolean; ctrlKey?: boolean; button?: number }) => {
+            // Cmd/Ctrl/middle-click — let the hook open in a new tab (full page)
+            // regardless of configured mode. Matches browser link convention.
+            const isModifier = !!(
+                event && ((event as any).metaKey || (event as any).ctrlKey || (event as any).button === 1)
+            );
+            if (isModifier) {
+                navOverlay.handleClick(record, event as any);
+                return;
+            }
+            // Drawer mode → URL is the source of truth. Push `?recordId=…`
+            // and let the existing URL-sync effect open the overlay.
+            if (navOverlay.mode === 'drawer') {
+                const id = (record?.id ?? record?._id) as string | number | undefined;
+                if (id != null) {
+                    const next = new URLSearchParams(searchParams);
+                    next.set('recordId', String(id));
+                    setSearchParams(next);
+                    return;
+                }
+            }
+            // All other modes (page / modal / split / popover / new_window / none)
+            // — delegate to the hook.
+            navOverlay.handleClick(record, event as any);
+        },
+        [navOverlay, searchParams, setSearchParams]
+    );
+    /**
+     * "Expand to full page" — invoked from the drawer header chevron. Closes
+     * the drawer (which clears `?recordId=…`) and router-pushes to the
+     * dedicated `/record/:id` route. Mirrors Linear/Notion peek-to-page.
+     */
+    const handleExpandDrawer = useCallback(() => {
+        const rec = navOverlay.selectedRecord as Record<string, unknown> | null;
+        const id = rec && ((rec as any).id ?? (rec as any)._id);
+        if (id == null) return;
+        handleDrawerClose();
+        handleNavOverlayNavigate(id as string | number);
+    }, [navOverlay.selectedRecord, handleNavOverlayNavigate]);
     // Sync URL-based recordId to overlay state
     useEffect(() => {
         if (drawerRecordId && !navOverlay.isOpen) {
@@ -1708,8 +1763,8 @@ export function ObjectView({ dataSource, objects, onEdit, externalRefreshKey }: 
                         params: { records: valid },
                     });
                 }}
-                onRowClick={(record: any) => {
-                    navOverlay.handleClick(record);
+                onRowClick={(record: any, event?: any) => {
+                    handleRowClick(record, event);
                 }}
                 onSortChange={(sort: any) => {
                     persistViewPatch(viewDef.id, viewDef, { sort });
@@ -1977,6 +2032,8 @@ export function ObjectView({ dataSource, objects, onEdit, externalRefreshKey }: 
                         {...navOverlay}
                         setIsOpen={(open: boolean) => { if (!open) handleDrawerClose(); }}
                         title={objectLabel(objectDef)}
+                        onExpand={handleExpandDrawer}
+                        expandLabel={t('console.objectView.expandToPage', { defaultValue: 'Open as full page' })}
                         mainContent={
                             <div className="flex-1 min-w-0 relative h-full flex flex-col">
                                 <div className="flex-1 relative overflow-hidden">
@@ -1988,8 +2045,8 @@ export function ObjectView({ dataSource, objects, onEdit, externalRefreshKey }: 
                                             activeViewId={activeViewId}
                                             onViewChange={handleViewChange}
                                             onEdit={(record: any) => onEdit?.(record)}
-                                            onRowClick={(record: any) => {
-                                                navOverlay.handleClick(record);
+                                            onRowClick={(record: any, event?: any) => {
+                                                handleRowClick(record, event);
                                             }}
                                             renderListView={renderListView}
                                             onCreateView={handleCreateView}
@@ -2028,8 +2085,8 @@ export function ObjectView({ dataSource, objects, onEdit, externalRefreshKey }: 
                                 activeViewId={activeViewId}
                                 onViewChange={handleViewChange}
                                 onEdit={(record: any) => onEdit?.(record)}
-                                onRowClick={(record: any) => {
-                                    navOverlay.handleClick(record);
+                                onRowClick={(record: any, event?: any) => {
+                                    handleRowClick(record, event);
                                 }}
                                 renderListView={renderListView}
                                 onCreateView={handleCreateView}
@@ -2082,7 +2139,9 @@ export function ObjectView({ dataSource, objects, onEdit, externalRefreshKey }: 
                  {...navOverlay}
                  setIsOpen={(open: boolean) => { if (!open) handleDrawerClose(); }}
                  title={objectDef.label}
-                 className={navOverlay.mode === 'drawer' ? 'w-[90vw] sm:max-w-2xl p-0 overflow-hidden' : undefined}
+                 onExpand={handleExpandDrawer}
+                 expandLabel={t('console.objectView.expandToPage', { defaultValue: 'Open as full page' })}
+                 className={navOverlay.mode === 'drawer' ? 'w-[90vw] sm:max-w-3xl p-0 overflow-hidden' : undefined}
              >
                  {(record: Record<string, unknown>) => {
                      const recordId = (record.id || record._id) as string;
