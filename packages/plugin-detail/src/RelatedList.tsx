@@ -24,6 +24,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   cn,
+  useIsMobile,
 } from '@object-ui/components';
 import { SchemaRenderer } from '@object-ui/react';
 import {
@@ -460,9 +461,34 @@ export const RelatedList: React.FC<RelatedListProps> = ({
   }, [columns, objectSchema, objectName, api, resolveFieldLabel, referenceField, relatedData, maxColumns, lookupLabels, perms]);
 
   const hasRowActions = !!onRowEdit || !!onRowDelete;
+  const isMobile = useIsMobile();
 
   const viewSchema = React.useMemo(() => {
     if (schema) return schema;
+
+    // Mobile: render grid/table data as a card gallery — single-column,
+    // tap-friendly, visually consistent with the standalone gallery view.
+    // Reuses the registered `object-gallery` schema so we don't ship a
+    // duplicate renderer. Falls back to the data-table on desktop and
+    // when explicit `type='list'` is requested (legacy path).
+    if (isMobile && (type === 'grid' || type === 'table')) {
+      const titleField = effectiveColumns[0]?.accessorKey || effectiveColumns[0]?.field || effectiveColumns[0]?.name;
+      const visibleFields = effectiveColumns
+        .slice(1, 4)
+        .map((c: any) => c.accessorKey || c.field || c.name)
+        .filter(Boolean);
+      return {
+        type: 'object-gallery',
+        data: paginatedData,
+        objectName: api,
+        gallery: {
+          titleField: titleField || 'name',
+          visibleFields,
+          cardSize: 'medium',
+        },
+        onRowClick,
+      };
+    }
 
     // Auto-generate schema based on type. We disable the data-table's own
     // search/toolbar — RelatedList provides its own filter input above.
@@ -490,7 +516,7 @@ export const RelatedList: React.FC<RelatedListProps> = ({
       default:
         return { type: 'div', children: 'No view configured' };
     }
-  }, [type, paginatedData, effectiveColumns, schema, effectivePageSize, hasRowActions, onRowEdit, onRowDelete, handleDeleteRow, onRowClick]);
+  }, [type, paginatedData, effectiveColumns, schema, effectivePageSize, hasRowActions, onRowEdit, onRowDelete, handleDeleteRow, onRowClick, isMobile, api]);
 
   const headerClassName = collapsible ? 'cursor-pointer select-none' : undefined;
   const handleHeaderClick = collapsible ? () => setCollapsed((c) => !c) : undefined;
@@ -505,7 +531,7 @@ export const RelatedList: React.FC<RelatedListProps> = ({
   return (
     <Card className={cn('shadow-none', isEmpty && 'bg-muted/20', className)}>
       <CardHeader
-        className={cn('py-3 px-4', headerClassName)}
+        className={cn('py-3 px-4 sm:py-3 min-h-12 sm:min-h-0', headerClassName)}
         onClick={handleHeaderClick}
       >
         <CardTitle className="flex items-center justify-between gap-2 text-sm font-semibold">
@@ -534,7 +560,7 @@ export const RelatedList: React.FC<RelatedListProps> = ({
                 variant="outline"
                 size="sm"
                 onClick={(e) => { e.stopPropagation(); onNew(); }}
-                className="gap-1 h-7 text-xs shadow-none"
+                className="gap-1 h-9 sm:h-7 text-xs shadow-none"
               >
                 <Plus className="h-3.5 w-3.5" />
                 {t('detail.new')}

@@ -20,6 +20,7 @@ import {
   TabsList,
   TabsTrigger,
   TabsContent,
+  useIsMobile,
 } from '@object-ui/components';
 import { 
   ArrowLeft, 
@@ -197,6 +198,7 @@ export const DetailView: React.FC<DetailViewProps> = ({
   const [idCopied, setIdCopied] = React.useState(false);
   const { t } = useDetailTranslation();
   const { fieldOptionLabel } = useSafeFieldLabel();
+  const isMobile = useIsMobile();
 
   // Field-level permission gate. Filter section.fields and top-level
   // fields based on the current user's read permissions BEFORE any
@@ -1119,6 +1121,7 @@ export const DetailView: React.FC<DetailViewProps> = ({
                       onRowEdit={(related as any).onRowEdit}
                       onRowDelete={(related as any).onRowDelete}
                       collapsible
+                      defaultCollapsed={isMobile && index > 0}
                       pageSize={DEFAULT_RELATED_PAGE_SIZE}
                     />
                   ))}
@@ -1230,6 +1233,7 @@ export const DetailView: React.FC<DetailViewProps> = ({
                   onRowEdit={(related as any).onRowEdit}
                   onRowDelete={(related as any).onRowDelete}
                   collapsible
+                  defaultCollapsed={isMobile && index > 0}
                   pageSize={DEFAULT_RELATED_PAGE_SIZE}
                 />
               ))}
