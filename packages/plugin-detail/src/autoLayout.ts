@@ -17,8 +17,11 @@
  *
  * Column rules for detail views (wider thresholds than forms):
  * - 0-3 fields  → 1 column
- * - 4-10 fields → 2 columns
- * - 11+ fields  → 3 columns
+ * - 4+ fields   → 2 columns
+ *
+ * Note: 3 columns was previously emitted for 11+ fields but produced
+ * very sparse rows on typical desktop widths (~30% cell fill rate).
+ * Capped at 2 for a denser, more legible grid.
  */
 
 import type { DetailViewField } from '@object-ui/types';
@@ -49,25 +52,21 @@ export function isWideFieldType(type: string): boolean {
  * When containerWidth is provided, limits columns for narrower viewports.
  *
  * Rules (field-count based):
- * - 0-3 fields  → 1 column
- * - 4-10 fields → 2 columns
- * - 11+ fields  → 3 columns
+ * - 0-3 fields → 1 column
+ * - 4+ fields  → 2 columns
  *
  * Responsive capping (when containerWidth is supplied):
- * - containerWidth < 640px  → max 1 column
- * - containerWidth < 900px  → max 2 columns
- * - containerWidth >= 900px → no cap
+ * - containerWidth < 640px → max 1 column
+ * - containerWidth >= 640px → no cap (max is already 2)
  */
 export function inferDetailColumns(fieldCount: number, containerWidth?: number): number {
   let cols: number;
   if (fieldCount <= 3) cols = 1;
-  else if (fieldCount <= 10) cols = 2;
-  else cols = 3;
+  else cols = 2;
 
   // Apply responsive capping when container width is known
   if (containerWidth !== undefined) {
     if (containerWidth < 640) return Math.min(cols, 1);
-    if (containerWidth < 900) return Math.min(cols, 2);
   }
 
   return cols;
