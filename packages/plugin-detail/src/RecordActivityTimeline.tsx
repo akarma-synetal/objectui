@@ -7,7 +7,7 @@
  */
 
 import * as React from 'react';
-import { cn, Card, CardHeader, CardTitle, CardContent, Button } from '@object-ui/components';
+import { cn, Button } from '@object-ui/components';
 import {
   Activity,
   Edit,
@@ -235,16 +235,28 @@ export const RecordActivityTimeline: React.FC<RecordActivityTimelineProps> = ({
   }, [onLoadMore]);
 
   return (
-    <Card className={cn('', className)}>
-      <CardHeader>
+    <section
+      // De-boxed: render as a naked section with a top divider instead of
+      // the previous bordered Card. This keeps the discussion panel
+      // visually consistent with the rest of the record-detail page
+      // (highlights + tabs are also naked). When the chatter panel is
+      // pinned to the right rail it wraps this with its own border, so
+      // we don't double up.
+      className={cn(
+        'border-t border-border/60 pt-5',
+        className,
+      )}
+      aria-label="Discussion"
+    >
+      <header className="mb-4">
         <div className="flex items-center justify-between">
-          <CardTitle className="flex items-center gap-2 text-base">
+          <h2 className="flex items-center gap-2 text-base font-semibold leading-none tracking-tight">
             <Activity className="h-4 w-4" />
             {titleLabel ?? t('detail.activity')}
             <span className="text-sm font-normal text-muted-foreground">
               ({filtered.length})
             </span>
-          </CardTitle>
+          </h2>
           <div className="flex items-center gap-1">
             {showSubscription && subscription && (
               <SubscriptionToggle
@@ -254,8 +266,8 @@ export const RecordActivityTimeline: React.FC<RecordActivityTimelineProps> = ({
             )}
           </div>
         </div>
-      </CardHeader>
-      <CardContent className="space-y-4">
+      </header>
+      <div className="space-y-4">
         {/* Filter dropdown */}
         {showFilter && (
           <div className="flex items-center gap-2">
@@ -435,7 +447,7 @@ export const RecordActivityTimeline: React.FC<RecordActivityTimelineProps> = ({
             </Button>
           </div>
         )}
-      </CardContent>
-    </Card>
+      </div>
+    </section>
   );
 };

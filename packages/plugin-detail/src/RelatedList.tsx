@@ -559,7 +559,7 @@ export const RelatedList: React.FC<RelatedListProps> = ({
   const showFilterInput = filterable;
 
   return (
-    <Card className={cn('shadow-none', isEmpty && 'bg-muted/20', className)}>
+    <Card className={cn('shadow-none border-border/60 bg-transparent', isEmpty && 'bg-muted/10', className)}>
       <CardHeader
         className={cn('py-3 px-4 sm:py-3 min-h-12 sm:min-h-0', headerClassName)}
         onClick={handleHeaderClick}
