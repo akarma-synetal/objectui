@@ -336,6 +336,11 @@ const PageTabsRenderer: React.FC<any> = ({ schema, className, ...props }) => {
     isVertical && 'flex-col h-auto items-stretch p-1',
     type === 'card' && 'bg-transparent gap-1',
     type === 'pill' && 'bg-muted rounded-full p-1 gap-1',
+    // 'line' is the default: an anchored, underline-style strip. The Shadcn
+    // primitive defaults to a pill-card look (bg-muted, rounded-md) that
+    // floats unmoored on long record pages — override it so the strip reads
+    // as a section anchor with a bottom border + per-trigger underline.
+    type === 'line' && !isVertical && 'h-auto rounded-none bg-transparent p-0 gap-4 border-b border-border w-full justify-start',
     // Pin the horizontal tab strip to the top of the scroll container so
     // users keep their bearings on long record pages. Skipped for vertical
     // layouts where the strip is a sidebar, not a header.
@@ -346,6 +351,7 @@ const PageTabsRenderer: React.FC<any> = ({ schema, className, ...props }) => {
     isVertical && 'justify-start',
     type === 'card' && 'data-[state=active]:bg-background data-[state=active]:border data-[state=active]:shadow-sm rounded-md',
     type === 'pill' && 'rounded-full data-[state=active]:bg-background',
+    type === 'line' && !isVertical && 'rounded-none border-b-2 border-transparent bg-transparent px-1 pb-2.5 -mb-px shadow-none data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:text-foreground',
   );
 
   return (

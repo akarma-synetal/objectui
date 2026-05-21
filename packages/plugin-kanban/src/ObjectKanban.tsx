@@ -11,7 +11,7 @@ import type { DataSource } from '@object-ui/types';
 import { useDataScope, useNavigationOverlay, useSafeFieldLabel } from '@object-ui/react';
 import { RecordDetailDrawer, deriveRecordPageHref } from '@object-ui/plugin-detail';
 import { extractRecords, buildExpandFields } from '@object-ui/core';
-import { getBadgeColorClasses, formatDate, formatDateTime } from '@object-ui/fields';
+import { getBadgeColorClasses, getCellRenderer, resolveCellRendererType } from '@object-ui/fields';
 import { KanbanRenderer } from './index';
 import { KanbanSchema } from './types';
 
@@ -292,53 +292,16 @@ export const ObjectKanban: React.FC<ObjectKanbanProps> = ({
         'display_name',
       ]);
 
-      const fmtFieldValue = (key: string): string | undefined => {
-        const def = objectDef?.fields?.[key];
-        const raw = (item as any)[key];
-        if (raw == null || raw === '') return undefined;
-        // Money / currency formatting
-        if (typeof raw === 'number') {
-          const t = def?.type;
-          if (t === 'currency' || /amount|value|revenue|price|cost|total/.test(key)) {
-            return fmtMoney(raw);
-          }
-          return String(raw);
-        }
-        // Date / datetime formatting — server returns ISO 8601 strings; the
-        // kanban card subtitle would otherwise show raw "2026-07-17T11:29:13.833Z".
-        // Detect from object def type first, then fall back to common field-name
-        // heuristics (_date, _at, _time suffixes) for inferred types.
-        if (typeof raw === 'string') {
-          const fieldType = def?.type;
-          const dateLikeName = /(_date|_at|_time|_on|_by_date)$|^(date|datetime|created|updated|modified)$/i.test(key);
-          if (fieldType === 'date' || (dateLikeName && fieldType === undefined)) {
-            const formatted = formatDate(raw, 'short');
-            if (formatted && formatted !== '—') return formatted;
-          }
-          if (fieldType === 'datetime' || (dateLikeName && fieldType === undefined && /T\d{2}:\d{2}/.test(raw))) {
-            const formatted = formatDateTime(raw);
-            if (formatted && formatted !== '—') return formatted;
-          }
-        }
-        // Lookup objects → name
-        if (typeof raw === 'object') {
-          const d = resolveDisplay(key);
-          return d;
-        }
-        const d = resolveDisplay(key);
-        if (d === undefined) return undefined;
-        // Localized option label for enum/picklist fields
-        const opt = def?.options?.find((o: any) =>
-          String(o.value).toLowerCase() === String(raw).toLowerCase()
-        );
-        return opt?.label || String(d);
-      };
-
       const cardBadges: Array<{ label: string; variant?: any; colorClass?: string }> = [];
+      const cardFieldCells: Array<{ field: string; label?: string; node: React.ReactNode }> = [];
 
       if (explicitCardFields.length > 0) {
-        // Render the user-specified card fields. Badges for picklists with
-        // configured colors; plain text for everything else.
+        // Render the user-specified card fields. Picklists with configured
+        // colors become Badges (compact, scannable); everything else flows
+        // through the unified `@object-ui/fields` cell-renderer pipeline so
+        // lookup / user / email / url / phone / boolean / image / formula /
+        // currency / date / number fields keep the same semantic styling
+        // as the Grid and Gallery views (links, icons, formatted values).
         for (const f of explicitCardFields) {
           if (titleFieldsToSkip.has(f)) continue;
           const def = objectDef?.fields?.[f];
@@ -356,11 +319,18 @@ export const ObjectKanban: React.FC<ObjectKanbanProps> = ({
             const colorClass = getBadgeColorClasses(opt?.color, raw);
             cardBadges.push({ label, colorClass });
           } else {
-            const v = fmtFieldValue(f);
-            if (v) {
-              const label = def?.label;
-              descParts.push(label ? `${label}: ${v}` : v);
-            }
+            // Route through the same registry that Grid/Gallery use so
+            // every field type renders with its canonical widget.
+            const fieldType = resolveCellRendererType(def ?? { type: 'text' });
+            const CellRenderer = getCellRenderer(fieldType);
+            const fieldForCell: any = def ?? { name: f, type: fieldType };
+            const node = (
+              <CellRenderer
+                value={raw}
+                field={fieldForCell}
+              />
+            );
+            cardFieldCells.push({ field: f, label: def?.label, node });
           }
         }
       } else {
@@ -423,6 +393,7 @@ export const ObjectKanban: React.FC<ObjectKanbanProps> = ({
         // Map title
         title: resolvedTitle || 'Untitled',
         ...(synthesizedSubtitle ? { cardSubtitle: synthesizedSubtitle } : {}),
+        ...(cardFieldCells.length > 0 ? { cardFieldCells } : {}),
         ...(!Array.isArray(item.badges) && cardBadges.length > 0
           ? { badges: cardBadges }
           : {}),

@@ -83,7 +83,16 @@ export interface KanbanCard {
    * displays once a card is opened.
    */
   cardSubtitle?: string
-  badges?: Array<{ label: string; variant?: "default" | "secondary" | "destructive" | "outline" }>
+  /**
+   * Structured per-field cells. When provided, the card body renders each
+   * field via the unified `@object-ui/fields` cell-renderer pipeline (same
+   * as Grid/Gallery), so lookup/user/email/url/phone/boolean/etc. fields
+   * keep their semantic styling instead of being flattened to a text join.
+   *
+   * Takes precedence over `cardSubtitle` / `description` when present.
+   */
+  cardFieldCells?: Array<{ field: string; label?: string; node: React.ReactNode }>
+  badges?: Array<{ label: string; variant?: "default" | "secondary" | "destructive" | "outline"; colorClass?: string }>
   coverImage?: string
   [key: string]: any
 }
@@ -191,25 +200,41 @@ function SortableCard({ card, onCardClick, conditionalFormatting }: { card: Kanb
         )}
         <CardHeader className="p-2 sm:p-4">
           <CardTitle className="text-xs sm:text-sm font-medium tracking-tight text-foreground group-hover:text-primary transition-colors">{card.title}</CardTitle>
-          {(card.cardSubtitle ?? card.description) && (
+          {!(card.cardFieldCells && card.cardFieldCells.length > 0) && (card.cardSubtitle ?? card.description) && (
             <CardDescription className="text-xs text-muted-foreground line-clamp-2 sm:line-clamp-none">
               {card.cardSubtitle ?? card.description}
             </CardDescription>
           )}
         </CardHeader>
-        {card.badges && card.badges.length > 0 && (
-          <CardContent className="p-2 sm:p-4 pt-0">
-            <div className="flex flex-wrap gap-1">
-              {card.badges.map((badge, index) => (
-                <Badge
-                  key={index}
-                  variant={badge.colorClass ? "outline" : (badge.variant || "default")}
-                  className={cn("text-xs font-normal", badge.colorClass)}
-                >
-                  {badge.label}
-                </Badge>
-              ))}
-            </div>
+        {((card.cardFieldCells && card.cardFieldCells.length > 0) || (card.badges && card.badges.length > 0)) && (
+          <CardContent className="p-2 sm:p-4 pt-0 space-y-2">
+            {card.cardFieldCells && card.cardFieldCells.length > 0 && (
+              <dl className="grid grid-cols-[auto_1fr] gap-x-2 gap-y-1 text-xs">
+                {card.cardFieldCells.map((cell) => (
+                  <React.Fragment key={cell.field}>
+                    {cell.label ? (
+                      <dt className="text-muted-foreground truncate">{cell.label}</dt>
+                    ) : (
+                      <dt className="sr-only">{cell.field}</dt>
+                    )}
+                    <dd className="min-w-0 text-foreground truncate">{cell.node}</dd>
+                  </React.Fragment>
+                ))}
+              </dl>
+            )}
+            {card.badges && card.badges.length > 0 && (
+              <div className="flex flex-wrap gap-1">
+                {card.badges.map((badge, index) => (
+                  <Badge
+                    key={index}
+                    variant={badge.colorClass ? "outline" : (badge.variant || "default")}
+                    className={cn("text-xs font-normal", badge.colorClass)}
+                  >
+                    {badge.label}
+                  </Badge>
+                ))}
+              </div>
+            )}
           </CardContent>
         )}
       </Card>
