@@ -216,17 +216,39 @@ export function HistoryTimeline({
                   <p className="mt-1 text-sm text-muted-foreground">{entry.summary}</p>
                 )}
                 {entry.changes && entry.changes.length > 0 && (
-                  <ul className="mt-1.5 space-y-0.5 text-xs text-muted-foreground">
-                    {entry.changes.map((c) => (
-                      <li key={c.field} className="leading-relaxed">
-                        <span className="font-medium text-foreground">{c.label || c.field}</span>
-                        {': '}
-                        <span className="line-through opacity-70">{formatDiffValue(c.from)}</span>
-                        {' → '}
-                        <span className="text-foreground">{formatDiffValue(c.to)}</span>
-                      </li>
-                    ))}
-                  </ul>
+                  action === 'create' ? (
+                    <details className="mt-1 group">
+                      <summary className="cursor-pointer list-none text-xs text-muted-foreground hover:text-foreground inline-flex items-center gap-1 select-none">
+                        <span className="transition-transform group-open:rotate-90">▸</span>
+                        <span>
+                          {entry.changes.length === 1
+                            ? '1 field populated'
+                            : `${entry.changes.length} fields populated`}
+                        </span>
+                      </summary>
+                      <ul className="mt-1.5 space-y-0.5 text-xs text-muted-foreground pl-4">
+                        {entry.changes.map((c) => (
+                          <li key={c.field} className="leading-relaxed">
+                            <span className="font-medium text-foreground">{c.label || c.field}</span>
+                            {': '}
+                            <span className="text-foreground">{formatDiffValue(c.to)}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </details>
+                  ) : (
+                    <ul className="mt-1.5 space-y-0.5 text-xs text-muted-foreground">
+                      {entry.changes.map((c) => (
+                        <li key={c.field} className="leading-relaxed">
+                          <span className="font-medium text-foreground">{c.label || c.field}</span>
+                          {': '}
+                          <span className="line-through opacity-70">{formatDiffValue(c.from)}</span>
+                          {' → '}
+                          <span className="text-foreground">{formatDiffValue(c.to)}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  )
                 )}
               </div>
             </li>
