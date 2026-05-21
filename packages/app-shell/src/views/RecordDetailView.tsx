@@ -20,6 +20,7 @@ import { MetadataPanel, useMetadataInspector } from './MetadataInspector';
 import { SkeletonDetail } from '../skeletons';
 import { ManagedByBadge } from '../components/ManagedByBadge';
 import { resolveCrudAffordances } from '../utils/crudAffordances';
+import { hasExplicitDiscussion } from '../utils/pageSchemaIntrospect';
 import { ActionConfirmDialog, type ConfirmDialogState } from './ActionConfirmDialog';
 import { ActionParamDialog, type ParamDialogState } from './ActionParamDialog';
 import { resolveActionParams } from '../utils/resolveActionParams';
@@ -1119,32 +1120,13 @@ export function RecordDetailView({ dataSource, objects, onEdit, objectNameOverri
 
   if (effectivePage) {
     const disableDiscussion = (effectivePage as any)?.disableDiscussion === true;
-    // Walk the page schema looking for an explicit discussion component;
-    // when found, skip the bottom auto-append so the author placement wins.
-    // We accept either `record:discussion` (canonical, spec-compliant) or
-    // `record:chatter` (Salesforce-familiar alias).
-    const hasExplicitDiscussion = (() => {
-      const seen = new WeakSet<object>();
-      const walk = (node: any): boolean => {
-        if (!node || typeof node !== 'object') return false;
-        if (seen.has(node)) return false;
-        seen.add(node);
-        if (Array.isArray(node)) return node.some(walk);
-        const t = (node as any).type;
-        if (t === 'record:discussion' || t === 'record:chatter') return true;
-        const candidates: any[] = [
-          (node as any).children,
-          (node as any).items,
-          (node as any).body,
-          (node as any).components,
-          (node as any).properties?.children,
-          (node as any).properties?.items,
-        ];
-        return candidates.some(walk);
-      };
-      return walk(effectivePage as any);
-    })();
-    const showAutoDiscussion = !disableDiscussion && !hasExplicitDiscussion;
+    // When the page schema embeds an explicit `record:discussion` /
+    // `record:chatter` slot, skip the bottom auto-append so the
+    // author placement (or synth default) wins. The walker recurses
+    // into `regions[]` so `buildDefaultPageSchema` output and
+    // full-Lightning authored pages are both detected.
+    const hasDiscussion = hasExplicitDiscussion(effectivePage as any);
+    const showAutoDiscussion = !disableDiscussion && !hasDiscussion;
     // Slice 2 — when we're synthesizing (no author assignedPage), rebuild
     // the schema with the actual detailSchema.sections + highlight fields
     // so record:details renders the same field layout the legacy
