@@ -212,6 +212,18 @@ ComponentRegistry.register('record:chatter', RecordChatterRenderer, {
   icon: 'MessageSquare',
 });
 
+// `record:discussion` is the spec-compliant alias preferred for new
+// Lightning-style record pages. The two names render identically and
+// share the same DiscussionContext wiring; we keep `record:chatter`
+// for Salesforce-familiar authors and for backward compatibility with
+// schemas already in the wild.
+ComponentRegistry.register('record:discussion', RecordChatterRenderer, {
+  namespace: 'record',
+  category: 'record',
+  label: 'Discussion',
+  icon: 'MessageSquare',
+});
+
 ComponentRegistry.register('record:path', RecordPathRenderer, {
   namespace: 'record',
   category: 'record',

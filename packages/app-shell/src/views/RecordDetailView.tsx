@@ -12,7 +12,7 @@ import { DetailView, RecordChatterPanel } from '@object-ui/plugin-detail';
 import { Empty, EmptyTitle, EmptyDescription } from '@object-ui/components';
 import { PresenceAvatars, type PresenceUser } from '@object-ui/collaboration';
 import { useAuth, createAuthenticatedFetch } from '@object-ui/auth';
-import { ActionProvider, useObjectTranslation, useObjectLabel, usePageAssignment, RecordContextProvider, SchemaRenderer } from '@object-ui/react';
+import { ActionProvider, useObjectTranslation, useObjectLabel, usePageAssignment, RecordContextProvider, SchemaRenderer, DiscussionContextProvider } from '@object-ui/react';
 import { buildExpandFields } from '@object-ui/core';
 import { toast } from 'sonner';
 import { Database, Users } from 'lucide-react';
@@ -1087,6 +1087,32 @@ export function RecordDetailView({ dataSource, objects, onEdit, objectNameOverri
 
   if (assignedPage) {
     const disableDiscussion = (assignedPage as any)?.disableDiscussion === true;
+    // Walk the page schema looking for an explicit discussion component;
+    // when found, skip the bottom auto-append so the author placement wins.
+    // We accept either `record:discussion` (canonical, spec-compliant) or
+    // `record:chatter` (Salesforce-familiar alias).
+    const hasExplicitDiscussion = (() => {
+      const seen = new WeakSet<object>();
+      const walk = (node: any): boolean => {
+        if (!node || typeof node !== 'object') return false;
+        if (seen.has(node)) return false;
+        seen.add(node);
+        if (Array.isArray(node)) return node.some(walk);
+        const t = (node as any).type;
+        if (t === 'record:discussion' || t === 'record:chatter') return true;
+        const candidates: any[] = [
+          (node as any).children,
+          (node as any).items,
+          (node as any).body,
+          (node as any).components,
+          (node as any).properties?.children,
+          (node as any).properties?.items,
+        ];
+        return candidates.some(walk);
+      };
+      return walk(assignedPage as any);
+    })();
+    const showAutoDiscussion = !disableDiscussion && !hasExplicitDiscussion;
     return (
       <div className="h-full bg-background overflow-hidden flex flex-col relative">
         {/* Shared cross-cutting chrome: lifecycle badge + presence avatars.
@@ -1110,6 +1136,12 @@ export function RecordDetailView({ dataSource, objects, onEdit, objectNameOverri
           dataSource={dataSource}
           embedded={embedded}
         >
+          <DiscussionContextProvider
+            items={feedItems as any}
+            onAddComment={handleAddComment as any}
+            onAddReply={handleAddReply as any}
+            onToggleReaction={handleToggleReaction as any}
+          >
           <ActionProvider
             context={{ record: pageRecord || {}, objectName, user: currentUser }}
             onConfirm={confirmHandler}
@@ -1121,11 +1153,11 @@ export function RecordDetailView({ dataSource, objects, onEdit, objectNameOverri
             <div className="flex-1 overflow-hidden flex flex-row">
               <div className="flex-1 overflow-auto p-3 sm:p-4 lg:p-6 scroll-pb-48">
                 <SchemaRenderer schema={assignedPage as any} />
-                {/* Auto-append RecordChatterPanel. Opt out via
-                    `assignedPage.disableDiscussion = true` if the page
-                    authors a `record:discussion` component themselves or
-                    deliberately omits the discussion affordance. */}
-                {!disableDiscussion && (
+                {/* Auto-append RecordChatterPanel only when the page
+                    schema doesn't already place a `record:discussion` /
+                    `record:chatter` component. Hard opt-out via
+                    `assignedPage.disableDiscussion = true`. */}
+                {showAutoDiscussion && (
                   <div className="mt-6">
                     <RecordChatterPanel
                       config={{
@@ -1151,6 +1183,7 @@ export function RecordDetailView({ dataSource, objects, onEdit, objectNameOverri
               />
             </div>
           </ActionProvider>
+          </DiscussionContextProvider>
         </RecordContextProvider>
 
         {/* Action Confirm Dialog */}

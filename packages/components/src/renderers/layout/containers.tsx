@@ -134,7 +134,21 @@ const translateLabel = (text: string): string => {
   const fallback = base === 'zh' ? KNOWN_LABEL_DICT['zh-CN'] : undefined;
   const dict = exact || fallback;
   if (!dict) return text;
-  return dict[text] ?? text;
+  // Direct hit on the full string.
+  if (dict[text] !== undefined) return dict[text];
+  // Try splitting on " & " / " 和 " / " and " separators so labels like
+  // "Notes & Attachments" translate piece-wise to "备注 & 附件" without
+  // requiring every concrete combination to be enumerated in the dict.
+  const sepRe = /\s*(?:&|and|和)\s*/i;
+  if (sepRe.test(text)) {
+    const parts = text.split(sepRe);
+    const allKnown = parts.every((p) => dict[p.trim()] !== undefined);
+    if (allKnown) {
+      const sep = locale.startsWith('zh') ? '与' : ' & ';
+      return parts.map((p) => dict[p.trim()]).join(sep);
+    }
+  }
+  return text;
 };
 
 /**
@@ -431,6 +445,15 @@ const PageAccordionRenderer: React.FC<any> = ({ schema, className, ...props }) =
   const { designer } = splitDesignerProps(props);
   const items: PageAccordionItem[] = schema?.items || [];
   const allowMultiple = !!schema?.allowMultiple;
+  // Variants:
+  //   - `flush` (default): no per-item border. Lets the inner content (e.g.
+  //     a `record:related_list` Card) provide its own containment so the
+  //     accordion doesn't fight with nested visuals.
+  //   - `card`: legacy bordered look. Authors opt in by setting
+  //     `variant: 'card'` (or `properties.variant: 'card'`) on the schema.
+  const variant: 'flush' | 'card' =
+    schema?.variant ?? schema?.properties?.variant ?? 'flush';
+  const itemClass = variant === 'flush' ? 'border-none' : undefined;
 
   const itemsWithValue = items.map((it, idx) => ({
     ...it,
@@ -445,7 +468,7 @@ const PageAccordionRenderer: React.FC<any> = ({ schema, className, ...props }) =
   // Radix Accordion has separate single/multiple variants; render the right
   // one without trying to share a generic prop bag.
   const commonChildren = itemsWithValue.map((item) => (
-    <AccordionItem key={item.value} value={item.value}>
+    <AccordionItem key={item.value} value={item.value} className={itemClass}>
       <AccordionTrigger>{item.labelStr}</AccordionTrigger>
       <AccordionContent>{renderChildren(item.children)}</AccordionContent>
     </AccordionItem>

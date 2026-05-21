@@ -2,15 +2,17 @@
  * ObjectUI
  * Copyright (c) 2024-present ObjectStack Inc.
  *
- * This source code is licensed under the MIT license found in the
- * LICENSE file in the root directory of this source tree.
- *
- * `record:chatter` — Salesforce-style social feed for the current record.
- * Delegates to the existing RecordChatterPanel; real feed wiring lives there.
+ * `record:chatter` / `record:discussion` — Salesforce-style social feed for
+ * the current record. The renderer is a thin wrapper around
+ * `RecordChatterPanel`; it pulls feed items + mutation handlers from the
+ * surrounding `DiscussionContext` (mounted by `RecordDetailView` or any
+ * other host shell that owns the feed). When no DiscussionContext is
+ * present the panel renders an empty feed so the page still composes
+ * correctly in standalone previews.
  */
 
 import React from 'react';
-import { useRecordContext } from '@object-ui/react';
+import { useRecordContext, useDiscussionContext } from '@object-ui/react';
 import type { RecordChatterComponentProps } from '@object-ui/types';
 import { RecordChatterPanel } from '../RecordChatterPanel';
 
@@ -31,13 +33,32 @@ export const RecordChatterRenderer: React.FC<RecordChatterRendererProps> = ({
   ...props
 }) => {
   useRecordContext();
+  const discussion = useDiscussionContext();
   const { designer } = splitDesigner(props);
+
+  // Merge schema-supplied config (position, feed sub-config) with sane
+  // defaults that match the auto-appended panel used by RecordDetailView
+  // — so an author-placed `record:discussion` looks identical to the
+  // fallback the host injects when no component is present.
+  const config = {
+    position: 'bottom',
+    collapsible: false,
+    feed: {
+      enableReactions: true,
+      enableThreading: true,
+      showCommentInput: true,
+    },
+    ...(schema as any),
+  } as any;
 
   return (
     <div className={className} {...designer}>
       <RecordChatterPanel
-        items={[] as any}
-        config={schema as any}
+        items={(discussion?.items as any) || []}
+        config={config}
+        onAddComment={discussion?.onAddComment as any}
+        onAddReply={discussion?.onAddReply as any}
+        onToggleReaction={discussion?.onToggleReaction as any}
       />
     </div>
   );
