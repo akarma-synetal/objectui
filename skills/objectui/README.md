@@ -6,26 +6,35 @@ This directory contains the unified ObjectUI Copilot skill, consolidating all Ob
 
 ```
 skills/objectui/
-├── SKILL.md                  # Main entry point - core principles & architecture
+├── SKILL.md                  # Main entry point - core principles, full package map & architecture
 ├── rules/                    # Global non-negotiable constraints
 │   ├── protocol.md          # JSON Protocol compliance rules
 │   ├── styling.md           # Tailwind & Shadcn styling rules
 │   ├── composition.md       # Component composition patterns
 │   └── no-touch-zones.md    # Protected upstream files
 ├── guides/                   # Domain-specific expertise (10 guides)
-│   ├── page-builder.md              # Schema-driven page building
+│   ├── page-builder.md              # Schema-driven page building + full plugin catalog
 │   ├── plugin-development.md        # Creating custom plugins
 │   ├── schema-expressions.md        # Expression syntax & debugging
 │   ├── data-integration.md          # DataSource & API integration
-│   ├── project-setup.md             # Project initialization & config
+│   ├── project-setup.md             # CLI, Vite, Tailwind, runner & integration packages
 │   ├── testing.md                   # Testing patterns (Vitest, Storybook, Playwright)
 │   ├── i18n.md                      # Internationalization & localization
 │   ├── mobile.md                    # Mobile responsiveness & PWA
-│   ├── auth-permissions.md          # Authentication & RBAC
-│   └── console-development.md       # Console app development
-├── evals/                    # Evaluation test cases (10 JSON files)
-└── agents/                   # Agent configurations (empty, reserved for future)
+│   ├── auth-permissions.md          # Authentication, RBAC & multi-tenancy
+│   └── console-development.md       # Console app + @object-ui/app-shell patterns
+└── evals/                    # Evaluation test cases (10 JSON files)
 ```
+
+## Coverage map
+
+The skill keeps in sync with the `packages/` tree:
+
+- **Core renderer:** `@object-ui/types`, `core`, `components`, `fields`, `layout`, `react`
+- **Integration:** `@object-ui/app-shell`, `providers`, `runner`, `data-objectstack`
+- **Platform features:** `@object-ui/auth`, `permissions`, `tenant`, `i18n`, `mobile`, `collaboration`
+- **Plugins (20):** `plugin-{grid, aggrid, list, detail, form, kanban, calendar, timeline, gantt, dashboard, report, charts, map, editor, markdown, view, designer, workflow, ai, chatbot}`
+- **Tooling:** `@object-ui/cli`, `create-plugin`, `vscode-extension`
 
 ## Why This Structure?
 

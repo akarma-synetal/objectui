@@ -54,13 +54,49 @@ Then configure the required files (see "Essential configuration files" below).
 }
 ```
 
-Add plugins as needed:
+Add plugins as needed (full plugin catalog):
 ```json
 {
   "@object-ui/plugin-grid": "latest",
+  "@object-ui/plugin-aggrid": "latest",
+  "@object-ui/plugin-list": "latest",
+  "@object-ui/plugin-detail": "latest",
   "@object-ui/plugin-form": "latest",
   "@object-ui/plugin-kanban": "latest",
-  "@object-ui/plugin-charts": "latest"
+  "@object-ui/plugin-calendar": "latest",
+  "@object-ui/plugin-timeline": "latest",
+  "@object-ui/plugin-gantt": "latest",
+  "@object-ui/plugin-dashboard": "latest",
+  "@object-ui/plugin-report": "latest",
+  "@object-ui/plugin-charts": "latest",
+  "@object-ui/plugin-map": "latest",
+  "@object-ui/plugin-editor": "latest",
+  "@object-ui/plugin-markdown": "latest",
+  "@object-ui/plugin-view": "latest",
+  "@object-ui/plugin-designer": "latest",
+  "@object-ui/plugin-workflow": "latest",
+  "@object-ui/plugin-ai": "latest",
+  "@object-ui/plugin-chatbot": "latest"
+}
+```
+
+Opt-in platform packages (auth, multi-tenancy, i18n, mobile, realtime):
+```json
+{
+  "@object-ui/auth": "latest",
+  "@object-ui/permissions": "latest",
+  "@object-ui/tenant": "latest",
+  "@object-ui/i18n": "latest",
+  "@object-ui/mobile": "latest",
+  "@object-ui/collaboration": "latest"
+}
+```
+
+Embedding shell + provider stack into a third-party app:
+```json
+{
+  "@object-ui/app-shell": "latest",
+  "@object-ui/providers": "latest"
 }
 ```
 
@@ -293,6 +329,86 @@ pnpm test
 ```
 
 Then `pnpm install` to link.
+
+## Runtime & integration packages
+
+ObjectUI ships three integration layers for third-party apps. Pick the smallest one that fits.
+
+### `@object-ui/react` — pure renderer (lowest level)
+
+Use when you have your own router, shell and providers and only need to render schemas.
+
+```tsx
+import { SchemaRenderer, SchemaRendererProvider } from '@object-ui/react';
+
+<SchemaRendererProvider dataSource={dataSource}>
+  <SchemaRenderer schema={pageSchema} />
+</SchemaRendererProvider>
+```
+
+### `@object-ui/providers` — reusable context stack
+
+Framework-agnostic providers without console-specific dependencies:
+
+- `DataSourceProvider` / `useDataSource` — generic data source binding.
+- `MetadataProvider` / `useMetadata` — apps / objects / dashboards / pages metadata.
+- `ThemeProvider` / `useTheme` — light/dark/system theming wired to Shadcn variables.
+
+```tsx
+import { DataSourceProvider, MetadataProvider, ThemeProvider } from '@object-ui/providers';
+
+<ThemeProvider>
+  <DataSourceProvider dataSource={myDataSource}>
+    <MetadataProvider metadata={myMetadata}>
+      <App />
+    </MetadataProvider>
+  </DataSourceProvider>
+</ThemeProvider>
+```
+
+### `@object-ui/app-shell` — minimal shell + renderers
+
+Use when integrating ObjectUI into a host system (CRM, ERP, custom admin) and you want:
+
+- `AppShell` (sidebar + main split layout)
+- `ObjectRenderer`, `DashboardRenderer`, `PageRenderer`, `FormRenderer`
+- `AdapterProvider`, `MetadataProvider`, `ExpressionProvider`
+- `useObjectActions`, `useRecentItems`, `useAdapter`, `useMetadataItem`
+
+```tsx
+import { AppShell, ObjectRenderer, AdapterProvider, MetadataProvider } from '@object-ui/app-shell';
+
+<AdapterProvider adapter={myAdapter}>
+  <MetadataProvider value={metadata}>
+    <AppShell sidebar={<MySidebar />}>
+      <ObjectRenderer objectName="contact" />
+    </AppShell>
+  </MetadataProvider>
+</AdapterProvider>
+```
+
+App-shell is router-agnostic — wire it into React Router / Next.js / TanStack Router yourself.
+
+### `@object-ui/runner` — universal runtime
+
+Standalone runtime + dev server that ships with `plugin-charts` and `plugin-kanban` pre-registered. Useful for:
+
+- Running a schema as a one-off app (no project scaffolding).
+- Embedding a "play with this schema" sandbox.
+- Reproducing bugs against a known-good runtime.
+
+Typical usage is via the `objectui dev` CLI (which wraps the same renderer).
+
+### Decision matrix
+
+| Need | Use |
+|------|-----|
+| Bare renderer in existing app | `@object-ui/react` |
+| Need shared providers (data/metadata/theme) | + `@object-ui/providers` |
+| Need shell + object/dashboard/page/form renderers | + `@object-ui/app-shell` |
+| Need full admin console (sidebar, system hub, navigation) | study `apps/console` patterns |
+| Need a CLI-driven dev server | `@object-ui/cli` (`objectui dev`) |
+| Need a standalone runtime bundle | `@object-ui/runner` |
 
 ## Deployment
 

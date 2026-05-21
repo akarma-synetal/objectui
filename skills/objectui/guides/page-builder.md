@@ -322,6 +322,33 @@ import '@object-ui/plugin-form';
 import '@object-ui/plugin-kanban';
 ```
 
+### Full plugin catalog
+
+Pick plugins by domain — each registers its own `type` strings in the ComponentRegistry on import:
+
+| Domain | Plugins |
+|--------|---------|
+| Tables | `plugin-grid`, `plugin-aggrid` |
+| List / Detail / Form | `plugin-list`, `plugin-detail`, `plugin-form` |
+| Time-based | `plugin-calendar`, `plugin-timeline`, `plugin-gantt` |
+| Boards / Dashboards | `plugin-kanban`, `plugin-dashboard`, `plugin-report` |
+| Visualization | `plugin-charts`, `plugin-map` |
+| Editors | `plugin-editor`, `plugin-markdown` |
+| Views & Design | `plugin-view`, `plugin-designer`, `plugin-workflow` |
+| AI | `plugin-ai`, `plugin-chatbot` |
+
+For lazy loading, use `LazyPluginLoader` from `@object-ui/react` rather than top-level imports.
+
+### Shell integration
+
+For host apps that need more than the raw renderer, prefer `@object-ui/app-shell`:
+
+```tsx
+import { AppShell, ObjectRenderer, PageRenderer, DashboardRenderer } from '@object-ui/app-shell';
+```
+
+It exposes `ObjectRenderer`, `PageRenderer`, `DashboardRenderer`, `FormRenderer` and matching providers (`AdapterProvider`, `MetadataProvider`, `ExpressionProvider`). See `guides/project-setup.md` for the decision matrix.
+
 ## Common mistakes to avoid
 
 - Writing large bespoke React JSX trees before schema definition.

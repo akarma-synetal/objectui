@@ -133,16 +133,62 @@ ObjectUI renders JSON metadata from the `@objectstack/spec` protocol into pixel-
 
 You manage a strict PNPM Workspace.
 
+#### Core layers
+
 | Package | Role | Responsibility | 🔴 Strict Constraints |
 |---|---|---|---|
 | `@object-ui/types` | The Protocol | Pure JSON Interfaces (ComponentSchema, ActionSchema). | ZERO dependencies. No React code. |
-| `@object-ui/core` | The Engine | Schema Registry, Validation, Expression Evaluation (`visible: "${data.age > 18}"`). | No UI library dependencies. Logic Only. |
+| `@object-ui/core` | The Engine | Schema Registry, Validation, Expression Evaluation, Action Engine, Plugin System. | No UI library dependencies. Logic Only. |
 | `@object-ui/components` | The Atoms | Shadcn Primitives (Button, Badge, Card) & Icons. | Pure UI. No business logic. |
 | `@object-ui/fields` | The Inputs | Standard Field Renderers (Text, Number, Select). | Must implement FieldWidgetProps. |
 | `@object-ui/layout` | The Shell | Page Structure (Header, Sidebar, AppShell). | Routing-aware composition. |
-| `@object-ui/plugin-*` | The Widgets | Complex Views (Grid, Kanban, Map, Charts). | Heavy dependencies allowed here only. |
-| `@object-ui/react` | The Runtime | `<SchemaRenderer>`, useRenderer, useDataScope. | Bridges Core and Components. |
-| `@object-ui/data-*` | The Adapters | Connectors for REST, ObjectQL, GraphQL. | Isolate ALL fetch logic. |
+| `@object-ui/react` | The Runtime | `<SchemaRenderer>`, hooks, spec bridge, `LazyPluginLoader`. | Bridges Core and Components. |
+
+#### Integration layer (third-party / console embedders)
+
+| Package | Role | Responsibility |
+|---|---|---|
+| `@object-ui/app-shell` | Minimal Shell | Framework-agnostic `AppShell`, `ObjectRenderer`, `DashboardRenderer`, `PageRenderer`, `FormRenderer`. Bring-your-own-router. |
+| `@object-ui/providers` | Context Stack | Reusable `DataSourceProvider`, `MetadataProvider`, `ThemeProvider`. Console-free. |
+| `@object-ui/runner` | Universal Runtime | Standalone runtime + dev server for schema-driven apps. Pre-wires popular plugins. |
+| `@object-ui/data-*` | Data Adapters | Connectors for REST, ObjectQL, GraphQL (e.g. `@object-ui/data-objectstack`). |
+
+#### Platform features (opt-in)
+
+| Package | Role |
+|---|---|
+| `@object-ui/auth` | `AuthProvider`, `useAuth`, `AuthGuard`, login/signup forms, `createAuthenticatedFetch`. |
+| `@object-ui/permissions` | RBAC engine, `PermissionProvider`, object/field/row-level permission guards. |
+| `@object-ui/tenant` | Multi-tenancy: `TenantProvider`, scoped queries, per-tenant branding. |
+| `@object-ui/i18n` | i18n: 10+ language packs, RTL, date/currency formatters. |
+| `@object-ui/mobile` | Mobile/PWA: responsive primitives, touch gestures, install prompts. |
+| `@object-ui/collaboration` | Realtime: presence, live cursors, comment threads, conflict resolution. |
+
+#### Plugins (heavy / specialized widgets)
+
+| Plugin | Purpose |
+|---|---|
+| `@object-ui/plugin-grid` | Schema-driven data grid (sorting, filtering, virtualization). |
+| `@object-ui/plugin-aggrid` | AG Grid integration for enterprise tables. |
+| `@object-ui/plugin-list` / `plugin-detail` / `plugin-form` | List, Detail, Form view renderers. |
+| `@object-ui/plugin-kanban` | Drag-and-drop kanban boards. |
+| `@object-ui/plugin-calendar` / `plugin-timeline` / `plugin-gantt` | Time-based views. |
+| `@object-ui/plugin-dashboard` / `plugin-report` | Dashboards and reports. |
+| `@object-ui/plugin-charts` | Chart rendering (recharts-based). |
+| `@object-ui/plugin-map` | Map widgets. |
+| `@object-ui/plugin-editor` / `plugin-markdown` | Rich text + markdown editors. |
+| `@object-ui/plugin-view` | View switcher / saved views. |
+| `@object-ui/plugin-designer` | Visual schema designer canvas. |
+| `@object-ui/plugin-workflow` | Workflow / process editor. |
+| `@object-ui/plugin-ai` / `plugin-chatbot` | AI assistant + chatbot UI. |
+
+#### Tooling
+
+| Package | Purpose |
+|---|---|
+| `@object-ui/cli` | `objectui` CLI: `init`, `dev`, `build`, `start`, `studio`, `validate`, `check`, `lint`, `test`, `generate`, `add`, `doctor`, `analyze`, `create plugin`. |
+| `@object-ui/create-plugin` | `pnpm create-plugin <name>` scaffolder for new `plugin-*` packages. |
+| `@object-ui/vscode-extension` | VSCode extension: syntax highlighting, IntelliSense, validation for ObjectUI JSON schemas. |
 
 ### Architectural Strategy (Strict)
 
@@ -154,6 +200,13 @@ You manage a strict PNPM Workspace.
 2. **Fields (@object-ui/fields):** Standard Inputs.
 3. **Layouts (@object-ui/layout):** Page Skeletons.
 4. **Plugins (@object-ui/plugin-*):** Heavy Widgets (>50KB) or specialized libraries (Maps, Editors, Charts).
+
+**✅ Choose the right integration package:**
+
+- **Building the full ObjectUI Console?** → use `apps/console` patterns (see `guides/console-development.md`).
+- **Embedding ObjectUI into a third-party React app with your own router/shell?** → use `@object-ui/app-shell` + `@object-ui/providers`.
+- **Running a schema as a standalone app?** → use `@object-ui/runner` or the `objectui` CLI.
+- **Custom rendering only (no shell)?** → use `@object-ui/react` (`SchemaRenderer`) directly.
 
 ## The JSON Protocol Specification (The "DNA")
 
@@ -199,12 +252,12 @@ The guides in `guides/` provide deep domain expertise:
 - **Creating Custom Plugins** → [guides/plugin-development.md](./guides/plugin-development.md)
 - **Expression Syntax & Debugging** → [guides/schema-expressions.md](./guides/schema-expressions.md)
 - **Data Fetching & DataSource** → [guides/data-integration.md](./guides/data-integration.md)
-- **New Project Setup** → [guides/project-setup.md](./guides/project-setup.md)
+- **New Project Setup (CLI, Vite, Tailwind, Runner)** → [guides/project-setup.md](./guides/project-setup.md)
 - **Testing Components & Schemas** → [guides/testing.md](./guides/testing.md)
 - **Multi-Language Support** → [guides/i18n.md](./guides/i18n.md)
 - **Mobile & Responsive Design** → [guides/mobile.md](./guides/mobile.md)
-- **Auth, Roles & Permissions** → [guides/auth-permissions.md](./guides/auth-permissions.md)
-- **Console Development** → [guides/console-development.md](./guides/console-development.md)
+- **Auth, Roles, Tenants & Permissions** → [guides/auth-permissions.md](./guides/auth-permissions.md)
+- **Console Development (apps/console patterns, app-shell, providers)** → [guides/console-development.md](./guides/console-development.md)
 
 ### Critical Global Rules
 

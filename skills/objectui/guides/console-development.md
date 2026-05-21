@@ -11,22 +11,37 @@ Use this skill when working on the Console application (`apps/console/`), the re
 
 ### App entry and provider stack
 
-`apps/console/src/App.tsx` composes providers in this order:
+Most of the orchestration now lives in `@object-ui/app-shell`. `apps/console/src/App.tsx` is a thin assembly:
 
 ```
-BrowserRouter
-└── ThemeProvider
-    └── SchemaRendererProvider (dataSource)
-        └── AuthGuard
-            └── NavigationProvider
-                └── FavoritesProvider
-                    └── AdapterProvider (ObjectStackAdapter)
-                        └── ConnectedShell
-                            └── MetadataProvider (apps, objects, dashboards, etc.)
-                                └── ExpressionProvider
-                                    └── ConditionalAuthWrapper
-                                        └── AppContent (Routes)
+[Wrapper = ConditionalAuthWrapper | BypassWrapper]   ← from @object-ui/auth + app-shell
+  └── PreviewBanner
+      └── BrowserRouter
+          └── ConsoleShell                            ← app-shell
+              ├── ConsoleToaster
+              └── Routes
+                  ├── /login | /register | /forgot-password  → Default*Page (app-shell)
+                  ├── /home                                  → DefaultHomeLayout + DefaultHomePage
+                  ├── /organizations[/...]                   → DefaultOrganizations* + DefaultOrganization*
+                  ├── /accept-invitation/:id                 → DefaultAcceptInvitationPage
+                  ├── /create-app                            → plugin-designer.CreateAppPage (lazy)
+                  ├── /apps/:appName/*                       → AppContent (per-app router)
+                  └── /                                      → ConnectedShell + RootRedirect
 ```
+
+Key building blocks imported from `@object-ui/app-shell`:
+`ConsoleShell`, `ConnectedShell`, `AuthenticatedRoute`, `RootRedirect`, `SystemRedirect`,
+`LoadingFallback`, `ConsoleToaster`, `ConditionalAuthWrapper`, plus the `Default*Page` /
+`Default*Layout` defaults for login, register, home, organizations, members, invitations,
+settings and invitation acceptance.
+
+Auth is provided by `@object-ui/auth` (`AuthProvider`, `PreviewBanner`). Provider stacks for
+data sources, metadata, theme, expression and adapter are wired inside `ConsoleShell` /
+`ConnectedShell` rather than at the app root — extenders rarely need to compose them by hand.
+
+To customise the console, edit `apps/console/src/App.tsx` directly — there is no central
+config object. To extend without forking, reuse the same `app-shell` exports in your own
+host app (see `guides/project-setup.md` → "Runtime & integration packages").
 
 ### Page structure
 
