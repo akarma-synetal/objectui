@@ -1152,15 +1152,84 @@ export function RecordDetailView({ dataSource, objects, onEdit, objectNameOverri
     // Slice 4 — also forward header actions, related lists, activities,
     // and history so the synthesized page reaches parity with the
     // monolithic DetailView (tabs strip + record_header quick actions).
-    const synthHeaderActions = (() => {
+    // Business / custom actions authored on objectDef and routed to the
+    // record_header location (e.g. Lead.convert, Contact.set_primary).
+    const synthBusinessActions: ActionDef[] = (() => {
       const acts = (detailSchema as any).actions;
-      if (!Array.isArray(acts)) return undefined;
+      if (!Array.isArray(acts)) return [];
       // detailSchema wraps actions in a `{type:'action:bar', actions:[]}`
       // shape; unwrap to the flat ActionDef[] the renderer expects.
       const bar = acts.find((a: any) => Array.isArray(a?.actions));
       const flat = bar?.actions ?? acts;
-      return Array.isArray(flat) && flat.length > 0 ? flat : undefined;
+      return Array.isArray(flat) ? flat : [];
     })();
+
+    // System actions (Edit / Share / Delete) — the legacy DetailView
+    // monolith always synthesized these. The synth-path replacement
+    // (Phase G slice 6) initially dropped them, leaving objects without
+    // authored record_header actions with a bare header. Re-inject here
+    // so every record page surfaces the basic affordances.
+    const synthSystemActions: ActionDef[] = (() => {
+      const affordances = resolveCrudAffordances(objectDef as any);
+      const items: ActionDef[] = [];
+      if (affordances.edit) {
+        items.push({
+          name: 'sys_edit',
+          label: t('detail.edit', { defaultValue: 'Edit' }),
+          type: 'script',
+          locations: ['record_header'],
+          onClick: () => onEdit({ id: pureRecordId }),
+        } as any);
+      }
+      items.push({
+        name: 'sys_share',
+        label: t('detail.share', { defaultValue: 'Share' }),
+        type: 'script',
+        locations: ['record_header'],
+        onClick: async () => {
+          try {
+            if ((navigator as any).share) {
+              await (navigator as any).share({
+                title: document.title,
+                url: window.location.href,
+              });
+            } else {
+              await navigator.clipboard.writeText(window.location.href);
+              toast.success(t('detail.linkCopied', { defaultValue: 'Link copied' }));
+            }
+          } catch {
+            // user dismissed share sheet — no-op
+          }
+        },
+      } as any);
+      if (affordances.delete) {
+        items.push({
+          name: 'sys_delete',
+          label: t('detail.delete', { defaultValue: 'Delete' }),
+          type: 'script',
+          locations: ['record_header'],
+          variant: 'destructive',
+          onClick: async () => {
+            const msg = t('detail.deleteConfirmation', {
+              defaultValue: 'Are you sure you want to delete this record?',
+            });
+            if (!window.confirm(msg)) return;
+            try {
+              await dataSource.delete(objectName!, pureRecordId!);
+              toast.success(t('detail.deleted', { defaultValue: 'Record deleted' }));
+              const baseAppUrl = appName ? `/apps/${appName}` : '';
+              navigate(`${baseAppUrl}/${objectName}`, { replace: true });
+            } catch (err: any) {
+              toast.error(err?.message || 'Delete failed');
+            }
+          },
+        } as any);
+      }
+      return items;
+    })();
+
+    const synthCombinedActions = [...synthBusinessActions, ...synthSystemActions];
+    const synthHeaderActions = synthCombinedActions.length > 0 ? synthCombinedActions : undefined;
     const synthRelated = Array.isArray((detailSchema as any).related)
       ? ((detailSchema as any).related as any[])
           .filter((r) => r?.api && r?.referenceField)
