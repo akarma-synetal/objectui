@@ -113,7 +113,24 @@ export const RecordDetailsRenderer: React.FC<RecordDetailsRendererProps> = ({
   const normaliseList = (list: any[] | undefined): any[] | undefined =>
     Array.isArray(list) ? list.map(normaliseField) : list;
 
-  const filteredFields = normaliseList(filterList(schema.fields as any[]));
+  // Phase N.4: dedupe with the highlight strip — when authors include a
+  // field in `record:highlights` we drop it from the details grid so it
+  // isn't shown twice. The synth pipeline passes the highlight list via
+  // `hideFields`; authors can also set it directly on the schema.
+  const hideFieldNames = new Set(
+    (Array.isArray((schema as any).hideFields) ? (schema as any).hideFields : [])
+      .map((n: any) => (typeof n === 'string' ? n : fieldName(n)))
+      .filter((n: any): n is string => !!n),
+  );
+  const dropHidden = (list: any[] | undefined): any[] | undefined => {
+    if (!list || hideFieldNames.size === 0) return list;
+    return list.filter((e) => {
+      const n = fieldName(e);
+      return n ? !hideFieldNames.has(n) : true;
+    });
+  };
+
+  const filteredFields = dropHidden(normaliseList(filterList(schema.fields as any[])));
   const filteredSections = Array.isArray(schema.sections)
     ? (schema.sections as any[]).map((s) => ({
         ...s,
@@ -128,7 +145,7 @@ export const RecordDetailsRenderer: React.FC<RecordDetailsRendererProps> = ({
         // "显示 N 个空字段" toggle in DetailSection still works as the
         // user-facing escape hatch.
         hideEmpty: s.hideEmpty ?? true,
-        fields: normaliseList(filterList(s.fields)),
+        fields: dropHidden(normaliseList(filterList(s.fields))),
       }))
     : schema.sections;
 

@@ -296,8 +296,13 @@ export function buildDefaultHighlights(
 export function buildDefaultDetails(
   _def: ObjectDefLike | undefined,
   sections?: BuildPageOptions['sections'],
+  hideFields?: string[],
 ): any {
-  return { type: 'record:details', sections };
+  return {
+    type: 'record:details',
+    sections,
+    ...(hideFields && hideFields.length > 0 ? { hideFields } : {}),
+  };
 }
 
 /**
@@ -311,11 +316,14 @@ export function buildDefaultDetails(
 export function buildDefaultTabs(
   def: ObjectDefLike | undefined,
   options: Pick<BuildPageOptions,
-    'sections' | 'related' | 'showActivity' | 'history'
+    'sections' | 'related' | 'showActivity' | 'history' | 'highlightFields' | 'statusField'
   > = {},
 ): any {
+  const statusField = options.statusField ?? detectStatusField(def);
+  const highlightFields =
+    options.highlightFields ?? deriveHighlightFields(def, statusField);
   const items: any[] = [
-    { label: 'Details', children: [buildDefaultDetails(def, options.sections)] },
+    { label: 'Details', children: [buildDefaultDetails(def, options.sections, highlightFields)] },
   ];
   if (Array.isArray(options.related) && options.related.length > 0) {
     items.push({
@@ -426,6 +434,8 @@ export function buildDefaultPageSchema(
       related: options.related,
       showActivity: options.showActivity,
       history: options.history,
+      highlightFields: options.highlightFields,
+      statusField: options.statusField,
     });
     // Replace the first tab's children (Details) with the override.
     if (Array.isArray(tabsNode.items) && tabsNode.items.length > 0) {
@@ -438,6 +448,8 @@ export function buildDefaultPageSchema(
       related: options.related,
       showActivity: options.showActivity,
       history: options.history,
+      highlightFields: options.highlightFields,
+      statusField: options.statusField,
     }));
   }
 

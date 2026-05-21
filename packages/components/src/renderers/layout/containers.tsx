@@ -371,7 +371,7 @@ const PageTabsRenderer: React.FC<any> = ({ schema, className, ...props }) => {
                 />
               )}
               <span>{item.labelStr}</span>
-              {item.count !== undefined && item.count !== null && item.count !== '' && (
+              {item.count !== undefined && item.count !== null && item.count !== '' && Number(item.count) > 0 && (
                 <span
                   className="ml-1.5 inline-flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-muted px-1 text-[10px] font-medium leading-none text-muted-foreground"
                   aria-label={`${formatTabCount(item.count)} items`}

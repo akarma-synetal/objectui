@@ -43,13 +43,15 @@ export const HeaderHighlight: React.FC<HeaderHighlightProps> = ({
   return (
     <Card className={cn('bg-muted/40 border-border/40 shadow-none', className)}>
       <CardContent className="@container py-3 px-4">
-        <div className={cn(
-          'grid gap-4',
-          visibleFields.length === 1 ? 'grid-cols-1' :
-          visibleFields.length === 2 ? 'grid-cols-1 @sm:grid-cols-2' :
-          visibleFields.length === 3 ? 'grid-cols-1 @sm:grid-cols-3' :
-          'grid-cols-1 @sm:grid-cols-2 @xl:grid-cols-4'
-        )}>
+        <div
+          className={cn(
+            // Phase N.3: pack cells from the left with a sane max-width per
+            // cell so sparse highlight strips (1-2 fields) don't stretch
+            // each cell across the entire page. Stay grid-shaped at small
+            // counts for visual rhythm; switch to wrap-flex for 4+.
+            'flex flex-wrap gap-x-8 gap-y-3',
+          )}
+        >
           {visibleFields.map((field) => {
             const value = data[field.name];
             // Enrich field metadata from objectSchema
@@ -72,7 +74,10 @@ export const HeaderHighlight: React.FC<HeaderHighlightProps> = ({
             );
 
             return (
-              <div key={field.name} className="flex min-w-0 flex-col gap-0.5">
+              <div
+                key={field.name}
+                className="flex min-w-[8rem] max-w-[16rem] basis-[10rem] flex-col gap-0.5"
+              >
                 <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
                   {field.icon && <span className="mr-1">{field.icon}</span>}
                   {fieldLabel(objectName || '', field.name, field.label)}
