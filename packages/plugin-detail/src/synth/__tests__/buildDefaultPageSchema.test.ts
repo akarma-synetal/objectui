@@ -198,9 +198,9 @@ describe('buildDefaultPageSchema', () => {
     const tabs = buildDefaultPageSchema(leadDef).regions[0].components.find(
       (c: any) => c.type === 'page:tabs',
     );
-    expect(tabs.tabs).toHaveLength(1);
-    expect(tabs.tabs[0].value).toBe('details');
-    expect(tabs.tabs[0].children[0].type).toBe('record:details');
+    expect(tabs.items).toHaveLength(1);
+    expect(tabs.items[0].label).toBe('Details');
+    expect(tabs.items[0].children[0].type).toBe('record:details');
   });
 
   it('handles undefined def gracefully', () => {

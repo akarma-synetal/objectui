@@ -568,8 +568,10 @@ const PageHeaderRenderer: React.FC<any> = ({ schema, className, ...props }) => {
     const objSchema: any = (ctx as any).objectSchema;
     const objectLabel: string | undefined =
       labelText(objSchema?.label) || objSchema?.name || ctx!.objectName;
+    const primaryField: string | undefined = objSchema?.primaryField;
     const resolvedTitle =
       explicitTitle ||
+      (primaryField && data?.[primaryField]) ||
       data?.name ||
       data?.title ||
       data?.display_name ||

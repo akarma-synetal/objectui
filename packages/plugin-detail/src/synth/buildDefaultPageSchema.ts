@@ -188,9 +188,8 @@ export function buildDefaultPageSchema(
 
   components.push({
     type: 'page:tabs',
-    tabs: [
+    items: [
       {
-        value: 'details',
         label: 'Details',
         children: [
           {

@@ -8,7 +8,7 @@
 
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { DetailView, RecordChatterPanel } from '@object-ui/plugin-detail';
+import { DetailView, RecordChatterPanel, buildDefaultPageSchema } from '@object-ui/plugin-detail';
 import { Empty, EmptyTitle, EmptyDescription } from '@object-ui/components';
 import { PresenceAvatars, type PresenceUser } from '@object-ui/collaboration';
 import { useAuth, createAuthenticatedFetch } from '@object-ui/auth';
@@ -117,12 +117,38 @@ export function RecordDetailView({ dataSource, objects, onEdit, objectNameOverri
   // it via SchemaRenderer (which dispatches to the registered 'record'
   // PageRenderer in @object-ui/components). Otherwise we fall through to
   // the legacy auto-generated DetailView path below.
+  //
+  // Track 3 Phase G slice 2 — `renderViaSchema` opt-in: when set, the
+  // no-assignedPage branch synthesizes a canonical Page via
+  // `buildDefaultPageSchema(objectDef)` so the default detail page rides
+  // the same SchemaRenderer pipeline as custom pages. Opt-in sources:
+  //   1) URL query param `?renderViaSchema=1` (per-request, for canary)
+  //   2) `objectDef.detail?.renderViaSchema === true` (per-object)
+  // The flag is intentionally off by default — flipping it default-on is
+  // a separate explicit commit after empirical parity validation.
   const { page: assignedPage } = usePageAssignment(objectName);
+  const renderViaSchemaFlag = useMemo(() => {
+    if (typeof window === 'undefined') return false;
+    try {
+      const qp = new URLSearchParams(window.location.search).get('renderViaSchema');
+      if (qp === '1' || qp === 'true') return true;
+    } catch {}
+    return (objectDef as any)?.detail?.renderViaSchema === true;
+  }, [objectDef]);
+  const synthesizedPage = useMemo(() => {
+    if (!renderViaSchemaFlag || assignedPage || !objectDef) return null;
+    // Slice 2 keeps an early no-content schema so the page-record load
+    // effect below can fire (it only needs to know "is there a page?").
+    // The fully-detailed schema is rebuilt at render time once
+    // `detailSchema.sections` are known.
+    return buildDefaultPageSchema(objectDef as any);
+  }, [renderViaSchemaFlag, assignedPage, objectDef]);
+  const effectivePage = assignedPage || synthesizedPage;
   const [pageRecord, setPageRecord] = useState<any>(null);
 
   useEffect(() => {
     let cancelled = false;
-    if (!assignedPage || !pureRecordId || !objectName || !dataSource?.findOne) {
+    if (!effectivePage || !pureRecordId || !objectName || !dataSource?.findOne) {
       setPageRecord(null);
       return;
     }
@@ -144,7 +170,7 @@ export function RecordDetailView({ dataSource, objects, onEdit, objectNameOverri
     return () => {
       cancelled = true;
     };
-  }, [assignedPage, objectName, pureRecordId, dataSource, objectDef]);
+  }, [effectivePage, objectName, pureRecordId, dataSource, objectDef]);
 
   // ─── Action Provider Handlers ───────────────────────────────────────
 
@@ -1085,8 +1111,8 @@ export function RecordDetailView({ dataSource, objects, onEdit, objectNameOverri
     );
   }
 
-  if (assignedPage) {
-    const disableDiscussion = (assignedPage as any)?.disableDiscussion === true;
+  if (effectivePage) {
+    const disableDiscussion = (effectivePage as any)?.disableDiscussion === true;
     // Walk the page schema looking for an explicit discussion component;
     // when found, skip the bottom auto-append so the author placement wins.
     // We accept either `record:discussion` (canonical, spec-compliant) or
@@ -1110,9 +1136,23 @@ export function RecordDetailView({ dataSource, objects, onEdit, objectNameOverri
         ];
         return candidates.some(walk);
       };
-      return walk(assignedPage as any);
+      return walk(effectivePage as any);
     })();
     const showAutoDiscussion = !disableDiscussion && !hasExplicitDiscussion;
+    // Slice 2 — when we're synthesizing (no author assignedPage), rebuild
+    // the schema with the actual detailSchema.sections + highlight fields
+    // so record:details renders the same field layout the legacy
+    // DetailView would have produced.
+    const renderedPage = assignedPage
+      ? effectivePage
+      : buildDefaultPageSchema(objectDef as any, {
+          sections: (detailSchema as any).sections,
+          highlightFields: Array.isArray((detailSchema as any).highlightFields)
+            ? ((detailSchema as any).highlightFields as any[])
+                .map((f) => (typeof f === 'string' ? f : f?.name))
+                .filter((n): n is string => !!n)
+            : undefined,
+        });
     return (
       <div className="h-full bg-background overflow-hidden flex flex-col relative">
         {/* Shared cross-cutting chrome: lifecycle badge + presence avatars.
@@ -1152,7 +1192,7 @@ export function RecordDetailView({ dataSource, objects, onEdit, objectNameOverri
           >
             <div className="flex-1 overflow-hidden flex flex-row">
               <div className="flex-1 overflow-auto p-3 sm:p-4 lg:p-6 scroll-pb-48">
-                <SchemaRenderer schema={assignedPage as any} />
+                <SchemaRenderer schema={renderedPage as any} />
                 {/* Auto-append RecordChatterPanel only when the page
                     schema doesn't already place a `record:discussion` /
                     `record:chatter` component. Hard opt-out via
@@ -1179,7 +1219,7 @@ export function RecordDetailView({ dataSource, objects, onEdit, objectNameOverri
               </div>
               <MetadataPanel
                 open={showDebug}
-                sections={[{ title: 'Page Schema', data: assignedPage }]}
+                sections={[{ title: 'Page Schema', data: renderedPage }]}
               />
             </div>
           </ActionProvider>
