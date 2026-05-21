@@ -115,16 +115,20 @@ export const DetailSection: React.FC<DetailSectionProps> = ({
     [section.fields, isEmptyValue]
   );
 
-  // Auto-hide-empty heuristic: when a section has many empty rows AND at least
-  // some filled rows, default to hiding empties so the page does not become a
+  // Auto-hide-empty heuristic: when a section has empty rows AND at least one
+  // filled row, default to hiding empties so the page does not become a
   // label-graveyard. The user can still reveal them with the toggle. If a
   // section is entirely empty (e.g., loading state, brand-new record), do NOT
   // auto-hide — the labels themselves are useful as a structural skeleton.
   // Explicit `hideEmpty` honored as before.
-  // On mobile, vertical real estate is precious — drop the thresholds.
+  //
+  // Thresholds were tightened in Phase N (2026-05): smaller sections (≥4
+  // fields) and a lower empty ratio (≥25%) now trigger auto-hide so pages
+  // start dense by default rather than sparse. Mobile remains the most
+  // aggressive variant since vertical real estate is scarce.
   const isMobile = useIsMobile();
-  const AUTO_HIDE_MIN_FIELDS = isMobile ? 3 : 6;
-  const AUTO_HIDE_RATIO = isMobile ? 0.2 : 0.5;
+  const AUTO_HIDE_MIN_FIELDS = isMobile ? 3 : 4;
+  const AUTO_HIDE_RATIO = isMobile ? 0.2 : 0.25;
   const filledCount = section.fields.length - emptyCount;
   const shouldAutoHideEmpty =
     !section.hideEmpty &&

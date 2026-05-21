@@ -33,6 +33,16 @@ export interface RecordContextValue<TData = any, TObjectSchema = any> {
   /** Re-fetch the record from the source. */
   refresh?: () => void | Promise<void>;
   /**
+   * Optional system-level header actions (Edit / Share / Delete) that the
+   * host (e.g. RecordDetailView) wants to inject into the page header
+   * regardless of whether the page schema is synthesised or authored.
+   *
+   * `PageHeaderRenderer` appends these AFTER any authored
+   * `page:header.actions`, deduplicating by `name`. Hosts pass `undefined`
+   * to opt out entirely (e.g. embedded previews).
+   */
+  headerSystemActions?: any[];
+  /**
    * When true, the record is rendered inside a host overlay (drawer,
    * modal, split-pane preview) rather than as a standalone route. Header
    * affordances such as the auto "back to list" button should suppress
@@ -64,6 +74,7 @@ export const RecordContextProvider: React.FC<RecordContextProviderProps> = ({
     value.error,
     value.refresh,
     value.embedded,
+    value.headerSystemActions,
   ]);
   return <RecordContext.Provider value={memo}>{children}</RecordContext.Provider>;
 };

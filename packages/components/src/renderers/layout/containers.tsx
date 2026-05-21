@@ -602,8 +602,14 @@ const PageHeaderRenderer: React.FC<any> = ({ schema, className, ...props }) => {
   // detail pages (lead → Convert Lead, opportunity → Mark Won/Lost, …)
   // rely on this slot. Without this rendering they would silently disappear.
   const rawHeaderActions = schema?.actions ?? schema?.properties?.actions;
+  // System actions (Edit / Share / Delete) injected by the host via
+  // `RecordContext.headerSystemActions`. Appended AFTER authored actions
+  // and deduplicated by `name` so the host can always supply them
+  // regardless of whether the page schema is authored (full Lightning) or
+  // synthesised. Authored pages may opt out by omitting them at the host
+  // or by adding a name-clashing action of their own.
+  const hostSystemActions = (ctx as any)?.headerSystemActions as any[] | undefined;
   const headerActions = React.useMemo<any[]>(() => {
-    if (!Array.isArray(rawHeaderActions)) return [];
     const recordData: any = ctx?.data;
     const evalCtx = { record: recordData, data: recordData };
     const evaluator = new ExpressionEvaluator(evalCtx);
@@ -614,7 +620,7 @@ const PageHeaderRenderer: React.FC<any> = ({ schema, className, ...props }) => {
         return undefined;
       }
     };
-    return rawHeaderActions.filter((a: any) => {
+    const filterAction = (a: any): boolean => {
       // Location filter — when `locations` is declared, require record_header.
       // Missing/empty `locations` defaults to "show here" since the action
       // is inlined on the header itself.
@@ -662,8 +668,24 @@ const PageHeaderRenderer: React.FC<any> = ({ schema, className, ...props }) => {
         }
       }
       return true;
-    });
-  }, [rawHeaderActions, ctx?.data]);
+    };
+    const authored = Array.isArray(rawHeaderActions)
+      ? rawHeaderActions.filter(filterAction)
+      : [];
+    const system = Array.isArray(hostSystemActions)
+      ? hostSystemActions.filter(filterAction)
+      : [];
+    // Dedupe by `name` — authored wins.
+    const seen = new Set<string>();
+    const out: any[] = [];
+    for (const a of [...authored, ...system]) {
+      const key = (a?.name || a?.id || '') as string;
+      if (key && seen.has(key)) continue;
+      if (key) seen.add(key);
+      out.push(a);
+    }
+    return out;
+  }, [rawHeaderActions, hostSystemActions, ctx?.data]);
 
   const renderHeaderActions = () => {
     if (headerActions.length === 0) return null;

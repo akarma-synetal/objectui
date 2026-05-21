@@ -1160,6 +1160,7 @@ export function RecordDetailView({ dataSource, objects, onEdit, objectNameOverri
           label: t('detail.edit', { defaultValue: 'Edit' }),
           type: 'script',
           locations: ['record_header'],
+          variant: 'default',
           onClick: () => onEdit({ id: pureRecordId }),
         } as any);
       }
@@ -1168,6 +1169,7 @@ export function RecordDetailView({ dataSource, objects, onEdit, objectNameOverri
         label: t('detail.share', { defaultValue: 'Share' }),
         type: 'script',
         locations: ['record_header'],
+        variant: 'outline',
         onClick: async () => {
           try {
             if ((navigator as any).share) {
@@ -1190,7 +1192,7 @@ export function RecordDetailView({ dataSource, objects, onEdit, objectNameOverri
           label: t('detail.delete', { defaultValue: 'Delete' }),
           type: 'script',
           locations: ['record_header'],
-          variant: 'destructive',
+          variant: 'outline',
           onClick: async () => {
             const msg = t('detail.deleteConfirmation', {
               defaultValue: 'Are you sure you want to delete this record?',
@@ -1210,8 +1212,13 @@ export function RecordDetailView({ dataSource, objects, onEdit, objectNameOverri
       return items;
     })();
 
-    const synthCombinedActions = [...synthBusinessActions, ...synthSystemActions];
-    const synthHeaderActions = synthCombinedActions.length > 0 ? synthCombinedActions : undefined;
+    // The synth path now hands ONLY business actions to the page schema.
+    // System actions (Edit / Share / Delete) ride through
+    // `RecordContext.headerSystemActions` instead, so they reach both
+    // synth/slotted pages AND authored full-Lightning pages without
+    // mutating the assignedPage tree. `PageHeaderRenderer` dedupes by
+    // name so authored business actions still win on collision.
+    const synthHeaderActions = synthBusinessActions.length > 0 ? synthBusinessActions : undefined;
     const synthRelated = Array.isArray((detailSchema as any).related)
       ? ((detailSchema as any).related as any[])
           .filter((r) => r?.api && r?.referenceField)
@@ -1267,6 +1274,7 @@ export function RecordDetailView({ dataSource, objects, onEdit, objectNameOverri
           objectSchema={objectDef}
           dataSource={dataSource}
           embedded={embedded}
+          headerSystemActions={synthSystemActions}
         >
           <DiscussionContextProvider
             items={feedItems as any}

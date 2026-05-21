@@ -122,6 +122,12 @@ export const RecordDetailsRenderer: React.FC<RecordDetailsRendererProps> = ({
         // the surrounding page chrome already provides containment. Authors
         // can opt back into the bordered Card by setting `showBorder: true`.
         showBorder: s.showBorder ?? false,
+        // Phase N: default to hide-empty so pages don't render as label
+        // graveyards on first load. Authors can opt back in to showing
+        // empty rows by setting `hideEmpty: false` explicitly. The
+        // "显示 N 个空字段" toggle in DetailSection still works as the
+        // user-facing escape hatch.
+        hideEmpty: s.hideEmpty ?? true,
         fields: normaliseList(filterList(s.fields)),
       }))
     : schema.sections;

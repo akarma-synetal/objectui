@@ -20,7 +20,7 @@ function PageHeader({ schema }: { schema: any }) {
   return <Component schema={schema} />;
 }
 
-function renderHeader(schema: any, opts?: { record?: any; objectSchema?: any; execute?: any }) {
+function renderHeader(schema: any, opts?: { record?: any; objectSchema?: any; execute?: any; headerSystemActions?: any[] }) {
   const execute = opts?.execute ?? vi.fn(async () => ({ success: true }));
   const ui = (
     <ActionProvider>
@@ -30,6 +30,7 @@ function renderHeader(schema: any, opts?: { record?: any; objectSchema?: any; ex
           recordId={opts.record?.id ?? null}
           data={opts.record}
           objectSchema={opts?.objectSchema ?? { name: 'lead', label: 'Lead' }}
+          headerSystemActions={opts?.headerSystemActions}
         >
           <PageHeader schema={schema} />
         </RecordContextProvider>
@@ -168,5 +169,52 @@ describe('PageHeaderRenderer — actions slot', () => {
     });
     fireEvent.click(screen.getByRole('button', { name: /Click Me/i }));
     expect(onClick).toHaveBeenCalledTimes(1);
+  });
+
+  it('appends host-provided headerSystemActions after authored actions', () => {
+    renderHeader(
+      {
+        type: 'page:header',
+        actions: [{ name: 'biz', label: 'Convert Lead' }],
+      },
+      {
+        record: { id: '1' },
+        headerSystemActions: [
+          { name: 'sys_edit', label: '编辑' },
+          { name: 'sys_share', label: '分享' },
+          { name: 'sys_delete', label: '删除', variant: 'destructive' },
+        ],
+      },
+    );
+    const buttons = screen.getAllByRole('button').map(b => b.textContent?.trim());
+    expect(buttons).toEqual(
+      expect.arrayContaining(['Convert Lead', '编辑', '分享', '删除']),
+    );
+  });
+
+  it('dedupes by name — authored beats host system action with same name', () => {
+    renderHeader(
+      {
+        type: 'page:header',
+        actions: [{ name: 'sys_edit', label: 'Authored Edit' }],
+      },
+      {
+        record: { id: '1' },
+        headerSystemActions: [{ name: 'sys_edit', label: 'System Edit' }],
+      },
+    );
+    expect(screen.getByRole('button', { name: /Authored Edit/i })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /^System Edit$/i })).toBeNull();
+  });
+
+  it('renders host system actions even when schema has no actions array', () => {
+    renderHeader(
+      { type: 'page:header', title: 'Lead' },
+      {
+        record: { id: '1' },
+        headerSystemActions: [{ name: 'sys_edit', label: '编辑' }],
+      },
+    );
+    expect(screen.getByRole('button', { name: /编辑/i })).toBeTruthy();
   });
 });
