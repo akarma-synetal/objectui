@@ -39,6 +39,7 @@ import {
   AccordionContent,
   Separator,
 } from '../../ui';
+import { RecordTitleChip } from '../../custom/RecordTitleChip';
 
 /**
  * Pull the standard designer-passthrough props off a renderer's `props`.
@@ -146,7 +147,14 @@ const interpolate = (template: string, data: any): string => {
   if (!template.includes('{')) return template;
   const out = template.replace(/\{([a-zA-Z0-9_.]+)\}/g, (_m, path: string) => {
     const v = path.split('.').reduce<any>((acc, seg) => (acc == null ? acc : acc[seg]), data);
-    return v == null ? '' : String(v);
+    if (v == null) return '';
+    // Skip object/array values rather than letting `String(v)` produce a
+    // useless "[object Object]" — this happens when a token resolves to a
+    // related record (e.g. `{account}` on an opportunity). Authors who want
+    // a field of the related record should use a deeper path
+    // (e.g. `{account.name}`).
+    if (typeof v === 'object') return '';
+    return String(v);
   });
   return out.replace(/\s+/g, ' ').trim();
 };
@@ -513,10 +521,72 @@ const PageHeaderRenderer: React.FC<any> = ({ schema, className, ...props }) => {
   // both so a `{ properties: { title } }` schema is rendered correctly.
   const titleSrc = schema?.title ?? schema?.properties?.title;
   const subtitleSrc = schema?.subtitle ?? schema?.properties?.subtitle;
-  const title = interpolate(labelText(titleSrc), ctx?.data);
+  const explicitTitle = interpolate(labelText(titleSrc), ctx?.data);
   const subtitle = interpolate(labelText(subtitleSrc), ctx?.data);
   const breadcrumb = (schema?.breadcrumb ?? schema?.properties?.breadcrumb) !== false;
 
+  // Schema-level opt-outs let authors keep the historic "bare h1" header
+  // when they don't want a record chip (e.g. a non-record landing page).
+  const disableRecordChrome =
+    schema?.recordChrome === false || schema?.properties?.recordChrome === false;
+  const showStar = schema?.showStar !== false && schema?.properties?.showStar !== false;
+  const showCopyId = schema?.showCopyId !== false && schema?.properties?.showCopyId !== false;
+
+  // Decide whether to render the record chip. Conditions:
+  //   1. There's a live RecordContext with data + an object schema.
+  //   2. Author hasn't opted out via `recordChrome: false`.
+  // When both pass, we resolve the chip title from (in order):
+  //   - explicit `schema.title` (interpolated against data),
+  //   - common display fields on the record (`name`, `title`, `display_name`),
+  //   - `${objectLabel} ${id}` as a last-resort.
+  const hasRecord = !!(ctx?.data && (ctx as any)?.objectSchema);
+  if (hasRecord && !disableRecordChrome) {
+    const data: any = ctx!.data;
+    const objSchema: any = (ctx as any).objectSchema;
+    const objectLabel: string | undefined =
+      labelText(objSchema?.label) || objSchema?.name || ctx!.objectName;
+    const resolvedTitle =
+      explicitTitle ||
+      data?.name ||
+      data?.title ||
+      data?.display_name ||
+      data?.label ||
+      (objectLabel && data?.id ? `${objectLabel} ${String(data.id).slice(0, 8)}` : '') ||
+      objectLabel ||
+      '';
+    return (
+      <header
+        className={cn(
+          'flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4 pb-4 border-b',
+          className,
+        )}
+        {...designer}
+      >
+        <div className="flex flex-col min-w-0 flex-1">
+          {breadcrumb && (
+            <div
+              className="text-xs text-muted-foreground mb-1"
+              data-page-breadcrumb-slot
+            />
+          )}
+          <RecordTitleChip
+            title={resolvedTitle}
+            objectLabel={objectLabel}
+            resourceId={data?.id ? String(data.id) : undefined}
+            showStar={showStar}
+            showCopyId={showCopyId}
+          />
+          {subtitle && (
+            <p className="text-sm text-muted-foreground mt-1">{subtitle}</p>
+          )}
+        </div>
+        <div data-page-actions-slot className="shrink-0" />
+      </header>
+    );
+  }
+
+  // Non-record fallback: keep the original bare-title layout so non-record
+  // pages (dashboards, settings) stay unaffected.
   return (
     <header
       className={cn('flex flex-col gap-2 pb-4 border-b', className)}
@@ -527,7 +597,9 @@ const PageHeaderRenderer: React.FC<any> = ({ schema, className, ...props }) => {
       )}
       <div className="flex items-center justify-between gap-4">
         <div className="flex flex-col">
-          {title && <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>}
+          {explicitTitle && (
+            <h1 className="text-2xl font-semibold tracking-tight">{explicitTitle}</h1>
+          )}
           {subtitle && <p className="text-sm text-muted-foreground">{subtitle}</p>}
         </div>
         <div data-page-actions-slot />

@@ -23,6 +23,12 @@ export * from './NavigationRenderer';
 export * from './AppSchemaRenderer';
 
 export function registerLayout() {
+  // Legacy `page-header` alias. Kept for any consumer schemas that still
+  // reference the kebab-cased ID; the canonical renderer lives in
+  // `@object-ui/components` under the protocol-compliant `page:header`
+  // namespace. We intentionally do NOT re-register `page:header` here —
+  // doing so would (depending on package load order) clobber the
+  // record-aware renderer in components with this thinner one.
   ComponentRegistry.register('page-header', PageHeader, {
       namespace: 'layout',
       label: 'Page Header',
@@ -32,9 +38,6 @@ export function registerLayout() {
           { name: 'description', type: 'string' }
       ]
   });
-
-  // Alias for protocol compliance
-  ComponentRegistry.register('page:header', PageHeader, { namespace: 'layout' });
 
   // Page Card
   ComponentRegistry.register('page:card', PageCard, {
