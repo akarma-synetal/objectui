@@ -261,7 +261,7 @@ describe('buildDefaultPageSchema', () => {
   });
 
   describe('slice 4 — headerActions / related / activity / history', () => {
-    it('emits record:quick_actions after page:header when headerActions provided', () => {
+    it('embeds headerActions into page:header.actions instead of a separate quick_actions node', () => {
       const page = buildDefaultPageSchema(leadDef, {
         headerActions: [
           { name: 'edit', label: 'Edit', locations: ['record_header'] },
@@ -269,19 +269,21 @@ describe('buildDefaultPageSchema', () => {
       });
       const types = page.regions[0].components.map((c: any) => c.type);
       expect(types[0]).toBe('page:header');
-      expect(types[1]).toBe('record:quick_actions');
-      const qa = page.regions[0].components[1];
-      expect(qa.actions).toHaveLength(1);
-      expect(qa.location).toBe('record_header');
+      // No separate record:quick_actions sibling — actions live on the header.
+      expect(types).not.toContain('record:quick_actions');
+      const header = page.regions[0].components[0];
+      expect(Array.isArray(header.actions)).toBe(true);
+      expect(header.actions).toHaveLength(1);
+      expect(header.actions[0].name).toBe('edit');
     });
 
-    it('omits record:quick_actions when headerActions empty or absent', () => {
+    it('omits header.actions when headerActions empty or absent', () => {
       const noOpt = buildDefaultPageSchema(leadDef);
       const emptyOpt = buildDefaultPageSchema(leadDef, { headerActions: [] });
-      const types1 = noOpt.regions[0].components.map((c: any) => c.type);
-      const types2 = emptyOpt.regions[0].components.map((c: any) => c.type);
-      expect(types1).not.toContain('record:quick_actions');
-      expect(types2).not.toContain('record:quick_actions');
+      const header1 = noOpt.regions[0].components[0];
+      const header2 = emptyOpt.regions[0].components[0];
+      expect(header1.actions).toBeUndefined();
+      expect(header2.actions).toBeUndefined();
     });
 
     it('emits Related tab with one record:related_list per entry', () => {

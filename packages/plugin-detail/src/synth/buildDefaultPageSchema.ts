@@ -237,11 +237,14 @@ export function deriveHighlightFields(
  */
 export function buildDefaultHeader(
   _def: ObjectDefLike | undefined,
-  options: Pick<BuildPageOptions, 'recordChrome'> = {},
+  options: Pick<BuildPageOptions, 'recordChrome'> & { actions?: any[] } = {},
 ): any {
   return {
     type: 'page:header',
     recordChrome: options.recordChrome !== false,
+    ...(Array.isArray(options.actions) && options.actions.length > 0
+      ? { actions: options.actions }
+      : {}),
   };
 }
 
@@ -393,19 +396,27 @@ export function buildDefaultPageSchema(
   const slots = options.slots || {};
   const components: any[] = [];
 
-  // 1) Header slot.
+  // 1) Header slot. When no header override is set, fold any
+  //    `headerActions` into the header itself so PageHeaderRenderer
+  //    renders custom + system actions side-by-side in a single row
+  //    (avoids the floating `record:quick_actions` overlay colliding
+  //    with the system Edit/Share/Delete cluster).
   if ('header' in slots && slots.header !== undefined) {
     components.push(...toNodeArray(slots.header));
   } else {
-    components.push(buildDefaultHeader(def, { recordChrome: options.recordChrome }));
+    components.push(
+      buildDefaultHeader(def, {
+        recordChrome: options.recordChrome,
+        actions: options.headerActions,
+      }),
+    );
   }
 
-  // 2) Header action bar.
+  // 2) Header action bar — only emitted as a separate node when an
+  //    explicit `actions` slot override is provided. Otherwise actions
+  //    are merged into the header above.
   if ('actions' in slots && slots.actions !== undefined) {
     components.push(...toNodeArray(slots.actions));
-  } else {
-    const actions = buildDefaultActions(def, options.headerActions);
-    if (actions) components.push(actions);
   }
 
   // 3) Highlight strip (chips + chevron path).
