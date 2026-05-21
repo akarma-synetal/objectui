@@ -122,6 +122,48 @@ describe('deriveHighlightFields', () => {
     const def: ObjectDefLike = { fields: { foo: {}, bar: {}, baz: {} } };
     expect(deriveHighlightFields(def, null)).toEqual(['foo', 'bar', 'baz']);
   });
+
+  it('skips system tenancy + audit fields (organization_id, created_by, etc.)', () => {
+    const def: ObjectDefLike = {
+      fields: {
+        id: {},
+        organization_id: {},
+        created_by: {},
+        updated_by: {},
+        tenant_id: {},
+        workspace_id: {},
+        useful_field: {},
+        another_useful: {},
+      },
+    };
+    const fields = deriveHighlightFields(def, null);
+    expect(fields).not.toContain('organization_id');
+    expect(fields).not.toContain('created_by');
+    expect(fields).not.toContain('updated_by');
+    expect(fields).not.toContain('tenant_id');
+    expect(fields).not.toContain('workspace_id');
+    expect(fields).toContain('useful_field');
+    expect(fields).toContain('another_useful');
+  });
+
+  it('skips the record primary/title field to avoid duplicating the page H1', () => {
+    const def: ObjectDefLike = {
+      primaryField: 'subject',
+      fields: {
+        subject: {},
+        name: {}, // common candidate also skipped
+        priority: {},
+        status: {},
+        due_date: {},
+        notes: {},
+      },
+    };
+    const fields = deriveHighlightFields(def, 'status');
+    expect(fields).not.toContain('subject');
+    expect(fields).not.toContain('name');
+    expect(fields).not.toContain('status');
+    expect(fields).toContain('priority');
+  });
 });
 
 describe('buildDefaultPageSchema', () => {

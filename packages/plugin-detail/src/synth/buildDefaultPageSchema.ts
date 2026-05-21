@@ -35,6 +35,10 @@ export interface ObjectDefLike {
   stages?: Array<{ value: any; label: string }>;
   /** Optional list of fields to surface in the highlight strip. */
   highlightFields?: string[];
+  /** Name of the field that holds the record's display title (e.g. `name`,
+   *  `subject`). When present we exclude it from the auto-derived highlight
+   *  list to avoid duplicating the page H1. */
+  primaryField?: string;
   /** Optional section grouping for the details region. */
   sections?: Array<{ title?: string; columns?: number; fields?: any[] }>;
 }
@@ -185,8 +189,27 @@ export function deriveHighlightFields(
   if (Array.isArray(def.highlightFields) && def.highlightFields.length > 0) {
     return def.highlightFields.slice(0, max);
   }
-  const skip = new Set<string>(['id', '_id', 'created_at', 'updated_at', 'deleted_at']);
+  // System fields and tenancy metadata never make useful highlights —
+  // they either have no friendly label (organization_id renders as the
+  // workspace name with no field name beside it) or are mostly noise
+  // (audit IDs). Filter them up-front so the fallback walk below doesn't
+  // pick them when a richer field isn't available.
+  const skip = new Set<string>([
+    'id', '_id',
+    'created_at', 'updated_at', 'deleted_at',
+    'created_by', 'updated_by', 'deleted_by',
+    'organization_id', 'workspace_id', 'tenant_id',
+    'org_id',
+  ]);
   if (statusField) skip.add(statusField);
+  // The record's display/primary field is already shown as the page H1 —
+  // surfacing it again in the highlight strip duplicates content and
+  // wastes a slot (e.g. Task pages would show 主题 twice). Skip the
+  // common candidates and whatever the def declares as `primaryField`.
+  if (def.primaryField) skip.add(def.primaryField);
+  for (const candidate of ['name', 'full_name', 'title', 'subject', 'display_name']) {
+    if (candidate in (def.fields || {})) skip.add(candidate);
+  }
   const preferred = [
     'owner', 'owner_id', 'amount', 'rating', 'source',
     'priority', 'industry', 'phone', 'email',

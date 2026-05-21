@@ -16,7 +16,7 @@
  */
 
 import React from 'react';
-import { useRecordContext } from '@object-ui/react';
+import { useRecordContext, useSafeFieldLabel } from '@object-ui/react';
 import type { RecordPathComponentProps } from '@object-ui/types';
 import { cn } from '@object-ui/components';
 
@@ -37,12 +37,24 @@ export const RecordPathRenderer: React.FC<RecordPathRendererProps> = ({
   ...props
 }) => {
   const ctx = useRecordContext();
+  const { translateOptions } = useSafeFieldLabel();
   const { designer } = splitDesigner(props);
 
-  const stages: Array<{ value: any; label: string }> = Array.isArray(schema.stages)
+  const rawStages: Array<{ value: any; label: string }> = Array.isArray(schema.stages)
     ? (schema.stages as any)
     : [];
   const statusField: string | undefined = schema.statusField;
+  // Localize picklist labels when an i18n provider is mounted and the
+  // record context knows which object owns the field. Falls back to the
+  // schema's own labels (already English in synth, possibly authored in
+  // any language for full Lightning pages) when no translation is found.
+  const stages: Array<{ value: any; label: string }> = React.useMemo(() => {
+    if (rawStages.length === 0 || !statusField || !ctx?.objectName) return rawStages;
+    const translated = translateOptions(ctx.objectName, statusField, rawStages as any);
+    return Array.isArray(translated) && translated.length === rawStages.length
+      ? (translated as any)
+      : rawStages;
+  }, [rawStages, statusField, ctx?.objectName, translateOptions]);
   const current = statusField && ctx?.data ? (ctx.data as any)[statusField] : undefined;
 
   let currentIdx = stages.findIndex((s) => s.value === current);
