@@ -8,10 +8,14 @@
  * that don't need those routes use DefaultAppContent directly.
  */
 
-import { lazy, Suspense } from 'react';
+import { lazy, Suspense, useMemo } from 'react';
 import { Route, useParams, useLocation, Navigate } from 'react-router-dom';
 import { DefaultAppContent, LoadingScreen } from '@object-ui/app-shell';
 import { MePermissionsProvider } from '@object-ui/permissions';
+import {
+  UploadProvider,
+  createObjectStackUploadAdapter,
+} from '@object-ui/providers';
 
 const SystemHubPage = lazy(() => import('./pages/system/SystemHubPage').then(m => ({ default: m.SystemHubPage })));
 const AppManagementPage = lazy(() => import('./pages/system/AppManagementPage').then(m => ({ default: m.AppManagementPage })));
@@ -62,9 +66,18 @@ const systemRoutes = (
 export function AppContent() {
   const serverUrl = import.meta.env.VITE_SERVER_URL || '';
   const endpoint = `${serverUrl}/api/v1/auth/me/permissions`;
+  // Wire ImageField / FileField / CommentAttachment to the ObjectStack
+  // storage service. Memoised so the adapter (and any in-flight uploads)
+  // survive re-renders of AppContent's parents.
+  const uploadAdapter = useMemo(
+    () => createObjectStackUploadAdapter({ baseUrl: serverUrl }),
+    [serverUrl],
+  );
   return (
     <MePermissionsProvider endpoint={endpoint} loadingFallback={<LoadingScreen />}>
-      <DefaultAppContent extraRoutes={systemRoutes} extraRoutesNoApp={systemRoutes} />
+      <UploadProvider adapter={uploadAdapter}>
+        <DefaultAppContent extraRoutes={systemRoutes} extraRoutesNoApp={systemRoutes} />
+      </UploadProvider>
     </MePermissionsProvider>
   );
 }

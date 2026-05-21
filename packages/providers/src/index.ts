@@ -13,6 +13,7 @@ export {
   createObjectUrlAdapter,
   createS3Adapter,
   createAzureBlobAdapter,
+  createObjectStackUploadAdapter,
 } from './UploadProvider';
 
 export type {
@@ -29,4 +30,5 @@ export type {
   UploadProviderProps,
   S3AdapterOptions,
   AzureBlobAdapterOptions,
+  ObjectStackUploadAdapterOptions,
 } from './UploadProvider';

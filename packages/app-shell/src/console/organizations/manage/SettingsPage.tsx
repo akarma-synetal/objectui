@@ -4,8 +4,11 @@
  * Organization settings: general info form + danger zone.
  */
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
+  Avatar,
+  AvatarFallback,
+  AvatarImage,
   Button,
   Input,
   Label,
@@ -22,7 +25,8 @@ import {
 import { useAuth } from '@object-ui/auth';
 import type { AuthOrganizationMember } from '@object-ui/auth';
 import { useObjectTranslation } from '@object-ui/i18n';
-import { Loader2 } from 'lucide-react';
+import { useUpload } from '@object-ui/providers';
+import { Loader2, Upload, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
 import { useOrgContext } from './orgContext';
@@ -44,6 +48,9 @@ export function SettingsPage() {
   const [slug, setSlug] = useState(org.slug ?? '');
   const [logo, setLogo] = useState(org.logo ?? '');
   const [isSaving, setIsSaving] = useState(false);
+  const [isUploadingLogo, setIsUploadingLogo] = useState(false);
+  const logoInputRef = useRef<HTMLInputElement>(null);
+  const { upload } = useUpload();
 
   // Owner check
   const [isOwner, setIsOwner] = useState<boolean | null>(null);
@@ -196,17 +203,93 @@ export function SettingsPage() {
               />
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="org-logo">
-                {t('organization.settings.logoLabel', { defaultValue: 'Logo URL (optional)' })}
+              <Label>
+                {t('organization.settings.logoLabel', { defaultValue: 'Logo' })}
               </Label>
-              <Input
-                id="org-logo"
-                type="url"
-                value={logo}
-                onChange={(e) => setLogo(e.target.value)}
-                placeholder="https://example.com/logo.png"
-                data-testid="settings-logo-input"
-              />
+              <div className="flex items-center gap-3">
+                <Avatar className="size-16 rounded-md">
+                  {logo ? (
+                    <AvatarImage src={logo} alt={name} className="object-cover" />
+                  ) : null}
+                  <AvatarFallback className="rounded-md text-base">
+                    {(name || 'O').slice(0, 2).toUpperCase()}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="flex flex-col gap-2">
+                  <div className="flex gap-2">
+                    <input
+                      ref={logoInputRef}
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={async (e) => {
+                        const file = e.target.files?.[0];
+                        if (logoInputRef.current) logoInputRef.current.value = '';
+                        if (!file) return;
+                        setIsUploadingLogo(true);
+                        try {
+                          const result = await upload(file);
+                          setLogo(result.url);
+                          toast.success(
+                            t('organization.settings.logoUploaded', {
+                              defaultValue: 'Logo uploaded — save to apply',
+                            }),
+                          );
+                        } catch (err) {
+                          toast.error(
+                            err instanceof Error
+                              ? err.message
+                              : t('organization.settings.logoUploadFailed', {
+                                  defaultValue: 'Failed to upload logo',
+                                }),
+                          );
+                        } finally {
+                          setIsUploadingLogo(false);
+                        }
+                      }}
+                      data-testid="settings-logo-file"
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      disabled={isUploadingLogo}
+                      onClick={() => logoInputRef.current?.click()}
+                      data-testid="settings-logo-upload-btn"
+                    >
+                      {isUploadingLogo ? (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      ) : (
+                        <Upload className="mr-2 h-4 w-4" />
+                      )}
+                      {logo
+                        ? t('organization.settings.logoReplace', { defaultValue: 'Replace' })
+                        : t('organization.settings.logoUpload', { defaultValue: 'Upload' })}
+                    </Button>
+                    {logo && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setLogo('')}
+                        data-testid="settings-logo-clear-btn"
+                      >
+                        <X className="mr-2 h-4 w-4" />
+                        {t('organization.settings.logoClear', { defaultValue: 'Remove' })}
+                      </Button>
+                    )}
+                  </div>
+                  <Input
+                    id="org-logo"
+                    type="url"
+                    value={logo}
+                    onChange={(e) => setLogo(e.target.value)}
+                    placeholder="https://example.com/logo.png"
+                    className="text-xs"
+                    data-testid="settings-logo-input"
+                  />
+                </div>
+              </div>
             </div>
             <Button type="submit" disabled={isSaving} data-testid="settings-save-btn">
               {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}

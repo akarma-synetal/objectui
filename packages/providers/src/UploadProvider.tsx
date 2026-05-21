@@ -181,6 +181,138 @@ export function createAzureBlobAdapter(opts: AzureBlobAdapterOptions): UploadAda
   };
 }
 
+export interface ObjectStackUploadAdapterOptions {
+  /**
+   * Server base URL (e.g. `https://api.example.com`). Defaults to the
+   * current origin so apps mounted on the same host as the ObjectStack
+   * server don't need any configuration.
+   */
+  baseUrl?: string;
+  /**
+   * Mount path of the storage service. Matches the framework default
+   * (`/api/v1/storage`). Override when the server runs the storage routes
+   * under a custom prefix.
+   * @default '/api/v1/storage'
+   */
+  basePath?: string;
+  /**
+   * Logical key prefix forwarded to the server as `scope`. Useful for
+   * partitioning uploads (e.g. "avatars", "logos", "attachments/case").
+   */
+  scope?: string;
+  /** Override `fetch` (tests, ServiceWorker queues). */
+  fetchImpl?: typeof fetch;
+  /**
+   * Cookie/credentials mode for cross-origin auth. Defaults to
+   * `'include'` so session cookies from `@object-ui/auth` are sent
+   * automatically.
+   * @default 'include'
+   */
+  credentials?: RequestCredentials;
+}
+
+/**
+ * ObjectStack presigned-upload adapter — the canonical browser-side
+ * client for `@objectstack/service-storage`.
+ *
+ * Implements the three-step protocol exposed by the server:
+ *   1. POST `/upload/presigned`   → `{ uploadUrl, fileId, downloadUrl }`
+ *   2. PUT  `uploadUrl`           → uploads the raw bytes (HMAC token)
+ *   3. POST `/upload/complete`    → marks the file ready and registers
+ *                                   the `sys_file` record
+ *
+ * Falls back to a canonical (non-signed) download URL so the returned
+ * `UploadResult.url` is stable across signed-URL expiry — components
+ * that need a fresh signed URL can call the server's
+ * `GET /files/:fileId/url` endpoint themselves.
+ */
+export function createObjectStackUploadAdapter(
+  opts: ObjectStackUploadAdapterOptions = {},
+): UploadAdapter {
+  const fetchFn = opts.fetchImpl ?? fetch;
+  const base = (opts.baseUrl ?? '').replace(/\/$/, '');
+  const path = opts.basePath ?? '/api/v1/storage';
+  const credentials = opts.credentials ?? 'include';
+
+  const apiUrl = (segment: string) =>
+    /^https?:/i.test(segment) ? segment : `${base}${segment}`;
+
+  return {
+    name: 'objectstack-presigned',
+    async upload(file, options = {}) {
+      const f = file as File;
+      const name = ('name' in f && f.name) || 'upload';
+      const mimeType = file.type || 'application/octet-stream';
+
+      // 1) Request a presigned PUT URL
+      const presignRes = await fetchFn(apiUrl(`${path}/upload/presigned`), {
+        method: 'POST',
+        credentials,
+        headers: { 'Content-Type': 'application/json' },
+        signal: options.signal,
+        body: JSON.stringify({
+          filename: name,
+          mimeType,
+          size: file.size,
+          scope: opts.scope ?? options.path,
+        }),
+      });
+      if (!presignRes.ok) {
+        const text = await presignRes.text().catch(() => '');
+        throw new Error(
+          `Presigned upload request failed (${presignRes.status}): ${text || presignRes.statusText}`,
+        );
+      }
+      const presignBody = await presignRes.json();
+      const descriptor = presignBody?.data ?? presignBody;
+      const { uploadUrl, fileId, headers: putHeaders } = descriptor as {
+        uploadUrl: string;
+        fileId: string;
+        headers?: Record<string, string>;
+      };
+      if (!uploadUrl || !fileId) {
+        throw new Error('Presigned upload response missing uploadUrl/fileId');
+      }
+
+      // 2) Upload the raw bytes (with progress + retry)
+      await uploadWithProgress(fetchFn, apiUrl(uploadUrl), file, {
+        method: 'PUT',
+        headers: { 'Content-Type': mimeType, ...(putHeaders ?? {}) },
+        ...options,
+      });
+
+      // 3) Mark the upload complete so the server registers sys_file
+      const completeRes = await fetchFn(apiUrl(`${path}/upload/complete`), {
+        method: 'POST',
+        credentials,
+        headers: { 'Content-Type': 'application/json' },
+        signal: options.signal,
+        body: JSON.stringify({ fileId }),
+      });
+      if (!completeRes.ok) {
+        const text = await completeRes.text().catch(() => '');
+        throw new Error(
+          `Upload completion failed (${completeRes.status}): ${text || completeRes.statusText}`,
+        );
+      }
+
+      // Use the canonical (stable) download endpoint as the field value
+      // so a saved record keeps working past signed-URL expiry. This
+      // endpoint 302-redirects to a freshly-signed short-lived URL on
+      // every request, so it can be used directly as `<img src>`.
+      const stableUrl = apiUrl(`${path}/files/${encodeURIComponent(fileId)}`);
+
+      return {
+        url: stableUrl,
+        name,
+        size: file.size,
+        mimeType,
+        meta: { fileId, scope: opts.scope ?? options.path },
+      };
+    },
+  };
+}
+
 interface UploadFetchOptions extends UploadOptions {
   method: string;
   headers?: Record<string, string>;

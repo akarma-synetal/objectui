@@ -5,7 +5,7 @@
  * change their password, and manage account settings.
  */
 
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { useAuth, getUserInitials } from '@object-ui/auth';
 import {
   Button,
@@ -23,13 +23,18 @@ import {
   Alert,
   AlertDescription,
 } from '@object-ui/components';
-import { CheckCircle2, AlertCircle, User, Lock } from 'lucide-react';
+import { useUpload } from '@object-ui/providers';
+import { CheckCircle2, AlertCircle, User, Lock, Upload, Loader2, X } from 'lucide-react';
 
 export function ProfilePage() {
   const { user, updateUser, isLoading } = useAuth();
+  const { upload } = useUpload();
   const [name, setName] = useState(user?.name ?? '');
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const avatarInputRef = useRef<HTMLInputElement>(null);
+  const [avatarUploading, setAvatarUploading] = useState(false);
+  const [avatarError, setAvatarError] = useState<string | null>(null);
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -41,6 +46,34 @@ export function ProfilePage() {
       setSaved(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
+    }
+  };
+
+  const handleAvatarFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (avatarInputRef.current) avatarInputRef.current.value = '';
+    if (!file) return;
+    setAvatarUploading(true);
+    setAvatarError(null);
+    try {
+      const result = await upload(file);
+      await updateUser({ image: result.url });
+    } catch (err) {
+      setAvatarError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setAvatarUploading(false);
+    }
+  };
+
+  const handleAvatarRemove = async () => {
+    setAvatarUploading(true);
+    setAvatarError(null);
+    try {
+      await updateUser({ image: null as unknown as string });
+    } catch (err) {
+      setAvatarError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setAvatarUploading(false);
     }
   };
 
@@ -68,7 +101,51 @@ export function ProfilePage() {
               <p className="text-sm text-muted-foreground truncate">{user.email}</p>
               <Badge variant="secondary" className="mt-1">{user.role ?? 'member'}</Badge>
             </div>
+            <div className="flex flex-col gap-2 shrink-0">
+              <input
+                ref={avatarInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={handleAvatarFile}
+                data-testid="profile-avatar-file"
+              />
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={avatarUploading}
+                onClick={() => avatarInputRef.current?.click()}
+                data-testid="profile-avatar-upload-btn"
+              >
+                {avatarUploading ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <Upload className="mr-2 h-4 w-4" />
+                )}
+                {user.image ? 'Replace' : 'Upload'}
+              </Button>
+              {user.image && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  disabled={avatarUploading}
+                  onClick={handleAvatarRemove}
+                  data-testid="profile-avatar-remove-btn"
+                >
+                  <X className="mr-2 h-4 w-4" />
+                  Remove
+                </Button>
+              )}
+            </div>
           </div>
+          {avatarError && (
+            <Alert variant="destructive" className="mt-4">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>{avatarError}</AlertDescription>
+            </Alert>
+          )}
         </CardContent>
       </Card>
 
