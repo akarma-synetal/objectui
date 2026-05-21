@@ -18,8 +18,8 @@
  */
 
 import React from 'react';
-import { ComponentRegistry } from '@object-ui/core';
-import { useRecordContext } from '@object-ui/react';
+import { ComponentRegistry, ExpressionEvaluator } from '@object-ui/core';
+import { useRecordContext, useAction } from '@object-ui/react';
 import { renderChildren, cn } from '../../lib/utils';
 import { LazyIcon } from '../../lib/lazy-icon';
 import { RelatedCountStore, useRelatedCount } from '../../hooks/related-count-store';
@@ -38,6 +38,7 @@ import {
   AccordionTrigger,
   AccordionContent,
   Separator,
+  Button,
 } from '../../ui';
 import { RecordTitleChip } from '../../custom/RecordTitleChip';
 
@@ -579,6 +580,7 @@ export function cleanupTitleSeparators(s: string): string {
 const PageHeaderRenderer: React.FC<any> = ({ schema, className, ...props }) => {
   const { designer } = splitDesignerProps(props);
   const ctx = useRecordContext();
+  const { execute } = useAction();
   // Spec bridge may either inline `properties.*` onto the node or preserve
   // the raw bag (see record:quick_actions for the same pattern). Read from
   // both so a `{ properties: { title } }` schema is rendered correctly.
@@ -594,6 +596,114 @@ const PageHeaderRenderer: React.FC<any> = ({ schema, className, ...props }) => {
     schema?.recordChrome === false || schema?.properties?.recordChrome === false;
   const showStar = schema?.showStar !== false && schema?.properties?.showStar !== false;
   const showCopyId = schema?.showCopyId !== false && schema?.properties?.showCopyId !== false;
+
+  // Inline header actions — authored pages embed action buttons directly on
+  // `page:header.actions` (or `.properties.actions`). Custom CRM record
+  // detail pages (lead → Convert Lead, opportunity → Mark Won/Lost, …)
+  // rely on this slot. Without this rendering they would silently disappear.
+  const rawHeaderActions = schema?.actions ?? schema?.properties?.actions;
+  const headerActions = React.useMemo<any[]>(() => {
+    if (!Array.isArray(rawHeaderActions)) return [];
+    const recordData: any = ctx?.data;
+    const evalCtx = { record: recordData, data: recordData };
+    const evaluator = new ExpressionEvaluator(evalCtx);
+    const evalExpr = (src: string): any => {
+      try {
+        return evaluator.evaluateExpression(src);
+      } catch {
+        return undefined;
+      }
+    };
+    return rawHeaderActions.filter((a: any) => {
+      // Location filter — when `locations` is declared, require record_header.
+      // Missing/empty `locations` defaults to "show here" since the action
+      // is inlined on the header itself.
+      if (Array.isArray(a?.locations) && a.locations.length > 0) {
+        if (!a.locations.includes('record_header')) return false;
+      }
+      // Boolean / expression visibility — supports both `visible: false`,
+      // `visible: 'record.status == "open"'` and the structured shape
+      // `visible: { dialect: 'cel', source: '…' }` used by spec authors.
+      const v = a?.visible;
+      if (v !== undefined && v !== null) {
+        if (typeof v === 'boolean') {
+          if (!v) return false;
+        } else {
+          const src =
+            typeof v === 'string'
+              ? v
+              : (v && typeof v === 'object' && typeof (v as any).source === 'string')
+                ? (v as any).source
+                : null;
+          if (src) {
+            const result = evalExpr(src);
+            // On evaluation error (undefined), hide the action rather than
+            // risk surfacing a destructive button in the wrong state.
+            if (!result) return false;
+          }
+        }
+      }
+      // `hidden` is the mirror image — when truthy, skip.
+      const h = a?.hidden;
+      if (h !== undefined && h !== null) {
+        if (typeof h === 'boolean') {
+          if (h) return false;
+        } else {
+          const src =
+            typeof h === 'string'
+              ? h
+              : (h && typeof h === 'object' && typeof (h as any).source === 'string')
+                ? (h as any).source
+                : null;
+          if (src) {
+            const result = evalExpr(src);
+            if (result) return false;
+          }
+        }
+      }
+      return true;
+    });
+  }, [rawHeaderActions, ctx?.data]);
+
+  const renderHeaderActions = () => {
+    if (headerActions.length === 0) return null;
+    return (
+      <div
+        className="flex flex-wrap items-center gap-2 shrink-0"
+        role="toolbar"
+        aria-label="Page header actions"
+      >
+        {headerActions.map((action, idx) => {
+          const label = action.label || action.name || `Action ${idx + 1}`;
+          const variant = action.variant || 'default';
+          const size = action.size || 'sm';
+          const disabled = typeof action.disabled === 'boolean' ? action.disabled : undefined;
+          const icon = typeof action.icon === 'string' ? action.icon : null;
+          return (
+            <Button
+              key={action.name || action.id || `header-action-${idx}`}
+              variant={variant}
+              size={size}
+              disabled={disabled}
+              className="gap-2"
+              onClick={() => {
+                if (typeof action.onClick === 'function') {
+                  void action.onClick();
+                  return;
+                }
+                // Dispatch through the ActionProvider so confirmText, toast,
+                // refresh, flow, navigation and modal handlers all fire.
+                void execute(action);
+              }}
+            >
+              {icon && <LazyIcon name={icon} className="h-4 w-4" />}
+              <span>{label}</span>
+            </Button>
+          );
+        })}
+      </div>
+    );
+  };
 
   // Decide whether to render the record chip. Conditions:
   //   1. There's a live RecordContext with data + an object schema.
@@ -661,7 +771,7 @@ const PageHeaderRenderer: React.FC<any> = ({ schema, className, ...props }) => {
             <p className="text-sm text-muted-foreground mt-1">{subtitle}</p>
           )}
         </div>
-        <div data-page-actions-slot className="shrink-0" />
+        {renderHeaderActions() ?? <div data-page-actions-slot className="shrink-0" />}
       </header>
     );
   }
@@ -683,7 +793,7 @@ const PageHeaderRenderer: React.FC<any> = ({ schema, className, ...props }) => {
           )}
           {subtitle && <p className="text-sm text-muted-foreground">{subtitle}</p>}
         </div>
-        <div data-page-actions-slot />
+        {renderHeaderActions() ?? <div data-page-actions-slot />}
       </div>
     </header>
   );
