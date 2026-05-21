@@ -1086,28 +1086,89 @@ export function RecordDetailView({ dataSource, objects, onEdit, objectNameOverri
   }
 
   if (assignedPage) {
+    const disableDiscussion = (assignedPage as any)?.disableDiscussion === true;
     return (
-      <RecordContextProvider
-        objectName={objectName!}
-        recordId={pureRecordId}
-        data={pageRecord}
-        objectSchema={objectDef}
-        dataSource={dataSource}
-        embedded={embedded}
-      >
-        <ActionProvider
-          context={{ record: pageRecord || {}, objectName, user: currentUser }}
-          onConfirm={confirmHandler}
-          onToast={toastHandler}
-          onNavigate={navigateHandler}
-          onParamCollection={paramCollectionHandler}
-          handlers={{ api: apiHandler, flow: flowHandler, script: serverActionHandler, modal: serverActionHandler, approval: approvalHandler }}
+      <div className="h-full bg-background overflow-hidden flex flex-col relative">
+        {/* Shared cross-cutting chrome: lifecycle badge + presence avatars.
+            Mirrors the default branch so custom Page-assigned record pages
+            don't lose these affordances. */}
+        <div className="absolute top-2 sm:top-4 right-2 sm:right-4 z-50 flex items-center gap-2">
+          <ManagedByBadge managedBy={(objectDef as any)?.managedBy} />
+          {recordViewers.length > 0 && (
+            <div className="flex items-center gap-1.5" title={t('recordDetail.viewersTooltip')}>
+              <Users className="h-3.5 w-3.5 text-muted-foreground" />
+              <PresenceAvatars users={recordViewers} size="sm" maxVisible={4} showStatus />
+            </div>
+          )}
+        </div>
+
+        <RecordContextProvider
+          objectName={objectName!}
+          recordId={pureRecordId}
+          data={pageRecord}
+          objectSchema={objectDef}
+          dataSource={dataSource}
+          embedded={embedded}
         >
-          <div className="bg-background p-3 sm:p-4 lg:p-6">
-            <SchemaRenderer schema={assignedPage as any} />
-          </div>
-        </ActionProvider>
-      </RecordContextProvider>
+          <ActionProvider
+            context={{ record: pageRecord || {}, objectName, user: currentUser }}
+            onConfirm={confirmHandler}
+            onToast={toastHandler}
+            onNavigate={navigateHandler}
+            onParamCollection={paramCollectionHandler}
+            handlers={{ api: apiHandler, flow: flowHandler, script: serverActionHandler, modal: serverActionHandler, approval: approvalHandler }}
+          >
+            <div className="flex-1 overflow-hidden flex flex-row">
+              <div className="flex-1 overflow-auto p-3 sm:p-4 lg:p-6 scroll-pb-48">
+                <SchemaRenderer schema={assignedPage as any} />
+                {/* Auto-append RecordChatterPanel. Opt out via
+                    `assignedPage.disableDiscussion = true` if the page
+                    authors a `record:discussion` component themselves or
+                    deliberately omits the discussion affordance. */}
+                {!disableDiscussion && (
+                  <div className="mt-6">
+                    <RecordChatterPanel
+                      config={{
+                        position: 'bottom',
+                        collapsible: false,
+                        feed: {
+                          enableReactions: true,
+                          enableThreading: true,
+                          showCommentInput: true,
+                        },
+                      }}
+                      items={feedItems}
+                      onAddComment={handleAddComment}
+                      onAddReply={handleAddReply}
+                      onToggleReaction={handleToggleReaction}
+                    />
+                  </div>
+                )}
+              </div>
+              <MetadataPanel
+                open={showDebug}
+                sections={[{ title: 'Page Schema', data: assignedPage }]}
+              />
+            </div>
+          </ActionProvider>
+        </RecordContextProvider>
+
+        {/* Action Confirm Dialog */}
+        <ActionConfirmDialog
+          state={confirmState}
+          onOpenChange={(open) => {
+            if (!open) setConfirmState(s => ({ ...s, open: false }));
+          }}
+        />
+
+        {/* Action Param Collection Dialog */}
+        <ActionParamDialog
+          state={paramState}
+          onOpenChange={(open) => {
+            if (!open) setParamState(s => ({ ...s, open: false }));
+          }}
+        />
+      </div>
     );
   }
 

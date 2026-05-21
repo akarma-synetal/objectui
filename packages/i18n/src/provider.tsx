@@ -81,6 +81,19 @@ export function I18nProvider({ config, instance: externalInstance, loadLanguage,
       }
     };
 
+    // Apply the initial language to <html> immediately. i18next does NOT
+    // fire `languageChanged` for the bootstrap language, so without this
+    // call `document.documentElement.lang` would stay at its server-rendered
+    // default ('en') even though the app is rendering in another locale.
+    // Downstream renderers (e.g. `@object-ui/components` containers.tsx)
+    // rely on the <html lang=…> attribute to pick the right translation
+    // dictionary.
+    const initialLang = i18nInstance.language || language;
+    if (typeof document !== 'undefined' && initialLang) {
+      document.documentElement.dir = getDirection(initialLang);
+      document.documentElement.lang = initialLang;
+    }
+
     i18nInstance.on('languageChanged', handleLanguageChanged);
     return () => {
       i18nInstance.off('languageChanged', handleLanguageChanged);

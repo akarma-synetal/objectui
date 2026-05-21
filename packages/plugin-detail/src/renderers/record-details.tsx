@@ -118,9 +118,18 @@ export const RecordDetailsRenderer: React.FC<RecordDetailsRendererProps> = ({
     ? (schema.sections as any[]).map((s) => ({
         ...s,
         title: s.title ?? s.label,
+        // Default to flush borderless sections in a Lightning-style page —
+        // the surrounding page chrome already provides containment. Authors
+        // can opt back into the bordered Card by setting `showBorder: true`.
+        showBorder: s.showBorder ?? false,
         fields: normaliseList(filterList(s.fields)),
       }))
     : schema.sections;
+
+  // Inline-edit by default. Matches the default record detail experience
+  // (`RecordDetailView` non-assignedPage branch) where every field is
+  // click-to-edit. Authors can opt out with `inlineEdit: false`.
+  const inlineEditDefault = schema.inlineEdit ?? true;
 
   const synthesized: any = {
     type: 'detail-view',
@@ -136,11 +145,16 @@ export const RecordDetailsRenderer: React.FC<RecordDetailsRendererProps> = ({
     // record:details is composed under a Lightning page:header the inner
     // title/star/copy chip would duplicate the surrounding page header.
     showHeader: schema.showHeader ?? false,
+    inlineEdit: inlineEditDefault,
   };
 
   return (
     <div className={className} {...designer}>
-      <DetailView schema={synthesized} dataSource={ctx.dataSource as any} />
+      <DetailView
+        schema={synthesized}
+        dataSource={ctx.dataSource as any}
+        inlineEdit={inlineEditDefault}
+      />
     </div>
   );
 };

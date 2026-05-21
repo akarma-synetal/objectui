@@ -67,6 +67,76 @@ const labelText = (label: any): string => {
 };
 
 /**
+ * Lightweight built-in translation for well-known English tab/accordion
+ * labels used by Lightning-style record pages (Details / Related /
+ * Activity / History / Notes / Files / Tasks / Events / Attachments /
+ * Chatter / Discussion). Keeps `@object-ui/components` free of an i18n
+ * dependency while closing the gap between custom Page schemas (often
+ * authored in English) and the localised default detail view.
+ *
+ * Authors can always override by passing a localised `label` (string or
+ * `{ default, zh-CN, ... }` shape) directly in their schema; the map is
+ * only consulted when the input matches a known English token.
+ */
+const KNOWN_LABEL_DICT: Record<string, Record<string, string>> = {
+  'zh-CN': {
+    Details: '详情',
+    Related: '相关',
+    Activity: '活动',
+    History: '历史',
+    Notes: '备注',
+    Files: '文件',
+    Tasks: '任务',
+    Events: '日程',
+    Attachments: '附件',
+    Chatter: '讨论',
+    Discussion: '讨论',
+    Comments: '评论',
+    Overview: '概览',
+    Summary: '摘要',
+  },
+  'zh-TW': {
+    Details: '詳情',
+    Related: '相關',
+    Activity: '活動',
+    History: '歷史',
+    Notes: '備註',
+    Files: '檔案',
+    Tasks: '任務',
+    Events: '行程',
+    Attachments: '附件',
+    Chatter: '討論',
+    Discussion: '討論',
+    Comments: '評論',
+    Overview: '概覽',
+    Summary: '摘要',
+  },
+};
+
+const detectLocale = (): string => {
+  if (typeof document !== 'undefined') {
+    const docLang = document.documentElement?.lang;
+    if (docLang) return docLang;
+  }
+  if (typeof navigator !== 'undefined' && navigator.language) {
+    return navigator.language;
+  }
+  return 'en';
+};
+
+const translateLabel = (text: string): string => {
+  if (!text) return text;
+  const locale = detectLocale();
+  // Match `zh-CN`, `zh-TW`, then base `zh` → `zh-CN`.
+  const exact = KNOWN_LABEL_DICT[locale];
+  const base = locale.split('-')[0];
+  const fallback = base === 'zh' ? KNOWN_LABEL_DICT['zh-CN'] : undefined;
+  const dict = exact || fallback;
+  if (!dict) return text;
+  return dict[text] ?? text;
+};
+
+/**
  * Replace `{field.path}` tokens in a template against the given data object.
  * Missing fields collapse to an empty string. The result is trimmed and
  * whitespace-collapsed so partial misses don't leave gaping holes.
@@ -230,7 +300,7 @@ const PageTabsRenderer: React.FC<any> = ({ schema, className, ...props }) => {
   const itemsWithValue = items.map((it, idx) => ({
     ...it,
     value: `tab-${idx}`,
-    labelStr: labelText(it.label),
+    labelStr: translateLabel(labelText(it.label)),
     // Explicit spec count wins; otherwise fall back to the derived probe.
     count: it.count !== undefined && it.count !== null && it.count !== ''
       ? it.count
@@ -357,7 +427,7 @@ const PageAccordionRenderer: React.FC<any> = ({ schema, className, ...props }) =
   const itemsWithValue = items.map((it, idx) => ({
     ...it,
     value: `panel-${idx}`,
-    labelStr: labelText(it.label),
+    labelStr: translateLabel(labelText(it.label)),
   }));
 
   const defaultOpen = itemsWithValue
