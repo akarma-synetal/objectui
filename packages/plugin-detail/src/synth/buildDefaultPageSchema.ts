@@ -96,6 +96,43 @@ export interface BuildPageOptions {
    * flag because the data fetch logic lives in RecordDetailView.
    */
   history?: { entries: any[]; loading?: boolean; emptyText?: string };
+  /**
+   * Slot override map. When a slot is provided, the synthesizer emits
+   * the override verbatim at the slot's position instead of computing
+   * the default. Each slot accepts a single SchemaNode or an array
+   * (arrays are flattened in place).
+   *
+   * Slot menu (v1):
+   * - `header` — replaces `page:header`.
+   * - `actions` — replaces `record:quick_actions`. The override fires
+   *   even when `headerActions` is empty (i.e. the override lets you
+   *   add a header bar where the synthesizer would have skipped one).
+   * - `highlights` — replaces the highlight strip (chips + chevron
+   *   path). The override fires even when neither auto-emission
+   *   condition is met.
+   * - `details` — replaces the Details tab body (the `record:details`
+   *   node). Other tabs (Related / Activity / History) are unaffected.
+   * - `tabs` — replaces the entire `page:tabs` node. Wins over
+   *   `details` when both are provided. Use this to add or reorder
+   *   tabs.
+   * - `discussion` — replaces `record:discussion`. Fires even when
+   *   `hideDiscussion` is true (the override is explicit intent to
+   *   surface a custom footer).
+   */
+  slots?: {
+    header?: any | any[];
+    actions?: any | any[];
+    highlights?: any | any[];
+    details?: any | any[];
+    tabs?: any | any[];
+    discussion?: any | any[];
+  };
+}
+
+/** Flatten a slot value (single node or array) into a node array. */
+function toNodeArray(slot: any | any[] | undefined): any[] {
+  if (slot == null) return [];
+  return Array.isArray(slot) ? slot.filter((n) => n != null) : [slot];
 }
 
 /**
@@ -169,6 +206,135 @@ export function deriveHighlightFields(
 }
 
 /**
+ * Sub-builder: the canonical `page:header` node.
+ *
+ * Exported so authors of slotted pages can compose
+ * `[buildDefaultHeader(def), customNode]` without copying the
+ * synthesizer's internals.
+ */
+export function buildDefaultHeader(
+  _def: ObjectDefLike | undefined,
+  options: Pick<BuildPageOptions, 'recordChrome'> = {},
+): any {
+  return {
+    type: 'page:header',
+    recordChrome: options.recordChrome !== false,
+  };
+}
+
+/**
+ * Sub-builder: the `record:quick_actions` action bar.
+ *
+ * Returns `null` when `headerActions` is empty/missing so callers can
+ * spread the result conditionally.
+ */
+export function buildDefaultActions(
+  _def: ObjectDefLike | undefined,
+  headerActions: any[] | undefined,
+): any | null {
+  if (!Array.isArray(headerActions) || headerActions.length === 0) return null;
+  return {
+    type: 'record:quick_actions',
+    actions: headerActions,
+    location: 'record_header',
+  };
+}
+
+/**
+ * Sub-builder: the highlight strip — `record:highlights` chips plus
+ * `record:path` chevron (when a status field is configured).
+ *
+ * Returns an array because the strip is conceptually one region with
+ * two adjacent nodes.
+ */
+export function buildDefaultHighlights(
+  def: ObjectDefLike | undefined,
+  options: Pick<BuildPageOptions,
+    'highlightFields' | 'statusField' | 'stages' | 'hideHighlights' | 'hidePath'
+  > = {},
+): any[] {
+  const statusField = options.statusField ?? detectStatusField(def);
+  const stages = options.stages ?? (statusField ? deriveStages(def, statusField) : null);
+  const highlightFields =
+    options.highlightFields ?? deriveHighlightFields(def, statusField);
+  const out: any[] = [];
+  if (!options.hideHighlights && highlightFields.length > 0) {
+    out.push({ type: 'record:highlights', fields: highlightFields });
+  }
+  if (!options.hidePath && statusField && stages && stages.length > 0) {
+    out.push({ type: 'record:path', statusField, stages });
+  }
+  return out;
+}
+
+/**
+ * Sub-builder: the Details tab body — a single `record:details` node.
+ */
+export function buildDefaultDetails(
+  _def: ObjectDefLike | undefined,
+  sections?: BuildPageOptions['sections'],
+): any {
+  return { type: 'record:details', sections };
+}
+
+/**
+ * Sub-builder: the `page:tabs` node. Emits Details / Related /
+ * Activity / History tabs in stable order based on the options.
+ *
+ * Useful for slotted authors who want to add a custom tab — they can
+ * call `buildDefaultTabs(def, opts)` and splice their tab into
+ * `.items[]`.
+ */
+export function buildDefaultTabs(
+  def: ObjectDefLike | undefined,
+  options: Pick<BuildPageOptions,
+    'sections' | 'related' | 'showActivity' | 'history'
+  > = {},
+): any {
+  const items: any[] = [
+    { label: 'Details', children: [buildDefaultDetails(def, options.sections)] },
+  ];
+  if (Array.isArray(options.related) && options.related.length > 0) {
+    items.push({
+      label: 'Related',
+      children: options.related.map((rel) => ({
+        type: 'record:related_list',
+        title: rel.title,
+        objectName: rel.objectName,
+        relationshipField: rel.relationshipField,
+        ...(rel.columns ? { columns: rel.columns } : {}),
+        ...(rel.limit ? { limit: rel.limit } : {}),
+        ...(rel.icon ? { icon: rel.icon } : {}),
+      })),
+    });
+  }
+  if (options.showActivity) {
+    items.push({ label: 'Activity', children: [{ type: 'record:activity' }] });
+  }
+  if (options.history) {
+    items.push({
+      label: 'History',
+      children: [
+        {
+          type: 'record:history',
+          entries: options.history.entries,
+          loading: options.history.loading,
+          emptyText: options.history.emptyText,
+        },
+      ],
+    });
+  }
+  return { type: 'page:tabs', items };
+}
+
+/**
+ * Sub-builder: the inline `record:discussion` footer slot.
+ */
+export function buildDefaultDiscussion(): any {
+  return { type: 'record:discussion' };
+}
+
+/**
  * Synthesize the canonical Page schema for an object's default detail
  * page.
  *
@@ -193,104 +359,70 @@ export function buildDefaultPageSchema(
   def: ObjectDefLike | undefined,
   options: BuildPageOptions = {},
 ): any {
-  const statusField = options.statusField ?? detectStatusField(def);
-  const stages = options.stages ?? (statusField ? deriveStages(def, statusField) : null);
-  const highlightFields =
-    options.highlightFields ?? deriveHighlightFields(def, statusField);
+  const slots = options.slots || {};
+  const components: any[] = [];
 
-  const components: any[] = [
-    {
-      type: 'page:header',
-      recordChrome: options.recordChrome !== false,
-    },
-  ];
-
-  // Header actions: surface user-configured record_header actions as a
-  // Lightning-style quick-action bar sitting just below the header chip.
-  // Empty list is skipped so we don't render the "no actions configured"
-  // placeholder.
-  if (Array.isArray(options.headerActions) && options.headerActions.length > 0) {
-    components.push({
-      type: 'record:quick_actions',
-      actions: options.headerActions,
-      location: 'record_header',
-    });
+  // 1) Header slot.
+  if ('header' in slots && slots.header !== undefined) {
+    components.push(...toNodeArray(slots.header));
+  } else {
+    components.push(buildDefaultHeader(def, { recordChrome: options.recordChrome }));
   }
 
-  if (!options.hideHighlights && highlightFields.length > 0) {
-    components.push({
-      type: 'record:highlights',
-      fields: highlightFields,
-    });
+  // 2) Header action bar.
+  if ('actions' in slots && slots.actions !== undefined) {
+    components.push(...toNodeArray(slots.actions));
+  } else {
+    const actions = buildDefaultActions(def, options.headerActions);
+    if (actions) components.push(actions);
   }
 
-  if (!options.hidePath && statusField && stages && stages.length > 0) {
-    components.push({
-      type: 'record:path',
-      statusField,
-      stages,
-    });
+  // 3) Highlight strip (chips + chevron path).
+  if ('highlights' in slots && slots.highlights !== undefined) {
+    components.push(...toNodeArray(slots.highlights));
+  } else {
+    components.push(...buildDefaultHighlights(def, {
+      highlightFields: options.highlightFields,
+      statusField: options.statusField,
+      stages: options.stages,
+      hideHighlights: options.hideHighlights,
+      hidePath: options.hidePath,
+    }));
   }
 
-  // Build tab list. Always start with Details; conditionally append
-  // Related / Activity / History based on options. The label strings
-  // are translated automatically by PageTabsRenderer's `translateLabel`
-  // when they match a known English key.
-  const tabs: any[] = [
-    {
-      label: 'Details',
-      children: [
-        {
-          type: 'record:details',
-          sections: options.sections,
-        },
-      ],
-    },
-  ];
-
-  if (Array.isArray(options.related) && options.related.length > 0) {
-    tabs.push({
-      label: 'Related',
-      children: options.related.map((rel) => ({
-        type: 'record:related_list',
-        title: rel.title,
-        objectName: rel.objectName,
-        relationshipField: rel.relationshipField,
-        ...(rel.columns ? { columns: rel.columns } : {}),
-        ...(rel.limit ? { limit: rel.limit } : {}),
-        ...(rel.icon ? { icon: rel.icon } : {}),
-      })),
+  // 4) Tabs — `tabs` slot wins over `details` slot when both are
+  //    provided (broader override). When only `details` is provided,
+  //    splice it into the Details tab body and keep Related/Activity/
+  //    History tabs synthesized.
+  if ('tabs' in slots && slots.tabs !== undefined) {
+    components.push(...toNodeArray(slots.tabs));
+  } else if ('details' in slots && slots.details !== undefined) {
+    const detailsBody = toNodeArray(slots.details);
+    const tabsNode = buildDefaultTabs(def, {
+      sections: options.sections,
+      related: options.related,
+      showActivity: options.showActivity,
+      history: options.history,
     });
+    // Replace the first tab's children (Details) with the override.
+    if (Array.isArray(tabsNode.items) && tabsNode.items.length > 0) {
+      tabsNode.items[0] = { ...tabsNode.items[0], children: detailsBody };
+    }
+    components.push(tabsNode);
+  } else {
+    components.push(buildDefaultTabs(def, {
+      sections: options.sections,
+      related: options.related,
+      showActivity: options.showActivity,
+      history: options.history,
+    }));
   }
 
-  if (options.showActivity) {
-    tabs.push({
-      label: 'Activity',
-      children: [{ type: 'record:activity' }],
-    });
-  }
-
-  if (options.history) {
-    tabs.push({
-      label: 'History',
-      children: [
-        {
-          type: 'record:history',
-          entries: options.history.entries,
-          loading: options.history.loading,
-          emptyText: options.history.emptyText,
-        },
-      ],
-    });
-  }
-
-  components.push({
-    type: 'page:tabs',
-    items: tabs,
-  });
-
-  if (!options.hideDiscussion) {
-    components.push({ type: 'record:discussion' });
+  // 5) Discussion footer.
+  if ('discussion' in slots && slots.discussion !== undefined) {
+    components.push(...toNodeArray(slots.discussion));
+  } else if (!options.hideDiscussion) {
+    components.push(buildDefaultDiscussion());
   }
 
   return {

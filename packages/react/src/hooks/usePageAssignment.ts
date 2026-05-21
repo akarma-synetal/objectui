@@ -10,6 +10,14 @@
  * and returns the first PageSchema whose `pageType === 'record'` and `object`
  * matches the requested name.
  *
+ * Returns a discriminated result by `PageSchema.kind`:
+ *   - `kind === 'full'` (default): the schema fully describes the page;
+ *     the result populates `page` and the caller renders it as-is.
+ *   - `kind === 'slotted'`: the schema only provides slot overrides;
+ *     the result populates `slots` and the caller feeds them to
+ *     `buildDefaultPageSchema(objectDef, { slots })` so omitted slots
+ *     fall through to synthesized defaults.
+ *
  * Future work (deferred): recordType / profile / app / formFactor filtering
  * and priority-based selection. For now we return the first match so that
  * callers can deterministically fall back to the auto-generated DetailView
@@ -33,8 +41,24 @@ export interface PageAssignmentOptions {
 }
 
 export interface PageAssignmentResult {
-  /** Resolved PageSchema, or null if no record Page is available. */
+  /**
+   * Resolved full PageSchema, or null when none is available.
+   *
+   * Populated only when the matched page has `kind === 'full'` (the
+   * default — see `PageSchema.kind`). Slotted pages do NOT populate
+   * this field; callers should branch on `slots` instead.
+   */
   page: any | null;
+  /**
+   * Slot override map for the matched slotted page, or null when no
+   * slotted page matched.
+   *
+   * Populated only when the matched page has `kind === 'slotted'`.
+   * The caller is expected to feed these slots to the default-page
+   * synthesizer (`buildDefaultPageSchema(objectDef, { slots })`) so
+   * that omitted slots fall through to synthesized defaults.
+   */
+  slots: any | null;
   /** True while the metadata cache is still loading the `page` type. */
   loading: boolean;
   /** Loader error, if any. */
@@ -84,7 +108,7 @@ export function usePageAssignment(
     };
   }, [meta]);
 
-  const page = useMemo(() => {
+  const matched = useMemo(() => {
     if (!objectName && !opts.pageName) return null;
     const pages: any[] = Array.isArray(meta.pages) ? meta.pages : [];
     if (!pages.length) return null;
@@ -116,8 +140,20 @@ export function usePageAssignment(
     return candidates[0];
   }, [meta.pages, objectName, opts.pageName, opts.recordType, opts.profile, opts.app, opts.formFactor]);
 
+  // Discriminate by `kind`: full pages populate `page`, slotted pages
+  // populate `slots`. Missing `kind` defaults to 'full' for backwards
+  // compatibility with pre-Phase-I metadata.
+  const { page, slots } = useMemo(() => {
+    if (!matched) return { page: null, slots: null };
+    if (matched.kind === 'slotted') {
+      return { page: null, slots: matched.slots ?? {} };
+    }
+    return { page: matched, slots: null };
+  }, [matched]);
+
   return {
     page,
+    slots,
     loading: meta.loading || !ensured,
     error: ensureError ?? meta.error ?? null,
   };

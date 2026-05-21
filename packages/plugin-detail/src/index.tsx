@@ -87,6 +87,12 @@ export type { ThreadedRepliesProps } from './ThreadedReplies';
 // detail page. Phase G slice 1 — not yet wired into RecordDetailView.
 export {
   buildDefaultPageSchema,
+  buildDefaultHeader,
+  buildDefaultActions,
+  buildDefaultHighlights,
+  buildDefaultDetails,
+  buildDefaultTabs,
+  buildDefaultDiscussion,
   detectStatusField,
   deriveStages,
   deriveHighlightFields,

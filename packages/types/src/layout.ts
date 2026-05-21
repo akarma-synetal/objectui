@@ -592,6 +592,69 @@ export interface PageSchema extends BaseSchema {
     ariaDescribedBy?: string;
     role?: string;
   };
+  /**
+   * Override semantics for record pages.
+   *
+   * - `"full"` (default): the schema fully describes the page; the
+   *   default-page synthesizer is bypassed entirely.
+   * - `"slotted"`: the schema only provides overrides for one or more
+   *   named slots (see `slots`). The default-page synthesizer fills in
+   *   every slot the author did NOT override. Use this when you want
+   *   to customize just the header / actions / one tab without
+   *   re-authoring the rest of the page.
+   *
+   * Only meaningful when `pageType === 'record'`. Ignored for full
+   * pages and for non-record page types.
+   *
+   * @default 'full'
+   */
+  kind?: 'full' | 'slotted';
+  /**
+   * Slotted override map. Each slot accepts a single SchemaNode or an
+   * array (arrays are flattened into the slot position). Slots not
+   * provided fall through to the synthesized default.
+   *
+   * Slot menu (v1):
+   * - `header` — replaces the `page:header` node.
+   * - `actions` — replaces the `record:quick_actions` action bar.
+   * - `highlights` — replaces the highlight strip (chips + chevron
+   *   path).
+   * - `details` — replaces the body of the Details tab (a.k.a. the
+   *   `record:details` sections). Use this to customize the Details
+   *   layout while keeping Related / Activity / History tabs as
+   *   synthesized.
+   * - `tabs` — replaces the entire `page:tabs` node. Use this when
+   *   you need to add custom tabs or reorder them; you own the full
+   *   tab system. Wins over `details` when both are present.
+   * - `discussion` — replaces the inline `record:discussion` footer.
+   *
+   * Each slot is a **full replacement** at the slot boundary — no
+   * deep merge, no patch operations. To compose default + custom,
+   * call the corresponding `buildDefault*` sub-builder from
+   * `@object-ui/plugin-detail` and spread its output.
+   *
+   * Only honored when `kind === 'slotted'`.
+   */
+  slots?: PageSlotMap;
+}
+
+/**
+ * Named-slot override map for slotted record pages.
+ *
+ * Each slot accepts a single SchemaNode or an array. The synthesizer
+ * inlines the provided value verbatim at the slot's position in the
+ * canonical Page schema; slots that are omitted fall through to the
+ * synthesized default.
+ *
+ * See `PageSchema.slots` for the per-slot semantics.
+ */
+export interface PageSlotMap {
+  header?: SchemaNode | SchemaNode[];
+  actions?: SchemaNode | SchemaNode[];
+  highlights?: SchemaNode | SchemaNode[];
+  details?: SchemaNode | SchemaNode[];
+  tabs?: SchemaNode | SchemaNode[];
+  discussion?: SchemaNode | SchemaNode[];
 }
 
 /**

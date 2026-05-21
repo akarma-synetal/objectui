@@ -17,6 +17,7 @@
     "plugin-development",
     "building-crud-app",
     "record-edit-modes",
+    "slotted-pages",
     "console",
     "console-architecture",
     "user-state-persistence",

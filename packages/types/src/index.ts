@@ -104,6 +104,7 @@ export type {
   AspectRatioSchema,
   LayoutSchema,
   PageSchema,
+  PageSlotMap,
   PageType,
   PageRegion,
   PageRegionWidth,

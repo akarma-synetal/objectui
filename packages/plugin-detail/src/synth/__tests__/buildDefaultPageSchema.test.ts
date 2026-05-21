@@ -9,6 +9,11 @@
 import { describe, it, expect } from 'vitest';
 import {
   buildDefaultPageSchema,
+  buildDefaultHeader,
+  buildDefaultActions,
+  buildDefaultHighlights,
+  buildDefaultTabs,
+  buildDefaultDiscussion,
   detectStatusField,
   deriveStages,
   deriveHighlightFields,
@@ -299,6 +304,167 @@ describe('buildDefaultPageSchema', () => {
         'Activity',
         'History',
       ]);
+    });
+  });
+
+  describe('slice I — slot overrides', () => {
+    it('replaces the page:header node when slots.header is provided', () => {
+      const page = buildDefaultPageSchema(leadDef, {
+        slots: { header: { type: 'div', children: 'Custom Header' } },
+      });
+      const first = page.regions[0].components[0];
+      expect(first.type).toBe('div');
+      expect(first.children).toBe('Custom Header');
+      // header slot should suppress the default page:header
+      const hasDefaultHeader = page.regions[0].components.some(
+        (c: any) => c.type === 'page:header',
+      );
+      expect(hasDefaultHeader).toBe(false);
+    });
+
+    it('accepts an array slot and flattens it in place', () => {
+      const page = buildDefaultPageSchema(leadDef, {
+        slots: {
+          header: [
+            { type: 'div', id: 'banner' },
+            { type: 'page:header' },
+          ],
+        },
+      });
+      const types = page.regions[0].components.slice(0, 2).map((c: any) => c.type);
+      expect(types).toEqual(['div', 'page:header']);
+    });
+
+    it('actions slot overrides even when headerActions is empty', () => {
+      const page = buildDefaultPageSchema(leadDef, {
+        slots: { actions: { type: 'div', id: 'custom-bar' } },
+      });
+      const hasCustom = page.regions[0].components.some(
+        (c: any) => c.type === 'div' && c.id === 'custom-bar',
+      );
+      expect(hasCustom).toBe(true);
+    });
+
+    it('highlights slot replaces the entire chips+path strip', () => {
+      const page = buildDefaultPageSchema(leadDef, {
+        slots: { highlights: { type: 'div', id: 'custom-strip' } },
+      });
+      const has = (t: string, id?: string) =>
+        page.regions[0].components.some(
+          (c: any) => c.type === t && (id == null || c.id === id),
+        );
+      expect(has('div', 'custom-strip')).toBe(true);
+      expect(has('record:highlights')).toBe(false);
+      expect(has('record:path')).toBe(false);
+    });
+
+    it('details slot replaces only the Details tab body, keeps other tabs', () => {
+      const page = buildDefaultPageSchema(leadDef, {
+        related: [{ objectName: 'task', relationshipField: 'lead_id' }],
+        history: { entries: [], loading: false },
+        slots: { details: { type: 'div', id: 'custom-details' } },
+      });
+      const tabs = page.regions[0].components.find((c: any) => c.type === 'page:tabs');
+      expect(tabs.items.map((t: any) => t.label)).toEqual([
+        'Details',
+        'Related',
+        'History',
+      ]);
+      expect(tabs.items[0].children).toEqual([{ type: 'div', id: 'custom-details' }]);
+      // record:details default body must be gone
+      const firstBodyType = tabs.items[0].children[0].type;
+      expect(firstBodyType).toBe('div');
+    });
+
+    it('tabs slot wins over details slot when both provided', () => {
+      const page = buildDefaultPageSchema(leadDef, {
+        slots: {
+          tabs: { type: 'page:tabs', items: [{ label: 'Only', children: [] }] },
+          details: { type: 'div', id: 'unused' },
+        },
+      });
+      const tabs = page.regions[0].components.find((c: any) => c.type === 'page:tabs');
+      expect(tabs.items).toHaveLength(1);
+      expect(tabs.items[0].label).toBe('Only');
+      // details slot was not applied
+      const hasUnused = page.regions[0].components.some(
+        (c: any) => c.id === 'unused',
+      );
+      expect(hasUnused).toBe(false);
+    });
+
+    it('discussion slot overrides even when hideDiscussion is true', () => {
+      const page = buildDefaultPageSchema(leadDef, {
+        hideDiscussion: true,
+        slots: { discussion: { type: 'div', id: 'custom-discussion' } },
+      });
+      const last = page.regions[0].components[page.regions[0].components.length - 1];
+      expect(last.id).toBe('custom-discussion');
+    });
+
+    it('omitted slots fall through to synth defaults', () => {
+      const page = buildDefaultPageSchema(leadDef, {
+        slots: { header: { type: 'div', id: 'h' } },
+      });
+      // header replaced, but discussion + tabs + highlights still default
+      const types = page.regions[0].components.map((c: any) => c.type);
+      expect(types).toContain('record:highlights');
+      expect(types).toContain('record:path');
+      expect(types).toContain('page:tabs');
+      expect(types).toContain('record:discussion');
+    });
+  });
+
+  describe('slice I — sub-builders', () => {
+    it('buildDefaultHeader returns a page:header node with recordChrome default true', () => {
+      const node = buildDefaultHeader(leadDef);
+      expect(node).toEqual({ type: 'page:header', recordChrome: true });
+    });
+
+    it('buildDefaultActions returns null for empty actions list', () => {
+      expect(buildDefaultActions(leadDef, [])).toBeNull();
+      expect(buildDefaultActions(leadDef, undefined)).toBeNull();
+    });
+
+    it('buildDefaultActions returns a quick_actions node when actions are provided', () => {
+      const node = buildDefaultActions(leadDef, [{ id: 'edit', label: 'Edit' }]);
+      expect(node?.type).toBe('record:quick_actions');
+      expect(node?.location).toBe('record_header');
+      expect(node?.actions).toHaveLength(1);
+    });
+
+    it('buildDefaultHighlights returns [chips, path] when status field is present', () => {
+      const nodes = buildDefaultHighlights(leadDef);
+      const types = nodes.map((n) => n.type);
+      expect(types).toContain('record:highlights');
+      expect(types).toContain('record:path');
+    });
+
+    it('buildDefaultHighlights respects hideHighlights / hidePath flags', () => {
+      const nodes = buildDefaultHighlights(leadDef, {
+        hideHighlights: true,
+        hidePath: true,
+      });
+      expect(nodes).toHaveLength(0);
+    });
+
+    it('buildDefaultTabs emits Details/Related/Activity/History in order', () => {
+      const tabs = buildDefaultTabs(leadDef, {
+        related: [{ objectName: 'task', relationshipField: 'lead_id' }],
+        showActivity: true,
+        history: { entries: [], loading: false },
+      });
+      expect(tabs.type).toBe('page:tabs');
+      expect(tabs.items.map((t: any) => t.label)).toEqual([
+        'Details',
+        'Related',
+        'Activity',
+        'History',
+      ]);
+    });
+
+    it('buildDefaultDiscussion returns the record:discussion node', () => {
+      expect(buildDefaultDiscussion()).toEqual({ type: 'record:discussion' });
     });
   });
 });

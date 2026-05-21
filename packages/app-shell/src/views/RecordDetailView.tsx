@@ -125,7 +125,7 @@ export function RecordDetailView({ dataSource, objects, onEdit, objectNameOverri
   //   1) URL query param `?renderViaSchema=0` (per-request fallback to
   //      the legacy DetailView monolith — useful for debugging regressions)
   //   2) `objectDef.detail?.renderViaSchema === false` (per-object opt-out)
-  const { page: assignedPage } = usePageAssignment(objectName);
+  const { page: assignedPage, slots: assignedSlots } = usePageAssignment(objectName);
   const renderViaSchemaFlag = useMemo(() => {
     if (typeof window !== 'undefined') {
       try {
@@ -138,13 +138,17 @@ export function RecordDetailView({ dataSource, objects, onEdit, objectNameOverri
     return true;
   }, [objectDef]);
   const synthesizedPage = useMemo(() => {
-    if (!renderViaSchemaFlag || assignedPage || !objectDef) return null;
-    // Slice 2 keeps an early no-content schema so the page-record load
-    // effect below can fire (it only needs to know "is there a page?").
-    // The fully-detailed schema is rebuilt at render time once
-    // `detailSchema.sections` are known.
-    return buildDefaultPageSchema(objectDef as any);
-  }, [renderViaSchemaFlag, assignedPage, objectDef]);
+    // Synthesizer drives two cases:
+    //   1) no assignedPage at all → pure default detail page
+    //   2) assignedSlots (slotted page) → synth with slot overrides
+    // In either case the page-record load effect below only needs
+    // "is there a page?"; the fully-detailed schema is rebuilt at
+    // render time once `detailSchema.sections` are known.
+    if (assignedPage) return null;
+    if (!objectDef) return null;
+    if (!renderViaSchemaFlag && !assignedSlots) return null;
+    return buildDefaultPageSchema(objectDef as any, assignedSlots ? { slots: assignedSlots } : undefined);
+  }, [renderViaSchemaFlag, assignedPage, assignedSlots, objectDef]);
   const effectivePage = assignedPage || synthesizedPage;
   const [pageRecord, setPageRecord] = useState<any>(null);
 
@@ -1188,6 +1192,7 @@ export function RecordDetailView({ dataSource, objects, onEdit, objectNameOverri
           headerActions: synthHeaderActions,
           related: synthRelated,
           history: synthHistory,
+          ...(assignedSlots ? { slots: assignedSlots } : {}),
         });
     return (
       <div className="h-full bg-background overflow-hidden flex flex-col relative">
