@@ -118,22 +118,24 @@ export function RecordDetailView({ dataSource, objects, onEdit, objectNameOverri
   // PageRenderer in @object-ui/components). Otherwise we fall through to
   // the legacy auto-generated DetailView path below.
   //
-  // Track 3 Phase G slice 2 — `renderViaSchema` opt-in: when set, the
+  // Track 3 Phase G slice 6 — `renderViaSchema` is now default-on. The
   // no-assignedPage branch synthesizes a canonical Page via
   // `buildDefaultPageSchema(objectDef)` so the default detail page rides
-  // the same SchemaRenderer pipeline as custom pages. Opt-in sources:
-  //   1) URL query param `?renderViaSchema=1` (per-request, for canary)
-  //   2) `objectDef.detail?.renderViaSchema === true` (per-object)
-  // The flag is intentionally off by default — flipping it default-on is
-  // a separate explicit commit after empirical parity validation.
+  // the same SchemaRenderer pipeline as custom pages. Kill-switches:
+  //   1) URL query param `?renderViaSchema=0` (per-request fallback to
+  //      the legacy DetailView monolith — useful for debugging regressions)
+  //   2) `objectDef.detail?.renderViaSchema === false` (per-object opt-out)
   const { page: assignedPage } = usePageAssignment(objectName);
   const renderViaSchemaFlag = useMemo(() => {
-    if (typeof window === 'undefined') return false;
-    try {
-      const qp = new URLSearchParams(window.location.search).get('renderViaSchema');
-      if (qp === '1' || qp === 'true') return true;
-    } catch {}
-    return (objectDef as any)?.detail?.renderViaSchema === true;
+    if (typeof window !== 'undefined') {
+      try {
+        const qp = new URLSearchParams(window.location.search).get('renderViaSchema');
+        if (qp === '0' || qp === 'false') return false;
+        if (qp === '1' || qp === 'true') return true;
+      } catch {}
+    }
+    if ((objectDef as any)?.detail?.renderViaSchema === false) return false;
+    return true;
   }, [objectDef]);
   const synthesizedPage = useMemo(() => {
     if (!renderViaSchemaFlag || assignedPage || !objectDef) return null;
