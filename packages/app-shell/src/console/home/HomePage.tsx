@@ -92,11 +92,11 @@ export function HomePage() {
   const activeApps = apps.filter((a: any) => a.active !== false);
 
   const recentApps = recentItems
-    .filter(item => item.type === 'object' || item.type === 'dashboard' || item.type === 'page')
+    .filter(item => item.type === 'object' || item.type === 'dashboard' || item.type === 'page' || item.type === 'record')
     .slice(0, 6);
 
   const starredApps = favorites
-    .filter(item => item.type === 'object' || item.type === 'dashboard' || item.type === 'page')
+    .filter(item => item.type === 'object' || item.type === 'dashboard' || item.type === 'page' || item.type === 'record')
     .slice(0, 8);
 
   const greeting = useMemo(() => t(pickGreetingKey(new Date().getHours()), { defaultValue: 'Welcome' }), [t]);

@@ -31,7 +31,8 @@ import {
   EmptyDescription,
   NavigationOverlay,
 } from '@object-ui/components';
-import { Plus, Upload, Table as TableIcon, KanbanSquare, Calendar, LayoutGrid, Activity, GanttChart, MapPin, BarChart3 } from 'lucide-react';
+import { Plus, Upload, Star, StarOff, Table as TableIcon, KanbanSquare, Calendar, LayoutGrid, Activity, GanttChart, MapPin, BarChart3 } from 'lucide-react';
+import { useFavorites } from '../hooks/useFavorites';
 import { getIcon } from '../utils/getIcon';
 import type { ListViewSchema, ViewNavigationConfig, FeedItem } from '@object-ui/types';
 import { MetadataPanel, useMetadataInspector } from './MetadataInspector';
@@ -210,11 +211,12 @@ function fromSysViewRecord(sv: Record<string, any>): Record<string, any> {
 
 export function ObjectView({ dataSource, objects, onEdit, externalRefreshKey }: any) {
     const navigate = useNavigate();
-    const { objectName, viewId } = useParams();
+    const { appName, objectName, viewId } = useParams();
     const [searchParams, setSearchParams] = useSearchParams();
     const { showDebug } = useMetadataInspector();
     const { t } = useObjectTranslation();
     const { objectLabel, objectDescription: objectDesc, viewLabel, actionLabel, actionConfirm, actionSuccess, fieldLabel, fieldOptionLabel } = useObjectLabel();
+    const { isFavorite, toggleFavorite } = useFavorites();
     
     // Inline view config panel state (Airtable-style right sidebar)
     const [showViewConfigPanel, setShowViewConfigPanel] = useState(false);
@@ -1711,6 +1713,30 @@ export function ObjectView({ dataSource, objects, onEdit, externalRefreshKey }: 
                  icon={(() => { const I = getIcon((objectDef as any)?.icon); return <I className="h-4 w-4" />; })()}
                  actions={
                    <>
+                    {/* Favorite toggle */}
+                    {objectName && (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => toggleFavorite({
+                          id: `object:${objectName}`,
+                          label: objectLabel(objectDef),
+                          href: `/apps/${appName}/${objectName}`,
+                          type: 'object',
+                        })}
+                        className="h-8 sm:h-9 px-2"
+                        aria-pressed={isFavorite(`object:${objectName}`)}
+                        aria-label={isFavorite(`object:${objectName}`)
+                          ? t('common.removeFromFavorites', { defaultValue: 'Remove from favorites' })
+                          : t('common.addToFavorites', { defaultValue: 'Add to favorites' })}
+                        data-testid={`object-favorite-btn-${objectName}`}
+                      >
+                        {isFavorite(`object:${objectName}`)
+                          ? <Star className="h-4 w-4 fill-amber-400 text-amber-400" />
+                          : <StarOff className="h-4 w-4" />}
+                      </Button>
+                    )}
+
                     {/* Primary action - always visible */}
                     {affordances.create && can(objectDef.name, 'create') && (
                     <Button size="sm" onClick={actions.create} className="shadow-none gap-1.5 sm:gap-2 h-8 sm:h-9">

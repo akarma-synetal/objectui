@@ -31,7 +31,7 @@ const SERVER_URL = import.meta.env.VITE_SERVER_URL || '';
  * Resolve a public form spec by slug. Tries the canonical endpoint first
  * and falls back to a client-side scan of the `view` metadata index.
  */
-async function resolvePublicForm(slug: string): Promise<EmbeddableFormConfig | null> {
+async function resolvePublicForm(slug: string): Promise<{ config: EmbeddableFormConfig; schema: any | null } | null> {
   const publicLink = `/forms/${slug}`;
 
   // 1. Canonical endpoint — when the backend implements it, this becomes
@@ -42,7 +42,9 @@ async function resolvePublicForm(slug: string): Promise<EmbeddableFormConfig | n
     });
     if (res.ok) {
       const spec = await res.json();
-      return mapViewSpecToEmbeddableConfig(spec, slug);
+      const config = mapViewSpecToEmbeddableConfig(spec, slug);
+      if (!config) return null;
+      return { config, schema: spec?.objectSchema ?? null };
     }
   } catch {
     // network error — fall through to the discovery fallback
@@ -74,7 +76,9 @@ async function resolvePublicForm(slug: string): Promise<EmbeddableFormConfig | n
       return false;
     });
     if (!match) return null;
-    return mapViewSpecToEmbeddableConfig(match, slug);
+    const config = mapViewSpecToEmbeddableConfig(match, slug);
+    if (!config) return null;
+    return { config, schema: null };
   } catch {
     return null;
   }
@@ -127,7 +131,7 @@ function mapViewSpecToEmbeddableConfig(
  * and falls back to the legacy data endpoint. No auth header is attached.
  * Only the `create` op is implemented; the embeddable form never reads.
  */
-function createPublicDataSource(slug: string): DataSource {
+function createPublicDataSource(slug: string, schema: any | null): DataSource {
   const post = async (objectName: string, data: Record<string, unknown>) => {
     // 1. Preferred public endpoint
     const submitRes = await fetch(
@@ -170,6 +174,11 @@ function createPublicDataSource(slug: string): DataSource {
     delete: () => Promise.reject(new Error('Not permitted on public form')),
     findOne: () => Promise.resolve(null),
     find: () => Promise.resolve({ data: [], total: 0 }),
+    // EmbeddableForm calls getObjectSchema() to look up field types and
+    // labels. The schema is embedded in the public-form resolver response
+    // so no auth-protected meta call is required. Return a safe stub when
+    // the backend didn't ship the schema (older builds / discovery path).
+    getObjectSchema: async (name: string) => schema ?? { name, fields: {} },
   } as unknown as DataSource;
 }
 
@@ -195,6 +204,7 @@ function createDemoDataSource(): DataSource {
 export function PublicFormPage() {
   const { slug = '' } = useParams<{ slug: string }>();
   const [config, setConfig] = useState<EmbeddableFormConfig | null>(null);
+  const [schema, setSchema] = useState<any | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [isDemo, setIsDemo] = useState(false);
@@ -204,6 +214,7 @@ export function PublicFormPage() {
     setLoading(true);
     setError(null);
     setConfig(null);
+    setSchema(null);
 
     // Dev-only fallback: when no backend is reachable, the
     // `?demo=1` query param renders a hardcoded CRM web-to-lead form so
@@ -220,15 +231,16 @@ export function PublicFormPage() {
     setIsDemo(false);
 
     resolvePublicForm(slug)
-      .then((cfg) => {
+      .then((result) => {
         if (cancelled) return;
-        if (!cfg) {
+        if (!result) {
           setError(
             `No public form found at /forms/${slug}. Make sure the underlying ` +
             `view has sharing.allowAnonymous=true and matches this slug.`,
           );
         } else {
-          setConfig(cfg);
+          setConfig(result.config);
+          setSchema(result.schema);
         }
       })
       .catch((err) => {
@@ -265,7 +277,7 @@ export function PublicFormPage() {
   return (
     <EmbeddableForm
       config={config}
-      dataSource={isDemo ? createDemoDataSource() : createPublicDataSource(slug)}
+      dataSource={isDemo ? createDemoDataSource() : createPublicDataSource(slug, schema)}
     />
   );
 }

@@ -44,7 +44,7 @@ export interface FavoriteItem {
   id: string;
   label: string;
   href: string;
-  type: 'object' | 'dashboard' | 'page' | 'report';
+  type: 'object' | 'dashboard' | 'page' | 'report' | 'record';
   /** ISO timestamp of when the item was favorited */
   favoritedAt: string;
 }

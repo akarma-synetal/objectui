@@ -9,13 +9,13 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { DetailView, RecordChatterPanel, buildDefaultPageSchema } from '@object-ui/plugin-detail';
-import { Empty, EmptyTitle, EmptyDescription } from '@object-ui/components';
+import { Empty, EmptyTitle, EmptyDescription, Button } from '@object-ui/components';
 import { PresenceAvatars, type PresenceUser } from '@object-ui/collaboration';
 import { useAuth, createAuthenticatedFetch } from '@object-ui/auth';
 import { ActionProvider, useObjectTranslation, useObjectLabel, usePageAssignment, RecordContextProvider, SchemaRenderer, DiscussionContextProvider, HighlightFieldsProvider } from '@object-ui/react';
 import { buildExpandFields } from '@object-ui/core';
 import { toast } from 'sonner';
-import { Database, Users } from 'lucide-react';
+import { Database, Users, Star, StarOff } from 'lucide-react';
 import { MetadataPanel, useMetadataInspector } from './MetadataInspector';
 import { SkeletonDetail } from '../skeletons';
 import { ManagedByBadge } from '../components/ManagedByBadge';
@@ -29,6 +29,7 @@ import type { DetailViewSchema, FeedItem, HighlightField, SectionGroup } from '@
 import type { ActionDef, ActionParamDef } from '@object-ui/core';
 import { useRecordApprovals } from '../hooks/useRecordApprovals';
 import { getRecordDisplayName } from '../utils';
+import { useFavorites } from '../hooks/useFavorites';
 
 interface RecordDetailViewProps {
   dataSource: any;
@@ -93,6 +94,7 @@ export function RecordDetailView({ dataSource, objects, onEdit, objectNameOverri
   const navigate = useNavigate();
   const { t } = useObjectTranslation();
   const { objectLabel, viewLabel: _vLabel, sectionLabel, actionLabel, actionConfirm, actionSuccess, fieldLabel, fieldOptionLabel } = useObjectLabel();
+  const { isFavorite, toggleFavorite } = useFavorites();
   const [isLoading, setIsLoading] = useState(true);
   const [feedItems, setFeedItems] = useState<FeedItem[]>([]);
   const [recordViewers, setRecordViewers] = useState<PresenceUser[]>([]);
@@ -1258,6 +1260,28 @@ export function RecordDetailView({ dataSource, objects, onEdit, objectNameOverri
             Mirrors the default branch so custom Page-assigned record pages
             don't lose these affordances. */}
         <div className="absolute top-2 sm:top-4 right-2 sm:right-4 z-50 flex items-center gap-2">
+          {objectName && pureRecordId && (
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-8 w-8 p-0"
+              onClick={() => toggleFavorite({
+                id: `record:${objectName}:${pureRecordId}`,
+                label: recordTitle || pureRecordId || '',
+                href: `/apps/${appName}/${objectName}/record/${pureRecordId}`,
+                type: 'record',
+              })}
+              aria-pressed={isFavorite(`record:${objectName}:${pureRecordId}`)}
+              aria-label={isFavorite(`record:${objectName}:${pureRecordId}`)
+                ? t('common.removeFromFavorites', { defaultValue: 'Remove from favorites' })
+                : t('common.addToFavorites', { defaultValue: 'Add to favorites' })}
+              data-testid={`record-favorite-btn-${pureRecordId}`}
+            >
+              {isFavorite(`record:${objectName}:${pureRecordId}`)
+                ? <Star className="h-4 w-4 fill-amber-400 text-amber-400" />
+                : <StarOff className="h-4 w-4" />}
+            </Button>
+          )}
           <ManagedByBadge managedBy={(objectDef as any)?.managedBy} />
           {recordViewers.length > 0 && (
             <div className="flex items-center gap-1.5" title={t('recordDetail.viewersTooltip')}>
@@ -1350,6 +1374,28 @@ export function RecordDetailView({ dataSource, objects, onEdit, objectNameOverri
   return (
     <div className="h-full bg-background overflow-hidden flex flex-col relative">
       <div className="absolute top-2 sm:top-4 right-2 sm:right-4 z-50 flex items-center gap-2">
+        {objectName && pureRecordId && (
+          <Button
+            size="sm"
+            variant="ghost"
+            className="h-8 w-8 p-0"
+            onClick={() => toggleFavorite({
+              id: `record:${objectName}:${pureRecordId}`,
+              label: recordTitle || pureRecordId || '',
+              href: `/apps/${appName}/${objectName}/record/${pureRecordId}`,
+              type: 'record',
+            })}
+            aria-pressed={isFavorite(`record:${objectName}:${pureRecordId}`)}
+            aria-label={isFavorite(`record:${objectName}:${pureRecordId}`)
+              ? t('common.removeFromFavorites', { defaultValue: 'Remove from favorites' })
+              : t('common.addToFavorites', { defaultValue: 'Add to favorites' })}
+            data-testid={`record-favorite-btn-${pureRecordId}`}
+          >
+            {isFavorite(`record:${objectName}:${pureRecordId}`)
+              ? <Star className="h-4 w-4 fill-amber-400 text-amber-400" />
+              : <StarOff className="h-4 w-4" />}
+          </Button>
+        )}
         {/* Lifecycle bucket indicator. Replaces the previous full-width
             ManagedByBanner — see ManagedByBadge for the rationale. */}
         <ManagedByBadge managedBy={(objectDef as any)?.managedBy} />
