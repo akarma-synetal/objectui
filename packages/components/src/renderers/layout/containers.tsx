@@ -545,6 +545,37 @@ ComponentRegistry.register('page:section', PageSectionRenderer, {
 // the upcoming `record:quick_actions` renderer.
 // ---------------------------------------------------------------------------
 
+/**
+ * Strip dangling connectors that survive when a `titleFormat` interpolates
+ * with one side empty — e.g. `{number} - {name}` becomes `CTR-0001 -` when
+ * `name` is blank. Removes a trailing/leading hyphen / middle-dot / colon /
+ * slash / pipe (optionally surrounded by whitespace) and collapses
+ * adjacent whitespace into a single space. Idempotent.
+ *
+ * Exported for unit tests.
+ */
+export function cleanupTitleSeparators(s: string): string {
+  if (!s) return s;
+  let out = s;
+  // Repeatedly trim trailing connectors. Loop so chains like " - · " all peel.
+  for (let i = 0; i < 4; i += 1) {
+    const next = out.replace(/[\s\u00A0]*[-·:|/–—][\s\u00A0]*$/u, '').trimEnd();
+    if (next === out) break;
+    out = next;
+  }
+  for (let i = 0; i < 4; i += 1) {
+    const next = out.replace(/^[\s\u00A0]*[-·:|/–—][\s\u00A0]*/u, '').trimStart();
+    if (next === out) break;
+    out = next;
+  }
+  // Collapse double-separators in the middle (rare, but happens when the
+  // middle field of a 3-part format is empty: "A -  - B" -> "A - B").
+  out = out.replace(/([-·:|/–—])[\s\u00A0]*\1/gu, '$1');
+  // Collapse runs of whitespace.
+  out = out.replace(/[\s\u00A0]+/g, ' ').trim();
+  return out;
+}
+
 const PageHeaderRenderer: React.FC<any> = ({ schema, className, ...props }) => {
   const { designer } = splitDesignerProps(props);
   const ctx = useRecordContext();
@@ -589,7 +620,7 @@ const PageHeaderRenderer: React.FC<any> = ({ schema, className, ...props }) => {
           ? rawTitleFormat.source
           : undefined;
     const interpolatedTitleFormat = titleFormatStr
-      ? interpolate(titleFormatStr, data).trim()
+      ? cleanupTitleSeparators(interpolate(titleFormatStr, data).trim())
       : '';
     const resolvedTitle =
       explicitTitle ||
