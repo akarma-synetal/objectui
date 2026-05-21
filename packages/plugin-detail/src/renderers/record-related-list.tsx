@@ -100,6 +100,7 @@ export const RecordRelatedListRenderer: React.FC<RecordRelatedListRendererProps>
         api={objectName}
         objectName={objectName}
         referenceField={schema.relationshipField}
+        parentId={ctx?.recordId as any}
         columns={filteredColumns as any}
         pageSize={schema.limit}
         dataSource={ctx?.dataSource as any}

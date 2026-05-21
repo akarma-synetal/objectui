@@ -18,7 +18,7 @@ describe('RelatedCountStore', () => {
     const probe = vi.fn(async () => ({ total: 7, data: [{}] }));
     const n = await RelatedCountStore.fetch(probe, 'contact', 'account_id', 'A1');
     expect(n).toBe(7);
-    expect(probe).toHaveBeenCalledWith('contact', { where: { account_id: 'A1' }, limit: 1 });
+    expect(probe).toHaveBeenCalledWith('contact', { $filter: { account_id: 'A1' }, $top: 1 });
     expect(RelatedCountStore.get('contact', 'account_id', 'A1')).toBe(7);
   });
 
@@ -79,9 +79,9 @@ describe('RelatedCountStore', () => {
     expect(await RelatedCountStore.fetch(probe, 'lead', 'owner_id', 'U1')).toBe(4);
   });
 
-  it('skips the where clause when no relField is supplied', async () => {
+  it('skips the filter clause when no relField is supplied', async () => {
     const probe = vi.fn(async () => ({ total: 11 }));
     await RelatedCountStore.fetch(probe, 'global_task', undefined, undefined);
-    expect(probe).toHaveBeenCalledWith('global_task', { where: {}, limit: 1 });
+    expect(probe).toHaveBeenCalledWith('global_task', { $filter: {}, $top: 1 });
   });
 });

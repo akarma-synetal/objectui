@@ -29,7 +29,7 @@ type Listener = () => void;
 interface ProbeFn {
   (
     objectName: string,
-    query: { where?: Record<string, unknown>; limit?: number },
+    query: { $filter?: Record<string, unknown>; $top?: number },
   ): Promise<{ total?: number; data?: unknown[] } | unknown[] | { length?: number }>;
 }
 
@@ -79,13 +79,18 @@ async function fetchCount(
   if (pending) return pending;
 
   const promise = (async () => {
-    const where: Record<string, unknown> = {};
+    // The data source convention across this codebase is `$filter` /
+    // `$top` (OData-ish). Earlier versions of this file used `where` /
+    // `limit` which most adapters silently ignored, so the probe ended
+    // up fetching the entire target table and returning its global
+    // count — completely wrong for parent-scoped badges.
+    const $filter: Record<string, unknown> = {};
     if (relField) {
       if (!parentId) return 0;
-      where[relField] = parentId;
+      $filter[relField] = parentId;
     }
     try {
-      const res: any = await probe(objectName, { where, limit: 1 });
+      const res: any = await probe(objectName, { $filter, $top: 1 });
       const total =
         typeof res?.total === 'number'
           ? res.total

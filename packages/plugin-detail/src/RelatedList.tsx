@@ -81,8 +81,17 @@ export interface RelatedListProps {
    * Foreign-key field name on child records pointing back to the parent.
    * The renderer hides this column from the table and from the schema-derived
    * column list, since the parent record is already implicit context.
+   * Used in combination with `parentId` to scope the auto-fetch query.
    */
   referenceField?: string;
+  /**
+   * Primary-key value of the parent record. When both `parentId` and
+   * `referenceField` are set, the auto-fetch query is scoped with
+   * `$filter: { [referenceField]: parentId }` so only true children
+   * are returned. Without this scope the list would dump the entire
+   * target object table.
+   */
+  parentId?: string | number;
   /** Lucide icon name (kebab-case) to render next to the section title. */
   icon?: string;
 }
@@ -123,6 +132,7 @@ export const RelatedList: React.FC<RelatedListProps> = ({
   collapsible = false,
   defaultCollapsed = false,
   referenceField,
+  parentId,
   icon,
 }) => {
   // Distinguish "caller did not provide data" (auto-fetch) from
@@ -167,9 +177,26 @@ export const RelatedList: React.FC<RelatedListProps> = ({
     // must NOT fall back to fetching all rows of the API (which would surface
     // unrelated data and confuse users).
     if (api && !dataProvided) {
+      // Bug guard: if we don't know how to scope the query to the current
+      // parent, the unfiltered fetch would dump the entire target object.
+      // Render an explicit empty state instead — better than wrong data.
+      const canScope = !!referenceField && parentId !== undefined && parentId !== null && parentId !== '';
+      if (!canScope) {
+        if (api && (parentId === undefined || parentId === null || parentId === '') && !referenceField) {
+          // Developer hint: only surface in console once per mount.
+          // eslint-disable-next-line no-console
+          console.warn(
+            `[RelatedList] "${api}" has no referenceField/parentId — refusing to fetch all rows. Pass relationshipField + parentId to scope the query.`,
+          );
+        }
+        setRelatedData([]);
+        setLoading(false);
+        return;
+      }
       setLoading(true);
+      const filter = { [referenceField!]: parentId } as Record<string, any>;
       if (dataSource && typeof dataSource.find === 'function') {
-        dataSource.find(api).then((result) => {
+        dataSource.find(api, { $filter: filter }).then((result) => {
           const items = Array.isArray(result)
             ? result
             : Array.isArray((result as any)?.data)
@@ -182,7 +209,10 @@ export const RelatedList: React.FC<RelatedListProps> = ({
           setLoading(false);
         });
       } else {
-        fetch(api)
+        const qs = new URLSearchParams({
+          [`filter[${referenceField}]`]: String(parentId),
+        }).toString();
+        fetch(`${api}?${qs}`)
           .then(res => res.json())
           .then(result => {
             const items = Array.isArray(result) ? result : (result?.data || []);
@@ -194,7 +224,7 @@ export const RelatedList: React.FC<RelatedListProps> = ({
           .finally(() => setLoading(false));
       }
     }
-  }, [api, dataProvided, dataSource]);
+  }, [api, dataProvided, dataSource, referenceField, parentId]);
 
   // Resolve lookup-field display labels by batch-fetching referenced records.
   // For each lookup/master_detail column whose data is a primitive ID, gather
