@@ -81,6 +81,20 @@ export type { SubscriptionToggleProps } from './SubscriptionToggle';
 export type { ReactionPickerProps } from './ReactionPicker';
 export type { ThreadedRepliesProps } from './ThreadedReplies';
 
+// Track 3 (convergence): pure-function synthesizers for the default
+// detail page. Phase G slice 1 — not yet wired into RecordDetailView.
+export {
+  buildDefaultPageSchema,
+  detectStatusField,
+  deriveStages,
+  deriveHighlightFields,
+} from './synth/buildDefaultPageSchema';
+export type {
+  ObjectDefLike,
+  ObjectFieldLike,
+  BuildPageOptions,
+} from './synth/buildDefaultPageSchema';
+
 // Register DetailView component
 ComponentRegistry.register('detail-view', DetailView, {
   namespace: 'plugin-detail',
