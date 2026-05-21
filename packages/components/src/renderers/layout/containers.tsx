@@ -354,33 +354,42 @@ const PageTabsRenderer: React.FC<any> = ({ schema, className, ...props }) => {
       className={cn(className, isVertical && 'flex gap-4 w-full')}
       {...designer}
     >
-      <TabsList className={listClass}>
-        {itemsWithValue.map((item) => (
-          <TabsTrigger key={item.value} value={item.value} className={triggerClass()}>
-            {item.icon && (
-              <LazyIcon
-                name={item.icon}
-                className="mr-1.5 h-3.5 w-3.5 shrink-0 opacity-70"
-                aria-hidden
-              />
-            )}
-            <span>{item.labelStr}</span>
-            {item.count !== undefined && item.count !== null && item.count !== '' && (
-              <span
-                className="ml-1.5 inline-flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-muted px-1 text-[10px] font-medium leading-none text-muted-foreground"
-                aria-label={`${formatTabCount(item.count)} items`}
-              >
-                {formatTabCount(item.count)}
-              </span>
-            )}
-          </TabsTrigger>
-        ))}
-      </TabsList>
+      {/* Hide the tab strip entirely when there's only one tab — a single
+          pill labelled "Details" is visual clutter rather than an
+          affordance. Authors who want the strip even at length 1 can pass
+          `properties.alwaysShowStrip: true`. */}
+      {(itemsWithValue.length > 1 || schema?.properties?.alwaysShowStrip === true) && (
+        <TabsList className={listClass}>
+          {itemsWithValue.map((item) => (
+            <TabsTrigger key={item.value} value={item.value} className={triggerClass()}>
+              {item.icon && (
+                <LazyIcon
+                  name={item.icon}
+                  className="mr-1.5 h-3.5 w-3.5 shrink-0 opacity-70"
+                  aria-hidden
+                />
+              )}
+              <span>{item.labelStr}</span>
+              {item.count !== undefined && item.count !== null && item.count !== '' && (
+                <span
+                  className="ml-1.5 inline-flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-muted px-1 text-[10px] font-medium leading-none text-muted-foreground"
+                  aria-label={`${formatTabCount(item.count)} items`}
+                >
+                  {formatTabCount(item.count)}
+                </span>
+              )}
+            </TabsTrigger>
+          ))}
+        </TabsList>
+      )}
       {itemsWithValue.map((item) => (
         <TabsContent
           key={item.value}
           value={item.value}
-          className={cn('mt-3', isVertical && 'mt-0 flex-1')}
+          className={cn(
+            itemsWithValue.length > 1 ? 'mt-3' : 'mt-0',
+            isVertical && 'mt-0 flex-1',
+          )}
         >
           {renderChildren(item.children)}
         </TabsContent>
@@ -569,11 +578,27 @@ const PageHeaderRenderer: React.FC<any> = ({ schema, className, ...props }) => {
     const objectLabel: string | undefined =
       labelText(objSchema?.label) || objSchema?.name || ctx!.objectName;
     const primaryField: string | undefined = objSchema?.primaryField;
+    // Honor objectSchema.titleFormat (e.g. `{first_name} {last_name}`).
+    // Mirrors DetailView.resolveDisplayTitle's behaviour so default and
+    // synthesized record pages produce the same title.
+    const rawTitleFormat: any = objSchema?.titleFormat;
+    const titleFormatStr: string | undefined =
+      typeof rawTitleFormat === 'string'
+        ? rawTitleFormat
+        : (rawTitleFormat && typeof rawTitleFormat === 'object' && typeof rawTitleFormat.source === 'string')
+          ? rawTitleFormat.source
+          : undefined;
+    const interpolatedTitleFormat = titleFormatStr
+      ? interpolate(titleFormatStr, data).trim()
+      : '';
     const resolvedTitle =
       explicitTitle ||
       (primaryField && data?.[primaryField]) ||
+      (interpolatedTitleFormat && !interpolatedTitleFormat.includes('{') ? interpolatedTitleFormat : '') ||
       data?.name ||
+      data?.full_name ||
       data?.title ||
+      data?.subject ||
       data?.display_name ||
       data?.label ||
       (objectLabel && data?.id ? `${objectLabel} ${String(data.id).slice(0, 8)}` : '') ||
