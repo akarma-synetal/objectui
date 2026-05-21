@@ -33,6 +33,7 @@ import {
 import { PreviewBanner, AuthProvider } from '@object-ui/auth';
 
 import { AppContent } from './AppContent';
+import { PublicFormPage } from './pages/PublicFormPage';
 
 // Dev-only auth bypass: opt-in via VITE_DEV_AUTH_BYPASS=true to skip the
 // login flow when iterating locally. Production builds always go through
@@ -65,6 +66,20 @@ export function App() {
         <ConsoleShell>
           <ConsoleToaster position="bottom-right" />
           <Routes>
+              {/*
+               * Public anonymous form routes — rendered OUTSIDE
+               * AuthenticatedRoute so unauthenticated visitors can submit.
+               * The slug maps 1:1 to a framework FormView whose
+               * `sharing.publicLink === "/forms/{slug}"` and
+               * `sharing.allowAnonymous === true`.
+               *
+               * Two URL shapes are accepted:
+               *   /f/:slug      — short URL, recommended
+               *   /forms/:slug  — matches the value stored in
+               *                   `sharing.publicLink` on the framework side
+               */}
+              <Route path="/f/:slug" element={<PublicFormPage />} />
+              <Route path="/forms/:slug" element={<PublicFormPage />} />
               <Route path="/login" element={<DefaultLoginPage />} />
               <Route path="/register" element={<DefaultRegisterPage />} />
               <Route path="/forgot-password" element={<DefaultForgotPasswordPage />} />
