@@ -106,7 +106,7 @@ export function ForgotPasswordForm({
     emailLabel: labels.emailLabel ?? 'Email',
     emailPlaceholder: labels.emailPlaceholder ?? 'name@example.com',
     submitButton: labels.submitButton ?? 'Send Reset Link',
-    submittingButton: labels.submittingButton ?? 'Sending...',
+    submittingButton: labels.submittingButton ?? 'Sending…',
     successTitle: labels.successTitle ?? 'Check your email',
     successDescription:
       labels.successDescription ??

@@ -109,6 +109,7 @@ export function LoginForm({
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [hasSocialProviders, setHasSocialProviders] = useState(false);
 
   const l = {
     emailLabel: labels.emailLabel ?? 'Email',
@@ -117,7 +118,7 @@ export function LoginForm({
     passwordPlaceholder: labels.passwordPlaceholder ?? 'Enter your password',
     forgotPasswordText: labels.forgotPasswordText ?? 'Forgot password?',
     submitButton: labels.submitButton ?? 'Sign In',
-    submittingButton: labels.submittingButton ?? 'Signing in...',
+    submittingButton: labels.submittingButton ?? 'Signing in…',
     noAccountText: labels.noAccountText ?? "Don't have an account?",
     signUpText: labels.signUpText ?? 'Sign up',
     orText: labels.orText ?? 'or',
@@ -146,14 +147,10 @@ export function LoginForm({
       />
 
       <div className="space-y-5">
-        <SocialSignInButtons mode="sign-in" />
+        <SocialSignInButtons mode="sign-in" onProvidersResolved={(hasProviders) => setHasSocialProviders(hasProviders)} />
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Render divider only when there are social buttons above.
-              SocialSignInButtons renders null if no providers, but we can't
-              know that synchronously. Showing the divider is harmless when
-              there are no social buttons because the form is still readable. */}
-          <AuthDivider label={l.orText} />
+          {hasSocialProviders && <AuthDivider label={l.orText} />}
 
           {error && <AuthErrorBanner message={error} />}
 

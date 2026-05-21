@@ -43,6 +43,7 @@
     "@object-ui/layout": "workspace:*",
     "@object-ui/mobile": "workspace:*",
     "@object-ui/permissions": "workspace:*",
+    "@object-ui/providers": "workspace:*",
     "@object-ui/plugin-calendar": "workspace:*",
     "@object-ui/plugin-charts": "workspace:*",
     "@object-ui/plugin-chatbot": "workspace:*",

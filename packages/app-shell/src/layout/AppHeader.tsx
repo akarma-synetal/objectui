@@ -496,7 +496,7 @@ export function AppHeader({
                   <PathSep />
                   {seg.siblings && seg.siblings.length > 1 ? (
                     <DropdownMenu>
-                      <DropdownMenuTrigger className={`flex items-center gap-1 rounded-md px-1.5 py-1 text-sm font-medium transition-colors outline-none hover:bg-accent hover:text-foreground ${!isLast ? 'text-foreground/60' : 'text-foreground/80'}`}>
+                      <DropdownMenuTrigger className={`flex items-center gap-1 rounded-md px-1.5 py-1 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring hover:bg-accent hover:text-foreground ${!isLast ? 'text-foreground/60' : 'text-foreground/80'}`}>
                         {seg.label}
                         <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
                       </DropdownMenuTrigger>
@@ -615,7 +615,7 @@ export function AppHeader({
           >
             <Search className="h-3.5 w-3.5 shrink-0" />
             <span className="flex-1 text-left text-xs">
-              {t('console.search', { defaultValue: 'Search...' })}
+              {t('console.search', { defaultValue: 'Search…' })}
             </span>
             <kbd className="pointer-events-none inline-flex h-5 items-center gap-0.5 rounded border bg-background px-1.5 text-[10px] font-medium text-muted-foreground">
               <span className="text-xs">⌘</span>K
@@ -628,7 +628,7 @@ export function AppHeader({
             size="icon"
             className="lg:hidden h-8 w-8 shrink-0"
             onClick={() => document.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', metaKey: true }))}
-            aria-label={t('console.search', { defaultValue: 'Search...' })}
+            aria-label={t('console.search', { defaultValue: 'Search…' })}
           >
             <Search className="h-4 w-4" />
           </Button>

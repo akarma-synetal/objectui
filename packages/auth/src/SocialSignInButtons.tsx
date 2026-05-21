@@ -96,6 +96,8 @@ export interface SocialSignInButtonsProps {
   errorCallbackURL?: string;
   /** Divider text shown between social buttons and the email form */
   dividerText?: string;
+  /** Called once after config resolves with whether any social providers are available. */
+  onProvidersResolved?: (hasProviders: boolean) => void;
 }
 
 /**
@@ -110,6 +112,7 @@ export function SocialSignInButtons({
   callbackURL,
   errorCallbackURL,
   dividerText = 'or continue with email',
+  onProvidersResolved,
 }: SocialSignInButtonsProps) {
   const { getAuthConfig, signInWithProvider } = useAuth();
   const [providers, setProviders] = useState<AuthSocialProvider[]>([]);
@@ -125,12 +128,15 @@ export function SocialSignInButtons({
       .then((config) => {
         if (cancelled) return;
         const list = config?.socialProviders ?? [];
-        setProviders(list.filter((p) => p.enabled));
+        const enabled = list.filter((p) => p.enabled);
+        setProviders(enabled);
+        onProvidersResolved?.(enabled.length > 0);
       })
       .catch((err: unknown) => {
         if (cancelled) return;
         // Don't surface as a hard error — providers are an enhancement, not required.
         console.warn('[SocialSignInButtons] failed to load auth config', err);
+        onProvidersResolved?.(false);
       })
       .finally(() => {
         if (!cancelled) setLoading(false);

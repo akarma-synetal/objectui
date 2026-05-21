@@ -74,7 +74,7 @@ export function QuickActions() {
               key={action.id}
               className={cn(
                 'group cursor-pointer border border-border/70 bg-card/80 backdrop-blur-sm',
-                'transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md',
+                'transition-[transform,box-shadow,border-color] duration-200 hover:-translate-y-0.5 hover:shadow-md motion-reduce:transition-none motion-reduce:hover:transform-none',
                 action.hoverBorder,
               )}
               onClick={() => navigate(action.href)}
@@ -97,7 +97,7 @@ export function QuickActions() {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-1.5">
                       <h3 className="font-semibold text-base leading-tight">{action.label}</h3>
-                      <ArrowUpRight className="h-4 w-4 text-muted-foreground opacity-0 -translate-x-1 transition-all duration-200 group-hover:opacity-100 group-hover:translate-x-0" />
+                      <ArrowUpRight className="h-4 w-4 text-muted-foreground opacity-0 -translate-x-1 transition-[opacity,transform] duration-200 group-hover:opacity-100 group-hover:translate-x-0" />
                     </div>
                     <p className="text-sm text-muted-foreground mt-1">{action.description}</p>
                   </div>

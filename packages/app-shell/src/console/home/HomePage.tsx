@@ -105,7 +105,7 @@ export function HomePage() {
   if (loading) {
     return (
       <div className="flex flex-1 items-center justify-center py-20">
-        <div className="text-muted-foreground">{t('home.loading', { defaultValue: 'Loading workspace...' })}</div>
+        <div className="text-muted-foreground">{t('home.loading', { defaultValue: 'Loading workspace…' })}</div>
       </div>
     );
   }
@@ -153,7 +153,7 @@ export function HomePage() {
             <Sparkles className="h-3.5 w-3.5 text-primary" />
             <span className="uppercase tracking-wider">{t('home.title', { defaultValue: 'Home' })}</span>
           </div>
-          <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold tracking-tight">
+          <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold tracking-tight text-pretty">
             <span className="bg-gradient-to-r from-foreground via-foreground to-foreground/70 bg-clip-text text-transparent">
               {greeting}
               {displayName ? `, ${displayName}` : ''}

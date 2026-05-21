@@ -61,12 +61,23 @@ export function AppCard({ app, onClick, isFavorite, index = 0 }: AppCardProps) {
 
   return (
     <Card
+      role="button"
+      tabIndex={0}
+      aria-label={label}
       className={cn(
         'group relative cursor-pointer overflow-hidden border border-border/70 bg-card/80 backdrop-blur-sm',
-        'transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg',
+        'transition-[transform,box-shadow,border-color] duration-200 hover:-translate-y-0.5 hover:shadow-lg',
+        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
+        'motion-reduce:transition-none motion-reduce:hover:transform-none',
         !primaryColor && accent.ring,
       )}
       onClick={onClick}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          onClick();
+        }
+      }}
       data-testid={`app-card-${app.name}`}
       style={primaryColor ? { borderColor: undefined } : undefined}
     >

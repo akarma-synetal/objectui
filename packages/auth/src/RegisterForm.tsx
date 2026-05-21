@@ -114,6 +114,7 @@ export function RegisterForm({
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [hasSocialProviders, setHasSocialProviders] = useState(false);
 
   const l = {
     nameLabel: labels.nameLabel ?? 'Name',
@@ -127,7 +128,7 @@ export function RegisterForm({
     passwordMismatchError: labels.passwordMismatchError ?? 'Passwords do not match',
     passwordTooShortError: labels.passwordTooShortError ?? 'Password must be at least 8 characters',
     submitButton: labels.submitButton ?? 'Create Account',
-    submittingButton: labels.submittingButton ?? 'Creating account...',
+    submittingButton: labels.submittingButton ?? 'Creating account…',
     hasAccountText: labels.hasAccountText ?? 'Already have an account?',
     signInText: labels.signInText ?? 'Sign in',
     orText: labels.orText ?? 'or',
@@ -166,10 +167,10 @@ export function RegisterForm({
       />
 
       <div className="space-y-5">
-        <SocialSignInButtons mode="sign-up" />
+        <SocialSignInButtons mode="sign-up" onProvidersResolved={(has) => setHasSocialProviders(has)} />
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          <AuthDivider label={l.orText} />
+          {hasSocialProviders && <AuthDivider label={l.orText} />}
 
           {error && <AuthErrorBanner message={error} />}
 

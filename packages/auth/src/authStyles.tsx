@@ -20,7 +20,7 @@ export const AUTH_INPUT_CLASS =
   'flex h-11 w-full rounded-lg border border-input bg-background px-3.5 py-2 text-sm shadow-sm ring-offset-background transition-colors placeholder:text-muted-foreground hover:border-primary/40 focus-visible:border-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 focus-visible:ring-offset-1 disabled:cursor-not-allowed disabled:opacity-50';
 
 export const AUTH_PRIMARY_BUTTON_CLASS =
-  'inline-flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-primary to-primary/85 px-4 py-2 text-sm font-medium text-primary-foreground shadow-sm ring-offset-background transition-all hover:shadow-md hover:from-primary hover:to-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-offset-2 active:scale-[0.99] disabled:pointer-events-none disabled:opacity-60';
+  'inline-flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-primary to-primary/85 px-4 py-2 text-sm font-medium text-primary-foreground shadow-sm ring-offset-background transition-[box-shadow,background-color,transform] hover:shadow-md hover:from-primary hover:to-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-offset-2 active:scale-[0.99] disabled:pointer-events-none disabled:opacity-60 motion-reduce:transition-none motion-reduce:active:transform-none';
 
 export const AUTH_FIELD_LABEL_CLASS = 'text-sm font-medium leading-none text-foreground';
 

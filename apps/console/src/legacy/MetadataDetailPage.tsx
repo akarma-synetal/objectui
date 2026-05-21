@@ -282,7 +282,7 @@ export function MetadataDetailPage() {
           </div>
           <div className="min-w-0">
             <h1 className="text-xl sm:text-2xl font-bold tracking-tight">
-              {loading ? 'Loading...' : String(item?.label ?? item?.name ?? itemName)}
+              {loading ? 'Loading…' : String(item?.label ?? item?.name ?? itemName)}
             </h1>
             <p className="text-sm text-muted-foreground mt-1">{config.label} Details</p>
           </div>
@@ -305,7 +305,7 @@ export function MetadataDetailPage() {
       {loading && (
         <div className="flex items-center gap-2 text-sm text-muted-foreground" role="status" aria-live="polite" data-testid="detail-loading">
           <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
-          Loading...
+          Loading…
         </div>
       )}
 

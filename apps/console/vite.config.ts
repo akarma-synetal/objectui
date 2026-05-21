@@ -67,6 +67,7 @@ const workspaceAliases: Record<string, string> = {
   '@object-ui/data-objectstack': path.resolve(__dirname, '../../packages/data-objectstack/src'),
   '@object-ui/auth': path.resolve(__dirname, '../../packages/auth/src'),
   '@object-ui/permissions': path.resolve(__dirname, '../../packages/permissions/src'),
+  '@object-ui/providers': path.resolve(__dirname, '../../packages/providers/src'),
   '@object-ui/collaboration': path.resolve(__dirname, '../../packages/collaboration/src'),
   '@object-ui/tenant': path.resolve(__dirname, '../../packages/tenant/src'),
   '@object-ui/i18n': path.resolve(__dirname, '../../packages/i18n/src'),

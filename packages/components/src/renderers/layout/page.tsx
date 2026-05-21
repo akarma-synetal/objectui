@@ -353,6 +353,10 @@ export const PageRenderer: React.FC<{
     'data-obj-id': dataObjId,
     'data-obj-type': dataObjType,
     style,
+    pageType: _pageTypeProp,
+    schema: _schemaProp,
+    regions: _regionsProp,
+    template: _templateProp,
     ...pageProps
   } = props;
 

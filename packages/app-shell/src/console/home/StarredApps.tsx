@@ -48,7 +48,7 @@ export function StarredApps({ items }: StarredAppsProps) {
           return (
             <Card
               key={item.id}
-              className="group cursor-pointer border border-border/70 bg-card/80 backdrop-blur-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md hover:border-foreground/20"
+              className="group cursor-pointer border border-border/70 bg-card/80 backdrop-blur-sm transition-[transform,box-shadow,border-color] duration-200 hover:-translate-y-0.5 hover:shadow-md hover:border-foreground/20 motion-reduce:transition-none motion-reduce:hover:transform-none"
               onClick={() => navigate(item.href)}
               data-testid={`starred-item-${item.id}`}
               role="link"
@@ -69,7 +69,7 @@ export function StarredApps({ items }: StarredAppsProps) {
                     <h3 className="font-medium text-sm truncate">{item.label}</h3>
                     <p className="text-xs text-muted-foreground">{capitalizeFirst(item.type)}</p>
                   </div>
-                  <ArrowUpRight className="h-4 w-4 text-muted-foreground opacity-0 -translate-x-1 transition-all duration-200 group-hover:opacity-100 group-hover:translate-x-0" />
+                  <ArrowUpRight className="h-4 w-4 text-muted-foreground opacity-0 -translate-x-1 transition-[opacity,transform] duration-200 group-hover:opacity-100 group-hover:translate-x-0" />
                 </div>
               </CardContent>
             </Card>

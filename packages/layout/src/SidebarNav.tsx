@@ -105,7 +105,7 @@ function NavItemRenderer({ item, pathname }: { item: NavItem; pathname: string }
   );
 }
 
-export function SidebarNav({ items, title = "Application", className, collapsible = "icon", searchEnabled = false, searchPlaceholder = "Search..." }: SidebarNavProps) {
+export function SidebarNav({ items, title = "Application", className, collapsible = "icon", searchEnabled = false, searchPlaceholder = "Search…" }: SidebarNavProps) {
   const location = useLocation();
   const [search, setSearch] = React.useState('');
 

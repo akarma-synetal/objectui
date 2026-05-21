@@ -211,7 +211,7 @@ export function ProfilePage() {
             </div>
 
             <Button type="submit" disabled={isLoading} className="w-full sm:w-auto">
-              {isLoading ? 'Saving...' : 'Save Changes'}
+              {isLoading ? 'Saving…' : 'Save Changes'}
             </Button>
           </form>
         </CardContent>
