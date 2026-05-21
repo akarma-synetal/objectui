@@ -572,7 +572,9 @@ export const RelatedList: React.FC<RelatedListProps> = ({
                 : (<ChevronDown className="h-3.5 w-3.5 text-muted-foreground shrink-0" />)
             )}
             <SectionIcon className="h-4 w-4 text-muted-foreground shrink-0" aria-hidden />
-            <span className="truncate">{title}</span>
+            <span className={cn('truncate', isEmpty && 'text-muted-foreground font-medium')}>
+              {title}
+            </span>
             <Badge
               variant="secondary"
               className={cn(
@@ -583,11 +585,16 @@ export const RelatedList: React.FC<RelatedListProps> = ({
             >
               {relatedData.length}
             </Badge>
+            {isEmpty && (
+              <span className="text-xs text-muted-foreground/70 italic ml-1 truncate">
+                {t('detail.noRelatedRecords')}
+              </span>
+            )}
           </div>
           <div className="flex items-center gap-1 shrink-0">
             {onNew && (
               <Button
-                variant="outline"
+                variant={isEmpty ? 'ghost' : 'outline'}
                 size="sm"
                 onClick={(e) => { e.stopPropagation(); onNew(); }}
                 className="gap-1 h-9 sm:h-7 text-xs shadow-none"
@@ -599,7 +606,7 @@ export const RelatedList: React.FC<RelatedListProps> = ({
           </div>
         </CardTitle>
       </CardHeader>
-      {!collapsed && <CardContent className={cn('pt-0', isEmpty ? 'pb-3 px-4' : 'pb-4 px-4')}>
+      {!collapsed && !isEmpty && <CardContent className={cn('pt-0 pb-4 px-4')}>
         {/* Filter bar — only when records justify it */}
         {showFilterInput && (
           <div className="mb-3">
@@ -640,27 +647,6 @@ export const RelatedList: React.FC<RelatedListProps> = ({
         {loading ? (
           <div className="flex items-center justify-center py-6 text-muted-foreground text-sm">
             {t('detail.loading')}
-          </div>
-        ) : isEmpty ? (
-          // Friendly empty state. When `onNew` is available, surface a
-          // prominent CTA so users can create the first related record in
-          // one click (HubSpot / Linear pattern).
-          <div className="flex flex-col items-center justify-center gap-2 py-6 text-sm">
-            <SectionIcon className="h-8 w-8 text-muted-foreground/40" aria-hidden />
-            <span className="text-muted-foreground italic">
-              {t('detail.noRelatedRecords')}
-            </span>
-            {onNew && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={onNew}
-                className="gap-1 h-7 text-xs mt-1"
-              >
-                <Plus className="h-3.5 w-3.5" />
-                {t('detail.new')}
-              </Button>
-            )}
           </div>
         ) : (
           <SchemaRenderer schema={viewSchema} />
