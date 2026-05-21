@@ -15,6 +15,100 @@
 
 import React from 'react';
 
+/**
+ * Shared registry of field names currently surfaced by `record:highlights`
+ * on the page. Populated by RecordHighlightsRenderer, consumed by
+ * RecordDetailsRenderer for highlight↔body dedup.
+ *
+ * Lives in a separate context so highlight registration doesn't invalidate
+ * the main RecordContext consumers.
+ */
+interface HighlightRegistry {
+  getNames: () => ReadonlySet<string>;
+  subscribe: (listener: () => void) => () => void;
+  register: (instanceId: string, names: string[]) => void;
+  unregister: (instanceId: string) => void;
+}
+
+const HighlightFieldsContext = React.createContext<HighlightRegistry | null>(null);
+
+export const HighlightFieldsProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const registry = React.useMemo<HighlightRegistry>(() => {
+    const map = new Map<string, string[]>();
+    let names: ReadonlySet<string> = EMPTY_SET;
+    const listeners = new Set<() => void>();
+    const recompute = () => {
+      const next = new Set<string>();
+      for (const list of map.values()) for (const n of list) next.add(n);
+      // Skip notify if shallow-equal to previous (avoid spurious updates).
+      if (next.size === names.size) {
+        let same = true;
+        for (const n of next) if (!names.has(n)) { same = false; break; }
+        if (same) return;
+      }
+      names = next;
+      listeners.forEach((l) => l());
+    };
+    return {
+      getNames: () => names,
+      subscribe: (l) => {
+        listeners.add(l);
+        return () => { listeners.delete(l); };
+      },
+      register: (id, list) => {
+        const prev = map.get(id);
+        if (
+          prev &&
+          prev.length === list.length &&
+          prev.every((n, i) => n === list[i])
+        ) {
+          return;
+        }
+        map.set(id, [...list]);
+        recompute();
+      },
+      unregister: (id) => {
+        if (map.delete(id)) recompute();
+      },
+    };
+  }, []);
+
+  return (
+    <HighlightFieldsContext.Provider value={registry}>
+      {children}
+    </HighlightFieldsContext.Provider>
+  );
+};
+
+/** Subscribe to the live highlight-field set. Empty when no provider. */
+export function useHighlightFieldNames(): ReadonlySet<string> {
+  const ctx = React.useContext(HighlightFieldsContext);
+  return React.useSyncExternalStore(
+    ctx ? ctx.subscribe : NOOP_SUBSCRIBE,
+    ctx ? ctx.getNames : GET_EMPTY,
+    ctx ? ctx.getNames : GET_EMPTY,
+  );
+}
+
+/**
+ * Register a list of field names as currently surfaced by a
+ * `record:highlights` instance. Re-registers when the joined name list
+ * changes; unregisters on unmount.
+ */
+export function useRegisterHighlightFields(instanceId: string, names: string[]): void {
+  const ctx = React.useContext(HighlightFieldsContext);
+  const key = names.join('|');
+  React.useEffect(() => {
+    if (!ctx) return;
+    ctx.register(instanceId, key.length === 0 ? [] : key.split('|'));
+    return () => ctx.unregister(instanceId);
+  }, [ctx, instanceId, key]);
+}
+
+const NOOP_SUBSCRIBE = (_: () => void) => () => {};
+const GET_EMPTY: () => ReadonlySet<string> = () => EMPTY_SET;
+const EMPTY_SET: ReadonlySet<string> = new Set<string>();
+
 export interface RecordContextValue<TData = any, TObjectSchema = any> {
   /** Object machine name, e.g. "crm_opportunity". */
   objectName: string;

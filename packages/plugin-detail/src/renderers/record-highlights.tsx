@@ -11,7 +11,7 @@
  */
 
 import React from 'react';
-import { useRecordContext } from '@object-ui/react';
+import { useRecordContext, useRegisterHighlightFields } from '@object-ui/react';
 import { useFieldPermissions, usePermissions } from '@object-ui/permissions';
 import type { RecordHighlightsComponentProps } from '@object-ui/types';
 import { HeaderHighlight } from '../HeaderHighlight';
@@ -79,6 +79,16 @@ export const RecordHighlightsRenderer: React.FC<RecordHighlightsRendererProps> =
     if (allowedNames && !allowedNames.has(f.name)) return false;
     return true;
   });
+
+  // Phase N.4b: register the rendered highlight field names into the
+  // shared HighlightFieldsContext so RecordDetailsRenderer can drop the
+  // same fields from its body grid even for hand-authored Lightning
+  // pages (where the synth-time `hideFields` plumbing doesn't apply).
+  const instanceId = React.useId();
+  useRegisterHighlightFields(
+    instanceId,
+    highlightFields.map((f) => f.name),
+  );
 
   return (
     <div className={className} {...designer}>

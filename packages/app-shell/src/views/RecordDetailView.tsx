@@ -12,7 +12,7 @@ import { DetailView, RecordChatterPanel, buildDefaultPageSchema } from '@object-
 import { Empty, EmptyTitle, EmptyDescription } from '@object-ui/components';
 import { PresenceAvatars, type PresenceUser } from '@object-ui/collaboration';
 import { useAuth, createAuthenticatedFetch } from '@object-ui/auth';
-import { ActionProvider, useObjectTranslation, useObjectLabel, usePageAssignment, RecordContextProvider, SchemaRenderer, DiscussionContextProvider } from '@object-ui/react';
+import { ActionProvider, useObjectTranslation, useObjectLabel, usePageAssignment, RecordContextProvider, SchemaRenderer, DiscussionContextProvider, HighlightFieldsProvider } from '@object-ui/react';
 import { buildExpandFields } from '@object-ui/core';
 import { toast } from 'sonner';
 import { Database, Users } from 'lucide-react';
@@ -1276,6 +1276,7 @@ export function RecordDetailView({ dataSource, objects, onEdit, objectNameOverri
           embedded={embedded}
           headerSystemActions={synthSystemActions}
         >
+          <HighlightFieldsProvider>
           <DiscussionContextProvider
             items={feedItems as any}
             onAddComment={handleAddComment as any}
@@ -1324,6 +1325,7 @@ export function RecordDetailView({ dataSource, objects, onEdit, objectNameOverri
             </div>
           </ActionProvider>
           </DiscussionContextProvider>
+          </HighlightFieldsProvider>
         </RecordContextProvider>
 
         {/* Action Confirm Dialog */}

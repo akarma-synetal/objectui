@@ -11,7 +11,7 @@
  */
 
 import React from 'react';
-import { useRecordContext } from '@object-ui/react';
+import { useRecordContext, useHighlightFieldNames } from '@object-ui/react';
 import { useFieldPermissions, usePermissions } from '@object-ui/permissions';
 import type { RecordDetailsComponentProps } from '@object-ui/types';
 import { DetailView } from '../DetailView';
@@ -117,11 +117,17 @@ export const RecordDetailsRenderer: React.FC<RecordDetailsRendererProps> = ({
   // field in `record:highlights` we drop it from the details grid so it
   // isn't shown twice. The synth pipeline passes the highlight list via
   // `hideFields`; authors can also set it directly on the schema.
-  const hideFieldNames = new Set(
+  // Phase N.4b: also merge in any field names registered live by a
+  // mounted `record:highlights` instance via HighlightFieldsContext.
+  // Covers hand-authored Lightning pages that don't go through the
+  // synth dedup path.
+  const liveHighlightNames = useHighlightFieldNames();
+  const hideFieldNames = new Set<string>(
     (Array.isArray((schema as any).hideFields) ? (schema as any).hideFields : [])
       .map((n: any) => (typeof n === 'string' ? n : fieldName(n)))
       .filter((n: any): n is string => !!n),
   );
+  for (const n of liveHighlightNames) hideFieldNames.add(n);
   const dropHidden = (list: any[] | undefined): any[] | undefined => {
     if (!list || hideFieldNames.size === 0) return list;
     return list.filter((e) => {
