@@ -2,36 +2,45 @@
  * ObjectStack-backed `UserDataAdapter` factory.
  *
  * Persists arbitrary per-user UI state (favorites, recently-accessed items, …)
- * as a single JSON blob per `(user_id, kind)` row in an object named
- * `user_app_state`. The single-blob approach keeps round-trips down (one
- * `find` + one `update`/`create` per change) and matches the
- * "save the full list" semantics of `FavoritesProvider` / `RecentItemsProvider`.
+ * as a single JSON blob per `(user_id, key)` row in the **unified per-user
+ * KV store** — the `sys_user_preference` object shipped by every
+ * `@objectstack/plugin-auth`-enabled environment.
  *
- * ## Required object schema
+ * Using the existing `sys_user_preference` table (rather than a parallel
+ * `user_app_state` table) keeps things consistent with the platform's
+ * "one KV store per scope" pattern:
  *
- * Configure an object in ObjectStack with at least the following fields:
+ *   - `sys_setting`         ← tenant / env scope
+ *   - `sys_user_preference` ← per-user scope  ← we live here
+ *
+ * Callers are encouraged to namespace their keys (e.g. `ui.favorites`,
+ * `ui.recent`, `ui.grid.account.state`) so explicit settings (`theme`,
+ * `locale`) and machine-written UI traces stay easy to tell apart.
+ *
+ * ## Schema this adapter expects
+ *
+ * The canonical `sys_user_preference` schema (from
+ * `@objectstack/platform-objects`):
  *
  * ```yaml
- * object: user_app_state
+ * object: sys_user_preference
  * fields:
- *   user_id:    string   # indexed
- *   kind:       string   # indexed  (e.g. "favorites" | "recent")
- *   payload:    json     # the serialised list
- *   updated_at: datetime # (optional) auto-managed
- * unique: [user_id, kind]
+ *   user_id:    lookup(sys_user)  # indexed
+ *   key:        string            # indexed  (e.g. "ui.favorites")
+ *   value:      json              # the serialised list
+ *   updated_at: datetime          # auto-managed
+ * unique: [user_id, key]
  * ```
  *
  * ## Failure modes
  *
- * The adapter is designed to **degrade silently**. Any error — missing schema,
- * 4xx/5xx, network — is caught:
+ * The adapter is designed to **degrade silently**. Any error — missing
+ * schema, 4xx/5xx, network — is caught:
  *
  * - `load()` returns `[]`, so the hosting provider keeps its localStorage state.
  * - `save()` resolves without throwing, so UI mutations never surface a toast.
  *
- * This means an OSS user who hasn't yet provisioned the `user_app_state`
- * object still gets a perfectly working (localStorage-only) favorites /
- * recent-items experience. As soon as the object exists, persistence
+ * As soon as the backend supports `sys_user_preference`, persistence
  * "lights up" with no code change.
  *
  * @module
@@ -44,9 +53,13 @@ export interface ObjectStackUserStateAdapterOptions {
   dataSource: DataSource<any>;
   /** Authenticated user id. */
   userId: string;
-  /** Logical bucket key, e.g. `"favorites"` or `"recent"`. */
-  kind: string;
-  /** Override the storage object name. Defaults to `"user_app_state"`. */
+  /**
+   * Storage key. Should be a dotted, namespaced string so UI traces
+   * don't collide with user-facing preferences. Examples:
+   * `ui.favorites`, `ui.recent`, `ui.grid.account.state`.
+   */
+  key: string;
+  /** Override the storage object name. Defaults to `"sys_user_preference"`. */
   resource?: string;
   /**
    * Optional console logger for development diagnostics. Defaults to noop so
@@ -60,21 +73,21 @@ export interface UserDataAdapter<T> {
   save(items: T[]): Promise<void>;
 }
 
-interface UserStateRecord {
+interface UserPreferenceRecord {
   id?: string | number;
   user_id: string;
-  kind: string;
-  payload: unknown;
+  key: string;
+  value: unknown;
   updated_at?: string;
 }
 
-const DEFAULT_RESOURCE = 'user_app_state';
+const DEFAULT_RESOURCE = 'sys_user_preference';
 
 /**
  * Build a `UserDataAdapter<T>` backed by ObjectStack.
  *
- * Each adapter instance is bound to a single `(user, kind)` pair; create one
- * per slot you want to persist.
+ * Each adapter instance is bound to a single `(user, key)` pair; create
+ * one per slot you want to persist.
  */
 export function createObjectStackUserStateAdapter<T = unknown>(
   options: ObjectStackUserStateAdapterOptions,
@@ -82,7 +95,7 @@ export function createObjectStackUserStateAdapter<T = unknown>(
   const {
     dataSource,
     userId,
-    kind,
+    key,
     resource = DEFAULT_RESOURCE,
     onError = () => {},
   } = options;
@@ -91,25 +104,25 @@ export function createObjectStackUserStateAdapter<T = unknown>(
   // without re-querying. Reset on every successful load.
   let cachedRowId: string | number | null = null;
 
-  const findExisting = async (): Promise<UserStateRecord | null> => {
+  const findExisting = async (): Promise<UserPreferenceRecord | null> => {
     const params: QueryParams = {
       filter: {
         user_id: userId,
-        kind,
+        key,
       },
       limit: 1,
     };
     const result = await dataSource.find(resource, params);
-    const rows = (result?.data ?? []) as UserStateRecord[];
+    const rows = (result?.data ?? []) as UserPreferenceRecord[];
     return rows.length > 0 ? rows[0] : null;
   };
 
-  const decodePayload = (payload: unknown): T[] => {
+  const decodeValue = (value: unknown): T[] => {
     // The server may return the JSON column already parsed, or as a string.
-    if (Array.isArray(payload)) return payload as T[];
-    if (typeof payload === 'string') {
+    if (Array.isArray(value)) return value as T[];
+    if (typeof value === 'string') {
       try {
-        const parsed = JSON.parse(payload);
+        const parsed = JSON.parse(value);
         return Array.isArray(parsed) ? (parsed as T[]) : [];
       } catch {
         return [];
@@ -127,7 +140,7 @@ export function createObjectStackUserStateAdapter<T = unknown>(
           return [];
         }
         if (row.id !== undefined && row.id !== null) cachedRowId = row.id;
-        return decodePayload(row.payload);
+        return decodeValue(row.value);
       } catch (error) {
         onError('load', error);
         return [];
@@ -141,7 +154,7 @@ export function createObjectStackUserStateAdapter<T = unknown>(
         if (cachedRowId !== null) {
           try {
             await dataSource.update(resource, cachedRowId, {
-              payload: items,
+              value: items,
               updated_at: now,
             });
             return;
@@ -156,7 +169,7 @@ export function createObjectStackUserStateAdapter<T = unknown>(
         if (existing && existing.id !== undefined && existing.id !== null) {
           cachedRowId = existing.id;
           await dataSource.update(resource, existing.id, {
-            payload: items,
+            value: items,
             updated_at: now,
           });
           return;
@@ -164,11 +177,11 @@ export function createObjectStackUserStateAdapter<T = unknown>(
 
         const created = await dataSource.create(resource, {
           user_id: userId,
-          kind,
-          payload: items,
+          key,
+          value: items,
           updated_at: now,
         });
-        const newId = (created as UserStateRecord | undefined)?.id;
+        const newId = (created as UserPreferenceRecord | undefined)?.id;
         if (newId !== undefined && newId !== null) cachedRowId = newId;
       } catch (error) {
         onError('save', error);

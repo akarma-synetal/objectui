@@ -27,67 +27,67 @@ describe('createObjectStackUserStateAdapter', () => {
   });
 
   describe('load', () => {
-    it('returns [] when no row exists for the (user, kind) pair', async () => {
+    it('returns [] when no row exists for the (user, key) pair', async () => {
       const ds = mockDataSource();
       const adapter = createObjectStackUserStateAdapter({
         dataSource: ds,
         userId: 'u1',
-        kind: 'favorites',
+        key: 'ui.favorites',
       });
 
       const items = await adapter.load();
 
       expect(items).toEqual([]);
-      expect(ds.find).toHaveBeenCalledWith('user_app_state', {
-        filter: { user_id: 'u1', kind: 'favorites' },
+      expect(ds.find).toHaveBeenCalledWith('sys_user_preference', {
+        filter: { user_id: 'u1', key: 'ui.favorites' },
         limit: 1,
       });
     });
 
-    it('returns parsed payload when row exists (array payload)', async () => {
-      const payload = [{ id: 'object:contact', label: 'Contact' }];
+    it('returns parsed value when row exists (array value)', async () => {
+      const value = [{ id: 'object:contact', label: 'Contact' }];
       const ds = mockDataSource({
         find: vi.fn().mockResolvedValue({
-          data: [{ id: 'row-1', user_id: 'u1', kind: 'recent', payload }],
+          data: [{ id: 'row-1', user_id: 'u1', key: 'ui.recent', value }],
         }) as any,
       });
 
       const adapter = createObjectStackUserStateAdapter({
         dataSource: ds,
         userId: 'u1',
-        kind: 'recent',
+        key: 'ui.recent',
       });
 
-      await expect(adapter.load()).resolves.toEqual(payload);
+      await expect(adapter.load()).resolves.toEqual(value);
     });
 
-    it('parses string-encoded JSON payloads', async () => {
+    it('parses string-encoded JSON values', async () => {
       const items = [{ id: 'a' }, { id: 'b' }];
       const ds = mockDataSource({
         find: vi.fn().mockResolvedValue({
-          data: [{ id: 1, payload: JSON.stringify(items) }],
+          data: [{ id: 1, value: JSON.stringify(items) }],
         }) as any,
       });
 
       const adapter = createObjectStackUserStateAdapter({
         dataSource: ds,
         userId: 'u',
-        kind: 'k',
+        key: 'k',
       });
 
       await expect(adapter.load()).resolves.toEqual(items);
     });
 
-    it('returns [] when payload is malformed JSON', async () => {
+    it('returns [] when value is malformed JSON', async () => {
       const ds = mockDataSource({
         find: vi.fn().mockResolvedValue({
-          data: [{ id: 1, payload: '{not json' }],
+          data: [{ id: 1, value: '{not json' }],
         }) as any,
       });
       const adapter = createObjectStackUserStateAdapter({
         dataSource: ds,
         userId: 'u',
-        kind: 'k',
+        key: 'k',
       });
 
       await expect(adapter.load()).resolves.toEqual([]);
@@ -102,7 +102,7 @@ describe('createObjectStackUserStateAdapter', () => {
       const adapter = createObjectStackUserStateAdapter({
         dataSource: ds,
         userId: 'u',
-        kind: 'k',
+        key: 'k',
         onError,
       });
 
@@ -115,7 +115,7 @@ describe('createObjectStackUserStateAdapter', () => {
       const adapter = createObjectStackUserStateAdapter({
         dataSource: ds,
         userId: 'u',
-        kind: 'k',
+        key: 'k',
         resource: 'my_prefs',
       });
 
@@ -135,15 +135,15 @@ describe('createObjectStackUserStateAdapter', () => {
       const adapter = createObjectStackUserStateAdapter({
         dataSource: ds,
         userId: 'u1',
-        kind: 'favorites',
+        key: 'ui.favorites',
       });
 
       await adapter.save([{ id: 'a' } as any]);
 
-      expect(ds.create).toHaveBeenCalledWith('user_app_state', {
+      expect(ds.create).toHaveBeenCalledWith('sys_user_preference', {
         user_id: 'u1',
-        kind: 'favorites',
-        payload: [{ id: 'a' }],
+        key: 'ui.favorites',
+        value: [{ id: 'a' }],
         updated_at: expect.any(String),
       });
     });
@@ -151,20 +151,20 @@ describe('createObjectStackUserStateAdapter', () => {
     it('updates the existing row when one exists', async () => {
       const ds = mockDataSource({
         find: vi.fn().mockResolvedValue({
-          data: [{ id: 'row-99', user_id: 'u', kind: 'k', payload: [] }],
+          data: [{ id: 'row-99', user_id: 'u', key: 'k', value: [] }],
         }) as any,
       });
 
       const adapter = createObjectStackUserStateAdapter({
         dataSource: ds,
         userId: 'u',
-        kind: 'k',
+        key: 'k',
       });
 
       await adapter.save([{ id: 'x' } as any]);
 
-      expect(ds.update).toHaveBeenCalledWith('user_app_state', 'row-99', {
-        payload: [{ id: 'x' }],
+      expect(ds.update).toHaveBeenCalledWith('sys_user_preference', 'row-99', {
+        value: [{ id: 'x' }],
         updated_at: expect.any(String),
       });
       expect(ds.create).not.toHaveBeenCalled();
@@ -173,14 +173,14 @@ describe('createObjectStackUserStateAdapter', () => {
     it('uses the cached row id from a previous load on subsequent saves', async () => {
       const ds = mockDataSource({
         find: vi.fn().mockResolvedValue({
-          data: [{ id: 'row-42', payload: [] }],
+          data: [{ id: 'row-42', value: [] }],
         }) as any,
       });
 
       const adapter = createObjectStackUserStateAdapter({
         dataSource: ds,
         userId: 'u',
-        kind: 'k',
+        key: 'k',
       });
 
       await adapter.load();
@@ -190,13 +190,13 @@ describe('createObjectStackUserStateAdapter', () => {
 
       // No second find() — went straight to update via cached id.
       expect(ds.find).not.toHaveBeenCalled();
-      expect(ds.update).toHaveBeenCalledWith('user_app_state', 'row-42', expect.any(Object));
+      expect(ds.update).toHaveBeenCalledWith('sys_user_preference', 'row-42', expect.any(Object));
     });
 
     it('falls back to insert when cached row update fails (row deleted server-side)', async () => {
       const ds = mockDataSource({
         find: vi.fn()
-          .mockResolvedValueOnce({ data: [{ id: 'stale', payload: [] }] })
+          .mockResolvedValueOnce({ data: [{ id: 'stale', value: [] }] })
           .mockResolvedValueOnce({ data: [] }) as any,
         update: vi.fn().mockRejectedValue(new Error('not found')) as any,
         create: vi.fn().mockResolvedValue({ id: 'new' }) as any,
@@ -206,7 +206,7 @@ describe('createObjectStackUserStateAdapter', () => {
       const adapter = createObjectStackUserStateAdapter({
         dataSource: ds,
         userId: 'u',
-        kind: 'k',
+        key: 'k',
         onError,
       });
 
@@ -214,10 +214,10 @@ describe('createObjectStackUserStateAdapter', () => {
       await adapter.save([{ id: 'z' } as any]);
 
       expect(ds.update).toHaveBeenCalledTimes(1);
-      expect(ds.create).toHaveBeenCalledWith('user_app_state', expect.objectContaining({
+      expect(ds.create).toHaveBeenCalledWith('sys_user_preference', expect.objectContaining({
         user_id: 'u',
-        kind: 'k',
-        payload: [{ id: 'z' }],
+        key: 'k',
+        value: [{ id: 'z' }],
       }));
     });
 
@@ -230,7 +230,7 @@ describe('createObjectStackUserStateAdapter', () => {
       const adapter = createObjectStackUserStateAdapter({
         dataSource: ds,
         userId: 'u',
-        kind: 'k',
+        key: 'k',
         onError,
       });
 

@@ -283,10 +283,10 @@ import { createObjectStackUserStateAdapter } from '@object-ui/data-objectstack';
 import { useAttachUserStateAdapters } from '@object-ui/app-shell';
 
 const favoritesAdapter = createObjectStackUserStateAdapter({
-  dataSource,        // the ObjectStack DataSource
+  dataSource,             // the ObjectStack DataSource
   userId: user.id,
-  kind: 'favorites', // or 'recent'
-  // resource: 'user_app_state',  // default
+  key: 'ui.favorites',    // or 'ui.recent', 'ui.grid.account.state', ...
+  // resource: 'sys_user_preference',  // default — the unified per-user KV store
   // onError: (op, err) => console.warn(`[user-state] ${op} failed`, err),
 });
 
@@ -295,20 +295,26 @@ attach('favorites', favoritesAdapter);
 
 ### Backend contract
 
-A single object stores one row per `(user_id, kind)` pair:
+The adapter writes to the platform's unified per-user KV store —
+`sys_user_preference` — shipped by every `@objectstack/plugin-auth`
+environment. One row per `(user_id, key)` pair:
 
 ```yaml
-object: user_app_state
+object: sys_user_preference
 fields:
-  - { name: user_id,    type: string,   indexed: true }
-  - { name: kind,       type: string,   indexed: true }
-  - { name: payload,    type: json }
+  - { name: user_id,    type: lookup(sys_user), indexed: true }
+  - { name: key,        type: string,           indexed: true }
+  - { name: value,      type: json }
   - { name: updated_at, type: datetime }
-unique: [user_id, kind]
+unique: [user_id, key]
 ```
 
-If the object doesn't exist, every call 404s and the UI silently degrades to
-localStorage-only persistence. See
+By convention, namespace UI-trace keys under `ui.*` (e.g. `ui.favorites`,
+`ui.recent`, `ui.grid.<object>.state`, `ui.sidebar.collapsed`) so they
+stay easy to tell apart from user-facing preferences (`theme`, `locale`).
+
+If the backend doesn't yet expose `sys_user_preference`, every call
+404s and the UI silently degrades to localStorage-only persistence. See
 [User-Scoped State Persistence](../../content/docs/guide/user-state-persistence.md)
 for the full design.
 

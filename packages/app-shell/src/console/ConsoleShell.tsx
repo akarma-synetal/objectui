@@ -115,12 +115,12 @@ function UserStateBridge() {
     const favorites = createObjectStackUserStateAdapter({
       dataSource,
       userId: user.id,
-      kind: 'favorites',
+      key: 'ui.favorites',
     });
     const recent = createObjectStackUserStateAdapter({
       dataSource,
       userId: user.id,
-      kind: 'recent',
+      key: 'ui.recent',
     });
     attach('favorites', favorites);
     attach('recent', recent);
