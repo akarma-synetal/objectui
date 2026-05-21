@@ -58,36 +58,95 @@ export const RecordPathRenderer: React.FC<RecordPathRendererProps> = ({
     );
   }
 
+  // Chevron clip paths: outer stages get half-clipped, middle stages get
+  // both a left notch and a right point so they tessellate into a path.
+  // We use a 14px arrow head; first segment has no left notch and last
+  // segment has no right point.
+  const CHEVRON = 14;
+  const clipFor = (idx: number, last: number) => {
+    if (stages.length === 1) return undefined;
+    if (idx === 0) {
+      return `polygon(0 0, calc(100% - ${CHEVRON}px) 0, 100% 50%, calc(100% - ${CHEVRON}px) 100%, 0 100%)`;
+    }
+    if (idx === last) {
+      return `polygon(0 0, 100% 0, 100% 100%, 0 100%, ${CHEVRON}px 50%)`;
+    }
+    return `polygon(0 0, calc(100% - ${CHEVRON}px) 0, 100% 50%, calc(100% - ${CHEVRON}px) 100%, 0 100%, ${CHEVRON}px 50%)`;
+  };
+
+  const last = stages.length - 1;
+
   return (
-    <div
-      className={cn('flex w-full items-stretch gap-1', className)}
-      role="list"
-      aria-label={(schema.aria as any)?.label || 'Record path'}
-      {...designer}
-    >
-      {stages.map((stage, idx) => {
-        const isCompleted = currentIdx >= 0 && idx < currentIdx;
-        const isCurrent = idx === currentIdx;
-        return (
-          <div
-            key={`${stage.value}-${idx}`}
-            role="listitem"
-            aria-current={isCurrent ? 'step' : undefined}
-            className={cn(
-              'relative flex-1 px-4 py-2 text-xs font-medium border text-center',
-              'first:rounded-l-md last:rounded-r-md',
-              isCurrent && 'bg-primary text-primary-foreground border-primary',
-              isCompleted && 'bg-muted text-muted-foreground',
-              !isCurrent && !isCompleted && 'bg-background text-foreground/70',
-            )}
-          >
-            <span className="inline-flex items-center gap-1.5">
-              {isCompleted && <span aria-hidden>✓</span>}
-              {stage.label}
-            </span>
-          </div>
-        );
-      })}
+    <div className={cn('w-full', className)} {...designer}>
+      {/* Desktop: chevron path */}
+      <div
+        className="hidden sm:flex w-full items-stretch"
+        role="list"
+        aria-label={(schema.aria as any)?.label || 'Record path'}
+      >
+        {stages.map((stage, idx) => {
+          const isCompleted = currentIdx >= 0 && idx < currentIdx;
+          const isCurrent = idx === currentIdx;
+          const clipPath = clipFor(idx, last);
+          return (
+            <div
+              key={`${stage.value}-${idx}`}
+              role="listitem"
+              aria-current={isCurrent ? 'step' : undefined}
+              style={clipPath ? { clipPath, WebkitClipPath: clipPath } : undefined}
+              className={cn(
+                'relative flex-1 min-w-0 px-5 py-2 text-xs font-medium text-center',
+                idx > 0 && '-ml-2',
+                stages.length === 1 && 'rounded-md border',
+                isCurrent && 'bg-primary text-primary-foreground shadow-sm ring-1 ring-primary/40',
+                isCompleted && 'bg-muted text-muted-foreground',
+                !isCurrent && !isCompleted && 'bg-background text-foreground/70 border border-border/60',
+              )}
+            >
+              <span
+                className="inline-flex items-center gap-1.5 truncate"
+                style={{
+                  paddingLeft: idx === 0 ? 0 : `${CHEVRON / 2}px`,
+                  paddingRight: idx === last ? 0 : `${CHEVRON / 2}px`,
+                }}
+              >
+                {isCompleted && <span aria-hidden>✓</span>}
+                {stage.label}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Mobile: horizontally scrollable pill row */}
+      <div
+        className="flex sm:hidden w-full items-stretch gap-1 overflow-x-auto pb-1 -mx-1 px-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        role="list"
+        aria-label={(schema.aria as any)?.label || 'Record path'}
+      >
+        {stages.map((stage, idx) => {
+          const isCompleted = currentIdx >= 0 && idx < currentIdx;
+          const isCurrent = idx === currentIdx;
+          return (
+            <div
+              key={`${stage.value}-${idx}-m`}
+              role="listitem"
+              aria-current={isCurrent ? 'step' : undefined}
+              className={cn(
+                'shrink-0 px-3 py-1.5 rounded-full text-xs font-medium border whitespace-nowrap',
+                isCurrent && 'bg-primary text-primary-foreground border-primary shadow-sm ring-1 ring-primary/40',
+                isCompleted && 'bg-muted text-muted-foreground border-transparent',
+                !isCurrent && !isCompleted && 'bg-background text-foreground/70 border-border/60',
+              )}
+            >
+              <span className="inline-flex items-center gap-1">
+                {isCompleted && <span aria-hidden>✓</span>}
+                {stage.label}
+              </span>
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 };

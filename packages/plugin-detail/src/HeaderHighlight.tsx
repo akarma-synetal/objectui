@@ -41,7 +41,7 @@ export const HeaderHighlight: React.FC<HeaderHighlightProps> = ({
   if (visibleFields.length === 0) return null;
 
   return (
-    <Card className={cn('bg-muted/30 border-dashed', className)}>
+    <Card className={cn('bg-muted/40 border-border/40 shadow-none', className)}>
       <CardContent className="@container py-3 px-4">
         <div className={cn(
           'grid gap-4',
