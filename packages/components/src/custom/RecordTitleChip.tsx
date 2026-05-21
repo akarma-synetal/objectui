@@ -135,13 +135,38 @@ export const RecordTitleChip: React.FC<RecordTitleChipProps> = ({
   return (
     <TooltipProvider>
       <div className={cn('flex flex-col min-w-0', className)}>
-        <div className="flex items-center gap-2 flex-wrap">
+        <div className="flex items-baseline gap-2 flex-wrap">
           {icon && (
-            <span className="text-muted-foreground shrink-0" aria-hidden>
+            <span className="text-muted-foreground shrink-0 self-center" aria-hidden>
               {icon}
             </span>
           )}
           <h1 className="text-xl sm:text-2xl font-bold truncate">{title}</h1>
+          {objectLabel && (
+            <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground/70 shrink-0">
+              {objectLabel}
+            </span>
+          )}
+          {showCopyId && resourceId && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-5 w-5 shrink-0 text-muted-foreground/50 hover:text-foreground"
+                  onClick={handleCopyId}
+                  aria-label={copyLabel}
+                >
+                  {idCopied ? (
+                    <Check className="h-3 w-3 text-green-600" />
+                  ) : (
+                    <Copy className="h-3 w-3" />
+                  )}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>{copyLabel}</TooltipContent>
+            </Tooltip>
+          )}
           {showStar && (
             <Tooltip>
               <TooltipTrigger asChild>
@@ -168,31 +193,6 @@ export const RecordTitleChip: React.FC<RecordTitleChipProps> = ({
           )}
           {inlineExtras}
         </div>
-        {(objectLabel || resourceId) && (
-          <p className="text-sm text-muted-foreground mt-1 flex items-center gap-1">
-            {objectLabel && <span className="font-medium">{objectLabel}</span>}
-            {showCopyId && resourceId && (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-5 w-5 shrink-0 text-muted-foreground/60 hover:text-foreground"
-                    onClick={handleCopyId}
-                    aria-label={copyLabel}
-                  >
-                    {idCopied ? (
-                      <Check className="h-3 w-3 text-green-600" />
-                    ) : (
-                      <Copy className="h-3 w-3" />
-                    )}
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>{copyLabel}</TooltipContent>
-              </Tooltip>
-            )}
-          </p>
-        )}
       </div>
     </TooltipProvider>
   );

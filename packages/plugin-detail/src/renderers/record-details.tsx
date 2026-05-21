@@ -128,6 +128,34 @@ export const RecordDetailsRenderer: React.FC<RecordDetailsRendererProps> = ({
       .filter((n: any): n is string => !!n),
   );
   for (const n of liveHighlightNames) hideFieldNames.add(n);
+
+  // Phase P.0: also hide the field that's already shown as the page H1
+  // title. The header chip resolves the title from objectSchema.primaryField
+  // → common display fields (name/full_name/title/subject/display_name).
+  // Repeating that same value in the body grid is pure duplication —
+  // every record detail page used to show "客户名称: Acme Corporation"
+  // immediately below an H1 that said "Acme Corporation". Authors who
+  // want the field anyway can override via the schema (we only add it
+  // when the field exists in the data and the dedup wouldn't empty the
+  // section).
+  const objSchema: any = (ctx as any).objectSchema;
+  const data: any = ctx.data ?? {};
+  const titleCandidates = [
+    objSchema?.primaryField,
+    'name',
+    'full_name',
+    'title',
+    'subject',
+    'display_name',
+    'label',
+  ].filter((n): n is string => typeof n === 'string' && n.length > 0);
+  for (const candidate of titleCandidates) {
+    if (data[candidate] !== undefined && data[candidate] !== null && data[candidate] !== '') {
+      hideFieldNames.add(candidate);
+      break;
+    }
+  }
+
   const dropHidden = (list: any[] | undefined): any[] | undefined => {
     if (!list || hideFieldNames.size === 0) return list;
     return list.filter((e) => {
