@@ -31,7 +31,7 @@ import { createSafeTranslation } from "@object-ui/i18n"
 import { Plus } from "lucide-react"
 
 // Utility function to merge class names (inline to avoid external dependency)
-const cn = (...classes: (string | undefined)[]) => classes.filter(Boolean).join(' ')
+const cn = (...classes: Array<string | false | null | undefined>) => classes.filter(Boolean).join(' ')
 
 // Safe translation hook — falls back to English defaults when no I18nProvider
 // is mounted (e.g. plugin-kanban consumed in a standalone Storybook).

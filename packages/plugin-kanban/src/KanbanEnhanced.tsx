@@ -34,7 +34,7 @@ export interface KanbanCard {
   id: string
   title: string
   description?: string
-  badges?: Array<{ label: string; variant?: "default" | "secondary" | "destructive" | "outline" }>
+  badges?: Array<{ label: string; variant?: "default" | "secondary" | "destructive" | "outline"; colorClass?: string }>
   coverImage?: string
   [key: string]: any
 }
