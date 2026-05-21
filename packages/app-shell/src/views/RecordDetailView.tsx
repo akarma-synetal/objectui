@@ -1143,6 +1143,37 @@ export function RecordDetailView({ dataSource, objects, onEdit, objectNameOverri
     // the schema with the actual detailSchema.sections + highlight fields
     // so record:details renders the same field layout the legacy
     // DetailView would have produced.
+    // Slice 4 — also forward header actions, related lists, activities,
+    // and history so the synthesized page reaches parity with the
+    // monolithic DetailView (tabs strip + record_header quick actions).
+    const synthHeaderActions = (() => {
+      const acts = (detailSchema as any).actions;
+      if (!Array.isArray(acts)) return undefined;
+      // detailSchema wraps actions in a `{type:'action:bar', actions:[]}`
+      // shape; unwrap to the flat ActionDef[] the renderer expects.
+      const bar = acts.find((a: any) => Array.isArray(a?.actions));
+      const flat = bar?.actions ?? acts;
+      return Array.isArray(flat) && flat.length > 0 ? flat : undefined;
+    })();
+    const synthRelated = Array.isArray((detailSchema as any).related)
+      ? ((detailSchema as any).related as any[])
+          .filter((r) => r?.api && r?.referenceField)
+          .map((r) => ({
+            title: r.title,
+            objectName: r.api,
+            relationshipField: r.referenceField,
+            ...(Array.isArray(r.columns) ? { columns: r.columns } : {}),
+            ...(typeof r.pageSize === 'number' ? { limit: r.pageSize } : {}),
+            ...(r.icon ? { icon: r.icon } : {}),
+          }))
+      : undefined;
+    const synthHistory = (detailSchema as any).history
+      ? {
+          entries: ((detailSchema as any).history.entries as any[]) ?? [],
+          loading: !!(detailSchema as any).history.loading,
+          emptyText: (detailSchema as any).history.emptyText,
+        }
+      : undefined;
     const renderedPage = assignedPage
       ? effectivePage
       : buildDefaultPageSchema(objectDef as any, {
@@ -1152,6 +1183,9 @@ export function RecordDetailView({ dataSource, objects, onEdit, objectNameOverri
                 .map((f) => (typeof f === 'string' ? f : f?.name))
                 .filter((n): n is string => !!n)
             : undefined,
+          headerActions: synthHeaderActions,
+          related: synthRelated,
+          history: synthHistory,
         });
     return (
       <div className="h-full bg-background overflow-hidden flex flex-col relative">

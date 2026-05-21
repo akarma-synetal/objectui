@@ -62,6 +62,40 @@ export interface BuildPageOptions {
   hidePath?: boolean;
   /** Pass-through to `page:header.recordChrome`. Defaults to true. */
   recordChrome?: boolean;
+  /**
+   * Action definitions to surface in the header. When provided and
+   * non-empty, the synthesizer emits a `record:quick_actions` node
+   * immediately after `page:header`. Use ActionDef shape from the spec
+   * (must include `locations: ['record_header']` to render).
+   */
+  headerActions?: any[];
+  /**
+   * Related child objects. When non-empty, the synthesizer adds a
+   * "Related" tab containing one `record:related_list` per entry.
+   *
+   * - `objectName` and `relationshipField` are required.
+   * - `title` overrides the default child-object label.
+   * - `columns` / `limit` / `icon` are forwarded to the renderer.
+   */
+  related?: Array<{
+    title?: string;
+    objectName: string;
+    relationshipField: string;
+    columns?: any[];
+    limit?: number;
+    icon?: string;
+  }>;
+  /**
+   * When true, emit an Activity tab that renders `record:activity`.
+   * The activity renderer fetches its own data via RecordContext.
+   */
+  showActivity?: boolean;
+  /**
+   * When provided, emit a History tab containing a `record:history`
+   * renderer. The host supplies the audit-log `entries` and `loading`
+   * flag because the data fetch logic lives in RecordDetailView.
+   */
+  history?: { entries: any[]; loading?: boolean; emptyText?: string };
 }
 
 /**
@@ -171,6 +205,18 @@ export function buildDefaultPageSchema(
     },
   ];
 
+  // Header actions: surface user-configured record_header actions as a
+  // Lightning-style quick-action bar sitting just below the header chip.
+  // Empty list is skipped so we don't render the "no actions configured"
+  // placeholder.
+  if (Array.isArray(options.headerActions) && options.headerActions.length > 0) {
+    components.push({
+      type: 'record:quick_actions',
+      actions: options.headerActions,
+      location: 'record_header',
+    });
+  }
+
   if (!options.hideHighlights && highlightFields.length > 0) {
     components.push({
       type: 'record:highlights',
@@ -186,19 +232,61 @@ export function buildDefaultPageSchema(
     });
   }
 
+  // Build tab list. Always start with Details; conditionally append
+  // Related / Activity / History based on options. The label strings
+  // are translated automatically by PageTabsRenderer's `translateLabel`
+  // when they match a known English key.
+  const tabs: any[] = [
+    {
+      label: 'Details',
+      children: [
+        {
+          type: 'record:details',
+          sections: options.sections,
+        },
+      ],
+    },
+  ];
+
+  if (Array.isArray(options.related) && options.related.length > 0) {
+    tabs.push({
+      label: 'Related',
+      children: options.related.map((rel) => ({
+        type: 'record:related_list',
+        title: rel.title,
+        objectName: rel.objectName,
+        relationshipField: rel.relationshipField,
+        ...(rel.columns ? { columns: rel.columns } : {}),
+        ...(rel.limit ? { limit: rel.limit } : {}),
+        ...(rel.icon ? { icon: rel.icon } : {}),
+      })),
+    });
+  }
+
+  if (options.showActivity) {
+    tabs.push({
+      label: 'Activity',
+      children: [{ type: 'record:activity' }],
+    });
+  }
+
+  if (options.history) {
+    tabs.push({
+      label: 'History',
+      children: [
+        {
+          type: 'record:history',
+          entries: options.history.entries,
+          loading: options.history.loading,
+          emptyText: options.history.emptyText,
+        },
+      ],
+    });
+  }
+
   components.push({
     type: 'page:tabs',
-    items: [
-      {
-        label: 'Details',
-        children: [
-          {
-            type: 'record:details',
-            sections: options.sections,
-          },
-        ],
-      },
-    ],
+    items: tabs,
   });
 
   if (!options.hideDiscussion) {

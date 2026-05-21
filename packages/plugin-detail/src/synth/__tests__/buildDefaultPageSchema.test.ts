@@ -212,4 +212,93 @@ describe('buildDefaultPageSchema', () => {
     // no highlights / path because the def is empty.
     expect(types).toEqual(['page:header', 'page:tabs', 'record:discussion']);
   });
+
+  describe('slice 4 — headerActions / related / activity / history', () => {
+    it('emits record:quick_actions after page:header when headerActions provided', () => {
+      const page = buildDefaultPageSchema(leadDef, {
+        headerActions: [
+          { name: 'edit', label: 'Edit', locations: ['record_header'] },
+        ],
+      });
+      const types = page.regions[0].components.map((c: any) => c.type);
+      expect(types[0]).toBe('page:header');
+      expect(types[1]).toBe('record:quick_actions');
+      const qa = page.regions[0].components[1];
+      expect(qa.actions).toHaveLength(1);
+      expect(qa.location).toBe('record_header');
+    });
+
+    it('omits record:quick_actions when headerActions empty or absent', () => {
+      const noOpt = buildDefaultPageSchema(leadDef);
+      const emptyOpt = buildDefaultPageSchema(leadDef, { headerActions: [] });
+      const types1 = noOpt.regions[0].components.map((c: any) => c.type);
+      const types2 = emptyOpt.regions[0].components.map((c: any) => c.type);
+      expect(types1).not.toContain('record:quick_actions');
+      expect(types2).not.toContain('record:quick_actions');
+    });
+
+    it('emits Related tab with one record:related_list per entry', () => {
+      const page = buildDefaultPageSchema(leadDef, {
+        related: [
+          {
+            objectName: 'task',
+            relationshipField: 'lead_id',
+            title: 'Tasks',
+            limit: 10,
+          },
+          {
+            objectName: 'note',
+            relationshipField: 'parent_id',
+          },
+        ],
+      });
+      const tabs = page.regions[0].components.find((c: any) => c.type === 'page:tabs');
+      expect(tabs.items).toHaveLength(2);
+      expect(tabs.items[1].label).toBe('Related');
+      expect(tabs.items[1].children).toHaveLength(2);
+      expect(tabs.items[1].children[0].type).toBe('record:related_list');
+      expect(tabs.items[1].children[0].objectName).toBe('task');
+      expect(tabs.items[1].children[0].relationshipField).toBe('lead_id');
+      expect(tabs.items[1].children[0].limit).toBe(10);
+    });
+
+    it('emits Activity tab when showActivity is true', () => {
+      const page = buildDefaultPageSchema(leadDef, { showActivity: true });
+      const tabs = page.regions[0].components.find((c: any) => c.type === 'page:tabs');
+      const labels = tabs.items.map((t: any) => t.label);
+      expect(labels).toContain('Activity');
+      const act = tabs.items.find((t: any) => t.label === 'Activity');
+      expect(act.children[0].type).toBe('record:activity');
+    });
+
+    it('emits History tab with entries when history option provided', () => {
+      const entries = [
+        { id: '1', timestamp: '2025-01-01', action: 'created' },
+      ];
+      const page = buildDefaultPageSchema(leadDef, {
+        history: { entries, loading: false },
+      });
+      const tabs = page.regions[0].components.find((c: any) => c.type === 'page:tabs');
+      const hist = tabs.items.find((t: any) => t.label === 'History');
+      expect(hist).toBeDefined();
+      expect(hist.children[0].type).toBe('record:history');
+      expect(hist.children[0].entries).toEqual(entries);
+      expect(hist.children[0].loading).toBe(false);
+    });
+
+    it('Details / Related / Activity / History tab order is stable', () => {
+      const page = buildDefaultPageSchema(leadDef, {
+        related: [{ objectName: 'task', relationshipField: 'lead_id' }],
+        showActivity: true,
+        history: { entries: [], loading: false },
+      });
+      const tabs = page.regions[0].components.find((c: any) => c.type === 'page:tabs');
+      expect(tabs.items.map((t: any) => t.label)).toEqual([
+        'Details',
+        'Related',
+        'Activity',
+        'History',
+      ]);
+    });
+  });
 });
