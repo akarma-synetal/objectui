@@ -293,6 +293,7 @@ const zh = {
     editInline: '编辑',
     save: '保存',
     saveChanges: '保存更改',
+    saving: '保存中…',
     editFieldsInline: '编辑字段',
     cancel: '取消',
     cancelEdit: '放弃更改',

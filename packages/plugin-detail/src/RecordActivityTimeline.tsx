@@ -7,7 +7,7 @@
  */
 
 import * as React from 'react';
-import { cn, Button } from '@object-ui/components';
+import { cn, Button, Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@object-ui/components';
 import {
   Activity,
   Edit,
@@ -271,18 +271,24 @@ export const RecordActivityTimeline: React.FC<RecordActivityTimelineProps> = ({
         {/* Filter dropdown */}
         {showFilter && (
           <div className="flex items-center gap-2">
-            <select
-              className="rounded-md border border-input bg-background px-2.5 py-1.5 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+            <Select
               value={activeFilter}
-              onChange={(e) => handleFilterChange(e.target.value as FeedFilterMode)}
-              aria-label={t('detail.filterActivity')}
+              onValueChange={(v) => handleFilterChange(v as FeedFilterMode)}
             >
-              {getFilterOptions(t).map((opt) => (
-                <option key={opt.value} value={opt.value}>
-                  {opt.label}
-                </option>
-              ))}
-            </select>
+              <SelectTrigger
+                aria-label={t('detail.filterActivity')}
+                className="h-8 w-auto min-w-[140px] py-1 text-sm"
+              >
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {getFilterOptions(t).map((opt) => (
+                  <SelectItem key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
         )}
 

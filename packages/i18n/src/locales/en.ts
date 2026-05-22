@@ -293,6 +293,7 @@ const en = {
     editInline: 'Edit',
     save: 'Save',
     saveChanges: 'Save changes',
+    saving: 'Saving…',
     editFieldsInline: 'Edit fields',
     cancel: 'Cancel',
     cancelEdit: 'Discard changes',

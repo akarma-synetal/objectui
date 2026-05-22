@@ -188,6 +188,46 @@ export const RecordDetailsRenderer: React.FC<RecordDetailsRendererProps> = ({
   // click-to-edit. Authors can opt out with `inlineEdit: false`.
   const inlineEditDefault = schema.inlineEdit ?? true;
 
+  /**
+   * Persist a single inline-edited field through the bound DataSource and
+   * trigger a context refresh so the new value re-hydrates from the server
+   * after save. Without this wiring the DetailView only updated its own
+   * local `data` state — the change would visibly stick until the user
+   * reloaded the page, then silently revert because nothing was sent to
+   * the backend.
+   */
+  const handleInlineFieldSave = React.useCallback(
+    async (field: string, value: any) => {
+      const ds: any = ctx.dataSource;
+      const recordId = ctx.recordId;
+      const objectName = ctx.objectName;
+      if (!ds || !recordId || !objectName) return;
+      try {
+        if (typeof ds.update === 'function') {
+          await ds.update(objectName, recordId, { [field]: value });
+        } else if (typeof ds.updateOne === 'function') {
+          await ds.updateOne(objectName, recordId, { [field]: value });
+        } else if (typeof ds.patch === 'function') {
+          await ds.patch(objectName, recordId, { [field]: value });
+        } else {
+          console.warn('[record:details] DataSource exposes no update/updateOne/patch method; cannot persist inline edit');
+          return;
+        }
+        if (typeof ctx.refresh === 'function') {
+          await ctx.refresh();
+        }
+      } catch (err) {
+        console.error('[record:details] Inline-edit save failed', err);
+        // Re-throw so DetailView can roll back the optimistic local state and
+        // surface the failure to the user. Without this the value would
+        // appear to stick until the next reload, masking backend rejections
+        // (e.g. RECORD_LOCKED while an approval is in progress).
+        throw err;
+      }
+    },
+    [ctx.dataSource, ctx.recordId, ctx.objectName, ctx.refresh]
+  );
+
   const synthesized: any = {
     type: 'detail-view',
     objectName: ctx.objectName,
@@ -211,6 +251,7 @@ export const RecordDetailsRenderer: React.FC<RecordDetailsRendererProps> = ({
         schema={synthesized}
         dataSource={ctx.dataSource as any}
         inlineEdit={inlineEditDefault}
+        onFieldSave={handleInlineFieldSave}
       />
     </div>
   );

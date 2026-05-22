@@ -12,8 +12,9 @@
  */
 
 import React from 'react';
-import { useRecordContext } from '@object-ui/react';
+import { useRecordContext, useSafeFieldLabel } from '@object-ui/react';
 import { useFieldPermissions, usePermissions } from '@object-ui/permissions';
+import { humanizeLabel } from '@object-ui/fields';
 import type { RecordRelatedListComponentProps } from '@object-ui/types';
 import { RelatedList } from '../RelatedList';
 
@@ -42,9 +43,21 @@ export const RecordRelatedListRenderer: React.FC<RecordRelatedListRendererProps>
 }) => {
   const ctx = useRecordContext();
   const { designer } = splitDesigner(props);
+  const i18n = useSafeFieldLabel();
 
-  const title = schema.title || schema.objectName || 'Related';
   const objectName = schema.objectName;
+
+  // Resolve a human-friendly title:
+  //   1. authored `schema.title` wins
+  //   2. translated object label via i18n (key `objects.{name}.label`)
+  //   3. humanized objectName (e.g. `opportunity_quote` → "Opportunity Quote")
+  //   4. literal `'Related'` as final fallback
+  const resolvedObjectLabel = objectName && (i18n as any).objectLabel
+    ? (i18n as any).objectLabel({ name: objectName, label: humanizeLabel(objectName) })
+    : objectName
+      ? humanizeLabel(objectName)
+      : '';
+  const title = schema.title || resolvedObjectLabel || 'Related';
 
   if (!objectName) {
     return (

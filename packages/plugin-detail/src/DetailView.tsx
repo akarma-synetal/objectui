@@ -207,6 +207,8 @@ export const DetailView: React.FC<DetailViewProps> = ({
   const isFavorite = isFavoriteProp ?? internalFavorite;
   const [isInlineEditing, setIsInlineEditing] = React.useState(false);
   const [editedValues, setEditedValues] = React.useState<Record<string, any>>({});
+  const [isSaving, setIsSaving] = React.useState(false);
+  const [saveError, setSaveError] = React.useState<string | null>(null);
   const [objectSchema, setObjectSchema] = React.useState<any>(null);
   const [idCopied, setIdCopied] = React.useState(false);
   const { t } = useDetailTranslation();
@@ -490,25 +492,56 @@ export const DetailView: React.FC<DetailViewProps> = ({
     if (isFavoriteProp === undefined) setInternalFavorite(next);
   }, [isFavorite, isFavoriteProp, onToggleFavorite]);
 
-  const handleInlineEditToggle = React.useCallback(() => {
+  const handleInlineEditToggle = React.useCallback(async () => {
     if (isInlineEditing) {
       // Save changes
       const changes = Object.entries(editedValues);
       if (changes.length > 0) {
+        const previousData = data;
         const updatedData = { ...data, ...editedValues };
+        // Optimistic update so the UI reflects the change immediately.
         setData(updatedData);
-        changes.forEach(([field, value]) => {
-          onFieldSave?.(field, value, updatedData);
-        });
+        setSaveError(null);
+        setIsSaving(true);
+        try {
+          if (onFieldSave) {
+            // Persist sequentially so a single backend error short-circuits
+            // and we can roll back without partially-applied state.
+            for (const [field, value] of changes) {
+              await onFieldSave(field, value, updatedData);
+            }
+          }
+          setEditedValues({});
+          setIsInlineEditing(false);
+        } catch (err: any) {
+          // Roll back optimistic update and stay in edit mode so the user
+          // can correct the input or cancel.
+          setData(previousData);
+          const raw = err?.message || err?.error || String(err ?? 'Save failed');
+          // Strip noisy prefixes for friendlier display:
+          //   "[ObjectStack] RECORD_LOCKED: record is locked..."
+          //     → "record is locked..."
+          //   "RECORD_LOCKED: record is locked..."
+          //     → "record is locked..."
+          const cleaned = raw
+            .replace(/^\[[^\]]+\]\s*/, '')
+            .replace(/^[A-Z][A-Z0-9_]+:\s*/, '');
+          setSaveError(cleaned);
+        } finally {
+          setIsSaving(false);
+        }
+        return;
       }
       setEditedValues({});
     }
     setIsInlineEditing(!isInlineEditing);
+    setSaveError(null);
   }, [isInlineEditing, editedValues, data, onFieldSave]);
 
   const handleInlineEditCancel = React.useCallback(() => {
     setEditedValues({});
     setIsInlineEditing(false);
+    setSaveError(null);
   }, []);
 
   const handleInlineFieldChange = React.useCallback((field: string, value: any) => {
@@ -1003,6 +1036,55 @@ export const DetailView: React.FC<DetailViewProps> = ({
       {/* Header Highlight Area */}
       {schema.highlightFields && schema.highlightFields.length > 0 && (
         <HeaderHighlight fields={schema.highlightFields} data={data} objectName={schema.objectName} objectSchema={objectSchema} />
+      )}
+
+      {/* Inline-edit toolbar — rendered above sections whenever the
+          DetailView's own header chrome is suppressed (e.g. when
+          `record:details` is composed under a Lightning-style page:header).
+          Without this, desktop users have no discoverable way to enter
+          inline-edit mode, since the system-action overflow is only used
+          when the embedded DetailView renders its own header. */}
+      {inlineEdit && schema.showHeader === false && (
+        <div className="flex flex-col items-end gap-1">
+          <div className="flex items-center justify-end gap-2">
+            {isInlineEditing && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleInlineEditCancel}
+                className="gap-2"
+                disabled={isSaving}
+              >
+                <X className="h-4 w-4" />
+                <span>{t('detail.cancel')}</span>
+              </Button>
+            )}
+            <Button
+              variant={isInlineEditing ? 'default' : 'outline'}
+              size="sm"
+              onClick={handleInlineEditToggle}
+              className="gap-2"
+              disabled={isSaving}
+            >
+              {isInlineEditing ? <Check className="h-4 w-4" /> : <Edit className="h-4 w-4" />}
+              <span>
+                {isSaving
+                  ? t('detail.saving')
+                  : isInlineEditing
+                    ? t('detail.save')
+                    : t('detail.editFieldsInline')}
+              </span>
+            </Button>
+          </div>
+          {saveError && (
+            <div
+              role="alert"
+              className="text-xs text-destructive bg-destructive/10 border border-destructive/20 rounded-md px-2 py-1 max-w-md text-right"
+            >
+              {saveError}
+            </div>
+          )}
+        </div>
       )}
 
       {/* Auto Tabs mode: wrap sections, related, activity into tabs.
