@@ -217,6 +217,18 @@ export interface DataSource<T = any> {
   bulk?(resource: string, operation: 'create' | 'update' | 'delete', data: Partial<T>[]): Promise<T[]>;
 
   /**
+   * Cancel (recall) the active pending approval request for a record.
+   * Returns the recalled request id and final status. Throws when no
+   * pending request exists or when the caller is not the submitter.
+   *
+   * Optional — adapters that don't speak to an approvals service can omit it.
+   */
+  cancelPendingApproval?(
+    objectName: string,
+    recordId: string,
+  ): Promise<{ requestId: string; status: string }>;
+
+  /**
    * Get object schema/metadata.
    * Used by ObjectQL-aware components to auto-generate UI from object metadata.
    * Required for all DataSource implementations to support schema-aware components.

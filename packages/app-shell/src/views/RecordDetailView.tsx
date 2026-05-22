@@ -182,18 +182,33 @@ export function RecordDetailView({ dataSource, objects, onEdit, objectNameOverri
     // page subtitle interpolation and record:* renderers depend on this.
     const expandFields = buildExpandFields(objectDef?.fields);
     const params = expandFields.length > 0 ? { $expand: expandFields } : undefined;
-    const findOnePromise = params
-      ? dataSource.findOne(objectName, pureRecordId, params)
-      : dataSource.findOne(objectName, pureRecordId);
-    findOnePromise
-      .then((rec: any) => {
-        if (!cancelled) setPageRecord(rec);
-      })
-      .catch(() => {
-        if (!cancelled) setPageRecord(null);
-      });
+    const loadRecord = () => {
+      const findOnePromise = params
+        ? dataSource.findOne(objectName, pureRecordId, params)
+        : dataSource.findOne(objectName, pureRecordId);
+      findOnePromise
+        .then((rec: any) => {
+          if (!cancelled) setPageRecord(rec);
+        })
+        .catch(() => {
+          if (!cancelled) setPageRecord(null);
+        });
+    };
+    loadRecord();
+
+    // Re-sync when any descendant signals the record changed (e.g.
+    // DetailView recalling a pending approval). Without this listener,
+    // the cached `pageRecord` would stay stale and propagate `pending`
+    // back into nested DetailViews via context.
+    const onChanged = (ev: Event) => {
+      const detail = (ev as CustomEvent).detail || {};
+      if (detail.objectName !== objectName || String(detail.recordId) !== String(pureRecordId)) return;
+      loadRecord();
+    };
+    window.addEventListener('objectui:record-changed', onChanged as EventListener);
     return () => {
       cancelled = true;
+      window.removeEventListener('objectui:record-changed', onChanged as EventListener);
     };
   }, [effectivePage, objectName, pureRecordId, dataSource, objectDef]);
 
@@ -1220,12 +1235,23 @@ export function RecordDetailView({ dataSource, objects, onEdit, objectNameOverri
                 title: document.title,
                 url: window.location.href,
               });
-            } else {
-              await navigator.clipboard.writeText(window.location.href);
-              toast.success(t('detail.linkCopied', { defaultValue: 'Link copied' }));
+              return;
             }
           } catch {
-            // user dismissed share sheet — no-op
+            // user dismissed the native share sheet — no-op
+            return;
+          }
+          // Fallback path: clipboard. Surface failure to the user so we
+          // never silently no-op (e.g. when clipboard access is denied
+          // because the page is not focused or running over http://).
+          try {
+            await navigator.clipboard.writeText(window.location.href);
+            toast.success(t('detail.linkCopied', { defaultValue: 'Link copied' }));
+          } catch (err: any) {
+            toast.error(
+              t('detail.linkCopyFailed', { defaultValue: 'Failed to copy link' }) +
+                (err?.message ? `: ${err.message}` : ''),
+            );
           }
         },
       } as any);

@@ -30,6 +30,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Copy,
+  Lock,
   X,
 } from 'lucide-react';
 import { DetailSection } from './DetailSection';
@@ -211,6 +212,8 @@ export const DetailView: React.FC<DetailViewProps> = ({
   const [saveError, setSaveError] = React.useState<string | null>(null);
   const [objectSchema, setObjectSchema] = React.useState<any>(null);
   const [idCopied, setIdCopied] = React.useState(false);
+  const [reloadTick, setReloadTick] = React.useState(0);
+  const [isCancellingApproval, setIsCancellingApproval] = React.useState(false);
   const { t } = useDetailTranslation();
   const { fieldOptionLabel } = useSafeFieldLabel();
   const isMobile = useIsMobile();
@@ -424,7 +427,7 @@ export const DetailView: React.FC<DetailViewProps> = ({
     }
 
     return () => { isMounted = false; };
-  }, [schema.api, schema.resourceId, schema.objectName, dataSource, schema.sections, schema.fields]);
+  }, [schema.api, schema.resourceId, schema.objectName, dataSource, schema.sections, schema.fields, reloadTick]);
 
   const handleBack = React.useCallback(() => {
     if (onBack) {
@@ -453,6 +456,57 @@ export const DetailView: React.FC<DetailViewProps> = ({
       window.location.href = schema.editUrl;
     }
   }, [onEdit, schema]);
+
+  const handleCancelApproval = React.useCallback(async () => {
+    if (!dataSource?.cancelPendingApproval || !schema.objectName || !schema.resourceId) {
+      setSaveError(t('detail.cancelApprovalUnavailable'));
+      return;
+    }
+    setIsCancellingApproval(true);
+    setSaveError(null);
+    try {
+      await dataSource.cancelPendingApproval(String(schema.objectName), String(schema.resourceId));
+      // Refresh local data immediately so the lock badge disappears even
+      // when our `data` was supplied via parent context (which bypasses
+      // the load effect's reloadTick path).
+      if (dataSource.findOne) {
+        try {
+          const fresh = await dataSource.findOne(
+            String(schema.objectName),
+            String(schema.resourceId),
+          );
+          if (fresh) setData(fresh);
+        } catch {
+          /* best-effort */
+        }
+      }
+      // Bump the load-effect dep so any nested fetch (e.g. related lists)
+      // re-runs against the now-recalled state.
+      setReloadTick((n) => n + 1);
+      // Notify upstream providers (e.g. RecordContextProvider in app-shell)
+      // so they can re-sync their cached copy of the record. Listeners are
+      // optional — this is fire-and-forget.
+      try {
+        window.dispatchEvent(new CustomEvent('objectui:record-changed', {
+          detail: {
+            objectName: String(schema.objectName),
+            recordId: String(schema.resourceId),
+            reason: 'approval-recalled',
+          },
+        }));
+      } catch {
+        /* SSR or restricted env */
+      }
+    } catch (err: any) {
+      const raw = err?.message || err?.error || String(err ?? 'Cancel failed');
+      const cleaned = raw
+        .replace(/^\[[^\]]+\]\s*/, '')
+        .replace(/^[A-Z][A-Z0-9_]+:\s*/, '');
+      setSaveError(`${t('detail.cancelApprovalFailed')}: ${cleaned}`);
+    } finally {
+      setIsCancellingApproval(false);
+    }
+  }, [dataSource, schema.objectName, schema.resourceId, t]);
 
   const handleDelete = React.useCallback(() => {
     const confirmMessage = schema.deleteConfirmation || t('detail.deleteConfirmation');
@@ -1044,9 +1098,45 @@ export const DetailView: React.FC<DetailViewProps> = ({
           Without this, desktop users have no discoverable way to enter
           inline-edit mode, since the system-action overflow is only used
           when the embedded DetailView renders its own header. */}
-      {inlineEdit && schema.showHeader === false && (
+      {inlineEdit && schema.showHeader === false && (() => {
+        // Detect approval lock on the live record. When `approval_status`
+        // is `pending`/`in_approval`, the backend will reject any update
+        // with RECORD_LOCKED — gate the Edit button up front so users see
+        // a clear lock badge instead of clicking and failing.
+        const approvalStatus = data?.approval_status;
+        const isLocked = approvalStatus === 'pending' || approvalStatus === 'in_approval';
+        return (
         <div className="flex flex-col items-end gap-1">
           <div className="flex items-center justify-end gap-2">
+            {isLocked && !isInlineEditing && (
+              <>
+                <span
+                  role="status"
+                  className="inline-flex items-center gap-1 rounded-md border border-amber-300 bg-amber-50 px-2 py-1 text-xs text-amber-800"
+                  title={t('detail.lockedTooltip')}
+                >
+                  <Lock className="h-3 w-3" />
+                  <span>{t('detail.lockedByApproval')}</span>
+                </span>
+                {dataSource?.cancelPendingApproval && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleCancelApproval}
+                    disabled={isCancellingApproval}
+                    className="gap-2 border-amber-300 text-amber-800 hover:bg-amber-50"
+                    title={t('detail.cancelApprovalTooltip')}
+                  >
+                    <X className="h-4 w-4" />
+                    <span>
+                      {isCancellingApproval
+                        ? t('detail.cancelApprovalInFlight')
+                        : t('detail.cancelApproval')}
+                    </span>
+                  </Button>
+                )}
+              </>
+            )}
             {isInlineEditing && (
               <Button
                 variant="ghost"
@@ -1064,7 +1154,8 @@ export const DetailView: React.FC<DetailViewProps> = ({
               size="sm"
               onClick={handleInlineEditToggle}
               className="gap-2"
-              disabled={isSaving}
+              disabled={isSaving || (isLocked && !isInlineEditing)}
+              title={isLocked && !isInlineEditing ? t('detail.lockedTooltip') : undefined}
             >
               {isInlineEditing ? <Check className="h-4 w-4" /> : <Edit className="h-4 w-4" />}
               <span>
@@ -1085,7 +1176,8 @@ export const DetailView: React.FC<DetailViewProps> = ({
             </div>
           )}
         </div>
-      )}
+        );
+      })()}
 
       {/* Auto Tabs mode: wrap sections, related, activity into tabs.
           When only the Details tab would render (no related, no activity, no

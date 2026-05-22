@@ -1729,6 +1729,75 @@ export class ObjectStackAdapter<T = unknown> implements DataSource<T> {
   }
 
   /**
+   * Cancel (recall) the active pending approval request for a given record.
+   *
+   * Looks up the most recent `sys_approval_request` for the (object, record)
+   * pair whose status is `pending` or `in_approval`, then issues a POST to
+   * `/api/v1/approvals/requests/:id/recall`. The submitter is the only role
+   * permitted to recall on the server — non-submitters will receive a 403.
+   *
+   * On success, the backend mirrors `approval_status = 'recalled'` onto the
+   * source record so the lock badge disappears on next fetch.
+   */
+  async cancelPendingApproval(
+    objectName: string,
+    recordId: string,
+  ): Promise<{ requestId: string; status: string }> {
+    await this.connect();
+
+    // Use the approvals service REST endpoint directly. The generic
+    // `/api/v1/data/sys_approval_request` route applies record-sharing
+    // ACLs that the approvals collection isn't always registered for,
+    // so prefer the cross-cutting `/approvals/requests` endpoint which
+    // is owned by the approvals service itself.
+    const listUrl = `${this.baseUrl}/api/v1/approvals/requests?recordId=${encodeURIComponent(recordId)}&object=${encodeURIComponent(objectName)}`;
+    const listRes = await this.fetchImpl(listUrl, {
+      method: 'GET',
+      headers: { 'Content-Type': 'application/json', ...this.getAuthHeaders() },
+    });
+    if (!listRes.ok) {
+      throw new ObjectStackError(
+        `Failed to look up approval requests (status ${listRes.status})`,
+        'APPROVAL_LOOKUP_FAILED',
+        listRes.status,
+      );
+    }
+    const listBody: any = await listRes.json().catch(() => ({}));
+    const rows: any[] = Array.isArray(listBody) ? listBody : (listBody?.data ?? []);
+    const pending = rows.find(
+      (r) => r?.status === 'pending' || r?.status === 'in_approval',
+    );
+    if (!pending?.id) {
+      throw new ObjectStackError(
+        'No pending approval request found for this record',
+        'NO_PENDING_REQUEST',
+        404,
+      );
+    }
+
+    const url = `${this.baseUrl}/api/v1/approvals/requests/${encodeURIComponent(pending.id)}/recall`;
+    const response = await this.fetchImpl(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...this.getAuthHeaders(),
+      },
+      body: JSON.stringify({}),
+    });
+
+    if (!response.ok) {
+      const err: any = await response.json().catch(() => ({}));
+      throw new ObjectStackError(
+        err?.error || err?.message || `Recall failed with status ${response.status}`,
+        err?.code || 'APPROVAL_RECALL_FAILED',
+        response.status,
+      );
+    }
+    const body: any = await response.json().catch(() => ({}));
+    return { requestId: pending.id, status: body?.data?.request?.status ?? 'recalled' };
+  }
+
+  /**
    * Get authorization headers from the adapter config.
    */
   private getAuthHeaders(): Record<string, string> {
