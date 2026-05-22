@@ -303,6 +303,54 @@ function resolveHref(item: NavigationItem, basePath: string): { href: string; ex
 }
 
 // ---------------------------------------------------------------------------
+// Active-state matching
+// ---------------------------------------------------------------------------
+
+/**
+ * Decide whether a navigation item should render as "active" for the given
+ * current pathname.
+ *
+ * Why this isn't a simple `pathname.startsWith(href)`:
+ *
+ * 1. **Sibling view items.** A bare object item (`/apps/crm/opportunity`) and
+ *    a view-scoped item (`/apps/crm/opportunity/view/pipeline_kanban`) share
+ *    the object prefix. A naive `startsWith` lights up both rows at once
+ *    when the user is on the Kanban — visually claiming the list page is
+ *    also active. The view-scoped sibling owns `/view/*` paths.
+ *
+ * 2. **Adjacent path segments.** `startsWith('/foo')` falsely matches
+ *    `/foo-bar`. Anchoring on `/` (or exact equality) prevents that.
+ *
+ * Rules:
+ * - Bare object item (`type: 'object'`, no `viewName`): active on exact match,
+ *   on record sub-paths (`/record/...`, `/new`), but NOT on `/view/*` —
+ *   those belong to a sibling view item, if one is registered.
+ * - View-scoped object item (with `viewName`): exact-match only.
+ * - Other leaf types (dashboard / page / report / url): exact match or
+ *   path under href with a `/` boundary.
+ */
+function computeIsActive(item: NavigationItem, href: string, pathname: string): boolean {
+  if (href === '#') return false;
+  if (pathname === href) return true;
+
+  if (item.type === 'object' && item.objectName) {
+    if (item.viewName) {
+      // View-scoped item — only exact match. Avoids fighting with its
+      // bare-object sibling for the highlight.
+      return false;
+    }
+    // Bare object item — own record / new sub-paths but cede `/view/*` to
+    // any registered view-scoped sibling.
+    if (!pathname.startsWith(`${href}/`)) return false;
+    const rest = pathname.slice(href.length + 1);
+    if (rest.startsWith('view/')) return false;
+    return true;
+  }
+
+  return pathname.startsWith(`${href}/`);
+}
+
+// ---------------------------------------------------------------------------
 // Search filter helper
 // ---------------------------------------------------------------------------
 
@@ -573,7 +621,7 @@ function NavigationItemRenderer({
   // --- Leaf items (object / dashboard / page / report / url) ---
   const Icon = resolveIcon(item.icon);
   const { href, external } = resolveHref(item, basePath);
-  const isActive = href !== '#' && location.pathname.startsWith(href);
+  const isActive = computeIsActive(item, href, location.pathname);
   const itemLabel = resolveItemLabel(item, resolveObjectLabel, tProp, resolveDashboardLabel, resolveGroupLabel, resolveViewLabel);
 
   const content = (

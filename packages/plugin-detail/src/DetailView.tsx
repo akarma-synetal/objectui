@@ -310,11 +310,28 @@ export const DetailView: React.FC<DetailViewProps> = ({
   React.useEffect(() => {
     let isMounted = true;
 
-    // If inline data provided, use it
-     if (schema.data) {
-        setData(schema.data);
-        setLoading(false);
-        return;
+    // If inline data provided, use it directly. We still need to fetch the
+    // objectSchema so that DetailSection can resolve field types (picklist
+    // options, currency, references…). Without this, a remount that happens
+    // *after* the parent has already loaded ctx.data (e.g. switching tabs
+    // in record:details) would skip the schema fetch entirely and render
+    // picklist values as raw enum keys like "existing_upgrade".
+    if (schema.data) {
+      setData(schema.data);
+      setLoading(false);
+      if (dataSource?.getObjectSchema && schema.objectName) {
+        dataSource
+          .getObjectSchema(schema.objectName)
+          .then((resolvedSchema) => {
+            if (isMounted) setObjectSchema(resolvedSchema);
+          })
+          .catch(() => {
+            /* objectSchema is best-effort; renderer falls back to raw values */
+          });
+      }
+      return () => {
+        isMounted = false;
+      };
     }
 
     if (dataSource && schema.objectName && schema.resourceId) {

@@ -348,17 +348,44 @@ export const PageRenderer: React.FC<{
 }> = ({ schema, className, ...props }) => {
   const pageType = schema.pageType || 'record';
 
-  // Extract designer-related props
+  // Extract designer-related props and strip schema-only metadata that
+  // would otherwise leak onto the wrapper <div> as invalid HTML attributes
+  // (e.g. `isDefault`, `assignedProfiles`, `_packageId`, `aria` object).
+  // We keep this list aligned with `PageSchema` in `@object-ui/types`. As a
+  // safety net we also drop any `_`-prefixed keys (internal metadata from
+  // the synth pipeline) before spreading the remainder onto the DOM.
   const {
     'data-obj-id': dataObjId,
     'data-obj-type': dataObjType,
     style,
+    // PageSchema descriptors — UI metadata, not DOM attributes
     pageType: _pageTypeProp,
     schema: _schemaProp,
     regions: _regionsProp,
     template: _templateProp,
-    ...pageProps
+    title: _titleProp,
+    icon: _iconProp,
+    description: _descriptionProp,
+    object: _objectProp,
+    variables: _variablesProp,
+    blankLayout: _blankLayoutProp,
+    body: _bodyProp,
+    isDefault: _isDefaultProp,
+    assignedProfiles: _assignedProfilesProp,
+    aria: _ariaProp,
+    recordOverride: _recordOverrideProp,
+    permissions: _permissionsProp,
+    requiredPermissions: _requiredPermissionsProp,
+    enforceFieldSecurity: _enforceFLSProp,
+    redactFields: _redactFieldsProp,
+    children: _childrenProp,
+    ...rawPageProps
   } = props;
+  // Drop any `_`-prefixed keys (e.g. `_packageId`, `_synth`) — these are
+  // internal metadata that React would warn about if forwarded to the DOM.
+  const pageProps = Object.fromEntries(
+    Object.entries(rawPageProps).filter(([k]) => !k.startsWith('_')),
+  );
 
   // Select the layout variant based on template or page type
   const layoutElement = useMemo(() => {
