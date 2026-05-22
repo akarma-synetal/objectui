@@ -81,6 +81,7 @@ export function useObjectLabel() {
    * package namespace from the base name; everything after is preserved.
    */
   const stripNamespace = (name: string): string => {
+    if (typeof name !== 'string') return '';
     const idx = name.indexOf('__');
     return idx > 0 ? name.slice(idx + 2) : name;
   };

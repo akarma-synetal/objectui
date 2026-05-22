@@ -1298,7 +1298,7 @@ export function ObjectView({ dataSource, objects, onEdit, externalRefreshKey }: 
             const originState = {
               from: {
                 pathname: location.pathname + (location.search || ''),
-                label: viewLabel(objectDef, activeView?.name, activeView?.label) || objectLabel(objectDef),
+                label: viewLabel(objectDef.name, activeView?.name ?? '', activeView?.label ?? '') || objectLabel(objectDef),
               },
             };
             if (viewId) {
@@ -1674,7 +1674,7 @@ export function ObjectView({ dataSource, objects, onEdit, externalRefreshKey }: 
                 const originState = {
                   from: {
                     pathname: location.pathname + (location.search || ''),
-                    label: viewLabel(objectDef, activeView?.name, activeView?.label) || objectLabel(objectDef),
+                    label: viewLabel(objectDef.name, activeView?.name ?? '', activeView?.label ?? '') || objectLabel(objectDef),
                   },
                 };
                 if (viewId) {
