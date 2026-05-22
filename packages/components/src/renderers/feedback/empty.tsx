@@ -7,7 +7,8 @@
  */
 
 import { ComponentRegistry } from '@object-ui/core';
-import type { EmptySchema } from '@object-ui/types';
+import type { EmptySchema, ComponentSchema } from '@object-ui/types';
+import { SchemaRenderer } from '@object-ui/react';
 import { DataEmptyState } from '../../custom/view-states';
 
 ComponentRegistry.register('empty', 
@@ -16,14 +17,26 @@ ComponentRegistry.register('empty',
         'data-obj-id': dataObjId, 
         'data-obj-type': dataObjType,
         style,
+        // Strip schema-shaped props that would otherwise leak through and
+        // be rendered as a React child (the SDUI runtime spreads every
+        // non-metadata schema key onto the component, but `action` here is
+        // a child schema, not a DOM attribute or React node).
+        action: _ignoredAction,
+        icon: _ignoredIcon,
         ...emptyProps
-    } = props;
+    } = props as Record<string, unknown>;
+
+    const actionSchema = (schema as any).action as ComponentSchema | undefined;
+    const actionNode = actionSchema && typeof actionSchema === 'object'
+      ? <SchemaRenderer schema={actionSchema as any} />
+      : undefined;
 
     return (
       <DataEmptyState
         title={schema.title || 'No data'}
         description={schema.description}
         className={schema.className}
+        action={actionNode}
         {...emptyProps}
         {...{ 'data-obj-id': dataObjId, 'data-obj-type': dataObjType, style }}
       />
