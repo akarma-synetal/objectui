@@ -276,10 +276,10 @@ function useListViewTranslation() {
  */
 function useListFieldLabel() {
   try {
-    const { fieldLabel } = useObjectLabel();
-    return { fieldLabel };
+    const { fieldLabel, actionLabel } = useObjectLabel();
+    return { fieldLabel, actionLabel };
   } catch {
-    return { fieldLabel: FALLBACK_FIELD_LABEL };
+    return { fieldLabel: FALLBACK_FIELD_LABEL, actionLabel: undefined as any };
   }
 }
 
@@ -315,7 +315,7 @@ export const ListView = React.forwardRef<ListViewHandle, ListViewProps>(({
 }, ref) => {
   // i18n support for record count and other labels
   const { t } = useListViewTranslation();
-  const { fieldLabel: resolveFieldLabel } = useListFieldLabel();
+  const { fieldLabel: resolveFieldLabel, actionLabel: resolveActionLabel } = useListFieldLabel();
   const { translateOptions } = useSafeFieldLabel();
 
   // Kernel level default: Ensure viewType is always defined (default to 'grid').
@@ -332,6 +332,20 @@ export const ListView = React.forwardRef<ListViewHandle, ListViewProps>(({
     (fieldName: string, fallback: string) =>
       schema.objectName ? resolveFieldLabel(schema.objectName, fieldName, fallback) : fallback,
     [schema.objectName, resolveFieldLabel],
+  );
+
+  // Convenience: resolve action label with schema.objectName pre-bound.
+  // Falls back to title-casing the action key when no i18n resource is found,
+  // matching the previous local `formatActionLabel` helper.
+  const tActionLabel = React.useCallback(
+    (actionName: string) => {
+      const fallback = formatActionLabel(actionName);
+      if (schema.objectName && typeof resolveActionLabel === 'function') {
+        return resolveActionLabel(schema.objectName, actionName, fallback);
+      }
+      return fallback;
+    },
+    [schema.objectName, resolveActionLabel],
   );
 
   // Resolve toolbar visibility flags: userActions overrides showX flags
@@ -2148,7 +2162,7 @@ export const ListView = React.forwardRef<ListViewHandle, ListViewProps>(({
                   data-testid={`bulk-action-${action}`}
                 >
                   {Icon && <Icon className="h-3 w-3" />}
-                  {formatActionLabel(action)}
+                  {tActionLabel(action)}
                 </Button>
               );
             })}

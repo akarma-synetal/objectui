@@ -213,7 +213,21 @@ export function deriveHighlightFields(
   const preferred = [
     'owner', 'owner_id', 'amount', 'rating', 'source',
     'priority', 'industry', 'phone', 'email',
+    'close_date', 'due_date', 'start_date', 'expected_close_date',
+    'account', 'account_id', 'contact', 'contact_id',
   ];
+  // Field types that render well as compact highlight pills.
+  // Long-form / structural types (textarea, markdown, json, grid) and
+  // booleans don't carry enough at-a-glance information here — they're
+  // either too wide or visually noisy.
+  const HIGHLIGHT_FRIENDLY_TYPES = new Set<string>([
+    'currency', 'number', 'integer', 'decimal', 'percent',
+    'date', 'datetime', 'time',
+    'reference', 'lookup', 'user', 'owner',
+    'select', 'enum', 'multiselect', 'status',
+    'email', 'phone', 'url',
+    'text', 'string',
+  ]);
   const out: string[] = [];
   const fields = def.fields || {};
   for (const name of preferred) {
@@ -222,6 +236,12 @@ export function deriveHighlightFields(
   }
   for (const name of Object.keys(fields)) {
     if (out.includes(name) || skip.has(name)) continue;
+    const fieldDef = (fields as any)[name];
+    const ftype = fieldDef?.type;
+    // When a type is declared, require it to be highlight-friendly.
+    // Untyped fields (legacy schemas) fall through to keep prior
+    // behaviour.
+    if (ftype && !HIGHLIGHT_FRIENDLY_TYPES.has(ftype)) continue;
     out.push(name);
     if (out.length >= max) break;
   }
