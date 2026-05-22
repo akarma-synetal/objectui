@@ -131,7 +131,7 @@ export function UnifiedSidebar({ activeAppName }: UnifiedSidebarProps) {
   const { isMobile, setOpenMobile } = useSidebar();
   const location = useLocation();
   const { t } = useObjectTranslation();
-  const { objectLabel: resolveNavObjectLabel, dashboardLabel: resolveNavDashboardLabel, navGroupLabel: resolveNavGroupLabel } = useObjectLabel();
+  const { objectLabel: resolveNavObjectLabel, dashboardLabel: resolveNavDashboardLabel, navGroupLabel: resolveNavGroupLabel, viewLabel: resolveNavViewLabel } = useObjectLabel();
   const { context, currentAppName } = useNavigationContext();
 
   // Swipe-from-left-edge gesture to open sidebar on mobile
@@ -314,6 +314,7 @@ export function UnifiedSidebar({ activeAppName }: UnifiedSidebarProps) {
              resolveObjectLabel={(objectName, fallback) => resolveNavObjectLabel({ name: objectName, label: fallback })}
              resolveDashboardLabel={(dashboardName, fallback) => resolveNavDashboardLabel({ name: dashboardName, label: fallback })}
              resolveGroupLabel={activeApp ? (groupId, fallback) => resolveNavGroupLabel(activeApp.name, groupId, fallback) : undefined}
+             resolveViewLabel={(objectName, viewName, fallback) => resolveNavViewLabel(objectName, viewName, fallback)}
              t={t}
            />
 

@@ -159,6 +159,20 @@ export interface NavigationRendererProps {
   resolveDashboardLabel?: (dashboardName: string, fallbackLabel: string) => string;
 
   /**
+   * Optional label resolver for object-type navigation items that target a
+   * specific view (i.e. `viewName` is set). Called with
+   * `(objectName, viewName, fallbackLabel)`. Mirrors
+   * `useObjectLabel().viewLabel` and resolves
+   * `{ns}.objects.{objectName}._views.{viewName}.label`.
+   *
+   * Without this resolver, an object item with a `viewName` falls back to
+   * its schema-provided explicit label (which keeps it distinct from a bare
+   * object-list entry under the same group — avoids visual duplicates such
+   * as two `商机` rows where one is the list and the other is a Kanban view).
+   */
+  resolveViewLabel?: (objectName: string, viewName: string, fallbackLabel: string) => string;
+
+  /**
    * Optional label resolver for navigation group items.
    * Called with `(groupId, fallbackLabel)` for items where
    * `item.type === 'group'` and `item.label` is a plain string.
@@ -224,13 +238,24 @@ function resolveItemLabel(
   t?: (key: string, options?: any) => string,
   dashboardResolver?: (dashboardName: string, fallbackLabel: string) => string,
   groupResolver?: (groupId: string, fallbackLabel: string) => string,
+  viewResolver?: (objectName: string, viewName: string, fallbackLabel: string) => string,
 ): string {
   const base = resolveLabel(item.label, t);
   // Only apply convention-based resolution for items with plain string labels.
   // I18nLabel objects (with explicit key/defaultValue) already have their own translation keys.
   if (typeof item.label !== 'string') return base;
-  if (resolver && item.type === 'object' && item.objectName) {
-    return resolver(item.objectName, base);
+  if (item.type === 'object' && item.objectName) {
+    // View-scoped item — prefer view-specific label so a Kanban / Calendar /
+    // custom view in the sidebar doesn't collapse to the parent object's
+    // label (which would visually duplicate the object's list entry).
+    // Convention: `{ns}.objects.{objectName}._views.{viewName}.label`.
+    if (item.viewName) {
+      if (viewResolver) return viewResolver(item.objectName, item.viewName, base);
+      // No view resolver: respect the schema-provided explicit label rather
+      // than overriding with the parent object's i18n label.
+      return base;
+    }
+    if (resolver) return resolver(item.objectName, base);
   }
   if (dashboardResolver && item.type === 'dashboard' && (item as any).dashboardName) {
     return dashboardResolver((item as any).dashboardName, base);
@@ -333,6 +358,7 @@ function SortableNavigationItem({
   resolveObjectLabel,
   resolveDashboardLabel,
   resolveGroupLabel,
+  resolveViewLabel,
   t: tProp,
 }: {
   item: NavigationItem;
@@ -347,6 +373,7 @@ function SortableNavigationItem({
   resolveObjectLabel?: (objectName: string, fallbackLabel: string) => string;
   resolveDashboardLabel?: (dashboardName: string, fallbackLabel: string) => string;
   resolveGroupLabel?: (groupId: string, fallbackLabel: string) => string;
+  resolveViewLabel?: (objectName: string, viewName: string, fallbackLabel: string) => string;
   t?: (key: string, options?: any) => string;
 }) {
   const {
@@ -380,6 +407,7 @@ function SortableNavigationItem({
         resolveObjectLabel={resolveObjectLabel}
         resolveDashboardLabel={resolveDashboardLabel}
         resolveGroupLabel={resolveGroupLabel}
+        resolveViewLabel={resolveViewLabel}
         t={tProp}
       />
     </div>
@@ -403,6 +431,7 @@ function NavigationItemRenderer({
   resolveObjectLabel,
   resolveDashboardLabel,
   resolveGroupLabel,
+  resolveViewLabel,
   t: tProp,
 }: {
   item: NavigationItem;
@@ -417,6 +446,7 @@ function NavigationItemRenderer({
   resolveObjectLabel?: (objectName: string, fallbackLabel: string) => string;
   resolveDashboardLabel?: (dashboardName: string, fallbackLabel: string) => string;
   resolveGroupLabel?: (groupId: string, fallbackLabel: string) => string;
+  resolveViewLabel?: (objectName: string, viewName: string, fallbackLabel: string) => string;
   t?: (key: string, options?: any) => string;
 }) {
   const location = useLocation();
@@ -447,7 +477,7 @@ function NavigationItemRenderer({
       .slice()
       .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
 
-    const groupLabel = resolveItemLabel(item, resolveObjectLabel, tProp, resolveDashboardLabel, resolveGroupLabel);
+    const groupLabel = resolveItemLabel(item, resolveObjectLabel, tProp, resolveDashboardLabel, resolveGroupLabel, resolveViewLabel);
 
     return (
       <Collapsible open={isOpen} onOpenChange={setIsOpen}>
@@ -477,6 +507,7 @@ function NavigationItemRenderer({
                     resolveObjectLabel={resolveObjectLabel}
                     resolveDashboardLabel={resolveDashboardLabel}
                     resolveGroupLabel={resolveGroupLabel}
+                    resolveViewLabel={resolveViewLabel}
                     t={tProp}
                   />
                 ))}
@@ -543,7 +574,7 @@ function NavigationItemRenderer({
   const Icon = resolveIcon(item.icon);
   const { href, external } = resolveHref(item, basePath);
   const isActive = href !== '#' && location.pathname.startsWith(href);
-  const itemLabel = resolveItemLabel(item, resolveObjectLabel, tProp, resolveDashboardLabel, resolveGroupLabel);
+  const itemLabel = resolveItemLabel(item, resolveObjectLabel, tProp, resolveDashboardLabel, resolveGroupLabel, resolveViewLabel);
 
   const content = (
     <>
@@ -651,6 +682,7 @@ export function NavigationRenderer({
   resolveObjectLabel,
   resolveDashboardLabel,
   resolveGroupLabel,
+  resolveViewLabel,
   t: tProp,
 }: NavigationRendererProps) {
   // --- Search filtering ---
@@ -701,6 +733,7 @@ export function NavigationRenderer({
     resolveObjectLabel,
     resolveDashboardLabel,
     resolveGroupLabel,
+    resolveViewLabel,
     t: tProp,
   };
 

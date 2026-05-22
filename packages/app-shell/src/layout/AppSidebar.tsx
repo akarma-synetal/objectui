@@ -140,7 +140,7 @@ export function AppSidebar({ activeAppName, onAppChange }: { activeAppName: stri
   const { user, signOut, isAuthEnabled } = useAuth();
   const navigate = useNavigate();
   const { t } = useObjectTranslation();
-  const { objectLabel: resolveNavObjectLabel } = useObjectLabel();
+  const { objectLabel: resolveNavObjectLabel, viewLabel: resolveNavViewLabel } = useObjectLabel();
 
   // Swipe-from-left-edge gesture to open sidebar on mobile
   React.useEffect(() => {
@@ -433,6 +433,7 @@ export function AppSidebar({ activeAppName, onAppChange }: { activeAppName: stri
              enableReorder
              onReorder={handleReorder}
              resolveObjectLabel={(objectName, fallback) => resolveNavObjectLabel({ name: objectName, label: fallback })}
+             resolveViewLabel={(objectName, viewName, fallback) => resolveNavViewLabel(objectName, viewName, fallback)}
              t={t}
            />
 
