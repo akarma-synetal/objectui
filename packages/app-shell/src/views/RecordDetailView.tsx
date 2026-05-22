@@ -1423,6 +1423,13 @@ export function RecordDetailView({ dataSource, objects, onEdit, objectNameOverri
           headerActions: synthHeaderActions,
           related: synthRelated,
           history: synthHistory,
+          // Per-object opt-outs read from `objectDef.detail.*`. Lets
+          // catalog/atomic objects (product, task, ...) keep a focused
+          // single-column layout instead of inheriting the rail.
+          hideReferenceRail:
+            (objectDef as any)?.detail?.hideReferenceRail === true || undefined,
+          hideRelatedTab:
+            (objectDef as any)?.detail?.hideRelatedTab === true || undefined,
           ...(assignedSlots ? { slots: assignedSlots } : {}),
         });
     return (

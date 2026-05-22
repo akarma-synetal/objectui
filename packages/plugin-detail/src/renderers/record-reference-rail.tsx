@@ -86,7 +86,11 @@ export const RecordReferenceRailRenderer: React.FC<RecordReferenceRailRendererPr
   const routeParams = useParams<{ appName?: string }>();
   const appName = routeParams.appName;
 
-  const entries: ReferenceRailEntry[] = Array.isArray(schema.entries) ? schema.entries : [];
+  const entries: ReferenceRailEntry[] = Array.isArray(schema.entries)
+    ? schema.entries
+    : Array.isArray((schema as any).properties?.entries)
+      ? ((schema as any).properties.entries as ReferenceRailEntry[])
+      : [];
   const parentId = ctx?.recordId;
   const dataSource: any = (ctx as any)?.dataSource;
 
