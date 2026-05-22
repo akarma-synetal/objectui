@@ -62,7 +62,7 @@
     "@object-ui/plugin-view": "workspace:*",
     "@object-ui/react": "workspace:*",
     "@object-ui/types": "workspace:*",
-    "@objectstack/client": "^4.0.5",
+    "@objectstack/client": "^4.2.0",
     "@objectstack/spec": "^4.0.5",
     "@tailwindcss/postcss": "^4.3.0",
     "@testing-library/jest-dom": "^6.9.1",

@@ -15,6 +15,11 @@ import { useRecordContext, useHighlightFieldNames } from '@object-ui/react';
 import { useFieldPermissions, usePermissions } from '@object-ui/permissions';
 import type { RecordDetailsComponentProps } from '@object-ui/types';
 import { DetailView } from '../DetailView';
+import {
+  ConcurrentUpdateDialog,
+  isConcurrentUpdateError,
+  type ConcurrentUpdateConflict,
+} from '../ConcurrentUpdateDialog';
 
 /** Normalize a field entry (string | {field} | {name}) to its machine name. */
 const fieldName = (entry: any): string | null => {
@@ -195,20 +200,52 @@ export const RecordDetailsRenderer: React.FC<RecordDetailsRendererProps> = ({
    * local `data` state — the change would visibly stick until the user
    * reloaded the page, then silently revert because nothing was sent to
    * the backend.
+   *
+   * Optimistic Concurrency Control: pass the record's `updated_at` as
+   * `ifMatch` so the server can reject the write with `409 CONCURRENT_UPDATE`
+   * when a concurrent writer has bumped the row. On conflict we open a
+   * resolution dialog instead of silently retrying or silently overwriting.
    */
+  const [conflict, setConflict] = React.useState<ConcurrentUpdateConflict | null>(null);
+  const [conflictBusy, setConflictBusy] = React.useState(false);
+
+  const fieldLabelFor = React.useCallback(
+    (fieldName: string): string | undefined => {
+      const all: any[] = [
+        ...(Array.isArray(schema.fields) ? (schema.fields as any[]) : []),
+        ...((Array.isArray(schema.sections) ? (schema.sections as any[]) : [])
+          .flatMap((s: any) => (Array.isArray(s?.fields) ? s.fields : []))),
+      ];
+      for (const f of all) {
+        const name = typeof f === 'string' ? f : (f?.name || f?.field);
+        if (name === fieldName) {
+          const label = typeof f === 'object' ? (f?.label as string | undefined) : undefined;
+          return label;
+        }
+      }
+      return undefined;
+    },
+    [schema.fields, schema.sections]
+  );
+
   const handleInlineFieldSave = React.useCallback(
     async (field: string, value: any) => {
       const ds: any = ctx.dataSource;
       const recordId = ctx.recordId;
       const objectName = ctx.objectName;
       if (!ds || !recordId || !objectName) return;
+      const ifMatch =
+        typeof (ctx.data as any)?.updated_at === 'string'
+          ? ((ctx.data as any).updated_at as string)
+          : undefined;
+      const opts = ifMatch ? { ifMatch } : undefined;
       try {
         if (typeof ds.update === 'function') {
-          await ds.update(objectName, recordId, { [field]: value });
+          await ds.update(objectName, recordId, { [field]: value }, opts);
         } else if (typeof ds.updateOne === 'function') {
-          await ds.updateOne(objectName, recordId, { [field]: value });
+          await ds.updateOne(objectName, recordId, { [field]: value }, opts);
         } else if (typeof ds.patch === 'function') {
-          await ds.patch(objectName, recordId, { [field]: value });
+          await ds.patch(objectName, recordId, { [field]: value }, opts);
         } else {
           console.warn('[record:details] DataSource exposes no update/updateOne/patch method; cannot persist inline edit');
           return;
@@ -217,6 +254,20 @@ export const RecordDetailsRenderer: React.FC<RecordDetailsRendererProps> = ({
           await ctx.refresh();
         }
       } catch (err) {
+        if (isConcurrentUpdateError(err)) {
+          const current = err.currentRecord ?? null;
+          setConflict({
+            field,
+            label: fieldLabelFor(field),
+            pendingValue: value,
+            currentValue: current ? (current as Record<string, unknown>)[field] : undefined,
+            currentVersion: err.currentVersion,
+            currentRecord: current,
+          });
+          // Re-throw so DetailView rolls back its optimistic local state.
+          // The dialog drives the eventual resolution (reload / overwrite).
+          throw err;
+        }
         console.error('[record:details] Inline-edit save failed', err);
         // Re-throw so DetailView can roll back the optimistic local state and
         // surface the failure to the user. Without this the value would
@@ -225,8 +276,62 @@ export const RecordDetailsRenderer: React.FC<RecordDetailsRendererProps> = ({
         throw err;
       }
     },
-    [ctx.dataSource, ctx.recordId, ctx.objectName, ctx.refresh]
+    [ctx.dataSource, ctx.recordId, ctx.objectName, ctx.data, ctx.refresh, fieldLabelFor]
   );
+
+  const closeConflict = React.useCallback(() => {
+    setConflict(null);
+    setConflictBusy(false);
+  }, []);
+
+  const handleConflictReload = React.useCallback(async () => {
+    setConflictBusy(true);
+    try {
+      if (typeof ctx.refresh === 'function') {
+        await ctx.refresh();
+      }
+    } finally {
+      closeConflict();
+    }
+  }, [ctx.refresh, closeConflict]);
+
+  const handleConflictOverwrite = React.useCallback(async () => {
+    if (!conflict) {
+      closeConflict();
+      return;
+    }
+    const ds: any = ctx.dataSource;
+    const recordId = ctx.recordId;
+    const objectName = ctx.objectName;
+    if (!ds || !recordId || !objectName) {
+      closeConflict();
+      return;
+    }
+    setConflictBusy(true);
+    try {
+      // Re-key the write against the latest known server version. The
+      // server's `currentVersion` from the 409 is now the freshest
+      // token we hold, so passing it through still uses OCC — it just
+      // means "I've seen this newer version, apply my change on top".
+      const opts = conflict.currentVersion
+        ? { ifMatch: conflict.currentVersion }
+        : undefined;
+      if (typeof ds.update === 'function') {
+        await ds.update(objectName, recordId, { [conflict.field]: conflict.pendingValue }, opts);
+      } else if (typeof ds.updateOne === 'function') {
+        await ds.updateOne(objectName, recordId, { [conflict.field]: conflict.pendingValue }, opts);
+      } else if (typeof ds.patch === 'function') {
+        await ds.patch(objectName, recordId, { [conflict.field]: conflict.pendingValue }, opts);
+      }
+      if (typeof ctx.refresh === 'function') {
+        await ctx.refresh();
+      }
+    } catch (err) {
+      console.error('[record:details] Overwrite-on-conflict failed', err);
+    } finally {
+      closeConflict();
+    }
+  }, [conflict, ctx.dataSource, ctx.recordId, ctx.objectName, ctx.refresh, closeConflict]);
 
   const synthesized: any = {
     type: 'detail-view',
@@ -252,6 +357,14 @@ export const RecordDetailsRenderer: React.FC<RecordDetailsRendererProps> = ({
         dataSource={ctx.dataSource as any}
         inlineEdit={inlineEditDefault}
         onFieldSave={handleInlineFieldSave}
+      />
+      <ConcurrentUpdateDialog
+        open={!!conflict}
+        conflict={conflict}
+        busy={conflictBusy}
+        onCancel={closeConflict}
+        onReload={handleConflictReload}
+        onOverwrite={handleConflictOverwrite}
       />
     </div>
   );

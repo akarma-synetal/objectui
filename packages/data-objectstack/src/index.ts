@@ -702,12 +702,8 @@ export class ObjectStackAdapter<T = unknown> implements DataSource<T> {
    * the caller previously read) against the record's current version
    * and throws a {@link ConcurrentUpdateError} on mismatch (HTTP 409).
    *
-   * NOTE: end-to-end OCC requires `@objectstack/client@>=4.1.2`, which
-   * forwards `opts.ifMatch` as an `If-Match` HTTP header. With older
-   * client versions the option is silently dropped (no header sent →
-   * server applies normal write); behaviour falls back to today's
-   * "last writer wins". The frontend conflict-handling path still works
-   * once the server responds with `409 CONCURRENT_UPDATE`.
+   * Requires `@objectstack/client@>=4.2.0`, which forwards `opts.ifMatch`
+   * as an `If-Match` HTTP header.
    */
   async update(
     resource: string,
@@ -717,16 +713,13 @@ export class ObjectStackAdapter<T = unknown> implements DataSource<T> {
   ): Promise<T> {
     await this.connect();
     try {
-      // 4th arg (opts) is forwarded once published clients accept it
-      // (>=4.1.2). Cast keeps this file compiling against older
-      // @objectstack/client typings while preserving the behaviour.
-      const result = await (this.client.data.update as any)(
+      const result = await this.client.data.update<T>(
         resource,
         String(id),
         data,
         opts?.ifMatch ? { ifMatch: opts.ifMatch } : undefined,
       );
-      return (result as { record: T }).record;
+      return result.record;
     } catch (err) {
       throw normaliseClientError(err);
     }
@@ -746,12 +739,12 @@ export class ObjectStackAdapter<T = unknown> implements DataSource<T> {
   ): Promise<boolean> {
     await this.connect();
     try {
-      const result = await (this.client.data.delete as any)(
+      const result = await this.client.data.delete(
         resource,
         String(id),
         opts?.ifMatch ? { ifMatch: opts.ifMatch } : undefined,
       );
-      return (result as { deleted: boolean }).deleted;
+      return result.deleted;
     } catch (err) {
       throw normaliseClientError(err);
     }

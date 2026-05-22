@@ -34,6 +34,14 @@ export {
 };
 export { RecordDetailDrawer, deriveRecordPageHref } from './RecordDetailDrawer';
 export type { RecordDetailDrawerProps } from './RecordDetailDrawer';
+export {
+  ConcurrentUpdateDialog,
+  isConcurrentUpdateError,
+} from './ConcurrentUpdateDialog';
+export type {
+  ConcurrentUpdateConflict,
+  ConcurrentUpdateDialogProps,
+} from './ConcurrentUpdateDialog';
 export { SectionGroup } from './SectionGroup';
 export { HeaderHighlight } from './HeaderHighlight';
 export { inferDetailColumns, isWideFieldType, applyAutoSpan, applyDetailAutoLayout } from './autoLayout';
