@@ -215,7 +215,7 @@ export function ObjectView({ dataSource, objects, onEdit, externalRefreshKey }: 
     const [searchParams, setSearchParams] = useSearchParams();
     const { showDebug } = useMetadataInspector();
     const { t } = useObjectTranslation();
-    const { objectLabel, objectDescription: objectDesc, viewLabel, actionLabel, actionConfirm, actionSuccess, fieldLabel, fieldOptionLabel } = useObjectLabel();
+    const { objectLabel, objectDescription: objectDesc, viewLabel, viewEmptyState, actionLabel, actionConfirm, actionSuccess, fieldLabel, fieldOptionLabel } = useObjectLabel();
     const { isFavorite, toggleFavorite } = useFavorites();
     
     // Inline view config panel state (Airtable-style right sidebar)
@@ -1506,9 +1506,13 @@ export function ObjectView({ dataSource, objects, onEdit, externalRefreshKey }: 
             allowPrinting: viewDef.allowPrinting ?? listSchema.allowPrinting,
             virtualScroll: viewDef.virtualScroll ?? listSchema.virtualScroll,
             emptyState:
-                viewDef.emptyState
-                ?? listSchema.emptyState
-                ?? resolveManagedByEmptyState((objectDef as any)?.managedBy),
+                viewEmptyState(
+                    objectDef.name,
+                    viewDef.name || viewDef.id || '',
+                    viewDef.emptyState
+                        ?? listSchema.emptyState
+                        ?? resolveManagedByEmptyState((objectDef as any)?.managedBy),
+                ),
             aria: viewDef.aria ?? listSchema.aria,
             tabs: listSchema.tabs,
             // Propagate filter/sort as default filters/sort for data flow

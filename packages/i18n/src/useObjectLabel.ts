@@ -314,6 +314,27 @@ export function useObjectLabel() {
     },
 
     /**
+     * Resolve translated list-view emptyState. Returns a {title, message}
+     * tuple with each field independently translated. Convention:
+     *   `{ns}.objects.{objectName}._views.{viewName}.emptyState.title`
+     *   `{ns}.objects.{objectName}._views.{viewName}.emptyState.message`
+     */
+    viewEmptyState: (
+      objectName: string,
+      viewName: string,
+      fallback: { title?: string; message?: string; icon?: string } | undefined,
+    ) => {
+      if (!fallback) return undefined;
+      const title = fallback.title
+        ? resolve(objectSuffixes(objectName, `_views.${viewName}.emptyState.title`), fallback.title)
+        : fallback.title;
+      const message = fallback.message
+        ? resolve(objectSuffixes(objectName, `_views.${viewName}.emptyState.message`), fallback.message)
+        : fallback.message;
+      return { ...fallback, title, message };
+    },
+
+    /**
      * Resolve translated form-section label.
      * Convention: `{ns}.objects.{objectName}._sections.{sectionName}.label`.
      */
