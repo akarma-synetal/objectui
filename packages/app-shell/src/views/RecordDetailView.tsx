@@ -10,12 +10,11 @@ import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { DetailView, RecordChatterPanel, buildDefaultPageSchema } from '@object-ui/plugin-detail';
 import { Empty, EmptyTitle, EmptyDescription } from '@object-ui/components';
-import { PresenceAvatars, type PresenceUser } from '@object-ui/collaboration';
 import { useAuth, createAuthenticatedFetch } from '@object-ui/auth';
 import { ActionProvider, useObjectTranslation, useObjectLabel, usePageAssignment, RecordContextProvider, SchemaRenderer, DiscussionContextProvider, HighlightFieldsProvider } from '@object-ui/react';
 import { buildExpandFields } from '@object-ui/core';
 import { toast } from 'sonner';
-import { Database, Users } from 'lucide-react';
+import { Database } from 'lucide-react';
 import { MetadataPanel, useMetadataInspector } from './MetadataInspector';
 import { SkeletonDetail } from '../skeletons';
 import { ManagedByBadge } from '../components/ManagedByBadge';
@@ -99,7 +98,6 @@ export function RecordDetailView({ dataSource, objects, onEdit, objectNameOverri
   const { addRecentItem } = useRecentItems();
   const [isLoading, setIsLoading] = useState(true);
   const [feedItems, setFeedItems] = useState<FeedItem[]>([]);
-  const [recordViewers, setRecordViewers] = useState<PresenceUser[]>([]);
   const [actionRefreshKey, setActionRefreshKey] = useState(0);
   const [childRelatedData, setChildRelatedData] = useState<Record<string, any[]>>({});
   const [historyEntries, setHistoryEntries] = useState<any[] | null>(null);
@@ -604,15 +602,18 @@ export function RecordDetailView({ dataSource, objects, onEdit, objectNameOverri
     [user?.id, user?.name, user?.image],
   );
 
-  // Fetch presence and comments from API
+  // Fetch comments from API.
+  //
+  // NOTE: Record-level presence ("who else is viewing this record") used to
+  // be probed here by `dataSource.find('sys_presence', …)`, but that was an
+  // architectural mistake: presence is real-time ephemeral state and does
+  // not belong in a regular REST collection. The probe has been removed
+  // pending a proper transport-level design (WebSocket-backed
+  // `<PresenceProvider>` in @object-ui/collaboration). See ROADMAP for the
+  // realtime / OCC plan.
   useEffect(() => {
     if (!dataSource || !objectName || !pureRecordId) return;
     const threadId = `${objectName}:${pureRecordId}`;
-
-    // Fetch record viewers
-    dataSource.find('sys_presence', { $filter: { recordId: pureRecordId } })
-      .then((res: any) => { if (res.data?.length) setRecordViewers(res.data); })
-      .catch(() => {});
 
     // M10.10: Fetch persisted comments from sys_comment. Field names
     // are snake_case to match the platform-objects schema
@@ -1328,12 +1329,6 @@ export function RecordDetailView({ dataSource, objects, onEdit, objectNameOverri
             don't lose these affordances. */}
         <div className="absolute top-2 sm:top-4 right-2 sm:right-4 z-50 flex items-center gap-2">
           <ManagedByBadge managedBy={(objectDef as any)?.managedBy} />
-          {recordViewers.length > 0 && (
-            <div className="flex items-center gap-1.5" title={t('recordDetail.viewersTooltip')}>
-              <Users className="h-3.5 w-3.5 text-muted-foreground" />
-              <PresenceAvatars users={recordViewers} size="sm" maxVisible={4} showStatus />
-            </div>
-          )}
         </div>
 
         <RecordContextProvider
@@ -1422,15 +1417,11 @@ export function RecordDetailView({ dataSource, objects, onEdit, objectNameOverri
     <div className="h-full bg-background overflow-hidden flex flex-col relative">
       <div className="absolute top-2 sm:top-4 right-2 sm:right-4 z-50 flex items-center gap-2">
         {/* Lifecycle bucket indicator. Replaces the previous full-width
-            ManagedByBanner — see ManagedByBadge for the rationale. */}
+            ManagedByBanner — see ManagedByBadge for the rationale.
+            Record presence avatars are intentionally NOT rendered here:
+            real-time presence requires a transport (WebSocket) that is
+            not yet wired. See ROADMAP. */}
         <ManagedByBadge managedBy={(objectDef as any)?.managedBy} />
-        {/* Presence: who else is viewing this record */}
-        {recordViewers.length > 0 && (
-          <div className="flex items-center gap-1.5" title={t('recordDetail.viewersTooltip')}>
-            <Users className="h-3.5 w-3.5 text-muted-foreground" />
-            <PresenceAvatars users={recordViewers} size="sm" maxVisible={4} showStatus />
-          </div>
-        )}
       </div>
 
       <div className="flex-1 overflow-hidden flex flex-row">

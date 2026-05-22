@@ -126,7 +126,6 @@ export function AppHeader({
   const { currentAppName, recordTitle } = useNavigationContext();
   const mobileSwitcher = useMobileViewSwitcher();
 
-  const [apiPresenceUsers, setApiPresenceUsers] = useState<PresenceUser[] | null>(null);
   const [apiActivities, setApiActivities] = useState<ActivityItem[] | null>(null);
   /** M10.8: in-header notifications. Polled from sys_notification scoped to current user. */
   const [notifications, setNotifications] = useState<Array<{
@@ -143,7 +142,6 @@ export function AppHeader({
   // Once the server returns 404 for these collections we stop retrying for
   // the lifetime of the page — they're optional features and re-requesting
   // on every navigation creates console noise + wasted round trips.
-  const presenceUnavailableRef = useRef(false);
   const activityUnavailableRef = useRef(false);
   const notificationsUnavailableRef = useRef(false);
 
@@ -160,28 +158,19 @@ export function AppHeader({
     const isMissingResource = (err: any): boolean =>
       err?.httpStatus === 404 || err?.status === 404 || err?.code === 'object_not_found';
 
-    const presenceP = presenceUnavailableRef.current
-      ? Promise.resolve({ data: [] as Record<string, unknown>[] })
-      : dataSource.find('sys_presence').catch((err: any) => {
-          if (isMissingResource(err)) presenceUnavailableRef.current = true;
+    // Tenant-wide presence ("who else is online?") is intentionally NOT
+    // probed here. Presence is real-time ephemeral state that does not
+    // belong in a regular REST collection. The feature is staged behind a
+    // transport-level provider (<PresenceProvider>) which is not yet
+    // wired — see ROADMAP for the realtime plan.
+    if (activityUnavailableRef.current) return;
+    try {
+      const activityResult = await dataSource
+        .find('sys_activity', { $orderby: { timestamp: 'desc' }, $top: 20 })
+        .catch((err: any) => {
+          if (isMissingResource(err)) activityUnavailableRef.current = true;
           return { data: [] as Record<string, unknown>[] };
         });
-    const activityP = activityUnavailableRef.current
-      ? Promise.resolve({ data: [] as Record<string, unknown>[] })
-      : dataSource
-          .find('sys_activity', { $orderby: { timestamp: 'desc' }, $top: 20 })
-          .catch((err: any) => {
-            if (isMissingResource(err)) activityUnavailableRef.current = true;
-            return { data: [] as Record<string, unknown>[] };
-          });
-    try {
-      const [presenceResult, activityResult] = await Promise.all([presenceP, activityP]);
-      if (presenceResult.data?.length) {
-        const users = (presenceResult.data as Record<string, unknown>[]).filter(
-          (u): u is PresenceUser & Record<string, unknown> => typeof u.userId === 'string'
-        );
-        if (users.length) setApiPresenceUsers(users);
-      }
       if (activityResult.data?.length) {
         const items = (activityResult.data as Record<string, unknown>[]).filter(
           (a): a is ActivityItem & Record<string, unknown> => typeof a.type === 'string'
@@ -336,7 +325,7 @@ export function AppHeader({
     ));
   }, [dataSource, notifications]);
 
-  const activeUsers = presenceUsers ?? apiPresenceUsers ?? EMPTY_PRESENCE_USERS;
+  const activeUsers = presenceUsers ?? EMPTY_PRESENCE_USERS;
   const activeActivities = activities ?? apiActivities ?? [];
   const orgList = organizations ?? [];
   const hasOrgSection = isOrganizationsLoading || orgList.length > 0 || !!activeOrganization;
