@@ -505,7 +505,7 @@ const PageAccordionRenderer: React.FC<any> = ({ schema, className, ...props }) =
   //     `variant: 'card'` (or `properties.variant: 'card'`) on the schema.
   const variant: 'flush' | 'card' =
     schema?.variant ?? schema?.properties?.variant ?? 'flush';
-  const itemClass = variant === 'flush' ? 'border-none' : undefined;
+  const itemClass = variant === 'flush' ? 'border-b last:border-b-0' : undefined;
 
   const itemsWithValue = items.map((it, idx) => ({
     ...it,
@@ -521,7 +521,9 @@ const PageAccordionRenderer: React.FC<any> = ({ schema, className, ...props }) =
   // one without trying to share a generic prop bag.
   const commonChildren = itemsWithValue.map((item) => (
     <AccordionItem key={item.value} value={item.value} className={itemClass}>
-      <AccordionTrigger>{item.labelStr}</AccordionTrigger>
+      <AccordionTrigger className="text-sm font-semibold tracking-tight hover:no-underline">
+        {item.labelStr}
+      </AccordionTrigger>
       <AccordionContent>{renderChildren(item.children)}</AccordionContent>
     </AccordionItem>
   ));

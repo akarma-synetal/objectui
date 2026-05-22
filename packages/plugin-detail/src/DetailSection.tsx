@@ -405,19 +405,19 @@ export const DetailSection: React.FC<DetailSectionProps> = ({
     return (
       <Card className={cn(section.showBorder === false ? 'border-none shadow-none' : '', className)}>
         {section.title && (
-          <CardHeader className={cn(section.headerColor && `bg-${section.headerColor}`)}>
-            <CardTitle className="flex items-center justify-between">
+          <CardHeader className={cn('py-3 px-4 sm:py-4 sm:px-6', section.headerColor && `bg-${section.headerColor}`)}>
+            <CardTitle className="flex items-center justify-between text-base font-semibold tracking-tight">
               <div className="flex items-center gap-2">
                 {section.icon && <span className="text-muted-foreground">{section.icon}</span>}
                 <span>{section.title}</span>
               </div>
             </CardTitle>
             {section.description && (
-              <p className="text-sm text-muted-foreground mt-1.5">{section.description}</p>
+              <p className="text-xs text-muted-foreground mt-1">{section.description}</p>
             )}
           </CardHeader>
         )}
-        <CardContent className="pt-4 sm:pt-6 px-3 sm:px-6">
+        <CardContent className="pt-3 sm:pt-4 px-3 sm:px-6 pb-4 sm:pb-5">
           {content}
         </CardContent>
       </Card>
@@ -433,10 +433,10 @@ export const DetailSection: React.FC<DetailSectionProps> = ({
       <Card>
         <CollapsibleTrigger asChild>
           <CardHeader className={cn(
-            "cursor-pointer hover:bg-muted/50 transition-colors",
+            "py-3 px-4 sm:py-4 sm:px-6 cursor-pointer hover:bg-muted/50 transition-colors",
             section.headerColor && `bg-${section.headerColor}`
           )}>
-            <CardTitle className="flex items-center justify-between">
+            <CardTitle className="flex items-center justify-between text-base font-semibold tracking-tight">
               <div className="flex items-center gap-2">
                 {section.icon && <span className="text-muted-foreground">{section.icon}</span>}
                 <span>{section.title}</span>
@@ -450,12 +450,12 @@ export const DetailSection: React.FC<DetailSectionProps> = ({
               </div>
             </CardTitle>
             {section.description && !isCollapsed && (
-              <p className="text-sm text-muted-foreground mt-1.5">{section.description}</p>
+              <p className="text-xs text-muted-foreground mt-1">{section.description}</p>
             )}
           </CardHeader>
         </CollapsibleTrigger>
         <CollapsibleContent>
-          <CardContent className="pt-4 sm:pt-6 px-3 sm:px-6">
+          <CardContent className="pt-3 sm:pt-4 px-3 sm:px-6 pb-4 sm:pb-5">
             {content}
           </CardContent>
         </CollapsibleContent>
