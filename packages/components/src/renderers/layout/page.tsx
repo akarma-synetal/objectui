@@ -144,7 +144,7 @@ const RegionLayout: React.FC<{
         </div>
 
         {aside && (
-          <aside className={cn('shrink-0', getRegionWidthClass(aside.width as string || 'small'))}>
+          <aside className={cn('shrink-0', getRegionWidthClass(aside.width as string || 'small'), aside.className)}>
             <RegionContent region={aside} />
           </aside>
         )}
@@ -254,7 +254,7 @@ const ThreeColumnTemplate: React.FC<{ schema: PageSchema }> = ({ schema }) => {
           ))}
         </div>
         {aside && (
-          <aside className={cn('shrink-0', getRegionWidthClass(aside.width as string || 'small'))}>
+          <aside className={cn('shrink-0', getRegionWidthClass(aside.width as string || 'small'), aside.className)}>
             <RegionContent region={aside} />
           </aside>
         )}

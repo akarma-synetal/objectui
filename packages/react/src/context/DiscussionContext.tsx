@@ -31,15 +31,28 @@ export interface DiscussionMentionSuggestion {
   avatarUrl?: string;
 }
 
+export interface DiscussionAttachment {
+  id: string;
+  name: string;
+  size: number;
+  type: string;
+  url?: string;
+  thumbnailUrl?: string;
+}
+
 export interface DiscussionContextValue {
   items: DiscussionFeedItem[];
-  onAddComment?: (text: string, attachments?: any[]) => void | Promise<void>;
+  onAddComment?: (text: string, attachments?: DiscussionAttachment[]) => void | Promise<void>;
   onAddReply?: (parentId: string, text: string) => void | Promise<void>;
   onToggleReaction?: (itemId: string, reaction: string) => void | Promise<void>;
   /** Optional list of users (or any mentionable entities) the comment
    *  input can suggest after the user types `@`. When omitted the input
    *  falls back to free-text @-mentions without autocompletion. */
   mentionSuggestions?: DiscussionMentionSuggestion[];
+  /** Optional uploader. When provided, the comment composer renders a
+   *  drag-and-drop attachment panel; returned attachments are passed
+   *  alongside the comment text to `onAddComment`. */
+  onUploadAttachments?: (files: FileList) => Promise<DiscussionAttachment[]>;
   loading?: boolean;
   error?: Error | null;
 }
@@ -60,6 +73,7 @@ export const DiscussionContextProvider: React.FC<DiscussionContextProviderProps>
     value.onAddReply,
     value.onToggleReaction,
     value.mentionSuggestions,
+    value.onUploadAttachments,
     value.loading,
     value.error,
   ]);

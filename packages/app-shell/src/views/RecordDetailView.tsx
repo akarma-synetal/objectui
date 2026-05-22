@@ -119,6 +119,9 @@ export function RecordDetailView({ dataSource, objects, onEdit, objectNameOverri
   const { addRecentItem } = useRecentItems();
   const [isLoading, setIsLoading] = useState(true);
   const [feedItems, setFeedItems] = useState<FeedItem[]>([]);
+  const [mentionSuggestions, setMentionSuggestions] = useState<
+    Array<{ id: string; label: string; avatarUrl?: string }>
+  >([]);
   const [actionRefreshKey, setActionRefreshKey] = useState(0);
   const [childRelatedData, setChildRelatedData] = useState<Record<string, any[]>>({});
   const [historyEntries, setHistoryEntries] = useState<any[] | null>(null);
@@ -614,6 +617,37 @@ export function RecordDetailView({ dataSource, objects, onEdit, objectNameOverri
       });
     return () => { cancelled = true; };
   }, [dataSource, pureRecordId, objectDef, historyEnabled]);
+
+  // Fetch a directory of active users once per dataSource mount and expose
+  // them as @-mention suggestions to the DiscussionContext. Capped at 50 to
+  // keep the dropdown tight; hosts can swap in a paginated/server-search
+  // implementation later by mounting their own DiscussionContextProvider.
+  useEffect(() => {
+    if (!dataSource) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await dataSource.find('sys_user', {
+          $top: 50,
+          $select: ['id', 'name', 'email', 'image'],
+        } as any);
+        if (cancelled) return;
+        const rows: any[] = Array.isArray(res) ? res : res?.data || [];
+        const suggestions = rows
+          .map((u) => ({
+            id: String(u.id),
+            label: u.name || u.email || String(u.id),
+            avatarUrl: u.image || undefined,
+          }))
+          .filter((s) => s.label);
+        setMentionSuggestions(suggestions);
+      } catch {
+        // Silently fall back to free-text @mention when the user dir is
+        // unavailable (e.g. the backend has no sys_user collection).
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [dataSource]);
 
   // Memoize so the object identity is stable across renders — otherwise
   // any effect that depends on it (e.g. the feed loader below) would
@@ -1417,6 +1451,7 @@ export function RecordDetailView({ dataSource, objects, onEdit, objectNameOverri
             onAddComment={handleAddComment as any}
             onAddReply={handleAddReply as any}
             onToggleReaction={handleToggleReaction as any}
+            mentionSuggestions={mentionSuggestions}
           >
           <ActionProvider
             context={{ record: pageRecord || {}, objectName, user: currentUser }}
@@ -1458,6 +1493,7 @@ export function RecordDetailView({ dataSource, objects, onEdit, objectNameOverri
                       onAddComment={handleAddComment}
                       onAddReply={handleAddReply}
                       onToggleReaction={handleToggleReaction}
+                      mentionSuggestions={mentionSuggestions}
                     />
                   </div>
                 )}

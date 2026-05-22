@@ -34,6 +34,13 @@ export interface RichTextCommentInputProps {
   placeholder?: string;
   className?: string;
   disabled?: boolean;
+  /** Optional content rendered inside the bordered container, between the
+   *  editor and the toolbar. Used by hosts to inject an attachment panel
+   *  without modifying the composer's text/toolbar contract. */
+  extraSlot?: React.ReactNode;
+  /** When true, the Send button is enabled even if the text value is empty.
+   *  Hosts pass this when attachments-only submits should be allowed. */
+  canSubmitEmpty?: boolean;
 }
 
 /** Render minimal markdown to HTML for preview. */
@@ -75,6 +82,8 @@ export const RichTextCommentInput: React.FC<RichTextCommentInputProps> = ({
   placeholder,
   className,
   disabled = false,
+  extraSlot,
+  canSubmitEmpty = false,
 }) => {
   const { t } = useDetailTranslation();
   const [isPreview, setIsPreview] = React.useState(false);
@@ -283,7 +292,7 @@ export const RichTextCommentInput: React.FC<RichTextCommentInputProps> = ({
             size="icon"
             className="h-7 w-7"
             onClick={onSubmit}
-            disabled={disabled || !value.trim()}
+            disabled={disabled || (!canSubmitEmpty && !value.trim())}
             title={t('detail.submitComment')}
           >
             <Send className="h-3.5 w-3.5" />
@@ -345,6 +354,13 @@ export const RichTextCommentInput: React.FC<RichTextCommentInputProps> = ({
           </>
         )}
       </div>
+
+      {/* Extra slot — typically an attachment panel rendered by the host */}
+      {extraSlot && (
+        <div className="border-t px-2 py-2 bg-muted/20">
+          {extraSlot}
+        </div>
+      )}
     </div>
   );
 };

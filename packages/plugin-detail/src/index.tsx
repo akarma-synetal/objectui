@@ -19,6 +19,7 @@ import { RecordChatterRenderer } from './renderers/record-chatter';
 import { RecordPathRenderer } from './renderers/record-path';
 import { RecordQuickActionsRenderer } from './renderers/record-quick-actions';
 import { RecordHistoryRenderer } from './renderers/record-history';
+import { RecordReferenceRailRenderer } from './renderers/record-reference-rail';
 import type { DetailViewSchema } from '@object-ui/types';
 
 export { DetailView, DetailSection, DetailTabs, RelatedList };
@@ -31,6 +32,7 @@ export {
   RecordPathRenderer,
   RecordQuickActionsRenderer,
   RecordHistoryRenderer,
+  RecordReferenceRailRenderer,
 };
 export { RecordDetailDrawer, deriveRecordPageHref } from './RecordDetailDrawer';
 export type { RecordDetailDrawerProps } from './RecordDetailDrawer';
@@ -273,4 +275,11 @@ ComponentRegistry.register('record:history', RecordHistoryRenderer, {
   category: 'record',
   label: 'History Timeline',
   icon: 'Clock',
+});
+
+ComponentRegistry.register('record:reference_rail', RecordReferenceRailRenderer, {
+  namespace: 'record',
+  category: 'record',
+  label: 'Reference Rail',
+  icon: 'PanelRight',
 });

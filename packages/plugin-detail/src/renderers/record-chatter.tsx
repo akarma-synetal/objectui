@@ -60,6 +60,7 @@ export const RecordChatterRenderer: React.FC<RecordChatterRendererProps> = ({
         onAddReply={discussion?.onAddReply as any}
         onToggleReaction={discussion?.onToggleReaction as any}
         mentionSuggestions={discussion?.mentionSuggestions as any}
+        onUploadAttachments={discussion?.onUploadAttachments as any}
       />
     </div>
   );

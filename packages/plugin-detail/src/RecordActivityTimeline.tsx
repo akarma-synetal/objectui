@@ -29,6 +29,7 @@ import { ReactionPicker } from './ReactionPicker';
 import { ThreadedReplies } from './ThreadedReplies';
 import { SubscriptionToggle } from './SubscriptionToggle';
 import { RichTextCommentInput } from './RichTextCommentInput';
+import { CommentAttachment, type Attachment } from './CommentAttachment';
 import { useDetailTranslation } from './useDetailTranslation';
 
 export type FeedFilterMode = 'all' | 'comments_only' | 'changes_only' | 'tasks_only';
@@ -49,7 +50,7 @@ export interface RecordActivityTimelineProps {
   /** Loading state */
   loading?: boolean;
   /** Called when a comment is submitted */
-  onAddComment?: (text: string) => void | Promise<void>;
+  onAddComment?: (text: string, attachments?: Attachment[]) => void | Promise<void>;
   /** Called when a reply is submitted */
   onAddReply?: (parentId: string | number, text: string) => void | Promise<void>;
   /** Called when user toggles a reaction */
@@ -62,6 +63,9 @@ export interface RecordActivityTimelineProps {
   collapseWhenEmpty?: boolean;
   /** Optional list of mention suggestions for the rich comment input. */
   mentionSuggestions?: Array<{ id: string; label: string; avatarUrl?: string }>;
+  /** Optional uploader for comment attachments. When provided, the composer
+   *  exposes a drag-and-drop file panel. */
+  onUploadAttachments?: (files: FileList) => Promise<Attachment[]>;
   /** Override the panel title (defaults to t('detail.activity')) */
   titleLabel?: string;
   /** Override the empty state copy (defaults to t('detail.noActivity')) */
@@ -153,6 +157,7 @@ export const RecordActivityTimeline: React.FC<RecordActivityTimelineProps> = ({
   onToggleSubscription,
   collapseWhenEmpty = false,
   mentionSuggestions,
+  onUploadAttachments,
   titleLabel,
   emptyLabel,
   className,
@@ -162,6 +167,8 @@ export const RecordActivityTimeline: React.FC<RecordActivityTimelineProps> = ({
   const [commentText, setCommentText] = React.useState('');
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [isLoadingMore, setIsLoadingMore] = React.useState(false);
+  const [pendingAttachments, setPendingAttachments] = React.useState<Attachment[]>([]);
+  const [isUploading, setIsUploading] = React.useState(false);
 
   const activeFilter = controlledFilter ?? internalFilter;
   const showFilter = config?.showFilterToggle !== false;
@@ -207,15 +214,41 @@ export const RecordActivityTimeline: React.FC<RecordActivityTimelineProps> = ({
 
   const handleAddComment = React.useCallback(async () => {
     const text = commentText.trim();
-    if (!text || !onAddComment) return;
+    if (!onAddComment) return;
+    // Allow attachment-only comments when at least one file is attached.
+    if (!text && pendingAttachments.length === 0) return;
     setIsSubmitting(true);
     try {
-      await onAddComment(text);
+      await onAddComment(
+        text,
+        pendingAttachments.length > 0 ? pendingAttachments : undefined,
+      );
       setCommentText('');
+      setPendingAttachments([]);
     } finally {
       setIsSubmitting(false);
     }
-  }, [commentText, onAddComment]);
+  }, [commentText, pendingAttachments, onAddComment]);
+
+  const handleUpload = React.useCallback(
+    async (files: FileList) => {
+      if (!onUploadAttachments || files.length === 0) return;
+      setIsUploading(true);
+      try {
+        const uploaded = await onUploadAttachments(files);
+        if (Array.isArray(uploaded) && uploaded.length > 0) {
+          setPendingAttachments((prev) => [...prev, ...uploaded]);
+        }
+      } finally {
+        setIsUploading(false);
+      }
+    },
+    [onUploadAttachments],
+  );
+
+  const handleRemoveAttachment = React.useCallback((id: string) => {
+    setPendingAttachments((prev) => prev.filter((a) => a.id !== id));
+  }, []);
 
   const handleLoadMore = React.useCallback(async () => {
     if (!onLoadMore) return;
@@ -294,6 +327,23 @@ export const RecordActivityTimeline: React.FC<RecordActivityTimelineProps> = ({
             mentionSuggestions={mentionSuggestions}
             placeholder={t('detail.leaveCommentPlaceholder')}
             disabled={isSubmitting}
+            canSubmitEmpty={pendingAttachments.length > 0}
+            extraSlot={
+              onUploadAttachments ? (
+                <CommentAttachment
+                  attachments={pendingAttachments}
+                  onUpload={handleUpload}
+                  onRemove={handleRemoveAttachment}
+                  readOnly={isSubmitting || isUploading}
+                />
+              ) : pendingAttachments.length > 0 ? (
+                <CommentAttachment
+                  attachments={pendingAttachments}
+                  onRemove={handleRemoveAttachment}
+                  readOnly={isSubmitting}
+                />
+              ) : undefined
+            }
           />
         )}
 

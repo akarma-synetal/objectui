@@ -64,6 +64,12 @@ export interface BuildPageOptions {
   hideHighlights?: boolean;
   /** Suppress the auto-prepended `record:path` stepper. */
   hidePath?: boolean;
+  /**
+   * Suppress the auto-emitted Reference Rail (aside region with
+   * `record:reference_rail`). The rail is auto-emitted only when
+   * `related` has at least 2 entries.
+   */
+  hideReferenceRail?: boolean;
   /** Pass-through to `page:header.recordChrome`. Defaults to true. */
   recordChrome?: boolean;
   /**
@@ -491,17 +497,48 @@ export function buildDefaultPageSchema(
     components.push(buildDefaultDiscussion());
   }
 
+  // 6) Reference Rail — Salesforce/HubSpot-style aside summary of
+  //    related collections. Auto-emit only when the record has at
+  //    least 2 related lists; otherwise the rail is mostly noise.
+  //    Hidden on screens below `xl` so the main column owns full width
+  //    at common laptop widths.
+  const regions: any[] = [
+    {
+      name: 'main',
+      width: 'full',
+      components,
+    },
+  ];
+
+  if (
+    !options.hideReferenceRail &&
+    Array.isArray(options.related) &&
+    options.related.length >= 2
+  ) {
+    regions.push({
+      name: 'aside',
+      width: 'small',
+      className: 'hidden xl:flex flex-col gap-4',
+      components: [
+        {
+          type: 'record:reference_rail',
+          entries: options.related.map((rel) => ({
+            objectName: rel.objectName,
+            relationshipField: rel.relationshipField,
+            title: rel.title,
+            icon: rel.icon,
+            limit: 3,
+          })),
+        },
+      ],
+    });
+  }
+
   return {
     type: 'record',
     pageType: 'record',
     object: def?.name,
     template: 'full-width',
-    regions: [
-      {
-        name: 'main',
-        width: 'full',
-        components,
-      },
-    ],
+    regions,
   };
 }
