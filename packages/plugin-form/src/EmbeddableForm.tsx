@@ -224,6 +224,24 @@ export const EmbeddableForm: React.FC<EmbeddableFormProps> = ({
     [config.customFields],
   );
 
+  // When config provides a `fields: string[]` list (the public-form path),
+  // ObjectForm needs `dataSource.getObjectSchema()` to render the inputs. We
+  // pass a read-only wrapper that exposes schema lookup but neutralises any
+  // mutating ops so EmbeddableForm's security gates remain the *only* path
+  // to the backend (no double-write, no bypassed consent/honeypot checks).
+  const formDataSource = useMemo(() => {
+    if (!dataSource) return undefined;
+    if (safeCustomFields && safeCustomFields.length > 0) return undefined;
+    if (!config.fields || config.fields.length === 0) return undefined;
+    const stub = async (_name: string, data: Record<string, unknown>) => data;
+    return {
+      ...dataSource,
+      create: stub,
+      update: (_n: string, _id: string, data: Record<string, unknown>) => Promise.resolve(data),
+      delete: () => Promise.reject(new Error('Not permitted on public form')),
+    } as typeof dataSource;
+  }, [dataSource, safeCustomFields, config.fields]);
+
   // Build initial data — URL prefill is gated by an explicit field whitelist.
   const initialData = useMemo(() => {
     const data: Record<string, string> = {};
@@ -421,11 +439,13 @@ export const EmbeddableForm: React.FC<EmbeddableFormProps> = ({
                 ? texts.submitting ?? 'Submitting...'
                 : texts.submit ?? 'Submit',
             }}
-            // NOTE: we intentionally do NOT pass `dataSource` here.  All of
-            // EmbeddableForm's security gates (consent, honeypot, min-fill
-            // timing, payload sanitisation, redirect guard) run inside our
-            // own `handleSubmit`; persisting through ObjectForm too would
-            // both bypass those gates *and* double-write to the backend.
+            dataSource={formDataSource}
+            // NOTE: when `formDataSource` is provided (the public-form
+            // `fields: string[]` path) it is a read-only wrapper whose
+            // `create/update/delete` are neutralised — ObjectForm can fetch
+            // the object schema to render inputs, but only EmbeddableForm's
+            // own `handleSubmit` (above) ever talks to the real backend, so
+            // consent / honeypot / min-fill / redirect gates always run.
           />
 
           {/* Honeypot — visually & a11y hidden, off-screen, no autofocus */}

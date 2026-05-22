@@ -118,7 +118,7 @@ function mapViewSpecToEmbeddableConfig(
   return {
     formId: slug,
     objectName,
-    title: spec?.label ?? formView?.label ?? `Public form: ${slug}`,
+    title: spec?.label ?? formView?.label ?? formView?.title ?? spec?.objectSchema?.label ?? objectName,
     description: formView?.description ?? spec?.description,
     fields: fields.length > 0 ? fields : undefined,
     allowMultiple: true,
