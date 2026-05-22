@@ -189,22 +189,39 @@ export interface DataSource<T = any> {
 
   /**
    * Update an existing record.
-   * 
+   *
    * @param resource - Resource name
    * @param id - Record identifier
    * @param data - Updated data (partial)
+   * @param opts - Optional write options. Pass `opts.ifMatch` to enable
+   *   Optimistic Concurrency Control: the implementation forwards the
+   *   token (typically the `updated_at` value the caller previously read)
+   *   to the server. On a mismatch the adapter rejects with a
+   *   `ConcurrentUpdateError` (HTTP 409) so the UI can surface a
+   *   conflict-resolution flow. Adapters that don't support OCC may
+   *   ignore the option.
    * @returns Promise resolving to the updated record
    */
-  update(resource: string, id: string | number, data: Partial<T>): Promise<T>;
+  update(
+    resource: string,
+    id: string | number,
+    data: Partial<T>,
+    opts?: { ifMatch?: string },
+  ): Promise<T>;
 
   /**
    * Delete a record.
-   * 
+   *
    * @param resource - Resource name
    * @param id - Record identifier
+   * @param opts - Optional write options — see {@link update} for `ifMatch`.
    * @returns Promise resolving to true if successful
    */
-  delete(resource: string, id: string | number): Promise<boolean>;
+  delete(
+    resource: string,
+    id: string | number,
+    opts?: { ifMatch?: string },
+  ): Promise<boolean>;
 
   /**
    * Execute a bulk operation (optional).

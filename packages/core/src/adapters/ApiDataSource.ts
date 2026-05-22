@@ -263,21 +263,36 @@ export class ApiDataSource<T = any> implements DataSource<T> {
     });
   }
 
-  async update(_resource: string, id: string | number, data: Partial<T>): Promise<T> {
+  async update(
+    _resource: string,
+    id: string | number,
+    data: Partial<T>,
+    opts?: { ifMatch?: string },
+  ): Promise<T> {
     const config = this.writeConfig ?? this.readConfig;
     return this.request<T>(config, {
       pathSuffix: String(id),
       method: 'PATCH',
       body: data,
+      ...(opts?.ifMatch
+        ? { headers: { 'If-Match': String(opts.ifMatch) } }
+        : {}),
     });
   }
 
-  async delete(_resource: string, id: string | number): Promise<boolean> {
+  async delete(
+    _resource: string,
+    id: string | number,
+    opts?: { ifMatch?: string },
+  ): Promise<boolean> {
     const config = this.writeConfig ?? this.readConfig;
     try {
       await this.request(config, {
         pathSuffix: String(id),
         method: 'DELETE',
+        ...(opts?.ifMatch
+          ? { headers: { 'If-Match': String(opts.ifMatch) } }
+          : {}),
       });
       return true;
     } catch {

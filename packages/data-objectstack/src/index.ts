@@ -178,6 +178,67 @@ export function is404Error(error: unknown): boolean {
 }
 
 /**
+ * Thrown by `update()` / `delete()` when the server returns
+ * `409 CONCURRENT_UPDATE` — i.e. the record was modified by someone else
+ * between when the caller last read it and when they attempted to write.
+ *
+ * The error carries the current server-side `updated_at` version and the
+ * full latest record so the UI can render an informed conflict-resolution
+ * dialog (typically "Reload latest" / "Overwrite anyway" / "Cancel").
+ *
+ * Mirrors the {@link ConcurrentUpdateError} thrown by
+ * `@objectstack/objectql`'s protocol; the wire shape is:
+ * ```json
+ * { "code": "CONCURRENT_UPDATE",
+ *   "error": "<message>",
+ *   "currentVersion": "<updated_at>",
+ *   "currentRecord": { ...latest... } }
+ * ```
+ */
+export class ConcurrentUpdateError extends Error {
+  readonly code = 'CONCURRENT_UPDATE';
+  readonly httpStatus = 409;
+  readonly currentVersion: string | null;
+  readonly currentRecord: unknown;
+  constructor(opts: { currentVersion: string | null; currentRecord: unknown; message?: string }) {
+    super(opts.message ?? 'Record was modified by another user');
+    this.name = 'ConcurrentUpdateError';
+    this.currentVersion = opts.currentVersion;
+    this.currentRecord = opts.currentRecord;
+  }
+}
+
+/**
+ * Detect "concurrent update" errors raised by the platform. The wire
+ * shape is `409` + `code: 'CONCURRENT_UPDATE'`. The client surfaces
+ * extra details on `error.details` (full response body).
+ */
+export function isConcurrentUpdateError(error: unknown): error is ConcurrentUpdateError {
+  if (!error || typeof error !== 'object') return false;
+  const e = error as Record<string, unknown>;
+  return e.code === 'CONCURRENT_UPDATE' || e.name === 'ConcurrentUpdateError';
+}
+
+/**
+ * Convert any error thrown by the upstream client into a typed
+ * `ConcurrentUpdateError` when it represents a 409 CONCURRENT_UPDATE.
+ * Returns the original error untouched otherwise. Callers can simply
+ * `throw normaliseClientError(err)` from their catch blocks.
+ */
+export function normaliseClientError(error: unknown): unknown {
+  if (!error || typeof error !== 'object') return error;
+  const e = error as Record<string, unknown>;
+  if (e.code !== 'CONCURRENT_UPDATE' && e.httpStatus !== 409) return error;
+  if (e.code !== 'CONCURRENT_UPDATE') return error;
+  const details = (e.details ?? {}) as Record<string, unknown>;
+  return new ConcurrentUpdateError({
+    currentVersion: typeof details.currentVersion === 'string' ? details.currentVersion : null,
+    currentRecord: details.currentRecord ?? null,
+    message: typeof e.message === 'string' ? e.message : undefined,
+  });
+}
+
+/**
  * Build a Logger compatible with @objectstack/client that demotes expected
  * 404 noise to console.debug. The client logs every non-2xx response with
  * `logger.error("HTTP request failed", undefined, { status, error })`, but
@@ -635,20 +696,65 @@ export class ObjectStackAdapter<T = unknown> implements DataSource<T> {
 
   /**
    * Update an existing record.
+   *
+   * Optional `opts.ifMatch` enables Optimistic Concurrency Control: the
+   * server compares the supplied token (typically the `updated_at` value
+   * the caller previously read) against the record's current version
+   * and throws a {@link ConcurrentUpdateError} on mismatch (HTTP 409).
+   *
+   * NOTE: end-to-end OCC requires `@objectstack/client@>=4.1.2`, which
+   * forwards `opts.ifMatch` as an `If-Match` HTTP header. With older
+   * client versions the option is silently dropped (no header sent →
+   * server applies normal write); behaviour falls back to today's
+   * "last writer wins". The frontend conflict-handling path still works
+   * once the server responds with `409 CONCURRENT_UPDATE`.
    */
-  async update(resource: string, id: string | number, data: Partial<T>): Promise<T> {
+  async update(
+    resource: string,
+    id: string | number,
+    data: Partial<T>,
+    opts?: { ifMatch?: string },
+  ): Promise<T> {
     await this.connect();
-    const result = await this.client.data.update<T>(resource, String(id), data);
-    return result.record;
+    try {
+      // 4th arg (opts) is forwarded once published clients accept it
+      // (>=4.1.2). Cast keeps this file compiling against older
+      // @objectstack/client typings while preserving the behaviour.
+      const result = await (this.client.data.update as any)(
+        resource,
+        String(id),
+        data,
+        opts?.ifMatch ? { ifMatch: opts.ifMatch } : undefined,
+      );
+      return (result as { record: T }).record;
+    } catch (err) {
+      throw normaliseClientError(err);
+    }
   }
 
   /**
    * Delete a record.
+   *
+   * Optional `opts.ifMatch` enables Optimistic Concurrency Control —
+   * see {@link update} for details. On 409 the call rejects with
+   * a {@link ConcurrentUpdateError}.
    */
-  async delete(resource: string, id: string | number): Promise<boolean> {
+  async delete(
+    resource: string,
+    id: string | number,
+    opts?: { ifMatch?: string },
+  ): Promise<boolean> {
     await this.connect();
-    const result = await this.client.data.delete(resource, String(id));
-    return result.deleted;
+    try {
+      const result = await (this.client.data.delete as any)(
+        resource,
+        String(id),
+        opts?.ifMatch ? { ifMatch: opts.ifMatch } : undefined,
+      );
+      return (result as { deleted: boolean }).deleted;
+    } catch (err) {
+      throw normaliseClientError(err);
+    }
   }
 
   /**
