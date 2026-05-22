@@ -411,7 +411,7 @@ export const PageRenderer: React.FC<{
   const pageContent = (
     <div
       className={cn(
-        'min-h-full w-full bg-background p-4 md:p-6 lg:p-8',
+        'min-h-full w-full bg-background p-3 md:p-4 lg:p-6',
         className,
       )}
       data-page-type={pageType}
@@ -420,7 +420,7 @@ export const PageRenderer: React.FC<{
       style={style}
       {...pageProps}
     >
-      <div className={cn('mx-auto space-y-8', getPageMaxWidth(pageType))}>
+      <div className={cn('mx-auto space-y-6', getPageMaxWidth(pageType))}>
         {/* Page header — suppressed on record pages (the page:header component
             in the header region renders the record-bound title instead). */}
         {pageType !== 'record' && (schema.title || schema.description) && (

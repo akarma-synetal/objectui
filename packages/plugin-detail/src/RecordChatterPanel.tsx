@@ -41,6 +41,9 @@ export interface RecordChatterPanelProps {
   onFilterChange?: (mode: FeedFilterMode) => void;
   /** When true, auto-collapse panel when there are no feed items */
   collapseWhenEmpty?: boolean;
+  /** Optional list of users (or any mentionable entities) the comment
+   *  input can suggest after the user types `@`. */
+  mentionSuggestions?: Array<{ id: string; label: string; avatarUrl?: string }>;
   className?: string;
 }
 
@@ -67,6 +70,7 @@ export const RecordChatterPanel: React.FC<RecordChatterPanelProps> = ({
   filterMode,
   onFilterChange,
   collapseWhenEmpty = false,
+  mentionSuggestions,
   className,
 }) => {
   const position = config?.position ?? 'right';
@@ -148,6 +152,7 @@ export const RecordChatterPanel: React.FC<RecordChatterPanelProps> = ({
             filterMode={filterMode}
             onFilterChange={onFilterChange}
             collapseWhenEmpty={collapseWhenEmpty}
+            mentionSuggestions={mentionSuggestions}
             titleLabel={t('detail.discussion')}
             emptyLabel={t('detail.noCommentsYet')}
             className="border-0 shadow-none"
@@ -203,6 +208,7 @@ export const RecordChatterPanel: React.FC<RecordChatterPanelProps> = ({
             filterMode={filterMode}
             onFilterChange={onFilterChange}
             collapseWhenEmpty={collapseWhenEmpty}
+            mentionSuggestions={mentionSuggestions}
             titleLabel={t('detail.discussion')}
             emptyLabel={t('detail.noCommentsYet')}
           />

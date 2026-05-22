@@ -73,6 +73,15 @@ export const HeaderHighlight: React.FC<HeaderHighlightProps> = ({
             resolveCellRendererType(enrichedField as any) || resolvedType || 'text',
           );
 
+          // Treat numeric / currency / percent / count as KPI values —
+          // render larger, tabular-nums for nice column alignment.
+          const isKpi =
+            resolvedType === 'number' ||
+            resolvedType === 'integer' ||
+            resolvedType === 'currency' ||
+            resolvedType === 'percent' ||
+            resolvedType === 'decimal';
+
           return (
             <div
               key={field.name}
@@ -82,7 +91,14 @@ export const HeaderHighlight: React.FC<HeaderHighlightProps> = ({
                 {field.icon && <span className="mr-1">{field.icon}</span>}
                 {fieldLabel(objectName || '', field.name, field.label)}
               </span>
-              <span className="block min-w-0 truncate text-sm font-semibold">
+              <span
+                className={cn(
+                  'block min-w-0 truncate',
+                  isKpi
+                    ? 'text-xl md:text-2xl font-semibold leading-tight tabular-nums tracking-tight'
+                    : 'text-sm font-semibold',
+                )}
+              >
                 <CellRenderer value={value} field={enrichedField as any} />
               </span>
             </div>

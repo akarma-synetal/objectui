@@ -25,11 +25,21 @@ export interface DiscussionFeedItem {
   [k: string]: any;
 }
 
+export interface DiscussionMentionSuggestion {
+  id: string;
+  label: string;
+  avatarUrl?: string;
+}
+
 export interface DiscussionContextValue {
   items: DiscussionFeedItem[];
   onAddComment?: (text: string, attachments?: any[]) => void | Promise<void>;
   onAddReply?: (parentId: string, text: string) => void | Promise<void>;
   onToggleReaction?: (itemId: string, reaction: string) => void | Promise<void>;
+  /** Optional list of users (or any mentionable entities) the comment
+   *  input can suggest after the user types `@`. When omitted the input
+   *  falls back to free-text @-mentions without autocompletion. */
+  mentionSuggestions?: DiscussionMentionSuggestion[];
   loading?: boolean;
   error?: Error | null;
 }
@@ -49,6 +59,7 @@ export const DiscussionContextProvider: React.FC<DiscussionContextProviderProps>
     value.onAddComment,
     value.onAddReply,
     value.onToggleReaction,
+    value.mentionSuggestions,
     value.loading,
     value.error,
   ]);

@@ -22,13 +22,13 @@ import {
   Phone,
   ChevronDown,
   Loader2,
-  Send,
 } from 'lucide-react';
 import type { FeedItem, FeedItemType, RecordActivityComponentProps, RecordSubscription } from '@object-ui/types';
 import { FieldChangeItem } from './FieldChangeItem';
 import { ReactionPicker } from './ReactionPicker';
 import { ThreadedReplies } from './ThreadedReplies';
 import { SubscriptionToggle } from './SubscriptionToggle';
+import { RichTextCommentInput } from './RichTextCommentInput';
 import { useDetailTranslation } from './useDetailTranslation';
 
 export type FeedFilterMode = 'all' | 'comments_only' | 'changes_only' | 'tasks_only';
@@ -60,6 +60,8 @@ export interface RecordActivityTimelineProps {
   onToggleSubscription?: (subscribed: boolean) => void | Promise<void>;
   /** When true, collapse to only the comment input when there are no items */
   collapseWhenEmpty?: boolean;
+  /** Optional list of mention suggestions for the rich comment input. */
+  mentionSuggestions?: Array<{ id: string; label: string; avatarUrl?: string }>;
   /** Override the panel title (defaults to t('detail.activity')) */
   titleLabel?: string;
   /** Override the empty state copy (defaults to t('detail.noActivity')) */
@@ -150,6 +152,7 @@ export const RecordActivityTimeline: React.FC<RecordActivityTimelineProps> = ({
   subscription,
   onToggleSubscription,
   collapseWhenEmpty = false,
+  mentionSuggestions,
   titleLabel,
   emptyLabel,
   className,
@@ -213,16 +216,6 @@ export const RecordActivityTimeline: React.FC<RecordActivityTimelineProps> = ({
       setIsSubmitting(false);
     }
   }, [commentText, onAddComment]);
-
-  const handleKeyDown = React.useCallback(
-    (e: React.KeyboardEvent) => {
-      if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
-        e.preventDefault();
-        handleAddComment();
-      }
-    },
-    [handleAddComment],
-  );
 
   const handleLoadMore = React.useCallback(async () => {
     if (!onLoadMore) return;
@@ -292,29 +285,16 @@ export const RecordActivityTimeline: React.FC<RecordActivityTimelineProps> = ({
           </div>
         )}
 
-        {/* Comment Input */}
+        {/* Comment Input — rich text with @mention + bold/italic/list/code + preview */}
         {showCommentInput && (
-          <div className="flex gap-2">
-            <textarea
-              className="flex-1 min-h-[60px] rounded-md border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring resize-none"
-              placeholder={t('detail.leaveCommentPlaceholder')}
-              value={commentText}
-              onChange={(e) => setCommentText(e.target.value)}
-              onKeyDown={handleKeyDown}
-              disabled={isSubmitting}
-            />
-            <Button
-              variant="default"
-              onClick={handleAddComment}
-              disabled={!commentText.trim() || isSubmitting}
-              className="shrink-0 self-end gap-1.5"
-              aria-label={t('detail.submitComment')}
-              title={t('detail.submitComment')}
-            >
-              <Send className="h-4 w-4" />
-              <span>{t('detail.sendComment')}</span>
-            </Button>
-          </div>
+          <RichTextCommentInput
+            value={commentText}
+            onChange={setCommentText}
+            onSubmit={handleAddComment}
+            mentionSuggestions={mentionSuggestions}
+            placeholder={t('detail.leaveCommentPlaceholder')}
+            disabled={isSubmitting}
+          />
         )}
 
         {/* Timeline */}
