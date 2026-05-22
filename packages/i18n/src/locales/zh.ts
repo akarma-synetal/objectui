@@ -243,6 +243,23 @@ const zh = {
       unassigned: '未分配',
     },
   },
+  gantt: {
+    column: {
+      taskName: '任务名称',
+      start: '开始',
+      end: '结束',
+    },
+    toolbar: {
+      prevPeriod: '上一周期',
+      nextPeriod: '下一周期',
+      zoomIn: '放大',
+      zoomOut: '缩小',
+      jumpToToday: '跳到今天',
+      today: '今天',
+      showTaskList: '展开任务列表',
+      hideTaskList: '收起任务列表',
+    },
+  },
   view: {
     rename: '重命名',
     duplicateView: '复制视图',

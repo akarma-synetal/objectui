@@ -55,8 +55,20 @@ function computeAggregation(type: string, values: number[]): number | null {
 
 /**
  * Format a summary value for display.
+ *
+ * When a `column` carries type metadata (e.g. `type: 'currency'` or
+ * `'percent'`) we route the numeric result through the matching
+ * formatter so currency columns render as `$1,234.56` and percent
+ * columns as `12%` instead of falling back to a bare `toLocaleString()`.
+ * Currency code defaults to USD when neither `currency` nor
+ * `defaultCurrency` is supplied — mirrors the CurrencyCellRenderer
+ * behavior so cells and footer agree.
  */
-function formatSummaryLabel(type: string, value: number | null): string {
+function formatSummaryLabel(
+  type: string,
+  value: number | null,
+  column?: { type?: string; currency?: string; defaultCurrency?: string; precision?: number | null; scale?: number | null }
+): string {
   if (value === null) return '';
   const typeLabels: Record<string, string> = {
     count: 'Count',
@@ -66,9 +78,31 @@ function formatSummaryLabel(type: string, value: number | null): string {
     max: 'Max',
   };
   const label = typeLabels[type] || type;
-  const formatted = type === 'avg'
-    ? value.toLocaleString(undefined, { maximumFractionDigits: 2 })
-    : value.toLocaleString();
+
+  const colType = column?.type;
+  let formatted: string;
+  if (type !== 'count' && colType === 'currency') {
+    const currency = column?.currency || column?.defaultCurrency || 'USD';
+    const decimals = column?.precision ?? column?.scale ?? 0;
+    try {
+      formatted = new Intl.NumberFormat(undefined, {
+        style: 'currency',
+        currency,
+        minimumFractionDigits: decimals,
+        maximumFractionDigits: decimals,
+      }).format(value);
+    } catch {
+      formatted = value.toLocaleString();
+    }
+  } else if (type !== 'count' && colType === 'percent') {
+    const decimals = column?.precision ?? 0;
+    const pct = (value > -1 && value < 1) ? value * 100 : value;
+    formatted = `${pct.toFixed(decimals)}%`;
+  } else if (type === 'avg') {
+    formatted = value.toLocaleString(undefined, { maximumFractionDigits: 2 });
+  } else {
+    formatted = value.toLocaleString();
+  }
   return `${label}: ${formatted}`;
 }
 
@@ -77,11 +111,15 @@ function formatSummaryLabel(type: string, value: number | null): string {
  *
  * @param columns - Column definitions (may include `summary` config)
  * @param data - Row data array
+ * @param fieldMetadata - Optional `objectSchema.fields` map; when present
+ *   the hook reads `type`/`currency`/`precision` to format the summary
+ *   in the column's native unit (currency → `$1,234.56`, percent → `12%`).
  * @returns Map of field name to summary result, and a flag if any summaries exist
  */
 export function useColumnSummary(
   columns: ListColumn[] | undefined,
-  data: any[]
+  data: any[],
+  fieldMetadata?: Record<string, { type?: string; currency?: string; defaultCurrency?: string; precision?: number | null; scale?: number | null }>
 ): { summaries: Map<string, ColumnSummaryResult>; hasSummary: boolean } {
   return useMemo(() => {
     const summaries = new Map<string, ColumnSummaryResult>();
@@ -116,13 +154,26 @@ export function useColumnSummary(
       } else {
         result = computeAggregation(config.type, values);
       }
+
+      // Merge column-level hints (`col.currency`, `col.precision`, etc.) with
+      // any matching fieldMetadata entry so authors get correct currency/
+      // percent formatting without restating type info on every column.
+      const meta = fieldMetadata?.[targetField];
+      const columnHints = {
+        type: (col as any).type ?? meta?.type,
+        currency: (col as any).currency ?? meta?.currency,
+        defaultCurrency: (col as any).defaultCurrency ?? meta?.defaultCurrency,
+        precision: (col as any).precision ?? meta?.precision,
+        scale: (col as any).scale ?? meta?.scale,
+      };
+
       summaries.set(col.field, {
         field: col.field,
         value: result,
-        label: formatSummaryLabel(config.type, result),
+        label: formatSummaryLabel(config.type, result, columnHints),
       });
     }
 
     return { summaries, hasSummary: summaries.size > 0 };
-  }, [columns, data]);
+  }, [columns, data, fieldMetadata]);
 }

@@ -25,6 +25,7 @@ import {
   Separator,
   useResizeObserver,
 } from "@object-ui/components"
+import { useGanttTranslation } from "./useGanttTranslation"
 
 const HEADER_HEIGHT = 50;
 const COLUMN_WIDTH = 100; // Time column width
@@ -102,6 +103,7 @@ export function GanttView({
   className,
   inlineEdit = false,
 }: GanttViewProps) {
+  const { t } = useGanttTranslation();
   const [currentDate, setCurrentDate] = React.useState(new Date());
   const containerRef = React.useRef<HTMLDivElement>(null);
   const { width: containerWidth } = useResizeObserver(containerRef);
@@ -343,10 +345,10 @@ export function GanttView({
               already exposes a fully-fielded create form for this
               object, and the toolbar's quick-create only set 3 fields
               which was confusing for required-field-heavy schemas. */}
-          <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Previous period">
+          <Button variant="ghost" size="icon" className="h-8 w-8" aria-label={t('gantt.toolbar.prevPeriod')}>
             <ChevronLeft className="h-4 w-4" />
           </Button>
-          <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Next period">
+          <Button variant="ghost" size="icon" className="h-8 w-8" aria-label={t('gantt.toolbar.nextPeriod')}>
             <ChevronRight className="h-4 w-4" />
           </Button>
           <span className="font-semibold text-xs sm:text-sm">
@@ -367,7 +369,7 @@ export function GanttView({
               size="icon"
               className="h-6 w-6"
               onClick={() => setColumnWidthOverride(Math.max(15, columnWidth - 10))}
-              aria-label="Zoom out"
+              aria-label={t('gantt.toolbar.zoomOut')}
             >
               <ZoomOut className="h-3 w-3" />
             </Button>
@@ -376,7 +378,7 @@ export function GanttView({
               size="icon"
               className="h-6 w-6"
               onClick={() => setColumnWidthOverride(Math.min(120, columnWidth + 10))}
-              aria-label="Zoom in"
+              aria-label={t('gantt.toolbar.zoomIn')}
             >
               <ZoomIn className="h-3 w-3" />
             </Button>
@@ -386,7 +388,7 @@ export function GanttView({
             size="icon"
             className="h-8 w-8"
             onClick={() => setTaskListCollapsed((v) => !v)}
-            aria-label={taskListCollapsed ? 'Show task list' : 'Hide task list'}
+            aria-label={taskListCollapsed ? t('gantt.toolbar.showTaskList') : t('gantt.toolbar.hideTaskList')}
             aria-pressed={taskListCollapsed}
             data-testid="gantt-toggle-task-list"
           >
@@ -398,7 +400,7 @@ export function GanttView({
             className="h-8 w-8"
             onClick={jumpToToday}
             disabled={todayLeftPx == null}
-            aria-label="Jump to today"
+            aria-label={t('gantt.toolbar.jumpToToday')}
             data-testid="gantt-jump-today"
           >
             <CalendarDays className="h-4 w-4" />
@@ -415,11 +417,11 @@ export function GanttView({
             className="flex items-center font-medium text-xs text-muted-foreground px-2 sm:px-4 border-r bg-card z-20 shadow-sm"
             style={{ width: taskListWidth, minWidth: taskListWidth }}
           >
-            <div className="flex-1 truncate">Task Name</div>
+            <div className="flex-1 truncate">{t('gantt.column.taskName')}</div>
             {showSEColumns && (
               <>
-                <div className="w-16 sm:w-20 text-right">Start</div>
-                <div className="w-16 sm:w-20 text-right">End</div>
+                <div className="w-16 sm:w-20 text-right">{t('gantt.column.start')}</div>
+                <div className="w-16 sm:w-20 text-right">{t('gantt.column.end')}</div>
               </>
             )}
           </div>
@@ -561,10 +563,10 @@ export function GanttView({
                   className="absolute top-0 bottom-0 w-px bg-red-500/80 z-20 pointer-events-none"
                   style={{ left: todayLeftPx }}
                   data-testid="gantt-today-marker"
-                  aria-label="Today"
+                  aria-label={t('gantt.toolbar.today')}
                 >
                   <div className="absolute -top-2 -translate-x-1/2 left-0 text-[10px] font-semibold text-white bg-red-500 rounded-sm px-1 py-0.5 whitespace-nowrap">
-                    Today
+                    {t('gantt.toolbar.today')}
                   </div>
                 </div>
               )}

@@ -649,7 +649,7 @@ export const ObjectGrid: React.FC<ObjectGridProps> = ({
     }
     return undefined;
   }, [schema.columns]);
-  const { summaries, hasSummary } = useColumnSummary(summaryColumns, data);
+  const { summaries, hasSummary } = useColumnSummary(summaryColumns, data, objectSchema?.fields);
 
   const generateColumns = useCallback(() => {
     // Map field type to column header icon (Airtable-style)

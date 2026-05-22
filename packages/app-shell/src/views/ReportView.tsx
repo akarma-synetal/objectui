@@ -433,7 +433,7 @@ export function ReportView({ dataSource }: { dataSource?: DataSource }) {
              data-testid="report-edit-button"
            >
              <Pencil className="h-3.5 w-3.5" />
-             Edit
+             {t('common.edit')}
            </button>
         </div>
       </div>
@@ -441,7 +441,7 @@ export function ReportView({ dataSource }: { dataSource?: DataSource }) {
       <div className="flex-1 overflow-hidden flex flex-col sm:flex-row relative">
          <div className="flex-1 min-w-0 overflow-auto p-4 sm:p-6 lg:p-8 bg-muted/5">
              <div className="w-full shadow-sm border rounded-lg sm:rounded-xl bg-background overflow-hidden min-h-150">
-                 <Suspense fallback={<div className="p-8 text-sm text-muted-foreground">Loading report…</div>}>
+                 <Suspense fallback={<div className="p-8 text-sm text-muted-foreground">{t('common.loading', { defaultValue: 'Loading…' })}</div>}>
                    {useSpecRenderer ? (
                      <div className="p-4 sm:p-6">
                        <ReportRenderer schema={previewReport} dataSource={dataSource as any} />

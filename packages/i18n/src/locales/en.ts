@@ -243,6 +243,23 @@ const en = {
       unassigned: 'Unassigned',
     },
   },
+  gantt: {
+    column: {
+      taskName: 'Task Name',
+      start: 'Start',
+      end: 'End',
+    },
+    toolbar: {
+      prevPeriod: 'Previous period',
+      nextPeriod: 'Next period',
+      zoomIn: 'Zoom in',
+      zoomOut: 'Zoom out',
+      jumpToToday: 'Jump to today',
+      today: 'Today',
+      showTaskList: 'Show task list',
+      hideTaskList: 'Hide task list',
+    },
+  },
   view: {
     rename: 'Rename',
     duplicateView: 'Duplicate View',
