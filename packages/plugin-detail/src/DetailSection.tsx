@@ -185,7 +185,18 @@ export const DetailSection: React.FC<DetailSectionProps> = ({
     }
 
     const displayValue = (() => {
-      if (value === null || value === undefined) return <span className="text-muted-foreground/50 text-xs italic">—</span>;
+      const isEmpty = value === null || value === undefined || value === '';
+      if (isEmpty) {
+        return (
+          <span
+            className="text-muted-foreground/60 text-sm select-none"
+            aria-label={t('detail.noValue', { defaultValue: 'No value' })}
+            title={t('detail.noValue', { defaultValue: 'No value' })}
+          >
+            —
+          </span>
+        );
+      }
       // Use type-aware cell renderer; respect format hints (e.g.
       // text + format: 'phone' → PhoneCellRenderer with tel: link).
       const resolvedType = resolveCellRendererType(enrichedField as { type?: string; format?: string }) || field.type;

@@ -358,7 +358,7 @@ export const NavigationOverlay: React.FC<NavigationOverlayProps> = ({
               pixel-perfect math to maintain). */}
           <SheetHeader className="shrink-0 flex-row items-center justify-between gap-2 space-y-0 px-4 py-2 border-b bg-muted/30">
             <div className="min-w-0 flex-1">
-              <SheetTitle className="truncate text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              <SheetTitle className="truncate text-xs font-medium tracking-wide text-muted-foreground">
                 {resolvedTitle}
               </SheetTitle>
               {description && (

@@ -2037,7 +2037,7 @@ export function ObjectView({ dataSource, objects, onEdit, externalRefreshKey }: 
              <NavigationOverlay
                  {...navOverlay}
                  setIsOpen={(open: boolean) => { if (!open) handleDrawerClose(); }}
-                 title={objectDef.label}
+                 title={objectLabel(objectDef)}
                  onExpand={handleExpandDrawer}
                  expandLabel={t('console.objectView.expandToPage', { defaultValue: 'Open as full page' })}
                  storageKey={`drawer-width:${objectDef.name}`}

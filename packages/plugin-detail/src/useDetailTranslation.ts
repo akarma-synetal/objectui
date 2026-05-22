@@ -94,6 +94,7 @@ export const DETAIL_DEFAULT_TRANSLATIONS: Record<string, string> = {
   'detail.viewAll': 'View All',
   'detail.new': 'New',
   'detail.emptyValue': '—',
+  'detail.noValue': 'No value',
   'detail.activity': 'Activity',
   'detail.copyRecordId': 'Copy record ID',
   'detail.showEmptyFields': 'Show {{count}} empty fields',
