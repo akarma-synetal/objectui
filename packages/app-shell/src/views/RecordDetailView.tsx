@@ -1265,6 +1265,24 @@ export function RecordDetailView({ dataSource, objects, onEdit, objectNameOverri
       const affordances = resolveCrudAffordances(objectDef as any);
       const items: ActionDef[] = [];
       if (affordances.edit) {
+        // Inline-edit toggle. Surfaced ABOVE `sys_edit` so the
+        // overflow menu lists field-level editing first — Lightning /
+        // HubSpot put inline edit ("Edit details") above the modal /
+        // form-page edit because in-page editing is the higher-frequency
+        // interaction. Communicates with DetailView via a window event
+        // so we don't need to lift inline-edit state out of the plugin.
+        items.push({
+          name: 'sys_inline_edit',
+          label: t('detail.editFieldsInline', { defaultValue: 'Edit fields' }),
+          type: 'script',
+          locations: ['record_header'],
+          variant: 'outline',
+          onClick: () => {
+            window.dispatchEvent(new CustomEvent('objectui:record:inline-edit-toggle', {
+              detail: { recordId: pureRecordId, objectName },
+            }));
+          },
+        } as any);
         items.push({
           name: 'sys_edit',
           label: t('detail.edit', { defaultValue: 'Edit' }),

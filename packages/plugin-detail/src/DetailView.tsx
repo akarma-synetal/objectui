@@ -622,6 +622,25 @@ export const DetailView: React.FC<DetailViewProps> = ({
     return () => document.removeEventListener('keydown', handler);
   }, [schema.recordNavigation]);
 
+  // Cross-component bridge — lets the page-header overflow menu toggle
+  // inline-edit mode without prop drilling. Dispatched by the
+  // `sys_inline_edit` system action injected from RecordDetailView.
+  // The window event is namespaced with the record id so multiple
+  // detail views (drawer + main pane) don't toggle each other.
+  React.useEffect(() => {
+    if (!inlineEdit || schema.showHeader !== false) return;
+    const eventName = 'objectui:record:inline-edit-toggle';
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent).detail as { recordId?: string; objectName?: string } | undefined;
+      if (detail?.recordId && schema.recordId && detail.recordId !== schema.recordId) return;
+      if (detail?.objectName && schema.objectName && detail.objectName !== schema.objectName) return;
+      handleInlineEditToggle();
+    };
+    window.addEventListener(eventName, handler);
+    return () => window.removeEventListener(eventName, handler);
+  }, [inlineEdit, schema.showHeader, schema.recordId, schema.objectName, handleInlineEditToggle]);
+
+
   // Auto-discovery of related panels via INVERSE references (other objects
   // whose FK points to the current record) is the responsibility of the
   // page layer (e.g. RecordDetailView), which has access to the registry of
@@ -1092,19 +1111,26 @@ export const DetailView: React.FC<DetailViewProps> = ({
         <HeaderHighlight fields={schema.highlightFields} data={data} objectName={schema.objectName} objectSchema={objectSchema} />
       )}
 
-      {/* Inline-edit toolbar — rendered above sections whenever the
-          DetailView's own header chrome is suppressed (e.g. when
-          `record:details` is composed under a Lightning-style page:header).
-          Without this, desktop users have no discoverable way to enter
-          inline-edit mode, since the system-action overflow is only used
-          when the embedded DetailView renders its own header. */}
+      {/* Inline-edit affordances — when the DetailView's own header
+          is suppressed (e.g. composed under a Lightning-style page:header),
+          we only render this band while the user is ACTIVELY editing or
+          when there's something the user needs to see (approval lock,
+          save error). The default "Edit fields" entry-point lives in the
+          page:header overflow menu via the `sys_inline_edit` system
+          action so we don't introduce an orphan toolbar row that visually
+          floats between the tab strip and the first section card.
+          Mirrors how Salesforce / HubSpot / Dynamics route field-edit
+          intents through a single top-right menu rather than a separate
+          page-level toolbar. */}
       {inlineEdit && schema.showHeader === false && (() => {
         // Detect approval lock on the live record. When `approval_status`
         // is `pending`/`in_approval`, the backend will reject any update
-        // with RECORD_LOCKED — gate the Edit button up front so users see
-        // a clear lock badge instead of clicking and failing.
+        // with RECORD_LOCKED — show the lock badge inline so users see
+        // a clear reason instead of clicking and failing.
         const approvalStatus = data?.approval_status;
         const isLocked = approvalStatus === 'pending' || approvalStatus === 'in_approval';
+        // Idle (not editing, not saving, no error, not locked): no band.
+        if (!isInlineEditing && !isSaving && !saveError && !isLocked) return null;
         return (
         <div className="flex flex-col items-end gap-1">
           <div className="flex items-center justify-end gap-2">
