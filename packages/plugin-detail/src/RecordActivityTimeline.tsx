@@ -7,7 +7,7 @@
  */
 
 import * as React from 'react';
-import { cn, Button, Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@object-ui/components';
+import { cn, Button, Select, SelectTrigger, SelectValue, SelectContent, SelectItem, DataEmptyState } from '@object-ui/components';
 import {
   Activity,
   Edit,
@@ -320,9 +320,10 @@ export const RecordActivityTimeline: React.FC<RecordActivityTimelineProps> = ({
         {/* Timeline */}
         {filtered.length === 0 ? (
           collapseWhenEmpty ? null : (
-            <p className="text-sm text-muted-foreground text-center py-4">
-              {emptyLabel ?? t('detail.noActivity')}
-            </p>
+            <DataEmptyState
+              title={emptyLabel ?? t('detail.noActivity')}
+              className="py-6"
+            />
           )
         ) : (
           <div className="relative">

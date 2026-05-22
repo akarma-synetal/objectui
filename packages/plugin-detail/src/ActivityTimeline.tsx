@@ -7,7 +7,7 @@
  */
 
 import * as React from 'react';
-import { cn, Card, CardHeader, CardTitle, CardContent } from '@object-ui/components';
+import { cn, Card, CardHeader, CardTitle, CardContent, DataEmptyState } from '@object-ui/components';
 import { Activity, Edit, PlusCircle, Trash2, MessageSquare, ArrowRightLeft, Filter } from 'lucide-react';
 import type { ActivityEntry } from '@object-ui/types';
 
@@ -135,9 +135,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({
         )}
 
         {filteredActivities.length === 0 ? (
-          <p className="text-sm text-muted-foreground text-center py-4">
-            No activity recorded
-          </p>
+          <DataEmptyState title="No activity recorded" className="py-6" />
         ) : (
           <div className="relative">
             {/* Timeline line */}

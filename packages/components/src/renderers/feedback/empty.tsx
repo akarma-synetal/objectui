@@ -8,8 +8,7 @@
 
 import { ComponentRegistry } from '@object-ui/core';
 import type { EmptySchema } from '@object-ui/types';
-import { InboxIcon } from 'lucide-react';
-import { cn } from '../../lib/utils';
+import { DataEmptyState } from '../../custom/view-states';
 
 ComponentRegistry.register('empty', 
   ({ schema, ...props }: { schema: EmptySchema; [key: string]: any }) => {
@@ -19,19 +18,15 @@ ComponentRegistry.register('empty',
         style,
         ...emptyProps
     } = props;
-    
+
     return (
-      <div 
-        className={cn('flex flex-col items-center justify-center p-8 text-center', schema.className)} 
+      <DataEmptyState
+        title={schema.title || 'No data'}
+        description={schema.description}
+        className={schema.className}
         {...emptyProps}
         {...{ 'data-obj-id': dataObjId, 'data-obj-type': dataObjType, style }}
-      >
-        <InboxIcon className="h-12 w-12 text-muted-foreground mb-4" />
-        <h3 className="text-lg font-semibold">{schema.title || 'No data'}</h3>
-        {schema.description && (
-          <p className="text-sm text-muted-foreground mt-2">{schema.description}</p>
-        )}
-      </div>
+      />
     );
   },
   {
