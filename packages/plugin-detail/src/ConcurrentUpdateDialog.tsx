@@ -27,9 +27,11 @@ import {
   AlertDialogFooter,
   AlertDialogTitle,
   AlertDialogDescription,
-  AlertDialogCancel,
-  AlertDialogAction,
+  buttonVariants,
+  cn,
 } from '@object-ui/components';
+import { AlertTriangle } from 'lucide-react';
+import { useDetailTranslation } from './useDetailTranslation';
 
 export interface ConcurrentUpdateConflict {
   /** Field machine name that the user tried to update. */
@@ -70,6 +72,19 @@ const formatValue = (value: unknown): string => {
   }
 };
 
+const formatTimestamp = (raw: unknown): string | null => {
+  if (typeof raw !== 'string' || raw.length === 0) return null;
+  // Backend ships SQL-style "YYYY-MM-DD HH:mm:ss.SSS"; normalise so Date parses it cross-browser.
+  const iso = /\d{4}-\d{2}-\d{2}[ T]/.test(raw) ? raw.replace(' ', 'T') : raw;
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return null;
+  try {
+    return d.toLocaleString();
+  } catch {
+    return d.toISOString();
+  }
+};
+
 export const ConcurrentUpdateDialog: React.FC<ConcurrentUpdateDialogProps> = ({
   open,
   conflict,
@@ -78,9 +93,36 @@ export const ConcurrentUpdateDialog: React.FC<ConcurrentUpdateDialogProps> = ({
   onCancel,
   busy = false,
 }) => {
-  const fieldLabel = conflict?.label || conflict?.field || 'this field';
+  const { t } = useDetailTranslation();
+  const fieldLabel = conflict?.label || conflict?.field || '';
   const pendingPreview = conflict ? formatValue(conflict.pendingValue) : '';
   const currentPreview = conflict ? formatValue(conflict.currentValue) : '';
+
+  // Audit metadata for the racer's write, when the server included currentRecord.
+  const racer = (conflict?.currentRecord ?? {}) as Record<string, unknown>;
+  const racerUpdatedBy = (() => {
+    // Prefer a denormalised human-readable name when the backend supplies one
+    // (e.g. `updated_by_name`). Avoid showing raw opaque IDs like
+    // "pOxl94EamZD0…" — they confuse rather than inform the user.
+    const candidates = [racer['updated_by_name'], racer['updated_by_label']];
+    for (const v of candidates) {
+      if (typeof v === 'string' && v.length > 0) return v;
+    }
+    const id = racer['updated_by'];
+    if (typeof id !== 'string' || id.length === 0) return null;
+    // Heuristic: looks like a long opaque token (no spaces, ≥16 chars,
+    // mixed case alphanumerics) → suppress it.
+    const looksLikeToken =
+      id.length >= 16 && !/\s/.test(id) && /^[A-Za-z0-9_-]+$/.test(id);
+    return looksLikeToken ? null : id;
+  })();
+  const racerUpdatedAt = formatTimestamp(racer['updated_at'] ?? conflict?.currentVersion);
+
+  // Render the description with the field label bolded. We translate a string
+  // that contains the literal placeholder "{{field}}" and split on it so we can
+  // emit a React <strong> child without dangerouslySetInnerHTML.
+  const descriptionTemplate = t('detail.concurrentUpdateDescription', { field: '{{field}}' });
+  const [beforeField, afterField] = descriptionTemplate.split('{{field}}');
 
   return (
     <AlertDialog
@@ -91,38 +133,78 @@ export const ConcurrentUpdateDialog: React.FC<ConcurrentUpdateDialogProps> = ({
     >
       <AlertDialogContent className="max-w-lg">
         <AlertDialogHeader>
-          <AlertDialogTitle>This record was modified by someone else</AlertDialogTitle>
-          <AlertDialogDescription>
-            Another user saved a newer version of <strong>{fieldLabel}</strong> while you
-            were editing. To prevent silently overwriting their change, please choose how
-            to resolve the conflict.
-          </AlertDialogDescription>
+          <div className="flex items-start gap-3">
+            <span
+              className="inline-flex h-9 w-9 flex-none items-center justify-center rounded-full bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-300"
+              aria-hidden="true"
+            >
+              <AlertTriangle className="h-5 w-5" />
+            </span>
+            <div className="flex-1">
+              <AlertDialogTitle>{t('detail.concurrentUpdateTitle')}</AlertDialogTitle>
+              <AlertDialogDescription className="mt-1">
+                {beforeField}
+                <strong className="font-semibold">{fieldLabel}</strong>
+                {afterField}
+              </AlertDialogDescription>
+            </div>
+          </div>
         </AlertDialogHeader>
 
-        <div className="rounded-md border bg-muted/30 text-sm">
-          <div className="grid grid-cols-[7rem_1fr] gap-x-3 gap-y-1 p-3">
-            <div className="text-muted-foreground">Your edit</div>
-            <div className="font-mono break-all">{pendingPreview}</div>
-            <div className="text-muted-foreground">Current value</div>
-            <div className="font-mono break-all">{currentPreview}</div>
+        <div className="space-y-2 text-sm">
+          <div className="rounded-md border border-amber-200/70 bg-amber-50/60 p-3 dark:border-amber-500/30 dark:bg-amber-500/10">
+            <div className="text-xs font-medium uppercase tracking-wide text-amber-800 dark:text-amber-300">
+              {t('detail.concurrentUpdateYourEdit')}
+            </div>
+            <div className="mt-1 break-all font-mono text-foreground">{pendingPreview}</div>
+          </div>
+          <div className="rounded-md border border-sky-200/70 bg-sky-50/60 p-3 dark:border-sky-500/30 dark:bg-sky-500/10">
+            <div className="flex items-baseline justify-between gap-2">
+              <div className="text-xs font-medium uppercase tracking-wide text-sky-800 dark:text-sky-300">
+                {t('detail.concurrentUpdateCurrentValue')}
+              </div>
+              {(racerUpdatedBy || racerUpdatedAt) && (
+                <div className="text-[11px] text-muted-foreground">
+                  {racerUpdatedBy && (
+                    <span>{t('detail.concurrentUpdateUpdatedBy', { name: racerUpdatedBy })}</span>
+                  )}
+                  {racerUpdatedBy && racerUpdatedAt && <span> · </span>}
+                  {racerUpdatedAt && (
+                    <span>{t('detail.concurrentUpdateUpdatedAt', { when: racerUpdatedAt })}</span>
+                  )}
+                </div>
+              )}
+            </div>
+            <div className="mt-1 break-all font-mono text-foreground">{currentPreview}</div>
           </div>
         </div>
 
         <AlertDialogFooter className="gap-2 sm:gap-2">
-          <AlertDialogCancel disabled={busy} onClick={onCancel}>
-            Cancel
-          </AlertDialogCancel>
+          <button
+            type="button"
+            disabled={busy}
+            onClick={onCancel}
+            className={cn(buttonVariants({ variant: 'ghost' }), 'mt-2 sm:mt-0')}
+          >
+            {t('detail.concurrentUpdateCancel')}
+          </button>
+          <button
+            type="button"
+            disabled={busy}
+            onClick={onOverwrite}
+            className={cn(buttonVariants({ variant: 'outline' }), 'mt-2 sm:mt-0 text-destructive border-destructive/40 hover:bg-destructive/10 hover:text-destructive')}
+          >
+            {t('detail.concurrentUpdateOverwrite')}
+          </button>
           <button
             type="button"
             disabled={busy}
             onClick={onReload}
-            className="inline-flex h-9 items-center justify-center rounded-md border border-input bg-background px-4 text-sm font-medium shadow-sm hover:bg-accent hover:text-accent-foreground disabled:pointer-events-none disabled:opacity-50"
+            autoFocus
+            className={cn(buttonVariants({ variant: 'default' }), 'mt-2 sm:mt-0')}
           >
-            Reload latest
+            {t('detail.concurrentUpdateReload')}
           </button>
-          <AlertDialogAction disabled={busy} onClick={onOverwrite}>
-            Overwrite anyway
-          </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>

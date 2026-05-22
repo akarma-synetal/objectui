@@ -182,6 +182,16 @@ export const DETAIL_DEFAULT_TRANSLATIONS: Record<string, string> = {
   'detail.subscribeAriaLabel': 'Subscribe to notifications',
   'detail.unsubscribeAriaLabel': 'Unsubscribe from notifications',
   'detail.clearSearch': 'Clear search',
+  // Concurrent update (OCC) dialog
+  'detail.concurrentUpdateTitle': 'This record was modified by someone else',
+  'detail.concurrentUpdateDescription': 'Another user saved a newer version of {{field}} while you were editing. To prevent silently overwriting their change, please choose how to resolve the conflict.',
+  'detail.concurrentUpdateYourEdit': 'Your edit',
+  'detail.concurrentUpdateCurrentValue': 'Current value',
+  'detail.concurrentUpdateUpdatedBy': 'Updated by {{name}}',
+  'detail.concurrentUpdateUpdatedAt': 'Updated at {{when}}',
+  'detail.concurrentUpdateReload': 'Reload latest',
+  'detail.concurrentUpdateOverwrite': 'Overwrite anyway',
+  'detail.concurrentUpdateCancel': 'Cancel',
 };
 
 /**
