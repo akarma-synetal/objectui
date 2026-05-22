@@ -38,7 +38,7 @@ export const ObjectKanban: React.FC<ObjectKanbanProps> = ({
   ..._props
 }) => {
   void _props;
-  const { translateOptions } = useSafeFieldLabel();
+  const { translateOptions, fieldLabel } = useSafeFieldLabel();
   // When a parent (e.g. ListView) pre-fetches data and passes it via the `data` prop,
   // we must not trigger a second fetch. Detect external data by checking if externalData
   // is an array (undefined when not provided by parent).
@@ -315,9 +315,14 @@ export const ObjectKanban: React.FC<ObjectKanbanProps> = ({
             const opt = def?.options?.find((o: any) =>
               String(o.value).toLowerCase() === String(raw).toLowerCase()
             );
-            const label = opt?.label || String(raw);
+            const rawLabel = opt?.label || String(raw);
+            const objectKey = objectDef?.name || schema.objectName;
+            const translatedLabel = objectKey
+              ? translateOptions(objectKey, f, [{ value: String(opt?.value ?? raw), label: rawLabel }])[0]?.label
+                  ?? rawLabel
+              : rawLabel;
             const colorClass = getBadgeColorClasses(opt?.color, raw);
-            cardBadges.push({ label, colorClass });
+            cardBadges.push({ label: translatedLabel, colorClass });
           } else {
             // Route through the same registry that Grid/Gallery use so
             // every field type renders with its canonical widget.
@@ -330,7 +335,11 @@ export const ObjectKanban: React.FC<ObjectKanbanProps> = ({
                 field={fieldForCell}
               />
             );
-            cardFieldCells.push({ field: f, label: def?.label, node });
+            cardFieldCells.push({
+              field: f,
+              label: fieldLabel(objectDef?.name || schema.objectName || '', f, def?.label || f),
+              node,
+            });
           }
         }
       } else {
@@ -403,6 +412,20 @@ export const ObjectKanban: React.FC<ObjectKanbanProps> = ({
 
   // Generate columns if missing but groupBy is present
   const effectiveColumns = useMemo(() => {
+    // Localize the column title against the groupBy picklist's option labels
+    // so kanban swim-lanes pick up i18n overrides even when the view config
+    // provides explicit `columns: [{ id, title }]` instead of leaving the
+    // renderer to materialize them from `field.options`. Without this the
+    // title flows straight from server-side picklist labels (English) into
+    // the DOM regardless of locale.
+    const localizeColumn = (col: { id: any; title: string }) => {
+      if (!schema.objectName || !schema.groupBy) return col;
+      const localized = translateOptions(schema.objectName, schema.groupBy, [
+        { value: String(col.id), label: col.title },
+      ])[0];
+      return localized?.label ? { ...col, title: localized.label } : col;
+    };
+
     // If columns exist, returns them (normalized)
     if (schema.columns && schema.columns.length > 0) {
         // If columns is array of strings, normalize to objects
@@ -415,7 +438,7 @@ export const ObjectKanban: React.FC<ObjectKanbanProps> = ({
                  }));
              }
         } else {
-             return schema.columns;
+             return (schema.columns as Array<{ id: any; title: string }>).map(localizeColumn);
         }
     }
 

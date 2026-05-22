@@ -30,6 +30,7 @@ import type { ActionDef, ActionParamDef } from '@object-ui/core';
 import { useRecordApprovals } from '../hooks/useRecordApprovals';
 import { getRecordDisplayName } from '../utils';
 import { useFavorites } from '../hooks/useFavorites';
+import { useRecentItems } from '../hooks/useRecentItems';
 
 interface RecordDetailViewProps {
   dataSource: any;
@@ -94,7 +95,8 @@ export function RecordDetailView({ dataSource, objects, onEdit, objectNameOverri
   const navigate = useNavigate();
   const { t } = useObjectTranslation();
   const { objectLabel, viewLabel: _vLabel, sectionLabel, actionLabel, actionConfirm, actionSuccess, fieldLabel, fieldOptionLabel } = useObjectLabel();
-  const { isFavorite, toggleFavorite } = useFavorites();
+  const { isFavorite, toggleFavorite, refreshLabel: refreshFavoriteLabel } = useFavorites();
+  const { addRecentItem } = useRecentItems();
   const [isLoading, setIsLoading] = useState(true);
   const [feedItems, setFeedItems] = useState<FeedItem[]>([]);
   const [recordViewers, setRecordViewers] = useState<PresenceUser[]>([]);
@@ -194,6 +196,31 @@ export function RecordDetailView({ dataSource, objects, onEdit, objectNameOverri
       cancelled = true;
     };
   }, [effectivePage, objectName, pureRecordId, dataSource, objectDef]);
+
+  // Schema-driven path: derive a human-readable record title from the
+  // loaded `pageRecord` so favourites (record:*) and the breadcrumb show
+  // e.g. "Acme Corporation" instead of the raw record id. The legacy
+  // `DetailView` path keeps using its own `onDataLoaded` callback below.
+  useEffect(() => {
+    if (!pageRecord || typeof pageRecord !== 'object' || !objectDef) return;
+    const resolved = getRecordDisplayName(objectDef, pageRecord);
+    if (resolved && resolved !== 'Untitled' && resolved !== recordTitle) {
+      setRecordTitle(resolved);
+    }
+  }, [pageRecord, objectDef, recordTitle]);
+
+  // Once we have a human-readable title, (a) record this visit into the
+  // "Recently Accessed" rail on the home page and (b) self-heal any
+  // previously-favorited entry whose label was saved as the raw record id
+  // (because the title hadn't loaded yet at the time of the toggle).
+  useEffect(() => {
+    if (!objectName || !pureRecordId || !appName) return;
+    if (!recordTitle) return;
+    const favId = `record:${objectName}:${pureRecordId}`;
+    const href = `/apps/${appName}/${objectName}/record/${pureRecordId}`;
+    addRecentItem({ id: favId, label: recordTitle, href, type: 'record' });
+    refreshFavoriteLabel(favId, recordTitle);
+  }, [appName, objectName, pureRecordId, recordTitle, addRecentItem, refreshFavoriteLabel]);
 
   // ─── Action Provider Handlers ───────────────────────────────────────
 

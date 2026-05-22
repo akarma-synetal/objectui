@@ -41,6 +41,7 @@ import {
   Button,
 } from '../../ui';
 import { RecordTitleChip } from '../../custom/RecordTitleChip';
+import { useObjectLabel } from '@object-ui/i18n';
 
 /**
  * Pull the standard designer-passthrough props off a renderer's `props`.
@@ -587,6 +588,7 @@ const PageHeaderRenderer: React.FC<any> = ({ schema, className, ...props }) => {
   const { designer } = splitDesignerProps(props);
   const ctx = useRecordContext();
   const { execute } = useAction();
+  const { objectLabel: tObjectLabel } = useObjectLabel();
   // Spec bridge may either inline `properties.*` onto the node or preserve
   // the raw bag (see record:quick_actions for the same pattern). Read from
   // both so a `{ properties: { title } }` schema is rendered correctly.
@@ -744,8 +746,11 @@ const PageHeaderRenderer: React.FC<any> = ({ schema, className, ...props }) => {
   if (hasRecord && !disableRecordChrome) {
     const data: any = ctx!.data;
     const objSchema: any = (ctx as any).objectSchema;
-    const objectLabel: string | undefined =
-      labelText(objSchema?.label) || objSchema?.name || ctx!.objectName;
+    const rawObjectName: string | undefined = ctx!.objectName || objSchema?.name;
+    const fallbackLabel = labelText(objSchema?.label) || objSchema?.name || ctx!.objectName || '';
+    const objectLabel: string | undefined = rawObjectName
+      ? tObjectLabel({ name: rawObjectName, label: fallbackLabel })
+      : fallbackLabel || undefined;
     const primaryField: string | undefined = objSchema?.primaryField;
     // Honor objectSchema.titleFormat (e.g. `{first_name} {last_name}`).
     // Mirrors DetailView.resolveDisplayTitle's behaviour so default and

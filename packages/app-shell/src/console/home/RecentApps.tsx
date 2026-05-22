@@ -9,8 +9,7 @@
 import { useNavigate } from 'react-router-dom';
 import { useObjectTranslation } from '@object-ui/i18n';
 import { Card, CardContent, cn } from '@object-ui/components';
-import { Clock, ArrowUpRight } from 'lucide-react';
-import { getIcon } from '../../utils/getIcon';
+import { Clock, ArrowUpRight, Database, FileText, LayoutDashboard, File } from 'lucide-react';
 import { capitalizeFirst } from '../../utils';
 import type { RecentItem } from '../../hooks/useRecentItems';
 
@@ -23,6 +22,15 @@ const TYPE_TONES: Record<string, string> = {
   dashboard: 'bg-violet-500/10 text-violet-600 dark:text-violet-400 ring-violet-500/20',
   page: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 ring-emerald-500/20',
   record: 'bg-amber-500/10 text-amber-600 dark:text-amber-400 ring-amber-500/20',
+};
+
+// Per-type icon so the four kinds are visually distinguishable — see
+// StarredApps.tsx for the rationale.
+const TYPE_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
+  object: Database,
+  record: FileText,
+  dashboard: LayoutDashboard,
+  page: File,
 };
 
 export function RecentApps({ items }: RecentAppsProps) {
@@ -43,7 +51,7 @@ export function RecentApps({ items }: RecentAppsProps) {
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
         {items.map((item) => {
-          const Icon = getIcon(item.type);
+          const Icon = TYPE_ICONS[item.type] || Database;
           const typeLabel = t(`home.recentApps.itemType.${item.type}`, {
             defaultValue: capitalizeFirst(item.type),
           });

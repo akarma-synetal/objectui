@@ -9,8 +9,7 @@
 import { useNavigate } from 'react-router-dom';
 import { useObjectTranslation } from '@object-ui/i18n';
 import { Card, CardContent, cn } from '@object-ui/components';
-import { Star, ArrowUpRight } from 'lucide-react';
-import { getIcon } from '../../utils/getIcon';
+import { Star, ArrowUpRight, Database, FileText, LayoutDashboard, File } from 'lucide-react';
 import { capitalizeFirst } from '../../utils';
 import type { FavoriteItem } from '../../hooks/useFavorites';
 
@@ -23,6 +22,16 @@ const TYPE_TONES: Record<string, string> = {
   dashboard: 'bg-violet-500/10 text-violet-600 dark:text-violet-400 ring-violet-500/20',
   page: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 ring-emerald-500/20',
   record: 'bg-amber-500/10 text-amber-600 dark:text-amber-400 ring-amber-500/20',
+};
+
+// Per-type icon so the four kinds (object / record / dashboard / page) are
+// visually distinguishable at a glance. `getIcon` falls back to the same
+// Database glyph for every unknown name which made all cards look identical.
+const TYPE_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
+  object: Database,
+  record: FileText,
+  dashboard: LayoutDashboard,
+  page: File,
 };
 
 export function StarredApps({ items }: StarredAppsProps) {
@@ -43,8 +52,15 @@ export function StarredApps({ items }: StarredAppsProps) {
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
         {items.map((item) => {
-          const Icon = getIcon(item.type);
+          const Icon = TYPE_ICONS[item.type] || Database;
           const tone = TYPE_TONES[item.type] || TYPE_TONES.object;
+          // Reuse the recentApps.itemType.* keys so Starred and Recently
+          // Accessed surface the same localized labels (e.g. "记录" vs
+          // "Record"). Falls back to the capitalized english type so
+          // unknown types still render readably.
+          const typeLabel = t(`home.recentApps.itemType.${item.type}`, {
+            defaultValue: capitalizeFirst(item.type),
+          });
           return (
             <Card
               key={item.id}
@@ -67,7 +83,7 @@ export function StarredApps({ items }: StarredAppsProps) {
                   </div>
                   <div className="flex-1 min-w-0">
                     <h3 className="font-medium text-sm truncate">{item.label}</h3>
-                    <p className="text-xs text-muted-foreground">{capitalizeFirst(item.type)}</p>
+                    <p className="text-xs text-muted-foreground">{typeLabel}</p>
                   </div>
                   <ArrowUpRight className="h-4 w-4 text-muted-foreground opacity-0 -translate-x-1 transition-[opacity,transform] duration-200 group-hover:opacity-100 group-hover:translate-x-0" />
                 </div>

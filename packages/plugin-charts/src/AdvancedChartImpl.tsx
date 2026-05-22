@@ -295,19 +295,28 @@ export default function AdvancedChartImpl({
     const funnelClickProps = handleFunnelClick
       ? { onClick: handleFunnelClick, style: { cursor: 'pointer' as const } }
       : {};
+    // Recharts <Funnel> draws segments in source order. For a visually
+    // correct funnel (largest at top, narrowing down) we sort descending
+    // by the numeric value of `dataKey` so authors don't have to pre-sort
+    // their dashboard data.
+    const funnelData = [...data].sort((a, b) => {
+      const av = Number(a?.[dataKey] ?? 0);
+      const bv = Number(b?.[dataKey] ?? 0);
+      return bv - av;
+    });
     return (
       <ChartContainer config={config} className={className}>
         <FunnelChart>
           <ChartTooltip content={<ChartTooltipContent />} />
           <Funnel
             dataKey={dataKey}
-            data={data}
+            data={funnelData}
             nameKey={xAxisKey}
             isAnimationActive
             {...funnelClickProps}
           >
             <LabelList position="right" fill="hsl(var(--foreground))" stroke="none" dataKey={xAxisKey} />
-            {data.map((_entry, idx) => (
+            {funnelData.map((_entry, idx) => (
               <Cell key={`funnel-cell-${idx}`} fill={resolveColor(palette[idx % palette.length])} />
             ))}
           </Funnel>

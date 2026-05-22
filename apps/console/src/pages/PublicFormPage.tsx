@@ -226,6 +226,12 @@ export function PublicFormPage() {
       thankYouTitle: t('publicForm.thankYouTitle'),
       thankYouMessage: t('publicForm.thankYouMessage'),
       redirecting: t('publicForm.redirecting', { seconds: '{{seconds}}' }),
+      requiredHint: t('publicForm.requiredHint'),
+      consentLabelDefault: t('publicForm.consentLabelDefault'),
+      consentLink: t('publicForm.consentLink'),
+      consentRequired: t('publicForm.consentRequired'),
+      rateLimited: t('publicForm.rateLimited'),
+      redirectBlocked: t('publicForm.redirectBlocked'),
     }),
     [t],
   );
@@ -239,9 +245,11 @@ export function PublicFormPage() {
 
     // Dev-only fallback: when no backend is reachable, the
     // `?demo=1` query param renders a hardcoded CRM web-to-lead form so
-    // we can verify the UI without a running server.
+    // we can verify the UI without a running server. Gated behind
+    // `import.meta.env.DEV` so the hardcoded schema is dead-code-eliminated
+    // in production bundles.
     const params = new URLSearchParams(window.location.search);
-    const demoMode = params.get('demo') === '1';
+    const demoMode = import.meta.env.DEV && params.get('demo') === '1';
 
     if (demoMode) {
       setIsDemo(true);
@@ -353,6 +361,10 @@ function buildDemoConfig(slug: string, t: (key: string) => string): EmbeddableFo
         title: t('publicForm.demo.thankYouSupportTitle'),
         message: t('publicForm.demo.thankYouSupportMessage'),
       },
+      // Security / compliance defaults — same stack as the contact form
+      allowedPrefillFields: ['subject', 'type', 'priority'],
+      consent: { required: true, privacyUrl: '/privacy' },
+      privacyPolicyUrl: '/privacy',
     };
   }
 
@@ -387,5 +399,16 @@ function buildDemoConfig(slug: string, t: (key: string) => string): EmbeddableFo
       title: t('publicForm.demo.thankYouSalesTitle'),
       message: t('publicForm.demo.thankYouSalesMessage'),
     },
+    // Anti-spam: honeypot + 1.5s min-fill-time are on by default. URL prefill
+    // is whitelisted to the most common CRM tracking params (utm_campaign-style
+    // values stay outside the form payload — they're injected into hidden
+    // fields by the host page if desired).
+    allowedPrefillFields: ['first_name', 'last_name', 'email', 'company', 'industry'],
+    // Open-redirect guard: only same-origin redirects allowed unless the
+    // operator explicitly extends `allowedRedirectHosts`.
+    allowedRedirectHosts: [],
+    // GDPR consent prompt with privacy policy link.
+    consent: { required: true, privacyUrl: '/privacy' },
+    privacyPolicyUrl: '/privacy',
   };
 }

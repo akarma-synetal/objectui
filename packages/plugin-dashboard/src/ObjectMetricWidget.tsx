@@ -148,7 +148,7 @@ export const ObjectMetricWidget: React.FC<ObjectMetricWidgetProps> = ({
   const inferredCurrency = useMemo(() => {
     if (currency) return currency;
     if (valueFieldDef?.type !== 'currency') return undefined;
-    return valueFieldDef.defaultCurrency || valueFieldDef.currency || undefined;
+    return valueFieldDef.defaultCurrency || valueFieldDef.currency || 'USD';
   }, [currency, valueFieldDef]);
 
   // Stable JSON keys to prevent infinite refetch loops when callers

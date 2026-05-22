@@ -28,6 +28,8 @@ const en = {
     more: 'More',
     selectAll: 'Select All',
     clearAll: 'Clear All',
+    addToFavorites: 'Add to favorites',
+    removeFromFavorites: 'Remove from favorites',
     noData: 'No data',
     noResults: 'No results found',
     required: 'Required',
@@ -829,6 +831,7 @@ const en = {
   console: {
     title: 'ObjectStack Console',
     initializing: 'Initializing application...',
+    search: 'Search…',
     breadcrumb: {
       dashboards: 'Dashboards',
       pages: 'Pages',
@@ -1432,6 +1435,12 @@ const en = {
     tryDemo: 'Try the demo',
     retry: 'Retry',
     loading: 'Loading form…',
+    requiredHint: '* Required field',
+    consentLabelDefault: 'I agree to the privacy policy and consent to my data being processed for this request.',
+    consentLink: 'Privacy policy',
+    consentRequired: 'Please accept the privacy policy to continue.',
+    rateLimited: 'Please take a moment to review your answers before submitting.',
+    redirectBlocked: 'Submission accepted, but the redirect URL was blocked for security.',
     demo: {
       contactTitle: 'Contact us',
       contactDescription:

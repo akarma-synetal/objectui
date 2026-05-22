@@ -28,6 +28,8 @@ const zh = {
     more: '更多',
     selectAll: '全选',
     clearAll: '清除全部',
+    addToFavorites: '添加到收藏',
+    removeFromFavorites: '从收藏中移除',
     noData: '暂无数据',
     noResults: '未找到结果',
     required: '必填',
@@ -829,6 +831,7 @@ const zh = {
   console: {
     title: 'ObjectStack 控制台',
     initializing: '正在初始化应用程序...',
+    search: '搜索…',
     breadcrumb: {
       dashboards: '仪表盘',
       pages: '页面',
@@ -1430,6 +1433,12 @@ const zh = {
     tryDemo: '试用演示',
     retry: '重试',
     loading: '正在加载表单…',
+    requiredHint: '* 为必填项',
+    consentLabelDefault: '我已阅读并同意隐私政策,授权对本次请求所提供的信息进行处理。',
+    consentLink: '隐私政策',
+    consentRequired: '请先勾选同意隐私政策。',
+    rateLimited: '请再花点时间核对一下您的填写内容,再点击提交。',
+    redirectBlocked: '提交成功,但出于安全考虑,跳转链接已被阻止。',
     demo: {
       contactTitle: '联系我们',
       contactDescription: '告诉我们您的项目需求,销售代表将在一个工作日内与您联系。',

@@ -56,6 +56,13 @@ interface FavoritesContextValue {
   toggleFavorite: (item: Omit<FavoriteItem, 'favoritedAt'>) => void;
   isFavorite: (id: string) => boolean;
   clearFavorites: () => void;
+  /**
+   * Self-heal a stored label for an existing favorite without re-ordering
+   * or resetting `favoritedAt`. Used by record pages once the human-readable
+   * title resolves so stale "raw id" labels (e.g. saved before the title
+   * loaded) get rewritten transparently on the next visit.
+   */
+  refreshLabel: (id: string, label: string) => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -213,6 +220,26 @@ export function FavoritesProvider({ children }: FavoritesProviderProps) {
     commit([]);
   }, [commit]);
 
+  const refreshLabel = useCallback(
+    (id: string, label: string) => {
+      if (!id || !label) return;
+      setFavorites(prev => {
+        let changed = false;
+        const updated = prev.map(f => {
+          if (f.id === id && f.label !== label) {
+            changed = true;
+            return { ...f, label };
+          }
+          return f;
+        });
+        if (!changed) return prev;
+        commit(updated);
+        return updated;
+      });
+    },
+    [commit],
+  );
+
   const value = useMemo<FavoritesContextValue>(
     () => ({
       favorites,
@@ -221,8 +248,9 @@ export function FavoritesProvider({ children }: FavoritesProviderProps) {
       toggleFavorite,
       isFavorite: (id: string) => favorites.some(f => f.id === id),
       clearFavorites,
+      refreshLabel,
     }),
-    [favorites, addFavorite, removeFavorite, toggleFavorite, clearFavorites],
+    [favorites, addFavorite, removeFavorite, toggleFavorite, clearFavorites, refreshLabel],
   );
 
   return (
@@ -254,6 +282,7 @@ export function useFavorites(): FavoritesContextValue {
       toggleFavorite: () => {},
       isFavorite: () => false,
       clearFavorites: () => {},
+      refreshLabel: () => {},
     };
   }
   return ctx;

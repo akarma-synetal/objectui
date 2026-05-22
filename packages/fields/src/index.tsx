@@ -400,15 +400,23 @@ export function CurrencyCellRenderer({ value, field }: CellRendererProps): React
   const safe = coerceToSafeValue(value);
   const currencyField = field as any;
   // Honor both `currency` (legacy/grid configs) and `defaultCurrency`
-  // (the canonical key from `@objectstack/spec` Field.currency()).
-  const currency: string | undefined = currencyField.currency || currencyField.defaultCurrency;
+  // (the canonical key from `@objectstack/spec` Field.currency()). When
+  // neither is supplied, fall back to USD so currency-typed fields always
+  // render with a symbol — a bare "5,000,000.00" is indistinguishable from
+  // a plain number and is the #1 source of "is this dollars or what?"
+  // confusion in customer screenshots.
+  const currency: string =
+    currencyField.currency || currencyField.defaultCurrency || 'USD';
   const num = Number(safe);
   const decimals = currencyField.precision ?? currencyField.scale ?? currencyField.decimals ?? 2;
   const formatted = !isNaN(num)
-    ? (currency ? formatCurrency(num, currency) : formatNumber(num, decimals))
+    ? formatCurrency(num, currency)
     : String(safe);
-  
-  return <span className="tabular-nums font-medium whitespace-nowrap">{formatted}</span>;
+  // Hide trailing fractional digits when the field opted into integer-only
+  // precision (e.g. annual_revenue stored as whole units).
+  const display = decimals === 0 ? formatted.replace(/[.,]00$/, '') : formatted;
+
+  return <span className="tabular-nums font-medium whitespace-nowrap">{display}</span>;
 }
 
 // Fields that store percentage values as whole numbers (0-100) rather than fractions (0-1)

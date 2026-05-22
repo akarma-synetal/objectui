@@ -143,7 +143,7 @@ export const RecordTitleChip: React.FC<RecordTitleChipProps> = ({
           )}
           <h1 className="text-xl sm:text-2xl font-bold truncate">{title}</h1>
           {objectLabel && (
-            <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground/70 shrink-0">
+            <span className="text-xs font-medium tracking-wide text-muted-foreground/70 shrink-0">
               {objectLabel}
             </span>
           )}
