@@ -8,6 +8,7 @@
 
 import type { DashboardSchema, DashboardWidgetSchema } from '@object-ui/types';
 import { SchemaRenderer, useActionEngine, useObjectLabel } from '@object-ui/react';
+import { useObjectTranslation } from '@object-ui/i18n';
 import type { ActionDef, ActionResult, ActionContext, ModalHandler } from '@object-ui/core';
 import { cn, Card, CardHeader, CardTitle, CardContent, Button, getLazyIcon } from '@object-ui/components';
 import { forwardRef, useState, useEffect, useCallback, useMemo, useRef, Fragment } from 'react';
@@ -191,6 +192,23 @@ export const DashboardRenderer = forwardRef<HTMLDivElement, DashboardRendererPro
     // action text. The dashboard name (`schema.name`) keys all lookups; when
     // it's missing we silently degrade to the raw English fallbacks.
     const { dashboardLabel, dashboardDescription, dashboardActionLabel, widgetTitle, widgetDescription, fieldLabel } = useObjectLabel();
+    const { t } = useObjectTranslation();
+    /**
+     * Resolve a chart series label. When the y-field defaults to a synthetic
+     * key like 'value' (used by count aggregations that have no real field),
+     * fall back to an i18n'd aggregate name (Count / Sum / Average …) instead
+     * of leaking the placeholder 'value' string into the legend / tooltip.
+     */
+    const resolveSeriesLabel = useCallback((objectName: string | undefined, yField: string, aggFn: string | undefined) => {
+      const isSynthetic = !yField || yField === 'value' || yField === 'count';
+      if (aggFn && (isSynthetic || aggFn === 'count')) {
+        return t(`report.aggregate.${aggFn}`, { defaultValue: aggFn });
+      }
+      if (objectName) {
+        return fieldLabel(objectName, yField, yField);
+      }
+      return yField;
+    }, [t, fieldLabel]);
     const dashName = (schema as any).name as string | undefined;
 
     /**
@@ -437,7 +455,7 @@ export const DashboardRenderer = forwardRef<HTMLDivElement, DashboardRendererPro
                         xAxisKey: xAxisKey,
                         series: [{
                             dataKey: effectiveYField,
-                            label: objectForLabel ? fieldLabel(objectForLabel, effectiveYField, effectiveYField) : effectiveYField,
+                            label: resolveSeriesLabel(objectForLabel, effectiveYField, effectiveAggregate?.function),
                         }],
                         colors: CHART_COLORS,
                         drillDown: options.drillDown ?? defaultChartDrill(resolvedWidgetType),
@@ -460,7 +478,7 @@ export const DashboardRenderer = forwardRef<HTMLDivElement, DashboardRendererPro
                         objectName: widget.object,
                         aggregate,
                         xAxisKey: xAxisKey,
-                        series: [{ dataKey: yKey, label: fieldLabel(widget.object, yKey, yKey) }],
+                        series: [{ dataKey: yKey, label: resolveSeriesLabel(widget.object, yKey, widget.aggregate) }],
                         colors: CHART_COLORS,
                         drillDown: options.drillDown ?? defaultChartDrill(resolvedWidgetType),
                         className: "h-[200px] sm:h-[250px] md:h-[300px]"
@@ -476,7 +494,7 @@ export const DashboardRenderer = forwardRef<HTMLDivElement, DashboardRendererPro
                     xAxisKey: xAxisKey,
                     series: [{
                         dataKey: yField,
-                        label: widget.object ? fieldLabel(widget.object, yField, yField) : yField,
+                        label: resolveSeriesLabel(widget.object, yField, widget.aggregate),
                     }],
                     colors: CHART_COLORS,
                     className: "h-[200px] sm:h-[250px] md:h-[300px]"
