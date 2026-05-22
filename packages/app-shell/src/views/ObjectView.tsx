@@ -10,7 +10,7 @@
  */
 
 import { useMemo, useState, useCallback, useEffect, useRef, lazy, Suspense, type ComponentType } from 'react';
-import { useParams, useSearchParams, useNavigate } from 'react-router-dom';
+import { useParams, useSearchParams, useNavigate, useLocation } from 'react-router-dom';
 const ObjectChart = lazy(() =>
   import('@object-ui/plugin-charts').then((m) => ({ default: m.ObjectChart })),
 );
@@ -213,6 +213,7 @@ export function ObjectView({ dataSource, objects, onEdit, externalRefreshKey }: 
     const navigate = useNavigate();
     const { appName, objectName, viewId } = useParams();
     const [searchParams, setSearchParams] = useSearchParams();
+    const location = useLocation();
     const { showDebug } = useMetadataInspector();
     const { t } = useObjectTranslation();
     const { objectLabel, objectDescription: objectDesc, viewLabel, viewEmptyState, actionLabel, actionConfirm, actionSuccess, fieldLabel, fieldOptionLabel } = useObjectLabel();
@@ -1294,13 +1295,19 @@ export function ObjectView({ dataSource, objects, onEdit, externalRefreshKey }: 
             // forwarded from `navigation.view` (e.g. 'detail_form'). The view
             // variant is resolved by RecordDetailView from its own config, so
             // any non-`new_window` action lands on the record detail route.
+            const originState = {
+              from: {
+                pathname: location.pathname + (location.search || ''),
+                label: viewLabel(objectDef, activeView?.name, activeView?.label) || objectLabel(objectDef),
+              },
+            };
             if (viewId) {
-                navigate(`../../record/${encodeURIComponent(String(recordId))}`, { relative: 'path' });
+                navigate(`../../record/${encodeURIComponent(String(recordId))}`, { relative: 'path', state: originState });
             } else {
-                navigate(`record/${encodeURIComponent(String(recordId))}`);
+                navigate(`record/${encodeURIComponent(String(recordId))}`, { state: originState });
             }
         },
-        [navigate, viewId]
+        [navigate, viewId, location.pathname, location.search, objectDef, activeView?.name, activeView?.label, viewLabel, objectLabel]
     );
     const navOverlay = useNavigationOverlay({
         navigation: detailNavigation,
@@ -1664,14 +1671,20 @@ export function ObjectView({ dataSource, objects, onEdit, externalRefreshKey }: 
             if (mode === 'edit') {
                 onEdit?.({ id: recordId });
             } else if (mode === 'view') {
+                const originState = {
+                  from: {
+                    pathname: location.pathname + (location.search || ''),
+                    label: viewLabel(objectDef, activeView?.name, activeView?.label) || objectLabel(objectDef),
+                  },
+                };
                 if (viewId) {
-                    navigate(`../../record/${encodeURIComponent(String(recordId))}`, { relative: 'path' });
+                    navigate(`../../record/${encodeURIComponent(String(recordId))}`, { relative: 'path', state: originState });
                 } else {
-                    navigate(`record/${encodeURIComponent(String(recordId))}`);
+                    navigate(`record/${encodeURIComponent(String(recordId))}`, { state: originState });
                 }
             }
         },
-    }), [objectDef.name, onEdit, activeView?.showSearch, activeView?.showFilters, activeView?.showSort, navigate, viewId, isAdmin]);
+    }), [objectDef, onEdit, activeView?.showSearch, activeView?.showFilters, activeView?.showSort, activeView?.name, activeView?.label, navigate, viewId, isAdmin, location.pathname, location.search, viewLabel, objectLabel]);
 
     return (
         <ActionProvider

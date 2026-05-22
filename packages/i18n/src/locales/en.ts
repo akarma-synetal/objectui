@@ -306,6 +306,7 @@ const en = {
     linkCopyFailed: 'Failed to copy link',
     cancel: 'Cancel',
     cancelEdit: 'Discard changes',
+    sectionMoreDetails: 'More details',
     // Concurrent update (OCC) dialog
     concurrentUpdateTitle: 'This record was modified by someone else',
     concurrentUpdateDescription: 'Another user saved a newer version of {{field}} while you were editing. To prevent silently overwriting their change, please choose how to resolve the conflict.',

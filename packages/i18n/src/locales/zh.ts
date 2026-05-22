@@ -306,6 +306,7 @@ const zh = {
     linkCopyFailed: '复制链接失败',
     cancel: '取消',
     cancelEdit: '放弃更改',
+    sectionMoreDetails: '更多详情',
     // Concurrent update (OCC) dialog
     concurrentUpdateTitle: '该记录已被他人修改',
     concurrentUpdateDescription: '在你编辑期间，另一位用户保存了 {{field}} 的新版本。为避免无声覆盖对方的改动，请选择如何处理该冲突。',

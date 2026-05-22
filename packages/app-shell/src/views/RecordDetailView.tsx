@@ -7,14 +7,14 @@
  */
 
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation, Link } from 'react-router-dom';
 import { DetailView, RecordChatterPanel, buildDefaultPageSchema } from '@object-ui/plugin-detail';
 import { Empty, EmptyTitle, EmptyDescription } from '@object-ui/components';
 import { useAuth, createAuthenticatedFetch } from '@object-ui/auth';
 import { ActionProvider, useObjectTranslation, useObjectLabel, usePageAssignment, RecordContextProvider, SchemaRenderer, DiscussionContextProvider, HighlightFieldsProvider } from '@object-ui/react';
 import { buildExpandFields } from '@object-ui/core';
 import { toast } from 'sonner';
-import { Database } from 'lucide-react';
+import { Database, ChevronLeft } from 'lucide-react';
 import { MetadataPanel, useMetadataInspector } from './MetadataInspector';
 import { SkeletonDetail } from '../skeletons';
 import { ManagedByBadge } from '../components/ManagedByBadge';
@@ -80,6 +80,25 @@ const HIDDEN_SYSTEM_FIELD_NAMES = new Set([
   'organization_id', 'tenant_id', 'is_deleted', 'deleted_at',
 ]);
 
+/**
+ * Field-type signals that suggest a "secondary / system / metadata"
+ * placement when auto-grouping fields. These move out of the main
+ * section and into a collapsible "More details" section by default,
+ * keeping the primary section dense with business-critical fields.
+ *
+ * The heuristic is conservative: when no objectDef metadata is available
+ * we surface most fields in the main section; long-form text and
+ * audit-by-name fields drop down.
+ */
+const SECONDARY_FIELD_NAME_HINTS = ['description', 'notes', 'note', 'remark', 'remarks', 'comments'];
+const SECONDARY_FIELD_TYPES = new Set(['textarea', 'markdown', 'html', 'rich-text', 'json', 'code']);
+
+function isSecondaryField(fieldName: string, fieldDef: any): boolean {
+  if (SECONDARY_FIELD_TYPES.has(fieldDef?.type)) return true;
+  const lc = fieldName.toLowerCase();
+  return SECONDARY_FIELD_NAME_HINTS.some((hint) => lc === hint || lc.endsWith(`_${hint}`));
+}
+
 export function RecordDetailView({ dataSource, objects, onEdit, objectNameOverride, recordIdOverride, embedded }: RecordDetailViewProps) {
   const params = useParams<{
     appName?: string;
@@ -92,6 +111,8 @@ export function RecordDetailView({ dataSource, objects, onEdit, objectNameOverri
   const { showDebug } = useMetadataInspector();
   const { user } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  const originFrom = (location.state as any)?.from as { pathname?: string; label?: string } | undefined;
   const { t } = useObjectTranslation();
   const { objectLabel, viewLabel: _vLabel, sectionLabel, actionLabel, actionConfirm, actionSuccess, fieldLabel, fieldOptionLabel } = useObjectLabel();
   const { isFavorite, toggleFavorite, refreshLabel: refreshFavoriteLabel } = useFavorites();
@@ -918,29 +939,59 @@ export function RecordDetailView({ dataSource, objects, onEdit, objectNameOverri
             };
           }),
         }))
-      : [
-          {
-            // Intentionally untitled: when there's only one auto-generated
-            // section, DetailSection flattens it (no Card chrome, no
-            // redundant "Details" heading).
-            showBorder: false as const,
-            fields: Object.keys(objectDef.fields || {})
-              .filter(key => !AUDIT_FIELD_NAMES.has(key) && !HIDDEN_SYSTEM_FIELD_NAMES.has(key) && !objectDef.fields[key]?.hidden)
-              .map(key => {
-              const fieldDef = objectDef.fields[key];
-              const refTarget = fieldDef.reference_to || fieldDef.reference;
-              return {
-                name: key,
-                label: fieldDef.label || key,
-                type: fieldDef.type || 'text',
-                ...(fieldDef.options && { options: fieldDef.options }),
-                ...(refTarget && { reference_to: refTarget }),
-                ...(fieldDef.reference_field && { reference_field: fieldDef.reference_field }),
-                ...(fieldDef.currency && { currency: fieldDef.currency }),
-              };
-            }),
-          },
-        ];
+      : (() => {
+          // Auto-grouping (platform B): when no form sections are authored,
+          // split fields into a primary section and a collapsible
+          // "More details" section so long-form/secondary fields don't
+          // dilute the main grid. The primary section stays untitled so
+          // DetailSection still flattens its chrome when alone.
+          const allFields = Object.keys(objectDef.fields || {})
+            .filter((key) => !AUDIT_FIELD_NAMES.has(key) && !HIDDEN_SYSTEM_FIELD_NAMES.has(key) && !objectDef.fields[key]?.hidden);
+
+          const toField = (key: string) => {
+            const fieldDef = objectDef.fields[key];
+            const refTarget = fieldDef.reference_to || fieldDef.reference;
+            return {
+              name: key,
+              label: fieldDef.label || key,
+              type: fieldDef.type || 'text',
+              ...(fieldDef.options && { options: fieldDef.options }),
+              ...(refTarget && { reference_to: refTarget }),
+              ...(fieldDef.reference_field && { reference_field: fieldDef.reference_field }),
+              ...(fieldDef.currency && { currency: fieldDef.currency }),
+            };
+          };
+
+          const primaryKeys = allFields.filter((k) => !isSecondaryField(k, objectDef.fields[k]));
+          const secondaryKeys = allFields.filter((k) => isSecondaryField(k, objectDef.fields[k]));
+
+          // Below ~6 primary fields the second section often looks awkward
+          // — keep the legacy single-untitled-section behaviour. Also
+          // honour the "no secondary fields" case the same way.
+          if (secondaryKeys.length === 0 || primaryKeys.length === 0) {
+            return [
+              {
+                showBorder: false as const,
+                fields: allFields.map(toField),
+              },
+            ];
+          }
+
+          return [
+            {
+              showBorder: false as const,
+              fields: primaryKeys.map(toField),
+            },
+            {
+              name: 'details',
+              title: sectionLabel(objectDef.name, 'details', t('detail.sectionMoreDetails', 'More details')),
+              collapsible: true,
+              defaultCollapsed: false,
+              showBorder: true as const,
+              fields: secondaryKeys.map(toField),
+            },
+          ];
+        })();
 
     // Audit fields (created_at/created_by/updated_at/updated_by) are NOT
     // appended as a section here — they are surfaced by `<RecordMetaFooter>`
@@ -1359,6 +1410,15 @@ export function RecordDetailView({ dataSource, objects, onEdit, objectNameOverri
           >
             <div className="flex-1 overflow-hidden flex flex-row">
               <div className="flex-1 overflow-auto p-3 sm:p-4 lg:p-6 scroll-pb-48">
+                {originFrom?.pathname && originFrom?.label && (
+                  <Link
+                    to={originFrom.pathname}
+                    className="inline-flex items-center gap-1 mb-3 text-sm text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                    <span>{originFrom.label}</span>
+                  </Link>
+                )}
                 <SchemaRenderer schema={renderedPage as any} />
                 {/* Auto-append RecordChatterPanel only when the page
                     schema doesn't already place a `record:discussion` /

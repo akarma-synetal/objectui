@@ -16,6 +16,7 @@
 import React, { useState } from 'react';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 import { cn } from '@object-ui/components';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@object-ui/components';
 
 export interface FormSectionProps {
   /**
@@ -62,6 +63,15 @@ export interface FormSectionProps {
    * (e.g. with container-query-based classes like `@md:grid-cols-2`).
    */
   gridClassName?: string;
+
+  /**
+   * Wrap the section in Card chrome (border + subtle background).
+   * When `undefined`, defaults to `true` for sections with a `label`
+   * (so titled sections feel like discrete cards) and `false` for
+   * untitled fallback sections (so the form looks like one flat block).
+   * Mirrors the same auto-default used by DetailSection on detail pages.
+   */
+  showBorder?: boolean;
 }
 
 /**
@@ -86,6 +96,7 @@ export const FormSection: React.FC<FormSectionProps> = ({
   children,
   className,
   gridClassName,
+  showBorder,
 }) => {
   const [isCollapsed, setIsCollapsed] = useState(initialCollapsed);
 
@@ -102,49 +113,79 @@ export const FormSection: React.FC<FormSectionProps> = ({
     }
   };
 
+  // Auto-default: titled sections render as Card; untitled sections stay flat.
+  const wrapInCard = showBorder ?? Boolean(label);
+
+  const headerNode = (label || description) ? (
+    <div
+      className={cn(
+        'flex items-start gap-2',
+        !wrapInCard && 'mb-4',
+        collapsible && 'cursor-pointer select-none'
+      )}
+      onClick={handleToggle}
+      role={collapsible ? 'button' : undefined}
+      aria-expanded={collapsible ? !isCollapsed : undefined}
+    >
+      {collapsible && (
+        <span className="mt-0.5 text-muted-foreground">
+          {isCollapsed ? (
+            <ChevronRight className="h-4 w-4" />
+          ) : (
+            <ChevronDown className="h-4 w-4" />
+          )}
+        </span>
+      )}
+      <div className="flex-1">
+        {label && (
+          <h3 className="text-base font-semibold text-foreground">
+            {label}
+          </h3>
+        )}
+        {description && (
+          <p className="text-sm text-muted-foreground mt-0.5">
+            {description}
+          </p>
+        )}
+      </div>
+    </div>
+  ) : null;
+
+  const contentNode = !isCollapsed ? (
+    <div className={cn('grid gap-4', gridClassName || gridCols[columns])}>
+      {children}
+    </div>
+  ) : null;
+
+  if (wrapInCard) {
+    return (
+      <Card className={cn('form-section', className)}>
+        {headerNode && (
+          <CardHeader className="pb-3">
+            {label && <CardTitle className="text-base">{label}</CardTitle>}
+            {description && <CardDescription>{description}</CardDescription>}
+            {collapsible && (
+              <button
+                type="button"
+                className="absolute right-4 top-4 text-muted-foreground"
+                onClick={handleToggle}
+                aria-expanded={!isCollapsed}
+                aria-label={isCollapsed ? 'Expand section' : 'Collapse section'}
+              >
+                {isCollapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+              </button>
+            )}
+          </CardHeader>
+        )}
+        {contentNode && <CardContent>{contentNode}</CardContent>}
+      </Card>
+    );
+  }
+
   return (
     <div className={cn('form-section', className)}>
-      {/* Section Header */}
-      {(label || description) && (
-        <div
-          className={cn(
-            'flex items-start gap-2 mb-4',
-            collapsible && 'cursor-pointer select-none'
-          )}
-          onClick={handleToggle}
-          role={collapsible ? 'button' : undefined}
-          aria-expanded={collapsible ? !isCollapsed : undefined}
-        >
-          {collapsible && (
-            <span className="mt-0.5 text-muted-foreground">
-              {isCollapsed ? (
-                <ChevronRight className="h-4 w-4" />
-              ) : (
-                <ChevronDown className="h-4 w-4" />
-              )}
-            </span>
-          )}
-          <div className="flex-1">
-            {label && (
-              <h3 className="text-base font-semibold text-foreground">
-                {label}
-              </h3>
-            )}
-            {description && (
-              <p className="text-sm text-muted-foreground mt-0.5">
-                {description}
-              </p>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* Section Content */}
-      {!isCollapsed && (
-        <div className={cn('grid gap-4', gridClassName || gridCols[columns])}>
-          {children}
-        </div>
-      )}
+      {headerNode}
+      {contentNode}
     </div>
   );
 };

@@ -647,6 +647,7 @@ const SimpleObjectForm: React.FC<ObjectFormProps> = ({
               collapsible={section.collapsible}
               collapsed={section.collapsed}
               columns={section.columns}
+              showBorder={(section as any).showBorder}
             >
               <SchemaRenderer
                 schema={{
