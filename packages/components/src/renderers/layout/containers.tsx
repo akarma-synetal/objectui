@@ -39,9 +39,14 @@ import {
   AccordionContent,
   Separator,
   Button,
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
 } from '../../ui';
 import { RecordTitleChip } from '../../custom/RecordTitleChip';
 import { useObjectLabel } from '@object-ui/i18n';
+import { MoreHorizontal } from 'lucide-react';
 
 /**
  * Pull the standard designer-passthrough props off a renderer's `props`.
@@ -588,7 +593,7 @@ const PageHeaderRenderer: React.FC<any> = ({ schema, className, ...props }) => {
   const { designer } = splitDesignerProps(props);
   const ctx = useRecordContext();
   const { execute } = useAction();
-  const { objectLabel: tObjectLabel } = useObjectLabel();
+  const { objectLabel: tObjectLabel, actionLabel: tActionLabel } = useObjectLabel();
   // Spec bridge may either inline `properties.*` onto the node or preserve
   // the raw bag (see record:quick_actions for the same pattern). Read from
   // both so a `{ properties: { title } }` schema is rendered correctly.
@@ -697,40 +702,101 @@ const PageHeaderRenderer: React.FC<any> = ({ schema, className, ...props }) => {
 
   const renderHeaderActions = () => {
     if (headerActions.length === 0) return null;
+    // Resolve a translated label for an action via the
+    // `{ns}.objects.{objectName}._actions.{name}.label` convention. Falls
+    // back to authored `action.label`, then `action.name`.
+    const resolveLabel = (action: any, idx: number) => {
+      const key = (action?.name || action?.id) as string | undefined;
+      const fallback = action?.label || key || `Action ${idx + 1}`;
+      if (!key) return fallback;
+      return tActionLabel(ctx?.objectName, key, fallback);
+    };
+    // Collapse secondary actions into a `⋯` overflow menu when more than 2
+    // actions are present. The first 1 action (typically the primary
+    // business action, e.g. "克隆商机") stays inline; everything else
+    // becomes a dropdown item. This keeps the header from drowning in 4–5
+    // buttons (Clone + Edit + Share + Delete + …) on every record page.
+    const INLINE_MAX = 1;
+    const useOverflow = headerActions.length > INLINE_MAX + 1;
+    const inlineActions = useOverflow ? headerActions.slice(0, INLINE_MAX) : headerActions;
+    const overflowActions = useOverflow ? headerActions.slice(INLINE_MAX) : [];
+    const renderButton = (action: any, idx: number) => {
+      const label = resolveLabel(action, idx);
+      const variant = action.variant || 'default';
+      const size = action.size || 'sm';
+      const disabled = typeof action.disabled === 'boolean' ? action.disabled : undefined;
+      const icon = typeof action.icon === 'string' ? action.icon : null;
+      return (
+        <Button
+          key={action.name || action.id || `header-action-${idx}`}
+          variant={variant}
+          size={size}
+          disabled={disabled}
+          className="gap-2"
+          onClick={() => {
+            if (typeof action.onClick === 'function') {
+              void action.onClick();
+              return;
+            }
+            void execute(action);
+          }}
+        >
+          {icon && <LazyIcon name={icon} className="h-4 w-4" />}
+          <span>{label}</span>
+        </Button>
+      );
+    };
     return (
       <div
         className="flex flex-wrap items-center gap-2 shrink-0"
         role="toolbar"
         aria-label="Page header actions"
       >
-        {headerActions.map((action, idx) => {
-          const label = action.label || action.name || `Action ${idx + 1}`;
-          const variant = action.variant || 'default';
-          const size = action.size || 'sm';
-          const disabled = typeof action.disabled === 'boolean' ? action.disabled : undefined;
-          const icon = typeof action.icon === 'string' ? action.icon : null;
-          return (
-            <Button
-              key={action.name || action.id || `header-action-${idx}`}
-              variant={variant}
-              size={size}
-              disabled={disabled}
-              className="gap-2"
-              onClick={() => {
-                if (typeof action.onClick === 'function') {
-                  void action.onClick();
-                  return;
-                }
-                // Dispatch through the ActionProvider so confirmText, toast,
-                // refresh, flow, navigation and modal handlers all fire.
-                void execute(action);
-              }}
-            >
-              {icon && <LazyIcon name={icon} className="h-4 w-4" />}
-              <span>{label}</span>
-            </Button>
-          );
-        })}
+        {inlineActions.map(renderButton)}
+        {useOverflow && (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-1 px-2"
+                aria-label="More actions"
+              >
+                <MoreHorizontal className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-44">
+              {overflowActions.map((action, idx) => {
+                const label = resolveLabel(action, idx + INLINE_MAX);
+                const disabled = typeof action.disabled === 'boolean' ? action.disabled : undefined;
+                const icon = typeof action.icon === 'string' ? action.icon : null;
+                const isDestructive =
+                  action.variant === 'destructive' || action.name === 'sys_delete';
+                return (
+                  <DropdownMenuItem
+                    key={action.name || action.id || `overflow-action-${idx}`}
+                    disabled={disabled}
+                    onSelect={(e) => {
+                      e.preventDefault();
+                      if (typeof action.onClick === 'function') {
+                        void action.onClick();
+                        return;
+                      }
+                      void execute(action);
+                    }}
+                    className={cn(
+                      'gap-2',
+                      isDestructive && 'text-destructive focus:text-destructive focus:bg-destructive/10'
+                    )}
+                  >
+                    {icon && <LazyIcon name={icon} className="h-4 w-4" />}
+                    <span>{label}</span>
+                  </DropdownMenuItem>
+                );
+              })}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
       </div>
     );
   };

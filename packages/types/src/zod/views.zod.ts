@@ -55,6 +55,7 @@ export const DetailViewFieldSchema = z.object({
  * Detail View Section Schema
  */
 export const DetailViewSectionSchema = z.object({
+  name: z.string().optional().describe('Stable identifier for i18n key resolution'),
   title: z.string().optional().describe('Section title'),
   description: z.string().optional().describe('Section description'),
   icon: z.string().optional().describe('Section icon'),

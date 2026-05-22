@@ -11,7 +11,7 @@
  */
 
 import React from 'react';
-import { useRecordContext, useHighlightFieldNames } from '@object-ui/react';
+import { useRecordContext, useHighlightFieldNames, useSafeFieldLabel } from '@object-ui/react';
 import { useFieldPermissions, usePermissions } from '@object-ui/permissions';
 import type { RecordDetailsComponentProps } from '@object-ui/types';
 import { DetailView } from '../DetailView';
@@ -68,6 +68,7 @@ export const RecordDetailsRenderer: React.FC<RecordDetailsRendererProps> = ({
   const objectName = ctx.objectName || '';
   const perms = usePermissions();
   const { readableFields } = useFieldPermissions(objectName);
+  const { sectionLabel } = useSafeFieldLabel();
 
   const required: string[] = Array.isArray((schema as any).requiredPermissions)
     ? (schema as any).requiredPermissions
@@ -171,13 +172,21 @@ export const RecordDetailsRenderer: React.FC<RecordDetailsRendererProps> = ({
 
   const filteredFields = dropHidden(normaliseList(filterList(schema.fields as any[])));
   const filteredSections = Array.isArray(schema.sections)
-    ? (schema.sections as any[]).map((s) => ({
+    ? (schema.sections as any[]).map((s) => {
+        const rawTitle = s.title ?? s.label;
+        // Translate the section label when authors provided a stable `name`.
+        // Convention: `{ns}.objects.{objectName}._sections.{name}.label`.
+        // Falls back to the raw English label when no translation exists.
+        const translatedTitle = s.name && objectName
+          ? sectionLabel(objectName, s.name, rawTitle ?? s.name)
+          : rawTitle;
+        return ({
         ...s,
-        title: s.title ?? s.label,
-        // Default to flush borderless sections in a Lightning-style page —
-        // the surrounding page chrome already provides containment. Authors
-        // can opt back into the bordered Card by setting `showBorder: true`.
-        showBorder: s.showBorder ?? false,
+        title: translatedTitle,
+        // Titled sections get a Card wrapper for visual grouping. Untitled
+        // flat sections stay borderless so the page chrome alone provides
+        // containment. Authors can override explicitly via `showBorder`.
+        showBorder: s.showBorder ?? (translatedTitle ? true : false),
         // Phase N: default to hide-empty so pages don't render as label
         // graveyards on first load. Authors can opt back in to showing
         // empty rows by setting `hideEmpty: false` explicitly. The
@@ -185,7 +194,8 @@ export const RecordDetailsRenderer: React.FC<RecordDetailsRendererProps> = ({
         // user-facing escape hatch.
         hideEmpty: s.hideEmpty ?? true,
         fields: dropHidden(normaliseList(filterList(s.fields))),
-      }))
+      });
+      })
     : schema.sections;
 
   // Inline-edit by default. Matches the default record detail experience

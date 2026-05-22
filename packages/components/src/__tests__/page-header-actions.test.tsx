@@ -186,10 +186,12 @@ describe('PageHeaderRenderer — actions slot', () => {
         ],
       },
     );
-    const buttons = screen.getAllByRole('button').map(b => b.textContent?.trim());
-    expect(buttons).toEqual(
-      expect.arrayContaining(['Convert Lead', '编辑', '分享', '删除']),
-    );
+    // With 4 actions, the first stays inline; the rest collapse into a `⋯`
+    // overflow menu. We assert the primary is rendered as a button and the
+    // overflow trigger is present (full menu contents are exercised by
+    // separate dropdown interaction tests).
+    expect(screen.getByRole('button', { name: /Convert Lead/i })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /More actions/i })).toBeTruthy();
   });
 
   it('dedupes by name — authored beats host system action with same name', () => {

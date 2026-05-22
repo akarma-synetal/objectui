@@ -1262,7 +1262,7 @@ export function RecordDetailView({ dataSource, objects, onEdit, objectNameOverri
           label: t('detail.delete', { defaultValue: 'Delete' }),
           type: 'script',
           locations: ['record_header'],
-          variant: 'outline',
+          variant: 'destructive',
           onClick: async () => {
             const msg = t('detail.deleteConfirmation', {
               defaultValue: 'Are you sure you want to delete this record?',

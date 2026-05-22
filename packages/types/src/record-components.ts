@@ -43,6 +43,8 @@ export interface RecordDetailsComponentProps {
   layout?: 'stacked' | 'inline' | 'compact';
   /** Sections to organize fields */
   sections?: Array<{
+    /** Stable identifier for i18n key resolution (e.g. 'info', 'forecast'). */
+    name?: string;
     label?: string;
     fields: string[];
     collapsible?: boolean;

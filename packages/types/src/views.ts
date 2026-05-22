@@ -141,6 +141,12 @@ export interface HighlightField {
  */
 export interface DetailViewSection {
   /**
+   * Stable identifier for i18n key resolution.
+   * Used to look up translated section labels via
+   * `{ns}.objects.{objectName}._sections.{name}.label`.
+   */
+  name?: string;
+  /**
    * Section title
    */
   title?: string;
