@@ -70,6 +70,13 @@ export interface BuildPageOptions {
    * `related` has at least 2 entries.
    */
   hideReferenceRail?: boolean;
+  /**
+   * Suppress the auto-emitted `Related` tab in `buildDefaultTabs`.
+   * Auto-set to `true` by `buildDefaultPageSchema` when the Reference
+   * Rail is being emitted, to avoid showing the same related-list data
+   * in two places (the rail and the tab). Authors can override.
+   */
+  hideRelatedTab?: boolean;
   /** Pass-through to `page:header.recordChrome`. Defaults to true. */
   recordChrome?: boolean;
   /**
@@ -345,7 +352,7 @@ export function buildDefaultDetails(
 export function buildDefaultTabs(
   def: ObjectDefLike | undefined,
   options: Pick<BuildPageOptions,
-    'sections' | 'related' | 'showActivity' | 'history' | 'highlightFields' | 'statusField'
+    'sections' | 'related' | 'showActivity' | 'history' | 'highlightFields' | 'statusField' | 'hideRelatedTab'
   > = {},
 ): any {
   const statusField = options.statusField ?? detectStatusField(def);
@@ -354,7 +361,11 @@ export function buildDefaultTabs(
   const items: any[] = [
     { label: 'Details', children: [buildDefaultDetails(def, options.sections, highlightFields)] },
   ];
-  if (Array.isArray(options.related) && options.related.length > 0) {
+  if (
+    !options.hideRelatedTab &&
+    Array.isArray(options.related) &&
+    options.related.length > 0
+  ) {
     items.push({
       label: 'Related',
       children: options.related.map((rel) => ({
@@ -458,6 +469,17 @@ export function buildDefaultPageSchema(
     }));
   }
 
+  // Decide whether to emit the Reference Rail. When emitted, suppress
+  // the duplicate Related tab to avoid showing the same data twice
+  // (HubSpot/Dynamics convention). Authors can opt out of either via
+  // `hideReferenceRail` / `hideRelatedTab`.
+  const willEmitRail =
+    !options.hideReferenceRail &&
+    Array.isArray(options.related) &&
+    options.related.length >= 2;
+  const hideRelatedTab =
+    options.hideRelatedTab ?? willEmitRail;
+
   // 4) Tabs — `tabs` slot wins over `details` slot when both are
   //    provided (broader override). When only `details` is provided,
   //    splice it into the Details tab body and keep Related/Activity/
@@ -473,6 +495,7 @@ export function buildDefaultPageSchema(
       history: options.history,
       highlightFields: options.highlightFields,
       statusField: options.statusField,
+      hideRelatedTab,
     });
     // Replace the first tab's children (Details) with the override.
     if (Array.isArray(tabsNode.items) && tabsNode.items.length > 0) {
@@ -487,6 +510,7 @@ export function buildDefaultPageSchema(
       history: options.history,
       highlightFields: options.highlightFields,
       statusField: options.statusField,
+      hideRelatedTab,
     }));
   }
 
@@ -510,11 +534,7 @@ export function buildDefaultPageSchema(
     },
   ];
 
-  if (
-    !options.hideReferenceRail &&
-    Array.isArray(options.related) &&
-    options.related.length >= 2
-  ) {
+  if (willEmitRail) {
     regions.push({
       name: 'aside',
       width: 'small',
@@ -522,7 +542,7 @@ export function buildDefaultPageSchema(
       components: [
         {
           type: 'record:reference_rail',
-          entries: options.related.map((rel) => ({
+          entries: (options.related as any[]).map((rel) => ({
             objectName: rel.objectName,
             relationshipField: rel.relationshipField,
             title: rel.title,

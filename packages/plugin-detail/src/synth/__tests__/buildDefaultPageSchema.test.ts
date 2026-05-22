@@ -288,6 +288,10 @@ describe('buildDefaultPageSchema', () => {
 
     it('emits Related tab with one record:related_list per entry', () => {
       const page = buildDefaultPageSchema(leadDef, {
+        // Force the Related tab to appear even with 2+ related lists,
+        // which would otherwise trigger the Reference Rail and suppress
+        // the duplicate Related tab.
+        hideReferenceRail: true,
         related: [
           {
             objectName: 'task',
@@ -309,6 +313,25 @@ describe('buildDefaultPageSchema', () => {
       expect(tabs.items[1].children[0].objectName).toBe('task');
       expect(tabs.items[1].children[0].relationshipField).toBe('lead_id');
       expect(tabs.items[1].children[0].limit).toBe(10);
+    });
+
+    it('auto-emits a Reference Rail aside region and suppresses the duplicate Related tab when 2+ related lists are present', () => {
+      const page = buildDefaultPageSchema(leadDef, {
+        related: [
+          { objectName: 'task', relationshipField: 'lead_id' },
+          { objectName: 'note', relationshipField: 'parent_id' },
+        ],
+      });
+      // Related tab is suppressed (Details only)
+      const tabs = page.regions[0].components.find((c: any) => c.type === 'page:tabs');
+      expect(tabs.items).toHaveLength(1);
+      expect(tabs.items[0].label).toBe('Details');
+      // Aside region emitted with the rail
+      const aside = page.regions.find((r: any) => r.name === 'aside');
+      expect(aside).toBeDefined();
+      expect(aside.components[0].type).toBe('record:reference_rail');
+      expect(aside.components[0].entries).toHaveLength(2);
+      expect(aside.components[0].entries[0].objectName).toBe('task');
     });
 
     it('emits Activity tab when showActivity is true', () => {

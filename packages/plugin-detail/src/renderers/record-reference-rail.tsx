@@ -19,7 +19,7 @@
  */
 
 import React from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useParams } from 'react-router-dom';
 import { useRecordContext, useSafeFieldLabel } from '@object-ui/react';
 import { cn, Card, CardHeader, CardTitle, CardContent, Badge, Skeleton } from '@object-ui/components';
 import { ChevronRight } from 'lucide-react';
@@ -83,6 +83,8 @@ export const RecordReferenceRailRenderer: React.FC<RecordReferenceRailRendererPr
   const i18n = useSafeFieldLabel() as any;
   const { t } = useDetailTranslation();
   const { designer } = splitDesigner(props);
+  const routeParams = useParams<{ appName?: string }>();
+  const appName = routeParams.appName;
 
   const entries: ReferenceRailEntry[] = Array.isArray(schema.entries) ? schema.entries : [];
   const parentId = ctx?.recordId;
@@ -151,11 +153,22 @@ export const RecordReferenceRailRenderer: React.FC<RecordReferenceRailRendererPr
               <CardTitle className="text-sm font-semibold tracking-tight truncate">
                 {title}
               </CardTitle>
-              {!state.loading && (
-                <Badge variant="secondary" className="tabular-nums">
-                  {state.total}
-                </Badge>
-              )}
+              <div className="flex items-center gap-2 shrink-0">
+                {!state.loading && (
+                  <Badge variant="secondary" className="tabular-nums">
+                    {state.total}
+                  </Badge>
+                )}
+                {appName && parentId && (
+                  <Link
+                    to={`/apps/${appName}/${entry.objectName}?filter%5B${entry.relationshipField}%5D=${encodeURIComponent(String(parentId))}`}
+                    className="text-[11px] font-medium text-muted-foreground hover:text-foreground transition-colors"
+                    title={t('detail.viewAll', { defaultValue: 'View all' })}
+                  >
+                    {t('detail.viewAll', { defaultValue: 'View all' })}
+                  </Link>
+                )}
+              </div>
             </CardHeader>
             <CardContent className="p-0">
               {state.loading ? (
