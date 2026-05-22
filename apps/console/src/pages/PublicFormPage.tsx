@@ -34,7 +34,7 @@ const SERVER_URL = import.meta.env.VITE_SERVER_URL || '';
  * Resolve a public form spec by slug. Tries the canonical endpoint first
  * and falls back to a client-side scan of the `view` metadata index.
  */
-async function resolvePublicForm(slug: string): Promise<{ config: EmbeddableFormConfig; schema: any | null } | null> {
+async function resolvePublicForm(slug: string): Promise<{ config: EmbeddableFormConfig; schema: any | null; lookupFieldMap: Record<string, string> } | null> {
   const publicLink = `/forms/${slug}`;
 
   // 1. Canonical endpoint — when the backend implements it, this becomes
@@ -47,7 +47,7 @@ async function resolvePublicForm(slug: string): Promise<{ config: EmbeddableForm
       const spec = await res.json();
       const config = mapViewSpecToEmbeddableConfig(spec, slug);
       if (!config) return null;
-      return { config, schema: spec?.objectSchema ?? null };
+      return { config, schema: spec?.objectSchema ?? null, lookupFieldMap: buildLookupFieldMap(spec) };
     }
   } catch {
     // network error — fall through to the discovery fallback
@@ -81,7 +81,7 @@ async function resolvePublicForm(slug: string): Promise<{ config: EmbeddableForm
     if (!match) return null;
     const config = mapViewSpecToEmbeddableConfig(match, slug);
     if (!config) return null;
-    return { config, schema: null };
+    return { config, schema: null, lookupFieldMap: buildLookupFieldMap(match) };
   } catch {
     return null;
   }
@@ -130,11 +130,41 @@ function mapViewSpecToEmbeddableConfig(
 }
 
 /**
+ * Map each lookup field surviving the framework's strip step to its
+ * `referenceTo` target. The framework's `/forms/:slug` handler drops any
+ * lookup field that doesn't carry an explicit `publicPicker` config, so
+ * any entry remaining in the map is guaranteed safe to route to the
+ * scoped picker endpoint.
+ */
+function buildLookupFieldMap(spec: any): Record<string, string> {
+  const formView = spec?.__matchedFormView ?? spec?.form ?? spec;
+  const objectFields = spec?.objectSchema?.fields ?? {};
+  const map: Record<string, string> = {};
+  for (const section of formView?.sections ?? []) {
+    for (const f of section?.fields ?? []) {
+      const name = typeof f === 'string' ? f : f?.field;
+      if (!name) continue;
+      const def = objectFields[name];
+      if (!def) continue;
+      if (def.type !== 'lookup' && def.type !== 'master_detail') continue;
+      const target = def.referenceTo ?? def.target ?? def.options?.objectName;
+      if (target) map[target] = name;
+    }
+  }
+  return map;
+}
+
+/**
  * Anonymous data source — posts to the public submit endpoint (preferred)
  * and falls back to the legacy data endpoint. No auth header is attached.
- * Only the `create` op is implemented; the embeddable form never reads.
+ * `find()` is routed through the per-field scoped picker endpoint when the
+ * caller is asking about an object referenced by a public-picker lookup.
  */
-function createPublicDataSource(slug: string, schema: any | null): DataSource {
+function createPublicDataSource(
+  slug: string,
+  schema: any | null,
+  lookupFieldMap: Record<string, string> = {},
+): DataSource {
   const post = async (objectName: string, data: Record<string, unknown>) => {
     // 1. Preferred public endpoint
     const submitRes = await fetch(
@@ -168,15 +198,29 @@ function createPublicDataSource(slug: string, schema: any | null): DataSource {
     throw new Error(`Submission failed (${submitRes.status}). Please try again.`);
   };
 
-  // The EmbeddableForm only calls `.create(...)`. Stubs for the rest of
-  // the DataSource interface keep TypeScript happy without giving guests
-  // any read/edit/delete capability.
+  // Scoped lookup picker — called by LookupField for an opt-in
+  // `publicPicker`-enabled field. Routes to the per-field endpoint that
+  // enforces the form's allowlist + filter + display-field projection.
+  // For any other object the search returns empty so a stray lookup
+  // widget in the form can never enumerate unrelated tables.
+  const find = async (objectName: string, params: any) => {
+    const fieldName = lookupFieldMap[objectName];
+    if (!fieldName) return { data: [], total: 0 };
+    const q = String(params?.search ?? params?.q ?? '').trim();
+    const url = `${SERVER_URL}/api/v1/forms/${encodeURIComponent(slug)}/lookup/${encodeURIComponent(fieldName)}${q ? `?q=${encodeURIComponent(q)}` : ''}`;
+    const res = await fetch(url, { headers: { Accept: 'application/json' } });
+    if (!res.ok) return { data: [], total: 0 };
+    const body: any = await res.json().catch(() => null);
+    const rows: any[] = Array.isArray(body?.data) ? body.data : [];
+    return { data: rows, total: typeof body?.total === 'number' ? body.total : rows.length };
+  };
+
   return {
     create: post,
     update: () => Promise.reject(new Error('Not permitted on public form')),
     delete: () => Promise.reject(new Error('Not permitted on public form')),
     findOne: () => Promise.resolve(null),
-    find: () => Promise.resolve({ data: [], total: 0 }),
+    find,
     // EmbeddableForm calls getObjectSchema() to look up field types and
     // labels. The schema is embedded in the public-form resolver response
     // so no auth-protected meta call is required. Return a safe stub when
@@ -209,6 +253,7 @@ export function PublicFormPage() {
   const { t } = useObjectTranslation();
   const [config, setConfig] = useState<EmbeddableFormConfig | null>(null);
   const [schema, setSchema] = useState<any | null>(null);
+  const [lookupFieldMap, setLookupFieldMap] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [isDemo, setIsDemo] = useState(false);
@@ -242,6 +287,7 @@ export function PublicFormPage() {
     setError(null);
     setConfig(null);
     setSchema(null);
+    setLookupFieldMap({});
 
     // Dev-only fallback: when no backend is reachable, the
     // `?demo=1` query param renders a hardcoded CRM web-to-lead form so
@@ -267,6 +313,7 @@ export function PublicFormPage() {
         } else {
           setConfig(result.config);
           setSchema(result.schema);
+          setLookupFieldMap(result.lookupFieldMap ?? {});
         }
       })
       .catch((err) => {
@@ -320,7 +367,7 @@ export function PublicFormPage() {
   return (
     <EmbeddableForm
       config={{ ...config, texts: { ...texts, ...config.texts } }}
-      dataSource={isDemo ? createDemoDataSource() : createPublicDataSource(slug, schema)}
+      dataSource={isDemo ? createDemoDataSource() : createPublicDataSource(slug, schema, lookupFieldMap)}
     />
   );
 }
