@@ -9,13 +9,13 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { DetailView, RecordChatterPanel, buildDefaultPageSchema } from '@object-ui/plugin-detail';
-import { Empty, EmptyTitle, EmptyDescription, Button } from '@object-ui/components';
+import { Empty, EmptyTitle, EmptyDescription } from '@object-ui/components';
 import { PresenceAvatars, type PresenceUser } from '@object-ui/collaboration';
 import { useAuth, createAuthenticatedFetch } from '@object-ui/auth';
 import { ActionProvider, useObjectTranslation, useObjectLabel, usePageAssignment, RecordContextProvider, SchemaRenderer, DiscussionContextProvider, HighlightFieldsProvider } from '@object-ui/react';
 import { buildExpandFields } from '@object-ui/core';
 import { toast } from 'sonner';
-import { Database, Users, Star, StarOff } from 'lucide-react';
+import { Database, Users } from 'lucide-react';
 import { MetadataPanel, useMetadataInspector } from './MetadataInspector';
 import { SkeletonDetail } from '../skeletons';
 import { ManagedByBadge } from '../components/ManagedByBadge';
@@ -114,6 +114,20 @@ export function RecordDetailView({ dataSource, objects, onEdit, objectNameOverri
   // Navigation code passes `record.id || record._id` directly into the URL
   // without adding any prefix, so no stripping is needed.
   const pureRecordId = recordId;
+
+  const favoriteRecord = useMemo(() => {
+    if (!objectName || !pureRecordId) return null;
+    return {
+      id: `record:${objectName}:${pureRecordId}`,
+      label: recordTitle || pureRecordId || '',
+      href: `/apps/${appName}/${objectName}/record/${pureRecordId}`,
+      type: 'record' as const,
+    };
+  }, [appName, objectName, pureRecordId, recordTitle]);
+  const isRecordFavorite = favoriteRecord ? isFavorite(favoriteRecord.id) : false;
+  const handleToggleRecordFavorite = useCallback(() => {
+    if (favoriteRecord) toggleFavorite(favoriteRecord);
+  }, [favoriteRecord, toggleFavorite]);
 
   // ─── Page Assignment (Salesforce Lightning-style record Pages) ──────
   // If a PageSchema(pageType='record') is authored for this object, render
@@ -1260,28 +1274,6 @@ export function RecordDetailView({ dataSource, objects, onEdit, objectNameOverri
             Mirrors the default branch so custom Page-assigned record pages
             don't lose these affordances. */}
         <div className="absolute top-2 sm:top-4 right-2 sm:right-4 z-50 flex items-center gap-2">
-          {objectName && pureRecordId && (
-            <Button
-              size="sm"
-              variant="ghost"
-              className="h-8 w-8 p-0"
-              onClick={() => toggleFavorite({
-                id: `record:${objectName}:${pureRecordId}`,
-                label: recordTitle || pureRecordId || '',
-                href: `/apps/${appName}/${objectName}/record/${pureRecordId}`,
-                type: 'record',
-              })}
-              aria-pressed={isFavorite(`record:${objectName}:${pureRecordId}`)}
-              aria-label={isFavorite(`record:${objectName}:${pureRecordId}`)
-                ? t('common.removeFromFavorites', { defaultValue: 'Remove from favorites' })
-                : t('common.addToFavorites', { defaultValue: 'Add to favorites' })}
-              data-testid={`record-favorite-btn-${pureRecordId}`}
-            >
-              {isFavorite(`record:${objectName}:${pureRecordId}`)
-                ? <Star className="h-4 w-4 fill-amber-400 text-amber-400" />
-                : <StarOff className="h-4 w-4" />}
-            </Button>
-          )}
           <ManagedByBadge managedBy={(objectDef as any)?.managedBy} />
           {recordViewers.length > 0 && (
             <div className="flex items-center gap-1.5" title={t('recordDetail.viewersTooltip')}>
@@ -1299,6 +1291,8 @@ export function RecordDetailView({ dataSource, objects, onEdit, objectNameOverri
           dataSource={dataSource}
           embedded={embedded}
           headerSystemActions={synthSystemActions}
+          isFavorite={isRecordFavorite}
+          onToggleFavorite={favoriteRecord ? handleToggleRecordFavorite : undefined}
         >
           <HighlightFieldsProvider>
           <DiscussionContextProvider
@@ -1374,28 +1368,6 @@ export function RecordDetailView({ dataSource, objects, onEdit, objectNameOverri
   return (
     <div className="h-full bg-background overflow-hidden flex flex-col relative">
       <div className="absolute top-2 sm:top-4 right-2 sm:right-4 z-50 flex items-center gap-2">
-        {objectName && pureRecordId && (
-          <Button
-            size="sm"
-            variant="ghost"
-            className="h-8 w-8 p-0"
-            onClick={() => toggleFavorite({
-              id: `record:${objectName}:${pureRecordId}`,
-              label: recordTitle || pureRecordId || '',
-              href: `/apps/${appName}/${objectName}/record/${pureRecordId}`,
-              type: 'record',
-            })}
-            aria-pressed={isFavorite(`record:${objectName}:${pureRecordId}`)}
-            aria-label={isFavorite(`record:${objectName}:${pureRecordId}`)
-              ? t('common.removeFromFavorites', { defaultValue: 'Remove from favorites' })
-              : t('common.addToFavorites', { defaultValue: 'Add to favorites' })}
-            data-testid={`record-favorite-btn-${pureRecordId}`}
-          >
-            {isFavorite(`record:${objectName}:${pureRecordId}`)
-              ? <Star className="h-4 w-4 fill-amber-400 text-amber-400" />
-              : <StarOff className="h-4 w-4" />}
-          </Button>
-        )}
         {/* Lifecycle bucket indicator. Replaces the previous full-width
             ManagedByBanner — see ManagedByBadge for the rationale. */}
         <ManagedByBadge managedBy={(objectDef as any)?.managedBy} />
@@ -1423,6 +1395,8 @@ export function RecordDetailView({ dataSource, objects, onEdit, objectNameOverri
               schema={detailSchema}
               dataSource={dataSource}
               objectLabel={objectLabel({ name: objectDef.name, label: objectDef.label })}
+              isFavorite={isRecordFavorite}
+              onToggleFavorite={favoriteRecord ? handleToggleRecordFavorite : undefined}
               onDataLoaded={(record) => {
                 if (!record || typeof record !== 'object') return;
                 // Resolve the same way DetailView's header does, so the

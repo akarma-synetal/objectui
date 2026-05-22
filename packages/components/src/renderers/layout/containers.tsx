@@ -794,6 +794,12 @@ const PageHeaderRenderer: React.FC<any> = ({ schema, className, ...props }) => {
             resourceId={data?.id ? String(data.id) : undefined}
             showStar={showStar}
             showCopyId={showCopyId}
+            isFavorite={(ctx as any)?.isFavorite}
+            onToggleFavorite={
+              (ctx as any)?.onToggleFavorite
+                ? () => (ctx as any).onToggleFavorite()
+                : undefined
+            }
           />
           {subtitle && (
             <p className="text-sm text-muted-foreground mt-1">{subtitle}</p>

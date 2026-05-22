@@ -1417,6 +1417,71 @@ const en = {
     noPendingApprovals: 'No pending approvals',
     openApprovalsInbox: 'Open Approvals Inbox',
   },
+  publicForm: {
+    submit: 'Submit',
+    submitting: 'Submitting…',
+    submitAnother: 'Submit another response',
+    poweredBy: 'Powered by ObjectStack',
+    secureNotice: 'Your information is transmitted securely and only used to respond to your request.',
+    thankYouTitle: 'Thank you!',
+    thankYouMessage: 'Your submission has been received successfully.',
+    redirecting: 'Redirecting in {{seconds}} seconds…',
+    unavailableTitle: 'Form unavailable',
+    unavailableDescription:
+      'No public form is available at this URL. Make sure the underlying view has anonymous sharing enabled and matches this slug.',
+    tryDemo: 'Try the demo',
+    retry: 'Retry',
+    loading: 'Loading form…',
+    demo: {
+      contactTitle: 'Contact us',
+      contactDescription:
+        'Tell us about your project and a sales representative will get back to you within one business day.',
+      supportTitle: 'Submit a support request',
+      supportDescription:
+        'Tell us what is going wrong — our team responds within one business day.',
+      thankYouSalesTitle: 'Thanks — we received your message!',
+      thankYouSalesMessage: 'A sales representative will be in touch within one business day.',
+      thankYouSupportTitle: 'Got it — your request is in the queue.',
+      thankYouSupportMessage:
+        'A support engineer will follow up shortly. Save this page if you have more screenshots to add.',
+      field: {
+        firstName: 'First name',
+        lastName: 'Last name',
+        email: 'Work email',
+        phone: 'Phone',
+        jobTitle: 'Job title',
+        company: 'Company',
+        website: 'Website',
+        industry: 'Industry',
+        companySize: 'Company size',
+        howCanWeHelp: 'How can we help?',
+        subject: 'Subject',
+        description: 'Description',
+        issueType: 'Issue type',
+        priority: 'Priority',
+      },
+      industry: {
+        technology: 'Technology',
+        software: 'Software / SaaS',
+        finance: 'Finance',
+        healthcare: 'Healthcare',
+        retail: 'Retail',
+        other: 'Other',
+      },
+      issueType: {
+        question: 'Question',
+        problem: 'Problem',
+        bug: 'Bug',
+        feature_request: 'Feature request',
+      },
+      priority: {
+        low: 'Low',
+        medium: 'Medium',
+        high: 'High',
+        critical: 'Critical',
+      },
+    },
+  },
 } as const;
 
 export default en;

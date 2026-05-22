@@ -173,6 +173,16 @@ export interface DetailViewProps {
    * window title) without re-fetching.
    */
   onDataLoaded?: (record: any) => void;
+  /**
+   * Controlled favourite state for the header star button. When provided,
+   * the legacy DetailView mirrors it instead of using its own local
+   * state — letting hosts persist favourites (e.g. via `useFavorites`).
+   */
+  isFavorite?: boolean;
+  /**
+   * Called when the user clicks the header star. Receives the next state.
+   */
+  onToggleFavorite?: (next: boolean) => void;
 }
 
 export const DetailView: React.FC<DetailViewProps> = ({
@@ -188,10 +198,13 @@ export const DetailView: React.FC<DetailViewProps> = ({
   rightRail: _rightRail,
   objectLabel,
   onDataLoaded,
+  isFavorite: isFavoriteProp,
+  onToggleFavorite,
 }) => {
   const [data, setData] = React.useState<any>(rawSchema.data);
   const [loading, setLoading] = React.useState(!rawSchema.data && !!((rawSchema.api && rawSchema.resourceId) || (dataSource && rawSchema.objectName && rawSchema.resourceId)));
-  const [isFavorite, setIsFavorite] = React.useState(false);
+  const [internalFavorite, setInternalFavorite] = React.useState(false);
+  const isFavorite = isFavoriteProp ?? internalFavorite;
   const [isInlineEditing, setIsInlineEditing] = React.useState(false);
   const [editedValues, setEditedValues] = React.useState<Record<string, any>>({});
   const [objectSchema, setObjectSchema] = React.useState<any>(null);
@@ -455,8 +468,10 @@ export const DetailView: React.FC<DetailViewProps> = ({
   // real implementations exist. See systemActions below.
 
   const handleToggleFavorite = React.useCallback(() => {
-    setIsFavorite(!isFavorite);
-  }, [isFavorite]);
+    const next = !isFavorite;
+    if (onToggleFavorite) onToggleFavorite(next);
+    if (isFavoriteProp === undefined) setInternalFavorite(next);
+  }, [isFavorite, isFavoriteProp, onToggleFavorite]);
 
   const handleInlineEditToggle = React.useCallback(() => {
     if (isInlineEditing) {

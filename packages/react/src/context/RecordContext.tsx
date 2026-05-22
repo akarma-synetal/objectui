@@ -137,6 +137,18 @@ export interface RecordContextValue<TData = any, TObjectSchema = any> {
    */
   headerSystemActions?: any[];
   /**
+   * Controlled favourite state for the record-header star (rendered by
+   * `RecordTitleChip` via `PageHeaderRenderer`). When the host provides
+   * this, the chip mirrors it instead of managing its own local state.
+   */
+  isFavorite?: boolean;
+  /**
+   * Called when the user toggles the record-header favourite star. Hosts
+   * persist the change (e.g. through `useFavorites`) and update
+   * `isFavorite` accordingly.
+   */
+  onToggleFavorite?: () => void;
+  /**
    * When true, the record is rendered inside a host overlay (drawer,
    * modal, split-pane preview) rather than as a standalone route. Header
    * affordances such as the auto "back to list" button should suppress
@@ -169,6 +181,8 @@ export const RecordContextProvider: React.FC<RecordContextProviderProps> = ({
     value.refresh,
     value.embedded,
     value.headerSystemActions,
+    value.isFavorite,
+    value.onToggleFavorite,
   ]);
   return <RecordContext.Provider value={memo}>{children}</RecordContext.Provider>;
 };

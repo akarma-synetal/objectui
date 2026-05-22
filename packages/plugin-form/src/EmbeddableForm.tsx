@@ -22,7 +22,21 @@
 
 import React, { useState, useCallback, useMemo } from 'react';
 import type { DataSource, FormField } from '@object-ui/types';
+import { Button } from '@object-ui/components';
+import { CheckCircle2, Lock, Loader2 } from 'lucide-react';
 import { ObjectForm } from './ObjectForm';
+
+export interface EmbeddableFormTexts {
+  submit?: string;
+  submitting?: string;
+  submitAnother?: string;
+  poweredBy?: string;
+  secureNotice?: string;
+  thankYouTitle?: string;
+  thankYouMessage?: string;
+  /** Template string. `{{seconds}}` will be replaced with the remaining seconds. */
+  redirecting?: string;
+}
 
 export interface EmbeddableFormConfig {
   /** Unique form ID */
@@ -52,6 +66,8 @@ export interface EmbeddableFormConfig {
   };
   /** Allow multiple submissions */
   allowMultiple?: boolean;
+  /** Localized UI chrome strings (submit label, footer, thank-you defaults). */
+  texts?: EmbeddableFormTexts;
 }
 
 export interface EmbeddableFormProps {
@@ -143,71 +159,74 @@ export const EmbeddableForm: React.FC<EmbeddableFormProps> = ({
   // Thank you page
   if (submitted) {
     const thankYou = config.thankYouPage;
+    const texts = config.texts ?? {};
+    const redirectSeconds = Math.ceil((thankYou?.redirectDelay ?? 3000) / 1000);
+    const redirectingText = (texts.redirecting ?? 'Redirecting in {{seconds}} seconds…').replace(
+      '{{seconds}}',
+      String(redirectSeconds),
+    );
     return (
       <div
-        className={`min-h-screen flex items-center justify-center p-4 ${className || ''}`}
+        className={`min-h-screen flex items-center justify-center p-4 bg-gradient-to-b from-muted/40 via-background to-background ${className || ''}`}
         style={brandingStyle}
       >
-        <div className="max-w-md w-full bg-card rounded-lg shadow-lg p-8 text-center space-y-4">
-          <div className="text-4xl">✓</div>
+        <div className="max-w-md w-full bg-card border rounded-xl shadow-sm p-8 text-center space-y-4">
+          <div className="mx-auto inline-flex h-14 w-14 items-center justify-center rounded-full bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400">
+            <CheckCircle2 className="h-8 w-8" aria-hidden="true" />
+          </div>
           <h2 className="text-xl font-semibold text-foreground">
-            {thankYou?.title || 'Thank You!'}
+            {thankYou?.title || texts.thankYouTitle || 'Thank You!'}
           </h2>
-          <p className="text-muted-foreground">
-            {thankYou?.message || 'Your submission has been received successfully.'}
+          <p className="text-sm text-muted-foreground">
+            {thankYou?.message || texts.thankYouMessage || 'Your submission has been received successfully.'}
           </p>
           {config.allowMultiple && (
-            <button
-              onClick={handleReset}
-              className="mt-4 px-4 py-2 text-sm font-medium rounded-md border border-input bg-background hover:bg-accent hover:text-accent-foreground transition-colors"
-            >
-              Submit Another Response
-            </button>
+            <Button variant="outline" size="sm" onClick={handleReset} className="mt-2">
+              {texts.submitAnother ?? 'Submit Another Response'}
+            </Button>
           )}
           {thankYou?.redirectUrl && (
-            <p className="text-xs text-muted-foreground">
-              Redirecting in {Math.ceil((thankYou.redirectDelay ?? 3000) / 1000)} seconds...
-            </p>
+            <p className="text-xs text-muted-foreground">{redirectingText}</p>
           )}
         </div>
       </div>
     );
   }
 
+  const texts = config.texts ?? {};
   return (
     <div
-      className={`min-h-screen flex items-center justify-center p-4 ${className || ''}`}
+      className={`min-h-screen flex items-center justify-center p-4 sm:p-6 bg-gradient-to-b from-muted/40 via-background to-background ${className || ''}`}
       style={brandingStyle}
     >
-      <div className="max-w-2xl w-full bg-card rounded-lg shadow-lg overflow-hidden">
+      <div className="max-w-2xl w-full bg-card border rounded-xl shadow-sm overflow-hidden">
         {/* Header */}
         <div
-          className="p-6 border-b"
+          className="px-6 sm:px-8 pt-7 pb-5 border-b bg-muted/20"
           style={config.branding?.primaryColor ? { borderBottomColor: config.branding.primaryColor } : undefined}
         >
           {config.branding?.logo && (
-            <img
-              src={config.branding.logo}
-              alt="Logo"
-              className="h-8 mb-4"
-            />
+            <img src={config.branding.logo} alt="Logo" className="h-8 mb-4" />
           )}
           {config.title && (
-            <h1 className="text-xl font-semibold text-foreground">
+            <h1 className="text-2xl font-semibold tracking-tight text-foreground">
               {config.title}
             </h1>
           )}
           {config.description && (
-            <p className="text-sm text-muted-foreground mt-1">
+            <p className="text-sm text-muted-foreground mt-2 leading-relaxed">
               {config.description}
             </p>
           )}
         </div>
 
         {/* Form body */}
-        <div className="p-6">
+        <div className="px-6 sm:px-8 py-6">
           {error && (
-            <div className="mb-4 p-3 bg-destructive/10 border border-destructive/30 rounded-md text-sm text-destructive">
+            <div
+              role="alert"
+              className="mb-4 p-3 bg-destructive/10 border border-destructive/30 rounded-md text-sm text-destructive"
+            >
               {error}
             </div>
           )}
@@ -220,16 +239,31 @@ export const EmbeddableForm: React.FC<EmbeddableFormProps> = ({
               customFields: config.customFields,
               initialData,
               onSuccess: handleSubmit,
-              submitLabel: submitting ? 'Submitting...' : 'Submit',
+              submitLabel: submitting
+                ? texts.submitting ?? 'Submitting...'
+                : texts.submit ?? 'Submit',
             }}
             dataSource={dataSource}
           />
+          {submitting && (
+            <div className="mt-3 flex items-center gap-2 text-xs text-muted-foreground">
+              <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
+              <span>{texts.submitting ?? 'Submitting…'}</span>
+            </div>
+          )}
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-3 border-t bg-muted/20 text-center">
-          <p className="text-xs text-muted-foreground">
-            Powered by ObjectStack
+        <div className="px-6 sm:px-8 py-4 border-t bg-muted/20 flex flex-col sm:flex-row items-center justify-between gap-2">
+          <p className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+            <Lock className="h-3 w-3" aria-hidden="true" />
+            <span>
+              {texts.secureNotice ??
+                'Your information is transmitted securely and only used to respond to your request.'}
+            </span>
+          </p>
+          <p className="text-xs text-muted-foreground/80">
+            {texts.poweredBy ?? 'Powered by ObjectStack'}
           </p>
         </div>
       </div>

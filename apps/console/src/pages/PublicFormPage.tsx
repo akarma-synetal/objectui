@@ -19,11 +19,14 @@
  * (`isGuestSubmission = !ctx.user?.id`) keep the submission safe.
  */
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { EmbeddableForm, type EmbeddableFormConfig } from '@object-ui/plugin-form';
+import { useObjectTranslation } from '@object-ui/i18n';
+import { EmbeddableForm, type EmbeddableFormConfig, type EmbeddableFormTexts } from '@object-ui/plugin-form';
 import type { DataSource } from '@object-ui/types';
 import { LoadingScreen } from '@object-ui/app-shell';
+import { Button } from '@object-ui/components';
+import { AlertTriangle, RefreshCw, ExternalLink } from 'lucide-react';
 
 const SERVER_URL = import.meta.env.VITE_SERVER_URL || '';
 
@@ -203,11 +206,29 @@ function createDemoDataSource(): DataSource {
 
 export function PublicFormPage() {
   const { slug = '' } = useParams<{ slug: string }>();
+  const { t } = useObjectTranslation();
   const [config, setConfig] = useState<EmbeddableFormConfig | null>(null);
   const [schema, setSchema] = useState<any | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [isDemo, setIsDemo] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0);
+
+  // Localized UI chrome strings passed to <EmbeddableForm/>. Wrapped in a
+  // memo so re-renders don't recreate the object on every keystroke.
+  const texts: EmbeddableFormTexts = useMemo(
+    () => ({
+      submit: t('publicForm.submit'),
+      submitting: t('publicForm.submitting'),
+      submitAnother: t('publicForm.submitAnother'),
+      poweredBy: t('publicForm.poweredBy'),
+      secureNotice: t('publicForm.secureNotice'),
+      thankYouTitle: t('publicForm.thankYouTitle'),
+      thankYouMessage: t('publicForm.thankYouMessage'),
+      redirecting: t('publicForm.redirecting', { seconds: '{{seconds}}' }),
+    }),
+    [t],
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -224,7 +245,7 @@ export function PublicFormPage() {
 
     if (demoMode) {
       setIsDemo(true);
-      setConfig(buildDemoConfig(slug));
+      setConfig(buildDemoConfig(slug, t));
       setLoading(false);
       return;
     }
@@ -234,10 +255,7 @@ export function PublicFormPage() {
       .then((result) => {
         if (cancelled) return;
         if (!result) {
-          setError(
-            `No public form found at /forms/${slug}. Make sure the underlying ` +
-            `view has sharing.allowAnonymous=true and matches this slug.`,
-          );
+          setError(t('publicForm.unavailableDescription'));
         } else {
           setConfig(result.config);
           setSchema(result.schema);
@@ -245,7 +263,7 @@ export function PublicFormPage() {
       })
       .catch((err) => {
         if (cancelled) return;
-        setError(err instanceof Error ? err.message : 'Failed to load form');
+        setError(err instanceof Error ? err.message : t('publicForm.unavailableDescription'));
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -254,20 +272,37 @@ export function PublicFormPage() {
     return () => {
       cancelled = true;
     };
-  }, [slug]);
+  }, [slug, t, reloadKey]);
 
   if (loading) return <LoadingScreen />;
 
   if (error) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-4 bg-background">
-        <div className="max-w-md w-full bg-card rounded-lg shadow-lg p-8 text-center space-y-3">
-          <div className="text-4xl">⚠️</div>
-          <h2 className="text-lg font-semibold text-foreground">Form unavailable</h2>
-          <p className="text-sm text-muted-foreground">{error}</p>
-          <p className="text-xs text-muted-foreground">
-            Try the demo: <a className="underline" href={`/f/${slug}?demo=1`}>/f/{slug}?demo=1</a>
-          </p>
+      <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-b from-muted/40 via-background to-background">
+        <div className="max-w-md w-full bg-card border rounded-xl shadow-sm p-8 text-center space-y-4">
+          <div className="mx-auto inline-flex h-14 w-14 items-center justify-center rounded-full bg-amber-50 text-amber-600 dark:bg-amber-500/10 dark:text-amber-400">
+            <AlertTriangle className="h-7 w-7" aria-hidden="true" />
+          </div>
+          <h2 className="text-lg font-semibold text-foreground">{t('publicForm.unavailableTitle')}</h2>
+          <p className="text-sm text-muted-foreground leading-relaxed">{error}</p>
+          <div className="flex flex-wrap items-center justify-center gap-2 pt-1">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setReloadKey((k) => k + 1)}
+              className="gap-1.5"
+            >
+              <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />
+              {t('publicForm.retry')}
+            </Button>
+            <Button asChild variant="ghost" size="sm" className="gap-1.5">
+              <a href={`/console/f/${slug}?demo=1`}>
+                <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
+                {t('publicForm.tryDemo')}
+              </a>
+            </Button>
+          </div>
+          <p className="text-[11px] text-muted-foreground/70 pt-1">/console/f/{slug}</p>
         </div>
       </div>
     );
@@ -276,7 +311,7 @@ export function PublicFormPage() {
   if (!config) return null;
   return (
     <EmbeddableForm
-      config={config}
+      config={{ ...config, texts: { ...texts, ...config.texts } }}
       dataSource={isDemo ? createDemoDataSource() : createPublicDataSource(slug, schema)}
     />
   );
@@ -285,37 +320,38 @@ export function PublicFormPage() {
 /**
  * Hardcoded demo config that mirrors the CRM `web_to_lead` form view.
  * Used when the browser is launched without a live backend so the UI
- * can be verified in isolation.
+ * can be verified in isolation. Strings are routed through i18n so the
+ * demo localizes alongside the rest of the console.
  */
-function buildDemoConfig(slug: string): EmbeddableFormConfig {
+function buildDemoConfig(slug: string, t: (key: string) => string): EmbeddableFormConfig {
   if (slug === 'support' || slug === 'web-to-case') {
     return {
       formId: slug,
       objectName: 'case',
-      title: 'Submit a Support Request',
-      description: 'Tell us what is going wrong — our team responds within one business day.',
+      title: t('publicForm.demo.supportTitle'),
+      description: t('publicForm.demo.supportDescription'),
       customFields: [
-        { name: 'subject',     label: 'Subject',     type: 'text',     required: true },
-        { name: 'description', label: 'Description', type: 'textarea', required: true },
-        { name: 'type',        label: 'Issue Type',  type: 'select',
+        { name: 'subject',     label: t('publicForm.demo.field.subject'),     type: 'text',     required: true },
+        { name: 'description', label: t('publicForm.demo.field.description'), type: 'textarea', required: true },
+        { name: 'type',        label: t('publicForm.demo.field.issueType'),   type: 'select',
           options: [
-            { label: 'Question', value: 'question' },
-            { label: 'Problem',  value: 'problem' },
-            { label: 'Bug',      value: 'bug' },
-            { label: 'Feature Request', value: 'feature_request' },
+            { label: t('publicForm.demo.issueType.question'),        value: 'question' },
+            { label: t('publicForm.demo.issueType.problem'),         value: 'problem' },
+            { label: t('publicForm.demo.issueType.bug'),             value: 'bug' },
+            { label: t('publicForm.demo.issueType.feature_request'), value: 'feature_request' },
           ] },
-        { name: 'priority',    label: 'Priority',    type: 'select',
+        { name: 'priority',    label: t('publicForm.demo.field.priority'),    type: 'select',
           options: [
-            { label: 'Low',      value: 'low' },
-            { label: 'Medium',   value: 'medium' },
-            { label: 'High',     value: 'high' },
-            { label: 'Critical', value: 'critical' },
+            { label: t('publicForm.demo.priority.low'),      value: 'low' },
+            { label: t('publicForm.demo.priority.medium'),   value: 'medium' },
+            { label: t('publicForm.demo.priority.high'),     value: 'high' },
+            { label: t('publicForm.demo.priority.critical'), value: 'critical' },
           ] },
       ] as any,
       allowMultiple: true,
       thankYouPage: {
-        title: 'Got it!',
-        message: 'A support engineer will follow up shortly. Save the page if you have more screenshots to add.',
+        title: t('publicForm.demo.thankYouSupportTitle'),
+        message: t('publicForm.demo.thankYouSupportMessage'),
       },
     };
   }
@@ -324,32 +360,32 @@ function buildDemoConfig(slug: string): EmbeddableFormConfig {
   return {
     formId: slug,
     objectName: 'lead',
-    title: 'Contact Us',
-    description: 'Tell us about your project and a sales representative will get back to you within one business day.',
+    title: t('publicForm.demo.contactTitle'),
+    description: t('publicForm.demo.contactDescription'),
     customFields: [
-      { name: 'first_name', label: 'First Name', type: 'text',  required: true },
-      { name: 'last_name',  label: 'Last Name',  type: 'text',  required: true },
-      { name: 'email',      label: 'Work Email', type: 'email', required: true },
-      { name: 'phone',      label: 'Phone',      type: 'text' },
-      { name: 'title',      label: 'Job Title',  type: 'text' },
-      { name: 'company',    label: 'Company',    type: 'text',  required: true },
-      { name: 'website',    label: 'Website',    type: 'url' },
-      { name: 'industry',   label: 'Industry',   type: 'select',
+      { name: 'first_name', label: t('publicForm.demo.field.firstName'), type: 'text',  required: true },
+      { name: 'last_name',  label: t('publicForm.demo.field.lastName'),  type: 'text',  required: true },
+      { name: 'email',      label: t('publicForm.demo.field.email'),     type: 'email', required: true },
+      { name: 'phone',      label: t('publicForm.demo.field.phone'),     type: 'text' },
+      { name: 'title',      label: t('publicForm.demo.field.jobTitle'),  type: 'text' },
+      { name: 'company',    label: t('publicForm.demo.field.company'),   type: 'text',  required: true },
+      { name: 'website',    label: t('publicForm.demo.field.website'),   type: 'url' },
+      { name: 'industry',   label: t('publicForm.demo.field.industry'),  type: 'select',
         options: [
-          { label: 'Technology',     value: 'technology' },
-          { label: 'Software / SaaS', value: 'software' },
-          { label: 'Finance',        value: 'finance' },
-          { label: 'Healthcare',     value: 'healthcare' },
-          { label: 'Retail',         value: 'retail' },
-          { label: 'Other',          value: 'other' },
+          { label: t('publicForm.demo.industry.technology'), value: 'technology' },
+          { label: t('publicForm.demo.industry.software'),   value: 'software' },
+          { label: t('publicForm.demo.industry.finance'),    value: 'finance' },
+          { label: t('publicForm.demo.industry.healthcare'), value: 'healthcare' },
+          { label: t('publicForm.demo.industry.retail'),     value: 'retail' },
+          { label: t('publicForm.demo.industry.other'),      value: 'other' },
         ] },
-      { name: 'number_of_employees', label: 'Company Size', type: 'number' },
-      { name: 'description', label: 'How can we help?', type: 'textarea', required: true },
+      { name: 'number_of_employees', label: t('publicForm.demo.field.companySize'), type: 'number' },
+      { name: 'description', label: t('publicForm.demo.field.howCanWeHelp'), type: 'textarea', required: true },
     ] as any,
     allowMultiple: true,
     thankYouPage: {
-      title: 'Thanks!',
-      message: 'We received your message. A sales representative will be in touch within one business day.',
+      title: t('publicForm.demo.thankYouSalesTitle'),
+      message: t('publicForm.demo.thankYouSalesMessage'),
     },
   };
 }

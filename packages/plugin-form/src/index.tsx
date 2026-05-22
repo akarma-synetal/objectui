@@ -36,7 +36,7 @@ export type { DrawerFormProps, DrawerFormSchema } from './DrawerForm';
 export { ModalForm } from './ModalForm';
 export type { ModalFormProps, ModalFormSchema } from './ModalForm';
 export { EmbeddableForm } from './EmbeddableForm';
-export type { EmbeddableFormProps, EmbeddableFormConfig } from './EmbeddableForm';
+export type { EmbeddableFormProps, EmbeddableFormConfig, EmbeddableFormTexts } from './EmbeddableForm';
 export { FormAnalytics } from './FormAnalytics';
 export type { FormAnalyticsProps, FormSubmissionMetric } from './FormAnalytics';
 
