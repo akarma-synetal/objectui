@@ -9,6 +9,7 @@
 import { useCallback, useRef, useState } from 'react';
 import type { BulkActionDef } from '@object-ui/types';
 import { RelatedCountStore } from '@object-ui/components';
+import { executeBulkBatch } from '@object-ui/core';
 
 export interface BulkRowError {
   id: string;
@@ -61,6 +62,13 @@ export interface BulkExecutorOptions {
       resource: string,
       ids: ReadonlyArray<string | number>,
       patch: Record<string, unknown>,
+    ) => Promise<number>;
+    /**
+     * Optional server-side bulk-delete primitive. Symmetric to bulkUpdate.
+     */
+    bulkDelete?: (
+      resource: string,
+      ids: ReadonlyArray<string | number>,
     ) => Promise<number>;
   };
 }
@@ -150,114 +158,58 @@ export function useBulkExecutor({ resource, dataSource }: BulkExecutorOptions) {
       for (let i = 0; i < rows.length; i += batchSize) {
         const batch = rows.slice(i, i + batchSize);
 
-        // Fast path: when the operation is `update`, the adapter exposes a
-        // bulk-update primitive, and we have at least 2 rows in the batch,
-        // collapse to a single HTTP request. The per-row snapshot captured
-        // above still powers granular undo; we only lose per-row error
-        // detail when the server reports a partial failure (rare for the
-        // "same patch to N rows" shape this hook supports).
-        const canBulkUpdate =
-          def.operation === 'update'
-          && typeof dataSource.bulkUpdate === 'function'
-          && batch.length >= 2;
-
-        if (canBulkUpdate) {
-          const ids = batch
-            .map(r => (r.id != null ? String(r.id) : ''))
-            .filter(s => s.length > 0);
-
-          const missing = batch.length - ids.length;
-          if (missing > 0) {
-            // Surface ids-less rows as failures up-front so the bulk call
-            // operates on a clean id list.
-            for (let k = 0; k < batch.length; k += 1) {
-              if (batch[k].id == null) {
-                failed += 1;
-                errors.push({
-                  id: `index_${i + k}`,
-                  error: 'Missing record id',
-                });
-              }
-            }
+        // Collect ids up-front so both bulk and per-row paths share the
+        // same id list (and the same "missing id" failures).
+        const validIds: string[] = [];
+        for (let k = 0; k < batch.length; k += 1) {
+          const id = batch[k].id != null ? String(batch[k].id) : '';
+          if (id) {
+            validIds.push(id);
+          } else {
+            failed += 1;
+            errors.push({ id: `index_${i + k}`, error: 'Missing record id' });
           }
+        }
 
-          try {
-            const patch = buildPatch();
-            const n = await dataSource.bulkUpdate!(resource, ids, patch);
-            const bulkSucceeded = Math.max(0, Math.min(n, ids.length));
-            succeeded += bulkSucceeded;
-            const bulkFailed = ids.length - bulkSucceeded;
-            if (bulkFailed > 0) {
-              // No per-id breakdown from the bulk endpoint; collapse the
-              // shortfall into a single aggregate entry rather than
-              // fabricating row attribution.
-              failed += bulkFailed;
-              errors.push({
-                id: `batch_${i}`,
-                error: `${bulkFailed} record${bulkFailed === 1 ? '' : 's'} failed in bulk update`,
-              });
-            }
-          } catch (err) {
-            // Fall back to per-row updates for this batch so the user gets
-            // actionable per-id error rows in the result CSV.
-            const settled = await Promise.allSettled(
-              batch.map(row => {
-                const id = String(row.id ?? '');
-                if (!id) return Promise.reject(new Error('Missing record id'));
-                return dataSource.update(resource, id, buildPatch());
-              }),
-            );
-            settled.forEach((res, batchIdx) => {
-              const row = batch[batchIdx];
-              if (res.status === 'fulfilled') {
-                succeeded += 1;
-              } else {
-                failed += 1;
-                errors.push({
-                  id: String(row.id ?? `index_${i + batchIdx}`),
-                  error: res.reason instanceof Error ? res.reason.message : String(res.reason),
-                });
-              }
-            });
-            // Swallow `err` after fallback — its message would duplicate
-            // the per-row entries we just appended.
-            void err;
-          }
+        if (validIds.length === 0) {
           setProgress({ total, done: succeeded, failed, inFlight: true });
           continue;
         }
 
-        const settled = await Promise.allSettled(
-          batch.map(row => {
-            const id = String(row.id ?? '');
-            if (!id) {
-              return Promise.reject(new Error('Missing record id'));
-            }
-            switch (def.operation) {
-              case 'delete':
-                return dataSource.delete(resource, id);
-              case 'update':
-                return dataSource.update(resource, id, buildPatch());
-              case 'custom':
-                // No mutation — caller wires onComplete events for callouts.
-                return Promise.resolve();
-              default:
-                return Promise.reject(new Error(`Unknown operation: ${def.operation}`));
-            }
-          }),
-        );
-        settled.forEach((res, batchIdx) => {
-          const row = batch[batchIdx];
-          if (res.status === 'fulfilled') {
-            succeeded += 1;
-          } else {
-            failed += 1;
-            errors.push({
-              id: String(row.id ?? `index_${i + batchIdx}`),
-              error: res.reason instanceof Error ? res.reason.message : String(res.reason),
-            });
+        // Decide whether the adapter can collapse this whole batch into 1
+        // call. Single-row batches skip bulk (no win, just overhead).
+        const allowBulk = validIds.length >= 2;
+        let bulkCall: ((ids: string[]) => Promise<number>) | undefined;
+        let label = 'bulk';
+        if (def.operation === 'update' && typeof dataSource.bulkUpdate === 'function') {
+          bulkCall = (ids) => dataSource.bulkUpdate!(resource, ids, buildPatch());
+          label = 'bulk update';
+        } else if (def.operation === 'delete' && typeof dataSource.bulkDelete === 'function') {
+          bulkCall = (ids) => dataSource.bulkDelete!(resource, ids);
+          label = 'bulk delete';
+        }
+
+        const perRow = (id: string): Promise<unknown> => {
+          switch (def.operation) {
+            case 'delete':
+              return dataSource.delete(resource, id);
+            case 'update':
+              return dataSource.update(resource, id, buildPatch());
+            case 'custom':
+              // No mutation — caller wires onComplete events for callouts.
+              return Promise.resolve();
+            default:
+              return Promise.reject(new Error(`Unknown operation: ${def.operation}`));
           }
-        });
+        };
+
+        const outcome = await executeBulkBatch(
+          { ids: validIds, originalSize: batch.length, offset: i, allowBulk, label },
+          { bulkCall, perRow },
+        );
+        succeeded += outcome.succeeded;
+        failed += outcome.failed;
+        errors.push(...outcome.errors);
         setProgress({ total, done: succeeded, failed, inFlight: true });
       }
 

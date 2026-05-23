@@ -227,9 +227,11 @@ describe('useBulkExecutor', () => {
       expect(result.current.result?.errors[0]).toMatchObject({ id: '2', error: 'row 2 RLS rejected' });
     });
 
-    it('keeps using per-row updates for delete and custom operations', async () => {
+    it('does not invoke bulkUpdate for delete operations (only for updates)', async () => {
       const bulkUpdate = vi.fn(async () => 99);
       const deleteFn = vi.fn(async () => ({}));
+      // Note: no bulkDelete provided — verifies bulkUpdate is not accidentally
+      // used for the delete code path.
       const ds = { update: vi.fn(), delete: deleteFn, bulkUpdate };
       const { result } = renderHook(() => useBulkExecutor({ resource: 'task', dataSource: ds }));
 
@@ -243,6 +245,72 @@ describe('useBulkExecutor', () => {
 
       expect(bulkUpdate).not.toHaveBeenCalled();
       expect(deleteFn).toHaveBeenCalledTimes(2);
+    });
+
+    it('uses bulkDelete for delete operations when the adapter supports it', async () => {
+      const bulkDelete = vi.fn(async () => 3);
+      const deleteFn = vi.fn(async () => ({}));
+      const ds = { update: vi.fn(), delete: deleteFn, bulkDelete };
+      const { result } = renderHook(() => useBulkExecutor({ resource: 'task', dataSource: ds }));
+
+      await act(async () => {
+        await result.current.run(
+          { name: 'rm', operation: 'delete' } as BulkActionDef,
+          [{ id: '1' }, { id: '2' }, { id: '3' }],
+          {},
+        );
+      });
+
+      expect(bulkDelete).toHaveBeenCalledTimes(1);
+      expect(bulkDelete).toHaveBeenCalledWith('task', ['1', '2', '3']);
+      expect(deleteFn).not.toHaveBeenCalled();
+      expect(result.current.result?.succeeded).toBe(3);
+    });
+
+    it('falls back to per-row delete when bulkDelete throws', async () => {
+      const bulkDelete = vi.fn(async () => {
+        throw new Error('server down');
+      });
+      const deleteFn = vi.fn(async (_: string, id: string) => {
+        if (id === '2') throw new Error('row 2 FK violation');
+        return {};
+      });
+      const ds = { update: vi.fn(), delete: deleteFn, bulkDelete };
+      const { result } = renderHook(() => useBulkExecutor({ resource: 'task', dataSource: ds }));
+
+      await act(async () => {
+        await result.current.run(
+          { name: 'rm', operation: 'delete' } as BulkActionDef,
+          [{ id: '1' }, { id: '2' }, { id: '3' }],
+          {},
+        );
+      });
+
+      expect(bulkDelete).toHaveBeenCalledTimes(1);
+      expect(deleteFn).toHaveBeenCalledTimes(3);
+      expect(result.current.result?.succeeded).toBe(2);
+      expect(result.current.result?.errors[0]).toMatchObject({ id: '2', error: 'row 2 FK violation' });
+    });
+
+    it('reports partial bulkDelete count as aggregate batch failure', async () => {
+      const bulkDelete = vi.fn(async () => 1); // server only deleted 1 of 3
+      const ds = { update: vi.fn(), delete: vi.fn(), bulkDelete };
+      const { result } = renderHook(() => useBulkExecutor({ resource: 'task', dataSource: ds }));
+
+      await act(async () => {
+        await result.current.run(
+          { name: 'rm', operation: 'delete' } as BulkActionDef,
+          [{ id: '1' }, { id: '2' }, { id: '3' }],
+          {},
+        );
+      });
+
+      expect(result.current.result?.succeeded).toBe(1);
+      expect(result.current.result?.failed).toBe(2);
+      expect(result.current.result?.errors[0]).toMatchObject({
+        id: 'batch_0',
+        error: expect.stringContaining('bulk delete'),
+      });
     });
 
     it('still captures pre-mutation snapshot so undo works even when bulk succeeded', async () => {

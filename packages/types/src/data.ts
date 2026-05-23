@@ -258,6 +258,28 @@ export interface DataSource<T = any> {
   ): Promise<number>;
 
   /**
+   * Bulk delete multiple records by id in a single server call.
+   *
+   * Symmetric counterpart to `bulkUpdate` — collapses a "delete N rows"
+   * intent into 1 HTTP request. Adapters that support a server-side
+   * delete primitive should issue one DELETE call; adapters without
+   * bulk support may fall back to a sequential per-id loop (callers
+   * should not assume atomicity).
+   *
+   * Returns the count of successfully deleted rows. Per-row failures
+   * (e.g. RLS-rejected, foreign-key constraint) are tolerated when the
+   * adapter supports it; total errors throw.
+   *
+   * @param resource - Object/table name
+   * @param ids - Target record ids
+   * @returns Number of rows reported as deleted by the server
+   */
+  bulkDelete?(
+    resource: string,
+    ids: ReadonlyArray<string | number>,
+  ): Promise<number>;
+
+  /**
    * Cancel (recall) the active pending approval request for a record.
    * Returns the recalled request id and final status. Throws when no
    * pending request exists or when the caller is not the submitter.

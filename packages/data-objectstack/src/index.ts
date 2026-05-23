@@ -805,6 +805,50 @@ export class ObjectStackAdapter<T = unknown> implements DataSource<T> {
   }
 
   /**
+   * Single-call bulk delete. Mirrors the bulkUpdate contract: prefers
+   * the server's `deleteMany` primitive when the client supports it;
+   * otherwise emulates `continueOnError` by looping `delete` per id and
+   * swallowing per-row failures. Returns the count of rows reported
+   * deleted by the server (or successfully deleted in fallback mode).
+   */
+  async bulkDelete(
+    resource: string,
+    ids: ReadonlyArray<string | number>,
+  ): Promise<number> {
+    await this.connect();
+    if (!ids || ids.length === 0) return 0;
+    const strIds = ids.map((id) => String(id));
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const deleteMany = (this.client.data as any).deleteMany;
+    if (typeof deleteMany === 'function') {
+      try {
+        const res = await deleteMany(resource, strIds, { continueOnError: true });
+        if (res && typeof res === 'object' && typeof (res as any).succeeded === 'number') {
+          return (res as any).succeeded as number;
+        }
+        if (Array.isArray(res)) return (res as any[]).length;
+        // deleteMany historically returns void on success — assume all hit.
+        return strIds.length;
+      } catch (err) {
+        throw normaliseClientError(err);
+      }
+    }
+
+    // Fallback: sequential per-id deletes, tolerating failures.
+    let succeeded = 0;
+    for (const id of strIds) {
+      try {
+        await this.client.data.delete(resource, id);
+        succeeded++;
+      } catch {
+        // continueOnError semantics — swallow per-row errors
+      }
+    }
+    return succeeded;
+  }
+
+  /**
    * Bulk operations with optimized batch processing and error handling.
    * Emits progress events for tracking operation status.
    * 
