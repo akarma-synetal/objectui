@@ -264,6 +264,7 @@ export function AppSidebar({ activeAppName, onAppChange }: { activeAppName: stri
   const systemFallbackNavigation: NavigationItem[] = React.useMemo(() => [
     { id: 'sys-settings', label: 'System Settings', type: 'url' as const, url: '/apps/setup', icon: 'settings' },
     { id: 'sys-apps', label: 'Applications', type: 'url' as const, url: '/apps/setup/system/apps', icon: 'layout-grid' },
+    { id: 'sys-marketplace', label: 'App Marketplace', type: 'url' as const, url: '/apps/setup/system/marketplace', icon: 'store' },
     { id: 'sys-objects', label: 'Object Manager', type: 'url' as const, url: '/apps/setup/system/metadata/object', icon: 'database' },
     { id: 'sys-users', label: 'Users', type: 'url' as const, url: '/apps/setup/system/users', icon: 'users' },
     { id: 'sys-orgs', label: 'Organizations', type: 'url' as const, url: '/apps/setup/system/organizations', icon: 'building-2' },
