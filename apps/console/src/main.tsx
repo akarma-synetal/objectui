@@ -14,6 +14,9 @@ import { ComponentRegistry } from '@object-ui/core';
 import { registerPlaceholders } from '@object-ui/components';
 import { initSentry } from '@object-ui/app-shell';
 import { loadLanguage } from './loadLanguage';
+import { preflightAuth } from './lib/auth-preflight';
+
+const AUTH_URL = `${import.meta.env.VITE_SERVER_URL || ''}/api/v1/auth`;
 
 // Kick off Sentry init in the background (no-op if VITE_SENTRY_DSN is unset).
 // Not awaited — observability must never block first paint.
@@ -139,12 +142,20 @@ import './components/schema/registerObjectDetailWidgets';
 // shadows a registered renderer.
 registerPlaceholders();
 
-ReactDOM.createRoot(document.getElementById('root')!).render(
-  <React.StrictMode>
-    <MobileProvider pwa={{ enabled: true, name: 'ObjectUI Console', shortName: 'Console' }}>
-      <I18nProvider loadLanguage={loadLanguage}>
-        <App />
-      </I18nProvider>
-    </MobileProvider>
-  </React.StrictMode>
-);
+// Drop any stale Bearer token in localStorage BEFORE React mounts.
+// Without this, a token left by a previous user (or by sign-out via the
+// Account SPA, which doesn't touch this localStorage key) would cause
+// AuthProvider's first `get-session` to be rejected by the server, even
+// though the current cookie session is valid — producing an infinite
+// /_account/login ↔ /_console/home bounce. See lib/auth-preflight.ts.
+preflightAuth(AUTH_URL).finally(() => {
+  ReactDOM.createRoot(document.getElementById('root')!).render(
+    <React.StrictMode>
+      <MobileProvider pwa={{ enabled: true, name: 'ObjectUI Console', shortName: 'Console' }}>
+        <I18nProvider loadLanguage={loadLanguage}>
+          <App />
+        </I18nProvider>
+      </MobileProvider>
+    </React.StrictMode>
+  );
+});

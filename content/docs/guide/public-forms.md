@@ -10,9 +10,11 @@ public-facing form (contact us, lead capture, signup, RSVP) with the security
 defaults you'd expect from Airtable Forms, Typeform or HubSpot Forms — without
 asking app authors to bolt them on themselves.
 
-The console exposes a turnkey route at `/f/:slug` (`PublicFormPage`) that loads
-a `FormConfig` record from the configured object and renders it through
-`EmbeddableForm`.
+The console exposes a turnkey route at `/f/:slug` (`FormPage`) that loads
+a `FormView` spec from the server's `GET /api/v1/forms/:slug` resolver and
+renders the merged form. The same component also serves authed internal
+forms at `/forms/:name` (`mode="internal"`), reading the FormView spec
+from `/api/v1/meta/view/:name` and posting to `/api/v1/data/:object`.
 
 ## Quick start
 
@@ -56,7 +58,7 @@ import { restDataSource } from '@object-ui/data-rest';
 | **Default `maxLength`** | text 200 · email 254 · url 2048 · phone 32 · textarea/markdown/html 5000 | Per-field `maxLength` overrides |
 | **GDPR consent gate** | Off (opt-in) | `consent: { required, label }` + `privacyPolicyUrl` |
 | **CAPTCHA token** | Off (opt-in) | `captchaToken` (string sent as `_captcha`) |
-| **Demo mode (`?demo=1`)** | DEV only | gated by `import.meta.env.DEV` in `PublicFormPage` |
+| **Demo mode (`?demo=1`)** | DEV only | gated by `import.meta.env.DEV` in `EmbeddableForm` consumers |
 
 All gates run **before** the network call. If the consent gate or min-fill
 timer trips, the backend is never contacted. The honeypot silently shows the
@@ -179,12 +181,26 @@ const { t } = useObjectTranslation();
 }} />
 ```
 
-## Console route — `/f/:slug`
+## Console route — `/f/:slug` and `/forms/:name`
 
-`PublicFormPage` loads a `FormConfig` record by `slug` and renders it
-through `EmbeddableForm`. URL parameters are passed via `prefillParams`,
-the page localises chrome strings, and `?demo=1` loads canned configs in
-**DEV builds only**.
+The console's `FormPage` component renders both modes from the same
+spec-merging code path:
+
+- **`/f/:slug`** (public, anonymous) — loads `GET /api/v1/forms/:slug` which
+  resolves the `FormView` whose `sharing.publicLink` matches the slug, then
+  submits to `POST /api/v1/forms/:slug/submit`.
+- **`/forms/:name`** (internal, authed) — loads `GET /api/v1/meta/view/:name`
+  for the FormView spec plus `GET /api/v1/meta/object/:object` for field
+  metadata, then submits to `POST /api/v1/data/:object` with the
+  authenticated session cookie.
+
+URL parameters of the form `?prefill_<field>=<value>` populate the matching
+fields on mount; the rest of the chrome (label, section columns, post-submit
+behaviour) comes from the `FormView` spec itself.
+
+For richer public forms with anti-spam, GDPR consent, prefill whitelisting
+and open-redirect protection, host `EmbeddableForm` directly inside your own
+route — see the Quick start above.
 
 ## Testing
 

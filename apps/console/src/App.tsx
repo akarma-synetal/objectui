@@ -1,126 +1,138 @@
 /**
- * App — top-level console assembly.
+ * ObjectStack Console — fork-ready runtime console template.
  *
- * Owns the full routing tree: import the building blocks from
- * @object-ui/app-shell and wire them together with JSX. To customise the
- * console, edit this file — don't look for a config object.
+ * Auth UI lives in the Account SPA at `/_account/*`. This file owns the
+ * console routing tree only — sign-in / sign-up / forgot-password URLs are
+ * shimmed to hard-redirect to Account, and the AuthGuard fallback bounces
+ * unauthenticated visitors there too (preserving `?redirect=...`).
+ *
+ * Console-specific extras (system / settings / legacy metadata editor) are
+ * injected via {@link AppContent}, which wraps `DefaultAppContent` with
+ * extra `<Route>` children.
  */
 
-import { lazy, Suspense, type ReactNode } from 'react';
+import { useEffect, type ReactNode } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { AuthProvider, AuthGuard } from '@object-ui/auth';
 import {
   ConsoleShell,
   ConnectedShell,
-  AuthenticatedRoute,
-  RootRedirect,
+  RequireOrganization,
   SystemRedirect,
   LoadingFallback,
   ConsoleToaster,
-  ConditionalAuthWrapper,
-  DefaultLoginPage,
-  DefaultRegisterPage,
-  DefaultForgotPasswordPage,
   DefaultHomeLayout,
   DefaultHomePage,
   DefaultOrganizationsLayout,
   DefaultOrganizationsPage,
-  DefaultOrganizationLayout,
-  DefaultMembersPage,
-  DefaultInvitationsPage,
-  DefaultSettingsPage,
-  DefaultAcceptInvitationPage,
 } from '@object-ui/app-shell';
-import { PreviewBanner, AuthProvider } from '@object-ui/auth';
 
 import { AppContent } from './AppContent';
-import { PublicFormPage } from './pages/PublicFormPage';
+import { AccountLoginRedirect } from './components/AccountLoginRedirect';
+import { CloudAwareRootRedirect } from './components/CloudAwareRootRedirect';
+import { FormPage } from './components/FormPage';
+import { MetadataHmrReloader } from './components/MetadataHmrReloader';
+import { SignOutOverlay } from './components/SignOutOverlay';
+import {
+  gotoAccountLogin,
+  gotoAccountRegister,
+  gotoAccountForgotPassword,
+} from './lib/auth-redirect';
 
-// Dev-only auth bypass: opt-in via VITE_DEV_AUTH_BYPASS=true to skip the
-// login flow when iterating locally. Production builds always go through
-// ConditionalAuthWrapper.
-const DEV_AUTH_BYPASS = import.meta.env.DEV && import.meta.env.VITE_DEV_AUTH_BYPASS === 'true';
-
-const CreateAppPage = lazy(() => import('@object-ui/plugin-designer').then(m => ({ default: m.CreateAppPage })));
-
-const BASENAME = import.meta.env.BASE_URL?.replace(/\/$/, '') || '/';
 const AUTH_URL = `${import.meta.env.VITE_SERVER_URL || ''}/api/v1/auth`;
+const BASENAME = (import.meta.env.BASE_URL || '/').replace(/\/$/, '') || '/';
 
-// IMPORTANT: keep Wrapper at module scope. Defining it inside App() would
-// give it a fresh component identity on every App render, which causes React
-// to unmount and remount the entire ConditionalAuthWrapper subtree (including
-// its discovery fetch effect) every time a parent (e.g. I18nProvider) updates
-// state — the splash would never get past "loading".
-const BypassWrapper = ({ children }: { children: ReactNode }) => (
-  <AuthProvider authUrl={AUTH_URL} enabled={false}>{children}</AuthProvider>
-);
-const AuthWrapper = ({ children }: { children: ReactNode }) => (
-  <ConditionalAuthWrapper authUrl={AUTH_URL}>{children}</ConditionalAuthWrapper>
-);
-const Wrapper = DEV_AUTH_BYPASS ? BypassWrapper : AuthWrapper;
+/**
+ * ProtectedRoute — replaces app-shell's AuthenticatedRoute. Same composition
+ * (AuthGuard + ConnectedShell + optional RequireOrganization) but with an
+ * external-redirect fallback instead of `<Navigate to="/login" />`.
+ */
+function ProtectedRoute({
+  children,
+  requireOrganization = true,
+}: {
+  children: ReactNode;
+  requireOrganization?: boolean;
+}) {
+  return (
+    <AuthGuard fallback={<AccountLoginRedirect />} loadingFallback={<LoadingFallback />}>
+      <ConnectedShell>
+        {requireOrganization ? <RequireOrganization>{children}</RequireOrganization> : children}
+      </ConnectedShell>
+    </AuthGuard>
+  );
+}
+
+/** Redirect-only route shim: `/login` → Account, preserving any `?redirect=`. */
+function LoginRedirect() {
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    gotoAccountLogin(params.get('redirect') ?? undefined);
+  }, []);
+  return <LoadingFallback />;
+}
+
+function RegisterRedirect() {
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    gotoAccountRegister(params.get('redirect') ?? undefined);
+  }, []);
+  return <LoadingFallback />;
+}
+
+function ForgotPasswordRedirect() {
+  useEffect(() => {
+    gotoAccountForgotPassword();
+  }, []);
+  return <LoadingFallback />;
+}
 
 export function App() {
   return (
-    <Wrapper>
-      <PreviewBanner />
+    <AuthProvider authUrl={AUTH_URL}>
+      <ConsoleToaster position="bottom-right" />
+      <MetadataHmrReloader />
+      <SignOutOverlay />
       <BrowserRouter basename={BASENAME}>
         <ConsoleShell>
-          <ConsoleToaster position="bottom-right" />
           <Routes>
-              {/*
-               * Public anonymous form routes — rendered OUTSIDE
-               * AuthenticatedRoute so unauthenticated visitors can submit.
-               * The slug maps 1:1 to a framework FormView whose
-               * `sharing.publicLink === "/forms/{slug}"` and
-               * `sharing.allowAnonymous === true`.
-               *
-               * Two URL shapes are accepted:
-               *   /f/:slug      — short URL, recommended
-               *   /forms/:slug  — matches the value stored in
-               *                   `sharing.publicLink` on the framework side
-               */}
-              <Route path="/f/:slug" element={<PublicFormPage />} />
-              <Route path="/forms/:slug" element={<PublicFormPage />} />
-              <Route path="/login" element={<DefaultLoginPage />} />
-              <Route path="/register" element={<DefaultRegisterPage />} />
-              <Route path="/forgot-password" element={<DefaultForgotPasswordPage />} />
-              <Route path="/home" element={
-                <AuthenticatedRoute>
-                  <DefaultHomeLayout><DefaultHomePage /></DefaultHomeLayout>
-                </AuthenticatedRoute>
-              } />
-              <Route path="/organizations" element={
-                <AuthenticatedRoute requireOrganization={false}>
-                  <DefaultOrganizationsLayout><DefaultOrganizationsPage /></DefaultOrganizationsLayout>
-                </AuthenticatedRoute>
-              } />
-              <Route path="/organizations/:slug" element={
-                <AuthenticatedRoute requireOrganization={false}>
-                  <DefaultOrganizationLayout />
-                </AuthenticatedRoute>
-              }>
-                <Route index element={<Navigate to="members" replace />} />
-                <Route path="members" element={<DefaultMembersPage />} />
-                <Route path="invitations" element={<DefaultInvitationsPage />} />
-                <Route path="settings" element={<DefaultSettingsPage />} />
-              </Route>
-              <Route path="/accept-invitation/:invitationId" element={<DefaultAcceptInvitationPage />} />
-              <Route path="/system/*" element={<SystemRedirect />} />
-              <Route path="/create-app" element={
-                <AuthenticatedRoute requireOrganization={false}>
-                  <Suspense fallback={<LoadingFallback />}><CreateAppPage /></Suspense>
-                </AuthenticatedRoute>
-              } />
-              <Route path="/apps/:appName/*" element={
-                <AuthenticatedRoute>
-                  <AppContent />
-                </AuthenticatedRoute>
-              } />
-              <Route path="/" element={<ConnectedShell><RootRedirect /></ConnectedShell>} />
-              <Route path="*" element={<Navigate to="/" replace />} />
-            </Routes>
-          </ConsoleShell>
-        </BrowserRouter>
-    </Wrapper>
+            <Route path="/login" element={<LoginRedirect />} />
+            <Route path="/register" element={<RegisterRedirect />} />
+            <Route path="/forgot-password" element={<ForgotPasswordRedirect />} />
+            {/*
+              * Public anonymous form — rendered OUTSIDE ProtectedRoute so
+              * unauthenticated visitors can submit. The slug maps 1:1 to a
+              * FormView whose `sharing.allowAnonymous === true`.
+              */}
+            <Route path="/f/:slug" element={<FormPage mode="public" />} />
+            {/* Internal authed form — same renderer, different submit path. */}
+            <Route path="/forms/:name" element={
+              <ProtectedRoute>
+                <FormPage mode="internal" />
+              </ProtectedRoute>
+            } />
+            <Route path="/home" element={
+              <ProtectedRoute>
+                <DefaultHomeLayout><DefaultHomePage /></DefaultHomeLayout>
+              </ProtectedRoute>
+            } />
+            <Route path="/organizations" element={
+              <ProtectedRoute requireOrganization={false}>
+                <DefaultOrganizationsLayout><DefaultOrganizationsPage /></DefaultOrganizationsLayout>
+              </ProtectedRoute>
+            } />
+            <Route path="/system/*" element={<SystemRedirect />} />
+            <Route path="/apps/:appName/*" element={
+              <ProtectedRoute>
+                <AppContent />
+              </ProtectedRoute>
+            } />
+            <Route path="/" element={<ConnectedShell><CloudAwareRootRedirect /></ConnectedShell>} />
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </ConsoleShell>
+      </BrowserRouter>
+    </AuthProvider>
   );
 }
 
