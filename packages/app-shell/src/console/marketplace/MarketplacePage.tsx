@@ -163,7 +163,7 @@ export function MarketplacePage() {
             <div className="font-medium text-destructive">Failed to load marketplace</div>
             <div className="text-muted-foreground mt-1">{error}</div>
             <div className="text-xs text-muted-foreground mt-2">
-              Check that this runtime is configured with <code className="font-mono">OS_CLOUD_URL</code> pointing at a reachable ObjectStack Cloud.
+              By default this runtime points at the public ObjectStack cloud. Check the runtime is online, or override <code className="font-mono">OS_CLOUD_URL</code> to point at a self-hosted control plane.
             </div>
           </div>
         </div>

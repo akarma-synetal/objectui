@@ -31,6 +31,7 @@ import {
 } from '@object-ui/components';
 import { ArrowLeft, ExternalLink, Download, AlertCircle, Package, Trash2 } from 'lucide-react';
 import { PackageIcon } from './PackageIcon';
+import { MarkdownText } from './MarkdownText';
 import {
   getMarketplacePackage,
   installPackage,
@@ -244,18 +245,18 @@ export function MarketplacePackagePage() {
         Back to marketplace
       </Button>
 
-      <div className="flex items-start gap-4 flex-wrap">
+      <div className="flex items-start gap-5 flex-wrap rounded-2xl border bg-gradient-to-br from-primary/5 via-background to-background p-6">
         <PackageIcon
           iconUrl={pkg.icon_url}
           displayName={pkg.display_name}
           manifestId={pkg.manifest_id}
-          className="h-16 w-16 rounded-xl"
-          initialClassName="text-2xl font-bold"
+          className="h-20 w-20 rounded-2xl shadow-sm ring-1 ring-border"
+          initialClassName="text-3xl font-bold"
         />
         <div className="flex-1 min-w-0">
-          <h1 className="text-2xl font-bold tracking-tight truncate">{pkg.display_name || pkg.manifest_id}</h1>
-          <div className="text-sm text-muted-foreground mt-1 flex flex-wrap items-center gap-2">
-            <code className="font-mono">{pkg.manifest_id}</code>
+          <h1 className="text-3xl font-bold tracking-tight truncate">{pkg.display_name || pkg.manifest_id}</h1>
+          <div className="text-sm text-muted-foreground mt-2 flex flex-wrap items-center gap-2">
+            <code className="font-mono text-xs px-1.5 py-0.5 rounded bg-muted">{pkg.manifest_id}</code>
             {latestVersion && (
               <Badge variant="outline">v{latestVersion}</Badge>
             )}
@@ -263,19 +264,19 @@ export function MarketplacePackagePage() {
               <Badge variant={pkg.publisher === 'objectstack' ? 'default' : 'secondary'}>{pkg.publisher}</Badge>
             )}
             {pkg.category && <Badge variant="outline">{pkg.category}</Badge>}
-            {pkg.license && <span className="text-xs">License: {pkg.license}</span>}
+            {pkg.license && <Badge variant="outline" className="font-normal">{pkg.license}</Badge>}
             {localInstall && (
               <Badge variant="default" className="bg-green-600 hover:bg-green-600">
-                Installed locally · v{localInstall.version}
+                Installed · v{localInstall.version}
               </Badge>
             )}
           </div>
           {pkg.description && (
-            <p className="text-sm text-muted-foreground mt-3 max-w-2xl">{pkg.description}</p>
+            <p className="text-base text-foreground/80 mt-4 max-w-2xl leading-relaxed">{pkg.description}</p>
           )}
         </div>
         <div className="flex flex-col gap-2 shrink-0 min-w-[14rem]">
-          <Button onClick={doInstallLocal} disabled={!latestVersion || installingLocal}>
+          <Button onClick={doInstallLocal} disabled={!latestVersion || installingLocal} size="lg">
             <Download className="h-4 w-4 mr-1.5" aria-hidden="true" />
             {installingLocal
               ? 'Working…'
@@ -289,13 +290,13 @@ export function MarketplacePackagePage() {
               Uninstall from this runtime
             </Button>
           )}
-          <Button variant="outline" onClick={openInstall} disabled={!latestVersion}>
+          <Button variant="ghost" onClick={openInstall} disabled={!latestVersion} size="sm">
             <Download className="h-4 w-4 mr-1.5" aria-hidden="true" />
             Install to cloud environment…
           </Button>
           {pkg.homepage_url && (
             <a href={pkg.homepage_url} target="_blank" rel="noopener noreferrer">
-              <Button variant="ghost" className="w-full">
+              <Button variant="ghost" size="sm" className="w-full">
                 <ExternalLink className="h-4 w-4 mr-1.5" aria-hidden="true" />
                 Homepage
               </Button>
@@ -317,7 +318,7 @@ export function MarketplacePackagePage() {
             </CardHeader>
             <CardContent>
               {pkg.readme ? (
-                <pre className="whitespace-pre-wrap text-sm font-sans">{pkg.readme}</pre>
+                <MarkdownText source={pkg.readme} />
               ) : (
                 <p className="text-sm text-muted-foreground">No readme provided.</p>
               )}
