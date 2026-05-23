@@ -36,9 +36,17 @@ function preloadCriticalChunks(): Plugin {
   };
 }
 
-// Base path for SPA deployment. Always '/console/' to match the HonoServerPlugin
-// auto-mount slug. Override with VITE_BASE_PATH only if deploying standalone.
-const basePath = process.env.VITE_BASE_PATH || '/console/';
+// Base path for SPA deployment.
+//
+// Default: './' (relative) — makes the build path-agnostic, so the same
+// dist/ works under any mount point (/_console/, /console/, /foo/bar/).
+// This is required for the package to be embeddable in arbitrary
+// ObjectStack servers.
+//
+// Demo / standalone deployments can pin an absolute base via
+// VITE_BASE_PATH (e.g. '/console/') so static asset caching keys are
+// stable across HTML revisions.
+const basePath = process.env.VITE_BASE_PATH || './';
 
 // On Vercel/CI we skip the compression and visualizer plugins because the
 // Vercel CDN handles gzip/brotli automatically and bundle analysis is not

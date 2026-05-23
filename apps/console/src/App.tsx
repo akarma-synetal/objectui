@@ -40,7 +40,30 @@ import {
 } from './lib/auth-redirect';
 
 const AUTH_URL = `${import.meta.env.VITE_SERVER_URL || ''}/api/v1/auth`;
-const BASENAME = (import.meta.env.BASE_URL || '/').replace(/\/$/, '') || '/';
+
+/**
+ * Resolve the React Router basename.
+ *
+ * The published Console build uses a relative Vite base (`./`) so the
+ * same `dist/` works under any mount path. That means `import.meta.env.BASE_URL`
+ * is `./` and useless for routing — we derive the actual mount root
+ * from `document.baseURI` at runtime instead.
+ *
+ * Hosts that embed the SPA should inject a `<base href="/path/">` into
+ * the served HTML (the framework CLI does this automatically). Falls
+ * back to `'/'` for dev / standalone deployments.
+ */
+function resolveBasename(): string {
+  try {
+    const url = new URL(document.baseURI);
+    const path = url.pathname.replace(/\/$/, '');
+    return path || '/';
+  } catch {
+    return '/';
+  }
+}
+
+const BASENAME = resolveBasename();
 
 /**
  * ProtectedRoute — replaces app-shell's AuthenticatedRoute. Same composition
