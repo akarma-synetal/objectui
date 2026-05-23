@@ -14,7 +14,7 @@
  * @module
  */
 
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
   Button,
@@ -86,6 +86,27 @@ export function InboxPopover({
   const totalBadge = unreadCount + pendingApprovalsCount;
   const ariaLabel = t('sidebar.inboxAriaLabel', { defaultValue: 'Open inbox' }) as string;
 
+  // Pulse the bell once whenever the unread/approval pressure increases.
+  // We track the previous total in a ref so the very first render (when
+  // the counts arrive from the server) doesn't trigger a spurious pulse.
+  const prevTotalRef = useRef<number | null>(null);
+  const [pulse, setPulse] = useState(false);
+  useEffect(() => {
+    const prev = prevTotalRef.current;
+    if (prev !== null && totalBadge > prev) {
+      setPulse(true);
+      const timeout = window.setTimeout(() => setPulse(false), 1200);
+      return () => window.clearTimeout(timeout);
+    }
+    prevTotalRef.current = totalBadge;
+    return undefined;
+  }, [totalBadge]);
+  // Keep prev in sync after the pulse window so a subsequent increase
+  // (e.g. 3 → 5 right after 5 settled) re-triggers the animation.
+  useEffect(() => {
+    if (!pulse) prevTotalRef.current = totalBadge;
+  }, [pulse, totalBadge]);
+
   const goToApprovals = () => {
     setOpen(false);
     const app = currentAppName ?? params.appName;
@@ -127,13 +148,16 @@ export function InboxPopover({
         <Button
           variant="ghost"
           size="icon"
-          className="h-8 w-8 relative shrink-0"
+          className={`h-8 w-8 relative shrink-0 ${pulse ? 'motion-safe:animate-bounce' : ''}`}
           aria-label={ariaLabel}
           title={t('sidebar.inbox', { defaultValue: 'Inbox' }) as string}
         >
           <Bell className="h-4 w-4" />
           {totalBadge > 0 && (
-            <span className="absolute -top-0.5 -right-0.5 h-4 min-w-[16px] rounded-full bg-red-500 text-[10px] leading-4 text-white text-center px-1">
+            <span
+              key={totalBadge}
+              className="absolute -top-0.5 -right-0.5 h-4 min-w-[16px] rounded-full bg-red-500 text-[10px] leading-4 text-white text-center px-1 motion-safe:animate-in motion-safe:zoom-in-50 motion-safe:fade-in-0 motion-safe:duration-200"
+            >
               {totalBadge > 9 ? '9+' : totalBadge}
             </span>
           )}
@@ -160,7 +184,10 @@ export function InboxPopover({
               <Bell className="h-3.5 w-3.5" />
               {t('sidebar.notifications', { defaultValue: 'Notifications' })}
               {unreadCount > 0 && (
-                <span className="ml-0.5 inline-flex h-4 min-w-[16px] items-center justify-center rounded-full bg-red-500 px-1 text-[10px] text-white">
+                <span
+                  key={`notif-${unreadCount}`}
+                  className="ml-0.5 inline-flex h-4 min-w-[16px] items-center justify-center rounded-full bg-red-500 px-1 text-[10px] text-white motion-safe:animate-in motion-safe:zoom-in-75 motion-safe:duration-200"
+                >
                   {unreadCount > 9 ? '9+' : unreadCount}
                 </span>
               )}
@@ -169,7 +196,10 @@ export function InboxPopover({
               <CheckSquare className="h-3.5 w-3.5" />
               {t('sidebar.approvals', { defaultValue: 'Approvals' })}
               {pendingApprovalsCount > 0 && (
-                <span className="ml-0.5 inline-flex h-4 min-w-[16px] items-center justify-center rounded-full bg-amber-500 px-1 text-[10px] text-white">
+                <span
+                  key={`appr-${pendingApprovalsCount}`}
+                  className="ml-0.5 inline-flex h-4 min-w-[16px] items-center justify-center rounded-full bg-amber-500 px-1 text-[10px] text-white motion-safe:animate-in motion-safe:zoom-in-75 motion-safe:duration-200"
+                >
                   {pendingApprovalsCount > 9 ? '9+' : pendingApprovalsCount}
                 </span>
               )}
@@ -218,7 +248,7 @@ export function InboxPopover({
                   : notifications;
               if (visible.length === 0) {
                 return (
-                  <div className="px-3 py-8 text-sm text-muted-foreground text-center">
+                  <div className="px-3 py-8 text-sm text-muted-foreground text-center motion-safe:animate-in motion-safe:fade-in-0 motion-safe:duration-300">
                     {notifFilter === 'unread'
                       ? t('notifications.emptyUnread', { defaultValue: "You're all caught up" })
                       : t('notifications.empty', { defaultValue: 'No notifications' })}
@@ -227,17 +257,22 @@ export function InboxPopover({
               }
               return (
                 <ul className="divide-y">
-                  {visible.map((n) => (
-                    <li key={n.id}>
+                  {visible.map((n, idx) => (
+                    <li
+                      key={n.id}
+                      className="motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-top-1 motion-safe:duration-200"
+                      style={{ animationDelay: `${Math.min(idx, 6) * 20}ms` }}
+                    >
                       <button
                         type="button"
                         onClick={() => handleNotificationClick(n)}
-                        className={`w-full text-left px-3 py-2.5 hover:bg-accent transition-colors ${n.is_read ? '' : 'bg-accent/40'}`}
+                        className={`w-full text-left px-3 py-2.5 hover:bg-accent transition-colors duration-150 ${n.is_read ? '' : 'bg-accent/40'}`}
                       >
                         <div className="flex items-start gap-2">
-                          {!n.is_read && (
-                            <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-primary" aria-hidden />
-                          )}
+                          <span
+                            className={`mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-primary transition-opacity duration-200 ${n.is_read ? 'opacity-0' : 'opacity-100'}`}
+                            aria-hidden
+                          />
                           <div className="min-w-0 flex-1">
                             <div className="text-sm font-medium leading-tight truncate">{n.title}</div>
                             {n.body && (
@@ -269,10 +304,10 @@ export function InboxPopover({
           </TabsContent>
 
           <TabsContent value="approvals" className="m-0 max-h-80 overflow-auto">
-            <div className="px-3 py-6 text-center">
+            <div className="px-3 py-6 text-center motion-safe:animate-in motion-safe:fade-in-0 motion-safe:duration-300">
               {pendingApprovalsCount > 0 ? (
                 <>
-                  <CheckSquare className="mx-auto h-6 w-6 text-amber-500" />
+                  <CheckSquare className="mx-auto h-6 w-6 text-amber-500 motion-safe:animate-in motion-safe:zoom-in-50 motion-safe:duration-300" />
                   <div className="mt-2 text-sm font-medium">
                     {t('notifications.approvalsPending', {
                       defaultValue: '{{count}} pending approvals',
@@ -304,13 +339,17 @@ export function InboxPopover({
 
           <TabsContent value="activity" className="m-0 max-h-80 overflow-auto">
             {activities.length === 0 ? (
-              <div className="px-3 py-8 text-sm text-muted-foreground text-center">
+              <div className="px-3 py-8 text-sm text-muted-foreground text-center motion-safe:animate-in motion-safe:fade-in-0 motion-safe:duration-300">
                 {t('layout.activityFeed.empty', { defaultValue: 'No recent activity' })}
               </div>
             ) : (
               <ul className="divide-y">
-                {activities.slice(0, 20).map((a) => (
-                  <li key={a.id} className="px-3 py-2.5">
+                {activities.slice(0, 20).map((a, idx) => (
+                  <li
+                    key={a.id}
+                    className="px-3 py-2.5 motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-top-1 motion-safe:duration-200"
+                    style={{ animationDelay: `${Math.min(idx, 6) * 20}ms` }}
+                  >
                     <div className="text-sm leading-tight truncate">
                       <span className="font-medium">{a.user}</span>{' '}
                       <span className="text-muted-foreground">{a.description}</span>
