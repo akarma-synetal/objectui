@@ -67,6 +67,13 @@ const fr = {
     editDescription: 'Mettre à jour les détails de {{object}}',
     saveRecord: 'Enregistrer',
   },
+  fields: {
+    richText: {
+      format: 'Format: {{format}}',
+      basicEditorHint: 'Rich text editor (basic)',
+      placeholder: 'Enter text...',
+    },
+  },
   table: {
     rowsPerPage: 'Lignes par page',
     showing: 'Affichage de {{from}} à {{to}} sur {{total}}',

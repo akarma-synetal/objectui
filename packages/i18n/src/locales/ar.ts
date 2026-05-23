@@ -68,6 +68,13 @@ const ar = {
     editDescription: 'تحديث تفاصيل {{object}}',
     saveRecord: 'حفظ السجل',
   },
+  fields: {
+    richText: {
+      format: 'Format: {{format}}',
+      basicEditorHint: 'Rich text editor (basic)',
+      placeholder: 'Enter text...',
+    },
+  },
   table: {
     rowsPerPage: 'صفوف في الصفحة',
     showing: 'عرض {{from}} إلى {{to}} من {{total}}',

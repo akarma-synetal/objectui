@@ -67,6 +67,13 @@ const ko = {
     editDescription: '{{object}} 세부 정보 업데이트',
     saveRecord: '레코드 저장',
   },
+  fields: {
+    richText: {
+      format: 'Format: {{format}}',
+      basicEditorHint: 'Rich text editor (basic)',
+      placeholder: 'Enter text...',
+    },
+  },
   table: {
     rowsPerPage: '페이지당 행 수',
     showing: '{{total}}개 중 {{from}}~{{to}} 표시',

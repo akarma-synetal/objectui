@@ -67,6 +67,13 @@ const ja = {
     editDescription: '{{object}}の詳細を更新',
     saveRecord: 'レコードを保存',
   },
+  fields: {
+    richText: {
+      format: 'Format: {{format}}',
+      basicEditorHint: 'Rich text editor (basic)',
+      placeholder: 'Enter text...',
+    },
+  },
   table: {
     rowsPerPage: '1ページの行数',
     showing: '{{total}}件中{{from}}〜{{to}}件を表示',

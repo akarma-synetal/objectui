@@ -67,6 +67,13 @@ const ru = {
     editDescription: 'Обновить данные {{object}}',
     saveRecord: 'Сохранить запись',
   },
+  fields: {
+    richText: {
+      format: 'Format: {{format}}',
+      basicEditorHint: 'Rich text editor (basic)',
+      placeholder: 'Enter text...',
+    },
+  },
   table: {
     rowsPerPage: 'Строк на странице',
     showing: 'Показано с {{from}} по {{to}} из {{total}}',
