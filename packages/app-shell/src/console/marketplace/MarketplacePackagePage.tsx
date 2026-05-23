@@ -30,6 +30,7 @@ import {
   SelectValue,
 } from '@object-ui/components';
 import { ArrowLeft, ExternalLink, Download, AlertCircle, Package } from 'lucide-react';
+import { PackageIcon } from './PackageIcon';
 import {
   getMarketplacePackage,
   installPackage,
@@ -158,7 +159,6 @@ export function MarketplacePackagePage() {
 
   const pkg = data.package;
   const latestVersion = pkg.latest_version?.version ?? data.versions[0]?.version ?? null;
-  const initial = (pkg.display_name || pkg.manifest_id || '?').slice(0, 1).toUpperCase();
 
   return (
     <div className="flex flex-col gap-6 p-4 sm:p-6 max-w-5xl">
@@ -168,13 +168,13 @@ export function MarketplacePackagePage() {
       </Button>
 
       <div className="flex items-start gap-4 flex-wrap">
-        <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary overflow-hidden">
-          {pkg.icon_url ? (
-            <img src={pkg.icon_url} alt="" className="h-16 w-16 object-cover" />
-          ) : (
-            <span className="text-2xl font-bold">{initial}</span>
-          )}
-        </div>
+        <PackageIcon
+          iconUrl={pkg.icon_url}
+          displayName={pkg.display_name}
+          manifestId={pkg.manifest_id}
+          className="h-16 w-16 rounded-xl"
+          initialClassName="text-2xl font-bold"
+        />
         <div className="flex-1 min-w-0">
           <h1 className="text-2xl font-bold tracking-tight truncate">{pkg.display_name || pkg.manifest_id}</h1>
           <div className="text-sm text-muted-foreground mt-1 flex flex-wrap items-center gap-2">

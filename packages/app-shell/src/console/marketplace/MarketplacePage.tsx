@@ -20,6 +20,7 @@ import {
   Skeleton,
 } from '@object-ui/components';
 import { Package, Search, RefreshCcw, Store, AlertCircle } from 'lucide-react';
+import { PackageIcon } from './PackageIcon';
 import {
   listMarketplacePackages,
   type MarketplacePackageSummary,
@@ -169,7 +170,6 @@ export function MarketplacePage() {
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {filtered.map((pkg) => {
-            const initial = (pkg.display_name || pkg.manifest_id || '?').slice(0, 1).toUpperCase();
             return (
               <Card
                 key={pkg.id}
@@ -186,14 +186,11 @@ export function MarketplacePage() {
                 data-testid={`marketplace-card-${pkg.manifest_id}`}
               >
                 <CardHeader className="flex flex-row items-start gap-3 pb-2">
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary overflow-hidden">
-                    {pkg.icon_url ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={pkg.icon_url} alt="" className="h-10 w-10 object-cover" />
-                    ) : (
-                      <span className="text-base font-semibold">{initial}</span>
-                    )}
-                  </div>
+                  <PackageIcon
+                    iconUrl={pkg.icon_url}
+                    displayName={pkg.display_name}
+                    manifestId={pkg.manifest_id}
+                  />
                   <div className="min-w-0 flex-1">
                     <CardTitle className="text-base truncate">{pkg.display_name || pkg.manifest_id}</CardTitle>
                     <CardDescription className="text-xs truncate">
