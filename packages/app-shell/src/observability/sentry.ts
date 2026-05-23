@@ -54,6 +54,9 @@ export function initSentry(): Promise<boolean> {
         environment: env.VITE_SENTRY_ENVIRONMENT || env.MODE || 'production',
         release: env.VITE_SENTRY_RELEASE || env.VITE_APP_VERSION || 'unknown',
         tracesSampleRate: Number.isFinite(tracesSampleRate) ? tracesSampleRate : 0.1,
+        // Send IP address + user agent on events. Sentry's recommended default
+        // for production. Disable by setting VITE_SENTRY_SEND_DEFAULT_PII=false.
+        sendDefaultPii: env.VITE_SENTRY_SEND_DEFAULT_PII !== 'false',
         // Replay is opt-in via VITE_SENTRY_REPLAY=true to keep payload small.
         // When enabled, only 10% of error sessions are recorded.
         replaysSessionSampleRate: 0,
