@@ -334,6 +334,39 @@ describe('buildDefaultPageSchema', () => {
       expect(aside.components[0].entries[0].objectName).toBe('task');
     });
 
+    it('emits aside region from slots.rightRail even without any related lists', () => {
+      const page = buildDefaultPageSchema(leadDef, {
+        slots: {
+          rightRail: [
+            { type: 'card', title: 'Workflow status', children: [] },
+          ],
+        },
+      });
+      const aside = page.regions.find((r: any) => r.name === 'aside');
+      expect(aside).toBeDefined();
+      // No reference rail (no related lists), only the slot contribution
+      expect(aside.components).toHaveLength(1);
+      expect(aside.components[0].type).toBe('card');
+      expect(aside.components[0].title).toBe('Workflow status');
+    });
+
+    it('appends slots.rightRail after the auto-emitted reference rail', () => {
+      const page = buildDefaultPageSchema(leadDef, {
+        related: [
+          { objectName: 'task', relationshipField: 'lead_id' },
+          { objectName: 'note', relationshipField: 'parent_id' },
+        ],
+        slots: {
+          rightRail: { type: 'card', title: 'Activity' },
+        },
+      });
+      const aside = page.regions.find((r: any) => r.name === 'aside');
+      expect(aside).toBeDefined();
+      expect(aside.components).toHaveLength(2);
+      expect(aside.components[0].type).toBe('record:reference_rail');
+      expect(aside.components[1].type).toBe('card');
+    });
+
     it('emits Activity tab when showActivity is true', () => {
       const page = buildDefaultPageSchema(leadDef, { showActivity: true });
       const tabs = page.regions[0].components.find((c: any) => c.type === 'page:tabs');

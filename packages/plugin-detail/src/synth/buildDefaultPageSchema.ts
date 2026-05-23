@@ -135,6 +135,14 @@ export interface BuildPageOptions {
    * - `discussion` — replaces `record:discussion`. Fires even when
    *   `hideDiscussion` is true (the override is explicit intent to
    *   surface a custom footer).
+   * - `rightRail` — additional component(s) to drop into the
+   *   right-side `aside` region (the same region that hosts the
+   *   auto-emitted `record:reference_rail`). When provided, the
+   *   `aside` region is always rendered — even when no reference
+   *   rail would otherwise be emitted — so plugins can contribute
+   *   contextual side panels (activity feed, related summary,
+   *   workflow status, presence list, etc.) without depending on
+   *   the related-list heuristic.
    */
   slots?: {
     header?: any | any[];
@@ -143,6 +151,7 @@ export interface BuildPageOptions {
     details?: any | any[];
     tabs?: any | any[];
     discussion?: any | any[];
+    rightRail?: any | any[];
   };
 }
 
@@ -534,23 +543,33 @@ export function buildDefaultPageSchema(
     },
   ];
 
-  if (willEmitRail) {
+  const rightRailExtras = toNodeArray(slots.rightRail);
+  const willEmitAside = willEmitRail || rightRailExtras.length > 0;
+
+  if (willEmitAside) {
+    const asideComponents: any[] = [];
+    if (willEmitRail) {
+      asideComponents.push({
+        type: 'record:reference_rail',
+        entries: (options.related as any[]).map((rel) => ({
+          objectName: rel.objectName,
+          relationshipField: rel.relationshipField,
+          title: rel.title,
+          icon: rel.icon,
+          limit: 3,
+        })),
+      });
+    }
+    // Author-contributed right-rail nodes follow the reference rail so the
+    // canonical "related" summary stays anchored at the top.
+    if (rightRailExtras.length > 0) {
+      asideComponents.push(...rightRailExtras);
+    }
     regions.push({
       name: 'aside',
       width: 'small',
       className: 'hidden xl:flex flex-col gap-4',
-      components: [
-        {
-          type: 'record:reference_rail',
-          entries: (options.related as any[]).map((rel) => ({
-            objectName: rel.objectName,
-            relationshipField: rel.relationshipField,
-            title: rel.title,
-            icon: rel.icon,
-            limit: 3,
-          })),
-        },
-      ],
+      components: asideComponents,
     });
   }
 
