@@ -200,8 +200,8 @@ function SortableCard({ card, onCardClick, conditionalFormatting }: { card: Kanb
             />
           </div>
         )}
-        <CardHeader className="p-2 sm:p-4">
-          <CardTitle className="text-xs sm:text-sm font-medium tracking-tight text-foreground group-hover:text-primary transition-colors">{card.title}</CardTitle>
+        <CardHeader className="p-2 sm:p-4 pb-2">
+          <CardTitle className="text-xs sm:text-sm font-semibold tracking-tight text-foreground group-hover:text-primary transition-colors leading-snug line-clamp-2">{card.title}</CardTitle>
           {!(card.cardFieldCells && card.cardFieldCells.length > 0) && (card.cardSubtitle ?? card.description) && (
             <CardDescription className="text-xs text-muted-foreground line-clamp-2 sm:line-clamp-none">
               {card.cardSubtitle ?? card.description}
@@ -209,18 +209,24 @@ function SortableCard({ card, onCardClick, conditionalFormatting }: { card: Kanb
           )}
         </CardHeader>
         {((card.cardFieldCells && card.cardFieldCells.length > 0) || (card.badges && card.badges.length > 0)) && (
-          <CardContent className="p-2 sm:p-4 pt-0 space-y-2">
+          <CardContent className="p-2 sm:p-4 pt-0 space-y-1.5">
             {card.cardFieldCells && card.cardFieldCells.length > 0 && (
-              <dl className="grid grid-cols-[auto_1fr] gap-x-2 gap-y-1 text-xs">
+              // Dense single-column metadata list — values only, with the
+              // field label as a hover tooltip. Pipeline cards across
+              // Salesforce / HubSpot / Linear all drop the `Label: value`
+              // pair pattern because the value's own type (currency, date,
+              // lookup avatar/badge) already conveys its meaning, and the
+              // saved horizontal space lets the card title breathe.
+              <dl className="space-y-1 text-xs">
                 {card.cardFieldCells.map((cell) => (
-                  <React.Fragment key={cell.field}>
-                    {cell.label ? (
-                      <dt className="text-muted-foreground truncate">{cell.label}</dt>
-                    ) : (
-                      <dt className="sr-only">{cell.field}</dt>
-                    )}
-                    <dd className="min-w-0 text-foreground truncate">{cell.node}</dd>
-                  </React.Fragment>
+                  <div
+                    key={cell.field}
+                    className="min-w-0 truncate text-foreground/85"
+                    title={cell.label || cell.field}
+                  >
+                    <dt className="sr-only">{cell.label || cell.field}</dt>
+                    <dd className="min-w-0 truncate">{cell.node}</dd>
+                  </div>
                 ))}
               </dl>
             )}

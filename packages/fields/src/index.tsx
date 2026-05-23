@@ -226,18 +226,25 @@ export function coerceToSafeValue(value: unknown): string | number | boolean | n
  * plain number with thousands separators (no symbol). Silently assuming
  * USD for unconfigured currency fields was the #1 source of "why is my
  * RMB amount showing as dollars?" bug reports.
+ *
+ * Trailing `.00` is dropped when the value is a whole number — Salesforce
+ * convention: `$1,234.50` keeps cents; `$1,234` does not.
  */
 export function formatCurrency(value: number, currency?: string): string {
+  const isWhole = Number.isFinite(value) && value === Math.trunc(value);
+  const maxFrac = isWhole ? 0 : 2;
   if (!currency) {
-    return formatNumber(value);
+    return formatNumber(value, maxFrac);
   }
   try {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency,
+      minimumFractionDigits: 0,
+      maximumFractionDigits: maxFrac,
     }).format(value);
   } catch {
-    return `${currency} ${value.toFixed(2)}`;
+    return `${currency} ${value.toFixed(maxFrac)}`;
   }
 }
 
@@ -358,9 +365,14 @@ export function formatDate(value: string | Date | number, style?: string): strin
     return formatRelativeDate(date);
   }
   
-  // Default format: locale-aware human-readable (e.g. "Jan 15, 2024" or "2024/1/15")
+  // Default format: locale-aware human-readable. Drop the year when it
+  // matches the current year — Salesforce / HubSpot / Linear all do this
+  // because the year is rarely useful for in-progress records and the
+  // verbose "2026年7月21日" form crowds cards and table cells. Past- /
+  // future-year dates keep the year so users can disambiguate.
+  const isCurrentYear = date.getFullYear() === new Date().getFullYear();
   return date.toLocaleDateString(undefined, {
-    year: 'numeric',
+    year: isCurrentYear ? undefined : 'numeric',
     month: 'short',
     day: 'numeric',
   });
@@ -425,15 +437,11 @@ export function CurrencyCellRenderer({ value, field }: CellRendererProps): React
   const currency: string | undefined =
     currencyField.currency || currencyField.defaultCurrency || undefined;
   const num = Number(safe);
-  const decimals = currencyField.precision ?? currencyField.scale ?? currencyField.decimals ?? 2;
   const formatted = !isNaN(num)
     ? formatCurrency(num, currency)
     : String(safe);
-  // Hide trailing fractional digits when the field opted into integer-only
-  // precision (e.g. annual_revenue stored as whole units).
-  const display = decimals === 0 ? formatted.replace(/[.,]00$/, '') : formatted;
 
-  return <span className="tabular-nums font-medium whitespace-nowrap">{display}</span>;
+  return <span className="tabular-nums font-medium whitespace-nowrap">{formatted}</span>;
 }
 
 // Fields that store percentage values as whole numbers (0-100) rather than fractions (0-1)
