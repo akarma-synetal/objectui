@@ -1,8 +1,18 @@
 {
   "name": "@object-ui/console",
   "version": "5.2.1",
-  "description": "ObjectStack Console - The standard runtime UI for ObjectStack applications",
+  "description": "ObjectStack Console — opinionated, fork-ready runtime console built on @object-ui/app-shell with the full plugin set wired up. Ships as a Hono UI plugin serving a pre-built SPA.",
+  "license": "MIT",
   "type": "module",
+  "homepage": "https://www.objectui.org/docs/guide/console",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/objectstack-ai/objectui.git",
+    "directory": "apps/console"
+  },
+  "bugs": {
+    "url": "https://github.com/objectstack-ai/objectui/issues"
+  },
   "main": "./plugin.js",
   "types": "./plugin.d.ts",
   "exports": {
@@ -16,7 +26,20 @@
     "dist",
     "plugin.ts",
     "plugin.js",
-    "plugin.d.ts"
+    "plugin.d.ts",
+    "README.md"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "keywords": [
+    "objectui",
+    "objectstack",
+    "console",
+    "sdui",
+    "hono",
+    "ui-plugin",
+    "runtime"
   ],
   "scripts": {
     "dev": "vite",
@@ -26,12 +49,10 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:ui": "vitest --ui"
+    "test:ui": "vitest --ui",
+    "prepublishOnly": "pnpm build"
   },
-  "devDependencies": {
-    "@dnd-kit/core": "^6.3.1",
-    "@dnd-kit/sortable": "^10.0.0",
-    "@dnd-kit/utilities": "^3.2.2",
+  "dependencies": {
     "@object-ui/app-shell": "workspace:*",
     "@object-ui/auth": "workspace:*",
     "@object-ui/collaboration": "workspace:*",
@@ -61,7 +82,12 @@
     "@object-ui/plugin-timeline": "workspace:*",
     "@object-ui/plugin-view": "workspace:*",
     "@object-ui/react": "workspace:*",
-    "@object-ui/types": "workspace:*",
+    "@object-ui/types": "workspace:*"
+  },
+  "devDependencies": {
+    "@dnd-kit/core": "^6.3.1",
+    "@dnd-kit/sortable": "^10.0.0",
+    "@dnd-kit/utilities": "^3.2.2",
     "@objectstack/client": "^4.2.0",
     "@objectstack/spec": "^4.0.5",
     "@tailwindcss/postcss": "^4.3.0",
