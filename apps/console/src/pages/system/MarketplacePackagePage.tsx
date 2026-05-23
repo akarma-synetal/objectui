@@ -34,6 +34,7 @@ import {
   getMarketplacePackage,
   installPackage,
   listCloudEnvironments,
+  listInstallableOrgIds,
   cloudInstallDeepLink,
   type MarketplaceDetailResponse,
   type CloudEnvironment,
@@ -81,9 +82,26 @@ export function MarketplacePackagePage() {
     setEnvsError(null);
     setEnvsLoading(true);
     try {
-      const list = await listCloudEnvironments();
-      setEnvs(list);
-      if (list.length === 1) setSelectedEnv(list[0].id);
+      const [list, adminOrgIds] = await Promise.all([
+        listCloudEnvironments(),
+        listInstallableOrgIds(),
+      ]);
+      // Only envs in orgs where the caller is owner/admin are installable.
+      // Backend enforces the same gate; mirroring it here avoids confusing
+      // 403s and lets us show a helpful empty-state message.
+      const installable = list.filter((env) => {
+        const orgId = env.organization_id;
+        return orgId ? adminOrgIds.has(String(orgId)) : false;
+      });
+      setEnvs(installable);
+      if (list.length > 0 && installable.length === 0) {
+        setEnvsError(
+          'You do not have permission to install apps in any environment. ' +
+          'Only organization owners and admins can install — ask your workspace admin.',
+        );
+      } else if (installable.length === 1) {
+        setSelectedEnv(installable[0].id);
+      }
     } catch (e: any) {
       const status = e?.status;
       if (status === 401 || status === 403) {

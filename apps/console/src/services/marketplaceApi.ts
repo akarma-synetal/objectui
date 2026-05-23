@@ -174,6 +174,43 @@ export async function listCloudEnvironments(): Promise<CloudEnvironment[]> {
   return Array.isArray(rows) ? (rows as CloudEnvironment[]) : [];
 }
 
+/**
+ * List orgs in which the current cloud user has an `owner` or `admin`
+ * role on `sys_member`. Used to filter the install dialog's env picker
+ * — only envs whose `organization_id` is in this set are installable
+ * (the backend enforces the same gate; this is the UX mirror).
+ *
+ * Returns an empty set on 401 / network failure so the install dialog
+ * can render a clean "no installable environments" state.
+ */
+export async function listInstallableOrgIds(): Promise<Set<string>> {
+  const base = CLOUD_BASE || SERVER_URL;
+  // sys_member rows are scoped to the caller; better-auth-managed table.
+  const url = `${base}/api/v1/data/sys_member?limit=200`;
+  let payload: any = null;
+  try {
+    const res = await fetch(url, {
+      credentials: 'include',
+      headers: { 'Accept': 'application/json' },
+    });
+    if (!res.ok) return new Set();
+    payload = await res.json().catch(() => ({}));
+  } catch {
+    return new Set();
+  }
+  const rows: any[] = payload?.data ?? payload?.items ?? payload ?? [];
+  if (!Array.isArray(rows)) return new Set();
+  const ids = new Set<string>();
+  for (const row of rows) {
+    const role = String(row?.role ?? '').toLowerCase();
+    const orgId = row?.organization_id ?? row?.organizationId;
+    if (orgId && (role === 'owner' || role === 'admin')) {
+      ids.add(String(orgId));
+    }
+  }
+  return ids;
+}
+
 export function cloudInstallDeepLink(packageId: string): string {
   const base = CLOUD_BASE || 'https://cloud.objectos.app';
   return `${base}/apps/cloud-control/sys_package/${encodeURIComponent(packageId)}`;
