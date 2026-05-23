@@ -184,6 +184,16 @@ export interface RecordPathComponentProps {
     value: string;
     /** Display label for the stage */
     label: string;
+    /**
+     * Terminal classification. Stages marked `'won'` render as the
+     * success terminus of the forward path; stages marked `'lost'`
+     * render as a visually separated alt-terminus (muted / destructive
+     * tint) because they break the chevron flow rather than completing
+     * it. When omitted, the renderer falls back to a value/label
+     * heuristic (matches common lost-state tokens like `closed_lost`,
+     * `lost`, `failed`, `cancelled`, `失败`, `流失`).
+     */
+    terminal?: 'won' | 'lost';
   }>;
   /** ARIA accessibility attributes */
   aria?: RecordComponentAriaProps;
