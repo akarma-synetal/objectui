@@ -848,11 +848,16 @@ export const DetailView: React.FC<DetailViewProps> = ({
                     if (ftype === 'currency') {
                       const num = Number(val);
                       if (!Number.isNaN(num)) {
-                        display = new Intl.NumberFormat(undefined, {
-                          style: 'currency',
-                          currency: (sectionField as any)?.currency || objField?.currency || 'USD',
-                          maximumFractionDigits: 0,
-                        }).format(num);
+                        const cur = (sectionField as any)?.currency || objField?.currency;
+                        display = cur
+                          ? new Intl.NumberFormat(undefined, {
+                              style: 'currency',
+                              currency: cur,
+                              maximumFractionDigits: 0,
+                            }).format(num)
+                          : new Intl.NumberFormat(undefined, {
+                              maximumFractionDigits: 0,
+                            }).format(num);
                       }
                     } else if (ftype === 'date' || ftype === 'datetime') {
                       const d = new Date(val);

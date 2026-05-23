@@ -222,9 +222,15 @@ export function coerceToSafeValue(value: unknown): string | number | boolean | n
 }
 
 /**
- * Format currency value
+ * Format currency value. When `currency` is undefined, falls back to a
+ * plain number with thousands separators (no symbol). Silently assuming
+ * USD for unconfigured currency fields was the #1 source of "why is my
+ * RMB amount showing as dollars?" bug reports.
  */
-export function formatCurrency(value: number, currency: string = 'USD'): string {
+export function formatCurrency(value: number, currency?: string): string {
+  if (!currency) {
+    return formatNumber(value);
+  }
   try {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
@@ -238,8 +244,20 @@ export function formatCurrency(value: number, currency: string = 'USD'): string 
 /**
  * Format currency value in compact form for mobile display.
  * E.g., $150,000 → $150K, $1,200,000 → $1.2M
+ * When `currency` is undefined, returns a compact number without symbol.
  */
-export function formatCompactCurrency(value: number, currency: string = 'USD'): string {
+export function formatCompactCurrency(value: number, currency?: string): string {
+  if (!currency) {
+    try {
+      const formatted = new Intl.NumberFormat('en-US', {
+        notation: 'compact',
+        maximumFractionDigits: 1,
+      }).format(value);
+      return formatted.replace(/\.0(?=[KMBT])/, '');
+    } catch {
+      return String(value);
+    }
+  }
   try {
     const formatted = new Intl.NumberFormat('en-US', {
       style: 'currency',
@@ -401,12 +419,11 @@ export function CurrencyCellRenderer({ value, field }: CellRendererProps): React
   const currencyField = field as any;
   // Honor both `currency` (legacy/grid configs) and `defaultCurrency`
   // (the canonical key from `@objectstack/spec` Field.currency()). When
-  // neither is supplied, fall back to USD so currency-typed fields always
-  // render with a symbol — a bare "5,000,000.00" is indistinguishable from
-  // a plain number and is the #1 source of "is this dollars or what?"
-  // confusion in customer screenshots.
-  const currency: string =
-    currencyField.currency || currencyField.defaultCurrency || 'USD';
+  // neither is supplied, render as a plain formatted number — silently
+  // assuming USD for unconfigured currency fields was misleading for
+  // non-USD orgs (e.g. RMB amounts displayed as $).
+  const currency: string | undefined =
+    currencyField.currency || currencyField.defaultCurrency || undefined;
   const num = Number(safe);
   const decimals = currencyField.precision ?? currencyField.scale ?? currencyField.decimals ?? 2;
   const formatted = !isNaN(num)

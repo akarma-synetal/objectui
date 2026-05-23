@@ -82,15 +82,20 @@ function formatSummaryLabel(
   const colType = column?.type;
   let formatted: string;
   if (type !== 'count' && colType === 'currency') {
-    const currency = column?.currency || column?.defaultCurrency || 'USD';
+    const currency = column?.currency || column?.defaultCurrency;
     const decimals = column?.precision ?? column?.scale ?? 0;
     try {
-      formatted = new Intl.NumberFormat(undefined, {
-        style: 'currency',
-        currency,
-        minimumFractionDigits: decimals,
-        maximumFractionDigits: decimals,
-      }).format(value);
+      formatted = currency
+        ? new Intl.NumberFormat(undefined, {
+            style: 'currency',
+            currency,
+            minimumFractionDigits: decimals,
+            maximumFractionDigits: decimals,
+          }).format(value)
+        : new Intl.NumberFormat(undefined, {
+            minimumFractionDigits: decimals,
+            maximumFractionDigits: decimals,
+          }).format(value);
     } catch {
       formatted = value.toLocaleString();
     }

@@ -108,13 +108,22 @@ export function formatRelativeTime(
 }
 
 /**
- * Format a currency value according to locale conventions
+ * Format a currency value according to locale conventions. When `currency`
+ * is omitted, falls back to a plain locale-formatted number (no symbol)
+ * rather than silently assuming USD.
  */
 export function formatCurrency(
   value: number,
   options: CurrencyFormatOptions = {},
 ): string {
-  const { locale = 'en', currency = 'USD', minimumFractionDigits, maximumFractionDigits } = options;
+  const { locale = 'en', currency, minimumFractionDigits, maximumFractionDigits } = options;
+
+  if (!currency) {
+    return new Intl.NumberFormat(locale, {
+      minimumFractionDigits,
+      maximumFractionDigits,
+    }).format(value);
+  }
 
   return new Intl.NumberFormat(locale, {
     style: 'currency',
