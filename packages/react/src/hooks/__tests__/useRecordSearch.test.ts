@@ -172,4 +172,71 @@ describe('useRecordSearch', () => {
     expect(result.current.results[0].display).toBe('Ada L');
     expect(result.current.error).toBeUndefined();
   });
+
+  it('orders hits by relevance, not by object-fanout order', async () => {
+    // Fanout puts `account` before `contact` (per the candidates list),
+    // but a startsWith match in `contact` should still beat a substring
+    // match in `account`.
+    const ds = {
+      find: vi.fn(async (objectName: string) => {
+        if (objectName === 'account') {
+          // substring match: "ad" appears in middle
+          return { data: [{ id: 'a1', name: 'Big Trader Ad Co' }] };
+        }
+        if (objectName === 'contact') {
+          // startsWith match
+          return { data: [{ id: 'c1', first_name: 'Ada', last_name: 'L' }] };
+        }
+        return { data: [] };
+      }),
+    };
+
+    const { result } = renderHook(() =>
+      useRecordSearch({
+        query: 'ad',
+        objects,
+        dataSource: ds,
+        debounceMs: 0,
+      }),
+    );
+
+    await waitFor(() => {
+      expect(result.current.results.length).toBe(2);
+    });
+
+    // contact (startsWith 'Ada L') should outrank account (substring).
+    expect(result.current.results[0].display).toBe('Ada L');
+    expect(result.current.results[0].score).toBeGreaterThan(result.current.results[1].score);
+  });
+
+  it('treats exact-id paste as the top hit', async () => {
+    const ds = {
+      find: vi.fn(async (objectName: string) => {
+        if (objectName === 'account') {
+          return {
+            data: [
+              { id: 'OPP-9999', name: 'Some unrelated thing' },
+              { id: 'a2', name: 'Acme Corp' },
+            ],
+          };
+        }
+        return { data: [] };
+      }),
+    };
+
+    const { result } = renderHook(() =>
+      useRecordSearch({
+        query: 'OPP-9999',
+        objects,
+        dataSource: ds,
+        debounceMs: 0,
+      }),
+    );
+
+    await waitFor(() => {
+      expect(result.current.results.length).toBeGreaterThan(0);
+    });
+
+    expect(result.current.results[0].recordId).toBe('OPP-9999');
+  });
 });

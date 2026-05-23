@@ -36,6 +36,37 @@ function defaultDisplayName(objectDef: any, record: any): string {
   );
 }
 
+/**
+ * Relevance score for a single record hit against the query. Higher wins.
+ *
+ * Tiers (designed to be distinct enough to survive small noise):
+ *   100  Exact case-insensitive match on display.
+ *    80  Display starts with the query.
+ *    60  A query-token starts at a word boundary inside the display
+ *        (e.g. "ACME" matches "Acme Corp" or "Globex / ACME").
+ *    40  Substring contains.
+ *     0  No textual evidence — server returned it but we can't justify
+ *        ranking it. Still included so the user can see what came back.
+ *
+ * The hook also nudges score by recordId equality (exact id paste) so
+ * "paste an id, hit enter" stays the top hit.
+ */
+function scoreHit(query: string, display: string, recordId: string): number {
+  if (!query) return 0;
+  const q = query.toLowerCase();
+  const d = (display || '').toLowerCase();
+  const id = (recordId || '').toLowerCase();
+
+  if (id === q) return 110; // exact id wins everything
+  if (d === q) return 100;
+  if (d.startsWith(q)) return 80;
+  // Word-boundary start: split on common separators.
+  const tokens = d.split(/[\s_\-/.,:;()[\]]+/).filter(Boolean);
+  if (tokens.some((tok) => tok.startsWith(q))) return 60;
+  if (d.includes(q)) return 40;
+  return 0;
+}
+
 export interface RecordSearchHit {
   /** Object name the record belongs to. */
   objectName: string;
@@ -49,6 +80,11 @@ export interface RecordSearchHit {
   subtitle?: string;
   /** Pass-through icon hint from the object def. */
   icon?: string;
+  /**
+   * Relevance score (higher = better) used to interleave hits across
+   * objects. Stable across runs for the same (query, display) pair.
+   */
+  score: number;
   /** Raw record payload, for callers that want extra context. */
   raw: any;
 }
@@ -230,6 +266,7 @@ export function useRecordSearch(opts: UseRecordSearchOptions): UseRecordSearchRe
           for (const record of rows.slice(0, topPerObject)) {
             const recordId = record?.id ?? record?._id;
             if (recordId == null) continue;
+            const display = getDisplayName(obj, record);
             hits.push({
               objectName: obj.name,
               objectLabel:
@@ -237,12 +274,17 @@ export function useRecordSearch(opts: UseRecordSearchOptions): UseRecordSearchRe
                   ? obj.label
                   : obj.name,
               recordId: String(recordId),
-              display: getDisplayName(obj, record),
+              display,
               icon: obj?.icon,
+              score: scoreHit(trimmed, display, String(recordId)),
               raw: record,
             });
           }
         }
+
+        // Stable sort by score desc, then by original (object-fanout)
+        // order so ties preserve the upstream candidate ordering.
+        hits.sort((a, b) => b.score - a.score);
 
         setResults(hits);
         setIsSearching(false);
