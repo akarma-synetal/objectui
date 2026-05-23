@@ -3,6 +3,8 @@ export { KeyboardShortcutsDialog } from './KeyboardShortcutsDialog';
 export { OnboardingWalkthrough } from './OnboardingWalkthrough';
 export { ConditionalAuthWrapper } from './ConditionalAuthWrapper';
 export { ConsoleToaster } from './ConsoleToaster';
+export { RouteFader } from './RouteFader';
 export { ErrorBoundary } from './ErrorBoundary';
 export { LoadingScreen } from './LoadingScreen';
 export { ThemeProvider, useTheme } from './ThemeProvider';
+export { toastWithUndo, type ToastWithUndoOptions } from './toast-helpers';

@@ -32,6 +32,7 @@ import { LoadingScreen } from '../chrome/LoadingScreen';
 import { ObjectView } from '../views/ObjectView';
 import { KeyboardShortcutsDialog } from '../chrome/KeyboardShortcutsDialog';
 import { OnboardingWalkthrough } from '../chrome/OnboardingWalkthrough';
+import { RouteFader } from '../chrome/RouteFader';
 import { NavigationSyncEffect } from '../hooks/useNavigationSync';
 
 // Route-based code splitting — lazy-load less-frequently-used routes
@@ -328,7 +329,8 @@ export function AppContent({ extraRoutes, extraRoutesNoApp }: AppContentProps = 
         <OnboardingWalkthrough />
           <ErrorBoundary>
             <Suspense fallback={<LoadingScreen />}>
-              <Routes>
+              <RouteFader>
+                <Routes>
                 <Route path="/" element={<Navigate to={resolveLandingRoute(activeApp)} replace />} />
                 <Route path=":objectName" element={
                   <ObjectView dataSource={dataSource} objects={allObjects} onEdit={handleEdit} externalRefreshKey={refreshKey} />
@@ -370,6 +372,7 @@ export function AppContent({ extraRoutes, extraRoutesNoApp }: AppContentProps = 
                     page so users always know when a URL didn't resolve. */}
                 <Route path="*" element={<RouteNotFound />} />
               </Routes>
+              </RouteFader>
             </Suspense>
           </ErrorBoundary>
           {currentObjectDef && (

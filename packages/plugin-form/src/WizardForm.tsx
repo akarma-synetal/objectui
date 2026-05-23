@@ -16,7 +16,7 @@
 import React, { useState, useCallback, useMemo } from 'react';
 import type { FormField, DataSource } from '@object-ui/types';
 import { Button, cn } from '@object-ui/components';
-import { Check, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Check, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
 import { FormSection } from './FormSection';
 import { SchemaRenderer, useSafeFieldLabel } from '@object-ui/react';
 import { mapFieldTypeToFormType, buildValidationRules, evaluateCondition } from '@object-ui/fields';
@@ -493,6 +493,7 @@ export const WizardForm: React.FC<WizardFormProps> = ({
               onClick={() => handleStepSubmit(formData)}
               disabled={submitting || schema.mode === 'view'}
             >
+              {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden />}
               {submitting ? 'Submitting...' : (schema.submitText || (schema.mode === 'create' ? 'Create' : 'Update'))}
             </Button>
           ) : (

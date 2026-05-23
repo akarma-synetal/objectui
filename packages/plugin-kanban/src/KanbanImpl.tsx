@@ -763,8 +763,18 @@ function KanbanBoardInner({ columns, onCardMove, onCardClick, className, dnd, qu
       })()}
       </div>
 
-      <DragOverlay>
-        <div aria-live="assertive" aria-label={activeCard ? `Dragging ${activeCard.title}` : undefined}>
+      <DragOverlay dropAnimation={{ duration: 200, easing: 'cubic-bezier(0.18, 0.67, 0.6, 1.22)' }}>
+        <div
+          aria-live="assertive"
+          aria-label={activeCard ? `Dragging ${activeCard.title}` : undefined}
+          // Lift the card visibly while in flight: slight rotate + scale +
+          // strong shadow + ring. Matches the Linear / Trello "pickup"
+          // affordance and makes the destination obvious because the
+          // overlay reads as elevated above every column.
+          className={cn(
+            activeCard && 'motion-safe:rotate-2 motion-safe:scale-[1.03] motion-safe:transition-transform shadow-2xl shadow-primary/25 ring-1 ring-primary/40 rounded-xl cursor-grabbing'
+          )}
+        >
           {activeCard ? <SortableCard card={activeCard} conditionalFormatting={conditionalFormatting} /> : null}
         </div>
       </DragOverlay>

@@ -60,7 +60,20 @@ export function InlineEditing({
   const [editValue, setEditValue] = useState<string>(String(value ?? ''));
   const [error, setError] = useState<string | undefined>();
   const [saving, setSaving] = useState(false);
+  // `justSaved` flips to true for ~700ms after a successful save so the
+  // display cell can briefly show a "✓ saved" affirmation (subtle green
+  // ring + check icon fade). Users sometimes re-click cells they just
+  // edited because saves are silent; this closes that feedback gap
+  // without resorting to a heavyweight toast for every cell change.
+  const [justSaved, setJustSaved] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const savedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Clear pending timer on unmount so we don't setState into a torn-down
+  // tree (common when grid rows recycle during virtual scrolling).
+  useEffect(() => () => {
+    if (savedTimerRef.current) clearTimeout(savedTimerRef.current);
+  }, []);
 
   // Sync with prop changes
   useEffect(() => {
@@ -114,6 +127,10 @@ export function InlineEditing({
       }
       setIsEditing(false);
       setError(undefined);
+      // Trigger the success pulse on the display cell.
+      if (savedTimerRef.current) clearTimeout(savedTimerRef.current);
+      setJustSaved(true);
+      savedTimerRef.current = setTimeout(() => setJustSaved(false), 900);
     } catch (err: any) {
       setError(err?.message || 'Save failed');
     } finally {
@@ -139,8 +156,12 @@ export function InlineEditing({
     return (
       <div
         data-slot="inline-editing"
+        data-just-saved={justSaved || undefined}
         className={cn(
-          'group relative cursor-pointer rounded px-2 py-1 hover:bg-muted/50 transition-colors min-h-[1.75rem] flex items-center',
+          'group relative cursor-pointer rounded px-2 py-1 hover:bg-muted/50 transition-all min-h-[1.75rem] flex items-center',
+          // Brief green ring + tint immediately after a successful save.
+          // Falls back to a static ring (no pulse) under reduced-motion.
+          justSaved && 'ring-2 ring-emerald-500/60 bg-emerald-500/5 motion-safe:animate-in motion-safe:fade-in-0 motion-safe:duration-200',
           disabled && 'cursor-default opacity-60',
           className,
         )}
@@ -160,6 +181,12 @@ export function InlineEditing({
             <span className="text-muted-foreground italic">{placeholder || 'Click to edit'}</span>
           )}
         </span>
+        {justSaved && (
+          <Check
+            className="ml-1.5 h-3.5 w-3.5 text-emerald-500 motion-safe:animate-in motion-safe:zoom-in-50 motion-safe:duration-200"
+            aria-hidden
+          />
+        )}
       </div>
     );
   }
