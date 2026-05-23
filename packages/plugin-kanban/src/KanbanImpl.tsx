@@ -288,6 +288,7 @@ function KanbanColumnView({
   onQuickAdd,
   conditionalFormatting,
   columnStyle,
+  suppressEmptyPlaceholder,
 }: {
   column: KanbanColumn
   cards: KanbanCard[]
@@ -297,6 +298,13 @@ function KanbanColumnView({
   conditionalFormatting?: ConditionalFormattingRule[]
   /** Container-aware width override from useResizeObserver in KanbanBoardInner. */
   columnStyle?: React.CSSProperties
+  /**
+   * When the board is globally empty (every column has zero cards), the
+   * parent renders a single page-level Empty banner and asks each column
+   * to suppress its own dashed "No cards" placeholder so the screen
+   * doesn't read as N redundant copies of the same message.
+   */
+  suppressEmptyPlaceholder?: boolean
 }) {
   const { t } = useKanbanT()
   const safeCards = cards || [];
@@ -366,7 +374,7 @@ function KanbanColumnView({
           strategy={verticalListSortingStrategy}
         >
           <div className="space-y-2" role="list" aria-label={`${column.title} cards`}>
-            {safeCards.length === 0 && (
+            {safeCards.length === 0 && !suppressEmptyPlaceholder && (
               <div
                 className={cn(
                   "flex flex-col items-center justify-center py-6 rounded-md border-2 border-dashed transition-colors gap-1",
@@ -417,6 +425,7 @@ export default function KanbanBoard({ columns, onCardMove, onCardClick, classNam
 }
 
 function KanbanBoardInner({ columns, onCardMove, onCardClick, className, dnd, quickAdd, onQuickAdd, coverImageField: _coverImageField, conditionalFormatting, swimlaneField }: KanbanBoardProps & { dnd: ReturnType<typeof useDnd> | null }) {
+  const { t } = useKanbanT()
   const [activeCard, setActiveCard] = React.useState<KanbanCard | null>(null)
 
   /**
@@ -657,6 +666,19 @@ function KanbanBoardInner({ columns, onCardMove, onCardClick, className, dnd, qu
         </div>
       )}
 
+      {(() => {
+        const totalCardCount = boardColumns.reduce((sum, c) => sum + (c.cards?.length || 0), 0);
+        const isBoardEmpty = totalCardCount === 0 && boardColumns.length > 1;
+        return (
+      <>
+      {isBoardEmpty && (
+        <div className="px-4 sm:px-6 pt-3" role="status" aria-live="polite">
+          <div className="flex flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-border/60 bg-muted/10 py-8 text-center">
+            <span className="text-sm font-medium text-foreground/80">{t('kanban.noCards')}</span>
+            <span className="text-xs text-muted-foreground">{boardColumns.length} {t('kanban.columns', { defaultValue: 'columns' })}</span>
+          </div>
+        </div>
+      )}
       {swimlanes ? (
         /* Swimlane (2D) layout */
         <div className={cn("flex flex-col gap-2 px-4 sm:px-6 py-3 sm:py-4 min-w-0 overflow-hidden", className)} role="region" aria-label="Kanban board with swimlanes">
@@ -727,10 +749,14 @@ function KanbanBoardInner({ columns, onCardMove, onCardClick, className, dnd, qu
               onQuickAdd={onQuickAdd}
               conditionalFormatting={conditionalFormatting}
               columnStyle={columnInlineStyle}
+              suppressEmptyPlaceholder={isBoardEmpty}
             />
           ))}
         </div>
       )}
+      </>
+        );
+      })()}
       </div>
 
       <DragOverlay>
