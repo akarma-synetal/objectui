@@ -346,6 +346,19 @@ export function AppContent({ extraRoutes, extraRoutesNoApp }: AppContentProps = 
                 <Route path="create-app" element={<CreateAppPage />} />
                 <Route path="edit-app/:editAppName" element={<EditAppPage />} />
                 {extraRoutes}
+                {/* Shorthand-deep-link redirect: a bare `/{:objectName}/:maybeRecordId`
+                    URL is ambiguous — it could be a view id or a record id. When
+                    the second segment matches a record-id shape (URL-safe, ≥6
+                    chars, not a reserved word like `new` / `view` / `record`)
+                    we forward it to the canonical record route. This catches:
+                    - middle/Cmd-click links that legacy producers built before
+                      the URL builder was fixed
+                    - externally shared / pasted links (email, Slack)
+                    - copy-paste of a record id appended to an object URL */}
+                <Route path=":objectName/:maybeRecordId" element={<ShorthandRecordRedirect />} />
+                {/* Catch-all: render an explicit "not found" instead of a blank
+                    page so users always know when a URL didn't resolve. */}
+                <Route path="*" element={<RouteNotFound />} />
               </Routes>
             </Suspense>
           </ErrorBoundary>
@@ -452,5 +465,71 @@ function resolveLandingRoute(activeApp: any): string {
     if (route) return route;
   }
   return findFirstRoute(navigation);
+}
+
+/**
+ * Heuristic: distinguish a record id from a route fragment.
+ *
+ * Record ids in this system are URL-safe slugs (alnum + `_` / `-`), typically
+ * 8+ chars (often 16+). They never collide with reserved second-segment
+ * keywords used by the route table (`new`, `view`, `record`, `dashboard`,
+ * `report`, `page`, `design`, `search`, `create-app`, `edit-app`).
+ */
+const RESERVED_SECOND_SEGMENTS = new Set([
+  'new', 'view', 'record', 'edit',
+  'dashboard', 'report', 'page',
+  'design', 'search', 'create-app', 'edit-app',
+]);
+
+function looksLikeRecordId(segment: string | undefined): boolean {
+  if (!segment) return false;
+  if (RESERVED_SECOND_SEGMENTS.has(segment)) return false;
+  // Allow URL-safe slug chars; reject anything with `/`, `?`, `#`, spaces.
+  if (!/^[A-Za-z0-9_-]+$/.test(segment)) return false;
+  // Most record ids are at least 6 chars (UUID, ULID, nanoid all >=8).
+  return segment.length >= 6;
+}
+
+/**
+ * Redirects `/apps/:appName/:objectName/:recordId` shorthand to the
+ * canonical `/apps/:appName/:objectName/record/:recordId` so externally
+ * shared / pasted links work, and legacy URL producers that built the
+ * shorthand keep functioning.
+ */
+function ShorthandRecordRedirect() {
+  const { objectName, maybeRecordId } = useParams();
+  const location = useLocation();
+  if (objectName && looksLikeRecordId(maybeRecordId)) {
+    const target = `${location.pathname.replace(/\/$/, '').replace(`/${maybeRecordId}`, `/record/${maybeRecordId}`)}${location.search}${location.hash}`;
+    return <Navigate to={target} replace />;
+  }
+  return <RouteNotFound />;
+}
+
+/**
+ * Visible "not found" fallback rendered for any unmatched URL inside the
+ * console app shell. Previously these URLs produced a fully blank content
+ * area with no indication that anything had gone wrong — users would think
+ * the app had crashed. An explicit Empty state with a "back to app home"
+ * action turns an opaque failure into a recoverable one.
+ */
+function RouteNotFound() {
+  const navigate = useNavigate();
+  const { t } = useObjectTranslation();
+  return (
+    <div className="flex h-full w-full items-center justify-center p-8">
+      <Empty>
+        <EmptyTitle>{t('console.notFound.title', { defaultValue: 'Page not found' })}</EmptyTitle>
+        <EmptyDescription>
+          {t('console.notFound.description', { defaultValue: 'The URL you followed does not match any view in this app.' })}
+        </EmptyDescription>
+        <div className="mt-4">
+          <Button variant="outline" onClick={() => navigate(-1)}>
+            {t('console.notFound.back', { defaultValue: 'Go back' })}
+          </Button>
+        </div>
+      </Empty>
+    </div>
+  );
 }
 

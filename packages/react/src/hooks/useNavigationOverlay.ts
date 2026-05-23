@@ -184,9 +184,14 @@ export function useNavigationOverlay(
           onNavigate(recordId as string | number, 'new_window');
           return;
         }
-        const viewPath = view ? `/${view}` : '';
+        // Build a URL that matches the AppContent route shape
+        // `:objectName/record/:recordId`. Previously this used
+        // `/{object}/{id}` which is unrouted and produced a silent
+        // blank page when users middle-/Cmd-clicked a gallery card.
         const encodedId = encodeURIComponent(String(recordId));
-        const url = objectName ? `/${objectName}/${encodedId}${viewPath}` : `/${encodedId}${viewPath}`;
+        const url = objectName
+          ? `/${objectName}/record/${encodedId}`
+          : `/${encodedId}`;
         window.open(url, '_blank');
         return;
       }
