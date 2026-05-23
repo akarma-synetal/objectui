@@ -24,6 +24,8 @@ const ApprovalsInboxPage = lazy(() => import('./pages/system/ApprovalsInboxPage'
 const AuditLogPage = lazy(() => import('./pages/system/AuditLogPage').then(m => ({ default: m.AuditLogPage })));
 const SettingsHub = lazy(() => import('./pages/settings/SettingsHub').then(m => ({ default: m.SettingsHub })));
 const SettingsView = lazy(() => import('./pages/settings/SettingsView').then(m => ({ default: m.SettingsView })));
+const MarketplacePage = lazy(() => import('./pages/system/MarketplacePage').then(m => ({ default: m.MarketplacePage })));
+const MarketplacePackagePage = lazy(() => import('./pages/system/MarketplacePackagePage').then(m => ({ default: m.MarketplacePackagePage })));
 
 const ENABLE_LEGACY_METADATA_EDITOR = import.meta.env.VITE_LEGACY_METADATA_EDITOR === 'true';
 const MetadataManagerPage = lazy(() => import('./legacy/MetadataManagerPage').then(m => ({ default: m.MetadataManagerPage })));
@@ -52,6 +54,8 @@ const systemRoutes = (
     <Route path="system/audit-log" element={<Suspense fallback={<LoadingScreen />}><AuditLogPage /></Suspense>} />
     <Route path="system/settings" element={<Suspense fallback={<LoadingScreen />}><SettingsHub /></Suspense>} />
     <Route path="system/settings/:namespace" element={<Suspense fallback={<LoadingScreen />}><SettingsView /></Suspense>} />
+    <Route path="system/marketplace" element={<Suspense fallback={<LoadingScreen />}><MarketplacePage /></Suspense>} />
+    <Route path="system/marketplace/:packageId" element={<Suspense fallback={<LoadingScreen />}><MarketplacePackagePage /></Suspense>} />
     {ENABLE_LEGACY_METADATA_EDITOR && (
       <>
         <Route path="system/objects" element={<ObjectRedirect />} />

@@ -26,6 +26,7 @@ import {
   User,
   Loader2,
   Settings as SettingsIcon,
+  Store,
 } from 'lucide-react';
 import { useAdapter, useMetadata } from '@object-ui/app-shell';
 import { getHubMetadataTypes } from '../../config/metadataTypeRegistry';
@@ -161,6 +162,14 @@ export function SystemHubPage() {
       href: `${basePath}/system/audit-log`,
       countLabel: 'entries',
       count: counts.auditLogs,
+    },
+    {
+      title: 'App Marketplace',
+      description: 'Browse and install approved apps from the ObjectStack catalog',
+      icon: Store,
+      href: `${basePath}/system/marketplace`,
+      countLabel: '',
+      count: null,
     },
     {
       title: 'Settings',
