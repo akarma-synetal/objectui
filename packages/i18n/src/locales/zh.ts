@@ -408,6 +408,8 @@ const zh = {
     nextRecordKey: '下一条记录 (→)',
     lastRecord: '最后一条记录 (End)',
     noRecords: '无记录',
+    showEmptyRelated_one: '+ {{count}} 个为空',
+    showEmptyRelated_other: '+ {{count}} 个为空',
     searchWhileNavigating: '导航时搜索',
     searchRecords: '搜索记录…',
     // Activity timeline
@@ -1345,6 +1347,8 @@ const zh = {
   empty: {
     objectNotFound: '未找到对象',
     objectNotFoundDescription: '对象 “{{name}}” 的定义不存在。请检查配置或返回选择有效的对象。',
+    recordNotFound: '未找到记录',
+    recordNotFoundDescription: '您查找的记录不存在或已被删除。',
     pageNotFound: '未找到页面',
     pageNotFoundDescription: '未找到页面 “{{name}}”，可能已被删除或重命名。',
     dashboardNotFound: '未找到仪表板',

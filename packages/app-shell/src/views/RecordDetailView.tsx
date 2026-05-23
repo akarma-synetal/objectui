@@ -192,11 +192,19 @@ export function RecordDetailView({ dataSource, objects, onEdit, objectNameOverri
   }, [renderViaSchemaFlag, assignedPage, assignedSlots, objectDef]);
   const effectivePage = assignedPage || synthesizedPage;
   const [pageRecord, setPageRecord] = useState<any>(null);
+  // 'idle' | 'loading' | 'loaded' | 'missing' — distinguishes "haven't
+  // tried yet" from "tried and the record really doesn't exist". The
+  // not-found short-circuit below uses `missing` to render a clean empty
+  // state instead of a half-broken page chrome (rail + discussion).
+  const [pageRecordStatus, setPageRecordStatus] = useState<
+    'idle' | 'loading' | 'loaded' | 'missing'
+  >('idle');
 
   useEffect(() => {
     let cancelled = false;
     if (!effectivePage || !pureRecordId || !objectName || !dataSource?.findOne) {
       setPageRecord(null);
+      setPageRecordStatus('idle');
       return;
     }
     // Expand lookup/master_detail fields so the page receives display
@@ -205,15 +213,25 @@ export function RecordDetailView({ dataSource, objects, onEdit, objectNameOverri
     const expandFields = buildExpandFields(objectDef?.fields);
     const params = expandFields.length > 0 ? { $expand: expandFields } : undefined;
     const loadRecord = () => {
+      setPageRecordStatus('loading');
       const findOnePromise = params
         ? dataSource.findOne(objectName, pureRecordId, params)
         : dataSource.findOne(objectName, pureRecordId);
       findOnePromise
         .then((rec: any) => {
-          if (!cancelled) setPageRecord(rec);
+          if (cancelled) return;
+          if (rec && typeof rec === 'object') {
+            setPageRecord(rec);
+            setPageRecordStatus('loaded');
+          } else {
+            setPageRecord(null);
+            setPageRecordStatus('missing');
+          }
         })
         .catch(() => {
-          if (!cancelled) setPageRecord(null);
+          if (cancelled) return;
+          setPageRecord(null);
+          setPageRecordStatus('missing');
         });
     };
     loadRecord();
@@ -1256,6 +1274,30 @@ export function RecordDetailView({ dataSource, objects, onEdit, objectNameOverri
           <EmptyTitle>{t('empty.objectNotFound')}</EmptyTitle>
           <EmptyDescription>
             {t('empty.objectNotFoundDescription', { name: objectName })}
+          </EmptyDescription>
+        </Empty>
+      </div>
+    );
+  }
+
+  // Record-not-found short-circuit. Previously we rendered the page chrome
+  // (rail, discussion, breadcrumb with the truncated raw id) even when the
+  // record didn't exist, which made invalid links look like a partially-
+  // broken page instead of a clean 404. Only triggers on the synth/page
+  // path; the legacy DetailView path handles missing records itself.
+  if (effectivePage && pageRecordStatus === 'missing') {
+    return (
+      <div className="flex h-full items-center justify-center p-4">
+        <Empty>
+          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-muted">
+            <Database className="h-6 w-6 text-muted-foreground" />
+          </div>
+          <EmptyTitle>{t('empty.recordNotFound', { defaultValue: 'Record not found' })}</EmptyTitle>
+          <EmptyDescription>
+            {t('empty.recordNotFoundDescription', {
+              defaultValue:
+                'The record you are looking for does not exist or may have been deleted.',
+            })}
           </EmptyDescription>
         </Empty>
       </div>

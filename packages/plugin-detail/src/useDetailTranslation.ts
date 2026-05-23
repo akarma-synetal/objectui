@@ -159,6 +159,8 @@ export const DETAIL_DEFAULT_TRANSLATIONS: Record<string, string> = {
   'detail.nextRecordKey': 'Next record (→)',
   'detail.lastRecord': 'Last record (End)',
   'detail.noRecords': 'No records',
+  'detail.showEmptyRelated_one': '+ {{count}} empty',
+  'detail.showEmptyRelated_other': '+ {{count}} empty',
   'detail.searchWhileNavigating': 'Search while navigating',
   'detail.searchRecords': 'Search records…',
   // Activity timeline

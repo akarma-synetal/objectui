@@ -408,6 +408,8 @@ const en = {
     nextRecordKey: 'Next record (→)',
     lastRecord: 'Last record (End)',
     noRecords: 'No records',
+    showEmptyRelated_one: '+ {{count}} empty',
+    showEmptyRelated_other: '+ {{count}} empty',
     searchWhileNavigating: 'Search while navigating',
     searchRecords: 'Search records…',
     // Activity timeline
@@ -1346,6 +1348,8 @@ const en = {
   empty: {
     objectNotFound: 'Object Not Found',
     objectNotFoundDescription: 'Object "{{name}}" definition missing. Check your configuration or navigate back to select a valid object.',
+    recordNotFound: 'Record not found',
+    recordNotFoundDescription: 'The record you are looking for does not exist or may have been deleted.',
     pageNotFound: 'Page Not Found',
     pageNotFoundDescription: 'The page "{{name}}" could not be found. It may have been removed or renamed.',
     dashboardNotFound: 'Dashboard Not Found',

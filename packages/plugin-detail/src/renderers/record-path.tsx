@@ -111,7 +111,7 @@ export const RecordPathRenderer: React.FC<RecordPathRendererProps> = ({
                 idx > 0 && '-ml-2',
                 stages.length === 1 && 'rounded-md border',
                 isCurrent && 'bg-primary text-primary-foreground shadow-sm ring-1 ring-primary/40',
-                isCompleted && 'bg-muted text-muted-foreground',
+                isCompleted && 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300',
                 !isCurrent && !isCompleted && 'bg-background text-foreground/70 border border-border/60',
               )}
             >
@@ -122,7 +122,7 @@ export const RecordPathRenderer: React.FC<RecordPathRendererProps> = ({
                   paddingRight: idx === last ? 0 : `${CHEVRON / 2}px`,
                 }}
               >
-                {isCompleted && <span aria-hidden>✓</span>}
+                {isCompleted && <span aria-hidden className="text-emerald-600 dark:text-emerald-400 font-semibold">✓</span>}
                 {stage.label}
               </span>
             </div>
@@ -147,12 +147,12 @@ export const RecordPathRenderer: React.FC<RecordPathRendererProps> = ({
               className={cn(
                 'shrink-0 px-3 py-1.5 rounded-full text-xs font-medium border whitespace-nowrap',
                 isCurrent && 'bg-primary text-primary-foreground border-primary shadow-sm ring-1 ring-primary/40',
-                isCompleted && 'bg-muted text-muted-foreground border-transparent',
+                isCompleted && 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/20',
                 !isCurrent && !isCompleted && 'bg-background text-foreground/70 border-border/60',
               )}
             >
               <span className="inline-flex items-center gap-1">
-                {isCompleted && <span aria-hidden>✓</span>}
+                {isCompleted && <span aria-hidden className="text-emerald-600 dark:text-emerald-400 font-semibold">✓</span>}
                 {stage.label}
               </span>
             </div>

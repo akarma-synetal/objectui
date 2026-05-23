@@ -47,6 +47,14 @@ export interface RecordReferenceRailRendererProps {
   schema?: {
     entries?: ReferenceRailEntry[];
     className?: string;
+    /**
+     * When true (default), entries with `total === 0` are folded into a
+     * single "+ N more (empty)" footer chip instead of rendering full empty
+     * cards. Users can click the chip to expand them inline. Setting
+     * `hideEmpty: false` restores the legacy "always render every entry"
+     * behavior.
+     */
+    hideEmpty?: boolean;
     [k: string]: any;
   };
   className?: string;
@@ -140,9 +148,37 @@ export const RecordReferenceRailRenderer: React.FC<RecordReferenceRailRendererPr
 
   if (entries.length === 0) return null;
 
+  const hideEmpty = schema.hideEmpty !== false;
+  const [showEmpty, setShowEmpty] = React.useState(false);
+
+  // Stable partition: an entry is "empty" only once it has finished loading
+  // with total === 0. While loading or on error, we render it so users
+  // don't see flicker / disappearing cards.
+  const emptyKeys = new Set(
+    entries
+      .filter((e) => {
+        const s = states[e.objectName];
+        return hideEmpty && s && !s.loading && !s.error && s.total === 0;
+      })
+      .map((e) => e.objectName),
+  );
+
+  const visibleEntries = entries.filter(
+    (e) => showEmpty || !emptyKeys.has(e.objectName),
+  );
+  const emptyTitles = entries
+    .filter((e) => emptyKeys.has(e.objectName))
+    .map(
+      (e) =>
+        e.title ||
+        (i18n?.objectLabel
+          ? i18n.objectLabel({ name: e.objectName, label: humanize(e.objectName) })
+          : humanize(e.objectName)),
+    );
+
   return (
     <div className={cn('flex flex-col gap-3', schema.className, className)} {...designer}>
-      {entries.map((entry) => {
+      {visibleEntries.map((entry) => {
         const key = entry.objectName;
         const state = states[key] || { loading: true, total: 0, items: [] };
         const title =
@@ -215,6 +251,24 @@ export const RecordReferenceRailRenderer: React.FC<RecordReferenceRailRendererPr
           </Card>
         );
       })}
+      {!showEmpty && emptyTitles.length > 0 && (
+        <button
+          type="button"
+          onClick={() => setShowEmpty(true)}
+          className="self-start inline-flex items-center gap-1.5 text-[11px] text-muted-foreground hover:text-foreground transition-colors px-2.5 py-1 rounded-md border border-dashed border-border/60 hover:border-border bg-background"
+          title={emptyTitles.join(' · ')}
+        >
+          <span>
+            {t('detail.showEmptyRelated', {
+              defaultValue: '+ {{count}} empty',
+              count: emptyTitles.length,
+            })}
+          </span>
+          <span className="truncate max-w-[180px] text-muted-foreground/70">
+            ({emptyTitles.join(' · ')})
+          </span>
+        </button>
+      )}
     </div>
   );
 };

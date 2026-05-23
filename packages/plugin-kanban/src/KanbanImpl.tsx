@@ -48,21 +48,23 @@ const UNCATEGORIZED_LANE = 'Uncategorized'
 
 /**
  * Deterministic accent palette for Kanban columns. Each column gets a
- * stable color derived from its `id`, used for the top accent stripe and
- * the count badge tint. Mirrors the gallery/home-page accent treatment
- * for cross-screen consistency.
+ * stable color derived from its `id`, used only for a hair-thin top accent
+ * stripe so the board remains scannable without looking like a children's
+ * toy. Title text and count pill render in neutral foreground so the
+ * **data** is the loudest thing on screen — Salesforce / HubSpot / Linear
+ * convention for enterprise pipelines.
  *
  * Tailwind classes only (so we don't need inline styles or CSS-in-JS).
  */
-const COLUMN_ACCENTS: ReadonlyArray<{ stripe: string; text: string; ring: string; tint: string }> = [
-  { stripe: 'from-indigo-500 via-indigo-400/70 to-indigo-500/0', text: 'text-indigo-600 dark:text-indigo-300', ring: 'ring-indigo-500/20', tint: 'bg-indigo-500/10' },
-  { stripe: 'from-sky-500 via-sky-400/70 to-sky-500/0',          text: 'text-sky-600 dark:text-sky-300',       ring: 'ring-sky-500/20',    tint: 'bg-sky-500/10' },
-  { stripe: 'from-emerald-500 via-emerald-400/70 to-emerald-500/0', text: 'text-emerald-600 dark:text-emerald-300', ring: 'ring-emerald-500/20', tint: 'bg-emerald-500/10' },
-  { stripe: 'from-amber-500 via-amber-400/70 to-amber-500/0',    text: 'text-amber-600 dark:text-amber-300',   ring: 'ring-amber-500/20',  tint: 'bg-amber-500/10' },
-  { stripe: 'from-rose-500 via-rose-400/70 to-rose-500/0',        text: 'text-rose-600 dark:text-rose-300',     ring: 'ring-rose-500/20',   tint: 'bg-rose-500/10' },
-  { stripe: 'from-violet-500 via-violet-400/70 to-violet-500/0', text: 'text-violet-600 dark:text-violet-300', ring: 'ring-violet-500/20', tint: 'bg-violet-500/10' },
-  { stripe: 'from-cyan-500 via-cyan-400/70 to-cyan-500/0',        text: 'text-cyan-600 dark:text-cyan-300',     ring: 'ring-cyan-500/20',   tint: 'bg-cyan-500/10' },
-  { stripe: 'from-fuchsia-500 via-fuchsia-400/70 to-fuchsia-500/0', text: 'text-fuchsia-600 dark:text-fuchsia-300', ring: 'ring-fuchsia-500/20', tint: 'bg-fuchsia-500/10' },
+const COLUMN_ACCENTS: ReadonlyArray<{ stripe: string }> = [
+  { stripe: 'bg-indigo-500/70' },
+  { stripe: 'bg-sky-500/70' },
+  { stripe: 'bg-emerald-500/70' },
+  { stripe: 'bg-amber-500/70' },
+  { stripe: 'bg-rose-500/70' },
+  { stripe: 'bg-violet-500/70' },
+  { stripe: 'bg-cyan-500/70' },
+  { stripe: 'bg-fuchsia-500/70' },
 ]
 
 function pickColumnAccent(seed: string): typeof COLUMN_ACCENTS[number] {
@@ -357,30 +359,29 @@ function KanbanColumnView({
         column.className
       )}
     >
-      {/* Top accent stripe — deterministic color from column id. Fades to
-          transparent on the right so it visually anchors the title without
-          looking heavy-handed. */}
+      {/* Hair-thin top accent — deterministic muted color from column id.
+          Keeps lanes scannable without coloring the title/count text. */}
       <div
         aria-hidden
-        className={cn("absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r", accent.stripe)}
+        className={cn("absolute inset-x-0 top-0 h-[2px] rounded-t-xl", accent.stripe)}
       />
-      <div className="px-3 sm:px-4 pt-3.5 pb-3 border-b border-border/40 bg-gradient-to-b from-background/60 to-transparent">
+      <div className="px-3 sm:px-4 pt-3 pb-2.5 border-b border-border/40">
         <div className="flex items-center justify-between gap-2">
-          <h3 id={`kanban-col-${column.id}`} className={cn("text-xs sm:text-sm font-semibold tracking-tight truncate", accent.text)}>{column.title}</h3>
+          <h3 id={`kanban-col-${column.id}`} className="text-xs sm:text-[13px] font-semibold tracking-tight truncate text-foreground/85 uppercase">{column.title}</h3>
           <div className="flex items-center gap-1.5 shrink-0">
             <span
               className={cn(
-                "inline-flex items-center justify-center min-w-[22px] h-[22px] px-1.5 rounded-md text-[11px] font-semibold tabular-nums ring-1 ring-inset",
-                accent.tint,
-                accent.text,
-                accent.ring,
+                "inline-flex items-center justify-center min-w-[22px] h-[20px] px-1.5 rounded-md text-[11px] font-medium tabular-nums",
+                isLimitExceeded
+                  ? "bg-destructive/10 text-destructive ring-1 ring-inset ring-destructive/30"
+                  : "bg-muted/70 text-muted-foreground",
               )}
             >
               {safeCards.length}
               {column.limit && <span className="text-muted-foreground/70 font-normal">{` / ${column.limit}`}</span>}
             </span>
             {isLimitExceeded && (
-              <Badge variant="destructive" className="text-[10px] h-[22px] px-1.5">
+              <Badge variant="destructive" className="text-[10px] h-[20px] px-1.5">
                 Full
               </Badge>
             )}
