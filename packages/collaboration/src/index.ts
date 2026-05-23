@@ -71,6 +71,15 @@ export {
   type PresenceAvatarsProps,
 } from './PresenceAvatars';
 
+export {
+  PresenceProvider,
+  useTenantPresence,
+  useRecordPresence,
+  type PresenceSource,
+  type PresenceProviderProps,
+  type RecordPresenceScope,
+} from './PresenceProvider';
+
 // Re-export types from @object-ui/types for convenience
 export type {
   CollaborationPresence,

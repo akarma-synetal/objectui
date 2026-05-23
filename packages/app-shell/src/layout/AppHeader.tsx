@@ -47,7 +47,7 @@ import {
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useOffline } from '@object-ui/react';
-import { PresenceAvatars, type PresenceUser } from '@object-ui/collaboration';
+import { PresenceAvatars, useTenantPresence, type PresenceUser } from '@object-ui/collaboration';
 import { ModeToggle } from './ModeToggle';
 import { LocaleSwitcher } from './LocaleSwitcher';
 import { ConnectionStatus } from './ConnectionStatus';
@@ -337,7 +337,8 @@ export function AppHeader({
     ));
   }, [dataSource, notifications]);
 
-  const activeUsers = presenceUsers ?? EMPTY_PRESENCE_USERS;
+  const tenantPresence = useTenantPresence();
+  const activeUsers = presenceUsers ?? (tenantPresence.length > 0 ? tenantPresence : EMPTY_PRESENCE_USERS);
   const activeActivities = activities ?? apiActivities ?? [];
   const orgList = organizations ?? [];
   const hasOrgSection = isOrganizationsLoading || orgList.length > 0 || !!activeOrganization;

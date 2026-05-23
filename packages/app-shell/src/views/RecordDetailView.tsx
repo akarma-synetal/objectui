@@ -14,6 +14,7 @@ import { useAuth, createAuthenticatedFetch } from '@object-ui/auth';
 import { ActionProvider, useObjectTranslation, useObjectLabel, usePageAssignment, RecordContextProvider, SchemaRenderer, DiscussionContextProvider, HighlightFieldsProvider } from '@object-ui/react';
 import { buildExpandFields } from '@object-ui/core';
 import { toast } from 'sonner';
+import { useRecordPresence, PresenceAvatars } from '@object-ui/collaboration';
 import { Database, ChevronLeft } from 'lucide-react';
 import { MetadataPanel, useMetadataInspector } from './MetadataInspector';
 import { SkeletonDetail } from '../skeletons';
@@ -138,6 +139,14 @@ export function RecordDetailView({ dataSource, objects, onEdit, objectNameOverri
   // Navigation code passes `record.id || record._id` directly into the URL
   // without adding any prefix, so no stripping is needed.
   const pureRecordId = recordId;
+
+  // Record-scoped presence ("who else is viewing this record"). The default
+  // PresenceProvider source is a no-op, so this resolves to `[]` until a
+  // realtime transport (WebSocket-backed source) is wired in by the host
+  // app — see `@object-ui/collaboration`'s `<PresenceProvider>`. The
+  // PresenceAvatars row is hidden when the array is empty, so the
+  // affordance is invisible until the transport lights up.
+  const recordPresence = useRecordPresence(objectName, pureRecordId);
 
   const favoriteRecord = useMemo(() => {
     if (!objectName || !pureRecordId) return null;
@@ -1511,6 +1520,9 @@ export function RecordDetailView({ dataSource, objects, onEdit, objectNameOverri
             Mirrors the default branch so custom Page-assigned record pages
             don't lose these affordances. */}
         <div className="absolute top-2 sm:top-4 right-2 sm:right-4 z-50 flex items-center gap-2">
+          {recordPresence.length > 0 && (
+            <PresenceAvatars users={recordPresence} size="sm" maxVisible={3} showStatus />
+          )}
           <ManagedByBadge managedBy={(objectDef as any)?.managedBy} />
         </div>
 
@@ -1612,9 +1624,13 @@ export function RecordDetailView({ dataSource, objects, onEdit, objectNameOverri
       <div className="absolute top-2 sm:top-4 right-2 sm:right-4 z-50 flex items-center gap-2">
         {/* Lifecycle bucket indicator. Replaces the previous full-width
             ManagedByBanner — see ManagedByBadge for the rationale.
-            Record presence avatars are intentionally NOT rendered here:
-            real-time presence requires a transport (WebSocket) that is
-            not yet wired. See ROADMAP. */}
+            Record-scoped presence avatars are sourced from the
+            <PresenceProvider> context and render only when at least one
+            other user is viewing this record — invisible until a
+            realtime transport is wired by the host app. */}
+        {recordPresence.length > 0 && (
+          <PresenceAvatars users={recordPresence} size="sm" maxVisible={3} showStatus />
+        )}
         <ManagedByBadge managedBy={(objectDef as any)?.managedBy} />
       </div>
 
