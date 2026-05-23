@@ -643,6 +643,18 @@ export function RecordDetailView({ dataSource, objects, onEdit, objectNameOverri
   useEffect(() => {
     if (!dataSource) return;
     let cancelled = false;
+
+    // Always seed with the current user so the @-mention dropdown shows at
+    // least one entry even when the backend has no sys_user directory.
+    // Hosts wanting a richer roster should provide it via dataSource.
+    const selfSuggestion = user
+      ? [{
+          id: String(user.id),
+          label: user.name || user.email || String(user.id),
+          avatarUrl: (user as any).image || undefined,
+        }]
+      : [];
+
     (async () => {
       try {
         const res = await dataSource.find('sys_user', {
@@ -651,21 +663,28 @@ export function RecordDetailView({ dataSource, objects, onEdit, objectNameOverri
         } as any);
         if (cancelled) return;
         const rows: any[] = Array.isArray(res) ? res : res?.data || [];
-        const suggestions = rows
+        const fetched = rows
           .map((u) => ({
             id: String(u.id),
             label: u.name || u.email || String(u.id),
             avatarUrl: u.image || undefined,
           }))
           .filter((s) => s.label);
-        setMentionSuggestions(suggestions);
+        // Merge: current user first, then directory (de-duped by id).
+        const seen = new Set(selfSuggestion.map((s) => s.id));
+        const merged = [
+          ...selfSuggestion,
+          ...fetched.filter((s) => !seen.has(s.id)),
+        ];
+        setMentionSuggestions(merged.length > 0 ? merged : selfSuggestion);
       } catch {
-        // Silently fall back to free-text @mention when the user dir is
-        // unavailable (e.g. the backend has no sys_user collection).
+        if (cancelled) return;
+        // Fall back to just the current user so mentions still work.
+        setMentionSuggestions(selfSuggestion);
       }
     })();
     return () => { cancelled = true; };
-  }, [dataSource]);
+  }, [dataSource, user?.id, user?.name, user?.email]);
 
   // Memoize so the object identity is stable across renders — otherwise
   // any effect that depends on it (e.g. the feed loader below) would
