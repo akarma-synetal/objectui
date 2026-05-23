@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Link, useParams } from 'react-router-dom';
-import { AppShell, ObjectRenderer } from '@object-ui/app-shell';
+import { AppShell } from '@object-ui/app-shell';
+import { ObjectView } from '@object-ui/plugin-view';
 import { ThemeProvider, DataSourceProvider } from '@object-ui/providers';
 import { mockDataSource } from './mockDataSource';
 
@@ -122,8 +123,14 @@ function ObjectPage() {
 
   return (
     <div className="h-full">
-      <ObjectRenderer
-        objectName={objectName || ''}
+      <ObjectView
+        schema={{
+          type: 'objectView',
+          objectName: objectName || '',
+          listViews: [
+            { id: 'default', label: 'All', type: 'grid' },
+          ],
+        }}
         dataSource={mockDataSource}
       />
     </div>

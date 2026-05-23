@@ -475,6 +475,9 @@ importers:
       '@object-ui/components':
         specifier: workspace:*
         version: link:../../packages/components
+      '@object-ui/plugin-view':
+        specifier: workspace:*
+        version: link:../../packages/plugin-view
       '@object-ui/providers':
         specifier: workspace:*
         version: link:../../packages/providers
