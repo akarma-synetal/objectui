@@ -53,7 +53,10 @@ function NavItemRenderer({ item, pathname }: { item: NavItem; pathname: string }
       <Collapsible asChild defaultOpen className="group/collapsible">
         <SidebarMenuItem>
           <CollapsibleTrigger asChild>
-            <SidebarMenuButton tooltip={item.title}>
+            <SidebarMenuButton
+              tooltip={item.title}
+              className="motion-safe:transition-colors motion-safe:duration-150"
+            >
               {item.icon && <item.icon />}
               <span>{item.title}</span>
               {item.badge != null && (
@@ -64,11 +67,15 @@ function NavItemRenderer({ item, pathname }: { item: NavItem; pathname: string }
               <ChevronRight className="ml-auto h-4 w-4 transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
             </SidebarMenuButton>
           </CollapsibleTrigger>
-          <CollapsibleContent>
+          <CollapsibleContent className="motion-safe:data-[state=open]:animate-in motion-safe:data-[state=closed]:animate-out motion-safe:data-[state=closed]:fade-out-0 motion-safe:data-[state=open]:fade-in-0 motion-safe:data-[state=closed]:slide-out-to-top-1 motion-safe:data-[state=open]:slide-in-from-top-1 motion-safe:duration-150">
             <SidebarMenuSub>
               {item.children.map((child) => (
                 <SidebarMenuSubItem key={child.href}>
-                  <SidebarMenuSubButton asChild isActive={pathname === child.href}>
+                  <SidebarMenuSubButton
+                    asChild
+                    isActive={pathname === child.href}
+                    className="motion-safe:transition-colors motion-safe:duration-150"
+                  >
                     <NavLink to={child.href}>
                       {child.icon && <child.icon />}
                       <span>{child.title}</span>
@@ -90,7 +97,14 @@ function NavItemRenderer({ item, pathname }: { item: NavItem; pathname: string }
 
   return (
     <SidebarMenuItem>
-      <SidebarMenuButton asChild isActive={pathname === item.href} tooltip={item.title}>
+      <SidebarMenuButton
+        asChild
+        isActive={pathname === item.href}
+        tooltip={item.title}
+        // Smooth the active-state colour swap so navigating between rows
+        // feels gliding rather than instant. Tailwind core duration tokens.
+        className="motion-safe:transition-colors motion-safe:duration-150"
+      >
         <NavLink to={item.href}>
           {item.icon && <item.icon />}
           <span>{item.title}</span>
