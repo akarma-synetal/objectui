@@ -8,7 +8,7 @@
 
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useParams, useNavigate, useLocation, Link } from 'react-router-dom';
-import { DetailView, RecordChatterPanel, buildDefaultPageSchema } from '@object-ui/plugin-detail';
+import { DetailView, RecordChatterPanel, buildDefaultPageSchema, extractMentions } from '@object-ui/plugin-detail';
 import { Empty, EmptyTitle, EmptyDescription } from '@object-ui/components';
 import { useAuth, createAuthenticatedFetch } from '@object-ui/auth';
 import { ActionProvider, useObjectTranslation, useObjectLabel, usePageAssignment, RecordContextProvider, SchemaRenderer, DiscussionContextProvider, HighlightFieldsProvider } from '@object-ui/react';
@@ -835,6 +835,59 @@ export function RecordDetailView({ dataSource, objects, onEdit, objectNameOverri
       .catch(() => {});
   }, [dataSource, objectName, pureRecordId, currentUser]);
 
+  /**
+   * Resolve `@<label>` tokens in a comment body against the loaded user
+   * directory, and (best-effort) fan out a `sys_notification` row per
+   * mentioned recipient. The notification write tolerates 404 so
+   * deployments without a notification collection just drop them; spec-
+   * compliant servers with a sys_comment after-create hook can ignore the
+   * client write and use their own (notifications are idempotent enough on
+   * the bell UI side because polling de-dupes by id).
+   */
+  const emitMentionNotifications = useCallback(
+    async (commentId: string, body: string): Promise<string[]> => {
+      const ids = extractMentions(body, mentionSuggestions);
+      // Drop self-mentions — pinging yourself is noise.
+      const recipients = ids.filter((id) => id !== currentUser.id);
+      if (!dataSource || recipients.length === 0) return ids;
+      const now = new Date().toISOString();
+      const title = recordTitle || pureRecordId || objectName;
+      const actorName = currentUser.name || 'Someone';
+      // Trim body to a short preview so the bell row stays compact.
+      const preview = body.length > 140 ? body.slice(0, 137) + '…' : body;
+      await Promise.all(
+        recipients.map((recipientId) =>
+          dataSource
+            .create('sys_notification', {
+              id: crypto.randomUUID(),
+              type: 'mention',
+              recipient_id: recipientId,
+              actor_id: currentUser.id,
+              actor_name: actorName,
+              title: `${actorName} mentioned you on ${title}`,
+              body: preview,
+              source_object: objectName,
+              source_id: pureRecordId,
+              source_comment_id: commentId,
+              is_read: false,
+              created_at: now,
+            })
+            .catch(() => {}),
+        ),
+      );
+      return ids;
+    },
+    [
+      dataSource,
+      mentionSuggestions,
+      currentUser.id,
+      currentUser.name,
+      recordTitle,
+      pureRecordId,
+      objectName,
+    ],
+  );
+
   const handleAddComment = useCallback(
     async (text: string) => {
       const newItem: FeedItem = {
@@ -849,6 +902,7 @@ export function RecordDetailView({ dataSource, objects, onEdit, objectNameOverri
       // Persist to backend (M10.10: snake_case fields per sys_comment schema)
       if (dataSource) {
         const threadId = `${objectName}:${pureRecordId}`;
+        const mentionIds = extractMentions(text, mentionSuggestions);
         dataSource.create('sys_comment', {
           id: newItem.id,
           thread_id: threadId,
@@ -856,12 +910,14 @@ export function RecordDetailView({ dataSource, objects, onEdit, objectNameOverri
           author_name: currentUser.name,
           author_avatar_url: 'avatar' in currentUser ? (currentUser as any).avatar : undefined,
           body: text,
-          mentions: '[]',
+          mentions: JSON.stringify(mentionIds),
           created_at: newItem.createdAt,
         }).catch(() => {});
+        // Fan out notifications in parallel (best-effort, doesn't block UI).
+        void emitMentionNotifications(newItem.id, text);
       }
     },
-    [currentUser, dataSource, objectName, pureRecordId],
+    [currentUser, dataSource, objectName, pureRecordId, mentionSuggestions, emitMentionNotifications],
   );
 
   const handleAddReply = useCallback(
@@ -886,6 +942,7 @@ export function RecordDetailView({ dataSource, objects, onEdit, objectNameOverri
       });
       if (dataSource) {
         const threadId = `${objectName}:${pureRecordId}`;
+        const mentionIds = extractMentions(text, mentionSuggestions);
         dataSource.create('sys_comment', {
           id: newItem.id,
           thread_id: threadId,
@@ -893,13 +950,14 @@ export function RecordDetailView({ dataSource, objects, onEdit, objectNameOverri
           author_name: currentUser.name,
           author_avatar_url: 'avatar' in currentUser ? (currentUser as any).avatar : undefined,
           body: text,
-          mentions: '[]',
+          mentions: JSON.stringify(mentionIds),
           created_at: newItem.createdAt,
           parent_id: parentId,
         }).catch(() => {});
+        void emitMentionNotifications(newItem.id, text);
       }
     },
-    [currentUser, dataSource, objectName, pureRecordId],
+    [currentUser, dataSource, objectName, pureRecordId, mentionSuggestions, emitMentionNotifications],
   );
 
   const handleToggleReaction = useCallback(

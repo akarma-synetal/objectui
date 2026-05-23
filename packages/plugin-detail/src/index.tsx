@@ -79,6 +79,8 @@ export type { ActivityTimelineProps, ActivityFilterType } from './ActivityTimeli
 export type { HistoryTimelineProps, HistoryEntry } from './HistoryTimeline';
 export type { InlineCreateRelatedProps, RelatedFieldDefinition, RelatedRecordOption } from './InlineCreateRelated';
 export type { RichTextCommentInputProps, MentionSuggestion } from './RichTextCommentInput';
+export { extractMentions } from './extractMentions';
+export type { MentionTarget } from './extractMentions';
 export type { DiffViewProps, DiffFieldType, DiffMode, DiffLine } from './DiffView';
 export type { RecordNavigationEnhancedProps } from './RecordNavigationEnhanced';
 export type { RelationshipGraphProps, GraphNode } from './RelationshipGraph';
