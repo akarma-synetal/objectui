@@ -429,13 +429,17 @@ export function CurrencyCellRenderer({ value, field }: CellRendererProps): React
   
   const safe = coerceToSafeValue(value);
   const currencyField = field as any;
-  // Honor both `currency` (legacy/grid configs) and `defaultCurrency`
-  // (the canonical key from `@objectstack/spec` Field.currency()). When
-  // neither is supplied, render as a plain formatted number — silently
-  // assuming USD for unconfigured currency fields was misleading for
-  // non-USD orgs (e.g. RMB amounts displayed as $).
+  // Honor `currency` (legacy/grid configs), `defaultCurrency` (canonical
+  // top-level), and `currencyConfig.defaultCurrency` (the nested shape
+  // emitted by `@objectstack/spec` Field.currency() with currencyConfig).
+  // When none is supplied, render as a plain formatted number —
+  // silently assuming USD for unconfigured currency fields was
+  // misleading for non-USD orgs (e.g. RMB amounts displayed as $).
   const currency: string | undefined =
-    currencyField.currency || currencyField.defaultCurrency || undefined;
+    currencyField.currency ||
+    currencyField.defaultCurrency ||
+    currencyField.currencyConfig?.defaultCurrency ||
+    undefined;
   const num = Number(safe);
   const formatted = !isNaN(num)
     ? formatCurrency(num, currency)
