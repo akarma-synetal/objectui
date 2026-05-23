@@ -25,7 +25,7 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable"
 import { CSS } from "@dnd-kit/utilities"
-import { Badge, Card, CardHeader, CardTitle, CardDescription, CardContent, ScrollArea, Button, Input, useResizeObserver } from "@object-ui/components"
+import { Badge, Card, CardHeader, CardTitle, CardDescription, CardContent, ScrollArea, Button, Input, useResizeObserver, DataEmptyState } from "@object-ui/components"
 import { useHasDndProvider, useDnd } from "@object-ui/react"
 import { createSafeTranslation } from "@object-ui/i18n"
 import { Plus } from "lucide-react"
@@ -672,11 +672,15 @@ function KanbanBoardInner({ columns, onCardMove, onCardClick, className, dnd, qu
         return (
       <>
       {isBoardEmpty && (
-        <div className="px-4 sm:px-6 pt-3" role="status" aria-live="polite">
-          <div className="flex flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-border/60 bg-muted/10 py-8 text-center">
-            <span className="text-sm font-medium text-foreground/80">{t('kanban.noCards')}</span>
-            <span className="text-xs text-muted-foreground">{boardColumns.length} {t('kanban.columns', { defaultValue: 'columns' })}</span>
-          </div>
+        <div className="px-4 sm:px-6 pt-3">
+          <DataEmptyState
+            role="status"
+            aria-live="polite"
+            showIcon={false}
+            className="rounded-lg border border-dashed border-border/60 bg-muted/10 py-8 gap-2 [&>h3]:text-sm [&>h3]:font-medium [&>h3]:text-foreground/80"
+            title={t('kanban.noCards')}
+            description={`${boardColumns.length} ${t('kanban.columns', { defaultValue: 'columns' })}`}
+          />
         </div>
       )}
       {swimlanes ? (

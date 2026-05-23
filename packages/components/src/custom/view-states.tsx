@@ -52,6 +52,19 @@ function DataLoadingState({
 interface DataEmptyStateProps extends React.ComponentProps<"div"> {
   /** Icon rendered above the title */
   icon?: React.ReactNode
+  /**
+   * When false, the icon container is omitted entirely. Useful for
+   * board-level / banner-style empty states that should not show a generic
+   * inbox glyph. Defaults to true.
+   */
+  showIcon?: boolean
+  /**
+   * Override class on the icon wrapper. By default the wrapper renders as a
+   * small muted rounded square (`size-10 rounded-lg bg-muted`). Pass `""` to
+   * strip that styling and render the icon raw, or extend the look (e.g.
+   * larger size).
+   */
+  iconWrapperClassName?: string
   title?: string
   description?: string
   /** Optional action rendered below the description */
@@ -61,6 +74,8 @@ interface DataEmptyStateProps extends React.ComponentProps<"div"> {
 function DataEmptyState({
   className,
   icon,
+  showIcon = true,
+  iconWrapperClassName,
   title = "No data",
   description,
   action,
@@ -76,9 +91,17 @@ function DataEmptyState({
       )}
       {...props}
     >
-      <div className="flex size-10 items-center justify-center rounded-lg bg-muted">
-        {icon ?? <InboxIcon className="size-5 text-muted-foreground" />}
-      </div>
+      {showIcon && (
+        <div
+          data-slot="data-empty-state-icon"
+          className={cn(
+            iconWrapperClassName ??
+              "flex size-10 items-center justify-center rounded-lg bg-muted"
+          )}
+        >
+          {icon ?? <InboxIcon className="size-5 text-muted-foreground" />}
+        </div>
+      )}
       {title && (
         <h3 className="text-sm font-medium">{title}</h3>
       )}
@@ -146,8 +169,10 @@ function DataErrorState({
 export {
   DataLoadingState,
   DataEmptyState,
+  DataEmptyState as EmptyState,
   DataErrorState,
   type DataLoadingStateProps,
   type DataEmptyStateProps,
+  type DataEmptyStateProps as EmptyStateProps,
   type DataErrorStateProps,
 }

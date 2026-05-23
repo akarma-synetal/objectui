@@ -8,7 +8,7 @@
 
 import React, { useMemo } from 'react';
 import type { PivotTableSchema, PivotAggregation } from '@object-ui/types';
-import { cn } from '@object-ui/components';
+import { cn, DataEmptyState } from '@object-ui/components';
 import { isDrillEnabled, type DrillEvent } from '@object-ui/core';
 import { useObjectTranslation } from '@object-ui/i18n';
 
@@ -247,15 +247,21 @@ export const PivotTable: React.FC<PivotTableProps> = ({ schema, className, rowLa
         {title && (
           <h3 className="text-sm font-semibold mb-2">{title}</h3>
         )}
-        <div className="flex flex-col items-center justify-center py-8 text-muted-foreground" data-testid="pivot-empty-state">
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 mb-2 opacity-40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-            <rect x="3" y="3" width="7" height="7" />
-            <rect x="14" y="3" width="7" height="7" />
-            <rect x="3" y="14" width="7" height="7" />
-            <rect x="14" y="14" width="7" height="7" />
-          </svg>
-          <p className="text-xs">{noDataLabel}</p>
-        </div>
+        <DataEmptyState
+          data-testid="pivot-empty-state"
+          className="py-8 gap-2 [&>h3]:hidden"
+          icon={
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 opacity-40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="3" y="3" width="7" height="7" />
+              <rect x="14" y="3" width="7" height="7" />
+              <rect x="3" y="14" width="7" height="7" />
+              <rect x="14" y="14" width="7" height="7" />
+            </svg>
+          }
+          iconWrapperClassName=""
+          title=""
+          description={noDataLabel}
+        />
       </div>
     );
   }

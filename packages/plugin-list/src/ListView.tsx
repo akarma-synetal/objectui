@@ -7,7 +7,7 @@
  */
 
 import * as React from 'react';
-import { cn, Button, Input, Popover, PopoverContent, PopoverTrigger, FilterBuilder, SortBuilder, NavigationOverlay, GroupingEditor, Select, SelectContent, SelectItem, SelectTrigger, SelectValue, RefreshIndicator } from '@object-ui/components';
+import { cn, Button, Input, Popover, PopoverContent, PopoverTrigger, FilterBuilder, SortBuilder, NavigationOverlay, GroupingEditor, Select, SelectContent, SelectItem, SelectTrigger, SelectValue, RefreshIndicator, DataEmptyState } from '@object-ui/components';
 import type { SortItem } from '@object-ui/components';
 import { Search, SlidersHorizontal, ArrowUpDown, X, EyeOff, Group, Paintbrush, Ruler, Inbox, Download, AlignJustify, Rows4, Rows3, Rows2, Share2, Printer, Plus, Trash2, CheckSquare, icons, type LucideIcon } from 'lucide-react';
 import type { FilterGroup } from '@object-ui/components';
@@ -2084,28 +2084,28 @@ export const ListView = React.forwardRef<ListViewHandle, ListViewProps>(({
                   iconName.split('-').map((w: any) => w.charAt(0).toUpperCase() + w.slice(1)).join('')
                 ] ?? Inbox)
               : Inbox;
+            const title = (typeof schema.emptyState?.title === 'string' ? schema.emptyState.title : undefined) ?? t('list.noItems');
+            const description = (typeof schema.emptyState?.message === 'string' ? schema.emptyState.message : undefined) ?? t('list.noItemsMessage');
             return (
-              <div className="flex flex-col items-center justify-center h-full min-h-[200px] text-center p-8" data-testid="empty-state">
-                <ResolvedIcon className="h-12 w-12 text-muted-foreground/50 mb-4" />
-                <h3 className="text-lg font-medium text-foreground mb-1">
-                  {(typeof schema.emptyState?.title === 'string' ? schema.emptyState.title : undefined) ?? t('list.noItems')}
-                </h3>
-                <p className="text-sm text-muted-foreground max-w-md">
-                  {(typeof schema.emptyState?.message === 'string' ? schema.emptyState.message : undefined) ?? t('list.noItemsMessage')}
-                </p>
-                {toolbarFlags.showAddRecord && (
+              <DataEmptyState
+                data-testid="empty-state"
+                className="h-full min-h-[200px] p-8 gap-1 [&>h3]:text-lg [&>h3]:font-medium [&>h3]:text-foreground [&>p]:max-w-md"
+                icon={<ResolvedIcon className="h-12 w-12 text-muted-foreground/50" />}
+                iconWrapperClassName="mb-3"
+                title={title}
+                description={description}
+                action={toolbarFlags.showAddRecord ? (
                   <Button
                     variant="default"
                     size="sm"
-                    className="mt-4"
                     data-testid="empty-state-add-record"
                     onClick={() => props.onAddRecord?.()}
                   >
                     <Plus className="h-4 w-4 mr-1.5" />
                     {t('list.addRecord')}
                   </Button>
-                )}
-              </div>
+                ) : undefined}
+              />
             );
           })()
         ) : (
