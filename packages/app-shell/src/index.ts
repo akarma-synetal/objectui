@@ -7,10 +7,6 @@
 
 // Components
 export { AppShell } from './components/AppShell';
-export { ObjectRenderer } from './components/ObjectRenderer';
-export { DashboardRenderer } from './components/DashboardRenderer';
-export { PageRenderer } from './components/PageRenderer';
-export { FormRenderer } from './components/FormRenderer';
 
 // Providers
 export { AdapterProvider, useAdapter } from './providers/AdapterProvider';
@@ -24,10 +20,6 @@ export { useRecentItems } from './hooks/useRecentItems';
 // Types
 export type {
   AppShellProps,
-  ObjectRendererProps,
-  DashboardRendererProps,
-  PageRendererProps,
-  FormRendererProps,
 } from './types';
 
 export type {
