@@ -205,7 +205,14 @@ export const ObjectGallery: React.FC<ObjectGalleryProps> = (props) => {
         () => items.some((it) => typeof (it as any)[coverField] === 'string' && !!(it as any)[coverField]),
         [items, coverField],
     );
-    const showCoverArea = !!gallery?.coverField || hasAnyCover;
+    // Show the cover area only when at least one record has a non-empty
+    // cover image value. Previously, having `coverField` configured was
+    // enough to force the cover area on — which produced giant letter-
+    // placeholder blocks (200×200 gradients with a single character) on
+    // datasets like Contacts where the field is declared but unpopulated.
+    // The configured-but-empty state now matches the unconfigured state:
+    // collapse to a compact card with just the title + visible fields.
+    const showCoverArea = hasAnyCover;
 
     // --- Grouping support ---
     const groupingFields = schema.grouping?.fields;
