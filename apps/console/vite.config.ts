@@ -182,7 +182,9 @@ export default defineConfig({
             { name: 'plugin-grid', test: /[\\/]packages[\\/]plugin-grid[\\/]/, priority: 70 },
             { name: 'plugin-form', test: /[\\/]packages[\\/]plugin-form[\\/]/, priority: 70 },
             { name: 'plugin-view', test: /[\\/]packages[\\/]plugin-view[\\/]/, priority: 70 },
-            { name: 'plugins-views', test: /[\\/]packages[\\/]plugin-(detail|list|dashboard|report)[\\/]/, priority: 70 },
+            { name: 'plugins-views', test: /[\\/]packages[\\/]plugin-(detail|list)[\\/]/, priority: 70 },
+            { name: 'plugin-dashboard', test: /[\\/]packages[\\/]plugin-dashboard[\\/]/, priority: 70 },
+            { name: 'plugin-report', test: /[\\/]packages[\\/]plugin-report[\\/]/, priority: 70 },
             { name: 'plugin-map', test: /[\\/]packages[\\/]plugin-map[\\/]/, priority: 70 },
             { name: 'plugin-charts', test: /[\\/]packages[\\/]plugin-charts[\\/]/, priority: 70 },
             { name: 'plugin-gantt', test: /[\\/]packages[\\/]plugin-gantt[\\/]/, priority: 70 },
@@ -194,6 +196,8 @@ export default defineConfig({
             // react-markdown / remark / micromark family — heavy markdown
             // pipeline pulled in only by markdown/chatbot plugins.
             { name: 'vendor-markdown', test: /[\\/]node_modules[\\/](react-markdown|remark-|rehype-|micromark|mdast-|hast-|unified|unist-|vfile|bail|trough|character-entities|decode-named-character-reference|devlop|estree-|comma-separated-tokens|space-separated-tokens|property-information|html-url-attributes|zwitch)/, priority: 85 },
+            // Sentry — only loaded when VITE_SENTRY_DSN is configured at runtime
+            { name: 'vendor-sentry', test: /[\\/]node_modules[\\/]@sentry[\\/]/, priority: 85 },
           ],
         },
       }

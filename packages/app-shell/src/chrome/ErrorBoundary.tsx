@@ -19,6 +19,7 @@ import { Component, type ErrorInfo, type ReactNode } from 'react';
 import { Button, Empty, EmptyTitle, EmptyDescription } from '@object-ui/components';
 import { AlertTriangle, RotateCcw, Home } from 'lucide-react';
 import { useObjectTranslation } from '@object-ui/i18n';
+import { captureError } from '../observability';
 
 /** Inner fallback component that uses the i18n hook */
 function DefaultErrorFallback({ error, onReset }: { error: Error; onReset: () => void }) {
@@ -96,6 +97,8 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     console.error('[ErrorBoundary] Caught error:', error, errorInfo);
+    // Best-effort: report to Sentry if initialized. No-op when DSN absent.
+    captureError(error, { componentStack: errorInfo.componentStack });
     this.props.onError?.(error, errorInfo);
   }
 

@@ -79,6 +79,9 @@ export {
   useTheme,
 } from './chrome';
 
+// Observability — Sentry integration, opt-in via VITE_SENTRY_DSN
+export { initSentry, captureError, setSentryUser, getSentry } from './observability';
+
 // Standard inner-SPA views
 export {
   ObjectView,

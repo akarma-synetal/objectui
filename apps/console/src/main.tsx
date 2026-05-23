@@ -12,7 +12,12 @@ import { I18nProvider } from '@object-ui/i18n';
 import { MobileProvider } from '@object-ui/mobile';
 import { ComponentRegistry } from '@object-ui/core';
 import { registerPlaceholders } from '@object-ui/components';
+import { initSentry } from '@object-ui/app-shell';
 import { loadLanguage } from './loadLanguage';
+
+// Kick off Sentry init in the background (no-op if VITE_SENTRY_DSN is unset).
+// Not awaited — observability must never block first paint.
+void initSentry();
 
 // ────────────────────────────────────────────────────────────────────────────
 // Plugin registration
@@ -25,7 +30,6 @@ import '@object-ui/plugin-form';
 import '@object-ui/plugin-view';
 import '@object-ui/plugin-list';
 import '@object-ui/plugin-detail';
-import '@object-ui/plugin-dashboard';
 
 // Lazy plugins — registered as deferred loaders.  The first time the
 // SchemaRenderer encounters one of these `type` values, the plugin module is
@@ -40,6 +44,16 @@ ComponentRegistry.registerLazy('map', () => import('@object-ui/plugin-map'), {
   namespace: 'view',
   category: 'view',
 });
+
+// Dashboard plugin — only used on dashboard / home pages. Lazy-load all 8
+// component types so the ~150 KB widget/pivot/metric tree stays out of the
+// initial bundle for users who never visit a dashboard.
+for (const variant of ['dashboard', 'metric', 'metric-card', 'object-metric', 'pivot', 'object-pivot', 'dashboard-grid', 'object-data-table']) {
+  ComponentRegistry.registerLazy(variant, () => import('@object-ui/plugin-dashboard'), {
+    namespace: 'plugin-dashboard',
+    category: 'view',
+  });
+}
 
 ComponentRegistry.registerLazy('chart', () => import('@object-ui/plugin-charts'), {
   namespace: 'plugin-charts',
