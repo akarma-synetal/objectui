@@ -164,6 +164,8 @@ export interface AuthClient {
   setActiveOrganization: (orgId: string) => Promise<AuthOrganization | null>;
   /** Get the full active organization object */
   getActiveOrganization: () => Promise<AuthOrganization | null>;
+  /** Get the current user's member row for the active organization (role, etc.) */
+  getActiveMember: () => Promise<AuthOrganizationMember | null>;
   /** Get members of an organization */
   getMembers: (orgId: string) => Promise<AuthOrganizationMember[]>;
   /** Invite a member to an organization */

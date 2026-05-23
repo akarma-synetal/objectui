@@ -56,7 +56,7 @@ import { NavigationRenderer } from '@object-ui/layout';
 import type { NavigationItem } from '@object-ui/types';
 import { useMetadata } from '../providers/MetadataProvider';
 import { useExpressionContext, evaluateVisibility } from '../providers/ExpressionProvider';
-import { useAuth, getUserInitials } from '@object-ui/auth';
+import { useAuth, useIsWorkspaceAdmin, getUserInitials } from '@object-ui/auth';
 import { usePermissions } from '@object-ui/permissions';
 import { useRecentItems } from '../hooks/useRecentItems';
 import { useFavorites } from '../hooks/useFavorites';
@@ -138,6 +138,7 @@ const getIcon = resolveIcon;
 export function AppSidebar({ activeAppName, onAppChange }: { activeAppName: string, onAppChange: (name: string) => void }) {
   const { isMobile } = useSidebar();
   const { user, signOut, isAuthEnabled } = useAuth();
+  const isWorkspaceAdmin = useIsWorkspaceAdmin();
   const navigate = useNavigate();
   const { t } = useObjectTranslation();
   const { objectLabel: resolveNavObjectLabel, viewLabel: resolveNavViewLabel } = useObjectLabel();
@@ -261,17 +262,26 @@ export function AppSidebar({ activeAppName, onAppChange }: { activeAppName: stri
   const basePath = activeApp ? `/apps/${activeAppName}` : '';
 
   // Fallback system navigation when no active app exists — routes into the Setup app.
-  const systemFallbackNavigation: NavigationItem[] = React.useMemo(() => [
-    { id: 'sys-settings', label: 'System Settings', type: 'url' as const, url: '/apps/setup', icon: 'settings' },
-    { id: 'sys-apps', label: 'Applications', type: 'url' as const, url: '/apps/setup/system/apps', icon: 'layout-grid' },
-    { id: 'sys-marketplace', label: 'App Marketplace', type: 'url' as const, url: '/apps/setup/system/marketplace', icon: 'store' },
-    { id: 'sys-objects', label: 'Object Manager', type: 'url' as const, url: '/apps/setup/system/metadata/object', icon: 'database' },
-    { id: 'sys-users', label: 'Users', type: 'url' as const, url: '/apps/setup/system/users', icon: 'users' },
-    { id: 'sys-orgs', label: 'Organizations', type: 'url' as const, url: '/apps/setup/system/organizations', icon: 'building-2' },
-    { id: 'sys-roles', label: 'Roles', type: 'url' as const, url: '/apps/setup/system/roles', icon: 'shield' },
-    { id: 'sys-config', label: 'Configuration', type: 'url' as const, url: '/apps/setup/system/settings', icon: 'sliders-horizontal' },
-    { id: 'sys-create-app', label: 'Create App', type: 'url' as const, url: '/create-app', icon: 'plus' },
-  ], []);
+  // The marketplace entry is hidden from non-admin members (install is gated to
+  // owner/admin on the server, so non-admins have no reason to see it).
+  const systemFallbackNavigation: NavigationItem[] = React.useMemo(() => {
+    const items: NavigationItem[] = [
+      { id: 'sys-settings', label: 'System Settings', type: 'url' as const, url: '/apps/setup', icon: 'settings' },
+      { id: 'sys-apps', label: 'Applications', type: 'url' as const, url: '/apps/setup/system/apps', icon: 'layout-grid' },
+    ];
+    if (isWorkspaceAdmin) {
+      items.push({ id: 'sys-marketplace', label: 'App Marketplace', type: 'url' as const, url: '/apps/setup/system/marketplace', icon: 'store' });
+    }
+    items.push(
+      { id: 'sys-objects', label: 'Object Manager', type: 'url' as const, url: '/apps/setup/system/metadata/object', icon: 'database' },
+      { id: 'sys-users', label: 'Users', type: 'url' as const, url: '/apps/setup/system/users', icon: 'users' },
+      { id: 'sys-orgs', label: 'Organizations', type: 'url' as const, url: '/apps/setup/system/organizations', icon: 'building-2' },
+      { id: 'sys-roles', label: 'Roles', type: 'url' as const, url: '/apps/setup/system/roles', icon: 'shield' },
+      { id: 'sys-config', label: 'Configuration', type: 'url' as const, url: '/apps/setup/system/settings', icon: 'sliders-horizontal' },
+      { id: 'sys-create-app', label: 'Create App', type: 'url' as const, url: '/create-app', icon: 'plus' },
+    );
+    return items;
+  }, [isWorkspaceAdmin]);
 
   return (
     <>

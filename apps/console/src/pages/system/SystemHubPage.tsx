@@ -29,6 +29,7 @@ import {
   Store,
 } from 'lucide-react';
 import { useAdapter, useMetadata } from '@object-ui/app-shell';
+import { useIsWorkspaceAdmin } from '@object-ui/auth';
 import { getHubMetadataTypes } from '../../config/metadataTypeRegistry';
 import { getIcon } from '../../utils/getIcon';
 
@@ -39,6 +40,7 @@ interface HubCard {
   href: string;
   countLabel: string;
   count: number | null;
+  adminOnly?: boolean;
 }
 
 export function SystemHubPage() {
@@ -47,6 +49,7 @@ export function SystemHubPage() {
   const basePath = appName ? `/apps/${appName}` : '';
   const dataSource = useAdapter();
   const metadata = useMetadata();
+  const isWorkspaceAdmin = useIsWorkspaceAdmin();
   const { apps, objects: metadataObjects, dashboards, reports, pages } = metadata;
 
   const [counts, setCounts] = useState<Record<string, number | null>>({
@@ -170,6 +173,7 @@ export function SystemHubPage() {
       href: `${basePath}/system/marketplace`,
       countLabel: '',
       count: null,
+      adminOnly: true,
     },
     {
       title: 'Settings',
@@ -189,7 +193,9 @@ export function SystemHubPage() {
     },
   ];
 
-  const cards: HubCard[] = [...metadataTypeCards, ...systemCards];
+  const cards: HubCard[] = [...metadataTypeCards, ...systemCards].filter(
+    (c) => !c.adminOnly || isWorkspaceAdmin,
+  );
 
   return (
     <div className="flex flex-col gap-6 p-4 sm:p-6">

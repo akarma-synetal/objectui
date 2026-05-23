@@ -76,6 +76,7 @@ export function AuthProvider({
   // Organization / workspace state
   const [organizations, setOrganizations] = useState<AuthOrganization[]>([]);
   const [activeOrganization, setActiveOrganization] = useState<AuthOrganization | null>(null);
+  const [activeMember, setActiveMember] = useState<AuthOrganizationMember | null>(null);
   const [isOrganizationsLoading, setIsOrganizationsLoading] = useState(false);
 
   // Determine if we're in preview mode
@@ -303,6 +304,37 @@ export function AuthProvider({
     }
   }, [client, enabled, isPreviewMode, activeOrganization]);
 
+  // Refresh the active member row whenever the active org changes. Used by
+  // role-gated UI (e.g. the marketplace install entries). Preview / no-auth
+  // modes are treated as admin so dev/demo workflows keep all features.
+  const refreshActiveMember = useCallback(async () => {
+    if (!enabled || isPreviewMode) {
+      const role = isPreviewMode ? (previewMode?.simulatedRole ?? 'admin') : 'admin';
+      setActiveMember({
+        id: 'preview-member',
+        organizationId: activeOrganization?.id ?? 'preview-org',
+        userId: 'preview-user',
+        role,
+      } as AuthOrganizationMember);
+      return;
+    }
+    if (!activeOrganization) {
+      setActiveMember(null);
+      return;
+    }
+    try {
+      const member = await client.getActiveMember();
+      setActiveMember(member);
+    } catch (err) {
+      console.warn('[AuthProvider] Failed to load active member:', err);
+      setActiveMember(null);
+    }
+  }, [client, enabled, isPreviewMode, previewMode, activeOrganization]);
+
+  useEffect(() => {
+    refreshActiveMember();
+  }, [refreshActiveMember]);
+
   // Load organizations once user is authenticated
   useEffect(() => {
     if (user && enabled && !isPreviewMode) {
@@ -467,6 +499,7 @@ export function AuthProvider({
       signInWithProvider,
       organizations,
       activeOrganization,
+      activeMember,
       isOrganizationsLoading,
       switchOrganization,
       createOrganization,
@@ -488,7 +521,7 @@ export function AuthProvider({
     [
       user, session, isAuthenticated, isAuthEnabled, isLoading, error, isPreviewMode, previewMode,
       signIn, signUp, signOut, updateUser, forgotPassword, resetPassword, getAuthConfig, signInWithProvider,
-      organizations, activeOrganization, isOrganizationsLoading, switchOrganization, createOrganization, refreshOrganizations,
+      organizations, activeOrganization, activeMember, isOrganizationsLoading, switchOrganization, createOrganization, refreshOrganizations,
       updateOrganization, deleteOrganization, leaveOrganization,
       getMembers, inviteMember, removeMember, updateMemberRole,
       listInvitations, cancelInvitation, getInvitation, acceptInvitation, rejectInvitation, listUserInvitations,

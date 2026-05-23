@@ -22,7 +22,7 @@ import { useMetadata } from '../../providers/MetadataProvider';
 import { useRecentItems } from '../../hooks/useRecentItems';
 import { useFavorites } from '../../hooks/useFavorites';
 import { useObjectTranslation } from '@object-ui/i18n';
-import { useAuth } from '@object-ui/auth';
+import { useAuth, useIsWorkspaceAdmin } from '@object-ui/auth';
 import { AppCard } from './AppCard';
 import { RecentApps } from './RecentApps';
 import { StarredApps } from './StarredApps';
@@ -88,6 +88,7 @@ export function HomePage() {
   const { recentItems } = useRecentItems();
   const { favorites } = useFavorites();
   const { user } = useAuth();
+  const isAdmin = useIsWorkspaceAdmin();
 
   const activeApps = apps.filter((a: any) => a.active !== false);
 
@@ -126,14 +127,16 @@ export function HomePage() {
               <Plus className="mr-2 h-4 w-4" />
               {t('home.createFirstApp', { defaultValue: 'Create Your First App' })}
             </Button>
-            <Button
-              variant="outline"
-              onClick={() => navigate('/apps/setup/system/marketplace')}
-              data-testid="browse-marketplace-empty-btn"
-            >
-              <Store className="mr-2 h-4 w-4" />
-              {t('home.browseMarketplace', { defaultValue: 'Browse App Marketplace' })}
-            </Button>
+            {isAdmin && (
+              <Button
+                variant="outline"
+                onClick={() => navigate('/apps/setup/system/marketplace')}
+                data-testid="browse-marketplace-empty-btn"
+              >
+                <Store className="mr-2 h-4 w-4" />
+                {t('home.browseMarketplace', { defaultValue: 'Browse App Marketplace' })}
+              </Button>
+            )}
             <Button variant="outline" onClick={() => navigate('/apps/setup')} data-testid="go-to-settings-btn">
               <Settings className="mr-2 h-4 w-4" />
               {t('home.systemSettings', { defaultValue: 'System Settings' })}
@@ -195,14 +198,16 @@ export function HomePage() {
                   {t('home.stats.apps', { defaultValue: 'Applications' })}
                 </p>
               </div>
-              <Button
-                variant="outline"
-                onClick={() => navigate('/apps/setup/system/marketplace')}
-                data-testid="browse-marketplace-btn"
-              >
-                <Store className="mr-2 h-4 w-4" />
-                {t('home.browseMarketplace', { defaultValue: 'Browse App Marketplace' })}
-              </Button>
+              {isAdmin && (
+                <Button
+                  variant="outline"
+                  onClick={() => navigate('/apps/setup/system/marketplace')}
+                  data-testid="browse-marketplace-btn"
+                >
+                  <Store className="mr-2 h-4 w-4" />
+                  {t('home.browseMarketplace', { defaultValue: 'Browse App Marketplace' })}
+                </Button>
+              )}
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
               {activeApps.map((app: any, idx: number) => (

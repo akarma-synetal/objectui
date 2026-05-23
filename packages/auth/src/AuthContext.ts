@@ -54,6 +54,8 @@ export interface AuthContextValue {
   organizations: AuthOrganization[];
   /** Currently active organization */
   activeOrganization: AuthOrganization | null;
+  /** Current user's member row for the active organization (carries role). Null until loaded or when there is no active org. */
+  activeMember: AuthOrganizationMember | null;
   /** Whether organizations are loading */
   isOrganizationsLoading: boolean;
   /** Switch the active organization (workspace) */

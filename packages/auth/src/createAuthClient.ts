@@ -308,6 +308,17 @@ export function createAuthClient(config: AuthClientConfig): AuthClient {
       return data as unknown as AuthOrganization;
     },
 
+    async getActiveMember(): Promise<AuthOrganizationMember | null> {
+      // Returns the current user's member row for the active organization
+      // (id, organizationId, userId, role). Used to gate UI affordances that
+      // require owner/admin role.
+      const fn = (betterAuth as any).organization?.getActiveMember;
+      if (typeof fn !== 'function') return null;
+      const { data, error } = await fn();
+      if (error || !data) return null;
+      return data as unknown as AuthOrganizationMember;
+    },
+
     async getMembers(orgId: string): Promise<AuthOrganizationMember[]> {
       const { data, error } = await (betterAuth as any).organization.listMembers({
         query: { organizationId: orgId },

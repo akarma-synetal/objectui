@@ -23,6 +23,7 @@
 
 export { AuthProvider, type AuthProviderProps } from './AuthProvider';
 export { useAuth } from './useAuth';
+export { useIsWorkspaceAdmin } from './useIsWorkspaceAdmin';
 export { AuthGuard, type AuthGuardProps } from './AuthGuard';
 export { AuthShell, type AuthShellProps, type AuthShellBrandPanel } from './AuthShell';
 export { LoginForm, type LoginFormProps, type LoginFormLabels } from './LoginForm';
