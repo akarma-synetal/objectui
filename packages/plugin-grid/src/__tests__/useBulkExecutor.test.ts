@@ -139,4 +139,137 @@ describe('useBulkExecutor', () => {
     expect(result.current.result?.succeeded).toBe(1);
     expect(result.current.result?.failed).toBe(0);
   });
+
+  describe('bulkUpdate fast-path', () => {
+    it('collapses an update batch into a single bulkUpdate call when the adapter supports it', async () => {
+      const update = vi.fn(async () => ({}));
+      const bulkUpdate = vi.fn(async () => 3);
+      const ds = { update, delete: vi.fn(), bulkUpdate };
+      const { result } = renderHook(() => useBulkExecutor({ resource: 'task', dataSource: ds }));
+
+      await act(async () => {
+        await result.current.run(
+          upd(),
+          [{ id: '1' }, { id: '2' }, { id: '3' }],
+          {},
+        );
+      });
+
+      expect(bulkUpdate).toHaveBeenCalledTimes(1);
+      expect(bulkUpdate).toHaveBeenCalledWith('task', ['1', '2', '3'], { priority: 'high' });
+      // Per-row update must NOT fire when bulk succeeds.
+      expect(update).not.toHaveBeenCalled();
+      expect(result.current.result?.succeeded).toBe(3);
+      expect(result.current.result?.failed).toBe(0);
+    });
+
+    it('skips the bulk path for single-row batches (no win, just overhead)', async () => {
+      const update = vi.fn(async () => ({}));
+      const bulkUpdate = vi.fn(async () => 1);
+      const ds = { update, delete: vi.fn(), bulkUpdate };
+      const { result } = renderHook(() => useBulkExecutor({ resource: 'task', dataSource: ds }));
+
+      await act(async () => {
+        await result.current.run(upd(), [{ id: '1' }], {});
+      });
+
+      expect(bulkUpdate).not.toHaveBeenCalled();
+      expect(update).toHaveBeenCalledTimes(1);
+      expect(result.current.result?.succeeded).toBe(1);
+    });
+
+    it('reports the shortfall as an aggregate failure when bulkUpdate returns a partial count', async () => {
+      const bulkUpdate = vi.fn(async () => 2); // server only updated 2 of 3
+      const ds = { update: vi.fn(), delete: vi.fn(), bulkUpdate };
+      const { result } = renderHook(() => useBulkExecutor({ resource: 'task', dataSource: ds }));
+
+      await act(async () => {
+        await result.current.run(
+          upd(),
+          [{ id: '1' }, { id: '2' }, { id: '3' }],
+          {},
+        );
+      });
+
+      expect(result.current.result?.succeeded).toBe(2);
+      expect(result.current.result?.failed).toBe(1);
+      expect(result.current.result?.errors).toHaveLength(1);
+      expect(result.current.result?.errors[0]).toMatchObject({
+        id: 'batch_0',
+        error: expect.stringContaining('failed in bulk update'),
+      });
+    });
+
+    it('falls back to per-row updates when bulkUpdate throws, preserving id-level error detail', async () => {
+      const bulkUpdate = vi.fn(async () => {
+        throw new Error('server unavailable');
+      });
+      const update = vi.fn(async (_: string, id: string) => {
+        if (id === '2') throw new Error('row 2 RLS rejected');
+        return {};
+      });
+      const ds = { update, delete: vi.fn(), bulkUpdate };
+      const { result } = renderHook(() => useBulkExecutor({ resource: 'task', dataSource: ds }));
+
+      await act(async () => {
+        await result.current.run(
+          upd(),
+          [{ id: '1' }, { id: '2' }, { id: '3' }],
+          {},
+        );
+      });
+
+      // Bulk was tried then fell back to N updates so the user gets per-row errors.
+      expect(bulkUpdate).toHaveBeenCalledTimes(1);
+      expect(update).toHaveBeenCalledTimes(3);
+      expect(result.current.result?.succeeded).toBe(2);
+      expect(result.current.result?.failed).toBe(1);
+      expect(result.current.result?.errors[0]).toMatchObject({ id: '2', error: 'row 2 RLS rejected' });
+    });
+
+    it('keeps using per-row updates for delete and custom operations', async () => {
+      const bulkUpdate = vi.fn(async () => 99);
+      const deleteFn = vi.fn(async () => ({}));
+      const ds = { update: vi.fn(), delete: deleteFn, bulkUpdate };
+      const { result } = renderHook(() => useBulkExecutor({ resource: 'task', dataSource: ds }));
+
+      await act(async () => {
+        await result.current.run(
+          { name: 'rm', operation: 'delete' } as BulkActionDef,
+          [{ id: '1' }, { id: '2' }],
+          {},
+        );
+      });
+
+      expect(bulkUpdate).not.toHaveBeenCalled();
+      expect(deleteFn).toHaveBeenCalledTimes(2);
+    });
+
+    it('still captures pre-mutation snapshot so undo works even when bulk succeeded', async () => {
+      const bulkUpdate = vi.fn(async () => 2);
+      const update = vi.fn(async () => ({}));
+      const ds = { update, delete: vi.fn(), bulkUpdate };
+      const rows = [
+        { id: '1', priority: 'low' },
+        { id: '2', priority: 'medium' },
+      ];
+      const { result } = renderHook(() => useBulkExecutor({ resource: 'task', dataSource: ds }));
+
+      await act(async () => {
+        await result.current.run(upd(), rows, {});
+      });
+
+      expect(bulkUpdate).toHaveBeenCalledTimes(1);
+      expect(update).not.toHaveBeenCalled();
+
+      await act(async () => {
+        await result.current.undo();
+      });
+
+      // Undo replays per-row prev values because each row has its own snapshot.
+      expect(update).toHaveBeenCalledTimes(2);
+      expect(update).toHaveBeenCalledWith('task', '1', { priority: 'low' });
+      expect(update).toHaveBeenCalledWith('task', '2', { priority: 'medium' });
+    });
+  });
 });

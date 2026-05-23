@@ -51,24 +51,39 @@ export interface BulkExecutorOptions {
   dataSource: {
     update: (resource: string, id: string, patch: Record<string, unknown>) => Promise<unknown>;
     delete: (resource: string, id: string) => Promise<unknown>;
+    /**
+     * Optional server-side bulk-update primitive. When present, the executor
+     * collapses an entire `update` batch into a single HTTP request — turning
+     * "mark 500 notifications read" from 500 PATCH calls into 1. Adapters
+     * without bulk support keep working via the per-row fallback below.
+     */
+    bulkUpdate?: (
+      resource: string,
+      ids: ReadonlyArray<string | number>,
+      patch: Record<string, unknown>,
+    ) => Promise<number>;
   };
 }
 
 /**
  * Sequential executor for bulk actions. Iterates the selected records in
- * configurable batches, calling `dataSource.update`/`delete` per record. Uses
- * Promise.allSettled so a single failure never aborts the run.
+ * configurable batches. For `update` operations the hook prefers the
+ * adapter's `bulkUpdate` primitive (one HTTP request per batch); when it's
+ * absent or throws, it falls back to per-row `dataSource.update`/`delete`
+ * via `Promise.allSettled` so a single failure never aborts the run.
  *
  * In addition to running, the hook also exposes:
  *   - `undo()`   — replay the prior values captured during the last update run
  *   - `retry(id)`— re-attempt a single failed row using the last run's params
  *
- * Why per-record and not the dataSource.bulk() batch endpoint:
- * - We want per-record success/failure granularity for the result drawer.
- * - The existing `dataSource.bulk()` throws on partial failure, which would
- *   require us to unpack BulkOperationError; per-record settles are simpler.
- * - Later phases can swap this for a true server-side atomic batch when the
- *   upstream `objectql.bulk()` endpoint stabilises.
+ * Bulk vs per-row tradeoff:
+ * - Bulk halves network round-trips and lets the server enforce atomicity
+ *   inside a single transaction (typical "mark all read" use case).
+ * - Per-row preserves exact (id, error) attribution for the result CSV.
+ * - The hook automatically falls back from bulk to per-row when bulkUpdate
+ *   throws, so users still get actionable error detail on hard failures.
+ *   Soft (`succeeded < total`) shortfalls surface as a single aggregate
+ *   error entry per batch — see comments inline.
  */
 export function useBulkExecutor({ resource, dataSource }: BulkExecutorOptions) {
   const [progress, setProgress] = useState<BulkProgress>({
@@ -134,6 +149,84 @@ export function useBulkExecutor({ resource, dataSource }: BulkExecutorOptions) {
 
       for (let i = 0; i < rows.length; i += batchSize) {
         const batch = rows.slice(i, i + batchSize);
+
+        // Fast path: when the operation is `update`, the adapter exposes a
+        // bulk-update primitive, and we have at least 2 rows in the batch,
+        // collapse to a single HTTP request. The per-row snapshot captured
+        // above still powers granular undo; we only lose per-row error
+        // detail when the server reports a partial failure (rare for the
+        // "same patch to N rows" shape this hook supports).
+        const canBulkUpdate =
+          def.operation === 'update'
+          && typeof dataSource.bulkUpdate === 'function'
+          && batch.length >= 2;
+
+        if (canBulkUpdate) {
+          const ids = batch
+            .map(r => (r.id != null ? String(r.id) : ''))
+            .filter(s => s.length > 0);
+
+          const missing = batch.length - ids.length;
+          if (missing > 0) {
+            // Surface ids-less rows as failures up-front so the bulk call
+            // operates on a clean id list.
+            for (let k = 0; k < batch.length; k += 1) {
+              if (batch[k].id == null) {
+                failed += 1;
+                errors.push({
+                  id: `index_${i + k}`,
+                  error: 'Missing record id',
+                });
+              }
+            }
+          }
+
+          try {
+            const patch = buildPatch();
+            const n = await dataSource.bulkUpdate!(resource, ids, patch);
+            const bulkSucceeded = Math.max(0, Math.min(n, ids.length));
+            succeeded += bulkSucceeded;
+            const bulkFailed = ids.length - bulkSucceeded;
+            if (bulkFailed > 0) {
+              // No per-id breakdown from the bulk endpoint; collapse the
+              // shortfall into a single aggregate entry rather than
+              // fabricating row attribution.
+              failed += bulkFailed;
+              errors.push({
+                id: `batch_${i}`,
+                error: `${bulkFailed} record${bulkFailed === 1 ? '' : 's'} failed in bulk update`,
+              });
+            }
+          } catch (err) {
+            // Fall back to per-row updates for this batch so the user gets
+            // actionable per-id error rows in the result CSV.
+            const settled = await Promise.allSettled(
+              batch.map(row => {
+                const id = String(row.id ?? '');
+                if (!id) return Promise.reject(new Error('Missing record id'));
+                return dataSource.update(resource, id, buildPatch());
+              }),
+            );
+            settled.forEach((res, batchIdx) => {
+              const row = batch[batchIdx];
+              if (res.status === 'fulfilled') {
+                succeeded += 1;
+              } else {
+                failed += 1;
+                errors.push({
+                  id: String(row.id ?? `index_${i + batchIdx}`),
+                  error: res.reason instanceof Error ? res.reason.message : String(res.reason),
+                });
+              }
+            });
+            // Swallow `err` after fallback — its message would duplicate
+            // the per-row entries we just appended.
+            void err;
+          }
+          setProgress({ total, done: succeeded, failed, inFlight: true });
+          continue;
+        }
+
         const settled = await Promise.allSettled(
           batch.map(row => {
             const id = String(row.id ?? '');
