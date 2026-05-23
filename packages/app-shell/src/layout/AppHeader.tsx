@@ -320,6 +320,18 @@ export function AppHeader({
     setNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
     if (!dataSource) return;
     const now = new Date().toISOString();
+    const ids = unread.map(n => n.id);
+    // Prefer the bulk endpoint — one HTTP/auth/RLS round-trip instead of
+    // N parallel PATCHes, which previously caused noticeable hitching
+    // (Slack-style "mark all read" jank) on inboxes with 50+ unread.
+    // Fall back to the per-id loop on adapters that don't implement it.
+    const ds: any = dataSource as any;
+    if (typeof ds.bulkUpdate === 'function') {
+      try {
+        await ds.bulkUpdate('sys_notification', ids, { is_read: true, read_at: now });
+        return;
+      } catch { /* fall through to per-id loop */ }
+    }
     await Promise.all(unread.map(n =>
       dataSource.update('sys_notification', n.id, { is_read: true, read_at: now }).catch(() => {}),
     ));

@@ -751,6 +751,60 @@ export class ObjectStackAdapter<T = unknown> implements DataSource<T> {
   }
 
   /**
+   * Apply the same patch to many records in a single round-trip.
+   *
+   * Sends one `POST /api/v1/data/:object/updateMany` request whose body
+   * is `{ records: ids.map(id => ({id, data: patch})), options: { continueOnError: true }}`.
+   * The server iterates server-side (still N engine writes) but the
+   * client only pays for ONE HTTP/auth/RLS round-trip — the relevant
+   * perf win for inbox / list-toolbar "mark all read" / "archive
+   * selected" interactions where N can easily be in the hundreds.
+   *
+   * Falls back to a sequential per-id loop when the connected client
+   * does not expose `updateMany` (older clients / offline adapters).
+   * In that case `continueOnError` semantics are emulated locally so
+   * callers see the same return shape.
+   */
+  async bulkUpdate(
+    resource: string,
+    ids: ReadonlyArray<string | number>,
+    patch: Partial<T>,
+  ): Promise<number> {
+    await this.connect();
+    if (!ids || ids.length === 0) return 0;
+    const records = ids.map((id) => ({ id: String(id), data: patch as any }));
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const updateMany = (this.client.data as any).updateMany;
+    if (typeof updateMany === 'function') {
+      try {
+        const res = await updateMany(resource, records, { continueOnError: true });
+        // The server returns BatchUpdateResponse { succeeded, failed, ... };
+        // fall back to ids.length on adapters that return a bare array.
+        if (res && typeof res === 'object' && typeof (res as any).succeeded === 'number') {
+          return (res as any).succeeded as number;
+        }
+        if (Array.isArray(res)) return (res as any[]).length;
+        return ids.length;
+      } catch (err) {
+        throw normaliseClientError(err);
+      }
+    }
+
+    // Fallback: sequential per-id updates, tolerating failures.
+    let succeeded = 0;
+    for (const id of ids) {
+      try {
+        await this.client.data.update<T>(resource, String(id), patch);
+        succeeded++;
+      } catch {
+        // continueOnError semantics — swallow per-row errors
+      }
+    }
+    return succeeded;
+  }
+
+  /**
    * Bulk operations with optimized batch processing and error handling.
    * Emits progress events for tracking operation status.
    * 

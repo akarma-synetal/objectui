@@ -234,6 +234,30 @@ export interface DataSource<T = any> {
   bulk?(resource: string, operation: 'create' | 'update' | 'delete', data: Partial<T>[]): Promise<T[]>;
 
   /**
+   * Apply the **same** patch to many records in a single round-trip.
+   *
+   * This is the "Slack mark-all-as-read" / "Linear archive selection"
+   * pattern: one logical operation, N targets, identical body. Adapters
+   * that support a server-side bulk-update primitive should issue one
+   * HTTP request; adapters without bulk support may fall back to a
+   * sequential per-id loop (callers should not assume atomicity).
+   *
+   * Returns the count of successfully updated rows. Per-row failures
+   * (e.g. RLS-rejected, validation errors) are tolerated when the
+   * adapter supports it; total errors throw.
+   *
+   * @param resource - Object/table name
+   * @param ids - Target record ids
+   * @param patch - Field updates applied uniformly to every id
+   * @returns Number of rows reported as updated by the server
+   */
+  bulkUpdate?(
+    resource: string,
+    ids: ReadonlyArray<string | number>,
+    patch: Partial<T>,
+  ): Promise<number>;
+
+  /**
    * Cancel (recall) the active pending approval request for a record.
    * Returns the recalled request id and final status. Throws when no
    * pending request exists or when the caller is not the submitter.
