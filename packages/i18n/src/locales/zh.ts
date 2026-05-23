@@ -928,6 +928,7 @@ const zh = {
     commandPalette: {
       placeholder: '输入命令或搜索...',
       noResults: '未找到结果。',
+      searching: '搜索中…',
       records: '记录',
       recentRecords: '最近访问',
       objects: '对象',

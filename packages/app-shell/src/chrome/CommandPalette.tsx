@@ -98,7 +98,7 @@ export function CommandPalette({ apps, activeApp, objects, onAppChange, dataSour
     [activeApp?.name, navItems.map((i) => i.objectName || '').join('|')],
   );
 
-  const { results: recordHits } = useRecordSearch({
+  const { results: recordHits, isSearching } = useRecordSearch({
     query: inputValue,
     objects,
     dataSource,
@@ -126,7 +126,19 @@ export function CommandPalette({ apps, activeApp, objects, onAppChange, dataSour
         onValueChange={setInputValue}
       />
       <CommandList>
-        <CommandEmpty>{t('console.commandPalette.noResults')}</CommandEmpty>
+        <CommandEmpty>
+          {isSearching ? (
+            <span className="inline-flex items-center gap-2 text-muted-foreground">
+              <span
+                aria-hidden
+                className="inline-block h-1.5 w-1.5 rounded-full bg-primary motion-safe:animate-pulse"
+              />
+              {t('console.commandPalette.searching', { defaultValue: 'Searching…' })}
+            </span>
+          ) : (
+            t('console.commandPalette.noResults')
+          )}
+        </CommandEmpty>
 
         {/* Recently visited records (cloud-synced via sys_user_preference).
             Only renders when the input is empty so search results don't
@@ -150,7 +162,19 @@ export function CommandPalette({ apps, activeApp, objects, onAppChange, dataSour
 
         {/* Record search — only renders when there are async hits */}
         {recordHits.length > 0 && (
-          <CommandGroup heading={t('console.commandPalette.records', { defaultValue: 'Records' })}>
+          <CommandGroup
+            heading={
+              <span className="inline-flex items-center gap-2">
+                {t('console.commandPalette.records', { defaultValue: 'Records' })}
+                {isSearching && (
+                  <span
+                    aria-hidden
+                    className="inline-block h-1.5 w-1.5 rounded-full bg-primary motion-safe:animate-pulse"
+                  />
+                )}
+              </span>
+            }
+          >
             {recordHits.map((hit) => {
               const Icon = getIcon(hit.icon);
               return (
