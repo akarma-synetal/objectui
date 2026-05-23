@@ -929,6 +929,7 @@ const en = {
       placeholder: 'Type a command or search...',
       noResults: 'No results found.',
       records: 'Records',
+      recentRecords: 'Recently viewed',
       objects: 'Objects',
       dashboards: 'Dashboards',
       pages: 'Pages',

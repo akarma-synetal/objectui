@@ -35,6 +35,7 @@ import { useExpressionContext, evaluateVisibility } from '../providers/Expressio
 import { useObjectTranslation } from '@object-ui/i18n';
 import { resolveI18nLabel, getRecordDisplayName } from '../utils';
 import { getIcon } from '../utils/getIcon';
+import { useRecentItems } from '../context/RecentItemsProvider';
 
 interface CommandPaletteProps {
   apps: any[];
@@ -106,6 +107,17 @@ export function CommandPalette({ apps, activeApp, objects, onAppChange, dataSour
     getDisplayName: getRecordDisplayName,
   });
 
+  // Cloud-synced (sys_user_preference) recently-visited records,
+  // surfaced in the empty state so the palette is useful before the
+  // user types anything. Filtered down to record-type entries so we
+  // don't double up with the per-app nav above.
+  const { recentItems } = useRecentItems();
+  const recentRecords = useMemo(
+    () => recentItems.filter((it) => it.type === 'record').slice(0, 5),
+    [recentItems],
+  );
+  const showRecentRecords = open && inputValue.trim().length === 0 && recentRecords.length > 0;
+
   return (
     <CommandDialog open={open} onOpenChange={setOpen}>
       <CommandInput
@@ -115,6 +127,26 @@ export function CommandPalette({ apps, activeApp, objects, onAppChange, dataSour
       />
       <CommandList>
         <CommandEmpty>{t('console.commandPalette.noResults')}</CommandEmpty>
+
+        {/* Recently visited records (cloud-synced via sys_user_preference).
+            Only renders when the input is empty so search results don't
+            compete with this fallback list. */}
+        {showRecentRecords && (
+          <CommandGroup
+            heading={t('console.commandPalette.recentRecords', { defaultValue: 'Recently viewed' })}
+          >
+            {recentRecords.map((item) => (
+              <CommandItem
+                key={`recent:${item.id}`}
+                value={`recent ${item.label} ${item.id}`}
+                onSelect={() => runCommand(() => navigate(item.href))}
+              >
+                <Search className="mr-2 h-4 w-4" />
+                <span className="truncate">{item.label}</span>
+              </CommandItem>
+            ))}
+          </CommandGroup>
+        )}
 
         {/* Record search — only renders when there are async hits */}
         {recordHits.length > 0 && (

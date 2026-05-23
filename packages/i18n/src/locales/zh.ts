@@ -929,6 +929,7 @@ const zh = {
       placeholder: '输入命令或搜索...',
       noResults: '未找到结果。',
       records: '记录',
+      recentRecords: '最近访问',
       objects: '对象',
       dashboards: '仪表盘',
       pages: '页面',
