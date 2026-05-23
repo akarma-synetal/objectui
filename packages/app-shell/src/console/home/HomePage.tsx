@@ -27,7 +27,7 @@ import { AppCard } from './AppCard';
 import { RecentApps } from './RecentApps';
 import { StarredApps } from './StarredApps';
 import { Empty, EmptyTitle, EmptyDescription, Button } from '@object-ui/components';
-import { Plus, Settings, Sparkles, Star, Clock, ArrowDown } from 'lucide-react';
+import { Plus, Settings, Sparkles, Star, Clock, ArrowDown, Store } from 'lucide-react';
 
 function pickGreetingKey(hour: number): string {
   if (hour < 5) return 'home.greetingNight';
@@ -126,6 +126,14 @@ export function HomePage() {
               <Plus className="mr-2 h-4 w-4" />
               {t('home.createFirstApp', { defaultValue: 'Create Your First App' })}
             </Button>
+            <Button
+              variant="outline"
+              onClick={() => navigate('/apps/setup/system/marketplace')}
+              data-testid="browse-marketplace-empty-btn"
+            >
+              <Store className="mr-2 h-4 w-4" />
+              {t('home.browseMarketplace', { defaultValue: 'Browse App Marketplace' })}
+            </Button>
             <Button variant="outline" onClick={() => navigate('/apps/setup')} data-testid="go-to-settings-btn">
               <Settings className="mr-2 h-4 w-4" />
               {t('home.systemSettings', { defaultValue: 'System Settings' })}
@@ -187,6 +195,14 @@ export function HomePage() {
                   {t('home.stats.apps', { defaultValue: 'Applications' })}
                 </p>
               </div>
+              <Button
+                variant="outline"
+                onClick={() => navigate('/apps/setup/system/marketplace')}
+                data-testid="browse-marketplace-btn"
+              >
+                <Store className="mr-2 h-4 w-4" />
+                {t('home.browseMarketplace', { defaultValue: 'Browse App Marketplace' })}
+              </Button>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
               {activeApps.map((app: any, idx: number) => (
