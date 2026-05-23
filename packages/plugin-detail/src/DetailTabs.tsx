@@ -56,7 +56,11 @@ export const DetailTabs: React.FC<DetailTabsProps> = ({
       </TabsList>
 
       {visibleTabs.map((tab) => (
-        <TabsContent key={tab.key} value={tab.key} className="mt-4">
+        <TabsContent
+          key={tab.key}
+          value={tab.key}
+          className="mt-4 motion-safe:data-[state=active]:animate-in motion-safe:data-[state=active]:fade-in-0 motion-safe:duration-150"
+        >
           <React.Suspense fallback={null}>
             {Array.isArray(tab.content) ? (
               <div className="space-y-4">

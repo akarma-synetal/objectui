@@ -1332,13 +1332,13 @@ export const DetailView: React.FC<DetailViewProps> = ({
             </TabsList>
 
             {/* Details Tab Content */}
-            <TabsContent value="details" className="mt-4">
+            <TabsContent value="details" className="mt-4 motion-safe:data-[state=active]:animate-in motion-safe:data-[state=active]:fade-in-0 motion-safe:duration-150">
               {detailsContent}
             </TabsContent>
 
             {/* Related Tab Content */}
             {hasRelated && (
-              <TabsContent value="related" className="mt-4">
+              <TabsContent value="related" className="mt-4 motion-safe:data-[state=active]:animate-in motion-safe:data-[state=active]:fade-in-0 motion-safe:duration-150">
                 <div className="space-y-3">
                   {effectiveRelated.map((related, index) => (
                     <RelatedList
@@ -1368,21 +1368,21 @@ export const DetailView: React.FC<DetailViewProps> = ({
 
             {/* Activity Tab Content */}
             {hasActivity && (
-              <TabsContent value="activity" className="mt-4">
+              <TabsContent value="activity" className="mt-4 motion-safe:data-[state=active]:animate-in motion-safe:data-[state=active]:fade-in-0 motion-safe:duration-150">
                 <ActivityTimeline activities={schema.activities!} />
               </TabsContent>
             )}
 
             {/* Discussion Tab Content */}
             {hasDiscussion && (
-              <TabsContent value="discussion" className="mt-4">
+              <TabsContent value="discussion" className="mt-4 motion-safe:data-[state=active]:animate-in motion-safe:data-[state=active]:fade-in-0 motion-safe:duration-150">
                 {discussionSlot}
               </TabsContent>
             )}
 
             {/* History Tab Content */}
             {hasHistory && (
-              <TabsContent value="history" className="mt-4">
+              <TabsContent value="history" className="mt-4 motion-safe:data-[state=active]:animate-in motion-safe:data-[state=active]:fade-in-0 motion-safe:duration-150">
                 <HistoryTimeline
                   entries={schema.history!.entries}
                   loading={schema.history!.loading}

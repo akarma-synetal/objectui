@@ -69,7 +69,7 @@ export const BulkActionBar: React.FC<BulkActionBarProps> = ({
 
   return (
     <div
-      className="border-t border-primary/30 px-4 py-2 flex flex-col gap-1.5 text-xs bg-primary/10 text-foreground shrink-0 shadow-sm"
+      className="border-t border-primary/30 px-4 py-2 flex flex-col gap-1.5 text-xs bg-primary/10 text-foreground shrink-0 shadow-sm motion-safe:animate-in motion-safe:slide-in-from-bottom-2 motion-safe:fade-in-0 motion-safe:duration-200"
       role="region"
       aria-label="Bulk actions"
       data-testid="bulk-actions-bar"
@@ -105,10 +105,15 @@ export const BulkActionBar: React.FC<BulkActionBarProps> = ({
       )}
       <div className="flex items-center gap-2">
       <CheckSquare className="h-3.5 w-3.5 text-primary shrink-0" />
-      <span className="font-medium">
-        {allMatchingSelected
-          ? `${totalMatching} items selected (all matches)`
-          : `${selectedRows.length} ${selectedRows.length === 1 ? 'item' : 'items'} selected`}
+      <span className="font-medium tabular-nums">
+        <span
+          key={allMatchingSelected ? `all-${totalMatching}` : selectedRows.length}
+          className="inline-block motion-safe:animate-in motion-safe:zoom-in-90 motion-safe:duration-150"
+        >
+          {allMatchingSelected
+            ? `${totalMatching} items selected (all matches)`
+            : `${selectedRows.length} ${selectedRows.length === 1 ? 'item' : 'items'} selected`}
+        </span>
       </span>
       <div className="flex items-center gap-1.5 ml-3">
         {hasDefs && actionDefs!.map(def => {
