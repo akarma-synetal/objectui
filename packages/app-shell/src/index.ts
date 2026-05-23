@@ -119,6 +119,8 @@ export type { UserDataAdapter, UserStateKind } from './context';
 
 // Default page implementations (consumers can partial-override slots)
 export { AppContent as DefaultAppContent } from './console/AppContent';
+export { MarketplacePage } from './console/marketplace/MarketplacePage';
+export { MarketplacePackagePage } from './console/marketplace/MarketplacePackagePage';
 export { LoginPage as DefaultLoginPage } from './console/auth/LoginPage';
 export { RegisterPage as DefaultRegisterPage } from './console/auth/RegisterPage';
 export { ForgotPasswordPage as DefaultForgotPasswordPage } from './console/auth/ForgotPasswordPage';

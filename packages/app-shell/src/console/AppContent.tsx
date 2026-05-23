@@ -49,6 +49,11 @@ const EditAppPage = lazy(() => import('@object-ui/plugin-designer').then(m => ({
 const PageDesignPage = lazy(() => import('@object-ui/plugin-designer').then(m => ({ default: m.PageDesignPage })));
 const DashboardDesignPage = lazy(() => import('@object-ui/plugin-designer').then(m => ({ default: m.DashboardDesignPage })));
 
+// Marketplace pages — first-class platform feature; mounted at `system/marketplace`
+// under any active app so admins can browse + install from inside the runtime.
+const MarketplacePage = lazy(() => import('./marketplace/MarketplacePage').then(m => ({ default: m.MarketplacePage })));
+const MarketplacePackagePage = lazy(() => import('./marketplace/MarketplacePackagePage').then(m => ({ default: m.MarketplacePackagePage })));
+
 interface AppContentProps {
   /**
    * Extra <Route> elements appended to the inner /apps/:appName/* router.
@@ -290,6 +295,8 @@ export function AppContent({ extraRoutes, extraRoutesNoApp }: AppContentProps = 
       <Suspense fallback={<LoadingScreen />}>
         <Routes>
           <Route path="create-app" element={<CreateAppPage />} />
+          <Route path="system/marketplace" element={<MarketplacePage />} />
+          <Route path="system/marketplace/:packageId" element={<MarketplacePackagePage />} />
           {extraRoutesNoApp}
         </Routes>
       </Suspense>
@@ -346,6 +353,8 @@ export function AppContent({ extraRoutes, extraRoutesNoApp }: AppContentProps = 
                 <Route path="search" element={<SearchResultsPage />} />
                 <Route path="create-app" element={<CreateAppPage />} />
                 <Route path="edit-app/:editAppName" element={<EditAppPage />} />
+                <Route path="system/marketplace" element={<MarketplacePage />} />
+                <Route path="system/marketplace/:packageId" element={<MarketplacePackagePage />} />
                 {extraRoutes}
                 {/* Shorthand-deep-link redirect: a bare `/{:objectName}/:maybeRecordId`
                     URL is ambiguous — it could be a view id or a record id. When

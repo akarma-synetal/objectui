@@ -23,7 +23,7 @@ import { Package, Search, RefreshCcw, Store, AlertCircle } from 'lucide-react';
 import {
   listMarketplacePackages,
   type MarketplacePackageSummary,
-} from '../../services/marketplaceApi';
+} from './marketplaceApi';
 
 function formatRelative(iso?: string | null): string {
   if (!iso) return '';

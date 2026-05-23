@@ -38,7 +38,7 @@ import {
   cloudInstallDeepLink,
   type MarketplaceDetailResponse,
   type CloudEnvironment,
-} from '../../services/marketplaceApi';
+} from './marketplaceApi';
 
 export function MarketplacePackagePage() {
   const navigate = useNavigate();
