@@ -44,6 +44,14 @@ export default defineConfig({
         target: 'http://localhost:3000',
         changeOrigin: true,
       },
+      // Auth UI lives in the Account SPA mounted on the backend at /_account/.
+      // Studio hard-navigates here for sign-in (see src/lib/auth-redirect.ts);
+      // without this proxy, Vite would SPA-fallback to Studio's index.html and
+      // the auth guard would loop indefinitely.
+      '/_account': {
+        target: 'http://localhost:3000',
+        changeOrigin: true,
+      },
     },
   },
   optimizeDeps: {
