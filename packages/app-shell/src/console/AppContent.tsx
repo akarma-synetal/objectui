@@ -321,7 +321,7 @@ export function AppContent({ extraRoutes, extraRoutesNoApp }: AppContentProps = 
           <ErrorBoundary>
             <Suspense fallback={<LoadingScreen />}>
               <Routes>
-                <Route path="/" element={<Navigate to={findFirstRoute(activeApp.navigation || [])} replace />} />
+                <Route path="/" element={<Navigate to={resolveLandingRoute(activeApp)} replace />} />
                 <Route path=":objectName" element={
                   <ObjectView dataSource={dataSource} objects={allObjects} onEdit={handleEdit} externalRefreshKey={refreshKey} />
                 } />
@@ -409,5 +409,48 @@ function findFirstRoute(items: any[]): string {
     }
   }
   return '';
+}
+
+// Build the per-item route segment without recursing through groups —
+// used when `homePageId` resolved to an exact match and we just need to
+// know how to address it.
+function buildItemRoute(item: any): string {
+  if (!item) return '';
+  if (item.type === 'object') return item.viewName ? `${item.objectName}/view/${item.viewName}` : `${item.objectName}`;
+  if (item.type === 'page') return item.pageName ? `page/${item.pageName}` : '';
+  if (item.type === 'dashboard') return item.dashboardName ? `dashboard/${item.dashboardName}` : '';
+  if (item.type === 'report') return item.reportName ? `report/${item.reportName}` : '';
+  return '';
+}
+
+function findNavItemById(items: any[], id: string): any | undefined {
+  if (!items) return undefined;
+  for (const item of items) {
+    if (item.id === id) return item;
+    if (item.type === 'group' && item.children) {
+      const hit = findNavItemById(item.children, id);
+      if (hit) return hit;
+    }
+  }
+  return undefined;
+}
+
+/**
+ * Resolves the route to navigate to when the user lands on the bare
+ * `/console/apps/:appName` URL. Honors the app's explicit
+ * `homePageId` (Salesforce-style "Default Landing"); falls back to the
+ * first reachable nav item only when no homePageId is set or it points
+ * at something that doesn't yield a route. This is what lets the CRM
+ * example open on the Sales Dashboard instead of the Lead list.
+ */
+function resolveLandingRoute(activeApp: any): string {
+  const homePageId: string | undefined = activeApp?.homePageId;
+  const navigation = activeApp?.navigation || [];
+  if (homePageId) {
+    const item = findNavItemById(navigation, homePageId);
+    const route = buildItemRoute(item);
+    if (route) return route;
+  }
+  return findFirstRoute(navigation);
 }
 
