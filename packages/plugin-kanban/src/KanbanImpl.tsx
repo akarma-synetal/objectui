@@ -403,12 +403,15 @@ function KanbanColumnView({
             {safeCards.length === 0 && (
               <div
                 className={cn(
-                  "flex flex-col items-center justify-center py-10 rounded-md border-2 border-dashed transition-colors",
+                  "flex flex-col items-center justify-center py-6 rounded-md border-2 border-dashed transition-colors gap-1",
                   isOver
                     ? "border-primary/60 bg-primary/10 text-primary"
                     : "border-border/40 text-muted-foreground/60"
                 )}
               >
+                {!isOver && quickAdd && onQuickAdd && (
+                  <Plus className="h-3.5 w-3.5 opacity-60" aria-hidden />
+                )}
                 <span className="text-xs">
                   {isOver ? '↓ ' : ''}{t('kanban.noCards')}
                 </span>
