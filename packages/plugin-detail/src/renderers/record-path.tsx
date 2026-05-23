@@ -111,8 +111,8 @@ export const RecordPathRenderer: React.FC<RecordPathRendererProps> = ({
                 idx > 0 && '-ml-2',
                 stages.length === 1 && 'rounded-md border',
                 isCurrent && 'bg-primary text-primary-foreground shadow-sm ring-1 ring-primary/40',
-                isCompleted && 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300',
-                !isCurrent && !isCompleted && 'bg-background text-foreground/70 border border-border/60',
+                isCompleted && 'bg-emerald-500/15 text-emerald-800 dark:text-emerald-200',
+                !isCurrent && !isCompleted && 'bg-background text-foreground/85 border border-border/60',
               )}
             >
               <span
@@ -147,8 +147,8 @@ export const RecordPathRenderer: React.FC<RecordPathRendererProps> = ({
               className={cn(
                 'shrink-0 px-3 py-1.5 rounded-full text-xs font-medium border whitespace-nowrap',
                 isCurrent && 'bg-primary text-primary-foreground border-primary shadow-sm ring-1 ring-primary/40',
-                isCompleted && 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/20',
-                !isCurrent && !isCompleted && 'bg-background text-foreground/70 border-border/60',
+                isCompleted && 'bg-emerald-500/15 text-emerald-800 dark:text-emerald-200 border-emerald-500/30',
+                !isCurrent && !isCompleted && 'bg-background text-foreground/85 border-border/60',
               )}
             >
               <span className="inline-flex items-center gap-1">

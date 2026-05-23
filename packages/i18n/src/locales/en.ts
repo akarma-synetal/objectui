@@ -1455,6 +1455,9 @@ const en = {
   },
   notifications: {
     empty: 'No notifications',
+    emptyUnread: "You're all caught up",
+    filterUnread: 'Unread',
+    filterAll: 'All',
     markAllRead: 'Mark all read',
     viewAll: 'View all notifications',
     approvalsPending: '{{count}} pending approvals',

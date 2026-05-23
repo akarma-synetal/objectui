@@ -46,34 +46,6 @@ const useKanbanT = createSafeTranslation(
 
 const UNCATEGORIZED_LANE = 'Uncategorized'
 
-/**
- * Deterministic accent palette for Kanban columns. Each column gets a
- * stable color derived from its `id`, used only for a hair-thin top accent
- * stripe so the board remains scannable without looking like a children's
- * toy. Title text and count pill render in neutral foreground so the
- * **data** is the loudest thing on screen — Salesforce / HubSpot / Linear
- * convention for enterprise pipelines.
- *
- * Tailwind classes only (so we don't need inline styles or CSS-in-JS).
- */
-const COLUMN_ACCENTS: ReadonlyArray<{ stripe: string }> = [
-  { stripe: 'bg-indigo-500/70' },
-  { stripe: 'bg-sky-500/70' },
-  { stripe: 'bg-emerald-500/70' },
-  { stripe: 'bg-amber-500/70' },
-  { stripe: 'bg-rose-500/70' },
-  { stripe: 'bg-violet-500/70' },
-  { stripe: 'bg-cyan-500/70' },
-  { stripe: 'bg-fuchsia-500/70' },
-]
-
-function pickColumnAccent(seed: string): typeof COLUMN_ACCENTS[number] {
-  // djb2-ish lightweight hash — stable across renders, no PRNG.
-  let h = 5381
-  for (let i = 0; i < seed.length; i++) h = ((h << 5) + h) + seed.charCodeAt(i)
-  return COLUMN_ACCENTS[Math.abs(h) % COLUMN_ACCENTS.length]
-}
-
 export interface KanbanCard {
   id: string
   title: string
@@ -343,10 +315,10 @@ function KanbanColumnView({
     ? "shrink-0"
     : "w-[85vw] sm:w-80 shrink-0";
 
-  // Stable per-column accent (derived from the column id), used for the top
-  // accent stripe and to tint the count badge. Makes the board visually
-  // scannable at a glance even when columns share neutral header styling.
-  const accent = pickColumnAccent(column.id)
+  // Stage progress indicator: the colored top stripe was distracting on
+  // boards with many columns ("rainbow stripe" effect). The lane border
+  // and header `border-b` are sufficient for scannability; the **cards**
+  // should be the loudest thing on screen — Linear / HubSpot pattern.
 
   return (
     <div
@@ -365,12 +337,6 @@ function KanbanColumnView({
         column.className
       )}
     >
-      {/* Hair-thin top accent — deterministic muted color from column id.
-          Keeps lanes scannable without coloring the title/count text. */}
-      <div
-        aria-hidden
-        className={cn("absolute inset-x-0 top-0 h-[2px] rounded-t-xl", accent.stripe)}
-      />
       <div className="px-3 sm:px-4 pt-3 pb-2.5 border-b border-border/40">
         <div className="flex items-center justify-between gap-2">
           <h3 id={`kanban-col-${column.id}`} className="text-xs sm:text-[13px] font-semibold tracking-tight truncate text-foreground/85 uppercase">{column.title}</h3>

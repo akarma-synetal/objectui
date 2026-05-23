@@ -1454,6 +1454,9 @@ const zh = {
   },
   notifications: {
     empty: '暂无通知',
+    emptyUnread: '已读完所有通知',
+    filterUnread: '未读',
+    filterAll: '全部',
     markAllRead: '全部标记为已读',
     viewAll: '查看全部通知',
     approvalsPending: '{{count}} 条待审批',
