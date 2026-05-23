@@ -77,6 +77,11 @@ export function InboxPopover({
   const { currentAppName } = useNavigationContext();
   const [open, setOpen] = useState(false);
   const [tab, setTab] = useState<'notifications' | 'approvals' | 'activity'>('notifications');
+  // Sub-filter inside Notifications: default to Unread so users see what
+  // actually needs their attention first. The popover caps at 20 rows from
+  // the server (`?view=mine` already scopes to current user), so we filter
+  // client-side — switching tabs never re-fetches.
+  const [notifFilter, setNotifFilter] = useState<'unread' | 'all'>('unread');
 
   const totalBadge = unreadCount + pendingApprovalsCount;
   const ariaLabel = t('sidebar.inboxAriaLabel', { defaultValue: 'Open inbox' }) as string;
@@ -176,38 +181,79 @@ export function InboxPopover({
           </TabsList>
 
           <TabsContent value="notifications" className="m-0 max-h-80 overflow-auto">
-            {notifications.length === 0 ? (
-              <div className="px-3 py-8 text-sm text-muted-foreground text-center">
-                {t('notifications.empty', { defaultValue: 'No notifications' })}
-              </div>
-            ) : (
-              <ul className="divide-y">
-                {notifications.map((n) => (
-                  <li key={n.id}>
-                    <button
-                      type="button"
-                      onClick={() => handleNotificationClick(n)}
-                      className={`w-full text-left px-3 py-2.5 hover:bg-accent transition-colors ${n.is_read ? '' : 'bg-accent/40'}`}
-                    >
-                      <div className="flex items-start gap-2">
-                        {!n.is_read && (
-                          <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-primary" aria-hidden />
-                        )}
-                        <div className="min-w-0 flex-1">
-                          <div className="text-sm font-medium leading-tight truncate">{n.title}</div>
-                          {n.body && (
-                            <div className="text-xs text-muted-foreground line-clamp-2 mt-0.5">{n.body}</div>
+            {/* Unread/All sub-filter. Keeps the surface compact (matches the
+                Linear / GitHub inbox pattern) without bloating the primary
+                Tabs strip. */}
+            <div className="flex items-center gap-1 border-b px-2 py-1.5">
+              <button
+                type="button"
+                onClick={() => setNotifFilter('unread')}
+                className={`text-xs px-2 py-1 rounded-md transition-colors ${
+                  notifFilter === 'unread'
+                    ? 'bg-accent text-foreground font-medium'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                {t('notifications.filterUnread', { defaultValue: 'Unread' })}
+                {unreadCount > 0 && (
+                  <span className="ml-1 text-[10px] opacity-70">{unreadCount}</span>
+                )}
+              </button>
+              <button
+                type="button"
+                onClick={() => setNotifFilter('all')}
+                className={`text-xs px-2 py-1 rounded-md transition-colors ${
+                  notifFilter === 'all'
+                    ? 'bg-accent text-foreground font-medium'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                {t('notifications.filterAll', { defaultValue: 'All' })}
+              </button>
+            </div>
+            {(() => {
+              const visible =
+                notifFilter === 'unread'
+                  ? notifications.filter((n) => !n.is_read)
+                  : notifications;
+              if (visible.length === 0) {
+                return (
+                  <div className="px-3 py-8 text-sm text-muted-foreground text-center">
+                    {notifFilter === 'unread'
+                      ? t('notifications.emptyUnread', { defaultValue: "You're all caught up" })
+                      : t('notifications.empty', { defaultValue: 'No notifications' })}
+                  </div>
+                );
+              }
+              return (
+                <ul className="divide-y">
+                  {visible.map((n) => (
+                    <li key={n.id}>
+                      <button
+                        type="button"
+                        onClick={() => handleNotificationClick(n)}
+                        className={`w-full text-left px-3 py-2.5 hover:bg-accent transition-colors ${n.is_read ? '' : 'bg-accent/40'}`}
+                      >
+                        <div className="flex items-start gap-2">
+                          {!n.is_read && (
+                            <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-primary" aria-hidden />
                           )}
-                          <div className="text-[10px] text-muted-foreground mt-1">
-                            {timeAgo(n.created_at)}
+                          <div className="min-w-0 flex-1">
+                            <div className="text-sm font-medium leading-tight truncate">{n.title}</div>
+                            {n.body && (
+                              <div className="text-xs text-muted-foreground line-clamp-2 mt-0.5">{n.body}</div>
+                            )}
+                            <div className="text-[10px] text-muted-foreground mt-1">
+                              {timeAgo(n.created_at)}
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              );
+            })()}
             {/* Footer link to dedicated /sys_notification list. The popover
                 only shows the 20 most-recent rows; users need a path to the
                 full inbox for bulk operations and older history. */}
