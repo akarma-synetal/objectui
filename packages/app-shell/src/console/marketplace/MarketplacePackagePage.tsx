@@ -34,11 +34,14 @@ import { PackageIcon } from './PackageIcon';
 import {
   getMarketplacePackage,
   installPackage,
+  installLocal,
+  listLocalInstalls,
   listCloudEnvironments,
   listInstallableOrgIds,
   cloudInstallDeepLink,
   type MarketplaceDetailResponse,
   type CloudEnvironment,
+  type LocalInstallEntry,
 } from './marketplaceApi';
 
 export function MarketplacePackagePage() {
@@ -58,6 +61,20 @@ export function MarketplacePackagePage() {
   const [seedSampleData, setSeedSampleData] = useState(false);
   const [installing, setInstalling] = useState(false);
   const [installResult, setInstallResult] = useState<{ ok: boolean; message: string } | null>(null);
+
+  // Local-install state (this runtime's own kernel — separate flow from cloud).
+  const [localInstalls, setLocalInstalls] = useState<LocalInstallEntry[]>([]);
+  const [installingLocal, setInstallingLocal] = useState(false);
+  const [localResult, setLocalResult] = useState<{ ok: boolean; message: string } | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const items = await listLocalInstalls();
+      if (!cancelled) setLocalInstalls(items);
+    })();
+    return () => { cancelled = true; };
+  }, [packageId, localResult?.ok]);
 
   useEffect(() => {
     let cancelled = false;
@@ -129,6 +146,38 @@ export function MarketplacePackagePage() {
     }
   };
 
+  /**
+   * Install this package into the LOCAL runtime kernel (not a cloud env).
+   * Single-target operation — no picker, no dialog. Same-origin POST so
+   * cloud session is not required. The local AuthPlugin session is what
+   * the backend validates.
+   */
+  const doInstallLocal = async () => {
+    if (!packageId) return;
+    setInstallingLocal(true);
+    setLocalResult(null);
+    try {
+      const result = await installLocal({ packageId });
+      setLocalResult({
+        ok: true,
+        message: `Installed v${result.version} to this runtime. Refresh the console to see "${data?.package?.display_name ?? result.manifestId}" in the app switcher.`,
+      });
+    } catch (e: any) {
+      const code = e?.code;
+      let msg = e?.message ?? String(e);
+      if (code === 'manifest_conflict') {
+        msg = `${msg}\nTip: a local app already owns this manifest_id. Remove it from objectstack.config.ts first.`;
+      } else if (code === 'unauthorized') {
+        msg = 'Sign in to this runtime first, then try again.';
+      } else if (code === 'marketplace_unavailable') {
+        msg = 'This runtime has no OS_CLOUD_URL configured, so the marketplace catalog is unreachable.';
+      }
+      setLocalResult({ ok: false, message: msg });
+    } finally {
+      setInstallingLocal(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex flex-col gap-6 p-4 sm:p-6">
@@ -159,6 +208,7 @@ export function MarketplacePackagePage() {
 
   const pkg = data.package;
   const latestVersion = pkg.latest_version?.version ?? data.versions[0]?.version ?? null;
+  const localInstall = localInstalls.find((i) => i.manifestId === pkg.manifest_id) ?? null;
 
   return (
     <div className="flex flex-col gap-6 p-4 sm:p-6 max-w-5xl">
@@ -187,23 +237,41 @@ export function MarketplacePackagePage() {
             )}
             {pkg.category && <Badge variant="outline">{pkg.category}</Badge>}
             {pkg.license && <span className="text-xs">License: {pkg.license}</span>}
+            {localInstall && (
+              <Badge variant="default" className="bg-green-600 hover:bg-green-600">
+                Installed locally · v{localInstall.version}
+              </Badge>
+            )}
           </div>
           {pkg.description && (
             <p className="text-sm text-muted-foreground mt-3 max-w-2xl">{pkg.description}</p>
           )}
         </div>
-        <div className="flex flex-col gap-2 shrink-0">
-          <Button onClick={openInstall} disabled={!latestVersion}>
+        <div className="flex flex-col gap-2 shrink-0 min-w-[14rem]">
+          <Button onClick={doInstallLocal} disabled={!latestVersion || installingLocal}>
             <Download className="h-4 w-4 mr-1.5" aria-hidden="true" />
-            Install
+            {installingLocal
+              ? 'Installing…'
+              : localInstall
+                ? `Reinstall to this runtime`
+                : 'Install to this runtime'}
+          </Button>
+          <Button variant="outline" onClick={openInstall} disabled={!latestVersion}>
+            <Download className="h-4 w-4 mr-1.5" aria-hidden="true" />
+            Install to cloud environment…
           </Button>
           {pkg.homepage_url && (
             <a href={pkg.homepage_url} target="_blank" rel="noopener noreferrer">
-              <Button variant="outline" className="w-full">
+              <Button variant="ghost" className="w-full">
                 <ExternalLink className="h-4 w-4 mr-1.5" aria-hidden="true" />
                 Homepage
               </Button>
             </a>
+          )}
+          {localResult && (
+            <div className={`rounded-md border p-2 text-xs whitespace-pre-wrap ${localResult.ok ? 'border-green-500/30 bg-green-500/5 text-green-700 dark:text-green-400' : 'border-destructive/30 bg-destructive/5 text-destructive'}`}>
+              {localResult.message}
+            </div>
           )}
         </div>
       </div>

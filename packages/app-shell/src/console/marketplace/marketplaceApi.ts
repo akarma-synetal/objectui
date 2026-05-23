@@ -215,3 +215,88 @@ export function cloudInstallDeepLink(packageId: string): string {
   const base = CLOUD_BASE || 'https://cloud.objectos.app';
   return `${base}/apps/cloud-control/sys_package/${encodeURIComponent(packageId)}`;
 }
+
+// ────────────────────────────────────────────────────────────────────
+// Local install (this runtime's kernel — not a cloud environment)
+// ────────────────────────────────────────────────────────────────────
+//
+// Architecturally distinct from cloud install:
+//   - Single target = the local kernel; no env picker.
+//   - Same-origin POST against the local runtime (no CORS).
+//   - Local AuthPlugin session is sufficient — no cloud account required.
+//   - Manifest is cached on disk so the app keeps working offline.
+//
+// Backend: framework/packages/runtime/src/cloud/marketplace-install-local-plugin.ts
+
+export interface LocalInstallEntry {
+  packageId: string;
+  versionId: string;
+  manifestId: string;
+  version: string;
+  installedAt: string;
+  installedBy: string | null;
+}
+
+export interface LocalInstallResult {
+  manifestId: string;
+  version: string;
+  versionId: string;
+  installedAt: string;
+  hotLoaded: boolean;
+  upgradedFrom: string | null;
+  note?: string;
+}
+
+export async function installLocal(input: {
+  packageId: string;
+  versionId?: string;
+}): Promise<LocalInstallResult> {
+  const res = await fetch(`${API_BASE}/install-local`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      packageId: input.packageId,
+      ...(input.versionId ? { versionId: input.versionId } : {}),
+    }),
+  });
+  let payload: any = null;
+  try { payload = await res.json(); } catch { /* empty */ }
+  if (!res.ok) {
+    const code = payload?.error?.code ?? `HTTP_${res.status}`;
+    const message = payload?.error?.message ?? res.statusText;
+    const err = new Error(typeof message === 'string' ? message : `${code}`);
+    (err as any).code = code;
+    (err as any).status = res.status;
+    throw err;
+  }
+  return (payload?.data ?? payload) as LocalInstallResult;
+}
+
+export async function listLocalInstalls(): Promise<LocalInstallEntry[]> {
+  try {
+    const res = await fetch(`${API_BASE}/install-local`, {
+      credentials: 'include',
+      headers: { 'Accept': 'application/json' },
+    });
+    if (!res.ok) return [];
+    const payload: any = await res.json().catch(() => ({}));
+    const items = payload?.data?.items ?? payload?.items ?? [];
+    return Array.isArray(items) ? (items as LocalInstallEntry[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+export async function uninstallLocal(manifestId: string): Promise<void> {
+  const res = await fetch(`${API_BASE}/install-local/${encodeURIComponent(manifestId)}`, {
+    method: 'DELETE',
+    credentials: 'include',
+    headers: { 'Accept': 'application/json' },
+  });
+  if (!res.ok) {
+    const payload: any = await res.json().catch(() => ({}));
+    const message = payload?.error?.message ?? res.statusText;
+    throw new Error(typeof message === 'string' ? message : `HTTP_${res.status}`);
+  }
+}
