@@ -29,12 +29,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@object-ui/components';
-import { ArrowLeft, ExternalLink, Download, AlertCircle, Package } from 'lucide-react';
+import { ArrowLeft, ExternalLink, Download, AlertCircle, Package, Trash2 } from 'lucide-react';
 import { PackageIcon } from './PackageIcon';
 import {
   getMarketplacePackage,
   installPackage,
   installLocal,
+  uninstallLocal,
   listLocalInstalls,
   listCloudEnvironments,
   listInstallableOrgIds,
@@ -74,7 +75,7 @@ export function MarketplacePackagePage() {
       if (!cancelled) setLocalInstalls(items);
     })();
     return () => { cancelled = true; };
-  }, [packageId, localResult?.ok]);
+  }, [packageId, localResult]);
 
   useEffect(() => {
     let cancelled = false;
@@ -178,6 +179,32 @@ export function MarketplacePackagePage() {
     }
   };
 
+  /**
+   * Uninstall this package's cached manifest from the local runtime.
+   * NB: kernel API is additive only — the app remains live in the
+   * running kernel until the runtime restarts. We surface that
+   * caveat in the success message.
+   */
+  const doUninstallLocal = async () => {
+    if (!localInstall) return;
+    if (!confirm(`Uninstall ${localInstall.manifestId} v${localInstall.version} from this runtime?\n\nThe cached manifest will be removed. The app will remain loaded in the running kernel until the next restart.`)) {
+      return;
+    }
+    setInstallingLocal(true);
+    setLocalResult(null);
+    try {
+      await uninstallLocal(localInstall.manifestId);
+      setLocalResult({
+        ok: true,
+        message: `Removed cached manifest for ${localInstall.manifestId}. Restart the runtime to fully unload the app from the running kernel.`,
+      });
+    } catch (e: any) {
+      setLocalResult({ ok: false, message: e?.message ?? String(e) });
+    } finally {
+      setInstallingLocal(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex flex-col gap-6 p-4 sm:p-6">
@@ -251,11 +278,17 @@ export function MarketplacePackagePage() {
           <Button onClick={doInstallLocal} disabled={!latestVersion || installingLocal}>
             <Download className="h-4 w-4 mr-1.5" aria-hidden="true" />
             {installingLocal
-              ? 'Installing…'
+              ? 'Working…'
               : localInstall
                 ? `Reinstall to this runtime`
                 : 'Install to this runtime'}
           </Button>
+          {localInstall && (
+            <Button variant="outline" onClick={doUninstallLocal} disabled={installingLocal}>
+              <Trash2 className="h-4 w-4 mr-1.5" aria-hidden="true" />
+              Uninstall from this runtime
+            </Button>
+          )}
           <Button variant="outline" onClick={openInstall} disabled={!latestVersion}>
             <Download className="h-4 w-4 mr-1.5" aria-hidden="true" />
             Install to cloud environment…

@@ -54,6 +54,7 @@ const DashboardDesignPage = lazy(() => import('@object-ui/plugin-designer').then
 // under any active app so admins can browse + install from inside the runtime.
 const MarketplacePage = lazy(() => import('./marketplace/MarketplacePage').then(m => ({ default: m.MarketplacePage })));
 const MarketplacePackagePage = lazy(() => import('./marketplace/MarketplacePackagePage').then(m => ({ default: m.MarketplacePackagePage })));
+const MarketplaceInstalledPage = lazy(() => import('./marketplace/MarketplaceInstalledPage').then(m => ({ default: m.MarketplaceInstalledPage })));
 
 interface AppContentProps {
   /**
@@ -297,6 +298,7 @@ export function AppContent({ extraRoutes, extraRoutesNoApp }: AppContentProps = 
         <Routes>
           <Route path="create-app" element={<CreateAppPage />} />
           <Route path="system/marketplace" element={<MarketplacePage />} />
+          <Route path="system/marketplace/installed" element={<MarketplaceInstalledPage />} />
           <Route path="system/marketplace/:packageId" element={<MarketplacePackagePage />} />
           {extraRoutesNoApp}
         </Routes>
@@ -356,6 +358,7 @@ export function AppContent({ extraRoutes, extraRoutesNoApp }: AppContentProps = 
                 <Route path="create-app" element={<CreateAppPage />} />
                 <Route path="edit-app/:editAppName" element={<EditAppPage />} />
                 <Route path="system/marketplace" element={<MarketplacePage />} />
+                <Route path="system/marketplace/installed" element={<MarketplaceInstalledPage />} />
                 <Route path="system/marketplace/:packageId" element={<MarketplacePackagePage />} />
                 {extraRoutes}
                 {/* Shorthand-deep-link redirect: a bare `/{:objectName}/:maybeRecordId`

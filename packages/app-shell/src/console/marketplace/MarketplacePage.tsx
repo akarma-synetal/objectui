@@ -19,11 +19,13 @@ import {
   Button,
   Skeleton,
 } from '@object-ui/components';
-import { Package, Search, RefreshCcw, Store, AlertCircle } from 'lucide-react';
+import { Package, Search, RefreshCcw, Store, AlertCircle, CheckCircle2, Settings } from 'lucide-react';
 import { PackageIcon } from './PackageIcon';
 import {
   listMarketplacePackages,
+  listLocalInstalls,
   type MarketplacePackageSummary,
+  type LocalInstallEntry,
 } from './marketplaceApi';
 
 function formatRelative(iso?: string | null): string {
@@ -46,13 +48,24 @@ export function MarketplacePage() {
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState('');
   const [category, setCategory] = useState<string>('');
+  const [installed, setInstalled] = useState<LocalInstallEntry[]>([]);
+
+  const installedByManifestId = useMemo(() => {
+    const m = new Map<string, LocalInstallEntry>();
+    for (const e of installed) m.set(e.manifestId, e);
+    return m;
+  }, [installed]);
 
   const load = async () => {
     setLoading(true);
     setError(null);
     try {
-      const resp = await listMarketplacePackages({ limit: 100 });
+      const [resp, installs] = await Promise.all([
+        listMarketplacePackages({ limit: 100 }),
+        listLocalInstalls(),
+      ]);
       setItems(resp.items ?? []);
+      setInstalled(installs);
     } catch (e: any) {
       setError(e?.message ?? String(e));
       setItems([]);
@@ -94,6 +107,14 @@ export function MarketplacePage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => navigate(`${basePath}/system/marketplace/installed`)}
+          >
+            <Settings className="h-4 w-4 mr-1.5" aria-hidden="true" />
+            Installed{installed.length > 0 ? ` (${installed.length})` : ''}
+          </Button>
           <Button variant="outline" size="sm" onClick={() => void load()} disabled={loading}>
             <RefreshCcw className="h-4 w-4 mr-1.5" aria-hidden="true" />
             Refresh
@@ -170,6 +191,7 @@ export function MarketplacePage() {
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {filtered.map((pkg) => {
+            const localEntry = installedByManifestId.get(pkg.manifest_id);
             return (
               <Card
                 key={pkg.id}
@@ -207,7 +229,16 @@ export function MarketplacePage() {
                   <p className="text-sm text-muted-foreground line-clamp-2">
                     {pkg.description || 'No description provided.'}
                   </p>
-                  <div className="flex items-center gap-2 mt-auto pt-2">
+                  <div className="flex items-center gap-2 mt-auto pt-2 flex-wrap">
+                    {localEntry && (
+                      <Badge
+                        variant="default"
+                        className="text-xs bg-green-600 hover:bg-green-600"
+                      >
+                        <CheckCircle2 className="h-3 w-3 mr-1" aria-hidden="true" />
+                        Installed v{localEntry.version}
+                      </Badge>
+                    )}
                     {pkg.latest_version?.version && (
                       <Badge variant="outline" className="text-xs">
                         <Package className="h-3 w-3 mr-1" aria-hidden="true" />
