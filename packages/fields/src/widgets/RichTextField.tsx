@@ -1,5 +1,6 @@
 import React from 'react';
 import { Textarea, EmptyValue } from '@object-ui/components';
+import { useObjectTranslation } from '@object-ui/react';
 import { FieldWidgetProps } from './types';
 
 /**
@@ -8,6 +9,7 @@ import { FieldWidgetProps } from './types';
  * a rich text editor like TipTap, Lexical, or Slate.
  */
 export function RichTextField({ value, onChange, field, readonly, errorMessage, ...props }: FieldWidgetProps<string>) {
+  const { t } = useObjectTranslation();
   if (readonly) {
     return (
       <div 
@@ -25,13 +27,18 @@ export function RichTextField({ value, onChange, field, readonly, errorMessage, 
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between text-xs text-gray-500">
-        <span>Format: {format}</span>
-        <span className="italic">Rich text editor (basic)</span>
+        <span>{t('fields.richText.format', { format, defaultValue: `Format: ${format}` })}</span>
+        <span className="italic">
+          {t('fields.richText.basicEditorHint', { defaultValue: 'Rich text editor (basic)' })}
+        </span>
       </div>
       <Textarea
         value={value || ''}
         onChange={(e) => onChange(e.target.value)}
-        placeholder={richField?.placeholder || 'Enter text...'}
+        placeholder={
+          richField?.placeholder ||
+          t('fields.richText.placeholder', { defaultValue: 'Enter text...' })
+        }
         disabled={readonly || props.disabled}
         rows={rows}
         className={`font-mono text-sm ${props.className || ''}`}

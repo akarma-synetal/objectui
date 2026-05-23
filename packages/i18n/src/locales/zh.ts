@@ -72,6 +72,13 @@ const zh = {
     updateSuccess: '{{object}}更新成功',
     deleteSuccess: '{{object}}删除成功',
   },
+  fields: {
+    richText: {
+      format: '格式: {{format}}',
+      basicEditorHint: '富文本编辑器（基础）',
+      placeholder: '请输入文字...',
+    },
+  },
   table: {
     rowsPerPage: '每页行数',
     showing: '显示第{{from}}到{{to}}条，共{{total}}条',

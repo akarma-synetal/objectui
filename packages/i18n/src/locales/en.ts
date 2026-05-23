@@ -72,6 +72,13 @@ const en = {
     updateSuccess: '{{object}} updated successfully',
     deleteSuccess: '{{object}} deleted successfully',
   },
+  fields: {
+    richText: {
+      format: 'Format: {{format}}',
+      basicEditorHint: 'Rich text editor (basic)',
+      placeholder: 'Enter text...',
+    },
+  },
   table: {
     rowsPerPage: 'Rows per page',
     showing: 'Showing {{from}} to {{to}} of {{total}}',
