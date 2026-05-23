@@ -498,7 +498,49 @@ function NavigationItemRenderer({
   t?: (key: string, options?: any) => string;
 }) {
   const location = useLocation();
-  const [isOpen, setIsOpen] = useState(item.defaultOpen !== false);
+  // Resolve the initial open state with platform-aware defaults:
+  //
+  // 1. `expanded` is the spec field name; `defaultOpen` is the legacy
+  //    objectui field name. Honor either when set explicitly so app
+  //    authors don't get silently-ignored config.
+  // 2. When the author has set neither, default-collapse groups that
+  //    have many leaf children. A sidebar group with 10+ items doubles
+  //    the rail height and pushes everything below the fold — Slack /
+  //    Linear / Notion all default-collapse long sections for the same
+  //    reason. Threshold is intentionally conservative (8) so short
+  //    sections (typical 3-6 items) still open by default.
+  // 3. Always override to open when the current route lives inside the
+  //    group — otherwise an auto-collapsed group hides the active item
+  //    and the user loses orientation.
+  const explicitOpen = (() => {
+    const expanded = (item as any).expanded;
+    if (typeof expanded === 'boolean') return expanded;
+    if (typeof item.defaultOpen === 'boolean') return item.defaultOpen;
+    return undefined;
+  })();
+  const AUTO_COLLAPSE_THRESHOLD = 8;
+  const childCount = item.type === 'group' ? (item.children?.length ?? 0) : 0;
+  const hasActiveDescendant = React.useMemo(() => {
+    if (item.type !== 'group') return false;
+    const visit = (nodes: NavigationItem[] | undefined): boolean => {
+      if (!nodes) return false;
+      for (const node of nodes) {
+        if (node.type === 'group') {
+          if (visit(node.children)) return true;
+          continue;
+        }
+        const { href } = resolveHref(node, basePath);
+        if (computeIsActive(node, href, location.pathname)) return true;
+      }
+      return false;
+    };
+    return visit(item.children);
+  }, [item, basePath, location.pathname]);
+  const initialOpen =
+    hasActiveDescendant
+      ? true
+      : (explicitOpen ?? (childCount >= AUTO_COLLAPSE_THRESHOLD ? false : true));
+  const [isOpen, setIsOpen] = useState(initialOpen);
 
   // --- Visibility guard ---
   if (!evalVis(item.visible)) return null;
