@@ -19,6 +19,14 @@ export function ConsoleToaster(props: ToasterProps) {
     <Sonner
       theme={theme as ToasterProps['theme']}
       className="toaster group"
+      // UX defaults chosen for an enterprise console — match the Linear /
+      // Notion pattern users expect. Callers can still override any of
+      // these via the spread `{...props}` below.
+      position="top-right"
+      closeButton
+      richColors
+      expand
+      visibleToasts={4}
       icons={{
         success: <CircleCheck className="h-4 w-4" />,
         info: <Info className="h-4 w-4" />,
@@ -27,6 +35,9 @@ export function ConsoleToaster(props: ToasterProps) {
         loading: <LoaderCircle className="h-4 w-4 animate-spin" />,
       }}
       toastOptions={{
+        // 4s default keeps actionable toasts visible long enough to
+        // click an Undo button without feeling sticky.
+        duration: 4000,
         classNames: {
           toast:
             'group toast group-[.toaster]:bg-background group-[.toaster]:text-foreground group-[.toaster]:border-border group-[.toaster]:shadow-lg',
