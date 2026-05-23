@@ -836,57 +836,14 @@ export function RecordDetailView({ dataSource, objects, onEdit, objectNameOverri
   }, [dataSource, objectName, pureRecordId, currentUser]);
 
   /**
-   * Resolve `@<label>` tokens in a comment body against the loaded user
-   * directory, and (best-effort) fan out a `sys_notification` row per
-   * mentioned recipient. The notification write tolerates 404 so
-   * deployments without a notification collection just drop them; spec-
-   * compliant servers with a sys_comment after-create hook can ignore the
-   * client write and use their own (notifications are idempotent enough on
-   * the bell UI side because polling de-dupes by id).
+   * Note: comment-mention → notification fan-out lives on the server
+   * (`@objectstack/plugin-audit` registers a `sys_comment` afterInsert
+   * hook that parses the `mentions` JSON and writes one `sys_notification`
+   * row per recipient). The client's only job is to ensure
+   * `sys_comment.mentions` carries the real id list (see handleAddComment
+   * /handleAddReply below). Deployments without plugin-audit will not
+   * deliver bell notifications, which is the expected degradation.
    */
-  const emitMentionNotifications = useCallback(
-    async (commentId: string, body: string): Promise<string[]> => {
-      const ids = extractMentions(body, mentionSuggestions);
-      // Drop self-mentions — pinging yourself is noise.
-      const recipients = ids.filter((id) => id !== currentUser.id);
-      if (!dataSource || recipients.length === 0) return ids;
-      const now = new Date().toISOString();
-      const title = recordTitle || pureRecordId || objectName;
-      const actorName = currentUser.name || 'Someone';
-      // Trim body to a short preview so the bell row stays compact.
-      const preview = body.length > 140 ? body.slice(0, 137) + '…' : body;
-      await Promise.all(
-        recipients.map((recipientId) =>
-          dataSource
-            .create('sys_notification', {
-              id: crypto.randomUUID(),
-              type: 'mention',
-              recipient_id: recipientId,
-              actor_id: currentUser.id,
-              actor_name: actorName,
-              title: `${actorName} mentioned you on ${title}`,
-              body: preview,
-              source_object: objectName,
-              source_id: pureRecordId,
-              source_comment_id: commentId,
-              is_read: false,
-              created_at: now,
-            })
-            .catch(() => {}),
-        ),
-      );
-      return ids;
-    },
-    [
-      dataSource,
-      mentionSuggestions,
-      currentUser.id,
-      currentUser.name,
-      recordTitle,
-      pureRecordId,
-      objectName,
-    ],
-  );
 
   const handleAddComment = useCallback(
     async (text: string) => {
@@ -913,11 +870,9 @@ export function RecordDetailView({ dataSource, objects, onEdit, objectNameOverri
           mentions: JSON.stringify(mentionIds),
           created_at: newItem.createdAt,
         }).catch(() => {});
-        // Fan out notifications in parallel (best-effort, doesn't block UI).
-        void emitMentionNotifications(newItem.id, text);
       }
     },
-    [currentUser, dataSource, objectName, pureRecordId, mentionSuggestions, emitMentionNotifications],
+    [currentUser, dataSource, objectName, pureRecordId, mentionSuggestions],
   );
 
   const handleAddReply = useCallback(
@@ -954,10 +909,9 @@ export function RecordDetailView({ dataSource, objects, onEdit, objectNameOverri
           created_at: newItem.createdAt,
           parent_id: parentId,
         }).catch(() => {});
-        void emitMentionNotifications(newItem.id, text);
       }
     },
-    [currentUser, dataSource, objectName, pureRecordId, mentionSuggestions, emitMentionNotifications],
+    [currentUser, dataSource, objectName, pureRecordId, mentionSuggestions],
   );
 
   const handleToggleReaction = useCallback(
