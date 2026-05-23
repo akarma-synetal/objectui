@@ -52,6 +52,23 @@ const ASPECT_CLASSES: Record<NonNullable<GalleryConfig['cardSize']>, string> = {
 };
 
 /**
+ * Cell renderer types that produce bare values with no inherent visual
+ * context. A card row rendered with one of these renderers is just a
+ * number / string with no decoration — without a label prefix, the user
+ * has no way to tell whether `5,000,000` is revenue, headcount, or
+ * pipeline value. Self-describing renderers (badges, icons on links/
+ * phone/email, dates, attachments) are excluded so the card layout
+ * stays compact for those types.
+ */
+const LOW_SEMANTIC_RENDERER_TYPES: ReadonlySet<string> = new Set([
+    'number',
+    'currency',
+    'percent',
+    'integer',
+    'decimal',
+]);
+
+/**
  * Deterministic palette for placeholder card covers (no-image fallback).
  * Index is derived from a tiny title hash so each record gets a stable —
  * but visually varied — soft gradient backdrop. Mirrors the home-page
@@ -99,7 +116,7 @@ export const ObjectGallery: React.FC<ObjectGalleryProps> = (props) => {
     const visibleFields = gallery?.visibleFields;
 
     // i18n: translate select-field option labels in card cells
-    const { fieldOptionLabel } = useSafeFieldLabel();
+    const { fieldLabel, fieldOptionLabel } = useSafeFieldLabel();
 
     // Build an enriched FieldMetadata for a given field name so the shared
     // cell renderer pipeline (used by Detail/Grid/Related) receives the
@@ -120,6 +137,12 @@ export const ObjectGallery: React.FC<ObjectGalleryProps> = (props) => {
         if (refTarget) enriched.reference_to = refTarget;
         if ((def as any).reference_field) enriched.reference_field = (def as any).reference_field;
       }
+      // Route the field label through the i18n dictionary so the auto-
+      // prepended labels on number/currency cards show up translated.
+      if (schema.objectName) {
+        const fallback = String(enriched.label ?? fieldName);
+        enriched.label = fieldLabel(schema.objectName, fieldName, fallback);
+      }
       // Translate select option labels via i18n, falling back to raw labels.
       if (schema.objectName && Array.isArray(enriched.options)) {
         enriched.options = enriched.options.map((opt: any) => {
@@ -129,7 +152,7 @@ export const ObjectGallery: React.FC<ObjectGalleryProps> = (props) => {
         });
       }
       return enriched;
-    }, [objectDef, schema.objectName, fieldOptionLabel]);
+    }, [objectDef, schema.objectName, fieldLabel, fieldOptionLabel]);
 
     // Fetch object definition for metadata
     useEffect(() => {
@@ -334,10 +357,30 @@ export const ObjectGallery: React.FC<ObjectGalleryProps> = (props) => {
                                 const enriched = buildEnrichedField(field);
                                 const rendererType = resolveCellRendererType(enriched as any) || enriched.type || 'text';
                                 const CellRenderer = getCellRenderer(rendererType);
+                                // Auto-prepend a muted label for low-semantic
+                                // field types. Numbers, currencies, and
+                                // percentages render as bare digits — without
+                                // a label, a card row like "5,000,000" gives
+                                // the user no clue which field they're
+                                // looking at. Types that carry inherent
+                                // visual context (badges, icons on links/
+                                // phone/email, dates relative to today) stay
+                                // unlabeled so the card aesthetic remains
+                                // clean.
+                                const fieldLabel: string | undefined =
+                                    (enriched as any)?.label && String((enriched as any).label).trim()
+                                        ? String((enriched as any).label)
+                                        : undefined;
+                                const showLabel =
+                                    fieldLabel != null &&
+                                    LOW_SEMANTIC_RENDERER_TYPES.has(rendererType);
                                 return (
                                     <div
                                         key={field}
-                                        className="text-xs text-muted-foreground truncate [&_*]:!text-xs"
+                                        className={cn(
+                                            'text-xs text-muted-foreground truncate [&_*]:!text-xs',
+                                            showLabel && 'flex items-baseline gap-1.5',
+                                        )}
                                         onClick={(e) => {
                                             // Prevent navigation when interacting with rich cell
                                             // content like email/phone/url links inside a card.
@@ -345,6 +388,11 @@ export const ObjectGallery: React.FC<ObjectGalleryProps> = (props) => {
                                             if (target.closest('a,button')) e.stopPropagation();
                                         }}
                                     >
+                                        {showLabel && (
+                                            <span className="shrink-0 text-muted-foreground/70 tabular-nums">
+                                                {fieldLabel}
+                                            </span>
+                                        )}
                                         <CellRenderer value={value} field={enriched as any} />
                                     </div>
                                 );
