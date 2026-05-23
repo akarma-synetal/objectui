@@ -928,6 +928,7 @@ const en = {
     commandPalette: {
       placeholder: 'Type a command or search...',
       noResults: 'No results found.',
+      records: 'Records',
       objects: 'Objects',
       dashboards: 'Dashboards',
       pages: 'Pages',

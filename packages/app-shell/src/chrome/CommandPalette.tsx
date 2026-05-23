@@ -7,7 +7,7 @@
  * Uses Shadcn's Command (cmdk) component — keyboard-accessible, fuzzy search.
  */
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
   CommandDialog,
@@ -29,10 +29,11 @@ import {
   Search,
   Plus,
 } from 'lucide-react';
+import { useRecordSearch } from '@object-ui/react';
 import { useTheme } from './ThemeProvider';
 import { useExpressionContext, evaluateVisibility } from '../providers/ExpressionProvider';
 import { useObjectTranslation } from '@object-ui/i18n';
-import { resolveI18nLabel } from '../utils';
+import { resolveI18nLabel, getRecordDisplayName } from '../utils';
 import { getIcon } from '../utils/getIcon';
 
 interface CommandPaletteProps {
@@ -40,10 +41,16 @@ interface CommandPaletteProps {
   activeApp: any;
   objects: any[];
   onAppChange: (name: string) => void;
+  /**
+   * Optional data source used to power record search across objects. When
+   * omitted, the palette behaves exactly as before — nav items only.
+   */
+  dataSource?: any;
 }
 
-export function CommandPalette({ apps, activeApp, objects: _objects, onAppChange }: CommandPaletteProps) {
+export function CommandPalette({ apps, activeApp, objects, onAppChange, dataSource }: CommandPaletteProps) {
   const [open, setOpen] = useState(false);
+  const [inputValue, setInputValue] = useState('');
   const navigate = useNavigate();
   const { appName } = useParams();
   const { setTheme } = useTheme();
@@ -62,6 +69,11 @@ export function CommandPalette({ apps, activeApp, objects: _objects, onAppChange
     return () => document.removeEventListener('keydown', down);
   }, []);
 
+  // Reset query when the palette closes so reopening doesn't show stale state.
+  useEffect(() => {
+    if (!open) setInputValue('');
+  }, [open]);
+
   const baseUrl = `/apps/${appName || activeApp?.name}`;
 
   const runCommand = useCallback((command: () => void) => {
@@ -74,12 +86,57 @@ export function CommandPalette({ apps, activeApp, objects: _objects, onAppChange
     (item) => evaluateVisibility(item.visible ?? item.visibleOn, evaluator)
   );
 
+  // Whitelist of object names visible in this app's nav — used as the search
+  // scope so we don't fan out to every object in the tenant.
+  const searchableObjectNames = useMemo(
+    () =>
+      navItems
+        .filter((i) => i.type === 'object' && typeof i.objectName === 'string')
+        .map((i) => i.objectName as string),
+    // navItems is rebuilt every render (filtered list); use a stable signature.
+    [activeApp?.name, navItems.map((i) => i.objectName || '').join('|')],
+  );
+
+  const { results: recordHits } = useRecordSearch({
+    query: inputValue,
+    objects,
+    dataSource,
+    objectNames: searchableObjectNames,
+    enabled: open && Boolean(dataSource),
+    getDisplayName: getRecordDisplayName,
+  });
+
   return (
     <CommandDialog open={open} onOpenChange={setOpen}>
-      <CommandInput placeholder={t('console.commandPalette.placeholder')} />
+      <CommandInput
+        placeholder={t('console.commandPalette.placeholder')}
+        value={inputValue}
+        onValueChange={setInputValue}
+      />
       <CommandList>
         <CommandEmpty>{t('console.commandPalette.noResults')}</CommandEmpty>
 
+        {/* Record search — only renders when there are async hits */}
+        {recordHits.length > 0 && (
+          <CommandGroup heading={t('console.commandPalette.records', { defaultValue: 'Records' })}>
+            {recordHits.map((hit) => {
+              const Icon = getIcon(hit.icon);
+              return (
+                <CommandItem
+                  key={`${hit.objectName}:${hit.recordId}`}
+                  // Embed the live query so cmdk's client-side filter doesn't
+                  // hide async hits that don't textually match the input.
+                  value={`record ${inputValue} ${hit.display} ${hit.objectLabel} ${hit.objectName} ${hit.recordId}`}
+                  onSelect={() => runCommand(() => navigate(`${baseUrl}/${hit.objectName}/record/${hit.recordId}`))}
+                >
+                  <Icon className="mr-2 h-4 w-4" />
+                  <span className="truncate">{hit.display}</span>
+                  <span className="ml-auto text-xs text-muted-foreground">{hit.objectLabel}</span>
+                </CommandItem>
+              );
+            })}
+          </CommandGroup>
+        )}
         {/* Object Navigation */}
         {navItems.filter(i => i.type === 'object').length > 0 && (
           <CommandGroup heading={t('console.commandPalette.objects')}>

@@ -315,6 +315,7 @@ export function AppContent({ extraRoutes, extraRoutesNoApp }: AppContentProps = 
           activeApp={activeApp}
           objects={allObjects}
           onAppChange={handleAppChange}
+          dataSource={dataSource}
         />
         <KeyboardShortcutsDialog />
         <OnboardingWalkthrough />

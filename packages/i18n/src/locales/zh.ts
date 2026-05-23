@@ -928,6 +928,7 @@ const zh = {
     commandPalette: {
       placeholder: '输入命令或搜索...',
       noResults: '未找到结果。',
+      records: '记录',
       objects: '对象',
       dashboards: '仪表盘',
       pages: '页面',

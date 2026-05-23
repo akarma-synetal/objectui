@@ -35,3 +35,4 @@ export * from './useDebugMode';
 export * from './useActionEngine';
 export * from './useDataRefresh';
 export * from './usePageAssignment';
+export * from './useRecordSearch';
