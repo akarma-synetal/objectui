@@ -139,6 +139,7 @@ export function MarketplacePackagePage() {
   }
 
   const pkg = data.package;
+  const latestVersion = pkg.latest_version?.version ?? data.versions[0]?.version ?? null;
   const initial = (pkg.display_name || pkg.manifest_id || '?').slice(0, 1).toUpperCase();
 
   return (
@@ -160,8 +161,8 @@ export function MarketplacePackagePage() {
           <h1 className="text-2xl font-bold tracking-tight truncate">{pkg.display_name || pkg.manifest_id}</h1>
           <div className="text-sm text-muted-foreground mt-1 flex flex-wrap items-center gap-2">
             <code className="font-mono">{pkg.manifest_id}</code>
-            {pkg.latest_version?.version && (
-              <Badge variant="outline">v{pkg.latest_version.version}</Badge>
+            {latestVersion && (
+              <Badge variant="outline">v{latestVersion}</Badge>
             )}
             {pkg.publisher && pkg.publisher !== 'private' && (
               <Badge variant={pkg.publisher === 'objectstack' ? 'default' : 'secondary'}>{pkg.publisher}</Badge>
@@ -174,7 +175,7 @@ export function MarketplacePackagePage() {
           )}
         </div>
         <div className="flex flex-col gap-2 shrink-0">
-          <Button onClick={openInstall} disabled={!pkg.latest_version}>
+          <Button onClick={openInstall} disabled={!latestVersion}>
             <Download className="h-4 w-4 mr-1.5" aria-hidden="true" />
             Install
           </Button>
