@@ -45,7 +45,7 @@ import {
   DropdownMenuItem,
 } from '../../ui';
 import { RecordTitleChip } from '../../custom/RecordTitleChip';
-import { useObjectLabel } from '@object-ui/i18n';
+import { useObjectLabel, useSafeFieldLabel } from '@object-ui/i18n';
 import { MoreHorizontal } from 'lucide-react';
 
 /**
@@ -192,8 +192,19 @@ const translateLabel = (text: string): string => {
  * Replace `{field.path}` tokens in a template against the given data object.
  * Missing fields collapse to an empty string. The result is trimmed and
  * whitespace-collapsed so partial misses don't leave gaping holes.
+ *
+ * When `objectSchema` and `fieldOptionLabel` are supplied, a token that
+ * resolves to a select-field value gets routed through the i18n option
+ * label dictionary — so `subtitle: "{industry} · {type}"` renders as
+ * "科技 · 客户" rather than the raw enum values "technology · customer".
  */
-const interpolate = (template: string, data: any): string => {
+const interpolate = (
+  template: string,
+  data: any,
+  objectSchema?: any,
+  fieldOptionLabel?: (objectName: string, fieldName: string, value: string, fallback: string) => string,
+  objectName?: string,
+): string => {
   if (!template || typeof template !== 'string') return template || '';
   if (!template.includes('{')) return template;
   const out = template.replace(/\{([a-zA-Z0-9_.]+)\}/g, (_m, path: string) => {
@@ -205,7 +216,24 @@ const interpolate = (template: string, data: any): string => {
     // a field of the related record should use a deeper path
     // (e.g. `{account.name}`).
     if (typeof v === 'object') return '';
-    return String(v);
+    const raw = String(v);
+    // Route enum values through i18n so subtitle templates render
+    // translated option labels instead of raw machine-readable values.
+    // Only the first path segment is treated as a field name (deeper
+    // paths reach into related records and have their own translation
+    // surfaces).
+    if (objectSchema?.fields && fieldOptionLabel && objectName && !path.includes('.')) {
+      const fieldDef: any = Array.isArray(objectSchema.fields)
+        ? objectSchema.fields.find((f: any) => f?.name === path)
+        : objectSchema.fields[path];
+      const options: any[] | undefined = fieldDef?.options;
+      if (Array.isArray(options)) {
+        const match = options.find((opt: any) => String(opt?.value ?? opt) === raw);
+        const fallback = match?.label ? String(match.label) : raw;
+        return fieldOptionLabel(objectName, path, raw, fallback);
+      }
+    }
+    return raw;
   });
   return out.replace(/\s+/g, ' ').trim();
 };
@@ -626,13 +654,28 @@ const PageHeaderRenderer: React.FC<any> = ({ schema, className, ...props }) => {
   const ctx = useRecordContext();
   const { execute } = useAction();
   const { objectLabel: tObjectLabel, actionLabel: tActionLabel } = useObjectLabel();
+  const { fieldOptionLabel } = useSafeFieldLabel();
   // Spec bridge may either inline `properties.*` onto the node or preserve
   // the raw bag (see record:quick_actions for the same pattern). Read from
   // both so a `{ properties: { title } }` schema is rendered correctly.
   const titleSrc = schema?.title ?? schema?.properties?.title;
   const subtitleSrc = schema?.subtitle ?? schema?.properties?.subtitle;
-  const explicitTitle = interpolate(labelText(titleSrc), ctx?.data);
-  const subtitle = interpolate(labelText(subtitleSrc), ctx?.data);
+  const headerObjectSchema: any = (ctx as any)?.objectSchema;
+  const headerObjectName: string | undefined = ctx?.objectName || headerObjectSchema?.name;
+  const explicitTitle = interpolate(
+    labelText(titleSrc),
+    ctx?.data,
+    headerObjectSchema,
+    fieldOptionLabel,
+    headerObjectName,
+  );
+  const subtitle = interpolate(
+    labelText(subtitleSrc),
+    ctx?.data,
+    headerObjectSchema,
+    fieldOptionLabel,
+    headerObjectName,
+  );
   const breadcrumb = (schema?.breadcrumb ?? schema?.properties?.breadcrumb) !== false;
 
   // Schema-level opt-outs let authors keep the historic "bare h1" header
@@ -861,7 +904,7 @@ const PageHeaderRenderer: React.FC<any> = ({ schema, className, ...props }) => {
           ? rawTitleFormat.source
           : undefined;
     const interpolatedTitleFormat = titleFormatStr
-      ? cleanupTitleSeparators(interpolate(titleFormatStr, data).trim())
+      ? cleanupTitleSeparators(interpolate(titleFormatStr, data, objSchema, fieldOptionLabel, rawObjectName).trim())
       : '';
     const resolvedTitle =
       explicitTitle ||
