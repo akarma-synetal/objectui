@@ -112,7 +112,7 @@ Console App
 ├── @object-ui/data-objectstack — API adapter (auto-reconnect, caching)
 ├── @object-ui/plugin-view    — ObjectView (multi-view container)
 ├── @object-ui/plugin-form    — ObjectForm (CRUD forms)
-├── @object-ui/plugin-grid    — DataGrid (AG Grid)
+├── @object-ui/plugin-grid    — DataGrid (Shadcn-native, virtualized)
 ├── @object-ui/plugin-kanban  — Kanban board
 ├── @object-ui/plugin-calendar— Calendar view
 ├── @object-ui/plugin-dashboard — Dashboard renderer

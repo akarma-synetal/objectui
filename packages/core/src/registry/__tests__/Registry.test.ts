@@ -62,10 +62,10 @@ describe('Registry', () => {
       const gridComponent2 = () => 'grid2';
       
       registry.register('grid', gridComponent1, { namespace: 'plugin-grid' });
-      registry.register('grid', gridComponent2, { namespace: 'plugin-aggrid' });
+      registry.register('grid', gridComponent2, { namespace: 'plugin-view' });
       
       expect(registry.get('grid', 'plugin-grid')).toBe(gridComponent1);
-      expect(registry.get('grid', 'plugin-aggrid')).toBe(gridComponent2);
+      expect(registry.get('grid', 'plugin-view')).toBe(gridComponent2);
     });
 
     it('should store full type as namespace:type', () => {
@@ -207,15 +207,12 @@ describe('Registry', () => {
     it('should allow same type name in different namespaces', () => {
       const grid1 = () => 'grid-plugin-1';
       const grid2 = () => 'grid-plugin-2';
-      const grid3 = () => 'aggrid-plugin';
       
       registry.register('grid', grid1, { namespace: 'plugin-grid' });
       registry.register('grid', grid2, { namespace: 'plugin-view' });
-      registry.register('grid', grid3, { namespace: 'plugin-aggrid' });
       
       expect(registry.get('grid', 'plugin-grid')).toBe(grid1);
       expect(registry.get('grid', 'plugin-view')).toBe(grid2);
-      expect(registry.get('grid', 'plugin-aggrid')).toBe(grid3);
     });
 
     it('should handle complex namespace names', () => {

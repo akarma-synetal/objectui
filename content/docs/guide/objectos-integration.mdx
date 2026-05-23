@@ -45,7 +45,7 @@ pnpm add @objectstack/core @objectstack/runtime @objectstack/objectql
 pnpm add @object-ui/data-objectstack
 
 # Optional: Plugins as needed
-pnpm add @object-ui/plugin-form @object-ui/plugin-grid @object-ui/plugin-aggrid
+pnpm add @object-ui/plugin-form @object-ui/plugin-grid
 ```
 
 ### 2. Set Up ObjectStack Kernel
@@ -156,7 +156,6 @@ import '@object-ui/components';
 import '@object-ui/fields';
 import '@object-ui/plugin-form';
 import '@object-ui/plugin-grid';
-import '@object-ui/plugin-aggrid';
 
 // Initialize ObjectStack adapter
 const dataSource = new ObjectStackAdapter({
@@ -307,7 +306,7 @@ const dataSource = new ObjectStackAdapter({
 
 // ObjectQL queries are automatically handled
 const schema = {
-  type: 'object-aggrid',
+  type: 'object-grid',
   objectName: 'contact',
   dataSource,
   // ObjectQL filter syntax
@@ -350,7 +349,7 @@ function ContactList() {
   return (
     <SchemaRenderer
       schema={{
-        type: 'object-aggrid',
+        type: 'object-grid',
         rowData: data.records,
         // ... other props
       }}
@@ -496,7 +495,7 @@ ComponentRegistry.register('my-custom-widget', MyCustomWidget, {
 
 ```typescript
 {
-  type: 'object-aggrid',
+  type: 'object-grid',
   objectName: 'contact',
   dataSource,
   callbacks: {
@@ -540,9 +539,9 @@ adapter.subscribe('contact', (event) => {
 ### From Retool
 
 ```typescript
-// Retool table → ObjectUI AG Grid
+// Retool table → ObjectUI Grid
 {
-  type: 'object-aggrid',
+  type: 'object-grid',
   objectName: 'users',
   dataSource,
   editable: true,
@@ -593,13 +592,13 @@ adapter.subscribe('contact', (event) => {
 ```typescript
 // Lazy load plugins
 const plugins = {
-  aggrid: () => import('@object-ui/plugin-aggrid'),
+  grid: () => import('@object-ui/plugin-grid'),
   charts: () => import('@object-ui/plugin-charts'),
   kanban: () => import('@object-ui/plugin-kanban')
 };
 
 // Load on demand
-await plugins.aggrid();
+await plugins.grid();
 ```
 
 ### Caching Strategy
@@ -630,7 +629,7 @@ test('renders contact grid', () => {
   const { getByText } = render(
     <SchemaRenderer
       schema={{
-        type: 'object-aggrid',
+        type: 'object-grid',
         objectName: 'contact',
         dataSource: mockDataSource
       }}

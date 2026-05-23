@@ -75,7 +75,6 @@ const workspaceAliases: Record<string, string> = {
   '@object-ui/app-shell': path.resolve(__dirname, '../../packages/app-shell/src'),
 
   // Plugin Aliases
-  '@object-ui/plugin-aggrid': path.resolve(__dirname, '../../packages/plugin-aggrid/src'),
   '@object-ui/plugin-calendar': path.resolve(__dirname, '../../packages/plugin-calendar/src'),
   '@object-ui/plugin-charts': path.resolve(__dirname, '../../packages/plugin-charts/src'),
   '@object-ui/plugin-chatbot': path.resolve(__dirname, '../../packages/plugin-chatbot/src'),

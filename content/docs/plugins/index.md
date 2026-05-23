@@ -24,7 +24,6 @@ Browse available plugins:
 ### Data Management
 
 - **[Grid Plugin](/docs/plugins/plugin-grid)** - Advanced data grid with sorting, filtering, and pagination
-- **[AgGrid Plugin](/docs/plugins/plugin-aggrid)** - Enterprise data grid powered by AG Grid
 - **[Form Plugin](/docs/plugins/plugin-form)** - Advanced form builder with validation
 - **[View Plugin](/docs/plugins/plugin-view)** - ObjectQL-integrated views (grid, form, detail)
 
@@ -105,23 +104,6 @@ npm install @object-ui/plugin-markdown
 ```
 
 [Read full documentation →](/docs/plugins/plugin-markdown)
-
----
-
-### AgGrid Plugin
-
-**[@object-ui/plugin-aggrid](/docs/plugins/plugin-aggrid)** - Advanced data grid powered by AG Grid Community Edition.
-
-- Sorting, filtering, and pagination
-- Row selection and editing
-- Multiple themes
-- Lazy-loaded
-
-```bash
-npm install @object-ui/plugin-aggrid ag-grid-community ag-grid-react
-```
-
-[Read full documentation →](/docs/plugins/plugin-aggrid)
 
 ---
 
@@ -330,7 +312,6 @@ export const CodeEditorRenderer = (props) => (
 | plugin-charts | ~0.2 KB | ~540 KB | Recharts visualization |
 | plugin-kanban | ~0.2 KB | ~100-150 KB | Drag-and-drop board |
 | plugin-markdown | ~0.2 KB | ~100-200 KB | Markdown rendering |
-| plugin-aggrid | ~0.2 KB | ~280 KB | Data grid |
 | plugin-timeline | ~0.2 KB | ~10 KB | Timeline layouts |
 | plugin-chatbot | ~0.2 KB | ~30 KB | Chat interface |
 | plugin-calendar-view | ~0.2 KB | ~40 KB | Full calendar |

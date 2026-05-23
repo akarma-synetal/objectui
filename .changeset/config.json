@@ -19,7 +19,6 @@
       "@object-ui/tenant",
       "@object-ui/permissions",
       "@object-ui/mobile",
-      "@object-ui/plugin-aggrid",
       "@object-ui/plugin-ai",
       "@object-ui/plugin-calendar",
       "@object-ui/plugin-charts",

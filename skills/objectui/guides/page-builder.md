@@ -328,7 +328,7 @@ Pick plugins by domain — each registers its own `type` strings in the Componen
 
 | Domain | Plugins |
 |--------|---------|
-| Tables | `plugin-grid`, `plugin-aggrid` |
+| Tables | `plugin-grid` |
 | List / Detail / Form | `plugin-list`, `plugin-detail`, `plugin-form` |
 | Time-based | `plugin-calendar`, `plugin-timeline`, `plugin-gantt` |
 | Boards / Dashboards | `plugin-kanban`, `plugin-dashboard`, `plugin-report` |

@@ -3,7 +3,6 @@
 import { useEffect, useState } from 'react';
 
 type PluginName = 
-  | 'aggrid'
   | 'editor'
   | 'charts'
   | 'dashboard'
@@ -30,7 +29,7 @@ interface PluginLoaderProps {
  * ```mdx
  * import { PluginLoader } from '@/app/components/PluginLoader';
  * 
- * <PluginLoader plugins={['aggrid']}>
+ * <PluginLoader plugins={['grid']}>
  *   <InteractiveDemo schema={{...}} />
  * </PluginLoader>
  * ```
@@ -54,8 +53,6 @@ export function PluginLoader({ plugins, children }: PluginLoaderProps) {
         // Dynamically import plugins based on the list
         const imports = plugins.map(async (plugin) => {
           switch (plugin) {
-            case 'aggrid':
-              return import('@object-ui/plugin-aggrid');
             case 'editor':
               return import('@object-ui/plugin-editor');
             case 'charts':

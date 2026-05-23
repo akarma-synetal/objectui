@@ -113,19 +113,6 @@ Advanced data grid with sorting, filtering, and pagination.
 
 ---
 
-#### [@object-ui/plugin-aggrid](../plugins/plugin-aggrid.md)
-
-Enterprise data grid powered by AG Grid.
-
-- Advanced filtering
-- Row editing
-- Multiple themes
-- Lazy-loaded (~150 KB)
-
-[Read full documentation →](../plugins/plugin-aggrid.md)
-
----
-
 #### [@object-ui/plugin-form](../plugins/plugin-form.md)
 
 Advanced form builder with validation.
@@ -243,7 +230,6 @@ export const CodeEditorRenderer = (props) => (
 | plugin-charts | ~0.2 KB | ~80 KB | Recharts visualization |
 | plugin-kanban | ~0.2 KB | ~100 KB | Drag-and-drop board |
 | plugin-markdown | ~0.2 KB | ~30 KB | Markdown rendering |
-| plugin-aggrid | ~0.2 KB | ~150 KB | AG Grid data grid |
 | plugin-dashboard | ~0.2 KB | ~22 KB | Dashboard layouts |
 | plugin-form | ~0.2 KB | ~28 KB | Form builder |
 | plugin-grid | ~0.2 KB | ~45 KB | Data grid |

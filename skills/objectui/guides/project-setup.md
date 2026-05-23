@@ -58,7 +58,6 @@ Add plugins as needed (full plugin catalog):
 ```json
 {
   "@object-ui/plugin-grid": "latest",
-  "@object-ui/plugin-aggrid": "latest",
   "@object-ui/plugin-list": "latest",
   "@object-ui/plugin-detail": "latest",
   "@object-ui/plugin-form": "latest",

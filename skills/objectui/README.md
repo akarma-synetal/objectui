@@ -33,7 +33,7 @@ The skill keeps in sync with the `packages/` tree:
 - **Core renderer:** `@object-ui/types`, `core`, `components`, `fields`, `layout`, `react`
 - **Integration:** `@object-ui/app-shell`, `providers`, `runner`, `data-objectstack`
 - **Platform features:** `@object-ui/auth`, `permissions`, `tenant`, `i18n`, `mobile`, `collaboration`
-- **Plugins (20):** `plugin-{grid, aggrid, list, detail, form, kanban, calendar, timeline, gantt, dashboard, report, charts, map, editor, markdown, view, designer, workflow, ai, chatbot}`
+- **Plugins (19):** `plugin-{grid, list, detail, form, kanban, calendar, timeline, gantt, dashboard, report, charts, map, editor, markdown, view, designer, workflow, ai, chatbot}`
 - **Tooling:** `@object-ui/cli`, `create-plugin`, `vscode-extension`
 
 ## Why This Structure?

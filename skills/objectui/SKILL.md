@@ -169,7 +169,6 @@ You manage a strict PNPM Workspace.
 | Plugin | Purpose |
 |---|---|
 | `@object-ui/plugin-grid` | Schema-driven data grid (sorting, filtering, virtualization). |
-| `@object-ui/plugin-aggrid` | AG Grid integration for enterprise tables. |
 | `@object-ui/plugin-list` / `plugin-detail` / `plugin-form` | List, Detail, Form view renderers. |
 | `@object-ui/plugin-kanban` | Drag-and-drop kanban boards. |
 | `@object-ui/plugin-calendar` / `plugin-timeline` / `plugin-gantt` | Time-based views. |

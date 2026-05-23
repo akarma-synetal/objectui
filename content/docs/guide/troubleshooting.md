@@ -224,8 +224,7 @@ import { I18nProvider } from '@object-ui/i18n';
 
 **Fix:**
 
-- **Use `plugin-aggrid`**: The AG Grid plugin (`packages/plugin-aggrid/`) supports virtual scrolling out of the box for large datasets.
-- **Use `plugin-grid`**: The built-in grid (`packages/plugin-grid/`) also supports virtualization when configured.
+- **Grid Plugin** (`packages/plugin-grid/`): Built-in grid supports virtualization out of the box for large datasets.
 - **Paginate server-side**: Configure your data source adapter (`packages/core/src/adapters/`) to fetch data in pages rather than loading everything at once.
 
 For custom views, use the `usePerformance` hook from `@object-ui/react` to monitor render times:

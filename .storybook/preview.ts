@@ -11,7 +11,6 @@ Object.values(components);
 
 // Import and register all plugin components for Storybook
 // This ensures plugin components are available for the plugin stories
-import '@object-ui/plugin-aggrid';
 import '@object-ui/plugin-calendar';
 import '@object-ui/plugin-charts';
 import '@object-ui/plugin-chatbot';

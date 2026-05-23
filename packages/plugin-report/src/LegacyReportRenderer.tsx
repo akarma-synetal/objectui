@@ -22,7 +22,7 @@ export const LegacyReportRenderer: React.FC<LegacyReportRendererProps> = ({ sche
   const chartType = schema.chart?.type || 'chart';
   const hasChart = !!schema.chart;
   
-  // In test environment, force fallback to simple table to avoid AG Grid complexity in JSDOM
+  // In test environment, force fallback to simple table to avoid grid complexity in JSDOM
   const isTest = process.env.NODE_ENV === 'test';
   const showGrid = !isTest;
 
@@ -64,11 +64,11 @@ export const LegacyReportRenderer: React.FC<LegacyReportRendererProps> = ({ sche
         {data && data.length > 0 && (
           <div className="border rounded-lg">
              {(() => {
-               const GridComponent = showGrid ? (ComponentRegistry.get('aggrid') || ComponentRegistry.get('table')) : null;
+               const GridComponent = showGrid ? (ComponentRegistry.get('grid') || ComponentRegistry.get('table')) : null;
                return GridComponent ? (
                   <GridComponent 
                     schema={{ 
-                      type: 'aggrid', 
+                      type: 'grid', 
                       rowData: data, 
                       columnDefs: columns,
                       domLayout: 'autoHeight'

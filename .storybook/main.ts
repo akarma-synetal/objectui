@@ -43,7 +43,6 @@ const config: StorybookConfig = {
           '@object-ui/layout': path.resolve(__dirname, '../packages/layout/src/index.ts'),
           '@object-ui/data-objectstack': path.resolve(__dirname, '../packages/data-objectstack/src/index.ts'),
           // Alias plugin packages for Storybook to resolve them from workspace
-          '@object-ui/plugin-aggrid': path.resolve(__dirname, '../packages/plugin-aggrid/src/index.tsx'),
           '@object-ui/plugin-calendar': path.resolve(__dirname, '../packages/plugin-calendar/src/index.tsx'),
           '@object-ui/plugin-charts': path.resolve(__dirname, '../packages/plugin-charts/src/index.tsx'),
           '@object-ui/plugin-chatbot': path.resolve(__dirname, '../packages/plugin-chatbot/src/index.tsx'),

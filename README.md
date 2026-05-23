@@ -443,7 +443,6 @@ Object UI is a modular monorepo with packages designed for specific use cases:
 
 | Plugin | Description | Size |
 |--------|-------------|------|
-| **[@object-ui/plugin-aggrid](./packages/plugin-aggrid)** | AG Grid data grid integration | 150KB |
 | **[@object-ui/plugin-calendar](./packages/plugin-calendar)** | Calendar and event management | 25KB |
 | **[@object-ui/plugin-charts](./packages/plugin-charts)** | Chart components powered by Recharts | 80KB |
 | **[@object-ui/plugin-chatbot](./packages/plugin-chatbot)** | Chatbot interface components | 35KB |

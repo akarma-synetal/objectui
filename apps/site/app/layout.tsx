@@ -1,6 +1,5 @@
 import { RootProvider } from 'fumadocs-ui/provider/next';
 import './global.css';
-// AG Grid styles - required for plugin-aggrid demos
 import { ObjectUIProvider } from '@/app/components/ObjectUIProvider';
 
 

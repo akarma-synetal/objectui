@@ -96,9 +96,8 @@ Each plugin provides specialized, complex widgets:
 - `@object-ui/plugin-timeline` - Event timeline
 - `@object-ui/plugin-dashboard` - Dashboard layouts
 - `@object-ui/plugin-chatbot` - Chat interface
-- `@object-ui/plugin-aggrid` - AG Grid integration
 
-**Important**: Heavy dependencies (like AG Grid, Monaco, Recharts) are only allowed in plugin packages to keep the core bundle small.
+**Important**: Heavy dependencies (like Monaco, Recharts) are only allowed in plugin packages to keep the core bundle small.
 
 ### Utility Packages
 

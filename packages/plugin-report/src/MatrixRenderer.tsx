@@ -17,7 +17,7 @@
  *   a {@link buildDrillAction} carrying both keys merged.
  *
  * We intentionally don't use ObjectGrid here — its tree model is single-axis
- * and bolting a 2D matrix onto AG-Grid header groups would be heavier than a
+ * and bolting a 2D matrix onto grid header groups would be heavier than a
  * direct table. The pivot dataset is already small (rows × cols are
  * dimensions, not raw records).
  */
