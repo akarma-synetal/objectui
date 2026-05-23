@@ -53,6 +53,18 @@ interface DataEmptyStateProps extends React.ComponentProps<"div"> {
   /** Icon rendered above the title */
   icon?: React.ReactNode
   /**
+   * Optional illustration rendered above the icon (or replacing it
+   * when the icon would have shown a generic Inbox glyph). Use for
+   * product-feel empty states — onboarding-style hero SVGs, brand
+   * illustrations, etc. Sized to roughly 96–160px by default; pass a
+   * custom `className` on the SVG to override.
+   *
+   * When `illustration` is set, the default Inbox icon is suppressed.
+   * To show BOTH a custom icon and an illustration, pass both `icon`
+   * and `illustration`.
+   */
+  illustration?: React.ReactNode
+  /**
    * When false, the icon container is omitted entirely. Useful for
    * board-level / banner-style empty states that should not show a generic
    * inbox glyph. Defaults to true.
@@ -74,6 +86,7 @@ interface DataEmptyStateProps extends React.ComponentProps<"div"> {
 function DataEmptyState({
   className,
   icon,
+  illustration,
   showIcon = true,
   iconWrapperClassName,
   title = "No data",
@@ -82,6 +95,11 @@ function DataEmptyState({
   children,
   ...props
 }: DataEmptyStateProps) {
+  // When an illustration is supplied we suppress the default Inbox
+  // icon — they would compete visually. A caller that explicitly
+  // passes both `icon` and `illustration` opts into rendering both.
+  const shouldShowIconBlock = showIcon && (icon != null || !illustration)
+
   return (
     <div
       data-slot="data-empty-state"
@@ -91,7 +109,16 @@ function DataEmptyState({
       )}
       {...props}
     >
-      {showIcon && (
+      {illustration && (
+        <div
+          data-slot="data-empty-state-illustration"
+          className="motion-safe:animate-in motion-safe:fade-in-0 motion-safe:zoom-in-95 motion-safe:duration-300 [&_svg]:max-h-40 [&_svg]:w-auto"
+          aria-hidden
+        >
+          {illustration}
+        </div>
+      )}
+      {shouldShowIconBlock && (
         <div
           data-slot="data-empty-state-icon"
           className={cn(

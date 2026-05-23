@@ -18,7 +18,7 @@ import {
   SortBuilder,
 } from '@object-ui/components';
 import { cva } from 'class-variance-authority';
-import { ArrowDown, ArrowUp } from 'lucide-react';
+import { ArrowUp } from 'lucide-react';
 import type { SortItem } from '@object-ui/components';
 import type { SortUISchema } from '@object-ui/types';
 
@@ -130,7 +130,9 @@ export const SortUI: React.FC<SortUIProps> = ({
       <div className={cn(sortContainerVariants({ variant: 'buttons' }), className)}>
         {schema.fields.map(field => {
           const current = sortState.find(item => item.field === field.field);
-          const Icon = current?.direction === 'asc' ? ArrowUp : ArrowDown;
+          // Single icon that rotates between asc (0°) and desc (180°) so
+          // toggling direction is a smooth, motion-safe transition rather
+          // than a hard icon swap.
           return (
             <Button
               key={field.field}
@@ -141,7 +143,15 @@ export const SortUI: React.FC<SortUIProps> = ({
               className="gap-2"
             >
               <span>{field.label || field.field}</span>
-              {current && <Icon className="h-3.5 w-3.5" />}
+              {current && (
+                <ArrowUp
+                  className={cn(
+                    'h-3.5 w-3.5 motion-safe:transition-transform motion-safe:duration-200',
+                    current.direction === 'desc' && 'rotate-180'
+                  )}
+                  aria-label={current.direction === 'asc' ? 'ascending' : 'descending'}
+                />
+              )}
             </Button>
           );
         })}

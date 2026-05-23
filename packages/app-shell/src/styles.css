@@ -14,3 +14,25 @@
  * ancestor) instead of the OS `prefers-color-scheme`. Required so the
  * in-app theme toggle fully controls light/dark UI under Tailwind v4. */
 @custom-variant dark (&:where(.dark, .dark *));
+
+/* Shimmer keyframe + utility for skeleton loading placeholders.
+ *
+ * Usage:   <div class="animate-shimmer ..."> or via ShimmerSkeleton
+ *          from @object-ui/components.
+ *
+ * The keyframe slides a 200%-wide gradient across an element's
+ * background. Pair with `bg-[length:200%_100%]` and a gradient that
+ * uses the design-system muted tokens, e.g.
+ *   bg-[linear-gradient(90deg,var(--muted),var(--muted-foreground)/10,var(--muted))]
+ *
+ * Respects `prefers-reduced-motion` automatically via the
+ * `motion-safe:` Tailwind variant on the consuming site.
+ */
+@keyframes shimmer {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+@utility animate-shimmer {
+  animation: shimmer 1.6s linear infinite;
+}
