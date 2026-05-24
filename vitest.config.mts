@@ -11,7 +11,27 @@ export default defineConfig({
     environment: 'happy-dom',
     testTimeout: 15000, // Increase default timeout for integration tests with MSW
     setupFiles: [path.resolve(__dirname, 'vitest.setup.tsx')],
-    exclude: ['**/node_modules/**', '**/dist/**', '**/cypress/**', '**/e2e/**', '**/.{idea,git,cache,output,temp}/**', '**/.claude/**'],
+    exclude: [
+      '**/node_modules/**',
+      '**/dist/**',
+      '**/cypress/**',
+      '**/e2e/**',
+      '**/.{idea,git,cache,output,temp}/**',
+      '**/.claude/**',
+      // Apps have their own '@/' alias pointing at their own src/, so they
+      // can't share the root '@' alias (→ packages/components). They are
+      // brought back in via the `projects` array below with their own
+      // vitest.config.ts.
+      'apps/**',
+    ],
+    // Each app config handles its own resolve.alias so '@/' resolves to the
+    // app's own src/, not packages/components/src.
+    projects: [
+      // The root config itself is the default project (packages/* + examples/*).
+      './vitest.config.mts',
+      './apps/studio/vitest.config.ts',
+      './apps/console/vitest.config.ts',
+    ],
     passWithNoTests: true,
     // Performance: use threads (lighter than forks). Isolation is enabled to
     // prevent module-graph and DOM state leakage across files (which previously

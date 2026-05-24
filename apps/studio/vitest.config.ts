@@ -15,6 +15,7 @@ export default defineConfig({
     react(),
   ],
   test: {
+    name: 'studio',
     globals: true,
     environment: 'happy-dom',
     setupFiles: [path.resolve(__dirname, './test/setup.ts')],
