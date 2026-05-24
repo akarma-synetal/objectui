@@ -8,6 +8,7 @@
     "build": "objectstack build",
     "dev": "objectstack build && AUTH_SECRET=${AUTH_SECRET:-dev-secret-do-not-use-in-prod-0123456789abcdef} OS_TRUSTED_ORIGINS=${OS_TRUSTED_ORIGINS:-http://localhost:*} OS_DISABLE_STUDIO=1 OS_DISABLE_CONSOLE=1 objectstack serve --port 3000",
     "start": "objectstack serve --port 3000",
+    "seed": "node scripts/seed.mjs",
     "validate": "objectstack validate"
   },
   "dependencies": {
