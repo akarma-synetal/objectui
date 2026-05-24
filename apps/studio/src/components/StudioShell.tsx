@@ -26,7 +26,7 @@ import { PanelRight, HelpCircle, Sparkles } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 function ShellBody({ children }: { children: React.ReactNode }) {
-  const { toggle: toggleInspector } = useInspector();
+  const { toggle: toggleInspector, open: inspectorOpen } = useInspector();
   const { toggle: toggleProblems } = useProblems();
   const { toggle: toggleAiChat, isOpen: aiChatOpen } = useAiChatPanel();
   const [helpOpen, setHelpOpen] = useState(false);
@@ -50,6 +50,7 @@ function ShellBody({ children }: { children: React.ReactNode }) {
                     className={`h-8 w-8 p-0 ${aiChatOpen ? 'text-primary' : ''}`}
                     onClick={toggleAiChat}
                     aria-label="Toggle AI Chat"
+                    aria-pressed={aiChatOpen}
                   >
                     <Sparkles className="h-4 w-4" />
                   </Button>
@@ -63,9 +64,10 @@ function ShellBody({ children }: { children: React.ReactNode }) {
                   <Button
                     size="sm"
                     variant="ghost"
-                    className="h-8 w-8 p-0"
+                    className={`h-8 w-8 p-0 ${inspectorOpen ? 'text-primary' : ''}`}
                     onClick={toggleInspector}
                     aria-label="Toggle Inspector"
+                    aria-pressed={inspectorOpen}
                   >
                     <PanelRight className="h-4 w-4" />
                   </Button>

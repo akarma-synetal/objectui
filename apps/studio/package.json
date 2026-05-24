@@ -35,6 +35,7 @@
     "@object-ui/core": "workspace:*",
     "@object-ui/data-objectstack": "workspace:*",
     "@object-ui/plugin-calendar": "workspace:*",
+    "@object-ui/plugin-chatbot": "workspace:*",
     "@object-ui/plugin-dashboard": "workspace:*",
     "@object-ui/plugin-detail": "workspace:*",
     "@object-ui/plugin-form": "workspace:*",

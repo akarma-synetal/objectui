@@ -29,6 +29,7 @@ export function ProblemsStatusBar() {
   const { problems, loading, open, toggle } = useProblems();
   const errors = problems.filter((p) => p.severity === 'error').length;
   const warnings = problems.filter((p) => p.severity === 'warning').length;
+  const hasIssues = errors > 0 || warnings > 0;
   return (
     <button
       onClick={toggle}
@@ -36,16 +37,25 @@ export function ProblemsStatusBar() {
       aria-pressed={open}
       title={`${problems.length} problem(s). Toggle with [`}
     >
-      <span className="inline-flex items-center gap-1">
-        <AlertCircle className="h-3 w-3" />
-        {errors}
-      </span>
-      <span className="inline-flex items-center gap-1">
-        <AlertTriangle className="h-3 w-3" />
-        {warnings}
-      </span>
+      {hasIssues && (
+        <>
+          {errors > 0 && (
+            <span className="inline-flex items-center gap-1">
+              <AlertCircle className="h-3 w-3" />
+              {errors}
+            </span>
+          )}
+          {warnings > 0 && (
+            <span className="inline-flex items-center gap-1">
+              <AlertTriangle className="h-3 w-3" />
+              {warnings}
+            </span>
+          )}
+        </>
+      )}
       <span className="text-muted-foreground hidden sm:inline">
-        Problems{loading ? '…' : ''}
+        {hasIssues ? 'Problems' : 'No problems'}
+        {loading ? '…' : ''}
       </span>
       <kbd className="hidden md:inline px-1 rounded bg-muted text-[10px]">[</kbd>
     </button>

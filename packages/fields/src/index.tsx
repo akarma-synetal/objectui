@@ -26,8 +26,18 @@ const lookupNameCache: Map<string, LookupCacheEntry> = new Map();
  * Pick the most reasonable display name from an arbitrary record object.
  * Tries common name-like keys in priority order, then falls back to undefined.
  */
-function pickRecordDisplayName(record: Record<string, unknown> | null | undefined): string | undefined {
+function pickRecordDisplayName(
+  record: Record<string, unknown> | null | undefined,
+  preferredField?: string,
+): string | undefined {
   if (!record || typeof record !== 'object') return undefined;
+  // Caller-provided hint (typically the target object's displayNameField)
+  // beats every heuristic so domain-specific names like `legal_name` win.
+  if (preferredField) {
+    const pv = record[preferredField];
+    if (typeof pv === 'string' && pv.trim()) return pv.trim();
+    if (typeof pv === 'number') return String(pv);
+  }
   const candidates = ['name', 'full_name', 'display_name', 'label', 'title', 'subject', 'username'];
   for (const k of candidates) {
     const v = record[k];
@@ -48,6 +58,22 @@ function pickRecordDisplayName(record: Record<string, unknown> | null | undefine
   // Email is the last-resort identifier (better than the opaque id).
   const email = record['email'];
   if (typeof email === 'string' && email.trim()) return email.trim();
+  // Heuristic fallback: pick the first string-valued field whose name looks
+  // like a human-facing identifier (legal_name, framework_name, control_number,
+  // policy_code, etc.). This covers domain schemas that don't use the
+  // hardcoded canonical names above. We skip obvious metadata keys.
+  const SKIP = new Set([
+    'id', '_id', 'organization_id', 'created_by', 'updated_by',
+    'created_at', 'updated_at', 'tenant_id',
+  ]);
+  const SUFFIXES = ['_name', '_title', '_number', '_code', '_label'];
+  for (const [k, v] of Object.entries(record)) {
+    if (SKIP.has(k)) continue;
+    if (k.endsWith('_id')) continue;
+    if (!SUFFIXES.some((s) => k.endsWith(s))) continue;
+    if (typeof v === 'string' && v.trim()) return v.trim();
+    if (typeof v === 'number') return String(v);
+  }
   return undefined;
 }
 
