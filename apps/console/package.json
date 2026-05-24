@@ -52,7 +52,10 @@
     "test:ui": "vitest --ui",
     "prepublishOnly": "pnpm build"
   },
-  "dependencies": {
+  "devDependencies": {
+    "@dnd-kit/core": "^6.3.1",
+    "@dnd-kit/sortable": "^10.0.0",
+    "@dnd-kit/utilities": "^3.2.2",
     "@object-ui/app-shell": "workspace:*",
     "@object-ui/auth": "workspace:*",
     "@object-ui/collaboration": "workspace:*",
@@ -64,7 +67,6 @@
     "@object-ui/layout": "workspace:*",
     "@object-ui/mobile": "workspace:*",
     "@object-ui/permissions": "workspace:*",
-    "@object-ui/providers": "workspace:*",
     "@object-ui/plugin-calendar": "workspace:*",
     "@object-ui/plugin-charts": "workspace:*",
     "@object-ui/plugin-chatbot": "workspace:*",
@@ -81,13 +83,9 @@
     "@object-ui/plugin-report": "workspace:*",
     "@object-ui/plugin-timeline": "workspace:*",
     "@object-ui/plugin-view": "workspace:*",
+    "@object-ui/providers": "workspace:*",
     "@object-ui/react": "workspace:*",
-    "@object-ui/types": "workspace:*"
-  },
-  "devDependencies": {
-    "@dnd-kit/core": "^6.3.1",
-    "@dnd-kit/sortable": "^10.0.0",
-    "@dnd-kit/utilities": "^3.2.2",
+    "@object-ui/types": "workspace:*",
     "@objectstack/client": "^4.2.0",
     "@objectstack/spec": "^4.0.5",
     "@tailwindcss/postcss": "^4.3.0",
