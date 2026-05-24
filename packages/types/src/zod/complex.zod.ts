@@ -195,9 +195,30 @@ export const CarouselSchema = BaseSchema.extend({
 export const ChatToolInvocationSchema = z.object({
   toolCallId: z.string().describe('Unique tool call identifier'),
   toolName: z.string().describe('Name of the tool'),
-  args: z.record(z.string(), z.unknown()).describe('Tool arguments'),
+  args: z.unknown().optional().describe('Tool arguments'),
   result: z.unknown().optional().describe('Tool result'),
-  state: z.enum(['partial-call', 'call', 'result']).describe('Tool invocation state'),
+  errorText: z.string().optional().describe('Tool error text'),
+  state: z
+    .enum([
+      'partial-call',
+      'call',
+      'result',
+      'input-streaming',
+      'input-available',
+      'approval-requested',
+      'approval-responded',
+      'output-available',
+      'output-error',
+      'output-denied',
+    ])
+    .optional()
+    .describe('Tool invocation state'),
+});
+
+export const ChatMessageSourceSchema = z.object({
+  id: z.string().optional(),
+  title: z.string().optional(),
+  url: z.string().describe('Source URL'),
 });
 
 export const ChatMessageSchema = z.object({
@@ -208,6 +229,9 @@ export const ChatMessageSchema = z.object({
   metadata: z.record(z.string(), z.any()).optional().describe('Custom metadata'),
   streaming: z.boolean().optional().describe('Whether message is being streamed'),
   toolInvocations: z.array(ChatToolInvocationSchema).optional().describe('Tool invocations'),
+  reasoning: z.string().optional().describe('Chain-of-thought reasoning text'),
+  sources: z.array(ChatMessageSourceSchema).optional().describe('Citation sources'),
+  traceId: z.string().optional().describe('Backend trace id (ai_traces.id)'),
 });
 
 /**

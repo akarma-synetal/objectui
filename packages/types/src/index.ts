@@ -251,6 +251,7 @@ export type {
   DashboardWidgetSchema,
   DashboardSchema,
   ChatMessage,
+  ChatMessageSource,
   ChatToolInvocation,
   ChatbotSchema,
   FloatingChatbotConfig,

@@ -36,11 +36,19 @@
     "@object-ui/core": "workspace:*",
     "@object-ui/react": "workspace:*",
     "@object-ui/types": "workspace:*",
+    "@radix-ui/react-slot": "^1.2.4",
+    "@radix-ui/react-use-controllable-state": "^1.2.2",
     "ai": "^6.0.184",
+    "class-variance-authority": "^0.7.1",
     "lucide-react": "^1.16.0",
+    "motion": "^12.38.0",
+    "nanoid": "^5.1.11",
     "react-markdown": "^10.1.0",
     "react-syntax-highlighter": "^16.1.1",
-    "remark-gfm": "^4.0.1"
+    "remark-gfm": "^4.0.1",
+    "shiki": "^4.0.2",
+    "streamdown": "^1.4.1",
+    "use-stick-to-bottom": "^1.1.1"
   },
   "peerDependencies": {
     "react": "^18.0.0 || ^19.0.0",

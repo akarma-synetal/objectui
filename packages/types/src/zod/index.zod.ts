@@ -226,6 +226,7 @@ export {
   CarouselItemSchema,
   CarouselSchema,
   ChatToolInvocationSchema,
+  ChatMessageSourceSchema,
   ChatMessageSchema,
   ChatbotSchema,
   DashboardWidgetLayoutSchema,

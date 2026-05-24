@@ -422,6 +422,30 @@ export interface ChatMessage {
    * Tool invocations associated with this message (for tool-calling flows)
    */
   toolInvocations?: ChatToolInvocation[];
+  /**
+   * Chain-of-thought / reasoning text emitted alongside the answer.
+   * Surfaced by the chatbot UI as a collapsible "Thoughts" panel.
+   */
+  reasoning?: string;
+  /**
+   * Optional citation / RAG sources for this assistant message.
+   * Surfaced by the chatbot UI as an inline citation panel.
+   */
+  sources?: ChatMessageSource[];
+  /**
+   * Optional backend trace id (e.g. the `ai_traces.id` produced by
+   * `@objectstack/service-ai`'s auto-tracing) for "view trace" affordances.
+   */
+  traceId?: string;
+}
+
+/**
+ * Citation / RAG source attached to a chat message.
+ */
+export interface ChatMessageSource {
+  id?: string;
+  title?: string;
+  url: string;
 }
 
 /**
@@ -439,15 +463,32 @@ export interface ChatToolInvocation {
   /**
    * Arguments passed to the tool
    */
-  args: Record<string, unknown>;
+  args?: Record<string, unknown> | unknown;
   /**
    * Result of the tool invocation (set when complete)
    */
   result?: unknown;
   /**
-   * Tool invocation state
+   * Error text when the tool call ends in an error state.
    */
-  state: 'partial-call' | 'call' | 'result';
+  errorText?: string;
+  /**
+   * Tool invocation state. The legacy `partial-call`/`call`/`result` values
+   * are kept for back-compat; the AI SDK v6 lifecycle states map cleanly to
+   * `input-streaming`/`input-available`/`output-available`/`output-error`
+   * and friends and are now accepted directly.
+   */
+  state?:
+    | 'partial-call'
+    | 'call'
+    | 'result'
+    | 'input-streaming'
+    | 'input-available'
+    | 'approval-requested'
+    | 'approval-responded'
+    | 'output-available'
+    | 'output-error'
+    | 'output-denied';
 }
 
 /**

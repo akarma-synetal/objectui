@@ -1,6 +1,15 @@
 # @object-ui/plugin-chatbot
 
-Chatbot interface plugin for Object UI with full AI SDUI support.
+Chatbot interface plugin for Object UI with full AI SDUI support, built on
+[Vercel AI Elements](https://elements.ai-sdk.dev) (MIT) and
+[shadcn/ui](https://ui.shadcn.com) (MIT).
+
+> Why AI Elements? They give us a production-grade, shadcn-style chat
+> surface — conversation, message bubbles, streaming reasoning, tool calls,
+> sources, code blocks, suggestions — that already matches our Tailwind 4
+> design tokens. We vendor them into `src/elements/` so we can ship without a
+> network dep, and we wrap them inside `ChatbotEnhanced` to keep the public
+> ObjectUI prop API stable. See [Architecture](#architecture) below.
 
 ## Installation
 
@@ -210,6 +219,46 @@ const aiSchema = {
 - 🤝 [Contributing Guide](https://github.com/objectstack-ai/objectui/blob/main/CONTRIBUTING.md)
 - 🗺️ [Roadmap](https://github.com/objectstack-ai/objectui/blob/main/ROADMAP.md)
 
+## Architecture
+
+Internally the chatbot is composed from three layers:
+
+```
+┌─────────────────────────────────────────────────────┐
+│  ChatbotEnhanced (public surface, stable props)     │
+│  ├─ Conversation / Message  (AI Elements)           │
+│  ├─ PromptInput  (AI Elements)                      │
+│  └─ Suggestion / Reasoning / Tool  (AI Elements)    │
+├─────────────────────────────────────────────────────┤
+│  src/elements/                                      │
+│  Vendored Vercel AI Elements + missing shadcn       │
+│  primitives (button-group, input-group). Rewritten  │
+│  to import from `@object-ui/components`. Do NOT     │
+│  edit — re-sync from registry.ai-sdk.dev.           │
+├─────────────────────────────────────────────────────┤
+│  @object-ui/components (shadcn + Tailwind 4)        │
+└─────────────────────────────────────────────────────┘
+```
+
+The vendored components are also re-exported under a namespace for advanced
+users who want to compose their own chat surface:
+
+```tsx
+import { AIElements } from '@object-ui/plugin-chatbot';
+
+<AIElements.Conversation>
+  <AIElements.ConversationContent>
+    <AIElements.Message from="assistant">
+      <AIElements.MessageContent>Hello.</AIElements.MessageContent>
+    </AIElements.Message>
+  </AIElements.ConversationContent>
+</AIElements.Conversation>;
+```
+
 ## License
 
 MIT © ObjectStack Inc.
+
+Third-party code shipped under `src/elements/`:
+- **Vercel AI Elements** — MIT © Vercel, Inc.
+- **shadcn/ui** primitives (`button-group`, `input-group`) — MIT © shadcn.

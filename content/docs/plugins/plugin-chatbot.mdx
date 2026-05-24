@@ -7,6 +7,19 @@ import { PluginLoader } from '@/app/components/PluginLoader';
 
 Chat interface component with message history, typing indicators, and customizable avatars.
 
+> **v5.4+** — the chat surface is now composed from vendored
+> [Vercel AI Elements](https://elements.ai-sdk.dev) (MIT). The public
+> `chatbot` schema and `ChatbotEnhanced` / `FloatingChatbot` props are
+> unchanged. A new optional `suggestions: string[]` field renders chip
+> prompts in the empty state.
+
+For advanced compositions, the underlying elements are re-exported:
+
+```tsx
+import { AIElements } from '@object-ui/plugin-chatbot';
+// AIElements.Conversation, AIElements.Message, AIElements.PromptInput, ...
+```
+
 ## Installation
 
 ```bash

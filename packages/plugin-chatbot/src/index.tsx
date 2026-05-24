@@ -273,3 +273,9 @@ export type { FloatingChatbotPanelProps } from './FloatingChatbotPanel';
 
 // Export renderer to register the component with ObjectUI
 export * from './renderer';
+
+// Re-export the vendored Vercel AI Elements (MIT, src/elements/) so app
+// authors who want to compose their own chat surface don't have to reach
+// into deep paths. Wrappers (e.g. ConsoleFloatingChatbot) should consume
+// these instead of dropping back to the legacy primitives.
+export * as AIElements from './elements';
