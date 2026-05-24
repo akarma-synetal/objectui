@@ -42,6 +42,7 @@
       "@object-ui/app-shell",
       "@object-ui/providers",
       "@object-ui/console",
+      "@object-ui/studio",
       "object-ui"
     ]
   ],
