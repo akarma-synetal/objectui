@@ -66,8 +66,8 @@ export default defineConfig({
    */
   webServer: {
     command: process.env.CI
-      ? 'pnpm --filter @object-ui/console preview --port 4173'
-      : 'pnpm turbo run build --filter=@object-ui/console && pnpm --filter @object-ui/console preview --port 4173',
+      ? 'VITE_BASE_PATH=/console/ pnpm --filter @object-ui/console preview --port 4173'
+      : 'VITE_BASE_PATH=/console/ pnpm turbo run build --filter=@object-ui/console && VITE_BASE_PATH=/console/ pnpm --filter @object-ui/console preview --port 4173',
     url: 'http://localhost:4173/console/',
     reuseExistingServer: !process.env.CI,
     timeout: 180 * 1000,

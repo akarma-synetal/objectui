@@ -5,7 +5,7 @@
     "build": {
       "dependsOn": ["^build"],
       "outputs": ["dist/**", ".next/**", "build/**", "storybook-static/**"],
-      "env": ["NODE_ENV"]
+      "env": ["NODE_ENV", "VITE_BASE_PATH"]
     },
     "test": {
       "dependsOn": ["^build"],

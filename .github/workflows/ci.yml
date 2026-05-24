@@ -126,6 +126,12 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Build Core & Console
+        # Pin VITE_BASE_PATH so the E2E suite (which mounts the SPA at
+        # /console/) gets an absolute-base build whose asset URLs resolve
+        # under that prefix. The default ('./') is correct for embedded
+        # deployments but breaks vite preview's SPA fallback.
+        env:
+          VITE_BASE_PATH: /console/
         run: |
           pnpm turbo run build --filter='./packages/*'
           pnpm --filter @object-ui/console build
