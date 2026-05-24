@@ -261,6 +261,27 @@ npx objectui doctor
 
 This reports duplicate registrations and namespace collisions.
 
+## 10. `react-day-picker` v9 prop / classNames errors
+
+**Symptom:** After upgrading `react-day-picker` (a transitive dependency of `@object-ui/components`) you see TypeScript errors such as:
+
+- `Property 'initialFocus' does not exist on type 'DayPickerProps'`
+- `Property 'fromYear' does not exist on type 'DayPickerProps'`
+- `'table' does not exist in type 'Partial<ClassNames>'`
+
+**Cause:** v9 removed several legacy props/classnames slots inherited from the v7 API.
+
+**Fix:** Apply the v8 → v9 mapping below in any file that consumes `<Calendar>` / `<DayPicker>` directly:
+
+| v8 / earlier         | v9 replacement                                                |
+| -------------------- | ------------------------------------------------------------- |
+| `initialFocus`       | `autoFocus`                                                   |
+| `fromYear={2000}`    | `startMonth={new Date(2000, 0)}`                              |
+| `toYear={2050}`      | `endMonth={new Date(2050, 11)}`                               |
+| `classNames.table`   | removed — drop the entry (the table wrapper now styles itself) |
+
+The components shipped in `@object-ui/components` and `@object-ui/plugin-calendar` already use the v9 API; this note exists so downstream apps with their own `<Calendar>` wrappers can apply the same migration.
+
 ## Getting Help
 
 If none of the above resolves your issue:
