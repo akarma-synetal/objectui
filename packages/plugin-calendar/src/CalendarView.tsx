@@ -342,9 +342,9 @@ function CalendarView({
                 mode="single"
                 selected={selectedDate}
                 onSelect={handleDateSelect}
-                initialFocus
-                fromYear={2000}
-                toYear={2050}
+                autoFocus
+                startMonth={new Date(2000, 0)}
+                endMonth={new Date(2050, 11)}
               />
             </PopoverContent>
           </Popover>

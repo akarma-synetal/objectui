@@ -7,6 +7,7 @@
  */
 
 import { ComponentRegistry } from '@object-ui/core';
+import type { CSSProperties } from 'react';
 import type { EmptySchema, ComponentSchema } from '@object-ui/types';
 import { SchemaRenderer } from '@object-ui/react';
 import { DataEmptyState } from '../../custom/view-states';
@@ -38,7 +39,7 @@ ComponentRegistry.register('empty',
         className={schema.className}
         action={actionNode}
         {...emptyProps}
-        {...{ 'data-obj-id': dataObjId, 'data-obj-type': dataObjType, style }}
+        {...{ 'data-obj-id': dataObjId, 'data-obj-type': dataObjType, style: style as CSSProperties | undefined }}
       />
     );
   },

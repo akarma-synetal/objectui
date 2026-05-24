@@ -58,7 +58,7 @@ ComponentRegistry.register('date-picker',
               mode="single"
               selected={value}
               onSelect={handleSelect}
-              initialFocus
+              autoFocus
             />
           </PopoverContent>
         </Popover>
