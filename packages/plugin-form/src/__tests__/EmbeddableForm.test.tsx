@@ -174,12 +174,17 @@ describe('EmbeddableForm — security & UX guards', () => {
           consent: { required: true, label: 'I agree' },
           texts: { consentRequired: 'Please accept', submit: 'Submit' },
         })}
+        // Prefill email so react-hook-form's required-field validation
+        // passes synchronously and `onSuccess` (where the consent gate lives)
+        // is actually reached. Without this, slower CI runners can flush the
+        // submit click before the typed value is propagated to RHF state,
+        // making the test flaky.
+        prefillParams={{ email: 'a@b.com' }}
         dataSource={ds}
       />,
     );
 
-    const emailInput = await screen.findByLabelText(/email/i);
-    fireEvent.change(emailInput, { target: { value: 'a@b.com' } });
+    await screen.findByLabelText(/email/i);
     fireEvent.click(await screen.findByRole('button', { name: /submit/i }));
 
     await waitFor(() => {
