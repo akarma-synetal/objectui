@@ -114,28 +114,62 @@ function isNamedItem(item: unknown): item is { name: string } {
  *
  * Existing `obj.listViews` / `obj.list_views` win to preserve overrides.
  */
+interface ViewBucket {
+  primary?: any;
+  form?: any;
+  listViews: Record<string, any>;
+  formViews: Record<string, any>;
+}
+
 function mergeViewsIntoObjects(objects: any[], views: any[]): any[] {
   if (!objects.length || !views.length) return objects;
-  const byObject: Record<string, Record<string, any>> = {};
+  const byObject: Record<string, ViewBucket> = {};
   for (const view of views) {
     const objName = view?.name || view?.list?.data?.object || view?.form?.data?.object;
     if (!objName) continue;
-    const bucket = (byObject[objName] ||= {});
+    const bucket = (byObject[objName] ||= { listViews: {}, formViews: {} });
     if (view.list) {
-      const k = view.list.name || 'default';
-      bucket[k] = view.list;
+      // Preserve the primary list view as `obj.list` per @objectstack/spec
+      // ViewSchema. Also mirror it into `listViews` under its name so legacy
+      // consumers (that only iterate `listViews`) still see it. Consumers
+      // honoring `obj.list` (e.g. ObjectView) should dedup by id.
+      bucket.primary = view.list;
+      const k = view.list.name || 'list';
+      bucket.listViews[k] = view.list;
+    }
+    if (view.form) {
+      bucket.form = view.form;
     }
     if (view.listViews && typeof view.listViews === 'object') {
       for (const [k, v] of Object.entries(view.listViews as Record<string, any>)) {
-        bucket[k] = v;
+        bucket.listViews[k] = v;
+      }
+    }
+    if (view.formViews && typeof view.formViews === 'object') {
+      for (const [k, v] of Object.entries(view.formViews as Record<string, any>)) {
+        bucket.formViews[k] = v;
       }
     }
   }
   return objects.map(obj => {
     const extra = byObject[obj.name];
     if (!extra) return obj;
-    const existing = obj.listViews || obj.list_views || {};
-    return { ...obj, listViews: { ...extra, ...existing } };
+    const existingListViews = obj.listViews || obj.list_views || {};
+    const existingFormViews = obj.formViews || obj.form_views || {};
+    const merged: any = {
+      ...obj,
+      listViews: { ...extra.listViews, ...existingListViews },
+    };
+    if (Object.keys(extra.formViews).length || Object.keys(existingFormViews).length) {
+      merged.formViews = { ...extra.formViews, ...existingFormViews };
+    }
+    if (extra.primary && !obj.list) {
+      merged.list = extra.primary;
+    }
+    if (extra.form && !obj.form) {
+      merged.form = extra.form;
+    }
+    return merged;
   });
 }
 

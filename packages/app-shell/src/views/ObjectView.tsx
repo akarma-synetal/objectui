@@ -501,6 +501,12 @@ export function ObjectView({ dataSource, objects, onEdit, externalRefreshKey }: 
         }
         const definedViews = (objectDef.listViews || objectDef.list_views || {}) as Record<string, any>;
         const ids = Object.keys(definedViews);
+        // Include the primary view id so overrides apply to it too.
+        const primary = (objectDef as any).list;
+        if (primary && typeof primary === 'object') {
+            const primaryId = primary.name || 'list';
+            if (!ids.includes(primaryId)) ids.unshift(primaryId);
+        }
         if (ids.length === 0) {
             setViewOverrides({});
             return;
@@ -543,7 +549,7 @@ export function ObjectView({ dataSource, objects, onEdit, externalRefreshKey }: 
             if (!cancelled) setViewOverrides(map);
         });
         return () => { cancelled = true; };
-    }, [dataSource, objectName, objectDef.listViews, objectDef.list_views, refreshKey]);
+    }, [dataSource, objectName, objectDef.listViews, objectDef.list_views, (objectDef as any).list, refreshKey]);
 
     // Resolve Views from objectDef.listViews (camelCase per @objectstack/spec)
     const views = useMemo(() => {
@@ -589,6 +595,29 @@ export function ObjectView({ dataSource, objects, onEdit, externalRefreshKey }: 
             };
         });
 
+        // Honor `objectDef.list` (the primary list view, per @objectstack/spec
+        // ViewSchema). MetadataProvider mirrors it into `listViews` so it's
+        // already in `viewList` above; promote it to the front and mark it as
+        // the default so `defaultViewId` picks it over secondary listViews.
+        const primary = (objectDef as any).list;
+        if (primary && typeof primary === 'object') {
+            const primaryId = primary.name || 'list';
+            const idx = viewList.findIndex(v => v.id === primaryId);
+            if (idx >= 0) {
+                const [entry] = viewList.splice(idx, 1);
+                viewList.unshift({ ...entry, isDefault: true });
+            } else {
+                const override = viewOverrides[primaryId];
+                viewList.unshift({
+                    id: primaryId,
+                    ...primary,
+                    ...(override || {}),
+                    type: (override?.type) || primary.type || 'grid',
+                    isDefault: true,
+                });
+            }
+        }
+
         if (viewList.length === 0) {
             viewList.push({
                 id: 'all',
@@ -604,7 +633,10 @@ export function ObjectView({ dataSource, objects, onEdit, externalRefreshKey }: 
         for (const sv of savedViews) {
             const id = sv.id || sv._id;
             if (!id) continue;
-            const normalized: any = {
+            // Drop undefined fields so a partial overlay (e.g. baseline row
+            // with no user customization) does not stomp `isDefault`/`columns`
+            // populated from the metadata view it shadows.
+            const rawNormalized: Record<string, any> = {
                 label: sv.label || sv.name || id,
                 type: sv.type || 'grid',
                 columns: sv.columns,
@@ -620,6 +652,10 @@ export function ObjectView({ dataSource, objects, onEdit, externalRefreshKey }: 
                 ...sv,
                 id,
             };
+            const normalized: Record<string, any> = {};
+            for (const [k, v] of Object.entries(rawNormalized)) {
+                if (v !== undefined) normalized[k] = v;
+            }
             if (metaIds.has(id)) {
                 const idx = viewList.findIndex(v => v.id === id);
                 viewList[idx] = { ...viewList[idx], ...normalized };
@@ -660,13 +696,22 @@ export function ObjectView({ dataSource, objects, onEdit, externalRefreshKey }: 
             if (bUser !== undefined) return 1;
             const aSaved = savedViews.find((sv: any) => (sv.id || sv._id) === a.id);
             const bSaved = savedViews.find((sv: any) => (sv.id || sv._id) === b.id);
-            if (!aSaved && !bSaved) return (indexOf.get(a.id) ?? 0) - (indexOf.get(b.id) ?? 0);
-            if (!aSaved) return -1;
-            if (!bSaved) return 1;
-            const ao = typeof aSaved.sortOrder === 'number' ? aSaved.sortOrder : Number.MAX_SAFE_INTEGER;
-            const bo = typeof bSaved.sortOrder === 'number' ? bSaved.sortOrder : Number.MAX_SAFE_INTEGER;
-            if (ao !== bo) return ao - bo;
-            return (aSaved.created_at || '').localeCompare(bSaved.created_at || '');
+            const aHasOrder = aSaved && typeof aSaved.sortOrder === 'number';
+            const bHasOrder = bSaved && typeof bSaved.sortOrder === 'number';
+            // Only an explicit user `sortOrder` should reorder views away from
+            // the metadata-declared sequence. A bare overlay row (no sortOrder)
+            // must not demote a metadata view: that would break primary-view
+            // promotion (which relies on declared order) for objects whose
+            // overlay seeded a baseline `sys_view` row without sort info.
+            if (aHasOrder && bHasOrder) {
+                if (aSaved.sortOrder !== bSaved.sortOrder) {
+                    return aSaved.sortOrder - bSaved.sortOrder;
+                }
+                return (aSaved.created_at || '').localeCompare(bSaved.created_at || '');
+            }
+            if (aHasOrder) return -1;
+            if (bHasOrder) return 1;
+            return (indexOf.get(a.id) ?? 0) - (indexOf.get(b.id) ?? 0);
         });
 
         return viewList;
