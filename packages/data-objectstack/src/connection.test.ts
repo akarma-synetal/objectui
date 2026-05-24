@@ -139,7 +139,7 @@ describe('getDiscovery', () => {
     expect(discovery).toEqual(mockDiscovery);
     expect((discovery as any)?.services?.auth?.enabled).toBe(false);
     expect(fetchImpl).toHaveBeenCalledTimes(1);
-    expect(fetchImpl.mock.calls[0][0]).toContain('/api/v1/discovery');
+    expect((fetchImpl.mock.calls[0] as unknown as unknown[])[0]).toContain('/api/v1/discovery');
   });
 
   it('should return null when connection fails', async () => {

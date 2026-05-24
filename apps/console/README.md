@@ -21,8 +21,8 @@ The standard runtime UI for ObjectStack applications. This package provides the 
 # From the repository root
 pnpm install
 
-# Start development server (with MSW mock backend)
-pnpm dev
+# Start the in-repo backend + the console SPA in parallel
+pnpm dev:full
 
 # Build for production
 pnpm build
@@ -31,36 +31,36 @@ pnpm build
 pnpm test
 ```
 
-The console opens at **http://localhost:5173** with a simulated backend (CRM + Todo + Kitchen Sink demo data).
+`pnpm dev:full` boots two processes:
+
+- **`@object-ui/dev-server`** on `http://localhost:3000` — a thin
+  `@objectstack/cli` shell with fixture metadata under `apps/dev-server/`.
+- **`@object-ui/console`** (Vite) on `http://localhost:5173` — pre-wired
+  via `.env.development` (`VITE_SERVER_URL=http://localhost:3000`).
+
+You can also run them independently with `pnpm dev:server` and `pnpm dev`.
 
 ## Running Modes
 
-The console supports two distinct running modes:
+The console supports two running modes:
 
-### 1. Development Mode (Standalone)
-**Command:** `pnpm dev`
+### 1. Development Mode (with in-repo backend)
+**Command:** `pnpm dev:full` (or `pnpm dev` if a backend is already up)
 
-- Runs Vite dev server directly with Hot Module Replacement (HMR)
-- Uses Mock Service Worker (MSW) to intercept API calls in the browser
-- Fast development cycle with instant feedback
-- Best for UI development and testing
-- Opens at http://localhost:5173
+- Vite dev server with Hot Module Replacement (HMR), opens at
+  http://localhost:5173.
+- Talks to the **in-repo** ObjectStack backend at
+  http://localhost:3000 (`apps/dev-server`). No external repository
+  required.
+- Best for UI development and end-to-end debugging.
 
-### 2. Plugin Mode (Production-like)
+### 2. Standalone SPA preview
 **Command:** `pnpm start`
 
-- Runs via `@objectstack/cli serve` with ObjectStack runtime
-- Serves the console as a UI plugin from `dist/` directory
-- Tests plugin integration and routing
-- Simulates production deployment pattern
-- Useful for testing the plugin architecture
-- Opens at http://localhost:3000 (default CLI port)
-
-Both modes support the same features and use the same codebase. Choose development mode for fast iteration, and plugin mode to verify deployment behavior.
-
-## Vercel Deployment
-
-The console can be deployed as a standalone static SPA (e.g. to Vercel) that connects to a remote ObjectStack backend. The build configured in `vercel.json` disables the MSW mock worker (`VITE_USE_MOCK_SERVER=false`) so that all `/api/v1/*` requests go to the real backend.
+- Runs `vite preview` against the built `dist/` directory.
+- Connects to whatever backend `VITE_SERVER_URL` points at — useful for
+  smoke-testing a production build against a remote ObjectStack instance.
+- Opens at http://localhost:4173 (Vite preview default).
 
 **Required environment variable** (set in the Vercel project's *Environment Variables* panel):
 

@@ -17,8 +17,9 @@
   ],
   "scripts": {
     "dev": "pnpm --filter @object-ui/console dev",
+    "dev:server": "pnpm --filter @object-ui/dev-server dev",
+    "dev:full": "concurrently -k -n server,console -c blue,green \"pnpm dev:server\" \"wait-on -t 60000 http://localhost:3000/api/v1/health && pnpm dev\"",
     "start": "pnpm --filter @object-ui/console preview",
-    "msw:dev": "pnpm --filter @object-ui/console msw:init && pnpm --filter @object-ui/console dev",
     "build": "turbo run build --filter=!@object-ui/site",
     "build:all": "turbo run build",
     "test": "vitest run",
@@ -60,8 +61,8 @@
   "devDependencies": {
     "@changesets/cli": "^2.31.0",
     "@eslint/js": "^10.0.1",
-    "@objectstack/cli": "^4.2.0",
-    "@objectstack/spec": "^4.0.5",
+    "@objectstack/cli": "^5.2.0",
+    "@objectstack/spec": "^5.2.0",
     "@playwright/test": "^1.60.0",
     "@storybook/addon-essentials": "^8.6.14",
     "@storybook/addon-interactions": "^8.6.14",

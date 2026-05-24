@@ -26,11 +26,11 @@ importers:
         specifier: ^10.0.1
         version: 10.0.1(eslint@10.4.0(jiti@2.7.0))
       '@objectstack/cli':
-        specifier: ^4.2.0
-        version: 4.2.0(@ai-sdk/anthropic@3.0.69(zod@4.4.3))(@ai-sdk/google@3.0.63(zod@4.4.3))(@ai-sdk/openai@3.0.52(zod@4.4.3))(@better-auth/core@1.6.11(@better-auth/utils@0.4.0)(@better-fetch/fetch@1.1.21)(@opentelemetry/api@1.9.1)(better-call@1.3.5(zod@4.4.3))(jose@6.2.3)(kysely@0.28.17)(nanostores@1.3.0))(@better-auth/utils@0.4.0)(@better-fetch/fetch@1.1.21)(@objectstack/core@5.2.0(ai@6.0.190(zod@4.4.3)))(@opentelemetry/api@1.9.1)(ai@6.0.190(zod@4.4.3))(better-call@1.3.5(zod@4.4.3))(better-sqlite3@12.9.0)(mongodb@6.21.0)(next@16.2.6(@babel/core@7.29.0)(@opentelemetry/api@1.9.1)(@playwright/test@1.60.0)(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(vitest@4.1.6)
+        specifier: ^5.2.0
+        version: 5.2.0(@ai-sdk/anthropic@3.0.69(zod@4.4.3))(@ai-sdk/google@3.0.63(zod@4.4.3))(@ai-sdk/openai@3.0.52(zod@4.4.3))(@better-auth/core@1.6.11(@better-auth/utils@0.4.0)(@better-fetch/fetch@1.1.21)(@opentelemetry/api@1.9.1)(better-call@1.3.5(zod@4.4.3))(jose@6.2.3)(kysely@0.28.17)(nanostores@1.3.0))(@better-auth/utils@0.4.0)(@better-fetch/fetch@1.1.21)(@objectstack/core@5.2.0(ai@6.0.191(zod@4.4.3)))(@opentelemetry/api@1.9.1)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(ai@6.0.191(zod@4.4.3))(better-call@1.3.5(zod@4.4.3))(better-sqlite3@12.9.0)(i18next@26.2.0(typescript@6.0.3))(mongodb@7.2.0)(next@16.2.6(@babel/core@7.29.0)(@opentelemetry/api@1.9.1)(@playwright/test@1.60.0)(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(react-dom@19.2.6(react@19.2.6))(react-grid-layout@2.2.3(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(react-is@19.2.6)(react-router-dom@7.15.1(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(react@19.2.6)(tailwindcss@4.3.0)(typescript@6.0.3)(vitest@4.1.6)
       '@objectstack/spec':
-        specifier: ^4.0.5
-        version: 4.0.5(ai@6.0.190(zod@4.4.3))
+        specifier: ^5.2.0
+        version: 5.2.0(ai@6.0.191(zod@4.4.3))
       '@playwright/test':
         specifier: ^1.60.0
         version: 1.60.0
@@ -278,11 +278,11 @@ importers:
         specifier: workspace:*
         version: link:../../packages/types
       '@objectstack/client':
-        specifier: ^4.2.0
-        version: 4.2.0(ai@6.0.191(zod@4.4.3))
+        specifier: ^5.2.0
+        version: 5.2.0(ai@6.0.191(zod@4.4.3))
       '@objectstack/spec':
-        specifier: ^4.0.5
-        version: 4.0.5(ai@6.0.191(zod@4.4.3))
+        specifier: ^5.2.0
+        version: 5.2.0(ai@6.0.191(zod@4.4.3))
       '@tailwindcss/postcss':
         specifier: ^4.3.0
         version: 4.3.0
@@ -346,6 +346,30 @@ importers:
       vitest:
         specifier: ^4.1.6
         version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.9.0)(@vitest/coverage-v8@4.1.6)(@vitest/ui@4.1.6)(happy-dom@20.9.0)(jsdom@29.1.1(@noble/hashes@2.2.0))(msw@2.14.6(@types/node@25.9.0)(typescript@6.0.3))(vite@8.0.13(@types/node@25.9.0)(esbuild@0.28.0)(jiti@2.7.0)(tsx@4.22.3)(yaml@2.9.0))
+
+  apps/dev-server:
+    dependencies:
+      '@objectstack/account':
+        specifier: ^5.2.0
+        version: 5.2.0(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(ai@6.0.191(zod@4.4.3))(typescript@6.0.3)
+      '@objectstack/cli':
+        specifier: ^5.2.0
+        version: 5.2.0(@ai-sdk/anthropic@3.0.69(zod@4.4.3))(@ai-sdk/google@3.0.63(zod@4.4.3))(@ai-sdk/openai@3.0.52(zod@4.4.3))(@better-auth/core@1.6.11(@better-auth/utils@0.4.0)(@better-fetch/fetch@1.1.21)(@opentelemetry/api@1.9.1)(better-call@1.3.5(zod@4.4.3))(jose@6.2.3)(kysely@0.28.17)(nanostores@1.3.0))(@better-auth/utils@0.4.0)(@better-fetch/fetch@1.1.21)(@objectstack/core@5.2.0(ai@6.0.191(zod@4.4.3)))(@opentelemetry/api@1.9.1)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(ai@6.0.191(zod@4.4.3))(better-call@1.3.5(zod@4.4.3))(better-sqlite3@12.9.0)(i18next@26.2.0(typescript@6.0.3))(mongodb@7.2.0)(next@16.2.6(@babel/core@7.29.0)(@opentelemetry/api@1.9.1)(@playwright/test@1.60.0)(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(react-dom@19.2.6(react@19.2.6))(react-grid-layout@2.2.3(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(react-is@19.2.6)(react-router-dom@7.15.1(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(react@19.2.6)(tailwindcss@4.3.0)(typescript@6.0.3)(vitest@4.1.7)
+      '@objectstack/driver-memory':
+        specifier: ^5.2.0
+        version: 5.2.0(ai@6.0.191(zod@4.4.3))
+      '@objectstack/metadata':
+        specifier: ^5.2.0
+        version: 5.2.0(ai@6.0.191(zod@4.4.3))(vitest@4.1.7)
+      '@objectstack/objectql':
+        specifier: ^5.2.0
+        version: 5.2.0(ai@6.0.191(zod@4.4.3))(vitest@4.1.7)
+      '@objectstack/runtime':
+        specifier: ^5.2.0
+        version: 5.2.0(@better-auth/core@1.6.11(@better-auth/utils@0.4.0)(@better-fetch/fetch@1.1.21)(@opentelemetry/api@1.9.1)(better-call@1.3.5(zod@4.4.3))(jose@6.2.3)(kysely@0.28.17)(nanostores@1.3.0))(@better-auth/utils@0.4.0)(@better-fetch/fetch@1.1.21)(@opentelemetry/api@1.9.1)(ai@6.0.191(zod@4.4.3))(better-call@1.3.5(zod@4.4.3))(better-sqlite3@12.9.0)(mongodb@7.2.0)(next@16.2.6(@babel/core@7.29.0)(@opentelemetry/api@1.9.1)(@playwright/test@1.60.0)(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(vitest@4.1.7)
+      '@objectstack/spec':
+        specifier: ^5.2.0
+        version: 5.2.0(ai@6.0.191(zod@4.4.3))
 
   apps/site:
     dependencies:
@@ -928,7 +952,7 @@ importers:
         version: link:../types
       better-auth:
         specifier: ^1.6.11
-        version: 1.6.11(@opentelemetry/api@1.9.1)(better-sqlite3@12.9.0)(mongodb@6.21.0)(next@16.2.6(@babel/core@7.29.0)(@opentelemetry/api@1.9.1)(@playwright/test@1.60.0)(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(vitest@4.1.6)
+        version: 1.6.11(@opentelemetry/api@1.9.1)(better-sqlite3@12.9.0)(mongodb@7.2.0)(next@16.2.6(@babel/core@7.29.0)(@opentelemetry/api@1.9.1)(@playwright/test@1.60.0)(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(vitest@4.1.6)
     devDependencies:
       '@types/react':
         specifier: 19.2.14
@@ -1231,8 +1255,8 @@ importers:
         specifier: workspace:*
         version: link:../types
       '@objectstack/spec':
-        specifier: ^4.0.5
-        version: 4.0.5(ai@6.0.191(zod@4.4.3))
+        specifier: ^5.2.0
+        version: 5.2.0(ai@6.0.191(zod@4.4.3))
       lodash:
         specifier: ^4.18.1
         version: 4.18.1
@@ -1290,8 +1314,8 @@ importers:
         specifier: workspace:*
         version: link:../types
       '@objectstack/client':
-        specifier: ^4.2.0
-        version: 4.2.0(ai@6.0.191(zod@4.4.3))
+        specifier: ^5.2.0
+        version: 5.2.0(ai@6.0.191(zod@4.4.3))
     devDependencies:
       tsup:
         specifier: ^8.5.1
@@ -1998,8 +2022,8 @@ importers:
         specifier: workspace:*
         version: link:../types
       '@objectstack/spec':
-        specifier: ^4.0.5
-        version: 4.0.5(ai@6.0.191(zod@4.4.3))
+        specifier: ^5.2.0
+        version: 5.2.0(ai@6.0.191(zod@4.4.3))
       lucide-react:
         specifier: ^1.16.0
         version: 1.16.0(react@19.2.6)
@@ -2221,8 +2245,8 @@ importers:
         specifier: workspace:*
         version: link:../types
       '@objectstack/spec':
-        specifier: ^4.0.5
-        version: 4.0.5(ai@6.0.191(zod@4.4.3))
+        specifier: ^5.2.0
+        version: 5.2.0(ai@6.0.191(zod@4.4.3))
       lucide-react:
         specifier: ^1.16.0
         version: 1.16.0(react@19.2.6)
@@ -2392,8 +2416,8 @@ importers:
         specifier: workspace:*
         version: link:../types
       '@objectstack/spec':
-        specifier: ^4.0.5
-        version: 4.0.5(ai@6.0.191(zod@4.4.3))
+        specifier: ^5.2.0
+        version: 5.2.0(ai@6.0.191(zod@4.4.3))
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1
@@ -2573,8 +2597,8 @@ importers:
         specifier: workspace:*
         version: link:../types
       '@objectstack/spec':
-        specifier: ^4.0.5
-        version: 4.0.5(ai@6.0.191(zod@4.4.3))
+        specifier: ^5.2.0
+        version: 5.2.0(ai@6.0.191(zod@4.4.3))
       react:
         specifier: 19.2.6
         version: 19.2.6
@@ -2687,8 +2711,8 @@ importers:
   packages/types:
     dependencies:
       '@objectstack/spec':
-        specifier: ^4.0.5
-        version: 4.0.5(ai@6.0.191(zod@4.4.3))
+        specifier: ^5.2.0
+        version: 5.2.0(ai@6.0.191(zod@4.4.3))
       zod:
         specifier: ^4.4.3
         version: 4.4.3
@@ -4513,12 +4537,215 @@ packages:
     resolution: {integrity: sha512-oGB+UxlgWcgQkgwo8GcEGwemoTFt3FIO9ababBmaGwXIoBKZ+GTy0pP185beGg7Llih/NSHSV2XAs1lnznocSg==}
     engines: {node: '>= 8'}
 
-  '@objectstack/cli@4.2.0':
-    resolution: {integrity: sha512-cBEW6mT2ZOY3HvbznqzmUtS6z5z8BI8Y72RQNokn0VFdPIMnQ5rifY/WxI7hvfOqTmYyoLZRwd9t7vhjdGWoag==}
+  '@object-ui/app-shell@5.3.1':
+    resolution: {integrity: sha512-JuwDccxngsqq8MvlDcZxKqemZwTvaqUXuqKGRFgDc5U7FCSZy1vU3zrfzvXAFxjIYnNB2fUX4L1yf4RmeyZ6YA==}
+    peerDependencies:
+      '@object-ui/plugin-calendar': ^5.3.1
+      '@object-ui/plugin-charts': ^5.3.1
+      '@object-ui/plugin-chatbot': ^5.3.1
+      '@object-ui/plugin-dashboard': ^5.3.1
+      '@object-ui/plugin-designer': ^5.3.1
+      '@object-ui/plugin-detail': ^5.3.1
+      '@object-ui/plugin-form': ^5.3.1
+      '@object-ui/plugin-grid': ^5.3.1
+      '@object-ui/plugin-kanban': ^5.3.1
+      '@object-ui/plugin-list': ^5.3.1
+      '@object-ui/plugin-report': ^5.3.1
+      '@object-ui/plugin-view': ^5.3.1
+      react: 19.2.6
+      react-dom: 19.2.6
+      react-router-dom: ^6.0.0 || ^7.0.0
+
+  '@object-ui/auth@5.3.1':
+    resolution: {integrity: sha512-YMoOGoqYY1LZFl4/CYtq/2sqqF3Z5Vs49TIgg65HIMI8UokQYliOvoq/RFqywWjvgLsFRAOR2IA338TQKaibPQ==}
+    peerDependencies:
+      react: 19.2.6
+
+  '@object-ui/collaboration@5.3.1':
+    resolution: {integrity: sha512-Q3AVmaCvap0CxQQfMdzn0emFQZwNsyeWM3oLI0lmWqmchMl8j7k3VpbwWqp8EWF6I/L3gsU7g+3DkowHlVxzew==}
+    peerDependencies:
+      react: 19.2.6
+
+  '@object-ui/components@5.3.1':
+    resolution: {integrity: sha512-0qiVSxDiOikgEYhV5ybnkSw9Ec8/ftgUz60Q8dP/qWOW24SJiAPZ/XuSFz7lae2ZPNZhjeOfGKb367MP1fS9uQ==}
+    peerDependencies:
+      react: 19.2.6
+      react-dom: 19.2.6
+      tailwindcss: ^4.2.1
+
+  '@object-ui/console@5.3.1':
+    resolution: {integrity: sha512-ywwPn8Bc50bR8WWRyTKkQyJ6juhHJ76IPBXjyCc754X9aUuw+ssP5/D6IGmIaspwKjwF6WFOnpLAhAycn/PmmQ==}
+
+  '@object-ui/core@5.3.1':
+    resolution: {integrity: sha512-ZJLLkUg0huO4zojNA20sXvHtArPyrmCVPP4jaWZ0xlx1BHLYW/pNYmUCjVm16a8Qvkrx4RssCqm+37iOkChdXw==}
+
+  '@object-ui/data-objectstack@5.3.1':
+    resolution: {integrity: sha512-GbEvQshhhw49gJ7bdWOOZ94L1QSCEzkITSQmROMsj5Bj2sPVBoB9uDDer12cTQ0eBq2PdYMBnQLZDQ05PpcRYQ==}
+
+  '@object-ui/fields@5.3.1':
+    resolution: {integrity: sha512-xZOC8/87r9l7HrqlGBUFpypirVHU9KWoM0cTaIa97Y0F2VA0PXuxMMxR3Jf7NmOg1KiK2iQXI0NKQFFydKS1hA==}
+    peerDependencies:
+      react: 19.2.6
+      react-dom: 19.2.6
+
+  '@object-ui/i18n@5.3.1':
+    resolution: {integrity: sha512-Njb+ifwO49ogCQCI3cNeAQFwiubSDkXKVokeWbG4eWRph7EwOKWIfwOnpnM6KqEt0q7mkxnYP5fud+ZnZ6Pgag==}
+    peerDependencies:
+      react: 19.2.6
+
+  '@object-ui/layout@5.3.1':
+    resolution: {integrity: sha512-5ctDC7A4wqr9T9td43WOl9e3oiJccDU1rQoKaikkku5fOsckQPgmz4ntr1q15A2q596BwlFLxs373zRMlHpsag==}
+    peerDependencies:
+      react: 19.2.6
+      react-dom: 19.2.6
+      react-router-dom: ^6.0.0 || ^7.0.0
+
+  '@object-ui/mobile@5.3.1':
+    resolution: {integrity: sha512-hjxI88hJeOY+jjsyjqSn5QJvPOjhxPEQ+2ZlXT6LajJyYiJmAH9zwce/0GiE1cHFO9dA/AjWEpDcm4vyne3vRQ==}
+    peerDependencies:
+      react: 19.2.6
+
+  '@object-ui/permissions@5.3.1':
+    resolution: {integrity: sha512-jJ8E5u2JRpQv/g1lowVxe+xR0N34ASJveSCbHRAMf1UI5pcm44OA1HXZImYxAVtw1xSjLtf+4n5SS5b2WSIQ+Q==}
+    peerDependencies:
+      react: 19.2.6
+
+  '@object-ui/plugin-calendar@5.3.1':
+    resolution: {integrity: sha512-8F0rcw8hYfUVPU6x6n/V00d5vnnYg4lq+uMDu9re6IAcmEEeih3HrNvstZ2XmlH2OABP40OMdtg6EwR9A4HKJg==}
+    peerDependencies:
+      react: 19.2.6
+      react-dom: 19.2.6
+
+  '@object-ui/plugin-charts@5.3.1':
+    resolution: {integrity: sha512-lv2yYD7A5SK8ZRpWAh1wNHs/+QglI8mAk2a/ZzeUOCP+7a/WE2cNxe3sHrdV/jDmLua7NNd5E0PBU2WIB1/brQ==}
+    peerDependencies:
+      react: 19.2.6
+      react-dom: 19.2.6
+
+  '@object-ui/plugin-chatbot@5.3.1':
+    resolution: {integrity: sha512-bN9iQVvBhNeNQVBHfZaaebW+wj5XR6fjakwsidIDlIeRnCpNdeeITMwQ+D1boGcEpYr1t8Maz7ZD6aFUxQFIXg==}
+    peerDependencies:
+      react: 19.2.6
+      react-dom: 19.2.6
+
+  '@object-ui/plugin-dashboard@5.3.1':
+    resolution: {integrity: sha512-NjDcS9tCtFGHHaB8qSXUnDsBQOmS4zSy7BJJnMDq/roLae/vZ6k5vhV2HZWR241UF3Rp6dlAPR7F9zEsH1Bmaw==}
+    peerDependencies:
+      react: 19.2.6
+      react-dom: 19.2.6
+      react-grid-layout: ^2.2.0 || ^1.4.0
+
+  '@object-ui/plugin-designer@5.3.1':
+    resolution: {integrity: sha512-dhH0Y6k3mEQ70GRvkzmjZuRVqehxhrzWtpjvwlZRuRs6C3xwVjltQN5dBephvlnathtXz6cowlmhwSkBZbQDyw==}
+    peerDependencies:
+      react: 19.2.6
+      react-dom: 19.2.6
+      react-router-dom: ^6.0.0 || ^7.0.0
+
+  '@object-ui/plugin-detail@5.3.1':
+    resolution: {integrity: sha512-nnLurj9KGgbPU4dqAJw0B6VL2pRw35OJljkN0ZYGtRagajELy1yokF6vUH88Io8Vd3RfYzDo3z5JQftpRGASXQ==}
+    peerDependencies:
+      '@object-ui/components': ^5.3.1
+      '@object-ui/core': ^5.3.1
+      '@object-ui/fields': ^5.3.1
+      '@object-ui/permissions': ^5.3.1
+      '@object-ui/react': ^5.3.1
+      '@object-ui/types': ^5.3.1
+      react: 19.2.6
+      react-dom: 19.2.6
+
+  '@object-ui/plugin-form@5.3.1':
+    resolution: {integrity: sha512-7ei1+YBRfKZcnywTZoHBEBwWiRIdfsORvrj37F9iaxKom+XsoEdf6vamXH4ZrPEGctnpHOoxe3ZGZ0+o8xMkkg==}
+    peerDependencies:
+      react: 19.2.6
+      react-dom: 19.2.6
+
+  '@object-ui/plugin-gantt@5.3.1':
+    resolution: {integrity: sha512-34QsER5MJiLLbJMrJSdg8rmCSskoVkZwyW6fFqaaiihs91xSHjOcX4mE1epED0SGAjVx8wS+pCmPolM43rkueA==}
+    peerDependencies:
+      react: 19.2.6
+      react-dom: 19.2.6
+
+  '@object-ui/plugin-grid@5.3.1':
+    resolution: {integrity: sha512-FUe5KNkYigXOTCFX/RaKrghmDdN9kFpk26hjJGmxNDMlWcMgPeOAW7S1R4FdqaDXqQRLkz81mZrp2zG/CTsJcw==}
+    peerDependencies:
+      react: 19.2.6
+      react-dom: 19.2.6
+
+  '@object-ui/plugin-kanban@5.3.1':
+    resolution: {integrity: sha512-e6NgMhJ/MZxyV7a81ULQZJ6YoSXIOy++PxO8ozNkDDH4dX7YhWSYGnQcrc2HDY/mbAmuG8PTlES3WWDfDzDfRg==}
+    peerDependencies:
+      react: 19.2.6
+      react-dom: 19.2.6
+
+  '@object-ui/plugin-list@5.3.1':
+    resolution: {integrity: sha512-fylgZXSOhPGi8gRr34IjzKbJMGB8Hx52xfMV60V0zUCtZwnghAPvLwDuz4vj+/ArD4YuQ2gyWZosYHOD5yrZIQ==}
+    peerDependencies:
+      '@object-ui/components': ^5.3.1
+      '@object-ui/core': ^5.3.1
+      '@object-ui/fields': ^5.3.1
+      '@object-ui/i18n': ^5.3.1
+      '@object-ui/mobile': ^5.3.1
+      '@object-ui/permissions': ^5.3.1
+      '@object-ui/react': ^5.3.1
+      '@object-ui/types': ^5.3.1
+      react: 19.2.6
+      react-dom: 19.2.6
+
+  '@object-ui/plugin-map@5.3.1':
+    resolution: {integrity: sha512-Du//gdDA9Qm3lFWn/FRLc7fyGE6yq8D5dIkJbX2PmH56QK3S6xEmXCMSfdKuojl/clSFrDdjZ5CyadUqukvuTQ==}
+    peerDependencies:
+      react: 19.2.6
+      react-dom: 19.2.6
+
+  '@object-ui/plugin-markdown@5.3.1':
+    resolution: {integrity: sha512-bpMxxhUcWHQfnsdyC6r90/ok8HEjdETgtYgJtlKw9W/5bInFsJKxOtBLqMsk5Hwy+zcfFpr+uDqOe4qqYIHaQg==}
+    peerDependencies:
+      react: 19.2.6
+      react-dom: 19.2.6
+
+  '@object-ui/plugin-report@5.3.1':
+    resolution: {integrity: sha512-/qTGg55QJbrFWzWlgzPHqDRDy4VMQHc1l7EBJ/9ZVP24LllS6xpFVtItpQVL3MzEDtDLUZKGhROvreRO6IJqOQ==}
+    peerDependencies:
+      react: 19.2.6
+      react-dom: 19.2.6
+
+  '@object-ui/plugin-timeline@5.3.1':
+    resolution: {integrity: sha512-nA1E0L7XYV4z3lGDF+yqY3rAYuhjB1CGE+/XQ+IiLE1L8rqE6kVwhHXYJk9xJL5GujnYoQKNbI+c67ZF3+zB8Q==}
+    peerDependencies:
+      react: 19.2.6
+      react-dom: 19.2.6
+
+  '@object-ui/plugin-view@5.3.1':
+    resolution: {integrity: sha512-ZmkL96JfoSqvg66Knp+b7cxYDwsTQHpt5e0iGSs3/EzMRuM8F72tm7E8hm0ce20hqmN4fT0E3V6ZHlDr1LFQ0g==}
+    peerDependencies:
+      react: 19.2.6
+      react-dom: 19.2.6
+
+  '@object-ui/providers@5.3.1':
+    resolution: {integrity: sha512-2aWvobkS94hVwOMQ8kI6Yxqdxg0MQ8Mj4MrC9UBj8AM4XinYuBND0EYeWd15BQjq79z3MAXsXTD0UPrb3OEX8g==}
+    peerDependencies:
+      react: 19.2.6
+      react-dom: 19.2.6
+
+  '@object-ui/react@5.3.1':
+    resolution: {integrity: sha512-egV7TPO8QNHj3nYVG0LY0aefcs9++5cJeCjlv03Kz7S2YqrF0SNn0zQfu5PvDDpQXHHzBNkXO2euZ8oyIuiwDw==}
+    peerDependencies:
+      react: 19.2.6
+      react-dom: 19.2.6
+
+  '@object-ui/types@5.3.1':
+    resolution: {integrity: sha512-2krZF5mwKIk95ph83tR28HkOVkqPgUSq8dMJOj2bagJR2zqHuRbE7kaiH8Kauo+5jpZtoAxco1xg5E3dxBw7Pg==}
+
+  '@objectstack/account@5.2.0':
+    resolution: {integrity: sha512-9AxbhgPriTQT4SGETM3Xd6wl0MfOc5xKSTSHza/nW/5JnvOxrNviNB3v5CSsWaza7cDX9EueIV16yWowoEGzyg==}
+
+  '@objectstack/cli@5.2.0':
+    resolution: {integrity: sha512-tkpGM7BqFmaAsbA8bAlzp3hNHJFsZgdMHVl3iQ7Io9jaI8q6xA214Z9bgIredUNTIO9sQBASo3YcNl+aDF/DRw==}
     engines: {node: '>=18.0.0'}
     hasBin: true
     peerDependencies:
-      '@objectstack/core': ^4.2.0
+      '@objectstack/core': ^5.2.0
 
   '@objectstack/client-react@5.2.0':
     resolution: {integrity: sha512-HKYwD+CK1dBa6WVrMG+rm0bHkXuD6B5R5XwqdUdQOXMbYnPZ+hveGdrkxvZ2YDdoNeqEVReNlLEejDYzoK7DoA==}
@@ -4542,20 +4769,20 @@ packages:
     resolution: {integrity: sha512-ys/cFMlbkjv52SXxOapJk1wvuKnMnjLeNAJia+kWabJitfz4fegNffUrecSokTMDKQj/KSd5ICaUt38AdeapCA==}
     engines: {node: '>=18.0.0'}
 
-  '@objectstack/driver-memory@4.2.0':
-    resolution: {integrity: sha512-Jf1Wo48mh9EER4xaQsx2EbmfwW0QVOt3z6EEiWzXevZ6sJTM4b0LkU/boG6Hacm1ke8X+rRFKoHO93B2pEjP3Q==}
+  '@objectstack/driver-memory@5.2.0':
+    resolution: {integrity: sha512-nxGib3I2vXNkVkoTe1H9Jw6cbtmNoN5NbrTKD9sVjemTKH3GQRTW0UyXty5/1TH2F01PvOxJMOVZt1hniKiBAA==}
     engines: {node: '>=18.0.0'}
 
-  '@objectstack/driver-mongodb@4.2.0':
-    resolution: {integrity: sha512-Y8mwBjCjb/vNBE2DjzsvVOwyVUHu9nsWddy0je6tY7AK4JN2aPc5CDNkKCjdDRDdJJp3Cx4+tOO1GeoCVxb90g==}
+  '@objectstack/driver-mongodb@5.2.0':
+    resolution: {integrity: sha512-HDpJPrXmq5iHhtsTUXn+rf8H61ne5yZCGvuUSJ1BzmXHkJvTwCJaJrfOlG9UnU3lQSsLb72g7zkPLBywn01Fbw==}
     engines: {node: '>=18.0.0'}
 
-  '@objectstack/driver-sql@4.2.0':
-    resolution: {integrity: sha512-Mxhea3ZV59a2LLSYaPwt8Y/mMBIH3FZ4OlGXRUHnIqd6yBWFrVYz6iklyFzBwW5oOpkBb6BV9zCYPcsIST58Sg==}
+  '@objectstack/driver-sql@5.2.0':
+    resolution: {integrity: sha512-FjQlIJdIxOw46ugrF251LL2vGnlackVFJn3oHYutYqQLCJ1I1txN8wl2Z8uFySZOYhd+VZqe/6qoyyA0CWKyug==}
     engines: {node: '>=18.0.0'}
 
-  '@objectstack/driver-turso@4.2.0':
-    resolution: {integrity: sha512-cOuo1AvC/YdeKOZhWPAeLpA85rQZYVZMRIgYmQP8k13r+bb7k2vlgBoP3x9oPylR544eAB6kUbVLbFfyxF6I/w==}
+  '@objectstack/driver-turso@5.2.0':
+    resolution: {integrity: sha512-lEHYbQrgB10ESfrHKMyxT7wZ69hTeRrglzdscM7c5aCTEtwYo/Z8wZpCwbfOP/tvTg0QS1bX10AaE1mM6aFVtw==}
     engines: {node: '>=18.0.0'}
     peerDependencies:
       better-sqlite3: ^12.9.0
@@ -4563,59 +4790,83 @@ packages:
       better-sqlite3:
         optional: true
 
-  '@objectstack/formula@4.2.0':
-    resolution: {integrity: sha512-k3rTqBBbZ5BeWYczqrGkDr5YneKFAnYXs3tq2U1fzG08UbZc+IUKSLwMAzpTvCbRYVnhbzHS+qs5Od+O5esSuQ==}
+  '@objectstack/formula@5.2.0':
+    resolution: {integrity: sha512-eCVxusuuafis73RAXSmdC1Fz0CjK7exIOIaRTAruawsr+G111LZO6rVZjdCNyVzECAAVuOf2gK78D5gSb2bajg==}
 
-  '@objectstack/objectql@4.2.0':
-    resolution: {integrity: sha512-6sZUoLZm57E3aXR29GJjpC0z5EAc1C1kY0RTMAGjo2V+MVp3+vdq1NX3euN7G8p6jOs0XkN/X3hIHEpMvvvSyg==}
+  '@objectstack/metadata-core@5.2.0':
+    resolution: {integrity: sha512-uo+XgPJ9sZZDjXij5gN1+sDGahP3yE78PJTm1MAuHonON6TcjBVNH/seqSvvFiSwAwPgAOQNJW+W026KP26i3A==}
+    engines: {node: '>=18.0.0'}
+    peerDependencies:
+      vitest: ^4.0.0
+    peerDependenciesMeta:
+      vitest:
+        optional: true
+
+  '@objectstack/metadata-fs@5.2.0':
+    resolution: {integrity: sha512-yWfEj1ncKhCkiJIJVjtVxQos1SUPldRA6CqUBk5lACqu1z6QBdIcS4AfY7ZBgehkPJXAinHKXC2E7lXgfnc7GA==}
     engines: {node: '>=18.0.0'}
 
-  '@objectstack/platform-objects@4.2.0':
-    resolution: {integrity: sha512-SvT/CN2GG/Y4AE9qbdY1X29z5ZBTXadasypt5ywatw0/6SxPilb4nGddm1KV0PCUiZ20zrc/a8PybvhfASImmA==}
+  '@objectstack/metadata@5.2.0':
+    resolution: {integrity: sha512-JrJCBV28j9BxaviHVVT62LNPh+x21OAR6me7GiePx3xkQUUr/V3dlWiuF9zucKyFdl/GRRrQTc/nhlGnplv5Qg==}
     engines: {node: '>=18.0.0'}
 
-  '@objectstack/plugin-approvals@4.2.0':
-    resolution: {integrity: sha512-hZ07V3MyREFCFhtANBnLMANuIONng1sQk8FSGT5O0ZmFIXwTgyO4eyfzNO92VOsZzfZdbrjNMhpePziuc/8egg==}
-
-  '@objectstack/plugin-audit@4.2.0':
-    resolution: {integrity: sha512-i15EsxEeJvNisV1jDwoZVv0/t0AEhM6nKrzsQ6cRxjDY/Alhs0WXfn0x9K3pxYaUjYWywSjluacDo8QVouejJQ==}
+  '@objectstack/objectql@5.2.0':
+    resolution: {integrity: sha512-1nmwP/Rd/uiS0MZ/S1n2Kat/RxJL75TDFj5eWdSrI/BawsRG2uegvL1rQIJfozWEHeDCDMCgnr0m1JQAFOKSwg==}
     engines: {node: '>=18.0.0'}
 
-  '@objectstack/plugin-auth@4.2.0':
-    resolution: {integrity: sha512-7pJKmPyTsPDzHRVwn7wyvKfnq8VYchbq4CAXrFecsrasYV1qgzwCeGyWbZWkhzcfJE158hhHGxWguC2vKgNvXw==}
+  '@objectstack/observability@5.2.0':
+    resolution: {integrity: sha512-/8NeGOwhTVPOOkZq7GQCObb3/If3xXkgdwngFlIFPqiOXtOYjDDnvBIMkmO3p1ZaMHoGrqCCbIVC2gXWAtPCEw==}
     engines: {node: '>=18.0.0'}
 
-  '@objectstack/plugin-email@4.2.0':
-    resolution: {integrity: sha512-Xif/zDva2tC+iVuF7Gug6I3JFSJ9DeG05g4AkD2qgjvwPeXcxXS1Q3lGXgeyxbPpZ5XVla3bztkXdU+P5IPagQ==}
-
-  '@objectstack/plugin-hono-server@4.2.0':
-    resolution: {integrity: sha512-NSPIrj5Cns61xa7439O63CDmk8SfcFcJjTEj0uBjCuzBkai9lRi70CwX1dhe8gtISa2G6MuTwuEUa5F85aiR9A==}
+  '@objectstack/platform-objects@5.2.0':
+    resolution: {integrity: sha512-tBCROcBsxXBpGLE8qfc7sH7zK7z/CCMrcoLa5uvxJhp8wiQpWyhXCx29iVGOL+tc86K7z75gCqPwcbkwdiXMPQ==}
     engines: {node: '>=18.0.0'}
 
-  '@objectstack/plugin-mcp-server@4.2.0':
-    resolution: {integrity: sha512-QlfRpdMb+FQSFlQG2CHxZiptWQK2hn3AyFuLZEu/25+pSVDrQyp8aXoi+p1eypkXXUGXw2sg22zMm9UZ4vx2NQ==}
+  '@objectstack/plugin-approvals@5.2.0':
+    resolution: {integrity: sha512-2lEFUSWmgxDt0MMrI7sWNGNCXXPgV8AtZDfnqnSYmp2pDhTeAUMV/YL9fuEuGvC8cU2f2zHXS2dyZ0xj4wx08A==}
+
+  '@objectstack/plugin-audit@5.2.0':
+    resolution: {integrity: sha512-G3Y82Gp/JCQXNgiakRFIO6DRGONOj/9lIfMOkV6Xe7z/aqNjbinQW1w42mWncQa14TjCjxyV/VPKNDbttTtq7w==}
     engines: {node: '>=18.0.0'}
 
-  '@objectstack/plugin-reports@4.2.0':
-    resolution: {integrity: sha512-jdLfwEhpJNTe6/YU97J1ERFbRpu9btxKnuua9TcqEPT6nmCcNixAiZZKTPtBiQyn0X6M1kaLyySPh3XuOJFEjA==}
-
-  '@objectstack/plugin-security@4.2.0':
-    resolution: {integrity: sha512-E/gH4U/EhQurTC3m9FU9S5OmAJRKv43OR0hI+LFhmObFHmIX7OfQ2euryo+k5gu7zWUpe1yARwXEuxi4R5wsUQ==}
+  '@objectstack/plugin-auth@5.2.0':
+    resolution: {integrity: sha512-cTFIlR3Mtyh4mZxfJkA1OjJkPe+IsKsdJ906GxNcM44ypSZG8rwH0ANroBiEPFK2ZIeqFNGVk6jX9NyG2FduyA==}
     engines: {node: '>=18.0.0'}
 
-  '@objectstack/plugin-sharing@4.2.0':
-    resolution: {integrity: sha512-w29v2kOtIQvVN9KMrQ3E7AGGx0Tp+L/EEZ+6WBLNqfCa00hWLKM6ZzOj7NQkJQjqfSLtWnPU6sxnVuzfXd0QCw==}
+  '@objectstack/plugin-email@5.2.0':
+    resolution: {integrity: sha512-agF1upkqxvmlOcs7KifqeNGipTcyKYFPnqYNi7yG/c3/AnYGT2Tws09AYblcZoswzYOhV+YbmUZTrrVq2LSjig==}
 
-  '@objectstack/rest@4.2.0':
-    resolution: {integrity: sha512-gsVOTF/v0/H1cLMc+g5285KUUUup0vvCkR9BOAOx46AywNOsW/mzFolyg39iwAFCeyYVX5EMIjNyonws399XRA==}
+  '@objectstack/plugin-hono-server@5.2.0':
+    resolution: {integrity: sha512-pcXqItvoW/gtMqz5pc5lYnDiXXpmYJ2hZ9WDZgjN+xIfk0mcvlMuD0nkq2pfhJJC3yhDDrIaVEBp93dKm13I6A==}
     engines: {node: '>=18.0.0'}
 
-  '@objectstack/runtime@4.2.0':
-    resolution: {integrity: sha512-BEpKsOLZTrwHNBELgXHfKLTcWV1Mqhzg+az0xPtGYJOvmhMUv4enekIFFBNHUjQVSYp5P9sMNa9CIKzjlhV8yQ==}
+  '@objectstack/plugin-mcp-server@5.2.0':
+    resolution: {integrity: sha512-cZeO+9AIFy9GXjXGA+5raskb1BieXBTh2xAz/7kMnw/VAMuzDJ+rNFvgJUfgXYtfwma/BzvPObZskNI10bkAOw==}
     engines: {node: '>=18.0.0'}
 
-  '@objectstack/service-ai@4.2.0':
-    resolution: {integrity: sha512-awXx70wv3IOl/xbICwzDUxwqNiP7ZOrVxVZ41gLLauFd98n9Qclo2I4C4VVVb9FNyJ0m20AdmIJP6cAcrhyCXw==}
+  '@objectstack/plugin-reports@5.2.0':
+    resolution: {integrity: sha512-YdXsyisgG3izszCHus2uMycI/VlFBX+DQYfN0Qcz3y6xnGlJ4NIOjcHFvBNLmpwGWv/ovS/hyRsbLK9XP9w6IA==}
+
+  '@objectstack/plugin-security@5.2.0':
+    resolution: {integrity: sha512-pHNaBOasr4R50qeRHYQvaXpTTNyQY6WcfqYix+zamc7x5t5UtOUS0i0FdCowcXTGxp1DJDDA8iD1Pge+Es3WnA==}
+    engines: {node: '>=18.0.0'}
+
+  '@objectstack/plugin-sharing@5.2.0':
+    resolution: {integrity: sha512-yNHSYYcM8dTaPXpuRSzHmNnN0NJ7YhPAUIpEML3wcpDEBitQF5WHZbh7M3+w5wHj/dGSMWhdfyQIzzlu4NmdXQ==}
+
+  '@objectstack/plugin-webhooks@5.2.0':
+    resolution: {integrity: sha512-b8j1F6TsY8v/QJbfwTM6Ng4ndFinelxpaK/oDLqBP4RuZcKMGM/MAA7Dp4sOvQp4VB+/S0slIC1E05f3yJQ+WA==}
+
+  '@objectstack/rest@5.2.0':
+    resolution: {integrity: sha512-s35NLKyX3XHDpHahjjBKLWXDJ54yFB527r0BgDLhyQFtVGlL1JEjIKSb0cON0uIeGo1wq+jJSqMIM46XrVsgjw==}
+    engines: {node: '>=18.0.0'}
+
+  '@objectstack/runtime@5.2.0':
+    resolution: {integrity: sha512-BU/2/pJtxL3takkttWFNM2uGjS/FQF4QOuDO+0hpRnrpK/GUWAAFz7HUgMipEMDNOYdkbGofX0QWOBhRPlSMGQ==}
+    engines: {node: '>=18.0.0'}
+
+  '@objectstack/service-ai@5.2.0':
+    resolution: {integrity: sha512-gN/x+93WRzX/OaHVfwFGKtR5T7b9yCfwchekEXtXsIDsF+nhtc2lUnSHeAsxyj/eI67H18x8wem4iMlHCDbjVg==}
     engines: {node: '>=18.0.0'}
     peerDependencies:
       '@ai-sdk/anthropic': ^3.0.0
@@ -4632,48 +4883,51 @@ packages:
       '@ai-sdk/openai':
         optional: true
 
-  '@objectstack/service-analytics@4.2.0':
-    resolution: {integrity: sha512-ie7lQ3W0LAvius2gt+bYuLuvUZXbG60GPUQIEsS7K6q7u94mPxm39ItPBIut9iQSOurRHHhlFEAlU0wgp/sKng==}
+  '@objectstack/service-analytics@5.2.0':
+    resolution: {integrity: sha512-8Nvfdpa5y/mLRUSyE8Shstl4JGAOzCEN6FVj9l9SnaKbrSS+WNLIMMWK0ZLZZ/QU5UxET7hn36kEZE9+oITu5Q==}
     engines: {node: '>=18.0.0'}
 
-  '@objectstack/service-automation@4.2.0':
-    resolution: {integrity: sha512-Lx9bbDm/hweLWPEEKrqnyqM4BGC7KKM9wTTkee0ECtNO//IA25qB18ifx+jym1n+idNW3iBeY5Zi4vOuxkmaOw==}
+  '@objectstack/service-automation@5.2.0':
+    resolution: {integrity: sha512-X1zgpPODqf5zrH4sPgF7iulnOUiUhD00rqxXtpOLD38u8cCK368TXEcyRummNGjcdsxNPA2Cbf1c7vRBK97BRg==}
     engines: {node: '>=18.0.0'}
 
-  '@objectstack/service-cache@4.2.0':
-    resolution: {integrity: sha512-2Ld2TamQTywBrWFL7ehtc9vvEALJX1Cx7+aFhjKmIFY4zLhZMMX5WXMbgK0WjkOJZCiHD4VVRgliwkqprCkCVg==}
+  '@objectstack/service-cache@5.2.0':
+    resolution: {integrity: sha512-6D7G/chmDkKY3gSIVXod9GNKthwY1FxZ9FMPjRdMqfzMkaDf0yGYaKsM3t242XUlcBLovBPzItJvdqP/atkETg==}
     engines: {node: '>=18.0.0'}
 
-  '@objectstack/service-feed@4.2.0':
-    resolution: {integrity: sha512-0lLOtlA65+S7zHm/F/VehJYXltiGdqxuL9NedHy4rN9aK6TlbI46vjQgUihIyJMXm7kjwaRV4JLYgn9mLHRehQ==}
+  '@objectstack/service-cluster@5.1.1':
+    resolution: {integrity: sha512-1TgHo6jT9FUW1VBxSaQ3Jh/T3O/QdwdnRz4LqPy+mllhIwshfCgGNf1BumlRK5iCv6+2pdDhlzJOEEqCSXWtng==}
+
+  '@objectstack/service-feed@5.2.0':
+    resolution: {integrity: sha512-ImcFml/PIjJEiEWxEiYDmiYt7O9LSBgADYTcSd1AJyzMntQ01jwUTh6ebdyDBVDm4j6Fk5/bRCzikGcXg6ggZg==}
     engines: {node: '>=18.0.0'}
 
-  '@objectstack/service-i18n@4.2.0':
-    resolution: {integrity: sha512-0MMWxdzlIJd1ip6BgjbvHCDHgj/2MgFVIeyMf4ERqMjWeRGF+G2rr6ix4ac90yZkxbhWnxTAlgCuDm7pgOQJQQ==}
+  '@objectstack/service-i18n@5.2.0':
+    resolution: {integrity: sha512-ctjhbtdjuxtUyIwNW9NyM/vz7+yolNBjgKsxikmLUTM85TfIncYZtYC4o2t9heB0jZixC6sOnIjS7Zfe6JgLzw==}
     engines: {node: '>=18.0.0'}
 
-  '@objectstack/service-job@4.2.0':
-    resolution: {integrity: sha512-KAytAdI5ktI3dpfNd+QaY/fpjutjAz7lI6x0DAoR79DHLY8jOX3Oq8WHmyGibL9KMhKwkB9wQfu9htb1+yMIdQ==}
+  '@objectstack/service-job@5.2.0':
+    resolution: {integrity: sha512-gf6OBDR6lOA83ig3uKe4JYSfcpNLlloaDc48/QrjDf0ij547A6OjI8nFQS6MR0D/VKoUaWe/gtFuR96aGay00w==}
     engines: {node: '>=18.0.0'}
 
-  '@objectstack/service-package@4.2.0':
-    resolution: {integrity: sha512-V7azPW9yfYsmbcVpq+wQ20mzlVMV8OlFnXNa2muZjAl01jwHkcNhPyTxIc5nv0qpNAbLMhRp2xN70YusHqRTpw==}
+  '@objectstack/service-package@5.2.0':
+    resolution: {integrity: sha512-zroK1kzWwlvxZgscTZv3z/w/amMPiprhKfC3dGF8OSY+mYJMCZbHq5l/GjaDAgjLMyeZsRG6mFeDB0jeCOK7KQ==}
     engines: {node: '>=18.0.0'}
 
-  '@objectstack/service-queue@4.2.0':
-    resolution: {integrity: sha512-v2yprtt02A1zAiO8uxG6w+vUqxdcFLr/LiF6XEksoEImeg+g6yPbd+tzHGkHc9+BFPnst90T73IQ3an/s1fHTg==}
+  '@objectstack/service-queue@5.2.0':
+    resolution: {integrity: sha512-IRcNTM+k3hKVzEVivQQDxIrp50OpDz38KlqXMC9Wkfc3z9IPGFM3/rpVDpYpfJNDfDz+/qV335ZUsKME8XGYRg==}
     engines: {node: '>=18.0.0'}
 
-  '@objectstack/service-realtime@4.2.0':
-    resolution: {integrity: sha512-J9efp3IyrH37Bcet/xFKV4Rb0TVVWrsOy//ijQredvkfeyMkxfqtCzoagl0j5GDvBVxW8El7BxTyw/3s6L/vxw==}
+  '@objectstack/service-realtime@5.2.0':
+    resolution: {integrity: sha512-n2v3pvwYDBEW+mV+/NotB1Pj2Y94MHf+xCEi1PVJdkWM/N1Aw1VQVdscJYNxtjR4eE8cAvivNhxgkoXDsKpqYw==}
     engines: {node: '>=18.0.0'}
 
-  '@objectstack/service-settings@4.2.0':
-    resolution: {integrity: sha512-FpXLbL0t6FLGlH7q2e46pwRtblyFZ0FqGeTF7Zy7EdLM1Aka7zledOT5tSrVgK5+xw7Ot/NvRFau+bz+SsBdkA==}
+  '@objectstack/service-settings@5.2.0':
+    resolution: {integrity: sha512-ykerH61qgweiqOP9RRA6ROITgI8VQPfaxtYfFFC8SVf6aIBdJ5w9j41xP/Db9hBqyCNHZQz5wG5qOQiOcfBHKw==}
     engines: {node: '>=18.0.0'}
 
-  '@objectstack/service-storage@4.2.0':
-    resolution: {integrity: sha512-sjsOLdHv32SEoC8A45d0GUXyjThzabuOwtAHGi6Djf8GhD6wBeMMFoijE3vBz+t6MsjgkmA+yN8Mg0sLl7jhsQ==}
+  '@objectstack/service-storage@5.2.0':
+    resolution: {integrity: sha512-JEWAKZGEjUajOOPsVmVSGGTWccEC7vVRUQWeeUh00CtsiBEZI30T9QKv+Pbt7casjQ179apj5hBFjibcnWlkgw==}
     engines: {node: '>=18.0.0'}
     peerDependencies:
       '@aws-sdk/client-s3': ^3.0.0
@@ -4682,15 +4936,6 @@ packages:
       '@aws-sdk/client-s3':
         optional: true
       '@aws-sdk/s3-request-presigner':
-        optional: true
-
-  '@objectstack/spec@4.0.5':
-    resolution: {integrity: sha512-oGoPHRpYUmbgBnLRUHCTiuTo+DtVLdJ6nqH63hqNqBDfIX6g14np1TmszZcUvhb+UxBY8xXU8ivbL2sbUS806A==}
-    engines: {node: '>=18.0.0'}
-    peerDependencies:
-      ai: ^6.0.0
-    peerDependenciesMeta:
-      ai:
         optional: true
 
   '@objectstack/spec@4.2.0':
@@ -4711,8 +4956,8 @@ packages:
       ai:
         optional: true
 
-  '@objectstack/types@4.2.0':
-    resolution: {integrity: sha512-odSbLKguSz50caQG/49CMUnBPm/ORj42kJ6U4Oz/W+kjlQb/uolzbc5hSihFZx4VG7uZDCuQcAgfZyD15J7e8A==}
+  '@objectstack/types@5.2.0':
+    resolution: {integrity: sha512-OxiI108yEQQcFUWMp3v6MuvupQqf+yqRE76df9M17Fzd1/inYafs60Ygg/ZO8xhYhdHZLKMoPh2bCaSCaWxYug==}
     engines: {node: '>=18.0.0'}
 
   '@oclif/core@4.11.3':
@@ -6499,6 +6744,9 @@ packages:
   '@ts-morph/common@0.27.0':
     resolution: {integrity: sha512-Wf29UqxWDpc+i61k3oIOzcUfQt79PIT9y/MWfAGlrkjg6lBC1hwDECLXPVJAhWjiGbfBCxZd65F/LIZF3+jeJQ==}
 
+  '@ts-morph/common@0.29.0':
+    resolution: {integrity: sha512-35oUmphHbJvQ/+UTwFNme/t2p3FoKiGJ5auTjjpNTop2dyREspirjMy82PLSC1pnDJ8ah1GU98hwpVt64YXQsg==}
+
   '@turbo/darwin-64@2.9.14':
     resolution: {integrity: sha512-t7QiPflaEyBE4oayeZtSmu4mEfjgIrcNlNNl1z1dmIVPqEdtA7+CfTf8d7KXsOGPh6aNgWjKxyvQg9uGfDQF+A==}
     cpu: [x64]
@@ -6752,8 +7000,8 @@ packages:
   '@types/whatwg-mimetype@3.0.2':
     resolution: {integrity: sha512-c2AKvDT8ToxLIOUlN51gTiHXflsfIFisS4pO7pDPoKouJCESkhZnEy623gwP9laCy5lnLDAw1vAzu2vM2YLOrA==}
 
-  '@types/whatwg-url@11.0.5':
-    resolution: {integrity: sha512-coYR071JRaHa+xoEvvYqvnIHaVqaYrLPbsufM9BF63HkwI5Lgmy2QR8Q5K/lYDYo5AK82wOvSOS0UsLTpTG7uQ==}
+  '@types/whatwg-url@13.0.0':
+    resolution: {integrity: sha512-N8WXpbE6Wgri7KUSvrmQcqrMllKZ9uxkYWMt+mCSGwNc0Hsw9VQTW7ApqI4XNrx6/SaM2QQJCzMPDEXE058s+Q==}
 
   '@types/ws@8.18.1':
     resolution: {integrity: sha512-ThVF6DCVhA8kUGy+aazFQ4kXQ7E1Ty7A3ypFOe0IcJV8O/M511G99AW24irKrW56Wt44yG9+ij8FaqoBGkuBXg==}
@@ -7527,9 +7775,9 @@ packages:
   bser@2.1.1:
     resolution: {integrity: sha512-gQxTNE/GAfIIrmHLUE3oJyp5FO6HRBfhjnw4/wMmA63ZGDJnWBmgY/lyQBpnDUkGmAhbSe39tx2d/iTOAfglwQ==}
 
-  bson@6.10.4:
-    resolution: {integrity: sha512-WIsKqkSC0ABoBJuT1LEX+2HEvNmNKKgnTAyd0fL8qzK4SH2i9NXg+t08YtdZp/V9IZ33cxe3iV4yM0qg8lMQng==}
-    engines: {node: '>=16.20.1'}
+  bson@7.2.0:
+    resolution: {integrity: sha512-YCEo7KjMlbNlyHhz7zAZNDpIpQbd+wOEHJYezv0nMYTn4x31eIUM2yomNNubclAt63dObUzKHWsBLJ9QcZNSnQ==}
+    engines: {node: '>=20.19.0'}
 
   buffer-crc32@0.2.13:
     resolution: {integrity: sha512-VO9Ht/+p3SN7SKWqcrgEzjGbRSJYTx+Q1pTQC0wrWqHx0vpJraQ6GtHx8tvcg1rlK1byhU5gccxgOgj7B0TDkQ==}
@@ -9042,8 +9290,8 @@ packages:
     resolution: {integrity: sha512-RWzP96k/yv0PQfyXnWjs6zot20TqfpfsNXhOnev8d1InAxubW93L11/oNUc3tQqn2G0bSdAOBpX+2uDFHV7kdQ==}
     engines: {node: '>=16.9.0'}
 
-  hono@4.12.21:
-    resolution: {integrity: sha512-uV63apnb0kyPtAUwoWgaGh9HyIFcv8lgmzPZSiTBQAFOFGIzka5EZ1dZocmGnn0XdX0+XTqJ6Tqv7selMuGLRQ==}
+  hono@4.12.22:
+    resolution: {integrity: sha512-7fvVPbB92zNRsQke+uiRGwtTuef0tB2Dg4hWxYfFNvkQhIltWoyi0ONReM5LWA+jJWS3nfT5lTq+qbsIpX0IQw==}
     engines: {node: '>=16.9.0'}
 
   hosted-git-info@4.1.0:
@@ -10248,20 +10496,21 @@ packages:
   monaco-editor@0.55.1:
     resolution: {integrity: sha512-jz4x+TJNFHwHtwuV9vA9rMujcZRb0CEilTEwG2rRSpe/A7Jdkuj8xPKttCgOh+v/lkHy7HsZ64oj+q3xoAFl9A==}
 
-  mongodb-connection-string-url@3.0.2:
-    resolution: {integrity: sha512-rMO7CGo/9BFwyZABcKAWL8UJwH/Kc2x0g72uhDWzG48URRax5TCIcJ7Rc3RZqffZzO/Gwff/jyKwCU9TN8gehA==}
+  mongodb-connection-string-url@7.0.1:
+    resolution: {integrity: sha512-h0AZ9A7IDVwwHyMxmdMXKy+9oNlF0zFoahHiX3vQ8e3KFcSP3VmsmfvtRSuLPxmyv2vjIDxqty8smTgie/SNRQ==}
+    engines: {node: '>=20.19.0'}
 
-  mongodb@6.21.0:
-    resolution: {integrity: sha512-URyb/VXMjJ4da46OeSXg+puO39XH9DeQpWCslifrRn9JWugy0D+DvvBvkm2WxmHe61O/H19JM66p1z7RHVkZ6A==}
-    engines: {node: '>=16.20.1'}
+  mongodb@7.2.0:
+    resolution: {integrity: sha512-F/2+BMZtLVhY30ioZp0dAmZ+IRZMBqI+nrv6t5+9/1AIwCa8sMRC3jBf81lpxMhnZgqq8CoUD503Z1oZWq1/sw==}
+    engines: {node: '>=20.19.0'}
     peerDependencies:
-      '@aws-sdk/credential-providers': ^3.188.0
-      '@mongodb-js/zstd': ^1.1.0 || ^2.0.0
-      gcp-metadata: ^5.2.0
-      kerberos: ^2.0.1
-      mongodb-client-encryption: '>=6.0.0 <7'
+      '@aws-sdk/credential-providers': ^3.806.0
+      '@mongodb-js/zstd': ^7.0.0
+      gcp-metadata: ^7.0.1
+      kerberos: ^7.0.0
+      mongodb-client-encryption: '>=7.0.0 <7.1.0'
       snappy: ^7.3.2
-      socks: ^2.7.1
+      socks: ^2.8.6
     peerDependenciesMeta:
       '@aws-sdk/credential-providers':
         optional: true
@@ -11876,6 +12125,9 @@ packages:
   ts-morph@26.0.0:
     resolution: {integrity: sha512-ztMO++owQnz8c/gIENcM9XfCEzgoGphTv+nKpYNM1bgsdOVC/jRZuEBf6N+mLLDNg68Kl+GgUZfOySaRiG1/Ug==}
 
+  ts-morph@28.0.0:
+    resolution: {integrity: sha512-Wp3tnZ2bzwxyTZMtgWVzXDfm7lB1Drz+y9DmmYH/L702PQhPyVrp3pkou3yIz4qjS14GY9kcpmLiOOMvl8oG1g==}
+
   tsconfig-paths@4.2.0:
     resolution: {integrity: sha512-NoZ4roiN7LnbKn9QqE1amc9DJfzvZXxF4xDavcOWt1BPkdx+m+0gJuPM+S0vCe7zTJMYUP0R8pO2XMr+Y8oLIg==}
     engines: {node: '>=6'}
@@ -13155,19 +13407,29 @@ snapshots:
       '@better-auth/core': 1.6.11(@better-auth/utils@0.4.0)(@better-fetch/fetch@1.1.21)(@opentelemetry/api@1.9.1)(better-call@1.3.5(zod@4.4.3))(jose@6.2.3)(kysely@0.28.17)(nanostores@1.3.0)
       '@better-auth/utils': 0.4.0
 
-  '@better-auth/mongo-adapter@1.6.11(@better-auth/core@1.6.11(@better-auth/utils@0.4.0)(@better-fetch/fetch@1.1.21)(@opentelemetry/api@1.9.1)(better-call@1.3.5(zod@4.4.3))(jose@6.2.3)(kysely@0.28.17)(nanostores@1.3.0))(@better-auth/utils@0.4.0)(mongodb@6.21.0)':
+  '@better-auth/mongo-adapter@1.6.11(@better-auth/core@1.6.11(@better-auth/utils@0.4.0)(@better-fetch/fetch@1.1.21)(@opentelemetry/api@1.9.1)(better-call@1.3.5(zod@4.4.3))(jose@6.2.3)(kysely@0.28.17)(nanostores@1.3.0))(@better-auth/utils@0.4.0)(mongodb@7.2.0)':
     dependencies:
       '@better-auth/core': 1.6.11(@better-auth/utils@0.4.0)(@better-fetch/fetch@1.1.21)(@opentelemetry/api@1.9.1)(better-call@1.3.5(zod@4.4.3))(jose@6.2.3)(kysely@0.28.17)(nanostores@1.3.0)
       '@better-auth/utils': 0.4.0
     optionalDependencies:
-      mongodb: 6.21.0
+      mongodb: 7.2.0
 
-  '@better-auth/oauth-provider@1.6.11(@better-auth/core@1.6.11(@better-auth/utils@0.4.0)(@better-fetch/fetch@1.1.21)(@opentelemetry/api@1.9.1)(better-call@1.3.5(zod@4.4.3))(jose@6.2.3)(kysely@0.28.17)(nanostores@1.3.0))(@better-auth/utils@0.4.0)(@better-fetch/fetch@1.1.21)(better-auth@1.6.11(@opentelemetry/api@1.9.1)(better-sqlite3@12.9.0)(mongodb@6.21.0)(next@16.2.6(@babel/core@7.29.0)(@opentelemetry/api@1.9.1)(@playwright/test@1.60.0)(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(vitest@4.1.6))(better-call@1.3.5(zod@4.4.3))':
+  '@better-auth/oauth-provider@1.6.11(@better-auth/core@1.6.11(@better-auth/utils@0.4.0)(@better-fetch/fetch@1.1.21)(@opentelemetry/api@1.9.1)(better-call@1.3.5(zod@4.4.3))(jose@6.2.3)(kysely@0.28.17)(nanostores@1.3.0))(@better-auth/utils@0.4.0)(@better-fetch/fetch@1.1.21)(better-auth@1.6.11(@opentelemetry/api@1.9.1)(better-sqlite3@12.9.0)(mongodb@7.2.0)(next@16.2.6(@babel/core@7.29.0)(@opentelemetry/api@1.9.1)(@playwright/test@1.60.0)(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(vitest@4.1.6))(better-call@1.3.5(zod@4.4.3))':
     dependencies:
       '@better-auth/core': 1.6.11(@better-auth/utils@0.4.0)(@better-fetch/fetch@1.1.21)(@opentelemetry/api@1.9.1)(better-call@1.3.5(zod@4.4.3))(jose@6.2.3)(kysely@0.28.17)(nanostores@1.3.0)
       '@better-auth/utils': 0.4.0
       '@better-fetch/fetch': 1.1.21
-      better-auth: 1.6.11(@opentelemetry/api@1.9.1)(better-sqlite3@12.9.0)(mongodb@6.21.0)(next@16.2.6(@babel/core@7.29.0)(@opentelemetry/api@1.9.1)(@playwright/test@1.60.0)(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(vitest@4.1.6)
+      better-auth: 1.6.11(@opentelemetry/api@1.9.1)(better-sqlite3@12.9.0)(mongodb@7.2.0)(next@16.2.6(@babel/core@7.29.0)(@opentelemetry/api@1.9.1)(@playwright/test@1.60.0)(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(vitest@4.1.6)
+      better-call: 1.3.5(zod@4.4.3)
+      jose: 6.2.3
+      zod: 4.4.3
+
+  '@better-auth/oauth-provider@1.6.11(@better-auth/core@1.6.11(@better-auth/utils@0.4.0)(@better-fetch/fetch@1.1.21)(@opentelemetry/api@1.9.1)(better-call@1.3.5(zod@4.4.3))(jose@6.2.3)(kysely@0.28.17)(nanostores@1.3.0))(@better-auth/utils@0.4.0)(@better-fetch/fetch@1.1.21)(better-auth@1.6.11(@opentelemetry/api@1.9.1)(better-sqlite3@12.9.0)(mongodb@7.2.0)(next@16.2.6(@babel/core@7.29.0)(@opentelemetry/api@1.9.1)(@playwright/test@1.60.0)(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(vitest@4.1.7))(better-call@1.3.5(zod@4.4.3))':
+    dependencies:
+      '@better-auth/core': 1.6.11(@better-auth/utils@0.4.0)(@better-fetch/fetch@1.1.21)(@opentelemetry/api@1.9.1)(better-call@1.3.5(zod@4.4.3))(jose@6.2.3)(kysely@0.28.17)(nanostores@1.3.0)
+      '@better-auth/utils': 0.4.0
+      '@better-fetch/fetch': 1.1.21
+      better-auth: 1.6.11(@opentelemetry/api@1.9.1)(better-sqlite3@12.9.0)(mongodb@7.2.0)(next@16.2.6(@babel/core@7.29.0)(@opentelemetry/api@1.9.1)(@playwright/test@1.60.0)(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(vitest@4.1.7)
       better-call: 1.3.5(zod@4.4.3)
       jose: 6.2.3
       zod: 4.4.3
@@ -13748,9 +14010,9 @@ snapshots:
     dependencies:
       hono: 4.12.18
 
-  '@hono/node-server@2.0.3(hono@4.12.21)':
+  '@hono/node-server@2.0.3(hono@4.12.22)':
     dependencies:
-      hono: 4.12.21
+      hono: 4.12.22
 
   '@humanfs/core@0.19.2':
     dependencies:
@@ -14498,45 +14760,952 @@ snapshots:
       '@nodelib/fs.scandir': 2.1.5
       fastq: 1.20.1
 
-  '@objectstack/cli@4.2.0(@ai-sdk/anthropic@3.0.69(zod@4.4.3))(@ai-sdk/google@3.0.63(zod@4.4.3))(@ai-sdk/openai@3.0.52(zod@4.4.3))(@better-auth/core@1.6.11(@better-auth/utils@0.4.0)(@better-fetch/fetch@1.1.21)(@opentelemetry/api@1.9.1)(better-call@1.3.5(zod@4.4.3))(jose@6.2.3)(kysely@0.28.17)(nanostores@1.3.0))(@better-auth/utils@0.4.0)(@better-fetch/fetch@1.1.21)(@objectstack/core@5.2.0(ai@6.0.190(zod@4.4.3)))(@opentelemetry/api@1.9.1)(ai@6.0.190(zod@4.4.3))(better-call@1.3.5(zod@4.4.3))(better-sqlite3@12.9.0)(mongodb@6.21.0)(next@16.2.6(@babel/core@7.29.0)(@opentelemetry/api@1.9.1)(@playwright/test@1.60.0)(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(vitest@4.1.6)':
+  '@object-ui/app-shell@5.3.1(5e71aec8e088f89bd1eb810fa9ae0144)':
     dependencies:
-      '@ai-sdk/gateway': 3.0.119(zod@4.4.3)
-      '@objectstack/client': 4.2.0(ai@6.0.190(zod@4.4.3))
-      '@objectstack/core': 5.2.0(ai@6.0.190(zod@4.4.3))
-      '@objectstack/driver-memory': 4.2.0(ai@6.0.190(zod@4.4.3))
-      '@objectstack/driver-mongodb': 4.2.0(ai@6.0.190(zod@4.4.3))
-      '@objectstack/driver-sql': 4.2.0(ai@6.0.190(zod@4.4.3))(better-sqlite3@12.9.0)
-      '@objectstack/driver-turso': 4.2.0(ai@6.0.190(zod@4.4.3))(better-sqlite3@12.9.0)
-      '@objectstack/objectql': 4.2.0(ai@6.0.190(zod@4.4.3))
-      '@objectstack/plugin-approvals': 4.2.0(ai@6.0.190(zod@4.4.3))
-      '@objectstack/plugin-audit': 4.2.0(ai@6.0.190(zod@4.4.3))
-      '@objectstack/plugin-auth': 4.2.0(@better-auth/core@1.6.11(@better-auth/utils@0.4.0)(@better-fetch/fetch@1.1.21)(@opentelemetry/api@1.9.1)(better-call@1.3.5(zod@4.4.3))(jose@6.2.3)(kysely@0.28.17)(nanostores@1.3.0))(@better-auth/utils@0.4.0)(@better-fetch/fetch@1.1.21)(@opentelemetry/api@1.9.1)(ai@6.0.190(zod@4.4.3))(better-call@1.3.5(zod@4.4.3))(better-sqlite3@12.9.0)(mongodb@6.21.0)(next@16.2.6(@babel/core@7.29.0)(@opentelemetry/api@1.9.1)(@playwright/test@1.60.0)(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(vitest@4.1.6)
-      '@objectstack/plugin-email': 4.2.0(ai@6.0.190(zod@4.4.3))
-      '@objectstack/plugin-hono-server': 4.2.0(ai@6.0.190(zod@4.4.3))
-      '@objectstack/plugin-mcp-server': 4.2.0(ai@6.0.190(zod@4.4.3))
-      '@objectstack/plugin-reports': 4.2.0(ai@6.0.190(zod@4.4.3))
-      '@objectstack/plugin-security': 4.2.0(ai@6.0.190(zod@4.4.3))
-      '@objectstack/plugin-sharing': 4.2.0(ai@6.0.190(zod@4.4.3))
-      '@objectstack/rest': 4.2.0(ai@6.0.190(zod@4.4.3))
-      '@objectstack/runtime': 4.2.0(@better-auth/core@1.6.11(@better-auth/utils@0.4.0)(@better-fetch/fetch@1.1.21)(@opentelemetry/api@1.9.1)(better-call@1.3.5(zod@4.4.3))(jose@6.2.3)(kysely@0.28.17)(nanostores@1.3.0))(@better-auth/utils@0.4.0)(@better-fetch/fetch@1.1.21)(@opentelemetry/api@1.9.1)(ai@6.0.190(zod@4.4.3))(better-call@1.3.5(zod@4.4.3))(better-sqlite3@12.9.0)(mongodb@6.21.0)(next@16.2.6(@babel/core@7.29.0)(@opentelemetry/api@1.9.1)(@playwright/test@1.60.0)(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(vitest@4.1.6)
-      '@objectstack/service-ai': 4.2.0(@ai-sdk/anthropic@3.0.69(zod@4.4.3))(@ai-sdk/gateway@3.0.119(zod@4.4.3))(@ai-sdk/google@3.0.63(zod@4.4.3))(@ai-sdk/openai@3.0.52(zod@4.4.3))(zod@4.4.3)
-      '@objectstack/service-analytics': 4.2.0(ai@6.0.190(zod@4.4.3))
-      '@objectstack/service-automation': 4.2.0(ai@6.0.190(zod@4.4.3))
-      '@objectstack/service-cache': 4.2.0(ai@6.0.190(zod@4.4.3))
-      '@objectstack/service-feed': 4.2.0(ai@6.0.190(zod@4.4.3))
-      '@objectstack/service-job': 4.2.0(ai@6.0.190(zod@4.4.3))
-      '@objectstack/service-package': 4.2.0(ai@6.0.190(zod@4.4.3))
-      '@objectstack/service-queue': 4.2.0(ai@6.0.190(zod@4.4.3))
-      '@objectstack/service-realtime': 4.2.0(ai@6.0.190(zod@4.4.3))
-      '@objectstack/service-settings': 4.2.0(ai@6.0.190(zod@4.4.3))
-      '@objectstack/service-storage': 4.2.0(ai@6.0.190(zod@4.4.3))
-      '@objectstack/spec': 4.2.0(ai@6.0.190(zod@4.4.3))
+      '@object-ui/auth': 5.3.1(@opentelemetry/api@1.9.1)(ai@6.0.191(zod@4.4.3))(better-sqlite3@12.9.0)(mongodb@7.2.0)(next@16.2.6(@babel/core@7.29.0)(@opentelemetry/api@1.9.1)(@playwright/test@1.60.0)(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(vitest@4.1.6)
+      '@object-ui/collaboration': 5.3.1(ai@6.0.191(zod@4.4.3))(react@19.2.6)
+      '@object-ui/components': 5.3.1(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(ai@6.0.191(zod@4.4.3))(react-dom@19.2.6(react@19.2.6))(react-is@19.2.6)(react@19.2.6)(tailwindcss@4.3.0)(typescript@6.0.3)
+      '@object-ui/core': 5.3.1(ai@6.0.191(zod@4.4.3))
+      '@object-ui/data-objectstack': 5.3.1(ai@6.0.191(zod@4.4.3))
+      '@object-ui/fields': 5.3.1(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(ai@6.0.191(zod@4.4.3))(react-dom@19.2.6(react@19.2.6))(react-is@19.2.6)(react@19.2.6)(tailwindcss@4.3.0)(typescript@6.0.3)
+      '@object-ui/i18n': 5.3.1(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(typescript@6.0.3)
+      '@object-ui/layout': 5.3.1(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(ai@6.0.191(zod@4.4.3))(react-dom@19.2.6(react@19.2.6))(react-is@19.2.6)(react-router-dom@7.15.1(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(react@19.2.6)(tailwindcss@4.3.0)(typescript@6.0.3)
+      '@object-ui/permissions': 5.3.1(ai@6.0.191(zod@4.4.3))(react@19.2.6)
+      '@object-ui/plugin-calendar': 5.3.1(@object-ui/permissions@5.3.1(ai@6.0.191(zod@4.4.3))(react@19.2.6))(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(ai@6.0.191(zod@4.4.3))(react-dom@19.2.6(react@19.2.6))(react-is@19.2.6)(react@19.2.6)(tailwindcss@4.3.0)(typescript@6.0.3)
+      '@object-ui/plugin-charts': 5.3.1(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(ai@6.0.191(zod@4.4.3))(react-dom@19.2.6(react@19.2.6))(react-is@19.2.6)(react@19.2.6)(tailwindcss@4.3.0)(typescript@6.0.3)
+      '@object-ui/plugin-chatbot': 5.3.1(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.6(react@19.2.6))(react-is@19.2.6)(react@19.2.6)(tailwindcss@4.3.0)(typescript@6.0.3)(zod@4.4.3)
+      '@object-ui/plugin-dashboard': 5.3.1(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(ai@6.0.191(zod@4.4.3))(react-dom@19.2.6(react@19.2.6))(react-grid-layout@2.2.3(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(react-is@19.2.6)(react@19.2.6)(tailwindcss@4.3.0)(typescript@6.0.3)
+      '@object-ui/plugin-designer': 5.3.1(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(ai@6.0.191(zod@4.4.3))(react-dom@19.2.6(react@19.2.6))(react-is@19.2.6)(react-router-dom@7.15.1(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(react@19.2.6)(tailwindcss@4.3.0)(typescript@6.0.3)
+      '@object-ui/plugin-detail': 5.3.1(@object-ui/components@5.3.1(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(ai@6.0.191(zod@4.4.3))(react-dom@19.2.6(react@19.2.6))(react-is@19.2.6)(react@19.2.6)(tailwindcss@4.3.0)(typescript@6.0.3))(@object-ui/core@5.3.1(ai@6.0.191(zod@4.4.3)))(@object-ui/fields@5.3.1(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(ai@6.0.191(zod@4.4.3))(react-dom@19.2.6(react@19.2.6))(react-is@19.2.6)(react@19.2.6)(tailwindcss@4.3.0)(typescript@6.0.3))(@object-ui/permissions@5.3.1(ai@6.0.191(zod@4.4.3))(react@19.2.6))(@object-ui/react@5.3.1(ai@6.0.191(zod@4.4.3))(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(typescript@6.0.3))(@object-ui/types@5.3.1(ai@6.0.191(zod@4.4.3)))(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
+      '@object-ui/plugin-form': 5.3.1(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(ai@6.0.191(zod@4.4.3))(react-dom@19.2.6(react@19.2.6))(react-is@19.2.6)(react@19.2.6)(tailwindcss@4.3.0)(typescript@6.0.3)
+      '@object-ui/plugin-grid': 5.3.1(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(ai@6.0.191(zod@4.4.3))(react-dom@19.2.6(react@19.2.6))(react-is@19.2.6)(react@19.2.6)(tailwindcss@4.3.0)(typescript@6.0.3)
+      '@object-ui/plugin-kanban': 5.3.1(@object-ui/permissions@5.3.1(ai@6.0.191(zod@4.4.3))(react@19.2.6))(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(ai@6.0.191(zod@4.4.3))(react-dom@19.2.6(react@19.2.6))(react-is@19.2.6)(react@19.2.6)(tailwindcss@4.3.0)(typescript@6.0.3)
+      '@object-ui/plugin-list': 5.3.1(@object-ui/components@5.3.1(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(ai@6.0.191(zod@4.4.3))(react-dom@19.2.6(react@19.2.6))(react-is@19.2.6)(react@19.2.6)(tailwindcss@4.3.0)(typescript@6.0.3))(@object-ui/core@5.3.1(ai@6.0.191(zod@4.4.3)))(@object-ui/fields@5.3.1(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(ai@6.0.191(zod@4.4.3))(react-dom@19.2.6(react@19.2.6))(react-is@19.2.6)(react@19.2.6)(tailwindcss@4.3.0)(typescript@6.0.3))(@object-ui/i18n@5.3.1(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(typescript@6.0.3))(@object-ui/mobile@5.3.1(ai@6.0.191(zod@4.4.3))(react@19.2.6))(@object-ui/permissions@5.3.1(ai@6.0.191(zod@4.4.3))(react@19.2.6))(@object-ui/react@5.3.1(ai@6.0.191(zod@4.4.3))(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(typescript@6.0.3))(@object-ui/types@5.3.1(ai@6.0.191(zod@4.4.3)))(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
+      '@object-ui/plugin-report': 5.3.1(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(ai@6.0.191(zod@4.4.3))(i18next@26.2.0(typescript@6.0.3))(react-dom@19.2.6(react@19.2.6))(react-is@19.2.6)(react@19.2.6)(tailwindcss@4.3.0)(typescript@6.0.3)
+      '@object-ui/plugin-view': 5.3.1(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(ai@6.0.191(zod@4.4.3))(react-dom@19.2.6(react@19.2.6))(react-is@19.2.6)(react@19.2.6)(tailwindcss@4.3.0)(typescript@6.0.3)
+      '@object-ui/providers': 5.3.1(ai@6.0.191(zod@4.4.3))(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
+      '@object-ui/react': 5.3.1(ai@6.0.191(zod@4.4.3))(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(typescript@6.0.3)
+      '@object-ui/types': 5.3.1(ai@6.0.191(zod@4.4.3))
+      '@sentry/react': 8.55.2(react@19.2.6)
+      lucide-react: 1.16.0(react@19.2.6)
+      react: 19.2.6
+      react-dom: 19.2.6(react@19.2.6)
+      react-router-dom: 7.15.1(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
+      sonner: 2.0.7(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
+    transitivePeerDependencies:
+      - '@cloudflare/workers-types'
+      - '@lynx-js/react'
+      - '@opentelemetry/api'
+      - '@prisma/client'
+      - '@sveltejs/kit'
+      - '@tanstack/react-start'
+      - '@tanstack/solid-start'
+      - '@types/react'
+      - '@types/react-dom'
+      - ai
+      - better-sqlite3
+      - drizzle-kit
+      - drizzle-orm
+      - mongodb
+      - mysql2
+      - next
+      - pg
+      - prisma
+      - react-is
+      - react-native
+      - redux
+      - solid-js
+      - svelte
+      - tailwindcss
+      - typescript
+      - vitest
+      - vue
+
+  '@object-ui/app-shell@5.3.1(f0369a6080344f0ca296dbda80e6a84b)':
+    dependencies:
+      '@object-ui/auth': 5.3.1(@opentelemetry/api@1.9.1)(ai@6.0.191(zod@4.4.3))(better-sqlite3@12.9.0)(mongodb@7.2.0)(next@16.2.6(@babel/core@7.29.0)(@opentelemetry/api@1.9.1)(@playwright/test@1.60.0)(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(vitest@4.1.7)
+      '@object-ui/collaboration': 5.3.1(ai@6.0.191(zod@4.4.3))(react@19.2.6)
+      '@object-ui/components': 5.3.1(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(ai@6.0.191(zod@4.4.3))(react-dom@19.2.6(react@19.2.6))(react-is@19.2.6)(react@19.2.6)(tailwindcss@4.3.0)(typescript@6.0.3)
+      '@object-ui/core': 5.3.1(ai@6.0.191(zod@4.4.3))
+      '@object-ui/data-objectstack': 5.3.1(ai@6.0.191(zod@4.4.3))
+      '@object-ui/fields': 5.3.1(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(ai@6.0.191(zod@4.4.3))(react-dom@19.2.6(react@19.2.6))(react-is@19.2.6)(react@19.2.6)(tailwindcss@4.3.0)(typescript@6.0.3)
+      '@object-ui/i18n': 5.3.1(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(typescript@6.0.3)
+      '@object-ui/layout': 5.3.1(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(ai@6.0.191(zod@4.4.3))(react-dom@19.2.6(react@19.2.6))(react-is@19.2.6)(react-router-dom@7.15.1(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(react@19.2.6)(tailwindcss@4.3.0)(typescript@6.0.3)
+      '@object-ui/permissions': 5.3.1(ai@6.0.191(zod@4.4.3))(react@19.2.6)
+      '@object-ui/plugin-calendar': 5.3.1(@object-ui/permissions@5.3.1(ai@6.0.191(zod@4.4.3))(react@19.2.6))(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(ai@6.0.191(zod@4.4.3))(react-dom@19.2.6(react@19.2.6))(react-is@19.2.6)(react@19.2.6)(tailwindcss@4.3.0)(typescript@6.0.3)
+      '@object-ui/plugin-charts': 5.3.1(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(ai@6.0.191(zod@4.4.3))(react-dom@19.2.6(react@19.2.6))(react-is@19.2.6)(react@19.2.6)(tailwindcss@4.3.0)(typescript@6.0.3)
+      '@object-ui/plugin-chatbot': 5.3.1(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.6(react@19.2.6))(react-is@19.2.6)(react@19.2.6)(tailwindcss@4.3.0)(typescript@6.0.3)(zod@4.4.3)
+      '@object-ui/plugin-dashboard': 5.3.1(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(ai@6.0.191(zod@4.4.3))(react-dom@19.2.6(react@19.2.6))(react-grid-layout@2.2.3(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(react-is@19.2.6)(react@19.2.6)(tailwindcss@4.3.0)(typescript@6.0.3)
+      '@object-ui/plugin-designer': 5.3.1(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(ai@6.0.191(zod@4.4.3))(react-dom@19.2.6(react@19.2.6))(react-is@19.2.6)(react-router-dom@7.15.1(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(react@19.2.6)(tailwindcss@4.3.0)(typescript@6.0.3)
+      '@object-ui/plugin-detail': 5.3.1(@object-ui/components@5.3.1(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(ai@6.0.191(zod@4.4.3))(react-dom@19.2.6(react@19.2.6))(react-is@19.2.6)(react@19.2.6)(tailwindcss@4.3.0)(typescript@6.0.3))(@object-ui/core@5.3.1(ai@6.0.191(zod@4.4.3)))(@object-ui/fields@5.3.1(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(ai@6.0.191(zod@4.4.3))(react-dom@19.2.6(react@19.2.6))(react-is@19.2.6)(react@19.2.6)(tailwindcss@4.3.0)(typescript@6.0.3))(@object-ui/permissions@5.3.1(ai@6.0.191(zod@4.4.3))(react@19.2.6))(@object-ui/react@5.3.1(ai@6.0.191(zod@4.4.3))(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(typescript@6.0.3))(@object-ui/types@5.3.1(ai@6.0.191(zod@4.4.3)))(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
+      '@object-ui/plugin-form': 5.3.1(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(ai@6.0.191(zod@4.4.3))(react-dom@19.2.6(react@19.2.6))(react-is@19.2.6)(react@19.2.6)(tailwindcss@4.3.0)(typescript@6.0.3)
+      '@object-ui/plugin-grid': 5.3.1(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(ai@6.0.191(zod@4.4.3))(react-dom@19.2.6(react@19.2.6))(react-is@19.2.6)(react@19.2.6)(tailwindcss@4.3.0)(typescript@6.0.3)
+      '@object-ui/plugin-kanban': 5.3.1(@object-ui/permissions@5.3.1(ai@6.0.191(zod@4.4.3))(react@19.2.6))(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(ai@6.0.191(zod@4.4.3))(react-dom@19.2.6(react@19.2.6))(react-is@19.2.6)(react@19.2.6)(tailwindcss@4.3.0)(typescript@6.0.3)
+      '@object-ui/plugin-list': 5.3.1(@object-ui/components@5.3.1(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(ai@6.0.191(zod@4.4.3))(react-dom@19.2.6(react@19.2.6))(react-is@19.2.6)(react@19.2.6)(tailwindcss@4.3.0)(typescript@6.0.3))(@object-ui/core@5.3.1(ai@6.0.191(zod@4.4.3)))(@object-ui/fields@5.3.1(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(ai@6.0.191(zod@4.4.3))(react-dom@19.2.6(react@19.2.6))(react-is@19.2.6)(react@19.2.6)(tailwindcss@4.3.0)(typescript@6.0.3))(@object-ui/i18n@5.3.1(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(typescript@6.0.3))(@object-ui/mobile@5.3.1(ai@6.0.191(zod@4.4.3))(react@19.2.6))(@object-ui/permissions@5.3.1(ai@6.0.191(zod@4.4.3))(react@19.2.6))(@object-ui/react@5.3.1(ai@6.0.191(zod@4.4.3))(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(typescript@6.0.3))(@object-ui/types@5.3.1(ai@6.0.191(zod@4.4.3)))(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
+      '@object-ui/plugin-report': 5.3.1(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(ai@6.0.191(zod@4.4.3))(i18next@26.2.0(typescript@6.0.3))(react-dom@19.2.6(react@19.2.6))(react-is@19.2.6)(react@19.2.6)(tailwindcss@4.3.0)(typescript@6.0.3)
+      '@object-ui/plugin-view': 5.3.1(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(ai@6.0.191(zod@4.4.3))(react-dom@19.2.6(react@19.2.6))(react-is@19.2.6)(react@19.2.6)(tailwindcss@4.3.0)(typescript@6.0.3)
+      '@object-ui/providers': 5.3.1(ai@6.0.191(zod@4.4.3))(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
+      '@object-ui/react': 5.3.1(ai@6.0.191(zod@4.4.3))(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(typescript@6.0.3)
+      '@object-ui/types': 5.3.1(ai@6.0.191(zod@4.4.3))
+      '@sentry/react': 8.55.2(react@19.2.6)
+      lucide-react: 1.16.0(react@19.2.6)
+      react: 19.2.6
+      react-dom: 19.2.6(react@19.2.6)
+      react-router-dom: 7.15.1(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
+      sonner: 2.0.7(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
+    transitivePeerDependencies:
+      - '@cloudflare/workers-types'
+      - '@lynx-js/react'
+      - '@opentelemetry/api'
+      - '@prisma/client'
+      - '@sveltejs/kit'
+      - '@tanstack/react-start'
+      - '@tanstack/solid-start'
+      - '@types/react'
+      - '@types/react-dom'
+      - ai
+      - better-sqlite3
+      - drizzle-kit
+      - drizzle-orm
+      - mongodb
+      - mysql2
+      - next
+      - pg
+      - prisma
+      - react-is
+      - react-native
+      - redux
+      - solid-js
+      - svelte
+      - tailwindcss
+      - typescript
+      - vitest
+      - vue
+
+  '@object-ui/auth@5.3.1(@opentelemetry/api@1.9.1)(ai@6.0.191(zod@4.4.3))(better-sqlite3@12.9.0)(mongodb@7.2.0)(next@16.2.6(@babel/core@7.29.0)(@opentelemetry/api@1.9.1)(@playwright/test@1.60.0)(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(vitest@4.1.6)':
+    dependencies:
+      '@object-ui/types': 5.3.1(ai@6.0.191(zod@4.4.3))
+      better-auth: 1.6.11(@opentelemetry/api@1.9.1)(better-sqlite3@12.9.0)(mongodb@7.2.0)(next@16.2.6(@babel/core@7.29.0)(@opentelemetry/api@1.9.1)(@playwright/test@1.60.0)(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(vitest@4.1.6)
+      react: 19.2.6
+    transitivePeerDependencies:
+      - '@cloudflare/workers-types'
+      - '@lynx-js/react'
+      - '@opentelemetry/api'
+      - '@prisma/client'
+      - '@sveltejs/kit'
+      - '@tanstack/react-start'
+      - '@tanstack/solid-start'
+      - ai
+      - better-sqlite3
+      - drizzle-kit
+      - drizzle-orm
+      - mongodb
+      - mysql2
+      - next
+      - pg
+      - prisma
+      - react-dom
+      - solid-js
+      - svelte
+      - vitest
+      - vue
+
+  '@object-ui/auth@5.3.1(@opentelemetry/api@1.9.1)(ai@6.0.191(zod@4.4.3))(better-sqlite3@12.9.0)(mongodb@7.2.0)(next@16.2.6(@babel/core@7.29.0)(@opentelemetry/api@1.9.1)(@playwright/test@1.60.0)(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(vitest@4.1.7)':
+    dependencies:
+      '@object-ui/types': 5.3.1(ai@6.0.191(zod@4.4.3))
+      better-auth: 1.6.11(@opentelemetry/api@1.9.1)(better-sqlite3@12.9.0)(mongodb@7.2.0)(next@16.2.6(@babel/core@7.29.0)(@opentelemetry/api@1.9.1)(@playwright/test@1.60.0)(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(vitest@4.1.7)
+      react: 19.2.6
+    transitivePeerDependencies:
+      - '@cloudflare/workers-types'
+      - '@lynx-js/react'
+      - '@opentelemetry/api'
+      - '@prisma/client'
+      - '@sveltejs/kit'
+      - '@tanstack/react-start'
+      - '@tanstack/solid-start'
+      - ai
+      - better-sqlite3
+      - drizzle-kit
+      - drizzle-orm
+      - mongodb
+      - mysql2
+      - next
+      - pg
+      - prisma
+      - react-dom
+      - solid-js
+      - svelte
+      - vitest
+      - vue
+
+  '@object-ui/collaboration@5.3.1(ai@6.0.191(zod@4.4.3))(react@19.2.6)':
+    dependencies:
+      '@object-ui/types': 5.3.1(ai@6.0.191(zod@4.4.3))
+      react: 19.2.6
+    transitivePeerDependencies:
+      - ai
+
+  '@object-ui/components@5.3.1(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(ai@6.0.191(zod@4.4.3))(react-dom@19.2.6(react@19.2.6))(react-is@19.2.6)(react@19.2.6)(tailwindcss@4.3.0)(typescript@6.0.3)':
+    dependencies:
+      '@object-ui/core': 5.3.1(ai@6.0.191(zod@4.4.3))
+      '@object-ui/i18n': 5.3.1(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(typescript@6.0.3)
+      '@object-ui/react': 5.3.1(ai@6.0.191(zod@4.4.3))(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(typescript@6.0.3)
+      '@object-ui/types': 5.3.1(ai@6.0.191(zod@4.4.3))
+      '@radix-ui/react-accordion': 1.2.12(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
+      '@radix-ui/react-alert-dialog': 1.1.15(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
+      '@radix-ui/react-aspect-ratio': 1.1.8(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
+      '@radix-ui/react-avatar': 1.1.11(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
+      '@radix-ui/react-checkbox': 1.3.3(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
+      '@radix-ui/react-collapsible': 1.1.12(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
+      '@radix-ui/react-context-menu': 2.2.16(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
+      '@radix-ui/react-dialog': 1.1.15(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
+      '@radix-ui/react-dropdown-menu': 2.1.16(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
+      '@radix-ui/react-hover-card': 1.1.15(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
+      '@radix-ui/react-label': 2.1.8(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
+      '@radix-ui/react-menubar': 1.1.16(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
+      '@radix-ui/react-navigation-menu': 1.2.14(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
+      '@radix-ui/react-popover': 1.1.15(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
+      '@radix-ui/react-progress': 1.1.8(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
+      '@radix-ui/react-radio-group': 1.3.8(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
+      '@radix-ui/react-scroll-area': 1.2.10(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
+      '@radix-ui/react-select': 2.2.6(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
+      '@radix-ui/react-separator': 1.1.8(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
+      '@radix-ui/react-slider': 1.3.6(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
+      '@radix-ui/react-slot': 1.2.4(@types/react@19.2.14)(react@19.2.6)
+      '@radix-ui/react-switch': 1.2.6(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
+      '@radix-ui/react-tabs': 1.1.13(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
+      '@radix-ui/react-toast': 1.2.15(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
+      '@radix-ui/react-toggle': 1.1.10(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
+      '@radix-ui/react-toggle-group': 1.1.11(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
+      '@radix-ui/react-tooltip': 1.2.8(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
+      class-variance-authority: 0.7.1
+      clsx: 2.1.1
+      cmdk: 1.1.1(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
+      date-fns: 4.2.1
+      embla-carousel-react: 8.6.0(react@19.2.6)
+      input-otp: 1.4.2(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
+      lucide-react: 1.16.0(react@19.2.6)
+      next-themes: 0.4.6(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
+      react: 19.2.6
+      react-day-picker: 10.0.1(@types/react@19.2.14)(react@19.2.6)
+      react-dom: 19.2.6(react@19.2.6)
+      react-hook-form: 7.76.0(react@19.2.6)
+      react-resizable-panels: 4.11.1(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
+      recharts: 3.8.1(@types/react@19.2.14)(react-dom@19.2.6(react@19.2.6))(react-is@19.2.6)(react@19.2.6)(redux@5.0.1)
+      sonner: 2.0.7(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
+      tailwind-merge: 3.6.0
+      tailwindcss: 4.3.0
+      tailwindcss-animate: 1.0.7(tailwindcss@4.3.0)
+      vaul: 1.1.2(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
+    transitivePeerDependencies:
+      - '@types/react'
+      - '@types/react-dom'
+      - ai
+      - react-is
+      - react-native
+      - redux
+      - typescript
+
+  '@object-ui/console@5.3.1(@opentelemetry/api@1.9.1)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(ai@6.0.191(zod@4.4.3))(better-sqlite3@12.9.0)(i18next@26.2.0(typescript@6.0.3))(mongodb@7.2.0)(next@16.2.6(@babel/core@7.29.0)(@opentelemetry/api@1.9.1)(@playwright/test@1.60.0)(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(react-dom@19.2.6(react@19.2.6))(react-grid-layout@2.2.3(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(react-is@19.2.6)(react-router-dom@7.15.1(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(react@19.2.6)(tailwindcss@4.3.0)(typescript@6.0.3)(vitest@4.1.6)(zod@4.4.3)':
+    dependencies:
+      '@object-ui/app-shell': 5.3.1(5e71aec8e088f89bd1eb810fa9ae0144)
+      '@object-ui/auth': 5.3.1(@opentelemetry/api@1.9.1)(ai@6.0.191(zod@4.4.3))(better-sqlite3@12.9.0)(mongodb@7.2.0)(next@16.2.6(@babel/core@7.29.0)(@opentelemetry/api@1.9.1)(@playwright/test@1.60.0)(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(vitest@4.1.6)
+      '@object-ui/collaboration': 5.3.1(ai@6.0.191(zod@4.4.3))(react@19.2.6)
+      '@object-ui/components': 5.3.1(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(ai@6.0.191(zod@4.4.3))(react-dom@19.2.6(react@19.2.6))(react-is@19.2.6)(react@19.2.6)(tailwindcss@4.3.0)(typescript@6.0.3)
+      '@object-ui/core': 5.3.1(ai@6.0.191(zod@4.4.3))
+      '@object-ui/data-objectstack': 5.3.1(ai@6.0.191(zod@4.4.3))
+      '@object-ui/fields': 5.3.1(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(ai@6.0.191(zod@4.4.3))(react-dom@19.2.6(react@19.2.6))(react-is@19.2.6)(react@19.2.6)(tailwindcss@4.3.0)(typescript@6.0.3)
+      '@object-ui/i18n': 5.3.1(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(typescript@6.0.3)
+      '@object-ui/layout': 5.3.1(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(ai@6.0.191(zod@4.4.3))(react-dom@19.2.6(react@19.2.6))(react-is@19.2.6)(react-router-dom@7.15.1(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(react@19.2.6)(tailwindcss@4.3.0)(typescript@6.0.3)
+      '@object-ui/mobile': 5.3.1(ai@6.0.191(zod@4.4.3))(react@19.2.6)
+      '@object-ui/permissions': 5.3.1(ai@6.0.191(zod@4.4.3))(react@19.2.6)
+      '@object-ui/plugin-calendar': 5.3.1(@object-ui/permissions@5.3.1(ai@6.0.191(zod@4.4.3))(react@19.2.6))(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(ai@6.0.191(zod@4.4.3))(react-dom@19.2.6(react@19.2.6))(react-is@19.2.6)(react@19.2.6)(tailwindcss@4.3.0)(typescript@6.0.3)
+      '@object-ui/plugin-charts': 5.3.1(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(ai@6.0.191(zod@4.4.3))(react-dom@19.2.6(react@19.2.6))(react-is@19.2.6)(react@19.2.6)(tailwindcss@4.3.0)(typescript@6.0.3)
+      '@object-ui/plugin-chatbot': 5.3.1(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.6(react@19.2.6))(react-is@19.2.6)(react@19.2.6)(tailwindcss@4.3.0)(typescript@6.0.3)(zod@4.4.3)
+      '@object-ui/plugin-dashboard': 5.3.1(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(ai@6.0.191(zod@4.4.3))(react-dom@19.2.6(react@19.2.6))(react-grid-layout@2.2.3(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(react-is@19.2.6)(react@19.2.6)(tailwindcss@4.3.0)(typescript@6.0.3)
+      '@object-ui/plugin-designer': 5.3.1(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(ai@6.0.191(zod@4.4.3))(react-dom@19.2.6(react@19.2.6))(react-is@19.2.6)(react-router-dom@7.15.1(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(react@19.2.6)(tailwindcss@4.3.0)(typescript@6.0.3)
+      '@object-ui/plugin-detail': 5.3.1(@object-ui/components@5.3.1(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(ai@6.0.191(zod@4.4.3))(react-dom@19.2.6(react@19.2.6))(react-is@19.2.6)(react@19.2.6)(tailwindcss@4.3.0)(typescript@6.0.3))(@object-ui/core@5.3.1(ai@6.0.191(zod@4.4.3)))(@object-ui/fields@5.3.1(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(ai@6.0.191(zod@4.4.3))(react-dom@19.2.6(react@19.2.6))(react-is@19.2.6)(react@19.2.6)(tailwindcss@4.3.0)(typescript@6.0.3))(@object-ui/permissions@5.3.1(ai@6.0.191(zod@4.4.3))(react@19.2.6))(@object-ui/react@5.3.1(ai@6.0.191(zod@4.4.3))(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(typescript@6.0.3))(@object-ui/types@5.3.1(ai@6.0.191(zod@4.4.3)))(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
+      '@object-ui/plugin-form': 5.3.1(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(ai@6.0.191(zod@4.4.3))(react-dom@19.2.6(react@19.2.6))(react-is@19.2.6)(react@19.2.6)(tailwindcss@4.3.0)(typescript@6.0.3)
+      '@object-ui/plugin-gantt': 5.3.1(@object-ui/permissions@5.3.1(ai@6.0.191(zod@4.4.3))(react@19.2.6))(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(ai@6.0.191(zod@4.4.3))(react-dom@19.2.6(react@19.2.6))(react-is@19.2.6)(react@19.2.6)(tailwindcss@4.3.0)(typescript@6.0.3)
+      '@object-ui/plugin-grid': 5.3.1(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(ai@6.0.191(zod@4.4.3))(react-dom@19.2.6(react@19.2.6))(react-is@19.2.6)(react@19.2.6)(tailwindcss@4.3.0)(typescript@6.0.3)
+      '@object-ui/plugin-kanban': 5.3.1(@object-ui/permissions@5.3.1(ai@6.0.191(zod@4.4.3))(react@19.2.6))(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(ai@6.0.191(zod@4.4.3))(react-dom@19.2.6(react@19.2.6))(react-is@19.2.6)(react@19.2.6)(tailwindcss@4.3.0)(typescript@6.0.3)
+      '@object-ui/plugin-list': 5.3.1(@object-ui/components@5.3.1(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(ai@6.0.191(zod@4.4.3))(react-dom@19.2.6(react@19.2.6))(react-is@19.2.6)(react@19.2.6)(tailwindcss@4.3.0)(typescript@6.0.3))(@object-ui/core@5.3.1(ai@6.0.191(zod@4.4.3)))(@object-ui/fields@5.3.1(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(ai@6.0.191(zod@4.4.3))(react-dom@19.2.6(react@19.2.6))(react-is@19.2.6)(react@19.2.6)(tailwindcss@4.3.0)(typescript@6.0.3))(@object-ui/i18n@5.3.1(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(typescript@6.0.3))(@object-ui/mobile@5.3.1(ai@6.0.191(zod@4.4.3))(react@19.2.6))(@object-ui/permissions@5.3.1(ai@6.0.191(zod@4.4.3))(react@19.2.6))(@object-ui/react@5.3.1(ai@6.0.191(zod@4.4.3))(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(typescript@6.0.3))(@object-ui/types@5.3.1(ai@6.0.191(zod@4.4.3)))(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
+      '@object-ui/plugin-map': 5.3.1(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(ai@6.0.191(zod@4.4.3))(react-dom@19.2.6(react@19.2.6))(react-is@19.2.6)(react@19.2.6)(tailwindcss@4.3.0)(typescript@6.0.3)
+      '@object-ui/plugin-markdown': 5.3.1(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(ai@6.0.191(zod@4.4.3))(react-dom@19.2.6(react@19.2.6))(react-is@19.2.6)(react@19.2.6)(tailwindcss@4.3.0)(typescript@6.0.3)
+      '@object-ui/plugin-report': 5.3.1(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(ai@6.0.191(zod@4.4.3))(i18next@26.2.0(typescript@6.0.3))(react-dom@19.2.6(react@19.2.6))(react-is@19.2.6)(react@19.2.6)(tailwindcss@4.3.0)(typescript@6.0.3)
+      '@object-ui/plugin-timeline': 5.3.1(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(ai@6.0.191(zod@4.4.3))(react-dom@19.2.6(react@19.2.6))(react-is@19.2.6)(react@19.2.6)(tailwindcss@4.3.0)(typescript@6.0.3)
+      '@object-ui/plugin-view': 5.3.1(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(ai@6.0.191(zod@4.4.3))(react-dom@19.2.6(react@19.2.6))(react-is@19.2.6)(react@19.2.6)(tailwindcss@4.3.0)(typescript@6.0.3)
+      '@object-ui/providers': 5.3.1(ai@6.0.191(zod@4.4.3))(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
+      '@object-ui/react': 5.3.1(ai@6.0.191(zod@4.4.3))(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(typescript@6.0.3)
+      '@object-ui/types': 5.3.1(ai@6.0.191(zod@4.4.3))
+    transitivePeerDependencies:
+      - '@cloudflare/workers-types'
+      - '@lynx-js/react'
+      - '@opentelemetry/api'
+      - '@prisma/client'
+      - '@sveltejs/kit'
+      - '@tanstack/react-start'
+      - '@tanstack/solid-start'
+      - '@types/react'
+      - '@types/react-dom'
+      - ai
+      - better-sqlite3
+      - drizzle-kit
+      - drizzle-orm
+      - i18next
+      - mapbox-gl
+      - mongodb
+      - mysql2
+      - next
+      - pg
+      - prisma
+      - react
+      - react-dom
+      - react-grid-layout
+      - react-is
+      - react-native
+      - react-router-dom
+      - redux
+      - solid-js
+      - supports-color
+      - svelte
+      - tailwindcss
+      - typescript
+      - vitest
+      - vue
+      - zod
+
+  '@object-ui/console@5.3.1(@opentelemetry/api@1.9.1)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(ai@6.0.191(zod@4.4.3))(better-sqlite3@12.9.0)(i18next@26.2.0(typescript@6.0.3))(mongodb@7.2.0)(next@16.2.6(@babel/core@7.29.0)(@opentelemetry/api@1.9.1)(@playwright/test@1.60.0)(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(react-dom@19.2.6(react@19.2.6))(react-grid-layout@2.2.3(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(react-is@19.2.6)(react-router-dom@7.15.1(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(react@19.2.6)(tailwindcss@4.3.0)(typescript@6.0.3)(vitest@4.1.7)(zod@4.4.3)':
+    dependencies:
+      '@object-ui/app-shell': 5.3.1(f0369a6080344f0ca296dbda80e6a84b)
+      '@object-ui/auth': 5.3.1(@opentelemetry/api@1.9.1)(ai@6.0.191(zod@4.4.3))(better-sqlite3@12.9.0)(mongodb@7.2.0)(next@16.2.6(@babel/core@7.29.0)(@opentelemetry/api@1.9.1)(@playwright/test@1.60.0)(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(vitest@4.1.7)
+      '@object-ui/collaboration': 5.3.1(ai@6.0.191(zod@4.4.3))(react@19.2.6)
+      '@object-ui/components': 5.3.1(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(ai@6.0.191(zod@4.4.3))(react-dom@19.2.6(react@19.2.6))(react-is@19.2.6)(react@19.2.6)(tailwindcss@4.3.0)(typescript@6.0.3)
+      '@object-ui/core': 5.3.1(ai@6.0.191(zod@4.4.3))
+      '@object-ui/data-objectstack': 5.3.1(ai@6.0.191(zod@4.4.3))
+      '@object-ui/fields': 5.3.1(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(ai@6.0.191(zod@4.4.3))(react-dom@19.2.6(react@19.2.6))(react-is@19.2.6)(react@19.2.6)(tailwindcss@4.3.0)(typescript@6.0.3)
+      '@object-ui/i18n': 5.3.1(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(typescript@6.0.3)
+      '@object-ui/layout': 5.3.1(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(ai@6.0.191(zod@4.4.3))(react-dom@19.2.6(react@19.2.6))(react-is@19.2.6)(react-router-dom@7.15.1(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(react@19.2.6)(tailwindcss@4.3.0)(typescript@6.0.3)
+      '@object-ui/mobile': 5.3.1(ai@6.0.191(zod@4.4.3))(react@19.2.6)
+      '@object-ui/permissions': 5.3.1(ai@6.0.191(zod@4.4.3))(react@19.2.6)
+      '@object-ui/plugin-calendar': 5.3.1(@object-ui/permissions@5.3.1(ai@6.0.191(zod@4.4.3))(react@19.2.6))(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(ai@6.0.191(zod@4.4.3))(react-dom@19.2.6(react@19.2.6))(react-is@19.2.6)(react@19.2.6)(tailwindcss@4.3.0)(typescript@6.0.3)
+      '@object-ui/plugin-charts': 5.3.1(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(ai@6.0.191(zod@4.4.3))(react-dom@19.2.6(react@19.2.6))(react-is@19.2.6)(react@19.2.6)(tailwindcss@4.3.0)(typescript@6.0.3)
+      '@object-ui/plugin-chatbot': 5.3.1(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.6(react@19.2.6))(react-is@19.2.6)(react@19.2.6)(tailwindcss@4.3.0)(typescript@6.0.3)(zod@4.4.3)
+      '@object-ui/plugin-dashboard': 5.3.1(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(ai@6.0.191(zod@4.4.3))(react-dom@19.2.6(react@19.2.6))(react-grid-layout@2.2.3(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(react-is@19.2.6)(react@19.2.6)(tailwindcss@4.3.0)(typescript@6.0.3)
+      '@object-ui/plugin-designer': 5.3.1(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(ai@6.0.191(zod@4.4.3))(react-dom@19.2.6(react@19.2.6))(react-is@19.2.6)(react-router-dom@7.15.1(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(react@19.2.6)(tailwindcss@4.3.0)(typescript@6.0.3)
+      '@object-ui/plugin-detail': 5.3.1(@object-ui/components@5.3.1(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(ai@6.0.191(zod@4.4.3))(react-dom@19.2.6(react@19.2.6))(react-is@19.2.6)(react@19.2.6)(tailwindcss@4.3.0)(typescript@6.0.3))(@object-ui/core@5.3.1(ai@6.0.191(zod@4.4.3)))(@object-ui/fields@5.3.1(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(ai@6.0.191(zod@4.4.3))(react-dom@19.2.6(react@19.2.6))(react-is@19.2.6)(react@19.2.6)(tailwindcss@4.3.0)(typescript@6.0.3))(@object-ui/permissions@5.3.1(ai@6.0.191(zod@4.4.3))(react@19.2.6))(@object-ui/react@5.3.1(ai@6.0.191(zod@4.4.3))(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(typescript@6.0.3))(@object-ui/types@5.3.1(ai@6.0.191(zod@4.4.3)))(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
+      '@object-ui/plugin-form': 5.3.1(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(ai@6.0.191(zod@4.4.3))(react-dom@19.2.6(react@19.2.6))(react-is@19.2.6)(react@19.2.6)(tailwindcss@4.3.0)(typescript@6.0.3)
+      '@object-ui/plugin-gantt': 5.3.1(@object-ui/permissions@5.3.1(ai@6.0.191(zod@4.4.3))(react@19.2.6))(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(ai@6.0.191(zod@4.4.3))(react-dom@19.2.6(react@19.2.6))(react-is@19.2.6)(react@19.2.6)(tailwindcss@4.3.0)(typescript@6.0.3)
+      '@object-ui/plugin-grid': 5.3.1(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(ai@6.0.191(zod@4.4.3))(react-dom@19.2.6(react@19.2.6))(react-is@19.2.6)(react@19.2.6)(tailwindcss@4.3.0)(typescript@6.0.3)
+      '@object-ui/plugin-kanban': 5.3.1(@object-ui/permissions@5.3.1(ai@6.0.191(zod@4.4.3))(react@19.2.6))(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(ai@6.0.191(zod@4.4.3))(react-dom@19.2.6(react@19.2.6))(react-is@19.2.6)(react@19.2.6)(tailwindcss@4.3.0)(typescript@6.0.3)
+      '@object-ui/plugin-list': 5.3.1(@object-ui/components@5.3.1(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(ai@6.0.191(zod@4.4.3))(react-dom@19.2.6(react@19.2.6))(react-is@19.2.6)(react@19.2.6)(tailwindcss@4.3.0)(typescript@6.0.3))(@object-ui/core@5.3.1(ai@6.0.191(zod@4.4.3)))(@object-ui/fields@5.3.1(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(ai@6.0.191(zod@4.4.3))(react-dom@19.2.6(react@19.2.6))(react-is@19.2.6)(react@19.2.6)(tailwindcss@4.3.0)(typescript@6.0.3))(@object-ui/i18n@5.3.1(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(typescript@6.0.3))(@object-ui/mobile@5.3.1(ai@6.0.191(zod@4.4.3))(react@19.2.6))(@object-ui/permissions@5.3.1(ai@6.0.191(zod@4.4.3))(react@19.2.6))(@object-ui/react@5.3.1(ai@6.0.191(zod@4.4.3))(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(typescript@6.0.3))(@object-ui/types@5.3.1(ai@6.0.191(zod@4.4.3)))(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
+      '@object-ui/plugin-map': 5.3.1(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(ai@6.0.191(zod@4.4.3))(react-dom@19.2.6(react@19.2.6))(react-is@19.2.6)(react@19.2.6)(tailwindcss@4.3.0)(typescript@6.0.3)
+      '@object-ui/plugin-markdown': 5.3.1(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(ai@6.0.191(zod@4.4.3))(react-dom@19.2.6(react@19.2.6))(react-is@19.2.6)(react@19.2.6)(tailwindcss@4.3.0)(typescript@6.0.3)
+      '@object-ui/plugin-report': 5.3.1(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(ai@6.0.191(zod@4.4.3))(i18next@26.2.0(typescript@6.0.3))(react-dom@19.2.6(react@19.2.6))(react-is@19.2.6)(react@19.2.6)(tailwindcss@4.3.0)(typescript@6.0.3)
+      '@object-ui/plugin-timeline': 5.3.1(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(ai@6.0.191(zod@4.4.3))(react-dom@19.2.6(react@19.2.6))(react-is@19.2.6)(react@19.2.6)(tailwindcss@4.3.0)(typescript@6.0.3)
+      '@object-ui/plugin-view': 5.3.1(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(ai@6.0.191(zod@4.4.3))(react-dom@19.2.6(react@19.2.6))(react-is@19.2.6)(react@19.2.6)(tailwindcss@4.3.0)(typescript@6.0.3)
+      '@object-ui/providers': 5.3.1(ai@6.0.191(zod@4.4.3))(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
+      '@object-ui/react': 5.3.1(ai@6.0.191(zod@4.4.3))(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(typescript@6.0.3)
+      '@object-ui/types': 5.3.1(ai@6.0.191(zod@4.4.3))
+    transitivePeerDependencies:
+      - '@cloudflare/workers-types'
+      - '@lynx-js/react'
+      - '@opentelemetry/api'
+      - '@prisma/client'
+      - '@sveltejs/kit'
+      - '@tanstack/react-start'
+      - '@tanstack/solid-start'
+      - '@types/react'
+      - '@types/react-dom'
+      - ai
+      - better-sqlite3
+      - drizzle-kit
+      - drizzle-orm
+      - i18next
+      - mapbox-gl
+      - mongodb
+      - mysql2
+      - next
+      - pg
+      - prisma
+      - react
+      - react-dom
+      - react-grid-layout
+      - react-is
+      - react-native
+      - react-router-dom
+      - redux
+      - solid-js
+      - supports-color
+      - svelte
+      - tailwindcss
+      - typescript
+      - vitest
+      - vue
+      - zod
+
+  '@object-ui/core@5.3.1(ai@6.0.191(zod@4.4.3))':
+    dependencies:
+      '@object-ui/types': 5.3.1(ai@6.0.191(zod@4.4.3))
+      '@objectstack/spec': 4.2.0(ai@6.0.191(zod@4.4.3))
+      lodash: 4.18.1
+      zod: 4.4.3
+    transitivePeerDependencies:
+      - ai
+
+  '@object-ui/data-objectstack@5.3.1(ai@6.0.191(zod@4.4.3))':
+    dependencies:
+      '@object-ui/core': 5.3.1(ai@6.0.191(zod@4.4.3))
+      '@object-ui/types': 5.3.1(ai@6.0.191(zod@4.4.3))
+      '@objectstack/client': 4.2.0(ai@6.0.191(zod@4.4.3))
+    transitivePeerDependencies:
+      - ai
+
+  '@object-ui/fields@5.3.1(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(ai@6.0.191(zod@4.4.3))(react-dom@19.2.6(react@19.2.6))(react-is@19.2.6)(react@19.2.6)(tailwindcss@4.3.0)(typescript@6.0.3)':
+    dependencies:
+      '@object-ui/components': 5.3.1(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(ai@6.0.191(zod@4.4.3))(react-dom@19.2.6(react@19.2.6))(react-is@19.2.6)(react@19.2.6)(tailwindcss@4.3.0)(typescript@6.0.3)
+      '@object-ui/core': 5.3.1(ai@6.0.191(zod@4.4.3))
+      '@object-ui/i18n': 5.3.1(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(typescript@6.0.3)
+      '@object-ui/providers': 5.3.1(ai@6.0.191(zod@4.4.3))(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
+      '@object-ui/react': 5.3.1(ai@6.0.191(zod@4.4.3))(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(typescript@6.0.3)
+      '@object-ui/types': 5.3.1(ai@6.0.191(zod@4.4.3))
+      clsx: 2.1.1
+      lucide-react: 1.16.0(react@19.2.6)
+      react: 19.2.6
+      react-dom: 19.2.6(react@19.2.6)
+      tailwind-merge: 3.6.0
+    transitivePeerDependencies:
+      - '@types/react'
+      - '@types/react-dom'
+      - ai
+      - react-is
+      - react-native
+      - redux
+      - tailwindcss
+      - typescript
+
+  '@object-ui/i18n@5.3.1(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(typescript@6.0.3)':
+    dependencies:
+      i18next: 26.2.0(typescript@6.0.3)
+      react: 19.2.6
+      react-i18next: 17.0.8(i18next@26.2.0(typescript@6.0.3))(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(typescript@6.0.3)
+    transitivePeerDependencies:
+      - react-dom
+      - react-native
+      - typescript
+
+  '@object-ui/layout@5.3.1(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(ai@6.0.191(zod@4.4.3))(react-dom@19.2.6(react@19.2.6))(react-is@19.2.6)(react-router-dom@7.15.1(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(react@19.2.6)(tailwindcss@4.3.0)(typescript@6.0.3)':
+    dependencies:
+      '@dnd-kit/core': 6.3.1(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
+      '@dnd-kit/sortable': 10.0.0(@dnd-kit/core@6.3.1(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(react@19.2.6)
+      '@dnd-kit/utilities': 3.2.2(react@19.2.6)
+      '@object-ui/components': 5.3.1(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(ai@6.0.191(zod@4.4.3))(react-dom@19.2.6(react@19.2.6))(react-is@19.2.6)(react@19.2.6)(tailwindcss@4.3.0)(typescript@6.0.3)
+      '@object-ui/core': 5.3.1(ai@6.0.191(zod@4.4.3))
+      '@object-ui/react': 5.3.1(ai@6.0.191(zod@4.4.3))(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(typescript@6.0.3)
+      '@object-ui/types': 5.3.1(ai@6.0.191(zod@4.4.3))
+      clsx: 2.1.1
+      lucide-react: 1.16.0(react@19.2.6)
+      react: 19.2.6
+      react-dom: 19.2.6(react@19.2.6)
+      react-router-dom: 7.15.1(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
+      tailwind-merge: 3.6.0
+    transitivePeerDependencies:
+      - '@types/react'
+      - '@types/react-dom'
+      - ai
+      - react-is
+      - react-native
+      - redux
+      - tailwindcss
+      - typescript
+
+  '@object-ui/mobile@5.3.1(ai@6.0.191(zod@4.4.3))(react@19.2.6)':
+    dependencies:
+      '@object-ui/types': 5.3.1(ai@6.0.191(zod@4.4.3))
+      react: 19.2.6
+    transitivePeerDependencies:
+      - ai
+
+  '@object-ui/permissions@5.3.1(ai@6.0.191(zod@4.4.3))(react@19.2.6)':
+    dependencies:
+      '@object-ui/types': 5.3.1(ai@6.0.191(zod@4.4.3))
+      react: 19.2.6
+    transitivePeerDependencies:
+      - ai
+
+  '@object-ui/plugin-calendar@5.3.1(@object-ui/permissions@5.3.1(ai@6.0.191(zod@4.4.3))(react@19.2.6))(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(ai@6.0.191(zod@4.4.3))(react-dom@19.2.6(react@19.2.6))(react-is@19.2.6)(react@19.2.6)(tailwindcss@4.3.0)(typescript@6.0.3)':
+    dependencies:
+      '@object-ui/components': 5.3.1(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(ai@6.0.191(zod@4.4.3))(react-dom@19.2.6(react@19.2.6))(react-is@19.2.6)(react@19.2.6)(tailwindcss@4.3.0)(typescript@6.0.3)
+      '@object-ui/core': 5.3.1(ai@6.0.191(zod@4.4.3))
+      '@object-ui/fields': 5.3.1(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(ai@6.0.191(zod@4.4.3))(react-dom@19.2.6(react@19.2.6))(react-is@19.2.6)(react@19.2.6)(tailwindcss@4.3.0)(typescript@6.0.3)
+      '@object-ui/i18n': 5.3.1(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(typescript@6.0.3)
+      '@object-ui/mobile': 5.3.1(ai@6.0.191(zod@4.4.3))(react@19.2.6)
+      '@object-ui/plugin-detail': 5.3.1(@object-ui/components@5.3.1(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(ai@6.0.191(zod@4.4.3))(react-dom@19.2.6(react@19.2.6))(react-is@19.2.6)(react@19.2.6)(tailwindcss@4.3.0)(typescript@6.0.3))(@object-ui/core@5.3.1(ai@6.0.191(zod@4.4.3)))(@object-ui/fields@5.3.1(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(ai@6.0.191(zod@4.4.3))(react-dom@19.2.6(react@19.2.6))(react-is@19.2.6)(react@19.2.6)(tailwindcss@4.3.0)(typescript@6.0.3))(@object-ui/permissions@5.3.1(ai@6.0.191(zod@4.4.3))(react@19.2.6))(@object-ui/react@5.3.1(ai@6.0.191(zod@4.4.3))(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(typescript@6.0.3))(@object-ui/types@5.3.1(ai@6.0.191(zod@4.4.3)))(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
+      '@object-ui/react': 5.3.1(ai@6.0.191(zod@4.4.3))(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(typescript@6.0.3)
+      '@object-ui/types': 5.3.1(ai@6.0.191(zod@4.4.3))
+      lucide-react: 1.16.0(react@19.2.6)
+      react: 19.2.6
+      react-dom: 19.2.6(react@19.2.6)
+    transitivePeerDependencies:
+      - '@object-ui/permissions'
+      - '@types/react'
+      - '@types/react-dom'
+      - ai
+      - react-is
+      - react-native
+      - redux
+      - tailwindcss
+      - typescript
+
+  '@object-ui/plugin-charts@5.3.1(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(ai@6.0.191(zod@4.4.3))(react-dom@19.2.6(react@19.2.6))(react-is@19.2.6)(react@19.2.6)(tailwindcss@4.3.0)(typescript@6.0.3)':
+    dependencies:
+      '@object-ui/components': 5.3.1(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(ai@6.0.191(zod@4.4.3))(react-dom@19.2.6(react@19.2.6))(react-is@19.2.6)(react@19.2.6)(tailwindcss@4.3.0)(typescript@6.0.3)
+      '@object-ui/core': 5.3.1(ai@6.0.191(zod@4.4.3))
+      '@object-ui/i18n': 5.3.1(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(typescript@6.0.3)
+      '@object-ui/react': 5.3.1(ai@6.0.191(zod@4.4.3))(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(typescript@6.0.3)
+      '@object-ui/types': 5.3.1(ai@6.0.191(zod@4.4.3))
+      lucide-react: 1.16.0(react@19.2.6)
+      react: 19.2.6
+      react-dom: 19.2.6(react@19.2.6)
+      recharts: 3.8.1(@types/react@19.2.14)(react-dom@19.2.6(react@19.2.6))(react-is@19.2.6)(react@19.2.6)(redux@5.0.1)
+    transitivePeerDependencies:
+      - '@types/react'
+      - '@types/react-dom'
+      - ai
+      - react-is
+      - react-native
+      - redux
+      - tailwindcss
+      - typescript
+
+  '@object-ui/plugin-chatbot@5.3.1(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.6(react@19.2.6))(react-is@19.2.6)(react@19.2.6)(tailwindcss@4.3.0)(typescript@6.0.3)(zod@4.4.3)':
+    dependencies:
+      '@ai-sdk/react': 3.0.193(react@19.2.6)(zod@4.4.3)
+      '@object-ui/components': 5.3.1(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(ai@6.0.191(zod@4.4.3))(react-dom@19.2.6(react@19.2.6))(react-is@19.2.6)(react@19.2.6)(tailwindcss@4.3.0)(typescript@6.0.3)
+      '@object-ui/core': 5.3.1(ai@6.0.191(zod@4.4.3))
+      '@object-ui/react': 5.3.1(ai@6.0.191(zod@4.4.3))(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(typescript@6.0.3)
+      '@object-ui/types': 5.3.1(ai@6.0.191(zod@4.4.3))
+      ai: 6.0.191(zod@4.4.3)
+      lucide-react: 1.16.0(react@19.2.6)
+      react: 19.2.6
+      react-dom: 19.2.6(react@19.2.6)
+      react-markdown: 10.1.0(@types/react@19.2.14)(react@19.2.6)
+      react-syntax-highlighter: 16.1.1(react@19.2.6)
+      remark-gfm: 4.0.1
+    transitivePeerDependencies:
+      - '@types/react'
+      - '@types/react-dom'
+      - react-is
+      - react-native
+      - redux
+      - supports-color
+      - tailwindcss
+      - typescript
+      - zod
+
+  '@object-ui/plugin-dashboard@5.3.1(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(ai@6.0.191(zod@4.4.3))(react-dom@19.2.6(react@19.2.6))(react-grid-layout@2.2.3(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(react-is@19.2.6)(react@19.2.6)(tailwindcss@4.3.0)(typescript@6.0.3)':
+    dependencies:
+      '@dnd-kit/core': 6.3.1(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
+      '@dnd-kit/sortable': 10.0.0(@dnd-kit/core@6.3.1(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(react@19.2.6)
+      '@dnd-kit/utilities': 3.2.2(react@19.2.6)
+      '@object-ui/components': 5.3.1(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(ai@6.0.191(zod@4.4.3))(react-dom@19.2.6(react@19.2.6))(react-is@19.2.6)(react@19.2.6)(tailwindcss@4.3.0)(typescript@6.0.3)
+      '@object-ui/core': 5.3.1(ai@6.0.191(zod@4.4.3))
+      '@object-ui/fields': 5.3.1(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(ai@6.0.191(zod@4.4.3))(react-dom@19.2.6(react@19.2.6))(react-is@19.2.6)(react@19.2.6)(tailwindcss@4.3.0)(typescript@6.0.3)
+      '@object-ui/i18n': 5.3.1(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(typescript@6.0.3)
+      '@object-ui/react': 5.3.1(ai@6.0.191(zod@4.4.3))(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(typescript@6.0.3)
+      '@object-ui/types': 5.3.1(ai@6.0.191(zod@4.4.3))
+      clsx: 2.1.1
+      lucide-react: 1.16.0(react@19.2.6)
+      react: 19.2.6
+      react-dom: 19.2.6(react@19.2.6)
+      react-grid-layout: 2.2.3(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
+      tailwind-merge: 3.6.0
+    transitivePeerDependencies:
+      - '@types/react'
+      - '@types/react-dom'
+      - ai
+      - react-is
+      - react-native
+      - redux
+      - tailwindcss
+      - typescript
+
+  '@object-ui/plugin-designer@5.3.1(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(ai@6.0.191(zod@4.4.3))(react-dom@19.2.6(react@19.2.6))(react-is@19.2.6)(react-router-dom@7.15.1(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(react@19.2.6)(tailwindcss@4.3.0)(typescript@6.0.3)':
+    dependencies:
+      '@dnd-kit/core': 6.3.1(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
+      '@dnd-kit/sortable': 10.0.0(@dnd-kit/core@6.3.1(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(react@19.2.6)
+      '@dnd-kit/utilities': 3.2.2(react@19.2.6)
+      '@object-ui/components': 5.3.1(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(ai@6.0.191(zod@4.4.3))(react-dom@19.2.6(react@19.2.6))(react-is@19.2.6)(react@19.2.6)(tailwindcss@4.3.0)(typescript@6.0.3)
+      '@object-ui/core': 5.3.1(ai@6.0.191(zod@4.4.3))
+      '@object-ui/fields': 5.3.1(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(ai@6.0.191(zod@4.4.3))(react-dom@19.2.6(react@19.2.6))(react-is@19.2.6)(react@19.2.6)(tailwindcss@4.3.0)(typescript@6.0.3)
+      '@object-ui/i18n': 5.3.1(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(typescript@6.0.3)
+      '@object-ui/plugin-form': 5.3.1(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(ai@6.0.191(zod@4.4.3))(react-dom@19.2.6(react@19.2.6))(react-is@19.2.6)(react@19.2.6)(tailwindcss@4.3.0)(typescript@6.0.3)
+      '@object-ui/plugin-grid': 5.3.1(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(ai@6.0.191(zod@4.4.3))(react-dom@19.2.6(react@19.2.6))(react-is@19.2.6)(react@19.2.6)(tailwindcss@4.3.0)(typescript@6.0.3)
+      '@object-ui/react': 5.3.1(ai@6.0.191(zod@4.4.3))(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(typescript@6.0.3)
+      '@object-ui/types': 5.3.1(ai@6.0.191(zod@4.4.3))
+      clsx: 2.1.1
+      lucide-react: 1.16.0(react@19.2.6)
+      react: 19.2.6
+      react-dom: 19.2.6(react@19.2.6)
+      react-router-dom: 7.15.1(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
+      sonner: 2.0.7(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
+      tailwind-merge: 3.6.0
+    transitivePeerDependencies:
+      - '@types/react'
+      - '@types/react-dom'
+      - ai
+      - react-is
+      - react-native
+      - redux
+      - tailwindcss
+      - typescript
+
+  '@object-ui/plugin-detail@5.3.1(@object-ui/components@5.3.1(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(ai@6.0.191(zod@4.4.3))(react-dom@19.2.6(react@19.2.6))(react-is@19.2.6)(react@19.2.6)(tailwindcss@4.3.0)(typescript@6.0.3))(@object-ui/core@5.3.1(ai@6.0.191(zod@4.4.3)))(@object-ui/fields@5.3.1(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(ai@6.0.191(zod@4.4.3))(react-dom@19.2.6(react@19.2.6))(react-is@19.2.6)(react@19.2.6)(tailwindcss@4.3.0)(typescript@6.0.3))(@object-ui/permissions@5.3.1(ai@6.0.191(zod@4.4.3))(react@19.2.6))(@object-ui/react@5.3.1(ai@6.0.191(zod@4.4.3))(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(typescript@6.0.3))(@object-ui/types@5.3.1(ai@6.0.191(zod@4.4.3)))(react-dom@19.2.6(react@19.2.6))(react@19.2.6)':
+    dependencies:
+      '@object-ui/components': 5.3.1(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(ai@6.0.191(zod@4.4.3))(react-dom@19.2.6(react@19.2.6))(react-is@19.2.6)(react@19.2.6)(tailwindcss@4.3.0)(typescript@6.0.3)
+      '@object-ui/core': 5.3.1(ai@6.0.191(zod@4.4.3))
+      '@object-ui/fields': 5.3.1(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(ai@6.0.191(zod@4.4.3))(react-dom@19.2.6(react@19.2.6))(react-is@19.2.6)(react@19.2.6)(tailwindcss@4.3.0)(typescript@6.0.3)
+      '@object-ui/permissions': 5.3.1(ai@6.0.191(zod@4.4.3))(react@19.2.6)
+      '@object-ui/react': 5.3.1(ai@6.0.191(zod@4.4.3))(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(typescript@6.0.3)
+      '@object-ui/types': 5.3.1(ai@6.0.191(zod@4.4.3))
+      lucide-react: 1.16.0(react@19.2.6)
+      react: 19.2.6
+      react-dom: 19.2.6(react@19.2.6)
+
+  '@object-ui/plugin-form@5.3.1(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(ai@6.0.191(zod@4.4.3))(react-dom@19.2.6(react@19.2.6))(react-is@19.2.6)(react@19.2.6)(tailwindcss@4.3.0)(typescript@6.0.3)':
+    dependencies:
+      '@object-ui/components': 5.3.1(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(ai@6.0.191(zod@4.4.3))(react-dom@19.2.6(react@19.2.6))(react-is@19.2.6)(react@19.2.6)(tailwindcss@4.3.0)(typescript@6.0.3)
+      '@object-ui/core': 5.3.1(ai@6.0.191(zod@4.4.3))
+      '@object-ui/fields': 5.3.1(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(ai@6.0.191(zod@4.4.3))(react-dom@19.2.6(react@19.2.6))(react-is@19.2.6)(react@19.2.6)(tailwindcss@4.3.0)(typescript@6.0.3)
+      '@object-ui/permissions': 5.3.1(ai@6.0.191(zod@4.4.3))(react@19.2.6)
+      '@object-ui/react': 5.3.1(ai@6.0.191(zod@4.4.3))(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(typescript@6.0.3)
+      '@object-ui/types': 5.3.1(ai@6.0.191(zod@4.4.3))
+      lucide-react: 1.16.0(react@19.2.6)
+      react: 19.2.6
+      react-dom: 19.2.6(react@19.2.6)
+    transitivePeerDependencies:
+      - '@types/react'
+      - '@types/react-dom'
+      - ai
+      - react-is
+      - react-native
+      - redux
+      - tailwindcss
+      - typescript
+
+  '@object-ui/plugin-gantt@5.3.1(@object-ui/permissions@5.3.1(ai@6.0.191(zod@4.4.3))(react@19.2.6))(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(ai@6.0.191(zod@4.4.3))(react-dom@19.2.6(react@19.2.6))(react-is@19.2.6)(react@19.2.6)(tailwindcss@4.3.0)(typescript@6.0.3)':
+    dependencies:
+      '@object-ui/components': 5.3.1(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(ai@6.0.191(zod@4.4.3))(react-dom@19.2.6(react@19.2.6))(react-is@19.2.6)(react@19.2.6)(tailwindcss@4.3.0)(typescript@6.0.3)
+      '@object-ui/core': 5.3.1(ai@6.0.191(zod@4.4.3))
+      '@object-ui/fields': 5.3.1(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(ai@6.0.191(zod@4.4.3))(react-dom@19.2.6(react@19.2.6))(react-is@19.2.6)(react@19.2.6)(tailwindcss@4.3.0)(typescript@6.0.3)
+      '@object-ui/plugin-detail': 5.3.1(@object-ui/components@5.3.1(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(ai@6.0.191(zod@4.4.3))(react-dom@19.2.6(react@19.2.6))(react-is@19.2.6)(react@19.2.6)(tailwindcss@4.3.0)(typescript@6.0.3))(@object-ui/core@5.3.1(ai@6.0.191(zod@4.4.3)))(@object-ui/fields@5.3.1(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(ai@6.0.191(zod@4.4.3))(react-dom@19.2.6(react@19.2.6))(react-is@19.2.6)(react@19.2.6)(tailwindcss@4.3.0)(typescript@6.0.3))(@object-ui/permissions@5.3.1(ai@6.0.191(zod@4.4.3))(react@19.2.6))(@object-ui/react@5.3.1(ai@6.0.191(zod@4.4.3))(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(typescript@6.0.3))(@object-ui/types@5.3.1(ai@6.0.191(zod@4.4.3)))(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
+      '@object-ui/react': 5.3.1(ai@6.0.191(zod@4.4.3))(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(typescript@6.0.3)
+      '@object-ui/types': 5.3.1(ai@6.0.191(zod@4.4.3))
+      '@objectstack/spec': 4.2.0(ai@6.0.191(zod@4.4.3))
+      lucide-react: 1.16.0(react@19.2.6)
+      react: 19.2.6
+      react-dom: 19.2.6(react@19.2.6)
+    transitivePeerDependencies:
+      - '@object-ui/permissions'
+      - '@types/react'
+      - '@types/react-dom'
+      - ai
+      - react-is
+      - react-native
+      - redux
+      - tailwindcss
+      - typescript
+
+  '@object-ui/plugin-grid@5.3.1(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(ai@6.0.191(zod@4.4.3))(react-dom@19.2.6(react@19.2.6))(react-is@19.2.6)(react@19.2.6)(tailwindcss@4.3.0)(typescript@6.0.3)':
+    dependencies:
+      '@object-ui/components': 5.3.1(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(ai@6.0.191(zod@4.4.3))(react-dom@19.2.6(react@19.2.6))(react-is@19.2.6)(react@19.2.6)(tailwindcss@4.3.0)(typescript@6.0.3)
+      '@object-ui/core': 5.3.1(ai@6.0.191(zod@4.4.3))
+      '@object-ui/fields': 5.3.1(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(ai@6.0.191(zod@4.4.3))(react-dom@19.2.6(react@19.2.6))(react-is@19.2.6)(react@19.2.6)(tailwindcss@4.3.0)(typescript@6.0.3)
+      '@object-ui/mobile': 5.3.1(ai@6.0.191(zod@4.4.3))(react@19.2.6)
+      '@object-ui/react': 5.3.1(ai@6.0.191(zod@4.4.3))(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(typescript@6.0.3)
+      '@object-ui/types': 5.3.1(ai@6.0.191(zod@4.4.3))
+      '@tanstack/react-virtual': 3.13.24(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
+      lucide-react: 1.16.0(react@19.2.6)
+      react: 19.2.6
+      react-dom: 19.2.6(react@19.2.6)
+    transitivePeerDependencies:
+      - '@types/react'
+      - '@types/react-dom'
+      - ai
+      - react-is
+      - react-native
+      - redux
+      - tailwindcss
+      - typescript
+
+  '@object-ui/plugin-kanban@5.3.1(@object-ui/permissions@5.3.1(ai@6.0.191(zod@4.4.3))(react@19.2.6))(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(ai@6.0.191(zod@4.4.3))(react-dom@19.2.6(react@19.2.6))(react-is@19.2.6)(react@19.2.6)(tailwindcss@4.3.0)(typescript@6.0.3)':
+    dependencies:
+      '@dnd-kit/core': 6.3.1(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
+      '@dnd-kit/sortable': 10.0.0(@dnd-kit/core@6.3.1(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(react@19.2.6)
+      '@dnd-kit/utilities': 3.2.2(react@19.2.6)
+      '@object-ui/components': 5.3.1(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(ai@6.0.191(zod@4.4.3))(react-dom@19.2.6(react@19.2.6))(react-is@19.2.6)(react@19.2.6)(tailwindcss@4.3.0)(typescript@6.0.3)
+      '@object-ui/core': 5.3.1(ai@6.0.191(zod@4.4.3))
+      '@object-ui/fields': 5.3.1(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(ai@6.0.191(zod@4.4.3))(react-dom@19.2.6(react@19.2.6))(react-is@19.2.6)(react@19.2.6)(tailwindcss@4.3.0)(typescript@6.0.3)
+      '@object-ui/i18n': 5.3.1(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(typescript@6.0.3)
+      '@object-ui/plugin-detail': 5.3.1(@object-ui/components@5.3.1(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(ai@6.0.191(zod@4.4.3))(react-dom@19.2.6(react@19.2.6))(react-is@19.2.6)(react@19.2.6)(tailwindcss@4.3.0)(typescript@6.0.3))(@object-ui/core@5.3.1(ai@6.0.191(zod@4.4.3)))(@object-ui/fields@5.3.1(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(ai@6.0.191(zod@4.4.3))(react-dom@19.2.6(react@19.2.6))(react-is@19.2.6)(react@19.2.6)(tailwindcss@4.3.0)(typescript@6.0.3))(@object-ui/permissions@5.3.1(ai@6.0.191(zod@4.4.3))(react@19.2.6))(@object-ui/react@5.3.1(ai@6.0.191(zod@4.4.3))(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(typescript@6.0.3))(@object-ui/types@5.3.1(ai@6.0.191(zod@4.4.3)))(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
+      '@object-ui/react': 5.3.1(ai@6.0.191(zod@4.4.3))(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(typescript@6.0.3)
+      '@object-ui/types': 5.3.1(ai@6.0.191(zod@4.4.3))
+      '@tanstack/react-virtual': 3.13.24(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
+      lucide-react: 1.16.0(react@19.2.6)
+      react: 19.2.6
+      react-dom: 19.2.6(react@19.2.6)
+    transitivePeerDependencies:
+      - '@object-ui/permissions'
+      - '@types/react'
+      - '@types/react-dom'
+      - ai
+      - react-is
+      - react-native
+      - redux
+      - tailwindcss
+      - typescript
+
+  '@object-ui/plugin-list@5.3.1(@object-ui/components@5.3.1(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(ai@6.0.191(zod@4.4.3))(react-dom@19.2.6(react@19.2.6))(react-is@19.2.6)(react@19.2.6)(tailwindcss@4.3.0)(typescript@6.0.3))(@object-ui/core@5.3.1(ai@6.0.191(zod@4.4.3)))(@object-ui/fields@5.3.1(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(ai@6.0.191(zod@4.4.3))(react-dom@19.2.6(react@19.2.6))(react-is@19.2.6)(react@19.2.6)(tailwindcss@4.3.0)(typescript@6.0.3))(@object-ui/i18n@5.3.1(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(typescript@6.0.3))(@object-ui/mobile@5.3.1(ai@6.0.191(zod@4.4.3))(react@19.2.6))(@object-ui/permissions@5.3.1(ai@6.0.191(zod@4.4.3))(react@19.2.6))(@object-ui/react@5.3.1(ai@6.0.191(zod@4.4.3))(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(typescript@6.0.3))(@object-ui/types@5.3.1(ai@6.0.191(zod@4.4.3)))(react-dom@19.2.6(react@19.2.6))(react@19.2.6)':
+    dependencies:
+      '@object-ui/components': 5.3.1(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(ai@6.0.191(zod@4.4.3))(react-dom@19.2.6(react@19.2.6))(react-is@19.2.6)(react@19.2.6)(tailwindcss@4.3.0)(typescript@6.0.3)
+      '@object-ui/core': 5.3.1(ai@6.0.191(zod@4.4.3))
+      '@object-ui/fields': 5.3.1(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(ai@6.0.191(zod@4.4.3))(react-dom@19.2.6(react@19.2.6))(react-is@19.2.6)(react@19.2.6)(tailwindcss@4.3.0)(typescript@6.0.3)
+      '@object-ui/i18n': 5.3.1(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(typescript@6.0.3)
+      '@object-ui/mobile': 5.3.1(ai@6.0.191(zod@4.4.3))(react@19.2.6)
+      '@object-ui/permissions': 5.3.1(ai@6.0.191(zod@4.4.3))(react@19.2.6)
+      '@object-ui/react': 5.3.1(ai@6.0.191(zod@4.4.3))(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(typescript@6.0.3)
+      '@object-ui/types': 5.3.1(ai@6.0.191(zod@4.4.3))
+      lucide-react: 1.16.0(react@19.2.6)
+      react: 19.2.6
+      react-dom: 19.2.6(react@19.2.6)
+
+  '@object-ui/plugin-map@5.3.1(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(ai@6.0.191(zod@4.4.3))(react-dom@19.2.6(react@19.2.6))(react-is@19.2.6)(react@19.2.6)(tailwindcss@4.3.0)(typescript@6.0.3)':
+    dependencies:
+      '@object-ui/components': 5.3.1(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(ai@6.0.191(zod@4.4.3))(react-dom@19.2.6(react@19.2.6))(react-is@19.2.6)(react@19.2.6)(tailwindcss@4.3.0)(typescript@6.0.3)
+      '@object-ui/core': 5.3.1(ai@6.0.191(zod@4.4.3))
+      '@object-ui/react': 5.3.1(ai@6.0.191(zod@4.4.3))(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(typescript@6.0.3)
+      '@object-ui/types': 5.3.1(ai@6.0.191(zod@4.4.3))
+      '@objectstack/spec': 4.2.0(ai@6.0.191(zod@4.4.3))
+      lucide-react: 1.16.0(react@19.2.6)
+      maplibre-gl: 5.24.0
+      react: 19.2.6
+      react-dom: 19.2.6(react@19.2.6)
+      react-map-gl: 8.1.1(maplibre-gl@5.24.0)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
+      zod: 4.4.3
+    transitivePeerDependencies:
+      - '@types/react'
+      - '@types/react-dom'
+      - ai
+      - mapbox-gl
+      - react-is
+      - react-native
+      - redux
+      - tailwindcss
+      - typescript
+
+  '@object-ui/plugin-markdown@5.3.1(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(ai@6.0.191(zod@4.4.3))(react-dom@19.2.6(react@19.2.6))(react-is@19.2.6)(react@19.2.6)(tailwindcss@4.3.0)(typescript@6.0.3)':
+    dependencies:
+      '@object-ui/components': 5.3.1(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(ai@6.0.191(zod@4.4.3))(react-dom@19.2.6(react@19.2.6))(react-is@19.2.6)(react@19.2.6)(tailwindcss@4.3.0)(typescript@6.0.3)
+      '@object-ui/core': 5.3.1(ai@6.0.191(zod@4.4.3))
+      '@object-ui/react': 5.3.1(ai@6.0.191(zod@4.4.3))(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(typescript@6.0.3)
+      '@object-ui/types': 5.3.1(ai@6.0.191(zod@4.4.3))
+      react: 19.2.6
+      react-dom: 19.2.6(react@19.2.6)
+      react-markdown: 10.1.0(@types/react@19.2.14)(react@19.2.6)
+      rehype-sanitize: 6.0.0
+      remark-gfm: 4.0.1
+    transitivePeerDependencies:
+      - '@types/react'
+      - '@types/react-dom'
+      - ai
+      - react-is
+      - react-native
+      - redux
+      - supports-color
+      - tailwindcss
+      - typescript
+
+  '@object-ui/plugin-report@5.3.1(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(ai@6.0.191(zod@4.4.3))(i18next@26.2.0(typescript@6.0.3))(react-dom@19.2.6(react@19.2.6))(react-is@19.2.6)(react@19.2.6)(tailwindcss@4.3.0)(typescript@6.0.3)':
+    dependencies:
+      '@object-ui/components': 5.3.1(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(ai@6.0.191(zod@4.4.3))(react-dom@19.2.6(react@19.2.6))(react-is@19.2.6)(react@19.2.6)(tailwindcss@4.3.0)(typescript@6.0.3)
+      '@object-ui/core': 5.3.1(ai@6.0.191(zod@4.4.3))
+      '@object-ui/fields': 5.3.1(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(ai@6.0.191(zod@4.4.3))(react-dom@19.2.6(react@19.2.6))(react-is@19.2.6)(react@19.2.6)(tailwindcss@4.3.0)(typescript@6.0.3)
+      '@object-ui/i18n': 5.3.1(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(typescript@6.0.3)
+      '@object-ui/plugin-grid': 5.3.1(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(ai@6.0.191(zod@4.4.3))(react-dom@19.2.6(react@19.2.6))(react-is@19.2.6)(react@19.2.6)(tailwindcss@4.3.0)(typescript@6.0.3)
+      '@object-ui/react': 5.3.1(ai@6.0.191(zod@4.4.3))(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(typescript@6.0.3)
+      '@object-ui/types': 5.3.1(ai@6.0.191(zod@4.4.3))
+      clsx: 2.1.1
+      lucide-react: 1.16.0(react@19.2.6)
+      react: 19.2.6
+      react-dom: 19.2.6(react@19.2.6)
+      react-i18next: 17.0.8(i18next@26.2.0(typescript@6.0.3))(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(typescript@6.0.3)
+      tailwind-merge: 3.6.0
+    transitivePeerDependencies:
+      - '@types/react'
+      - '@types/react-dom'
+      - ai
+      - i18next
+      - react-is
+      - react-native
+      - redux
+      - tailwindcss
+      - typescript
+
+  '@object-ui/plugin-timeline@5.3.1(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(ai@6.0.191(zod@4.4.3))(react-dom@19.2.6(react@19.2.6))(react-is@19.2.6)(react@19.2.6)(tailwindcss@4.3.0)(typescript@6.0.3)':
+    dependencies:
+      '@object-ui/components': 5.3.1(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(ai@6.0.191(zod@4.4.3))(react-dom@19.2.6(react@19.2.6))(react-is@19.2.6)(react@19.2.6)(tailwindcss@4.3.0)(typescript@6.0.3)
+      '@object-ui/core': 5.3.1(ai@6.0.191(zod@4.4.3))
+      '@object-ui/mobile': 5.3.1(ai@6.0.191(zod@4.4.3))(react@19.2.6)
+      '@object-ui/react': 5.3.1(ai@6.0.191(zod@4.4.3))(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(typescript@6.0.3)
+      '@object-ui/types': 5.3.1(ai@6.0.191(zod@4.4.3))
+      '@objectstack/spec': 4.2.0(ai@6.0.191(zod@4.4.3))
+      class-variance-authority: 0.7.1
+      react: 19.2.6
+      react-dom: 19.2.6(react@19.2.6)
+      zod: 4.4.3
+    transitivePeerDependencies:
+      - '@types/react'
+      - '@types/react-dom'
+      - ai
+      - react-is
+      - react-native
+      - redux
+      - tailwindcss
+      - typescript
+
+  '@object-ui/plugin-view@5.3.1(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(ai@6.0.191(zod@4.4.3))(react-dom@19.2.6(react@19.2.6))(react-is@19.2.6)(react@19.2.6)(tailwindcss@4.3.0)(typescript@6.0.3)':
+    dependencies:
+      '@dnd-kit/core': 6.3.1(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
+      '@dnd-kit/sortable': 10.0.0(@dnd-kit/core@6.3.1(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(react@19.2.6)
+      '@dnd-kit/utilities': 3.2.2(react@19.2.6)
+      '@object-ui/components': 5.3.1(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(ai@6.0.191(zod@4.4.3))(react-dom@19.2.6(react@19.2.6))(react-is@19.2.6)(react@19.2.6)(tailwindcss@4.3.0)(typescript@6.0.3)
+      '@object-ui/core': 5.3.1(ai@6.0.191(zod@4.4.3))
+      '@object-ui/plugin-form': 5.3.1(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(ai@6.0.191(zod@4.4.3))(react-dom@19.2.6(react@19.2.6))(react-is@19.2.6)(react@19.2.6)(tailwindcss@4.3.0)(typescript@6.0.3)
+      '@object-ui/plugin-grid': 5.3.1(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(ai@6.0.191(zod@4.4.3))(react-dom@19.2.6(react@19.2.6))(react-is@19.2.6)(react@19.2.6)(tailwindcss@4.3.0)(typescript@6.0.3)
+      '@object-ui/react': 5.3.1(ai@6.0.191(zod@4.4.3))(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(typescript@6.0.3)
+      '@object-ui/types': 5.3.1(ai@6.0.191(zod@4.4.3))
+      class-variance-authority: 0.7.1
+      lucide-react: 1.16.0(react@19.2.6)
+      react: 19.2.6
+      react-dom: 19.2.6(react@19.2.6)
+    transitivePeerDependencies:
+      - '@types/react'
+      - '@types/react-dom'
+      - ai
+      - react-is
+      - react-native
+      - redux
+      - tailwindcss
+      - typescript
+
+  '@object-ui/providers@5.3.1(ai@6.0.191(zod@4.4.3))(react-dom@19.2.6(react@19.2.6))(react@19.2.6)':
+    dependencies:
+      '@object-ui/types': 5.3.1(ai@6.0.191(zod@4.4.3))
+      react: 19.2.6
+      react-dom: 19.2.6(react@19.2.6)
+    transitivePeerDependencies:
+      - ai
+
+  '@object-ui/react@5.3.1(ai@6.0.191(zod@4.4.3))(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(typescript@6.0.3)':
+    dependencies:
+      '@object-ui/core': 5.3.1(ai@6.0.191(zod@4.4.3))
+      '@object-ui/data-objectstack': 5.3.1(ai@6.0.191(zod@4.4.3))
+      '@object-ui/i18n': 5.3.1(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(typescript@6.0.3)
+      '@object-ui/types': 5.3.1(ai@6.0.191(zod@4.4.3))
+      '@objectstack/spec': 4.2.0(ai@6.0.191(zod@4.4.3))
+      react: 19.2.6
+      react-dom: 19.2.6(react@19.2.6)
+      react-hook-form: 7.76.0(react@19.2.6)
+    transitivePeerDependencies:
+      - ai
+      - react-native
+      - typescript
+
+  '@object-ui/types@5.3.1(ai@6.0.191(zod@4.4.3))':
+    dependencies:
+      '@objectstack/spec': 4.2.0(ai@6.0.191(zod@4.4.3))
+      zod: 4.4.3
+    transitivePeerDependencies:
+      - ai
+
+  '@objectstack/account@5.2.0(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(ai@6.0.191(zod@4.4.3))(typescript@6.0.3)':
+    dependencies:
+      '@object-ui/i18n': 5.3.1(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(typescript@6.0.3)
+      '@objectstack/client': 5.2.0(ai@6.0.191(zod@4.4.3))
+      '@objectstack/client-react': 5.2.0(ai@6.0.191(zod@4.4.3))(react@19.2.6)
+      '@objectstack/spec': 5.2.0(ai@6.0.191(zod@4.4.3))
+      '@radix-ui/react-avatar': 1.1.11(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
+      '@radix-ui/react-checkbox': 1.3.3(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
+      '@radix-ui/react-collapsible': 1.1.12(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
+      '@radix-ui/react-dialog': 1.1.15(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
+      '@radix-ui/react-dropdown-menu': 2.1.16(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
+      '@radix-ui/react-label': 2.1.8(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
+      '@radix-ui/react-scroll-area': 1.2.10(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
+      '@radix-ui/react-select': 2.2.6(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
+      '@radix-ui/react-separator': 1.1.8(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
+      '@radix-ui/react-slot': 1.2.4(@types/react@19.2.14)(react@19.2.6)
+      '@radix-ui/react-switch': 1.2.6(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
+      '@radix-ui/react-tabs': 1.1.13(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
+      '@radix-ui/react-toast': 1.2.15(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
+      '@radix-ui/react-tooltip': 1.2.8(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
+      '@tanstack/react-router': 1.170.7(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
+      class-variance-authority: 0.7.1
+      clsx: 2.1.1
+      lucide-react: 1.16.0(react@19.2.6)
+      react: 19.2.6
+      react-dom: 19.2.6(react@19.2.6)
+      react-resizable-panels: 4.11.1(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
+      tailwind-merge: 3.6.0
+    transitivePeerDependencies:
+      - '@types/react'
+      - '@types/react-dom'
+      - ai
+      - react-native
+      - typescript
+
+  '@objectstack/cli@5.2.0(@ai-sdk/anthropic@3.0.69(zod@4.4.3))(@ai-sdk/google@3.0.63(zod@4.4.3))(@ai-sdk/openai@3.0.52(zod@4.4.3))(@better-auth/core@1.6.11(@better-auth/utils@0.4.0)(@better-fetch/fetch@1.1.21)(@opentelemetry/api@1.9.1)(better-call@1.3.5(zod@4.4.3))(jose@6.2.3)(kysely@0.28.17)(nanostores@1.3.0))(@better-auth/utils@0.4.0)(@better-fetch/fetch@1.1.21)(@objectstack/core@5.2.0(ai@6.0.191(zod@4.4.3)))(@opentelemetry/api@1.9.1)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(ai@6.0.191(zod@4.4.3))(better-call@1.3.5(zod@4.4.3))(better-sqlite3@12.9.0)(i18next@26.2.0(typescript@6.0.3))(mongodb@7.2.0)(next@16.2.6(@babel/core@7.29.0)(@opentelemetry/api@1.9.1)(@playwright/test@1.60.0)(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(react-dom@19.2.6(react@19.2.6))(react-grid-layout@2.2.3(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(react-is@19.2.6)(react-router-dom@7.15.1(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(react@19.2.6)(tailwindcss@4.3.0)(typescript@6.0.3)(vitest@4.1.6)':
+    dependencies:
+      '@ai-sdk/gateway': 3.0.120(zod@4.4.3)
+      '@object-ui/console': 5.3.1(@opentelemetry/api@1.9.1)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(ai@6.0.191(zod@4.4.3))(better-sqlite3@12.9.0)(i18next@26.2.0(typescript@6.0.3))(mongodb@7.2.0)(next@16.2.6(@babel/core@7.29.0)(@opentelemetry/api@1.9.1)(@playwright/test@1.60.0)(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(react-dom@19.2.6(react@19.2.6))(react-grid-layout@2.2.3(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(react-is@19.2.6)(react-router-dom@7.15.1(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(react@19.2.6)(tailwindcss@4.3.0)(typescript@6.0.3)(vitest@4.1.6)(zod@4.4.3)
+      '@objectstack/client': 5.2.0(ai@6.0.191(zod@4.4.3))
+      '@objectstack/core': 5.2.0(ai@6.0.191(zod@4.4.3))
+      '@objectstack/driver-memory': 5.2.0(ai@6.0.191(zod@4.4.3))
+      '@objectstack/driver-mongodb': 5.2.0(ai@6.0.191(zod@4.4.3))
+      '@objectstack/driver-sql': 5.2.0(ai@6.0.191(zod@4.4.3))(better-sqlite3@12.9.0)
+      '@objectstack/driver-turso': 5.2.0(ai@6.0.191(zod@4.4.3))(better-sqlite3@12.9.0)
+      '@objectstack/objectql': 5.2.0(ai@6.0.191(zod@4.4.3))(vitest@4.1.6)
+      '@objectstack/observability': 5.2.0(ai@6.0.191(zod@4.4.3))
+      '@objectstack/plugin-approvals': 5.2.0(ai@6.0.191(zod@4.4.3))(vitest@4.1.6)
+      '@objectstack/plugin-audit': 5.2.0(ai@6.0.191(zod@4.4.3))
+      '@objectstack/plugin-auth': 5.2.0(@better-auth/core@1.6.11(@better-auth/utils@0.4.0)(@better-fetch/fetch@1.1.21)(@opentelemetry/api@1.9.1)(better-call@1.3.5(zod@4.4.3))(jose@6.2.3)(kysely@0.28.17)(nanostores@1.3.0))(@better-auth/utils@0.4.0)(@better-fetch/fetch@1.1.21)(@opentelemetry/api@1.9.1)(ai@6.0.191(zod@4.4.3))(better-call@1.3.5(zod@4.4.3))(better-sqlite3@12.9.0)(mongodb@7.2.0)(next@16.2.6(@babel/core@7.29.0)(@opentelemetry/api@1.9.1)(@playwright/test@1.60.0)(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(vitest@4.1.6)
+      '@objectstack/plugin-email': 5.2.0(ai@6.0.191(zod@4.4.3))
+      '@objectstack/plugin-hono-server': 5.2.0(ai@6.0.191(zod@4.4.3))
+      '@objectstack/plugin-mcp-server': 5.2.0(ai@6.0.191(zod@4.4.3))
+      '@objectstack/plugin-reports': 5.2.0(ai@6.0.191(zod@4.4.3))
+      '@objectstack/plugin-security': 5.2.0(ai@6.0.191(zod@4.4.3))
+      '@objectstack/plugin-sharing': 5.2.0(ai@6.0.191(zod@4.4.3))(vitest@4.1.6)
+      '@objectstack/plugin-webhooks': 5.2.0(ai@6.0.191(zod@4.4.3))
+      '@objectstack/rest': 5.2.0(ai@6.0.191(zod@4.4.3))
+      '@objectstack/runtime': 5.2.0(@better-auth/core@1.6.11(@better-auth/utils@0.4.0)(@better-fetch/fetch@1.1.21)(@opentelemetry/api@1.9.1)(better-call@1.3.5(zod@4.4.3))(jose@6.2.3)(kysely@0.28.17)(nanostores@1.3.0))(@better-auth/utils@0.4.0)(@better-fetch/fetch@1.1.21)(@opentelemetry/api@1.9.1)(ai@6.0.191(zod@4.4.3))(better-call@1.3.5(zod@4.4.3))(better-sqlite3@12.9.0)(mongodb@7.2.0)(next@16.2.6(@babel/core@7.29.0)(@opentelemetry/api@1.9.1)(@playwright/test@1.60.0)(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(vitest@4.1.6)
+      '@objectstack/service-ai': 5.2.0(@ai-sdk/anthropic@3.0.69(zod@4.4.3))(@ai-sdk/gateway@3.0.120(zod@4.4.3))(@ai-sdk/google@3.0.63(zod@4.4.3))(@ai-sdk/openai@3.0.52(zod@4.4.3))(zod@4.4.3)
+      '@objectstack/service-analytics': 5.2.0(ai@6.0.191(zod@4.4.3))
+      '@objectstack/service-automation': 5.2.0(ai@6.0.191(zod@4.4.3))
+      '@objectstack/service-cache': 5.2.0(ai@6.0.191(zod@4.4.3))
+      '@objectstack/service-feed': 5.2.0(ai@6.0.191(zod@4.4.3))
+      '@objectstack/service-job': 5.2.0(ai@6.0.191(zod@4.4.3))
+      '@objectstack/service-package': 5.2.0(ai@6.0.191(zod@4.4.3))
+      '@objectstack/service-queue': 5.2.0(ai@6.0.191(zod@4.4.3))
+      '@objectstack/service-realtime': 5.2.0(ai@6.0.191(zod@4.4.3))
+      '@objectstack/service-settings': 5.2.0(ai@6.0.191(zod@4.4.3))
+      '@objectstack/service-storage': 5.2.0(ai@6.0.191(zod@4.4.3))
+      '@objectstack/spec': 5.2.0(ai@6.0.191(zod@4.4.3))
       '@oclif/core': 4.11.3
       bundle-require: 5.1.0(esbuild@0.28.0)
       chalk: 5.6.2
       chokidar: 5.0.0
       dotenv-flow: 4.1.0
       esbuild: 0.28.0
+      ts-morph: 28.0.0
       tsx: 4.22.3
       yaml: 2.9.0
       zod: 4.4.3
@@ -14559,6 +15728,8 @@ snapshots:
       - '@sveltejs/kit'
       - '@tanstack/react-start'
       - '@tanstack/solid-start'
+      - '@types/react'
+      - '@types/react-dom'
       - ai
       - better-call
       - better-sqlite3
@@ -14566,7 +15737,9 @@ snapshots:
       - drizzle-kit
       - drizzle-orm
       - gcp-metadata
+      - i18next
       - kerberos
+      - mapbox-gl
       - mongodb
       - mongodb-client-encryption
       - mysql
@@ -14578,13 +15751,126 @@ snapshots:
       - prisma
       - react
       - react-dom
+      - react-grid-layout
+      - react-is
+      - react-native
+      - react-router-dom
+      - redux
       - snappy
       - socks
       - solid-js
       - sqlite3
       - supports-color
       - svelte
+      - tailwindcss
       - tedious
+      - typescript
+      - utf-8-validate
+      - vitest
+      - vue
+
+  '@objectstack/cli@5.2.0(@ai-sdk/anthropic@3.0.69(zod@4.4.3))(@ai-sdk/google@3.0.63(zod@4.4.3))(@ai-sdk/openai@3.0.52(zod@4.4.3))(@better-auth/core@1.6.11(@better-auth/utils@0.4.0)(@better-fetch/fetch@1.1.21)(@opentelemetry/api@1.9.1)(better-call@1.3.5(zod@4.4.3))(jose@6.2.3)(kysely@0.28.17)(nanostores@1.3.0))(@better-auth/utils@0.4.0)(@better-fetch/fetch@1.1.21)(@objectstack/core@5.2.0(ai@6.0.191(zod@4.4.3)))(@opentelemetry/api@1.9.1)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(ai@6.0.191(zod@4.4.3))(better-call@1.3.5(zod@4.4.3))(better-sqlite3@12.9.0)(i18next@26.2.0(typescript@6.0.3))(mongodb@7.2.0)(next@16.2.6(@babel/core@7.29.0)(@opentelemetry/api@1.9.1)(@playwright/test@1.60.0)(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(react-dom@19.2.6(react@19.2.6))(react-grid-layout@2.2.3(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(react-is@19.2.6)(react-router-dom@7.15.1(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(react@19.2.6)(tailwindcss@4.3.0)(typescript@6.0.3)(vitest@4.1.7)':
+    dependencies:
+      '@ai-sdk/gateway': 3.0.120(zod@4.4.3)
+      '@object-ui/console': 5.3.1(@opentelemetry/api@1.9.1)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(ai@6.0.191(zod@4.4.3))(better-sqlite3@12.9.0)(i18next@26.2.0(typescript@6.0.3))(mongodb@7.2.0)(next@16.2.6(@babel/core@7.29.0)(@opentelemetry/api@1.9.1)(@playwright/test@1.60.0)(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(react-dom@19.2.6(react@19.2.6))(react-grid-layout@2.2.3(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(react-is@19.2.6)(react-router-dom@7.15.1(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(react@19.2.6)(tailwindcss@4.3.0)(typescript@6.0.3)(vitest@4.1.7)(zod@4.4.3)
+      '@objectstack/client': 5.2.0(ai@6.0.191(zod@4.4.3))
+      '@objectstack/core': 5.2.0(ai@6.0.191(zod@4.4.3))
+      '@objectstack/driver-memory': 5.2.0(ai@6.0.191(zod@4.4.3))
+      '@objectstack/driver-mongodb': 5.2.0(ai@6.0.191(zod@4.4.3))
+      '@objectstack/driver-sql': 5.2.0(ai@6.0.191(zod@4.4.3))(better-sqlite3@12.9.0)
+      '@objectstack/driver-turso': 5.2.0(ai@6.0.191(zod@4.4.3))(better-sqlite3@12.9.0)
+      '@objectstack/objectql': 5.2.0(ai@6.0.191(zod@4.4.3))(vitest@4.1.7)
+      '@objectstack/observability': 5.2.0(ai@6.0.191(zod@4.4.3))
+      '@objectstack/plugin-approvals': 5.2.0(ai@6.0.191(zod@4.4.3))(vitest@4.1.7)
+      '@objectstack/plugin-audit': 5.2.0(ai@6.0.191(zod@4.4.3))
+      '@objectstack/plugin-auth': 5.2.0(@better-auth/core@1.6.11(@better-auth/utils@0.4.0)(@better-fetch/fetch@1.1.21)(@opentelemetry/api@1.9.1)(better-call@1.3.5(zod@4.4.3))(jose@6.2.3)(kysely@0.28.17)(nanostores@1.3.0))(@better-auth/utils@0.4.0)(@better-fetch/fetch@1.1.21)(@opentelemetry/api@1.9.1)(ai@6.0.191(zod@4.4.3))(better-call@1.3.5(zod@4.4.3))(better-sqlite3@12.9.0)(mongodb@7.2.0)(next@16.2.6(@babel/core@7.29.0)(@opentelemetry/api@1.9.1)(@playwright/test@1.60.0)(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(vitest@4.1.7)
+      '@objectstack/plugin-email': 5.2.0(ai@6.0.191(zod@4.4.3))
+      '@objectstack/plugin-hono-server': 5.2.0(ai@6.0.191(zod@4.4.3))
+      '@objectstack/plugin-mcp-server': 5.2.0(ai@6.0.191(zod@4.4.3))
+      '@objectstack/plugin-reports': 5.2.0(ai@6.0.191(zod@4.4.3))
+      '@objectstack/plugin-security': 5.2.0(ai@6.0.191(zod@4.4.3))
+      '@objectstack/plugin-sharing': 5.2.0(ai@6.0.191(zod@4.4.3))(vitest@4.1.7)
+      '@objectstack/plugin-webhooks': 5.2.0(ai@6.0.191(zod@4.4.3))
+      '@objectstack/rest': 5.2.0(ai@6.0.191(zod@4.4.3))
+      '@objectstack/runtime': 5.2.0(@better-auth/core@1.6.11(@better-auth/utils@0.4.0)(@better-fetch/fetch@1.1.21)(@opentelemetry/api@1.9.1)(better-call@1.3.5(zod@4.4.3))(jose@6.2.3)(kysely@0.28.17)(nanostores@1.3.0))(@better-auth/utils@0.4.0)(@better-fetch/fetch@1.1.21)(@opentelemetry/api@1.9.1)(ai@6.0.191(zod@4.4.3))(better-call@1.3.5(zod@4.4.3))(better-sqlite3@12.9.0)(mongodb@7.2.0)(next@16.2.6(@babel/core@7.29.0)(@opentelemetry/api@1.9.1)(@playwright/test@1.60.0)(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(vitest@4.1.7)
+      '@objectstack/service-ai': 5.2.0(@ai-sdk/anthropic@3.0.69(zod@4.4.3))(@ai-sdk/gateway@3.0.120(zod@4.4.3))(@ai-sdk/google@3.0.63(zod@4.4.3))(@ai-sdk/openai@3.0.52(zod@4.4.3))(zod@4.4.3)
+      '@objectstack/service-analytics': 5.2.0(ai@6.0.191(zod@4.4.3))
+      '@objectstack/service-automation': 5.2.0(ai@6.0.191(zod@4.4.3))
+      '@objectstack/service-cache': 5.2.0(ai@6.0.191(zod@4.4.3))
+      '@objectstack/service-feed': 5.2.0(ai@6.0.191(zod@4.4.3))
+      '@objectstack/service-job': 5.2.0(ai@6.0.191(zod@4.4.3))
+      '@objectstack/service-package': 5.2.0(ai@6.0.191(zod@4.4.3))
+      '@objectstack/service-queue': 5.2.0(ai@6.0.191(zod@4.4.3))
+      '@objectstack/service-realtime': 5.2.0(ai@6.0.191(zod@4.4.3))
+      '@objectstack/service-settings': 5.2.0(ai@6.0.191(zod@4.4.3))
+      '@objectstack/service-storage': 5.2.0(ai@6.0.191(zod@4.4.3))
+      '@objectstack/spec': 5.2.0(ai@6.0.191(zod@4.4.3))
+      '@oclif/core': 4.11.3
+      bundle-require: 5.1.0(esbuild@0.28.0)
+      chalk: 5.6.2
+      chokidar: 5.0.0
+      dotenv-flow: 4.1.0
+      esbuild: 0.28.0
+      ts-morph: 28.0.0
+      tsx: 4.22.3
+      yaml: 2.9.0
+      zod: 4.4.3
+    transitivePeerDependencies:
+      - '@ai-sdk/anthropic'
+      - '@ai-sdk/google'
+      - '@ai-sdk/openai'
+      - '@aws-sdk/client-s3'
+      - '@aws-sdk/credential-providers'
+      - '@aws-sdk/s3-request-presigner'
+      - '@better-auth/core'
+      - '@better-auth/utils'
+      - '@better-fetch/fetch'
+      - '@cfworker/json-schema'
+      - '@cloudflare/workers-types'
+      - '@lynx-js/react'
+      - '@mongodb-js/zstd'
+      - '@opentelemetry/api'
+      - '@prisma/client'
+      - '@sveltejs/kit'
+      - '@tanstack/react-start'
+      - '@tanstack/solid-start'
+      - '@types/react'
+      - '@types/react-dom'
+      - ai
+      - better-call
+      - better-sqlite3
+      - bufferutil
+      - drizzle-kit
+      - drizzle-orm
+      - gcp-metadata
+      - i18next
+      - kerberos
+      - mapbox-gl
+      - mongodb
+      - mongodb-client-encryption
+      - mysql
+      - mysql2
+      - next
+      - pg
+      - pg-native
+      - pg-query-stream
+      - prisma
+      - react
+      - react-dom
+      - react-grid-layout
+      - react-is
+      - react-native
+      - react-router-dom
+      - redux
+      - snappy
+      - socks
+      - solid-js
+      - sqlite3
+      - supports-color
+      - svelte
+      - tailwindcss
+      - tedious
+      - typescript
       - utf-8-validate
       - vitest
       - vue
@@ -14598,10 +15884,12 @@ snapshots:
     transitivePeerDependencies:
       - ai
 
-  '@objectstack/client@4.2.0(ai@6.0.190(zod@4.4.3))':
+  '@objectstack/client-react@5.2.0(ai@6.0.191(zod@4.4.3))(react@19.2.6)':
     dependencies:
-      '@objectstack/core': 4.2.0(ai@6.0.190(zod@4.4.3))
-      '@objectstack/spec': 4.2.0(ai@6.0.190(zod@4.4.3))
+      '@objectstack/client': 5.2.0(ai@6.0.191(zod@4.4.3))
+      '@objectstack/core': 5.2.0(ai@6.0.191(zod@4.4.3))
+      '@objectstack/spec': 5.2.0(ai@6.0.191(zod@4.4.3))
+      react: 19.2.6
     transitivePeerDependencies:
       - ai
 
@@ -14619,10 +15907,10 @@ snapshots:
     transitivePeerDependencies:
       - ai
 
-  '@objectstack/core@4.2.0(ai@6.0.190(zod@4.4.3))':
+  '@objectstack/client@5.2.0(ai@6.0.191(zod@4.4.3))':
     dependencies:
-      '@objectstack/spec': 4.2.0(ai@6.0.190(zod@4.4.3))
-      zod: 4.4.3
+      '@objectstack/core': 5.2.0(ai@6.0.191(zod@4.4.3))
+      '@objectstack/spec': 5.2.0(ai@6.0.191(zod@4.4.3))
     transitivePeerDependencies:
       - ai
 
@@ -14640,19 +15928,26 @@ snapshots:
     transitivePeerDependencies:
       - ai
 
-  '@objectstack/driver-memory@4.2.0(ai@6.0.190(zod@4.4.3))':
+  '@objectstack/core@5.2.0(ai@6.0.191(zod@4.4.3))':
     dependencies:
-      '@objectstack/core': 4.2.0(ai@6.0.190(zod@4.4.3))
-      '@objectstack/spec': 4.2.0(ai@6.0.190(zod@4.4.3))
+      '@objectstack/spec': 5.2.0(ai@6.0.191(zod@4.4.3))
+      zod: 4.4.3
+    transitivePeerDependencies:
+      - ai
+
+  '@objectstack/driver-memory@5.2.0(ai@6.0.191(zod@4.4.3))':
+    dependencies:
+      '@objectstack/core': 5.2.0(ai@6.0.191(zod@4.4.3))
+      '@objectstack/spec': 5.2.0(ai@6.0.191(zod@4.4.3))
       mingo: 7.2.1
     transitivePeerDependencies:
       - ai
 
-  '@objectstack/driver-mongodb@4.2.0(ai@6.0.190(zod@4.4.3))':
+  '@objectstack/driver-mongodb@5.2.0(ai@6.0.191(zod@4.4.3))':
     dependencies:
-      '@objectstack/core': 4.2.0(ai@6.0.190(zod@4.4.3))
-      '@objectstack/spec': 4.2.0(ai@6.0.190(zod@4.4.3))
-      mongodb: 6.21.0
+      '@objectstack/core': 5.2.0(ai@6.0.191(zod@4.4.3))
+      '@objectstack/spec': 5.2.0(ai@6.0.191(zod@4.4.3))
+      mongodb: 7.2.0
       nanoid: 5.1.11
     transitivePeerDependencies:
       - '@aws-sdk/credential-providers'
@@ -14664,10 +15959,10 @@ snapshots:
       - snappy
       - socks
 
-  '@objectstack/driver-sql@4.2.0(ai@6.0.190(zod@4.4.3))(better-sqlite3@12.9.0)':
+  '@objectstack/driver-sql@5.2.0(ai@6.0.191(zod@4.4.3))(better-sqlite3@12.9.0)':
     dependencies:
-      '@objectstack/core': 4.2.0(ai@6.0.190(zod@4.4.3))
-      '@objectstack/spec': 4.2.0(ai@6.0.190(zod@4.4.3))
+      '@objectstack/core': 5.2.0(ai@6.0.191(zod@4.4.3))
+      '@objectstack/spec': 5.2.0(ai@6.0.191(zod@4.4.3))
       knex: 3.2.10(better-sqlite3@12.9.0)
       nanoid: 5.1.11
     transitivePeerDependencies:
@@ -14682,12 +15977,12 @@ snapshots:
       - supports-color
       - tedious
 
-  '@objectstack/driver-turso@4.2.0(ai@6.0.190(zod@4.4.3))(better-sqlite3@12.9.0)':
+  '@objectstack/driver-turso@5.2.0(ai@6.0.191(zod@4.4.3))(better-sqlite3@12.9.0)':
     dependencies:
       '@libsql/client': 0.17.3
-      '@objectstack/core': 4.2.0(ai@6.0.190(zod@4.4.3))
-      '@objectstack/driver-sql': 4.2.0(ai@6.0.190(zod@4.4.3))(better-sqlite3@12.9.0)
-      '@objectstack/spec': 4.2.0(ai@6.0.190(zod@4.4.3))
+      '@objectstack/core': 5.2.0(ai@6.0.191(zod@4.4.3))
+      '@objectstack/driver-sql': 5.2.0(ai@6.0.191(zod@4.4.3))(better-sqlite3@12.9.0)
+      '@objectstack/spec': 5.2.0(ai@6.0.191(zod@4.4.3))
       nanoid: 5.1.11
     optionalDependencies:
       better-sqlite3: 12.9.0
@@ -14704,53 +15999,121 @@ snapshots:
       - tedious
       - utf-8-validate
 
-  '@objectstack/formula@4.2.0(ai@6.0.190(zod@4.4.3))':
+  '@objectstack/formula@5.2.0(ai@6.0.191(zod@4.4.3))':
     dependencies:
       '@marcbachmann/cel-js': 7.6.1
-      '@objectstack/spec': 4.2.0(ai@6.0.190(zod@4.4.3))
+      '@objectstack/spec': 5.2.0(ai@6.0.191(zod@4.4.3))
     transitivePeerDependencies:
       - ai
 
-  '@objectstack/objectql@4.2.0(ai@6.0.190(zod@4.4.3))':
+  '@objectstack/metadata-core@5.2.0(vitest@4.1.6)':
     dependencies:
-      '@objectstack/core': 4.2.0(ai@6.0.190(zod@4.4.3))
-      '@objectstack/formula': 4.2.0(ai@6.0.190(zod@4.4.3))
-      '@objectstack/spec': 4.2.0(ai@6.0.190(zod@4.4.3))
-      '@objectstack/types': 4.2.0(ai@6.0.190(zod@4.4.3))
+      zod: 4.4.3
+    optionalDependencies:
+      vitest: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.9.0)(@vitest/coverage-v8@4.1.6)(@vitest/ui@4.1.6)(happy-dom@20.9.0)(jsdom@29.1.1(@noble/hashes@2.2.0))(msw@2.14.6(@types/node@25.9.0)(typescript@6.0.3))(vite@8.0.14(@types/node@25.9.0)(esbuild@0.28.0)(jiti@2.7.0)(tsx@4.22.1)(yaml@2.9.0))
+
+  '@objectstack/metadata-core@5.2.0(vitest@4.1.7)':
+    dependencies:
+      zod: 4.4.3
+    optionalDependencies:
+      vitest: 4.1.7(@opentelemetry/api@1.9.1)(@types/node@25.9.0)(@vitest/coverage-v8@4.1.7)(@vitest/ui@4.1.6)(happy-dom@20.9.0)(jsdom@29.1.1(@noble/hashes@2.2.0))(msw@2.14.6(@types/node@25.9.0)(typescript@6.0.3))(vite@8.0.14(@types/node@25.9.0)(esbuild@0.28.0)(jiti@2.7.0)(tsx@4.22.3)(yaml@2.9.0))
+
+  '@objectstack/metadata-fs@5.2.0(vitest@4.1.7)':
+    dependencies:
+      '@objectstack/metadata-core': 5.2.0(vitest@4.1.7)
+      chokidar: 5.0.0
+    transitivePeerDependencies:
+      - vitest
+
+  '@objectstack/metadata@5.2.0(ai@6.0.191(zod@4.4.3))(vitest@4.1.7)':
+    dependencies:
+      '@objectstack/core': 5.2.0(ai@6.0.191(zod@4.4.3))
+      '@objectstack/metadata-core': 5.2.0(vitest@4.1.7)
+      '@objectstack/metadata-fs': 5.2.0(vitest@4.1.7)
+      '@objectstack/platform-objects': 5.2.0(ai@6.0.191(zod@4.4.3))
+      '@objectstack/spec': 5.2.0(ai@6.0.191(zod@4.4.3))
+      '@objectstack/types': 5.2.0(ai@6.0.191(zod@4.4.3))
+      chokidar: 5.0.0
+      glob: 13.0.6
+      js-yaml: 4.1.1
       zod: 4.4.3
     transitivePeerDependencies:
       - ai
+      - vitest
 
-  '@objectstack/platform-objects@4.2.0(ai@6.0.190(zod@4.4.3))':
+  '@objectstack/objectql@5.2.0(ai@6.0.191(zod@4.4.3))(vitest@4.1.6)':
     dependencies:
-      '@objectstack/spec': 4.2.0(ai@6.0.190(zod@4.4.3))
+      '@objectstack/core': 5.2.0(ai@6.0.191(zod@4.4.3))
+      '@objectstack/formula': 5.2.0(ai@6.0.191(zod@4.4.3))
+      '@objectstack/metadata-core': 5.2.0(vitest@4.1.6)
+      '@objectstack/spec': 5.2.0(ai@6.0.191(zod@4.4.3))
+      '@objectstack/types': 5.2.0(ai@6.0.191(zod@4.4.3))
+      zod: 4.4.3
+    transitivePeerDependencies:
+      - ai
+      - vitest
+
+  '@objectstack/objectql@5.2.0(ai@6.0.191(zod@4.4.3))(vitest@4.1.7)':
+    dependencies:
+      '@objectstack/core': 5.2.0(ai@6.0.191(zod@4.4.3))
+      '@objectstack/formula': 5.2.0(ai@6.0.191(zod@4.4.3))
+      '@objectstack/metadata-core': 5.2.0(vitest@4.1.7)
+      '@objectstack/spec': 5.2.0(ai@6.0.191(zod@4.4.3))
+      '@objectstack/types': 5.2.0(ai@6.0.191(zod@4.4.3))
+      zod: 4.4.3
+    transitivePeerDependencies:
+      - ai
+      - vitest
+
+  '@objectstack/observability@5.2.0(ai@6.0.191(zod@4.4.3))':
+    dependencies:
+      '@objectstack/spec': 5.2.0(ai@6.0.191(zod@4.4.3))
     transitivePeerDependencies:
       - ai
 
-  '@objectstack/plugin-approvals@4.2.0(ai@6.0.190(zod@4.4.3))':
+  '@objectstack/platform-objects@5.2.0(ai@6.0.191(zod@4.4.3))':
     dependencies:
-      '@objectstack/core': 4.2.0(ai@6.0.190(zod@4.4.3))
-      '@objectstack/formula': 4.2.0(ai@6.0.190(zod@4.4.3))
-      '@objectstack/platform-objects': 4.2.0(ai@6.0.190(zod@4.4.3))
-      '@objectstack/spec': 4.2.0(ai@6.0.190(zod@4.4.3))
+      '@objectstack/spec': 5.2.0(ai@6.0.191(zod@4.4.3))
     transitivePeerDependencies:
       - ai
 
-  '@objectstack/plugin-audit@4.2.0(ai@6.0.190(zod@4.4.3))':
+  '@objectstack/plugin-approvals@5.2.0(ai@6.0.191(zod@4.4.3))(vitest@4.1.6)':
     dependencies:
-      '@objectstack/core': 4.2.0(ai@6.0.190(zod@4.4.3))
-      '@objectstack/platform-objects': 4.2.0(ai@6.0.190(zod@4.4.3))
-      '@objectstack/spec': 4.2.0(ai@6.0.190(zod@4.4.3))
+      '@objectstack/core': 5.2.0(ai@6.0.191(zod@4.4.3))
+      '@objectstack/formula': 5.2.0(ai@6.0.191(zod@4.4.3))
+      '@objectstack/metadata-core': 5.2.0(vitest@4.1.6)
+      '@objectstack/platform-objects': 5.2.0(ai@6.0.191(zod@4.4.3))
+      '@objectstack/spec': 5.2.0(ai@6.0.191(zod@4.4.3))
+    transitivePeerDependencies:
+      - ai
+      - vitest
+
+  '@objectstack/plugin-approvals@5.2.0(ai@6.0.191(zod@4.4.3))(vitest@4.1.7)':
+    dependencies:
+      '@objectstack/core': 5.2.0(ai@6.0.191(zod@4.4.3))
+      '@objectstack/formula': 5.2.0(ai@6.0.191(zod@4.4.3))
+      '@objectstack/metadata-core': 5.2.0(vitest@4.1.7)
+      '@objectstack/platform-objects': 5.2.0(ai@6.0.191(zod@4.4.3))
+      '@objectstack/spec': 5.2.0(ai@6.0.191(zod@4.4.3))
+    transitivePeerDependencies:
+      - ai
+      - vitest
+
+  '@objectstack/plugin-audit@5.2.0(ai@6.0.191(zod@4.4.3))':
+    dependencies:
+      '@objectstack/core': 5.2.0(ai@6.0.191(zod@4.4.3))
+      '@objectstack/platform-objects': 5.2.0(ai@6.0.191(zod@4.4.3))
+      '@objectstack/spec': 5.2.0(ai@6.0.191(zod@4.4.3))
     transitivePeerDependencies:
       - ai
 
-  '@objectstack/plugin-auth@4.2.0(@better-auth/core@1.6.11(@better-auth/utils@0.4.0)(@better-fetch/fetch@1.1.21)(@opentelemetry/api@1.9.1)(better-call@1.3.5(zod@4.4.3))(jose@6.2.3)(kysely@0.28.17)(nanostores@1.3.0))(@better-auth/utils@0.4.0)(@better-fetch/fetch@1.1.21)(@opentelemetry/api@1.9.1)(ai@6.0.190(zod@4.4.3))(better-call@1.3.5(zod@4.4.3))(better-sqlite3@12.9.0)(mongodb@6.21.0)(next@16.2.6(@babel/core@7.29.0)(@opentelemetry/api@1.9.1)(@playwright/test@1.60.0)(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(vitest@4.1.6)':
+  '@objectstack/plugin-auth@5.2.0(@better-auth/core@1.6.11(@better-auth/utils@0.4.0)(@better-fetch/fetch@1.1.21)(@opentelemetry/api@1.9.1)(better-call@1.3.5(zod@4.4.3))(jose@6.2.3)(kysely@0.28.17)(nanostores@1.3.0))(@better-auth/utils@0.4.0)(@better-fetch/fetch@1.1.21)(@opentelemetry/api@1.9.1)(ai@6.0.191(zod@4.4.3))(better-call@1.3.5(zod@4.4.3))(better-sqlite3@12.9.0)(mongodb@7.2.0)(next@16.2.6(@babel/core@7.29.0)(@opentelemetry/api@1.9.1)(@playwright/test@1.60.0)(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(vitest@4.1.6)':
     dependencies:
-      '@better-auth/oauth-provider': 1.6.11(@better-auth/core@1.6.11(@better-auth/utils@0.4.0)(@better-fetch/fetch@1.1.21)(@opentelemetry/api@1.9.1)(better-call@1.3.5(zod@4.4.3))(jose@6.2.3)(kysely@0.28.17)(nanostores@1.3.0))(@better-auth/utils@0.4.0)(@better-fetch/fetch@1.1.21)(better-auth@1.6.11(@opentelemetry/api@1.9.1)(better-sqlite3@12.9.0)(mongodb@6.21.0)(next@16.2.6(@babel/core@7.29.0)(@opentelemetry/api@1.9.1)(@playwright/test@1.60.0)(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(vitest@4.1.6))(better-call@1.3.5(zod@4.4.3))
-      '@objectstack/core': 4.2.0(ai@6.0.190(zod@4.4.3))
-      '@objectstack/platform-objects': 4.2.0(ai@6.0.190(zod@4.4.3))
-      '@objectstack/spec': 4.2.0(ai@6.0.190(zod@4.4.3))
-      better-auth: 1.6.11(@opentelemetry/api@1.9.1)(better-sqlite3@12.9.0)(mongodb@6.21.0)(next@16.2.6(@babel/core@7.29.0)(@opentelemetry/api@1.9.1)(@playwright/test@1.60.0)(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(vitest@4.1.6)
+      '@better-auth/oauth-provider': 1.6.11(@better-auth/core@1.6.11(@better-auth/utils@0.4.0)(@better-fetch/fetch@1.1.21)(@opentelemetry/api@1.9.1)(better-call@1.3.5(zod@4.4.3))(jose@6.2.3)(kysely@0.28.17)(nanostores@1.3.0))(@better-auth/utils@0.4.0)(@better-fetch/fetch@1.1.21)(better-auth@1.6.11(@opentelemetry/api@1.9.1)(better-sqlite3@12.9.0)(mongodb@7.2.0)(next@16.2.6(@babel/core@7.29.0)(@opentelemetry/api@1.9.1)(@playwright/test@1.60.0)(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(vitest@4.1.6))(better-call@1.3.5(zod@4.4.3))
+      '@objectstack/core': 5.2.0(ai@6.0.191(zod@4.4.3))
+      '@objectstack/platform-objects': 5.2.0(ai@6.0.191(zod@4.4.3))
+      '@objectstack/spec': 5.2.0(ai@6.0.191(zod@4.4.3))
+      better-auth: 1.6.11(@opentelemetry/api@1.9.1)(better-sqlite3@12.9.0)(mongodb@7.2.0)(next@16.2.6(@babel/core@7.29.0)(@opentelemetry/api@1.9.1)(@playwright/test@1.60.0)(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(vitest@4.1.6)
     transitivePeerDependencies:
       - '@better-auth/core'
       - '@better-auth/utils'
@@ -14779,78 +16142,135 @@ snapshots:
       - vitest
       - vue
 
-  '@objectstack/plugin-email@4.2.0(ai@6.0.190(zod@4.4.3))':
+  '@objectstack/plugin-auth@5.2.0(@better-auth/core@1.6.11(@better-auth/utils@0.4.0)(@better-fetch/fetch@1.1.21)(@opentelemetry/api@1.9.1)(better-call@1.3.5(zod@4.4.3))(jose@6.2.3)(kysely@0.28.17)(nanostores@1.3.0))(@better-auth/utils@0.4.0)(@better-fetch/fetch@1.1.21)(@opentelemetry/api@1.9.1)(ai@6.0.191(zod@4.4.3))(better-call@1.3.5(zod@4.4.3))(better-sqlite3@12.9.0)(mongodb@7.2.0)(next@16.2.6(@babel/core@7.29.0)(@opentelemetry/api@1.9.1)(@playwright/test@1.60.0)(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(vitest@4.1.7)':
     dependencies:
-      '@objectstack/core': 4.2.0(ai@6.0.190(zod@4.4.3))
-      '@objectstack/platform-objects': 4.2.0(ai@6.0.190(zod@4.4.3))
-      '@objectstack/spec': 4.2.0(ai@6.0.190(zod@4.4.3))
+      '@better-auth/oauth-provider': 1.6.11(@better-auth/core@1.6.11(@better-auth/utils@0.4.0)(@better-fetch/fetch@1.1.21)(@opentelemetry/api@1.9.1)(better-call@1.3.5(zod@4.4.3))(jose@6.2.3)(kysely@0.28.17)(nanostores@1.3.0))(@better-auth/utils@0.4.0)(@better-fetch/fetch@1.1.21)(better-auth@1.6.11(@opentelemetry/api@1.9.1)(better-sqlite3@12.9.0)(mongodb@7.2.0)(next@16.2.6(@babel/core@7.29.0)(@opentelemetry/api@1.9.1)(@playwright/test@1.60.0)(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(vitest@4.1.7))(better-call@1.3.5(zod@4.4.3))
+      '@objectstack/core': 5.2.0(ai@6.0.191(zod@4.4.3))
+      '@objectstack/platform-objects': 5.2.0(ai@6.0.191(zod@4.4.3))
+      '@objectstack/spec': 5.2.0(ai@6.0.191(zod@4.4.3))
+      better-auth: 1.6.11(@opentelemetry/api@1.9.1)(better-sqlite3@12.9.0)(mongodb@7.2.0)(next@16.2.6(@babel/core@7.29.0)(@opentelemetry/api@1.9.1)(@playwright/test@1.60.0)(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(vitest@4.1.7)
+    transitivePeerDependencies:
+      - '@better-auth/core'
+      - '@better-auth/utils'
+      - '@better-fetch/fetch'
+      - '@cloudflare/workers-types'
+      - '@lynx-js/react'
+      - '@opentelemetry/api'
+      - '@prisma/client'
+      - '@sveltejs/kit'
+      - '@tanstack/react-start'
+      - '@tanstack/solid-start'
+      - ai
+      - better-call
+      - better-sqlite3
+      - drizzle-kit
+      - drizzle-orm
+      - mongodb
+      - mysql2
+      - next
+      - pg
+      - prisma
+      - react
+      - react-dom
+      - solid-js
+      - svelte
+      - vitest
+      - vue
+
+  '@objectstack/plugin-email@5.2.0(ai@6.0.191(zod@4.4.3))':
+    dependencies:
+      '@objectstack/core': 5.2.0(ai@6.0.191(zod@4.4.3))
+      '@objectstack/platform-objects': 5.2.0(ai@6.0.191(zod@4.4.3))
+      '@objectstack/spec': 5.2.0(ai@6.0.191(zod@4.4.3))
     transitivePeerDependencies:
       - ai
 
-  '@objectstack/plugin-hono-server@4.2.0(ai@6.0.190(zod@4.4.3))':
+  '@objectstack/plugin-hono-server@5.2.0(ai@6.0.191(zod@4.4.3))':
     dependencies:
-      '@hono/node-server': 2.0.3(hono@4.12.21)
-      '@objectstack/core': 4.2.0(ai@6.0.190(zod@4.4.3))
-      '@objectstack/spec': 4.2.0(ai@6.0.190(zod@4.4.3))
-      hono: 4.12.21
+      '@hono/node-server': 2.0.3(hono@4.12.22)
+      '@objectstack/core': 5.2.0(ai@6.0.191(zod@4.4.3))
+      '@objectstack/spec': 5.2.0(ai@6.0.191(zod@4.4.3))
+      hono: 4.12.22
     transitivePeerDependencies:
       - ai
 
-  '@objectstack/plugin-mcp-server@4.2.0(ai@6.0.190(zod@4.4.3))':
+  '@objectstack/plugin-mcp-server@5.2.0(ai@6.0.191(zod@4.4.3))':
     dependencies:
       '@modelcontextprotocol/sdk': 1.29.0(zod@4.4.3)
-      '@objectstack/core': 4.2.0(ai@6.0.190(zod@4.4.3))
-      '@objectstack/spec': 4.2.0(ai@6.0.190(zod@4.4.3))
+      '@objectstack/core': 5.2.0(ai@6.0.191(zod@4.4.3))
+      '@objectstack/spec': 5.2.0(ai@6.0.191(zod@4.4.3))
       zod: 4.4.3
     transitivePeerDependencies:
       - '@cfworker/json-schema'
       - ai
       - supports-color
 
-  '@objectstack/plugin-reports@4.2.0(ai@6.0.190(zod@4.4.3))':
+  '@objectstack/plugin-reports@5.2.0(ai@6.0.191(zod@4.4.3))':
     dependencies:
-      '@objectstack/core': 4.2.0(ai@6.0.190(zod@4.4.3))
-      '@objectstack/platform-objects': 4.2.0(ai@6.0.190(zod@4.4.3))
-      '@objectstack/spec': 4.2.0(ai@6.0.190(zod@4.4.3))
+      '@objectstack/core': 5.2.0(ai@6.0.191(zod@4.4.3))
+      '@objectstack/platform-objects': 5.2.0(ai@6.0.191(zod@4.4.3))
+      '@objectstack/spec': 5.2.0(ai@6.0.191(zod@4.4.3))
     transitivePeerDependencies:
       - ai
 
-  '@objectstack/plugin-security@4.2.0(ai@6.0.190(zod@4.4.3))':
+  '@objectstack/plugin-security@5.2.0(ai@6.0.191(zod@4.4.3))':
     dependencies:
-      '@objectstack/core': 4.2.0(ai@6.0.190(zod@4.4.3))
-      '@objectstack/platform-objects': 4.2.0(ai@6.0.190(zod@4.4.3))
-      '@objectstack/spec': 4.2.0(ai@6.0.190(zod@4.4.3))
+      '@objectstack/core': 5.2.0(ai@6.0.191(zod@4.4.3))
+      '@objectstack/platform-objects': 5.2.0(ai@6.0.191(zod@4.4.3))
+      '@objectstack/spec': 5.2.0(ai@6.0.191(zod@4.4.3))
     transitivePeerDependencies:
       - ai
 
-  '@objectstack/plugin-sharing@4.2.0(ai@6.0.190(zod@4.4.3))':
+  '@objectstack/plugin-sharing@5.2.0(ai@6.0.191(zod@4.4.3))(vitest@4.1.6)':
     dependencies:
-      '@objectstack/core': 4.2.0(ai@6.0.190(zod@4.4.3))
-      '@objectstack/objectql': 4.2.0(ai@6.0.190(zod@4.4.3))
-      '@objectstack/platform-objects': 4.2.0(ai@6.0.190(zod@4.4.3))
-      '@objectstack/spec': 4.2.0(ai@6.0.190(zod@4.4.3))
+      '@objectstack/core': 5.2.0(ai@6.0.191(zod@4.4.3))
+      '@objectstack/objectql': 5.2.0(ai@6.0.191(zod@4.4.3))(vitest@4.1.6)
+      '@objectstack/platform-objects': 5.2.0(ai@6.0.191(zod@4.4.3))
+      '@objectstack/spec': 5.2.0(ai@6.0.191(zod@4.4.3))
+    transitivePeerDependencies:
+      - ai
+      - vitest
+
+  '@objectstack/plugin-sharing@5.2.0(ai@6.0.191(zod@4.4.3))(vitest@4.1.7)':
+    dependencies:
+      '@objectstack/core': 5.2.0(ai@6.0.191(zod@4.4.3))
+      '@objectstack/objectql': 5.2.0(ai@6.0.191(zod@4.4.3))(vitest@4.1.7)
+      '@objectstack/platform-objects': 5.2.0(ai@6.0.191(zod@4.4.3))
+      '@objectstack/spec': 5.2.0(ai@6.0.191(zod@4.4.3))
+    transitivePeerDependencies:
+      - ai
+      - vitest
+
+  '@objectstack/plugin-webhooks@5.2.0(ai@6.0.191(zod@4.4.3))':
+    dependencies:
+      '@objectstack/core': 5.2.0(ai@6.0.191(zod@4.4.3))
+      '@objectstack/platform-objects': 5.2.0(ai@6.0.191(zod@4.4.3))
+      '@objectstack/service-cluster': 5.1.1(ai@6.0.191(zod@4.4.3))
+      '@objectstack/spec': 5.2.0(ai@6.0.191(zod@4.4.3))
     transitivePeerDependencies:
       - ai
 
-  '@objectstack/rest@4.2.0(ai@6.0.190(zod@4.4.3))':
+  '@objectstack/rest@5.2.0(ai@6.0.191(zod@4.4.3))':
     dependencies:
-      '@objectstack/core': 4.2.0(ai@6.0.190(zod@4.4.3))
-      '@objectstack/service-package': 4.2.0(ai@6.0.190(zod@4.4.3))
-      '@objectstack/spec': 4.2.0(ai@6.0.190(zod@4.4.3))
+      '@objectstack/core': 5.2.0(ai@6.0.191(zod@4.4.3))
+      '@objectstack/service-package': 5.2.0(ai@6.0.191(zod@4.4.3))
+      '@objectstack/spec': 5.2.0(ai@6.0.191(zod@4.4.3))
       zod: 4.4.3
     transitivePeerDependencies:
       - ai
 
-  '@objectstack/runtime@4.2.0(@better-auth/core@1.6.11(@better-auth/utils@0.4.0)(@better-fetch/fetch@1.1.21)(@opentelemetry/api@1.9.1)(better-call@1.3.5(zod@4.4.3))(jose@6.2.3)(kysely@0.28.17)(nanostores@1.3.0))(@better-auth/utils@0.4.0)(@better-fetch/fetch@1.1.21)(@opentelemetry/api@1.9.1)(ai@6.0.190(zod@4.4.3))(better-call@1.3.5(zod@4.4.3))(better-sqlite3@12.9.0)(mongodb@6.21.0)(next@16.2.6(@babel/core@7.29.0)(@opentelemetry/api@1.9.1)(@playwright/test@1.60.0)(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(vitest@4.1.6)':
+  '@objectstack/runtime@5.2.0(@better-auth/core@1.6.11(@better-auth/utils@0.4.0)(@better-fetch/fetch@1.1.21)(@opentelemetry/api@1.9.1)(better-call@1.3.5(zod@4.4.3))(jose@6.2.3)(kysely@0.28.17)(nanostores@1.3.0))(@better-auth/utils@0.4.0)(@better-fetch/fetch@1.1.21)(@opentelemetry/api@1.9.1)(ai@6.0.191(zod@4.4.3))(better-call@1.3.5(zod@4.4.3))(better-sqlite3@12.9.0)(mongodb@7.2.0)(next@16.2.6(@babel/core@7.29.0)(@opentelemetry/api@1.9.1)(@playwright/test@1.60.0)(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(vitest@4.1.6)':
     dependencies:
-      '@objectstack/core': 4.2.0(ai@6.0.190(zod@4.4.3))
-      '@objectstack/formula': 4.2.0(ai@6.0.190(zod@4.4.3))
-      '@objectstack/plugin-auth': 4.2.0(@better-auth/core@1.6.11(@better-auth/utils@0.4.0)(@better-fetch/fetch@1.1.21)(@opentelemetry/api@1.9.1)(better-call@1.3.5(zod@4.4.3))(jose@6.2.3)(kysely@0.28.17)(nanostores@1.3.0))(@better-auth/utils@0.4.0)(@better-fetch/fetch@1.1.21)(@opentelemetry/api@1.9.1)(ai@6.0.190(zod@4.4.3))(better-call@1.3.5(zod@4.4.3))(better-sqlite3@12.9.0)(mongodb@6.21.0)(next@16.2.6(@babel/core@7.29.0)(@opentelemetry/api@1.9.1)(@playwright/test@1.60.0)(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(vitest@4.1.6)
-      '@objectstack/plugin-security': 4.2.0(ai@6.0.190(zod@4.4.3))
-      '@objectstack/rest': 4.2.0(ai@6.0.190(zod@4.4.3))
-      '@objectstack/service-i18n': 4.2.0(ai@6.0.190(zod@4.4.3))
-      '@objectstack/spec': 4.2.0(ai@6.0.190(zod@4.4.3))
-      '@objectstack/types': 4.2.0(ai@6.0.190(zod@4.4.3))
+      '@objectstack/core': 5.2.0(ai@6.0.191(zod@4.4.3))
+      '@objectstack/formula': 5.2.0(ai@6.0.191(zod@4.4.3))
+      '@objectstack/observability': 5.2.0(ai@6.0.191(zod@4.4.3))
+      '@objectstack/plugin-auth': 5.2.0(@better-auth/core@1.6.11(@better-auth/utils@0.4.0)(@better-fetch/fetch@1.1.21)(@opentelemetry/api@1.9.1)(better-call@1.3.5(zod@4.4.3))(jose@6.2.3)(kysely@0.28.17)(nanostores@1.3.0))(@better-auth/utils@0.4.0)(@better-fetch/fetch@1.1.21)(@opentelemetry/api@1.9.1)(ai@6.0.191(zod@4.4.3))(better-call@1.3.5(zod@4.4.3))(better-sqlite3@12.9.0)(mongodb@7.2.0)(next@16.2.6(@babel/core@7.29.0)(@opentelemetry/api@1.9.1)(@playwright/test@1.60.0)(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(vitest@4.1.6)
+      '@objectstack/plugin-security': 5.2.0(ai@6.0.191(zod@4.4.3))
+      '@objectstack/rest': 5.2.0(ai@6.0.191(zod@4.4.3))
+      '@objectstack/service-cluster': 5.1.1(ai@6.0.191(zod@4.4.3))
+      '@objectstack/service-i18n': 5.2.0(ai@6.0.191(zod@4.4.3))
+      '@objectstack/spec': 5.2.0(ai@6.0.191(zod@4.4.3))
+      '@objectstack/types': 5.2.0(ai@6.0.191(zod@4.4.3))
       quickjs-emscripten: 0.32.0
       zod: 4.4.3
     transitivePeerDependencies:
@@ -14881,120 +16301,153 @@ snapshots:
       - vitest
       - vue
 
-  '@objectstack/service-ai@4.2.0(@ai-sdk/anthropic@3.0.69(zod@4.4.3))(@ai-sdk/gateway@3.0.119(zod@4.4.3))(@ai-sdk/google@3.0.63(zod@4.4.3))(@ai-sdk/openai@3.0.52(zod@4.4.3))(zod@4.4.3)':
+  '@objectstack/runtime@5.2.0(@better-auth/core@1.6.11(@better-auth/utils@0.4.0)(@better-fetch/fetch@1.1.21)(@opentelemetry/api@1.9.1)(better-call@1.3.5(zod@4.4.3))(jose@6.2.3)(kysely@0.28.17)(nanostores@1.3.0))(@better-auth/utils@0.4.0)(@better-fetch/fetch@1.1.21)(@opentelemetry/api@1.9.1)(ai@6.0.191(zod@4.4.3))(better-call@1.3.5(zod@4.4.3))(better-sqlite3@12.9.0)(mongodb@7.2.0)(next@16.2.6(@babel/core@7.29.0)(@opentelemetry/api@1.9.1)(@playwright/test@1.60.0)(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(vitest@4.1.7)':
+    dependencies:
+      '@objectstack/core': 5.2.0(ai@6.0.191(zod@4.4.3))
+      '@objectstack/formula': 5.2.0(ai@6.0.191(zod@4.4.3))
+      '@objectstack/observability': 5.2.0(ai@6.0.191(zod@4.4.3))
+      '@objectstack/plugin-auth': 5.2.0(@better-auth/core@1.6.11(@better-auth/utils@0.4.0)(@better-fetch/fetch@1.1.21)(@opentelemetry/api@1.9.1)(better-call@1.3.5(zod@4.4.3))(jose@6.2.3)(kysely@0.28.17)(nanostores@1.3.0))(@better-auth/utils@0.4.0)(@better-fetch/fetch@1.1.21)(@opentelemetry/api@1.9.1)(ai@6.0.191(zod@4.4.3))(better-call@1.3.5(zod@4.4.3))(better-sqlite3@12.9.0)(mongodb@7.2.0)(next@16.2.6(@babel/core@7.29.0)(@opentelemetry/api@1.9.1)(@playwright/test@1.60.0)(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(vitest@4.1.7)
+      '@objectstack/plugin-security': 5.2.0(ai@6.0.191(zod@4.4.3))
+      '@objectstack/rest': 5.2.0(ai@6.0.191(zod@4.4.3))
+      '@objectstack/service-cluster': 5.1.1(ai@6.0.191(zod@4.4.3))
+      '@objectstack/service-i18n': 5.2.0(ai@6.0.191(zod@4.4.3))
+      '@objectstack/spec': 5.2.0(ai@6.0.191(zod@4.4.3))
+      '@objectstack/types': 5.2.0(ai@6.0.191(zod@4.4.3))
+      quickjs-emscripten: 0.32.0
+      zod: 4.4.3
+    transitivePeerDependencies:
+      - '@better-auth/core'
+      - '@better-auth/utils'
+      - '@better-fetch/fetch'
+      - '@cloudflare/workers-types'
+      - '@lynx-js/react'
+      - '@opentelemetry/api'
+      - '@prisma/client'
+      - '@sveltejs/kit'
+      - '@tanstack/react-start'
+      - '@tanstack/solid-start'
+      - ai
+      - better-call
+      - better-sqlite3
+      - drizzle-kit
+      - drizzle-orm
+      - mongodb
+      - mysql2
+      - next
+      - pg
+      - prisma
+      - react
+      - react-dom
+      - solid-js
+      - svelte
+      - vitest
+      - vue
+
+  '@objectstack/service-ai@5.2.0(@ai-sdk/anthropic@3.0.69(zod@4.4.3))(@ai-sdk/gateway@3.0.120(zod@4.4.3))(@ai-sdk/google@3.0.63(zod@4.4.3))(@ai-sdk/openai@3.0.52(zod@4.4.3))(zod@4.4.3)':
     dependencies:
       '@ai-sdk/provider': 3.0.10
-      '@objectstack/core': 4.2.0(ai@6.0.190(zod@4.4.3))
-      '@objectstack/spec': 4.2.0(ai@6.0.190(zod@4.4.3))
-      ai: 6.0.190(zod@4.4.3)
+      '@objectstack/core': 5.2.0(ai@6.0.191(zod@4.4.3))
+      '@objectstack/spec': 5.2.0(ai@6.0.191(zod@4.4.3))
+      ai: 6.0.191(zod@4.4.3)
     optionalDependencies:
       '@ai-sdk/anthropic': 3.0.69(zod@4.4.3)
-      '@ai-sdk/gateway': 3.0.119(zod@4.4.3)
+      '@ai-sdk/gateway': 3.0.120(zod@4.4.3)
       '@ai-sdk/google': 3.0.63(zod@4.4.3)
       '@ai-sdk/openai': 3.0.52(zod@4.4.3)
     transitivePeerDependencies:
       - zod
 
-  '@objectstack/service-analytics@4.2.0(ai@6.0.190(zod@4.4.3))':
+  '@objectstack/service-analytics@5.2.0(ai@6.0.191(zod@4.4.3))':
     dependencies:
-      '@objectstack/core': 4.2.0(ai@6.0.190(zod@4.4.3))
-      '@objectstack/spec': 4.2.0(ai@6.0.190(zod@4.4.3))
+      '@objectstack/core': 5.2.0(ai@6.0.191(zod@4.4.3))
+      '@objectstack/spec': 5.2.0(ai@6.0.191(zod@4.4.3))
     transitivePeerDependencies:
       - ai
 
-  '@objectstack/service-automation@4.2.0(ai@6.0.190(zod@4.4.3))':
+  '@objectstack/service-automation@5.2.0(ai@6.0.191(zod@4.4.3))':
     dependencies:
-      '@objectstack/core': 4.2.0(ai@6.0.190(zod@4.4.3))
-      '@objectstack/formula': 4.2.0(ai@6.0.190(zod@4.4.3))
-      '@objectstack/spec': 4.2.0(ai@6.0.190(zod@4.4.3))
+      '@objectstack/core': 5.2.0(ai@6.0.191(zod@4.4.3))
+      '@objectstack/formula': 5.2.0(ai@6.0.191(zod@4.4.3))
+      '@objectstack/spec': 5.2.0(ai@6.0.191(zod@4.4.3))
     transitivePeerDependencies:
       - ai
 
-  '@objectstack/service-cache@4.2.0(ai@6.0.190(zod@4.4.3))':
+  '@objectstack/service-cache@5.2.0(ai@6.0.191(zod@4.4.3))':
     dependencies:
-      '@objectstack/core': 4.2.0(ai@6.0.190(zod@4.4.3))
-      '@objectstack/spec': 4.2.0(ai@6.0.190(zod@4.4.3))
+      '@objectstack/core': 5.2.0(ai@6.0.191(zod@4.4.3))
+      '@objectstack/observability': 5.2.0(ai@6.0.191(zod@4.4.3))
+      '@objectstack/spec': 5.2.0(ai@6.0.191(zod@4.4.3))
     transitivePeerDependencies:
       - ai
 
-  '@objectstack/service-feed@4.2.0(ai@6.0.190(zod@4.4.3))':
+  '@objectstack/service-cluster@5.1.1(ai@6.0.191(zod@4.4.3))':
     dependencies:
-      '@objectstack/core': 4.2.0(ai@6.0.190(zod@4.4.3))
-      '@objectstack/spec': 4.2.0(ai@6.0.190(zod@4.4.3))
+      '@objectstack/core': 5.2.0(ai@6.0.191(zod@4.4.3))
+      '@objectstack/spec': 5.2.0(ai@6.0.191(zod@4.4.3))
     transitivePeerDependencies:
       - ai
 
-  '@objectstack/service-i18n@4.2.0(ai@6.0.190(zod@4.4.3))':
+  '@objectstack/service-feed@5.2.0(ai@6.0.191(zod@4.4.3))':
     dependencies:
-      '@objectstack/core': 4.2.0(ai@6.0.190(zod@4.4.3))
-      '@objectstack/spec': 4.2.0(ai@6.0.190(zod@4.4.3))
+      '@objectstack/core': 5.2.0(ai@6.0.191(zod@4.4.3))
+      '@objectstack/spec': 5.2.0(ai@6.0.191(zod@4.4.3))
     transitivePeerDependencies:
       - ai
 
-  '@objectstack/service-job@4.2.0(ai@6.0.190(zod@4.4.3))':
+  '@objectstack/service-i18n@5.2.0(ai@6.0.191(zod@4.4.3))':
     dependencies:
-      '@objectstack/core': 4.2.0(ai@6.0.190(zod@4.4.3))
-      '@objectstack/platform-objects': 4.2.0(ai@6.0.190(zod@4.4.3))
-      '@objectstack/spec': 4.2.0(ai@6.0.190(zod@4.4.3))
+      '@objectstack/core': 5.2.0(ai@6.0.191(zod@4.4.3))
+      '@objectstack/spec': 5.2.0(ai@6.0.191(zod@4.4.3))
+    transitivePeerDependencies:
+      - ai
+
+  '@objectstack/service-job@5.2.0(ai@6.0.191(zod@4.4.3))':
+    dependencies:
+      '@objectstack/core': 5.2.0(ai@6.0.191(zod@4.4.3))
+      '@objectstack/platform-objects': 5.2.0(ai@6.0.191(zod@4.4.3))
+      '@objectstack/spec': 5.2.0(ai@6.0.191(zod@4.4.3))
       croner: 9.1.0
     transitivePeerDependencies:
       - ai
 
-  '@objectstack/service-package@4.2.0(ai@6.0.190(zod@4.4.3))':
+  '@objectstack/service-package@5.2.0(ai@6.0.191(zod@4.4.3))':
     dependencies:
-      '@objectstack/core': 4.2.0(ai@6.0.190(zod@4.4.3))
-      '@objectstack/spec': 4.2.0(ai@6.0.190(zod@4.4.3))
+      '@objectstack/core': 5.2.0(ai@6.0.191(zod@4.4.3))
+      '@objectstack/spec': 5.2.0(ai@6.0.191(zod@4.4.3))
     transitivePeerDependencies:
       - ai
 
-  '@objectstack/service-queue@4.2.0(ai@6.0.190(zod@4.4.3))':
+  '@objectstack/service-queue@5.2.0(ai@6.0.191(zod@4.4.3))':
     dependencies:
-      '@objectstack/core': 4.2.0(ai@6.0.190(zod@4.4.3))
-      '@objectstack/platform-objects': 4.2.0(ai@6.0.190(zod@4.4.3))
-      '@objectstack/spec': 4.2.0(ai@6.0.190(zod@4.4.3))
+      '@objectstack/core': 5.2.0(ai@6.0.191(zod@4.4.3))
+      '@objectstack/platform-objects': 5.2.0(ai@6.0.191(zod@4.4.3))
+      '@objectstack/spec': 5.2.0(ai@6.0.191(zod@4.4.3))
     transitivePeerDependencies:
       - ai
 
-  '@objectstack/service-realtime@4.2.0(ai@6.0.190(zod@4.4.3))':
+  '@objectstack/service-realtime@5.2.0(ai@6.0.191(zod@4.4.3))':
     dependencies:
-      '@objectstack/core': 4.2.0(ai@6.0.190(zod@4.4.3))
-      '@objectstack/platform-objects': 4.2.0(ai@6.0.190(zod@4.4.3))
-      '@objectstack/spec': 4.2.0(ai@6.0.190(zod@4.4.3))
+      '@objectstack/core': 5.2.0(ai@6.0.191(zod@4.4.3))
+      '@objectstack/platform-objects': 5.2.0(ai@6.0.191(zod@4.4.3))
+      '@objectstack/spec': 5.2.0(ai@6.0.191(zod@4.4.3))
     transitivePeerDependencies:
       - ai
 
-  '@objectstack/service-settings@4.2.0(ai@6.0.190(zod@4.4.3))':
+  '@objectstack/service-settings@5.2.0(ai@6.0.191(zod@4.4.3))':
     dependencies:
-      '@objectstack/core': 4.2.0(ai@6.0.190(zod@4.4.3))
-      '@objectstack/platform-objects': 4.2.0(ai@6.0.190(zod@4.4.3))
-      '@objectstack/spec': 4.2.0(ai@6.0.190(zod@4.4.3))
+      '@objectstack/core': 5.2.0(ai@6.0.191(zod@4.4.3))
+      '@objectstack/platform-objects': 5.2.0(ai@6.0.191(zod@4.4.3))
+      '@objectstack/spec': 5.2.0(ai@6.0.191(zod@4.4.3))
     transitivePeerDependencies:
       - ai
 
-  '@objectstack/service-storage@4.2.0(ai@6.0.190(zod@4.4.3))':
+  '@objectstack/service-storage@5.2.0(ai@6.0.191(zod@4.4.3))':
     dependencies:
-      '@objectstack/core': 4.2.0(ai@6.0.190(zod@4.4.3))
-      '@objectstack/spec': 4.2.0(ai@6.0.190(zod@4.4.3))
+      '@objectstack/core': 5.2.0(ai@6.0.191(zod@4.4.3))
+      '@objectstack/observability': 5.2.0(ai@6.0.191(zod@4.4.3))
+      '@objectstack/spec': 5.2.0(ai@6.0.191(zod@4.4.3))
     transitivePeerDependencies:
       - ai
-
-  '@objectstack/spec@4.0.5(ai@6.0.190(zod@4.4.3))':
-    dependencies:
-      zod: 4.4.3
-    optionalDependencies:
-      ai: 6.0.190(zod@4.4.3)
-
-  '@objectstack/spec@4.0.5(ai@6.0.191(zod@4.4.3))':
-    dependencies:
-      zod: 4.4.3
-    optionalDependencies:
-      ai: 6.0.191(zod@4.4.3)
-
-  '@objectstack/spec@4.2.0(ai@6.0.190(zod@4.4.3))':
-    dependencies:
-      zod: 4.4.3
-    optionalDependencies:
-      ai: 6.0.190(zod@4.4.3)
 
   '@objectstack/spec@4.2.0(ai@6.0.191(zod@4.4.3))':
     dependencies:
@@ -15008,9 +16461,15 @@ snapshots:
     optionalDependencies:
       ai: 6.0.190(zod@4.4.3)
 
-  '@objectstack/types@4.2.0(ai@6.0.190(zod@4.4.3))':
+  '@objectstack/spec@5.2.0(ai@6.0.191(zod@4.4.3))':
     dependencies:
-      '@objectstack/spec': 4.2.0(ai@6.0.190(zod@4.4.3))
+      zod: 4.4.3
+    optionalDependencies:
+      ai: 6.0.191(zod@4.4.3)
+
+  '@objectstack/types@5.2.0(ai@6.0.191(zod@4.4.3))':
+    dependencies:
+      '@objectstack/spec': 5.2.0(ai@6.0.191(zod@4.4.3))
     transitivePeerDependencies:
       - ai
 
@@ -16838,6 +18297,12 @@ snapshots:
       minimatch: 10.2.5
       path-browserify: 1.0.1
 
+  '@ts-morph/common@0.29.0':
+    dependencies:
+      minimatch: 10.2.5
+      path-browserify: 1.0.1
+      tinyglobby: 0.2.16
+
   '@turbo/darwin-64@2.9.14':
     optional: true
 
@@ -17094,7 +18559,7 @@ snapshots:
 
   '@types/whatwg-mimetype@3.0.2': {}
 
-  '@types/whatwg-url@11.0.5':
+  '@types/whatwg-url@13.0.0':
     dependencies:
       '@types/webidl-conversions': 7.0.3
 
@@ -17860,13 +19325,13 @@ snapshots:
 
   baseline-browser-mapping@2.10.20: {}
 
-  better-auth@1.6.11(@opentelemetry/api@1.9.1)(better-sqlite3@12.9.0)(mongodb@6.21.0)(next@16.2.6(@babel/core@7.29.0)(@opentelemetry/api@1.9.1)(@playwright/test@1.60.0)(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(vitest@4.1.6):
+  better-auth@1.6.11(@opentelemetry/api@1.9.1)(better-sqlite3@12.9.0)(mongodb@7.2.0)(next@16.2.6(@babel/core@7.29.0)(@opentelemetry/api@1.9.1)(@playwright/test@1.60.0)(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(vitest@4.1.6):
     dependencies:
       '@better-auth/core': 1.6.11(@better-auth/utils@0.4.0)(@better-fetch/fetch@1.1.21)(@opentelemetry/api@1.9.1)(better-call@1.3.5(zod@4.4.3))(jose@6.2.3)(kysely@0.28.17)(nanostores@1.3.0)
       '@better-auth/drizzle-adapter': 1.6.11(@better-auth/core@1.6.11(@better-auth/utils@0.4.0)(@better-fetch/fetch@1.1.21)(@opentelemetry/api@1.9.1)(better-call@1.3.5(zod@4.4.3))(jose@6.2.3)(kysely@0.28.17)(nanostores@1.3.0))(@better-auth/utils@0.4.0)
       '@better-auth/kysely-adapter': 1.6.11(@better-auth/core@1.6.11(@better-auth/utils@0.4.0)(@better-fetch/fetch@1.1.21)(@opentelemetry/api@1.9.1)(better-call@1.3.5(zod@4.4.3))(jose@6.2.3)(kysely@0.28.17)(nanostores@1.3.0))(@better-auth/utils@0.4.0)(kysely@0.28.17)
       '@better-auth/memory-adapter': 1.6.11(@better-auth/core@1.6.11(@better-auth/utils@0.4.0)(@better-fetch/fetch@1.1.21)(@opentelemetry/api@1.9.1)(better-call@1.3.5(zod@4.4.3))(jose@6.2.3)(kysely@0.28.17)(nanostores@1.3.0))(@better-auth/utils@0.4.0)
-      '@better-auth/mongo-adapter': 1.6.11(@better-auth/core@1.6.11(@better-auth/utils@0.4.0)(@better-fetch/fetch@1.1.21)(@opentelemetry/api@1.9.1)(better-call@1.3.5(zod@4.4.3))(jose@6.2.3)(kysely@0.28.17)(nanostores@1.3.0))(@better-auth/utils@0.4.0)(mongodb@6.21.0)
+      '@better-auth/mongo-adapter': 1.6.11(@better-auth/core@1.6.11(@better-auth/utils@0.4.0)(@better-fetch/fetch@1.1.21)(@opentelemetry/api@1.9.1)(better-call@1.3.5(zod@4.4.3))(jose@6.2.3)(kysely@0.28.17)(nanostores@1.3.0))(@better-auth/utils@0.4.0)(mongodb@7.2.0)
       '@better-auth/prisma-adapter': 1.6.11(@better-auth/core@1.6.11(@better-auth/utils@0.4.0)(@better-fetch/fetch@1.1.21)(@opentelemetry/api@1.9.1)(better-call@1.3.5(zod@4.4.3))(jose@6.2.3)(kysely@0.28.17)(nanostores@1.3.0))(@better-auth/utils@0.4.0)
       '@better-auth/telemetry': 1.6.11(@better-auth/core@1.6.11(@better-auth/utils@0.4.0)(@better-fetch/fetch@1.1.21)(@opentelemetry/api@1.9.1)(better-call@1.3.5(zod@4.4.3))(jose@6.2.3)(kysely@0.28.17)(nanostores@1.3.0))(@better-auth/utils@0.4.0)(@better-fetch/fetch@1.1.21)
       '@better-auth/utils': 0.4.0
@@ -17881,11 +19346,41 @@ snapshots:
       zod: 4.4.3
     optionalDependencies:
       better-sqlite3: 12.9.0
-      mongodb: 6.21.0
+      mongodb: 7.2.0
       next: 16.2.6(@babel/core@7.29.0)(@opentelemetry/api@1.9.1)(@playwright/test@1.60.0)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
       react: 19.2.6
       react-dom: 19.2.6(react@19.2.6)
       vitest: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.9.0)(@vitest/coverage-v8@4.1.6)(@vitest/ui@4.1.6)(happy-dom@20.9.0)(jsdom@29.1.1(@noble/hashes@2.2.0))(msw@2.14.6(@types/node@25.9.0)(typescript@6.0.3))(vite@8.0.14(@types/node@25.9.0)(esbuild@0.28.0)(jiti@2.7.0)(tsx@4.22.3)(yaml@2.9.0))
+    transitivePeerDependencies:
+      - '@cloudflare/workers-types'
+      - '@opentelemetry/api'
+
+  better-auth@1.6.11(@opentelemetry/api@1.9.1)(better-sqlite3@12.9.0)(mongodb@7.2.0)(next@16.2.6(@babel/core@7.29.0)(@opentelemetry/api@1.9.1)(@playwright/test@1.60.0)(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(vitest@4.1.7):
+    dependencies:
+      '@better-auth/core': 1.6.11(@better-auth/utils@0.4.0)(@better-fetch/fetch@1.1.21)(@opentelemetry/api@1.9.1)(better-call@1.3.5(zod@4.4.3))(jose@6.2.3)(kysely@0.28.17)(nanostores@1.3.0)
+      '@better-auth/drizzle-adapter': 1.6.11(@better-auth/core@1.6.11(@better-auth/utils@0.4.0)(@better-fetch/fetch@1.1.21)(@opentelemetry/api@1.9.1)(better-call@1.3.5(zod@4.4.3))(jose@6.2.3)(kysely@0.28.17)(nanostores@1.3.0))(@better-auth/utils@0.4.0)
+      '@better-auth/kysely-adapter': 1.6.11(@better-auth/core@1.6.11(@better-auth/utils@0.4.0)(@better-fetch/fetch@1.1.21)(@opentelemetry/api@1.9.1)(better-call@1.3.5(zod@4.4.3))(jose@6.2.3)(kysely@0.28.17)(nanostores@1.3.0))(@better-auth/utils@0.4.0)(kysely@0.28.17)
+      '@better-auth/memory-adapter': 1.6.11(@better-auth/core@1.6.11(@better-auth/utils@0.4.0)(@better-fetch/fetch@1.1.21)(@opentelemetry/api@1.9.1)(better-call@1.3.5(zod@4.4.3))(jose@6.2.3)(kysely@0.28.17)(nanostores@1.3.0))(@better-auth/utils@0.4.0)
+      '@better-auth/mongo-adapter': 1.6.11(@better-auth/core@1.6.11(@better-auth/utils@0.4.0)(@better-fetch/fetch@1.1.21)(@opentelemetry/api@1.9.1)(better-call@1.3.5(zod@4.4.3))(jose@6.2.3)(kysely@0.28.17)(nanostores@1.3.0))(@better-auth/utils@0.4.0)(mongodb@7.2.0)
+      '@better-auth/prisma-adapter': 1.6.11(@better-auth/core@1.6.11(@better-auth/utils@0.4.0)(@better-fetch/fetch@1.1.21)(@opentelemetry/api@1.9.1)(better-call@1.3.5(zod@4.4.3))(jose@6.2.3)(kysely@0.28.17)(nanostores@1.3.0))(@better-auth/utils@0.4.0)
+      '@better-auth/telemetry': 1.6.11(@better-auth/core@1.6.11(@better-auth/utils@0.4.0)(@better-fetch/fetch@1.1.21)(@opentelemetry/api@1.9.1)(better-call@1.3.5(zod@4.4.3))(jose@6.2.3)(kysely@0.28.17)(nanostores@1.3.0))(@better-auth/utils@0.4.0)(@better-fetch/fetch@1.1.21)
+      '@better-auth/utils': 0.4.0
+      '@better-fetch/fetch': 1.1.21
+      '@noble/ciphers': 2.2.0
+      '@noble/hashes': 2.2.0
+      better-call: 1.3.5(zod@4.4.3)
+      defu: 6.1.7
+      jose: 6.2.3
+      kysely: 0.28.17
+      nanostores: 1.3.0
+      zod: 4.4.3
+    optionalDependencies:
+      better-sqlite3: 12.9.0
+      mongodb: 7.2.0
+      next: 16.2.6(@babel/core@7.29.0)(@opentelemetry/api@1.9.1)(@playwright/test@1.60.0)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
+      react: 19.2.6
+      react-dom: 19.2.6(react@19.2.6)
+      vitest: 4.1.7(@opentelemetry/api@1.9.1)(@types/node@25.9.0)(@vitest/coverage-v8@4.1.7)(@vitest/ui@4.1.6)(happy-dom@20.9.0)(jsdom@29.1.1(@noble/hashes@2.2.0))(msw@2.14.6(@types/node@25.9.0)(typescript@6.0.3))(vite@8.0.14(@types/node@25.9.0)(esbuild@0.28.0)(jiti@2.7.0)(tsx@4.22.3)(yaml@2.9.0))
     transitivePeerDependencies:
       - '@cloudflare/workers-types'
       - '@opentelemetry/api'
@@ -17999,7 +19494,7 @@ snapshots:
     dependencies:
       node-int64: 0.4.0
 
-  bson@6.10.4: {}
+  bson@7.2.0: {}
 
   buffer-crc32@0.2.13: {}
 
@@ -19704,7 +21199,7 @@ snapshots:
 
   hono@4.12.18: {}
 
-  hono@4.12.21: {}
+  hono@4.12.22: {}
 
   hosted-git-info@4.1.0:
     dependencies:
@@ -21325,16 +22820,16 @@ snapshots:
       dompurify: 3.4.5
       marked: 14.0.0
 
-  mongodb-connection-string-url@3.0.2:
+  mongodb-connection-string-url@7.0.1:
     dependencies:
-      '@types/whatwg-url': 11.0.5
+      '@types/whatwg-url': 13.0.0
       whatwg-url: 14.2.0
 
-  mongodb@6.21.0:
+  mongodb@7.2.0:
     dependencies:
       '@mongodb-js/saslprep': 1.4.11
-      bson: 6.10.4
-      mongodb-connection-string-url: 3.0.2
+      bson: 7.2.0
+      mongodb-connection-string-url: 7.0.1
 
   motion-dom@12.38.0:
     dependencies:
@@ -23172,6 +24667,11 @@ snapshots:
   ts-morph@26.0.0:
     dependencies:
       '@ts-morph/common': 0.27.0
+      code-block-writer: 13.0.3
+
+  ts-morph@28.0.0:
+    dependencies:
+      '@ts-morph/common': 0.29.0
       code-block-writer: 13.0.3
 
   tsconfig-paths@4.2.0:
