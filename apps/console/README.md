@@ -35,10 +35,37 @@ pnpm test
 
 - **`@object-ui/dev-server`** on `http://localhost:3000` — a thin
   `@objectstack/cli` shell with fixture metadata under `apps/dev-server/`.
-- **`@object-ui/console`** (Vite) on `http://localhost:5173` — pre-wired
+  Bundles `@objectstack/account` so `/_account/*` (login, setup,
+  org self-service) is mounted on the same origin.
+- **`@object-ui/console`** (Vite) on `http://localhost:5180` — pre-wired
   via `.env.development` (`VITE_SERVER_URL=http://localhost:3000`).
+  Vite proxies `/api/*` and `/_account/*` to `:3000`.
 
 You can also run them independently with `pnpm dev:server` and `pnpm dev`.
+
+### First-time setup
+
+On a fresh checkout the in-repo SQLite database (`apps/dev-server/.objectstack/data/standalone.db`)
+is empty. After `pnpm dev:full` opens the SPA:
+
+1. The console redirects to `/_account/setup` automatically.
+2. Create the owner account (e.g. `admin@dev.local` / `password123`).
+3. You are logged in and dropped at `/home`.
+
+Reset by deleting `apps/dev-server/.objectstack/` and restarting.
+
+### Environment knobs
+
+The `dev` script in `apps/dev-server/package.json` sets safe defaults
+that you can override by exporting your own values before
+`pnpm dev:full`:
+
+| Variable | Default | Purpose |
+| --- | --- | --- |
+| `AUTH_SECRET` | `dev-secret-…` | Required by `plugin-auth` outside `--dev` mode. **Never** ship the default to production. |
+| `OS_TRUSTED_ORIGINS` | `http://localhost:*` | Lets better-auth accept the Vite origin (`:5180`). |
+| `OS_DISABLE_STUDIO` | `1` | Skip mounting `/_studio/` (irrelevant for console debugging). |
+| `OS_DISABLE_CONSOLE` | `1` | Skip cli-bundled `/_console/` — the SPA under test runs via Vite. |
 
 ## Running Modes
 
@@ -48,7 +75,7 @@ The console supports two running modes:
 **Command:** `pnpm dev:full` (or `pnpm dev` if a backend is already up)
 
 - Vite dev server with Hot Module Replacement (HMR), opens at
-  http://localhost:5173.
+  http://localhost:5180.
 - Talks to the **in-repo** ObjectStack backend at
   http://localhost:3000 (`apps/dev-server`). No external repository
   required.
