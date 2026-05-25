@@ -22,9 +22,35 @@ import {
   Badge,
   Alert,
   AlertDescription,
+  AlertTitle,
 } from '@object-ui/components';
 import { useUpload } from '@object-ui/providers';
-import { CheckCircle2, AlertCircle, User, Lock, Upload, Loader2, X } from 'lucide-react';
+import { CheckCircle2, AlertCircle, User, Lock, Upload, Loader2, X, ShieldAlert } from 'lucide-react';
+
+/**
+ * `?recovery_needed=true` is set by the cloud `sso_as_owner` redirect when
+ * the SSO-handoff lands a user that has no `credential` account on this
+ * environment yet. We surface a prominent banner + scroll to the password
+ * card so the operator can set a disaster-recovery local password before
+ * the SSO bridge becomes unreachable. See `auth-proxy-plugin.ts` →
+ * `sso-exchange` for the upstream redirect logic.
+ */
+function useRecoveryNeededFlag(): { recoveryNeeded: boolean; clear: () => void } {
+  const [recoveryNeeded, setRecoveryNeeded] = useState(false);
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    setRecoveryNeeded(params.get('recovery_needed') === 'true');
+  }, []);
+  const clear = () => {
+    if (typeof window === 'undefined') return;
+    const url = new URL(window.location.href);
+    url.searchParams.delete('recovery_needed');
+    window.history.replaceState({}, '', url.toString());
+    setRecoveryNeeded(false);
+  };
+  return { recoveryNeeded, clear };
+}
 
 export function ProfilePage() {
   const { user, updateUser, isLoading, changePassword, setInitialPassword, hasLocalPassword } = useAuth();
@@ -35,6 +61,18 @@ export function ProfilePage() {
   const avatarInputRef = useRef<HTMLInputElement>(null);
   const [avatarUploading, setAvatarUploading] = useState(false);
   const [avatarError, setAvatarError] = useState<string | null>(null);
+  const passwordCardRef = useRef<HTMLDivElement>(null);
+  const { recoveryNeeded, clear: clearRecoveryFlag } = useRecoveryNeededFlag();
+
+  // When the SSO-handoff dropped us here, jump straight to the password
+  // section so the operator can finish the recovery flow in one motion.
+  useEffect(() => {
+    if (!recoveryNeeded) return;
+    const t = setTimeout(() => {
+      passwordCardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 200);
+    return () => clearTimeout(t);
+  }, [recoveryNeeded]);
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -85,6 +123,22 @@ export function ProfilePage() {
         <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Profile</h1>
         <p className="text-sm text-muted-foreground mt-1">Manage your account settings</p>
       </div>
+
+      {recoveryNeeded && (
+        <Alert
+          variant="default"
+          className="border-amber-300 bg-amber-50 text-amber-900 dark:border-amber-700 dark:bg-amber-950/40 dark:text-amber-200"
+          data-testid="profile-recovery-banner"
+        >
+          <ShieldAlert className="h-4 w-4" />
+          <AlertTitle>Set a recovery password</AlertTitle>
+          <AlertDescription>
+            You signed in via single sign-on from the control plane. Set a local password
+            below so you can still sign in to this environment directly if SSO ever becomes
+            unavailable.
+          </AlertDescription>
+        </Alert>
+      )}
 
       {/* Avatar & Identity */}
       <Card>
@@ -218,11 +272,15 @@ export function ProfilePage() {
       </Card>
 
       {/* Password Change */}
-      <PasswordCard
-        changePassword={changePassword}
-        setInitialPassword={setInitialPassword}
-        hasLocalPassword={hasLocalPassword}
-      />
+      <div ref={passwordCardRef}>
+        <PasswordCard
+          changePassword={changePassword}
+          setInitialPassword={setInitialPassword}
+          hasLocalPassword={hasLocalPassword}
+          highlight={recoveryNeeded}
+          onPasswordSet={clearRecoveryFlag}
+        />
+      </div>
     </div>
   );
 }
@@ -231,9 +289,11 @@ interface PasswordCardProps {
   changePassword: (currentPassword: string, newPassword: string) => Promise<void>;
   setInitialPassword: (newPassword: string) => Promise<void>;
   hasLocalPassword: () => Promise<boolean>;
+  highlight?: boolean;
+  onPasswordSet?: () => void;
 }
 
-function PasswordCard({ changePassword, setInitialPassword, hasLocalPassword }: PasswordCardProps) {
+function PasswordCard({ changePassword, setInitialPassword, hasLocalPassword, highlight, onPasswordSet }: PasswordCardProps) {
   const [hasPassword, setHasPassword] = useState<boolean | null>(null);
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
@@ -284,6 +344,7 @@ function PasswordCard({ changePassword, setInitialPassword, hasLocalPassword }: 
         await setInitialPassword(newPassword);
         setSuccess('Local password set. You can now sign in with email and password on this environment.');
         setHasPassword(true);
+        onPasswordSet?.();
       }
       reset();
     } catch (err) {
@@ -297,7 +358,7 @@ function PasswordCard({ changePassword, setInitialPassword, hasLocalPassword }: 
   const initializing = hasPassword === null;
 
   return (
-    <Card>
+    <Card className={highlight ? 'ring-2 ring-amber-300 dark:ring-amber-700' : undefined}>
       <CardHeader>
         <div className="flex items-center gap-2">
           <Lock className="h-4 w-4 text-muted-foreground" />
