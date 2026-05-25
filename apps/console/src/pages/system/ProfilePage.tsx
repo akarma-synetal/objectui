@@ -5,7 +5,7 @@
  * change their password, and manage account settings.
  */
 
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useAuth, getUserInitials } from '@object-ui/auth';
 import {
   Button,
@@ -27,7 +27,7 @@ import { useUpload } from '@object-ui/providers';
 import { CheckCircle2, AlertCircle, User, Lock, Upload, Loader2, X } from 'lucide-react';
 
 export function ProfilePage() {
-  const { user, updateUser, isLoading } = useAuth();
+  const { user, updateUser, isLoading, changePassword, setInitialPassword, hasLocalPassword } = useAuth();
   const { upload } = useUpload();
   const [name, setName] = useState(user?.name ?? '');
   const [saved, setSaved] = useState(false);
@@ -218,17 +218,160 @@ export function ProfilePage() {
       </Card>
 
       {/* Password Change */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center gap-2">
-            <Lock className="h-4 w-4 text-muted-foreground" />
-            <CardTitle className="text-base sm:text-lg">Change Password</CardTitle>
-          </div>
-          <CardDescription>
-            To change your password, use the password reset flow from the login page.
-          </CardDescription>
-        </CardHeader>
-      </Card>
+      <PasswordCard
+        changePassword={changePassword}
+        setInitialPassword={setInitialPassword}
+        hasLocalPassword={hasLocalPassword}
+      />
     </div>
+  );
+}
+
+interface PasswordCardProps {
+  changePassword: (currentPassword: string, newPassword: string) => Promise<void>;
+  setInitialPassword: (newPassword: string) => Promise<void>;
+  hasLocalPassword: () => Promise<boolean>;
+}
+
+function PasswordCard({ changePassword, setInitialPassword, hasLocalPassword }: PasswordCardProps) {
+  const [hasPassword, setHasPassword] = useState<boolean | null>(null);
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    hasLocalPassword()
+      .then((value) => { if (!cancelled) setHasPassword(value); })
+      .catch(() => { if (!cancelled) setHasPassword(false); });
+    return () => { cancelled = true; };
+  }, [hasLocalPassword]);
+
+  const reset = () => {
+    setCurrentPassword('');
+    setNewPassword('');
+    setConfirmPassword('');
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    setSuccess(null);
+
+    if (newPassword.length < 8) {
+      setError('Password must be at least 8 characters');
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setError('Passwords do not match');
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      if (hasPassword) {
+        if (!currentPassword) {
+          setError('Enter your current password');
+          setSubmitting(false);
+          return;
+        }
+        await changePassword(currentPassword, newPassword);
+        setSuccess('Password changed.');
+      } else {
+        await setInitialPassword(newPassword);
+        setSuccess('Local password set. You can now sign in with email and password on this environment.');
+        setHasPassword(true);
+      }
+      reset();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  // Loading state — keep the card visible to avoid layout shift.
+  const initializing = hasPassword === null;
+
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex items-center gap-2">
+          <Lock className="h-4 w-4 text-muted-foreground" />
+          <CardTitle className="text-base sm:text-lg">
+            {hasPassword ? 'Change Password' : 'Set Local Password'}
+          </CardTitle>
+        </div>
+        <CardDescription>
+          {hasPassword
+            ? 'Update the password you use to sign in to this environment.'
+            : 'You signed in via single sign-on. Set a local password to also sign in with email and password on this environment.'}
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <form onSubmit={handleSubmit} className="space-y-4 max-w-md">
+          {hasPassword && (
+            <div className="space-y-2">
+              <Label htmlFor="current-password">Current password</Label>
+              <Input
+                id="current-password"
+                type="password"
+                autoComplete="current-password"
+                value={currentPassword}
+                onChange={(e) => setCurrentPassword(e.target.value)}
+                disabled={submitting || initializing}
+                required
+              />
+            </div>
+          )}
+          <div className="space-y-2">
+            <Label htmlFor="new-password">{hasPassword ? 'New password' : 'Password'}</Label>
+            <Input
+              id="new-password"
+              type="password"
+              autoComplete="new-password"
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              disabled={submitting || initializing}
+              minLength={8}
+              required
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="confirm-password">Confirm password</Label>
+            <Input
+              id="confirm-password"
+              type="password"
+              autoComplete="new-password"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              disabled={submitting || initializing}
+              minLength={8}
+              required
+            />
+          </div>
+
+          {error && (
+            <Alert variant="destructive">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
+          {success && (
+            <Alert>
+              <CheckCircle2 className="h-4 w-4" />
+              <AlertDescription>{success}</AlertDescription>
+            </Alert>
+          )}
+
+          <Button type="submit" disabled={submitting || initializing} className="w-full sm:w-auto">
+            {submitting ? 'Saving…' : hasPassword ? 'Change password' : 'Set password'}
+          </Button>
+        </form>
+      </CardContent>
+    </Card>
   );
 }

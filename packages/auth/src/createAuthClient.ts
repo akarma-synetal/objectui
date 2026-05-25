@@ -215,6 +215,66 @@ export function createAuthClient(config: AuthClientConfig): AuthClient {
       }
     },
 
+    async changePassword(currentPassword: string, newPassword: string, options?: { revokeOtherSessions?: boolean }) {
+      // better-auth exposes /change-password under the bound client as
+      // `changePassword`. The runtime method exists but its TS type is
+      // sometimes missing depending on plugin order; cast through unknown.
+      type ChangePwFn = (opts: { currentPassword: string; newPassword: string; revokeOtherSessions?: boolean }) =>
+        Promise<{ error: { message?: string; status: number } | null }>;
+      const fn = (betterAuth as unknown as { changePassword: ChangePwFn }).changePassword;
+      if (typeof fn !== 'function') {
+        throw new Error('change-password is not available on this auth backend');
+      }
+      const { error } = await fn({
+        currentPassword,
+        newPassword,
+        ...(options?.revokeOtherSessions != null ? { revokeOtherSessions: options.revokeOtherSessions } : {}),
+      });
+      if (error) {
+        throw new Error(error.message ?? `Auth request failed with status ${error.status}`);
+      }
+    },
+
+    async setInitialPassword(newPassword: string) {
+      // Custom route registered by AuthPlugin (framework). Used by users
+      // who came in via SSO and have no credential account yet — server
+      // refuses with credential_account_exists (409) if one is already set,
+      // pushing the caller to changePassword instead.
+      const url = `${origin}${basePath}/set-initial-password`;
+      const response = await bearerFetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ newPassword }),
+      });
+      if (!response.ok) {
+        let message = `Set password failed with status ${response.status}`;
+        try {
+          const body = (await response.json()) as { error?: { message?: string; code?: string } };
+          if (body?.error?.message) message = body.error.message;
+        } catch { /* not JSON */ }
+        throw new Error(message);
+      }
+    },
+
+    async hasLocalPassword() {
+      // /list-accounts is provided by better-auth and returns the linked
+      // accounts for the authenticated user. We treat the presence of any
+      // providerId === 'credential' entry as "has a local password".
+      const url = `${origin}${basePath}/list-accounts`;
+      try {
+        const response = await bearerFetch(url, {
+          method: 'GET',
+          headers: { 'Content-Type': 'application/json' },
+        });
+        if (!response.ok) return false;
+        const body = (await response.json()) as Array<{ providerId?: string }> | { data?: Array<{ providerId?: string }> } | null;
+        const list = Array.isArray(body) ? body : (body && 'data' in body && Array.isArray((body as any).data) ? (body as any).data : []);
+        return (list as Array<{ providerId?: string }>).some((a) => a?.providerId === 'credential');
+      } catch {
+        return false;
+      }
+    },
+
     async updateUser(userData: Partial<AuthUser>) {
       const { data, error } = await betterAuth.updateUser(userData);
       if (error) {

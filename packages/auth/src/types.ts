@@ -146,6 +146,12 @@ export interface AuthClient {
   forgotPassword: (email: string) => Promise<void>;
   /** Reset password with token */
   resetPassword: (token: string, newPassword: string) => Promise<void>;
+  /** Change password (requires current password). For users who already have a local password. */
+  changePassword: (currentPassword: string, newPassword: string, options?: { revokeOtherSessions?: boolean }) => Promise<void>;
+  /** Set an INITIAL local password for SSO-onboarded users with no credential account. */
+  setInitialPassword: (newPassword: string) => Promise<void>;
+  /** Whether the current user has a local credential password configured. */
+  hasLocalPassword: () => Promise<boolean>;
   /** Update user profile */
   updateUser: (data: Partial<AuthUser>) => Promise<AuthUser>;
 

@@ -258,6 +258,39 @@ export function AuthProvider({
     [client],
   );
 
+  const changePassword = useCallback(
+    async (currentPassword: string, newPassword: string, options?: { revokeOtherSessions?: boolean }) => {
+      setError(null);
+      try {
+        await client.changePassword(currentPassword, newPassword, options);
+      } catch (err) {
+        const authError = err instanceof Error ? err : new Error(String(err));
+        setError(authError);
+        throw authError;
+      }
+    },
+    [client],
+  );
+
+  const setInitialPassword = useCallback(
+    async (newPassword: string) => {
+      setError(null);
+      try {
+        await client.setInitialPassword(newPassword);
+      } catch (err) {
+        const authError = err instanceof Error ? err : new Error(String(err));
+        setError(authError);
+        throw authError;
+      }
+    },
+    [client],
+  );
+
+  const hasLocalPassword = useCallback(
+    (): Promise<boolean> => client.hasLocalPassword(),
+    [client],
+  );
+
   const getAuthConfig = useCallback(
     (): Promise<AuthPublicConfig> => client.getConfig(),
     [client],
@@ -495,6 +528,9 @@ export function AuthProvider({
       updateUser,
       forgotPassword,
       resetPassword,
+      changePassword,
+      setInitialPassword,
+      hasLocalPassword,
       getAuthConfig,
       signInWithProvider,
       organizations,
@@ -520,7 +556,7 @@ export function AuthProvider({
     }),
     [
       user, session, isAuthenticated, isAuthEnabled, isLoading, error, isPreviewMode, previewMode,
-      signIn, signUp, signOut, updateUser, forgotPassword, resetPassword, getAuthConfig, signInWithProvider,
+      signIn, signUp, signOut, updateUser, forgotPassword, resetPassword, changePassword, setInitialPassword, hasLocalPassword, getAuthConfig, signInWithProvider,
       organizations, activeOrganization, activeMember, isOrganizationsLoading, switchOrganization, createOrganization, refreshOrganizations,
       updateOrganization, deleteOrganization, leaveOrganization,
       getMembers, inviteMember, removeMember, updateMemberRole,

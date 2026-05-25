@@ -1,9 +1,8 @@
 // Copyright (c) 2025 ObjectStack. Licensed under the Apache-2.0 license.
 
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useMemo, useCallback, useState } from 'react';
 import { useChat } from '@ai-sdk/react';
 import { DefaultChatTransport } from 'ai';
-import type { UIMessage } from 'ai';
 import { Bot, X, Trash2, Loader2, ShieldAlert } from 'lucide-react';
 import {
   ChatbotEnhanced,
@@ -17,11 +16,9 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
-import {
-  useAiChatPanel,
-  loadMessages,
-  saveMessages,
-} from '@/hooks/use-ai-chat-panel';
+import { useAiChatPanel } from '@/hooks/use-ai-chat-panel';
+import { useChatConversation } from '@/hooks/use-chat-conversation';
+import { useSession } from '@/hooks/useSession';
 import { useAssistantContext } from '@/hooks/use-assistant-context';
 import {
   useAssistantResolution,
@@ -94,7 +91,13 @@ export function AiChatPanel() {
     loading: assistantLoading,
   } = useAssistantResolution(context);
 
-  const initialMessages = useMemo(() => loadMessages() as UIMessage[], []);
+  const { user } = useSession();
+  const {
+    conversationId,
+    initialMessages,
+    isLoading: convoLoading,
+    reset,
+  } = useChatConversation({ userId: user?.id });
 
   const transport = useMemo(
     () =>
@@ -107,11 +110,12 @@ export function AiChatPanel() {
             messages,
             context,
             agent: STUDIO_AGENT,
+            ...(conversationId ? { conversationId } : {}),
             ...(skillOverride ? { skill: skillOverride } : {}),
           },
         }),
       }),
-    [baseUrl, context, skillOverride],
+    [baseUrl, context, conversationId, skillOverride],
   );
 
   const {
@@ -130,20 +134,15 @@ export function AiChatPanel() {
 
   const isStreaming = status === 'streaming' || status === 'submitted';
 
-  // Persist messages to localStorage whenever they change.
-  useEffect(() => {
-    if (messages.length > 0) saveMessages(messages);
-  }, [messages]);
-
   const chatMessages = useMemo(
     () => uiMessagesToChatMessages(messages, { isStreaming }),
     [messages, isStreaming],
   );
 
-  const clearHistory = useCallback(() => {
+  const clearHistory = useCallback(async () => {
+    await reset();
     setMessages([]);
-    saveMessages([]);
-  }, [setMessages]);
+  }, [reset, setMessages]);
 
   const clearSkillOverride = useCallback(() => {
     setSkillOverride(null);

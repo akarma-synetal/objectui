@@ -43,6 +43,20 @@ export interface AuthContextValue {
   forgotPassword: (email: string) => Promise<void>;
   /** Reset password with token */
   resetPassword: (token: string, newPassword: string) => Promise<void>;
+  /**
+   * Change the local (email/password) password. Requires the current
+   * password. Use this when `hasLocalPassword()` returns true.
+   */
+  changePassword: (currentPassword: string, newPassword: string, options?: { revokeOtherSessions?: boolean }) => Promise<void>;
+  /**
+   * Set an INITIAL local password for an SSO-onboarded user that has no
+   * credential account yet. Refuses if a password already exists — call
+   * `changePassword` in that case. Use after `hasLocalPassword()` returns
+   * false.
+   */
+  setInitialPassword: (newPassword: string) => Promise<void>;
+  /** Whether the current user has a local (credential) password set. */
+  hasLocalPassword: () => Promise<boolean>;
   /** Fetch the public auth configuration (providers, features) */
   getAuthConfig: () => Promise<AuthPublicConfig>;
   /** Initiate sign-in with a third-party provider (Google, GitHub, OIDC, etc.) */
