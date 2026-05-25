@@ -17,7 +17,10 @@ import {
 } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import { useAiChatPanel } from '@/hooks/use-ai-chat-panel';
-import { useChatConversation } from '@/hooks/use-chat-conversation';
+import {
+  useChatConversation,
+  type HydratedUIMessage,
+} from '@/hooks/use-chat-conversation';
 import { useSession } from '@/hooks/useSession';
 import { useAssistantContext } from '@/hooks/use-assistant-context';
 import {
@@ -80,6 +83,91 @@ function parseSlashCommand(text: string): { skill: string; rest: string } | null
 
 export function AiChatPanel() {
   const { isOpen, setOpen } = useAiChatPanel();
+  const { user } = useSession();
+  const {
+    conversationId,
+    initialMessages,
+    isLoading: convoLoading,
+    reset,
+  } = useChatConversation({ userId: user?.id });
+
+  if (!isOpen) return null;
+
+  return (
+    <aside
+      data-testid="ai-chat-panel"
+      className={cn(
+        'fixed right-0 top-0 z-50 h-full',
+        'flex flex-col border-l border-border',
+        'bg-background shadow-xl',
+        'animate-in slide-in-from-right duration-200',
+      )}
+      style={{ width: PANEL_WIDTH }}
+    >
+      <PanelHeader onClose={() => setOpen(false)} onClear={reset} />
+      {convoLoading || !conversationId ? (
+        <div className="flex flex-1 items-center justify-center text-xs text-muted-foreground">
+          <Loader2 className="mr-2 h-3 w-3 animate-spin" />
+          Loading chat history…
+        </div>
+      ) : (
+        <AiChatPanelBody
+          key={conversationId}
+          conversationId={conversationId}
+          initialMessages={initialMessages}
+          reset={reset}
+        />
+      )}
+    </aside>
+  );
+}
+
+function PanelHeader({ onClose, onClear }: { onClose: () => void; onClear: () => Promise<void> }) {
+  return (
+    <div className="shrink-0 border-b">
+      <div className="flex h-12 items-center justify-between px-3">
+        <div className="flex items-center gap-2 text-sm font-semibold">
+          <Bot className="h-4 w-4 text-primary" />
+          AI Chat
+        </div>
+        <div className="flex items-center gap-1">
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7"
+                  onClick={() => {
+                    void onClear();
+                  }}
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                  <span className="sr-only">Clear chat</span>
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Clear history</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onClose}>
+            <X className="h-4 w-4" />
+            <span className="sr-only">Close</span>
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+interface AiChatPanelBodyProps {
+  conversationId: string;
+  initialMessages: HydratedUIMessage[];
+  reset: () => Promise<void>;
+}
+
+function AiChatPanelBody({ conversationId, initialMessages }: AiChatPanelBodyProps) {
   const [skillOverride, setSkillOverride] = useState<string | null>(loadSkillOverride);
   const [palettePrefix, setPalettePrefix] = useState<string | null>(null);
   const baseUrl = getApiBaseUrl();
@@ -90,14 +178,6 @@ export function AiChatPanel() {
     skills: activeSkills,
     loading: assistantLoading,
   } = useAssistantResolution(context);
-
-  const { user } = useSession();
-  const {
-    conversationId,
-    initialMessages,
-    isLoading: convoLoading,
-    reset,
-  } = useChatConversation({ userId: user?.id });
 
   const transport = useMemo(
     () =>
@@ -121,7 +201,6 @@ export function AiChatPanel() {
   const {
     messages,
     sendMessage,
-    setMessages,
     status,
     error,
     addToolApprovalResponse,
@@ -135,14 +214,12 @@ export function AiChatPanel() {
   const isStreaming = status === 'streaming' || status === 'submitted';
 
   const chatMessages = useMemo(
-    () => uiMessagesToChatMessages(messages, { isStreaming }),
+    () => uiMessagesToChatMessages(
+      messages as unknown as Parameters<typeof uiMessagesToChatMessages>[0],
+      { isStreaming },
+    ),
     [messages, isStreaming],
   );
-
-  const clearHistory = useCallback(async () => {
-    await reset();
-    setMessages([]);
-  }, [reset, setMessages]);
 
   const clearSkillOverride = useCallback(() => {
     setSkillOverride(null);
@@ -195,8 +272,6 @@ export function AiChatPanel() {
         s.label.toLowerCase().includes(palettePrefix),
     );
   }, [activeSkills, palettePrefix]);
-
-  if (!isOpen) return null;
 
   // ── Assistant status row → headerSlot ──
   const headerSlot = (
@@ -278,72 +353,21 @@ export function AiChatPanel() {
     ) : null;
 
   return (
-    <aside
-      data-testid="ai-chat-panel"
-      className={cn(
-        'fixed right-0 top-0 z-50 h-full',
-        'flex flex-col border-l border-border',
-        'bg-background shadow-xl',
-        'animate-in slide-in-from-right duration-200',
-      )}
-      style={{ width: PANEL_WIDTH }}
-    >
-      {/* ── Header (Studio-owned: positioning + close button) ── */}
-      <div className="shrink-0 border-b">
-        <div className="flex h-12 items-center justify-between px-3">
-          <div className="flex items-center gap-2 text-sm font-semibold">
-            <Bot className="h-4 w-4 text-primary" />
-            AI Chat
-          </div>
-          <div className="flex items-center gap-1">
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-7 w-7"
-                    onClick={clearHistory}
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                    <span className="sr-only">Clear chat</span>
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>Clear history</p>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-7 w-7"
-              onClick={() => setOpen(false)}
-            >
-              <X className="h-4 w-4" />
-              <span className="sr-only">Close</span>
-            </Button>
-          </div>
-        </div>
-      </div>
-
-      {/* ── Shared composition layer over AI Elements ── */}
-      <ChatbotEnhanced
-        className="flex-1 min-h-0 border-none"
-        messages={chatMessages}
-        placeholder={
-          skillOverride ? `Ask /${skillOverride}…` : 'Ask AI… (type / for skills)'
-        }
-        headerSlot={headerSlot}
-        promptOverlaySlot={promptOverlaySlot}
-        onSendMessage={handleSend}
-        onInputChange={handleInputChange}
-        onToolApprove={handleToolApprove}
-        onStop={() => stop()}
-        onReload={() => regenerate()}
-        isLoading={isStreaming}
-        error={error ?? undefined}
-      />
-    </aside>
+    <ChatbotEnhanced
+      className="flex-1 min-h-0 border-none"
+      messages={chatMessages}
+      placeholder={
+        skillOverride ? `Ask /${skillOverride}…` : 'Ask AI… (type / for skills)'
+      }
+      headerSlot={headerSlot}
+      promptOverlaySlot={promptOverlaySlot}
+      onSendMessage={handleSend}
+      onInputChange={handleInputChange}
+      onToolApprove={handleToolApprove}
+      onStop={() => stop()}
+      onReload={() => regenerate()}
+      isLoading={isStreaming}
+      error={error ?? undefined}
+    />
   );
 }

@@ -37,6 +37,11 @@ interface ConsoleLayoutProps {
   onAppChange: (name: string) => void;
   objects: any[];
   connectionState?: ConnectionState;
+  /**
+   * Signed-in user id. Forwarded to the floating chatbot so it can hydrate
+   * server-backed conversation history. Omit for unauthenticated/local-only.
+   */
+  userId?: string;
 }
 
 /** Inner component that can access SidebarProvider context */
@@ -54,7 +59,8 @@ export function ConsoleLayout({
   activeApp,
   onAppChange,
   objects,
-  connectionState
+  connectionState,
+  userId,
 }: ConsoleLayoutProps) {
   const appLabel = resolveI18nLabel(activeApp?.label) || activeAppName;
   const { isAiEnabled } = useDiscovery();
@@ -113,7 +119,7 @@ export function ConsoleLayout({
           stub FAB is dependency-free; the heavy chat bundle only loads
           on first interaction. */}
       {showChatbot && (
-        <ConsoleChatbotFab appLabel={appLabel} objects={objects} />
+        <ConsoleChatbotFab appLabel={appLabel} objects={objects} userId={userId} />
       )}
     </AppShell>
     </MobileViewSwitcherProvider>

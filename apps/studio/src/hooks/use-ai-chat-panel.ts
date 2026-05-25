@@ -1,35 +1,8 @@
 // Copyright (c) 2025 ObjectStack. Licensed under the Apache-2.0 license.
 
 import { useState, useEffect, useCallback } from 'react';
-import type { UIMessage } from 'ai';
 
-const STORAGE_KEY = 'objectstack:ai-chat-messages';
 const PANEL_STATE_KEY = 'objectstack:ai-chat-panel-open';
-
-/**
- * Load persisted chat messages from localStorage.
- */
-export function loadMessages(): UIMessage[] {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    return [];
-  }
-}
-
-/**
- * Persist chat messages to localStorage.
- */
-export function saveMessages(messages: UIMessage[]): void {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(messages));
-  } catch {
-    // localStorage may be full or unavailable — silently ignore
-  }
-}
 
 /**
  * Load panel open/closed state from localStorage.

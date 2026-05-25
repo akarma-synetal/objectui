@@ -3,14 +3,13 @@
 /**
  * Server-backed AI chat conversation lifecycle.
  *
- * Replaces the previous localStorage-only history by binding the chat UI to
- * an `ai_conversations` row owned by the signed-in user. On mount it tries
- * the cached id (per user, optionally per scope/agent); falls back to
- * creating a fresh conversation when the cached one is gone (404/403).
+ * Binds a chat UI to an `ai_conversations` row owned by the signed-in user.
+ * On mount it tries the cached id (per user, optionally per scope); falls
+ * back to creating a fresh conversation when the cached one is gone
+ * (404/403).
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { getApiBaseUrl } from '@/lib/config';
 
 /** Minimal UIMessage shape compatible with `@ai-sdk/react`'s `useChat`. */
 export interface HydratedUIMessage {
@@ -24,9 +23,14 @@ export interface UseChatConversationOptions {
   userId: string | undefined;
   /**
    * Optional scope (e.g. agent name) for keying separate conversations under
-   * the same user. Omit for the studio's single-panel chat.
+   * the same user.
    */
   scope?: string;
+  /**
+   * Base URL of the AI service (no trailing slash). Hook calls
+   * `${apiBase}/conversations[/...]`. Required.
+   */
+  apiBase: string;
 }
 
 export interface UseChatConversationReturn {
@@ -77,8 +81,13 @@ function contentToText(content: unknown): string {
     return content
       .map((part) => {
         if (typeof part === 'string') return part;
-        if (part && typeof part === 'object' && 'text' in part && typeof (part as any).text === 'string') {
-          return (part as any).text;
+        if (
+          part &&
+          typeof part === 'object' &&
+          'text' in part &&
+          typeof (part as { text?: unknown }).text === 'string'
+        ) {
+          return (part as { text: string }).text;
         }
         return '';
       })
@@ -94,7 +103,7 @@ function toUIMessages(rows: ServerMessage[] | undefined): HydratedUIMessage[] {
     const role = row.role as HydratedUIMessage['role'];
     if (role !== 'user' && role !== 'assistant' && role !== 'system') return;
     const text = contentToText(row.content);
-    if (!text) return; // skip tool-call-only frames; nothing to display as a text bubble
+    if (!text) return;
     out.push({
       id: row.id ?? `msg-${idx}`,
       role,
@@ -104,8 +113,8 @@ function toUIMessages(rows: ServerMessage[] | undefined): HydratedUIMessage[] {
   return out;
 }
 
-async function fetchConversation(id: string): Promise<ServerConversation | null> {
-  const res = await fetch(`${getApiBaseUrl()}/api/v1/ai/conversations/${encodeURIComponent(id)}`, {
+async function fetchConversation(apiBase: string, id: string): Promise<ServerConversation | null> {
+  const res = await fetch(`${apiBase}/conversations/${encodeURIComponent(id)}`, {
     credentials: 'include',
   });
   if (res.status === 404 || res.status === 403) return null;
@@ -113,8 +122,8 @@ async function fetchConversation(id: string): Promise<ServerConversation | null>
   return (await res.json()) as ServerConversation;
 }
 
-async function createConversation(): Promise<ServerConversation> {
-  const res = await fetch(`${getApiBaseUrl()}/api/v1/ai/conversations`, {
+async function createConversation(apiBase: string): Promise<ServerConversation> {
+  const res = await fetch(`${apiBase}/conversations`, {
     method: 'POST',
     credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
@@ -124,8 +133,8 @@ async function createConversation(): Promise<ServerConversation> {
   return (await res.json()) as ServerConversation;
 }
 
-async function deleteConversation(id: string): Promise<void> {
-  await fetch(`${getApiBaseUrl()}/api/v1/ai/conversations/${encodeURIComponent(id)}`, {
+async function deleteConversation(apiBase: string, id: string): Promise<void> {
+  await fetch(`${apiBase}/conversations/${encodeURIComponent(id)}`, {
     method: 'DELETE',
     credentials: 'include',
   }).catch(() => {
@@ -136,7 +145,7 @@ async function deleteConversation(id: string): Promise<void> {
 export function useChatConversation(
   options: UseChatConversationOptions,
 ): UseChatConversationReturn {
-  const { userId, scope } = options;
+  const { userId, scope, apiBase } = options;
   const [conversationId, setConversationId] = useState<string | undefined>(undefined);
   const [initialMessages, setInitialMessages] = useState<HydratedUIMessage[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(Boolean(userId));
@@ -164,7 +173,7 @@ export function useChatConversation(
       try {
         const cached = readCache(key);
         if (cached) {
-          const existing = await fetchConversation(cached);
+          const existing = await fetchConversation(apiBase, cached);
           if (cancelled) return;
           if (existing) {
             setConversationId(existing.id);
@@ -173,7 +182,7 @@ export function useChatConversation(
           }
           writeCache(key, undefined);
         }
-        const fresh = await createConversation();
+        const fresh = await createConversation(apiBase);
         if (cancelled) return;
         writeCache(key, fresh.id);
         setConversationId(fresh.id);
@@ -191,16 +200,16 @@ export function useChatConversation(
     return () => {
       cancelled = true;
     };
-  }, [userId, scope]);
+  }, [userId, scope, apiBase]);
 
   const reset = useCallback(async () => {
     if (!userId) return;
     const key = cacheKey(userId, scope);
     setIsLoading(true);
     try {
-      if (conversationId) await deleteConversation(conversationId);
+      if (conversationId) await deleteConversation(apiBase, conversationId);
       writeCache(key, undefined);
-      const fresh = await createConversation();
+      const fresh = await createConversation(apiBase);
       writeCache(key, fresh.id);
       if (!mountedRef.current) return;
       setConversationId(fresh.id);
@@ -213,7 +222,7 @@ export function useChatConversation(
     } finally {
       if (mountedRef.current) setIsLoading(false);
     }
-  }, [conversationId, userId, scope]);
+  }, [conversationId, userId, scope, apiBase]);
 
   return { conversationId, initialMessages, isLoading, reset };
 }

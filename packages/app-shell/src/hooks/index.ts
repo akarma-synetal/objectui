@@ -16,3 +16,9 @@ export { useRecentItems, type RecentItem } from './useRecentItems';
 export { useRecordApprovals, type ApprovalProcessLite, type ApprovalRequestLite } from './useRecordApprovals';
 export { useResponsiveSidebar } from './useResponsiveSidebar';
 export { useTrackRouteAsRecent, type UseTrackRouteAsRecentOptions } from './useTrackRouteAsRecent';
+export {
+  useChatConversation,
+  type HydratedUIMessage,
+  type UseChatConversationOptions,
+  type UseChatConversationReturn,
+} from './useChatConversation';

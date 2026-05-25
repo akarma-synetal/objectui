@@ -19,9 +19,14 @@ import { ConsoleChatbotFab } from '../../layout/ConsoleChatbotFab';
 
 interface HomeLayoutProps {
   children: React.ReactNode;
+  /**
+   * Signed-in user id. Forwarded to the floating chatbot so it can hydrate
+   * server-backed conversation history.
+   */
+  userId?: string;
 }
 
-export function HomeLayout({ children }: HomeLayoutProps) {
+export function HomeLayout({ children, userId }: HomeLayoutProps) {
   const { setContext } = useNavigationContext();
   const { isAiEnabled } = useDiscovery();
   // Render the chatbot whenever AI is reachable. If the developer has explicitly
@@ -46,7 +51,7 @@ export function HomeLayout({ children }: HomeLayoutProps) {
       {/* Global floating chatbot — also available on the home/workspace
           screen. Stub FAB is dependency-free; the heavy chat bundle only
           loads on first interaction. */}
-      {showChatbot && <ConsoleChatbotFab appLabel="Workspace" objects={[]} />}
+      {showChatbot && <ConsoleChatbotFab appLabel="Workspace" objects={[]} userId={userId} />}
     </div>
   );
 }

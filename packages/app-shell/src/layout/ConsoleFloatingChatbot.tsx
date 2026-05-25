@@ -26,6 +26,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@object-ui/components';
+import { useChatConversation } from '../hooks';
 
 interface ConsoleObject {
   name: string;
@@ -44,6 +45,12 @@ export interface ConsoleFloatingChatbotProps {
   defaultAgent?: string;
   /** Whether the floating panel should open immediately on mount. */
   defaultOpen?: boolean;
+  /**
+   * Authenticated user id. When provided, the chat hydrates from (and writes
+   * to) a server-backed `ai_conversations` row keyed by `userId` + agent.
+   * Inert until defined — the floating panel still works in local-only mode.
+   */
+  userId?: string;
 }
 
 const DEFAULT_AI_PATH = '/api/v1/ai';
@@ -79,6 +86,12 @@ interface ChatbotInnerProps {
   apiBase: string;
   /** Whether the floating panel should open immediately on mount. */
   defaultOpen?: boolean;
+  /**
+   * Resolved server conversation id. When set, `useObjectChat`'s
+   * `conversationId` switches to it (so request bodies carry the real id and
+   * server-side auto-persist kicks in). Undefined while hydrating.
+   */
+  conversationId?: string;
 }
 
 function ChatbotInner({
@@ -92,6 +105,7 @@ function ChatbotInner({
   chatApi,
   apiBase,
   defaultOpen = false,
+  conversationId,
 }: ChatbotInnerProps) {
   const objectNames = objects.map((o) => o.label || o.name).join(', ');
 
@@ -116,7 +130,7 @@ function ChatbotInner({
     clear,
   } = useObjectChat({
     api: chatApi,
-    conversationId: activeAgent ? `${appLabel}:${activeAgent}` : undefined,
+    conversationId,
     body: {
       context: {
         activeApp: appLabel,
@@ -222,6 +236,7 @@ export default function ConsoleFloatingChatbot({
   apiBase: apiBaseProp,
   defaultAgent: defaultAgentProp,
   defaultOpen = false,
+  userId,
 }: ConsoleFloatingChatbotProps) {
   const apiBase = React.useMemo(() => resolveApiBase(apiBaseProp), [apiBaseProp]);
   const env = (import.meta as any).env ?? {};
@@ -242,12 +257,21 @@ export default function ConsoleFloatingChatbot({
     ? `${apiBase}/agents/${encodeURIComponent(activeAgent)}/chat`
     : undefined;
 
-  // `key` forces a clean remount whenever the active agent (and therefore the
-  // chat API URL) changes — required because `useObjectChat` locks its mode
-  // (api vs local) on first render.
+  // Server-backed conversation. Scoped by agent so each agent gets its own
+  // persistent history. Hook is inert until `userId` is provided; without it
+  // the FAB continues to work in local-only mode (no persistence).
+  const { conversationId } = useChatConversation({
+    userId,
+    scope: activeAgent,
+    apiBase,
+  });
+
+  // `key` forces a clean remount whenever the chat endpoint OR the resolved
+  // conversation id changes — required because `useObjectChat` locks its mode
+  // (api vs local) and its `conversationId` on first render.
   return (
     <ChatbotInner
-      key={chatApi ?? 'local'}
+      key={`${chatApi ?? 'local'}:${conversationId ?? 'pending'}`}
       appLabel={appLabel}
       objects={objects}
       agents={agents}
@@ -258,6 +282,7 @@ export default function ConsoleFloatingChatbot({
       chatApi={chatApi}
       apiBase={apiBase}
       defaultOpen={defaultOpen}
+      conversationId={conversationId}
     />
   );
 }

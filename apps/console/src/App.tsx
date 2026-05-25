@@ -13,7 +13,7 @@
 
 import { useEffect, type ReactNode } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { AuthProvider, AuthGuard } from '@object-ui/auth';
+import { AuthProvider, AuthGuard, useAuth } from '@object-ui/auth';
 import {
   ConsoleShell,
   ConnectedShell,
@@ -110,6 +110,16 @@ function ForgotPasswordRedirect() {
   return <LoadingFallback />;
 }
 
+/** Wraps `DefaultHomeLayout` so the FAB gets the signed-in user id. */
+function HomeRoute() {
+  const { user } = useAuth();
+  return (
+    <DefaultHomeLayout userId={user?.id}>
+      <DefaultHomePage />
+    </DefaultHomeLayout>
+  );
+}
+
 export function App() {
   return (
     <AuthProvider authUrl={AUTH_URL}>
@@ -136,7 +146,7 @@ export function App() {
             } />
             <Route path="/home" element={
               <ProtectedRoute>
-                <DefaultHomeLayout><DefaultHomePage /></DefaultHomeLayout>
+                <HomeRoute />
               </ProtectedRoute>
             } />
             <Route path="/organizations" element={

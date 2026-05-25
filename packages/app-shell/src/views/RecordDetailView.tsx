@@ -9,7 +9,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useParams, useNavigate, useLocation, Link } from 'react-router-dom';
 import { DetailView, RecordChatterPanel, buildDefaultPageSchema, extractMentions } from '@object-ui/plugin-detail';
-import { Empty, EmptyTitle, EmptyDescription } from '@object-ui/components';
+import { Empty, EmptyTitle, EmptyDescription, Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, Button, Input, Label } from '@object-ui/components';
 import { useAuth, createAuthenticatedFetch } from '@object-ui/auth';
 import { ActionProvider, useObjectTranslation, useObjectLabel, usePageAssignment, RecordContextProvider, SchemaRenderer, DiscussionContextProvider, HighlightFieldsProvider } from '@object-ui/react';
 import { buildExpandFields } from '@object-ui/core';
@@ -294,6 +294,18 @@ export function RecordDetailView({ dataSource, objects, onEdit, objectNameOverri
   // Param collection dialog state (promise-based)
   const [paramState, setParamState] = useState<ParamDialogState>({ open: false, params: [] });
 
+  // One-time secret disclosure modal (currently used by the
+  // reset_admin_password action on sys_environment; the control plane
+  // never stores the plaintext, so the user has exactly one chance to
+  // copy it).
+  const [secretDisclosure, setSecretDisclosure] = useState<{
+    open: boolean;
+    title: string;
+    description?: string;
+    label: string;
+    value: string;
+  }>({ open: false, title: '', label: '', value: '' });
+
   const confirmHandler = useCallback((message: string, options?: { title?: string; confirmText?: string; cancelText?: string }) => {
     return new Promise<boolean>((resolve) => {
       setConfirmState({ open: true, message, options, resolve });
@@ -432,7 +444,24 @@ export function RecordDetailView({ dataSource, objects, onEdit, objectNameOverri
       }
       const shouldRefresh = action.refreshAfter !== false;
       if (shouldRefresh) setActionRefreshKey(k => k + 1);
-      return { success: true, data: json?.data, reload: shouldRefresh };
+      // Custom result handling for actions that disclose a one-time
+      // secret: the server returns `{ password, email, … }` and the user
+      // must copy it before dismissing — we never see this value again.
+      // Currently only `reset_admin_password` on `sys_environment`, but
+      // any future "rotate-secret" action returning the same shape works.
+      const result = json?.data;
+      if (result && typeof result === 'object' && typeof (result as any).password === 'string' && (result as any).password) {
+        setSecretDisclosure({
+          open: true,
+          title: 'Save this password',
+          description: (result as any).email
+            ? `This is the only time the password for ${(result as any).email} is shown. Copy it now — the control plane does not store the plaintext.`
+            : 'This is the only time the password is shown. Copy it now — the control plane does not store the plaintext.',
+          label: 'New password',
+          value: String((result as any).password),
+        });
+      }
+      return { success: true, data: result, reload: shouldRefresh };
     } catch (error) {
       return { success: false, error: (error as Error).message };
     }
@@ -1705,6 +1734,48 @@ export function RecordDetailView({ dataSource, objects, onEdit, objectNameOverri
           if (!open) setParamState(s => ({ ...s, open: false }));
         }}
       />
+
+      {/* One-time secret disclosure (e.g. break-glass admin password) */}
+      <Dialog
+        open={secretDisclosure.open}
+        onOpenChange={(open) => {
+          if (!open) setSecretDisclosure(s => ({ ...s, open: false }));
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{secretDisclosure.title || 'Save this value'}</DialogTitle>
+            {secretDisclosure.description && (
+              <DialogDescription>{secretDisclosure.description}</DialogDescription>
+            )}
+          </DialogHeader>
+          <div className="space-y-2 py-2">
+            <Label>{secretDisclosure.label}</Label>
+            <div className="flex gap-2">
+              <Input readOnly value={secretDisclosure.value} className="font-mono text-sm" onFocus={(e) => e.currentTarget.select()} />
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() => {
+                  try { navigator.clipboard?.writeText(secretDisclosure.value); toast.success('Copied to clipboard'); }
+                  catch { /* ignore */ }
+                }}
+              >
+                Copy
+              </Button>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="default"
+              onClick={() => setSecretDisclosure(s => ({ ...s, open: false }))}
+            >
+              I've saved it
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

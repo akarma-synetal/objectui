@@ -13,7 +13,7 @@
  */
 
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { AuthProvider } from '@object-ui/auth';
+import { AuthProvider, useAuth } from '@object-ui/auth';
 import { Toaster } from 'sonner';
 import {
   ConsoleShell,
@@ -33,6 +33,16 @@ import {
 
 const AUTH_URL = `${import.meta.env.VITE_SERVER_URL || ''}/api/v1/auth`;
 
+/** Wraps `DefaultHomeLayout` so the FAB picks up the signed-in user id. */
+function HomeRoute() {
+  const { user } = useAuth();
+  return (
+    <DefaultHomeLayout userId={user?.id}>
+      <DefaultHomePage />
+    </DefaultHomeLayout>
+  );
+}
+
 export function App() {
   return (
     <AuthProvider authUrl={AUTH_URL}>
@@ -45,7 +55,7 @@ export function App() {
             <Route path="/forgot-password" element={<DefaultForgotPasswordPage />} />
             <Route path="/home" element={
               <AuthenticatedRoute>
-                <DefaultHomeLayout><DefaultHomePage /></DefaultHomeLayout>
+                <HomeRoute />
               </AuthenticatedRoute>
             } />
             <Route path="/organizations" element={
