@@ -1,5 +1,14 @@
 # @object-ui/components
 
+## 6.0.0
+
+### Patch Changes
+
+- @object-ui/types@6.0.0
+- @object-ui/core@6.0.0
+- @object-ui/i18n@6.0.0
+- @object-ui/react@6.0.0
+
 ## 5.4.2
 
 ### Patch Changes

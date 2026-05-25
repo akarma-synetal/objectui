@@ -1,5 +1,56 @@
 # @object-ui/app-shell — Changelog
 
+## 6.0.0
+
+### Major Changes
+
+- 168a4d0: ai
+
+### Patch Changes
+
+- 451bbee: **HITL conversation loop:** `useHitlInChat` now accepts a
+  `continueConversation(prompt, ctx)` callback. After the operator approves
+  or rejects a tool call from inline chat buttons, the hook synthesises a
+  short follow-up user prompt (tagged `[HITL pa_xxx]`, with the executed
+  result or rejection reason) and invokes the callback so the LLM
+  continues the conversation with full awareness of the outcome.
+
+  `ConsoleFloatingChatbot` wires this callback to `useObjectChat`'s
+  `sendMessage`, closing the loop end-to-end. Execution failures stay
+  visible in the inline status badge but do NOT continue automatically —
+  the operator decides next steps.
+
+  No framework changes required. Internal `idMap` now also tracks the
+  tool name so the synthesised prompt is human-readable. New test suite
+  `useHitlInChat.test.tsx` covers approve/reject/failed/no-callback
+  branches.
+
+- Updated dependencies [451bbee]
+  - @object-ui/plugin-chatbot@6.0.0
+  - @object-ui/types@6.0.0
+  - @object-ui/core@6.0.0
+  - @object-ui/i18n@6.0.0
+  - @object-ui/react@6.0.0
+  - @object-ui/components@6.0.0
+  - @object-ui/fields@6.0.0
+  - @object-ui/layout@6.0.0
+  - @object-ui/data-objectstack@6.0.0
+  - @object-ui/auth@6.0.0
+  - @object-ui/permissions@6.0.0
+  - @object-ui/plugin-calendar@6.0.0
+  - @object-ui/plugin-charts@6.0.0
+  - @object-ui/plugin-dashboard@6.0.0
+  - @object-ui/plugin-designer@6.0.0
+  - @object-ui/plugin-detail@6.0.0
+  - @object-ui/plugin-form@6.0.0
+  - @object-ui/plugin-grid@6.0.0
+  - @object-ui/plugin-kanban@6.0.0
+  - @object-ui/plugin-list@6.0.0
+  - @object-ui/plugin-report@6.0.0
+  - @object-ui/plugin-view@6.0.0
+  - @object-ui/collaboration@6.0.0
+  - @object-ui/providers@6.0.0
+
 ## 5.4.2
 
 ### Patch Changes
