@@ -24,6 +24,7 @@ import type { AuthOrganization } from '@object-ui/auth';
 import { useObjectTranslation } from '@object-ui/i18n';
 import { useNavigate } from 'react-router-dom';
 import { CreateWorkspaceDialog } from './CreateWorkspaceDialog';
+import { resolveHomeUrl } from './resolveHomeUrl';
 
 function getOrgInitials(name: string): string {
   return name
@@ -64,9 +65,7 @@ export function OrganizationsPage() {
       if (org.id !== activeOrganization?.id) {
         await switchOrganization(org.id);
       }
-      const base = import.meta.env.BASE_URL || '/';
-      const normalizedBase = base.endsWith('/') ? base : `${base}/`;
-      window.location.href = `${window.location.origin}${normalizedBase}home`;
+      window.location.href = resolveHomeUrl();
     } catch (err) {
       console.error('[OrganizationsPage] Failed to switch:', err);
       setSwitchingId(null);
