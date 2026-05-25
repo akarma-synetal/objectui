@@ -1,5 +1,18 @@
 # @object-ui/plugin-list
 
+## 6.0.0
+
+### Patch Changes
+
+- @object-ui/types@6.0.0
+- @object-ui/core@6.0.0
+- @object-ui/i18n@6.0.0
+- @object-ui/react@6.0.0
+- @object-ui/components@6.0.0
+- @object-ui/fields@6.0.0
+- @object-ui/permissions@6.0.0
+- @object-ui/mobile@6.0.0
+
 ## 5.4.2
 
 ## 5.4.1
