@@ -321,4 +321,5 @@ export { useHitlInChat } from './useHitlInChat';
 export type {
   UseHitlInChatOptions,
   UseHitlInChatReturn,
+  ContinueContext,
 } from './useHitlInChat';

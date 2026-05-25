@@ -137,10 +137,15 @@ function ChatbotInner({
 
   // HITL bridge — turns the pending-approval tool result envelope from the
   // framework's action-tools.ts into inline approve/reject buttons that talk
-  // directly to /api/v1/ai/pending-actions/:id/{approve,reject}.
+  // directly to /api/v1/ai/pending-actions/:id/{approve,reject}. After a
+  // successful decision the hook synthesises a short follow-up user message
+  // so the LLM continues the conversation aware of the outcome.
   const hitl = useHitlInChat({
     messages: messages as ChatMessage[],
     apiBase,
+    continueConversation: (prompt) => {
+      sendMessage(prompt);
+    },
   });
 
   const headerExtra =

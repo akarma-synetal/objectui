@@ -61,6 +61,29 @@ export interface UseHitlInChatOptions {
    * mounted on the same page.
    */
   onDecided?: (toolCallId: string, outcome: ApproveOutcome | RejectOutcome) => void;
+  /**
+   * When set, on a *successful* decision the hook synthesizes a short
+   * follow-up prompt (e.g. "Operator approved pa_xxx. Result: {...}.
+   * Continue.") and invokes this callback. Wire to `useObjectChat`'s
+   * `sendMessage` to close the conversation loop — the LLM then continues
+   * reasoning with full awareness of the executed action's outcome.
+   *
+   * Failures (`status: 'failed'`, transport errors) still surface in
+   * `decisions[toolCallId]` but do NOT trigger a continuation prompt — the
+   * operator is expected to read the error and decide what to do next.
+   */
+  continueConversation?: (prompt: string, context: ContinueContext) => void;
+}
+
+/** Argument passed to {@link UseHitlInChatOptions.continueConversation}. */
+export interface ContinueContext {
+  toolCallId: string;
+  pendingActionId: string;
+  decision: 'approved' | 'rejected';
+  /** Raw REST payload — `{ status, result?, error?, … }`. */
+  outcome: ApproveOutcome | RejectOutcome;
+  /** Tool name as it appeared in the message part (e.g. `action_delete_task`). */
+  toolName?: string;
 }
 
 export interface UseHitlInChatReturn {
@@ -107,19 +130,22 @@ async function parseJson(response: Response): Promise<Record<string, unknown> | 
 }
 
 export function useHitlInChat(options: UseHitlInChatOptions): UseHitlInChatReturn {
-  const { messages, apiBase, headers, onDecided } = options;
+  const { messages, apiBase, headers, onDecided, continueConversation } = options;
   const base = normalizeBase(apiBase);
 
-  // Index toolCallId → pendingActionId from the latest messages. Memoised
-  // because messages stream tick-by-tick and we don't want to rebuild the
-  // map on every keystroke.
+  // Index toolCallId → { pendingActionId, toolName } from the latest
+  // messages. Memoised because messages stream tick-by-tick and we don't
+  // want to rebuild the map on every keystroke.
   const idMap = React.useMemo(() => {
-    const map = new Map<string, string>();
+    const map = new Map<string, { pendingActionId: string; toolName: string }>();
     for (const msg of messages) {
       const tools = msg.toolInvocations ?? [];
       for (const tool of tools) {
         if (tool.pendingActionId && tool.toolCallId) {
-          map.set(tool.toolCallId, tool.pendingActionId);
+          map.set(tool.toolCallId, {
+            pendingActionId: tool.pendingActionId,
+            toolName: tool.toolName,
+          });
         }
       }
     }
@@ -146,8 +172,8 @@ export function useHitlInChat(options: UseHitlInChatOptions): UseHitlInChatRetur
 
   const decide = React.useCallback(
     async (toolCallId: string, approved: boolean, reason?: string) => {
-      const id = idMap.get(toolCallId);
-      if (!id) {
+      const entry = idMap.get(toolCallId);
+      if (!entry) {
         setDecision(toolCallId, {
           state: 'error',
           message:
@@ -155,6 +181,7 @@ export function useHitlInChat(options: UseHitlInChatOptions): UseHitlInChatRetur
         });
         return;
       }
+      const { pendingActionId: id, toolName } = entry;
       setDecision(toolCallId, {
         state: 'pending',
         message: approved ? 'Approving…' : 'Rejecting…',
@@ -187,23 +214,51 @@ export function useHitlInChat(options: UseHitlInChatOptions): UseHitlInChatRetur
           return;
         }
         const status = (payload.status as string) ?? (approved ? 'executed' : 'rejected');
+        let succeeded = false;
         if (status === 'executed') {
           setDecision(toolCallId, {
             state: 'success',
             message: 'Approved — action executed.',
           });
+          succeeded = true;
         } else if (status === 'rejected') {
           setDecision(toolCallId, {
             state: 'success',
             message: reason ? `Rejected: ${reason}` : 'Rejected.',
           });
+          succeeded = true;
         } else if (status === 'failed') {
           const errMsg = (payload.error as string) ?? 'Action approved but execution failed.';
           setDecision(toolCallId, { state: 'error', message: errMsg });
         } else {
           setDecision(toolCallId, { state: 'success', message: `Status: ${status}` });
+          succeeded = true;
         }
         onDecided?.(toolCallId, payload as ApproveOutcome | RejectOutcome);
+
+        // Close the conversation loop. We only continue on a clean
+        // success — execution failures stay visible in `decisions` so the
+        // operator can react manually instead of feeding the model a
+        // confusing "approved but failed" envelope.
+        if (succeeded && continueConversation) {
+          const prompt = buildContinuationPrompt({
+            approved,
+            status,
+            toolName,
+            pendingActionId: id,
+            outcome: payload,
+            reason,
+          });
+          if (prompt) {
+            continueConversation(prompt, {
+              toolCallId,
+              pendingActionId: id,
+              decision: approved ? 'approved' : 'rejected',
+              outcome: payload as ApproveOutcome | RejectOutcome,
+              toolName,
+            });
+          }
+        }
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
         setDecision(toolCallId, { state: 'error', message });
@@ -215,8 +270,59 @@ export function useHitlInChat(options: UseHitlInChatOptions): UseHitlInChatRetur
         }
       }
     },
-    [base, headers, idMap, onDecided, setDecision],
+    [base, headers, idMap, onDecided, continueConversation, setDecision],
   );
 
   return { decisions, decide, isDeciding };
+}
+
+/**
+ * Build the synthetic follow-up prompt fed back to the LLM after the
+ * operator decides. Kept terse on purpose — every extra token costs the
+ * caller money and most agents only need the bare facts to continue.
+ */
+function buildContinuationPrompt(input: {
+  approved: boolean;
+  status: string;
+  toolName: string;
+  pendingActionId: string;
+  outcome: Record<string, unknown>;
+  reason?: string;
+}): string | undefined {
+  const { approved, status, toolName, pendingActionId, outcome, reason } = input;
+  const tag = `[HITL ${pendingActionId}]`;
+  if (approved && status === 'executed') {
+    const result = outcome.result;
+    const resultText =
+      result === undefined || result === null
+        ? '(no payload)'
+        : typeof result === 'string'
+          ? result
+          : truncate(JSON.stringify(result), 800);
+    return (
+      `${tag} The operator approved the \`${toolName}\` call. It executed successfully ` +
+      `with result: ${resultText}. Acknowledge the outcome concisely and continue the user's task.`
+    );
+  }
+  if (!approved && status === 'rejected') {
+    const reasonText = reason && reason.trim().length > 0 ? ` Reason: ${reason}.` : '';
+    return (
+      `${tag} The operator rejected the \`${toolName}\` call.${reasonText} ` +
+      `Acknowledge the rejection and ask whether to try a different approach.`
+    );
+  }
+  if (status === 'failed') {
+    const err = outcome.error;
+    const errText = typeof err === 'string' ? err : truncate(JSON.stringify(err ?? {}), 400);
+    return (
+      `${tag} The \`${toolName}\` call was approved but execution failed: ${errText}. ` +
+      `Apologize concisely and offer alternatives.`
+    );
+  }
+  return undefined;
+}
+
+function truncate(value: string, max: number): string {
+  if (value.length <= max) return value;
+  return `${value.slice(0, max - 1)}…`;
 }
