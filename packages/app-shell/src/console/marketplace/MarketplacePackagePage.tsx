@@ -52,12 +52,14 @@ import {
   type LocalInstallEntry,
 } from './marketplaceApi';
 import { getRuntimeConfig } from '../../runtime-config';
+import { useMetadata } from '../../providers/MetadataProvider';
 
 export function MarketplacePackagePage() {
   const navigate = useNavigate();
   const { packageId, appName } = useParams<{ packageId?: string; appName?: string }>();
   const isAdmin = useIsWorkspaceAdmin();
   const basePath = appName ? `/apps/${appName}` : '';
+  const { refresh: refreshMetadata } = useMetadata();
 
   const [data, setData] = useState<MarketplaceDetailResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -169,9 +171,14 @@ export function MarketplacePackagePage() {
     setLocalResult(null);
     try {
       const result = await installLocal({ packageId });
+      try {
+        await refreshMetadata('app');
+      } catch {
+        // Non-fatal: the install succeeded; the app list will refresh on next navigation.
+      }
       setLocalResult({
         ok: true,
-        message: `Installed v${result.version} to this runtime. Refresh the console to see "${data?.package?.display_name ?? result.manifestId}" in the app switcher.`,
+        message: `Installed v${result.version} to this runtime. "${data?.package?.display_name ?? result.manifestId}" should now appear in the app switcher.`,
       });
     } catch (e: any) {
       const code = e?.code;
@@ -204,6 +211,11 @@ export function MarketplacePackagePage() {
     setLocalResult(null);
     try {
       await uninstallLocal(localInstall.manifestId);
+      try {
+        await refreshMetadata('app');
+      } catch {
+        // Non-fatal.
+      }
       setLocalResult({
         ok: true,
         message: `Removed cached manifest for ${localInstall.manifestId}. Restart the runtime to fully unload the app from the running kernel.`,
