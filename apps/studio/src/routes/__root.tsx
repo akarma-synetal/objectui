@@ -9,7 +9,8 @@ import { Toaster } from '@/components/ui/toaster';
 // AiChatPanel pulls in `@object-ui/plugin-chatbot` → streamdown → shiki, which
 // ships ~23MB of TextMate grammars. The panel is opt-in (Toggle AI Chat button),
 // so we lazy-load it and only mount when actually opened — the rest of Studio
-// no longer pays the cost on first paint.
+// no longer pays the cost on first paint. See `@/lib/prefetch-ai-chat` for
+// the speculative warm-up helper wired into the toolbar button.
 const AiChatPanel = lazy(() =>
   import('@/components/AiChatPanel').then((m) => ({ default: m.AiChatPanel })),
 );

@@ -18,19 +18,26 @@ function PackageIndexComponent() {
     // is the unified metadata viewer route.
     if (view.startsWith('metadata:') && detail) {
       const type = view.slice('metadata:'.length);
-      navigate({ to: `/${safePackage}/metadata/${type}/${detail}` as any });
+      navigate({
+        to: '/$package/metadata/$type/$name',
+        params: { package: safePackage, type, name: detail },
+      });
       return;
     }
     switch (view) {
       case 'home':
       case 'overview':
-        navigate({ to: `/${safePackage}` as any });
+        navigate({ to: '/$package', params: { package: safePackage } });
         return;
       case 'objects':
-        navigate({ to: `/${safePackage}/objects` as any });
+        navigate({ to: '/$package/objects', params: { package: safePackage } });
         return;
       case 'object':
-        if (detail) navigate({ to: `/${safePackage}/objects/${detail}` as any });
+        if (detail)
+          navigate({
+            to: '/$package/objects/$name',
+            params: { package: safePackage, name: detail },
+          });
         return;
       case 'views':
       case 'apps':
@@ -41,7 +48,7 @@ function PackageIndexComponent() {
       case 'apis':
       case 'playground':
       case 'logs':
-        navigate({ to: `/${safePackage}/${view}` as any });
+        navigate({ to: `/$package/${view}` as any, params: { package: safePackage } });
         return;
       default:
         // Unknown destination — no-op rather than 404.

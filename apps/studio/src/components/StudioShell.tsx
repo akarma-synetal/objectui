@@ -21,6 +21,7 @@ import { InspectorProvider, useInspector } from '@/hooks/useInspector';
 import { ProblemsProvider, useProblems } from '@/hooks/useProblems';
 import { useStudioHotkeys } from '@/hooks/useStudioHotkeys';
 import { useAiChatPanel } from '@/hooks/use-ai-chat-panel';
+import { prefetchAiChatPanel } from '@/lib/prefetch-ai-chat';
 import { Button } from '@/components/ui/button';
 import { PanelRight, HelpCircle, Sparkles } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -49,6 +50,8 @@ function ShellBody({ children }: { children: React.ReactNode }) {
                     variant="ghost"
                     className={`h-8 w-8 p-0 ${aiChatOpen ? 'text-primary' : ''}`}
                     onClick={toggleAiChat}
+                    onMouseEnter={prefetchAiChatPanel}
+                    onFocus={prefetchAiChatPanel}
                     aria-label="Toggle AI Chat"
                     aria-pressed={aiChatOpen}
                   >

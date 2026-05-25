@@ -88,7 +88,8 @@ export default defineConfig({
           if (/[\\/]@object-ui[\\/]/.test(id)) return 'vendor-object-ui-core';
           if (/[\\/]@tanstack[\\/]/.test(id)) return 'vendor-tanstack';
           if (/[\\/]recharts[\\/]|[\\/]d3-/.test(id)) return 'vendor-charts';
-          if (/[\\/]monaco-editor[\\/]|[\\/]codemirror[\\/]/.test(id)) return 'vendor-editor';
+          if (/[\\/]monaco-editor[\\/]|[\\/]codemirror[\\/]|[\\/]vscode-(jsonrpc|languageserver-protocol|languageserver-types)[\\/]/.test(id)) return 'vendor-editor';
+          if (/[\\/]chevrotain[\\/]|[\\/]@chevrotain[\\/]/.test(id)) return 'vendor-parser';
           if (/[\\/](react|react-dom|scheduler)[\\/]/.test(id)) return 'vendor-react';
           if (/[\\/]lucide-react[\\/]/.test(id)) return 'vendor-icons';
           if (/[\\/]@radix-ui[\\/]/.test(id)) return 'vendor-radix';

@@ -230,9 +230,15 @@ export function MetadataListPage({
   const openRow = (row: Row) => {
     const pkg = packageId || 'all';
     if (row.type === 'object') {
-      navigate({ to: `/${pkg}/objects/${row.name}` });
+      navigate({
+        to: '/$package/objects/$name',
+        params: { package: pkg, name: row.name },
+      });
     } else {
-      navigate({ to: `/${pkg}/metadata/${row.type}/${row.name}` });
+      navigate({
+        to: '/$package/metadata/$type/$name',
+        params: { package: pkg, type: row.type, name: row.name },
+      });
     }
   };
 
