@@ -223,8 +223,8 @@ export default defineConfig({
   server: {
     port: 5180,
     proxy: {
-      '/api': { target: 'http://localhost:3000', changeOrigin: true },
-      '/_account': { target: 'http://localhost:3000', changeOrigin: true },
+      '/api': { target: process.env.DEV_PROXY_TARGET || 'http://localhost:3000', changeOrigin: true },
+      '/_account': { target: process.env.DEV_PROXY_TARGET || 'http://localhost:3000', changeOrigin: true },
     },
   },
 });
