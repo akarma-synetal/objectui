@@ -28,10 +28,17 @@
  *   - next_week_start / next_month_start / next_quarter_start / next_year_start
  *
  * Parameterised tokens (match `N` as any positive integer):
- *   - {N_days_ago} / {N_days_from_now}
- *   - {N_weeks_ago} / {N_weeks_from_now}
- *   - {N_months_ago} / {N_months_from_now}
- *   - {N_years_ago} / {N_years_from_now}
+ *   - {N_minutes_ago} / {N_minutes_from_now}       (returns full ISO timestamp)
+ *   - {N_hours_ago}   / {N_hours_from_now}         (returns full ISO timestamp)
+ *   - {N_days_ago}    / {N_days_from_now}
+ *   - {N_weeks_ago}   / {N_weeks_from_now}
+ *   - {N_months_ago}  / {N_months_from_now}
+ *   - {N_years_ago}   / {N_years_from_now}
+ *
+ * The canonical grammar is also published as part of the platform contract at
+ * `@objectstack/spec` → `DATE_MACRO_TOKENS` / `DATE_MACRO_PARAM_RE`. Keep this
+ * file in sync with the spec; the duplication is temporary until the next
+ * coordinated `@objectstack/spec` release.
  *
  * Walks any plain-object / array structure recursively. Non-string values
  * (and unknown tokens) are passed through untouched.
@@ -120,8 +127,8 @@ export function resolveDateMacros<T = any>(filter: T, now: Date = new Date()): T
     macros[from] = macros[to];
   }
 
-  // Parameterised tokens: {N_days_ago}, {N_weeks_from_now}, ...
-  const paramRe = /^(\d+)_(days?|weeks?|months?|years?)_(ago|from_now)$/;
+  // Parameterised tokens: {N_days_ago}, {N_weeks_from_now}, {N_hours_ago}, ...
+  const paramRe = /^(\d+)_(minutes?|hours?|days?|weeks?|months?|years?)_(ago|from_now)$/;
   const resolveParam = (tok: string): string | null => {
     const m = tok.match(paramRe);
     if (!m) return null;
@@ -129,6 +136,12 @@ export function resolveDateMacros<T = any>(filter: T, now: Date = new Date()): T
     if (!Number.isFinite(n)) return null;
     const sign = m[3] === 'ago' ? -1 : 1;
     const unit = m[2].replace(/s$/, '');
+    if (unit === 'minute') {
+      return new Date(now.getTime() + sign * n * 60 * 1000).toISOString();
+    }
+    if (unit === 'hour') {
+      return new Date(now.getTime() + sign * n * 60 * 60 * 1000).toISOString();
+    }
     if (unit === 'day') return isoDate(addDays(now, sign * n));
     if (unit === 'week') return isoDate(addDays(now, sign * n * 7));
     if (unit === 'month') {

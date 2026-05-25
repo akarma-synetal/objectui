@@ -95,4 +95,19 @@ describe('resolveDateMacros', () => {
       'range: 2026-05-18..2026-05-25',
     );
   });
+
+  it('expands minute/hour parameterised tokens as full ISO timestamps', () => {
+    // now = 2026-05-25 12:30:00 local
+    const minus15m = new Date(now.getTime() - 15 * 60 * 1000).toISOString();
+    const plus2h = new Date(now.getTime() + 2 * 60 * 60 * 1000).toISOString();
+    expect(resolveDateMacros('{15_minutes_ago}', now)).toBe(minus15m);
+    expect(resolveDateMacros('{2_hours_from_now}', now)).toBe(plus2h);
+    // singular forms
+    expect(resolveDateMacros('{1_minute_ago}', now)).toBe(
+      new Date(now.getTime() - 60 * 1000).toISOString(),
+    );
+    expect(resolveDateMacros('{1_hour_from_now}', now)).toBe(
+      new Date(now.getTime() + 60 * 60 * 1000).toISOString(),
+    );
+  });
 });
