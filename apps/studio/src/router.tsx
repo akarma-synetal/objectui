@@ -12,12 +12,19 @@ import { routeTree } from './routeTree.gen';
 import { NotFoundPage } from './components/NotFoundPage';
 
 /**
- * Compute the router basepath at runtime from `document.baseURI`.
+ * Compute the router basepath at runtime from an explicit `<base href>`
+ * tag in the served HTML.
  *
  * The published Studio build uses a relative Vite base (`./`) so the same
  * `dist/` can be mounted under any path. Hosts that embed the SPA inject
  * a `<base href="/path/">` tag into the served HTML (the framework CLI
- * does this automatically); standalone / dev runs fall back to `/`.
+ * does this automatically); standalone / dev runs have no `<base>` and
+ * fall back to `/`.
+ *
+ * **Do not use `document.baseURI`** — when no `<base>` tag is present it
+ * returns the *current document URL*, which would make the router treat
+ * `/pkg/objects` as the basepath and double-append the package id when
+ * navigating to `/$package` redirects.
  *
  * TanStack Router expects the basepath WITHOUT a trailing slash (except
  * for the root `'/'`), so we normalise accordingly.
@@ -25,7 +32,12 @@ import { NotFoundPage } from './components/NotFoundPage';
 function resolveBasepath(): string {
   try {
     if (typeof document === 'undefined') return '/';
-    const url = new URL(document.baseURI);
+    const baseEl = document.querySelector('base');
+    const href = baseEl?.getAttribute('href');
+    if (!href) return '/';
+    // <base href> may be relative (./) or absolute (/path/ or full URL).
+    // Resolve against the document origin to extract just the pathname.
+    const url = new URL(href, window.location.origin);
     const path = url.pathname.replace(/\/$/, '');
     return path || '/';
   } catch {
