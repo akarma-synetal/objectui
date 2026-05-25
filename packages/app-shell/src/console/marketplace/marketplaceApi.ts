@@ -173,7 +173,9 @@ export async function listCloudEnvironments(): Promise<CloudEnvironment[]> {
     throw err;
   }
   const payload: any = await res.json().catch(() => ({}));
-  const rows = payload?.data ?? payload?.items ?? payload ?? [];
+  // Cloud's data API returns `{ object, records, total, hasMore }`.
+  // We keep `data` / `items` as fallbacks for older builds.
+  const rows = payload?.records ?? payload?.data ?? payload?.items ?? payload ?? [];
   return Array.isArray(rows) ? (rows as CloudEnvironment[]) : [];
 }
 
@@ -185,10 +187,29 @@ export async function listCloudEnvironments(): Promise<CloudEnvironment[]> {
  *
  * Returns an empty set on 401 / network failure so the install dialog
  * can render a clean "no installable environments" state.
+ *
+ * Hardening: we *always* re-filter rows by the caller's session
+ * `user_id` because the data API currently returns sys_member rows
+ * without per-caller scoping. Without this, the dialog would pick up
+ * every org in the system and offer their envs as install targets.
  */
 export async function listInstallableOrgIds(): Promise<Set<string>> {
   const base = getCloudBase() || SERVER_URL;
-  // sys_member rows are scoped to the caller; better-auth-managed table.
+  let meId: string | null = null;
+  try {
+    const meRes = await fetch(`${base}/api/v1/auth/get-session`, {
+      credentials: 'include',
+      headers: { 'Accept': 'application/json' },
+    });
+    if (meRes.ok) {
+      const meBody: any = await meRes.json().catch(() => ({}));
+      meId = meBody?.user?.id ?? null;
+    }
+  } catch {
+    /* fall through — meId stays null and we return empty set */
+  }
+  if (!meId) return new Set();
+
   const url = `${base}/api/v1/data/sys_member?limit=200`;
   let payload: any = null;
   try {
@@ -201,10 +222,12 @@ export async function listInstallableOrgIds(): Promise<Set<string>> {
   } catch {
     return new Set();
   }
-  const rows: any[] = payload?.data ?? payload?.items ?? payload ?? [];
+  const rows: any[] = payload?.records ?? payload?.data ?? payload?.items ?? payload ?? [];
   if (!Array.isArray(rows)) return new Set();
   const ids = new Set<string>();
   for (const row of rows) {
+    const rowUserId = String(row?.user_id ?? row?.userId ?? '');
+    if (rowUserId !== meId) continue;
     const role = String(row?.role ?? '').toLowerCase();
     const orgId = row?.organization_id ?? row?.organizationId;
     if (orgId && (role === 'owner' || role === 'admin')) {
