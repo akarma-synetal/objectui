@@ -34,8 +34,10 @@ import {
   DropdownMenuItem,
 } from '@object-ui/components';
 import { ArrowLeft, ExternalLink, Download, AlertCircle, Package, Trash2, MoreHorizontal, CheckCircle2 } from 'lucide-react';
+import { useIsWorkspaceAdmin } from '@object-ui/auth';
 import { PackageIcon } from './PackageIcon';
 import { MarkdownText } from './MarkdownText';
+import { MarketplaceAccessDenied } from './MarketplaceAccessDenied';
 import {
   getMarketplacePackage,
   installPackage,
@@ -54,6 +56,7 @@ import { getRuntimeConfig } from '../../runtime-config';
 export function MarketplacePackagePage() {
   const navigate = useNavigate();
   const { packageId, appName } = useParams<{ packageId?: string; appName?: string }>();
+  const isAdmin = useIsWorkspaceAdmin();
   const basePath = appName ? `/apps/${appName}` : '';
 
   const [data, setData] = useState<MarketplaceDetailResponse | null>(null);
@@ -259,6 +262,8 @@ export function MarketplacePackagePage() {
       label: installing ? 'Installing…' : 'Install to cloud…',
       onClick: openInstall,
     };
+
+  if (!isAdmin) return <MarketplaceAccessDenied />;
 
   return (
     <div className="mx-auto w-full max-w-6xl flex flex-col gap-6 p-4 sm:p-6">

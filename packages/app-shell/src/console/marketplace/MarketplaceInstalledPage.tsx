@@ -27,15 +27,18 @@ import {
   Skeleton,
 } from '@object-ui/components';
 import { ArrowLeft, RefreshCcw, Store, Trash2, AlertCircle, ExternalLink } from 'lucide-react';
+import { useIsWorkspaceAdmin } from '@object-ui/auth';
 import {
   listLocalInstalls,
   uninstallLocal,
   type LocalInstallEntry,
 } from './marketplaceApi';
+import { MarketplaceAccessDenied } from './MarketplaceAccessDenied';
 
 export function MarketplaceInstalledPage() {
   const navigate = useNavigate();
   const { appName } = useParams<{ appName?: string }>();
+  const isAdmin = useIsWorkspaceAdmin();
   const basePath = appName ? `/apps/${appName}` : '';
 
   const [items, setItems] = useState<LocalInstallEntry[]>([]);
@@ -74,6 +77,8 @@ export function MarketplaceInstalledPage() {
       setWorking(null);
     }
   };
+
+  if (!isAdmin) return <MarketplaceAccessDenied />;
 
   return (
     <div className="flex flex-col gap-6 p-4 sm:p-6 max-w-5xl">

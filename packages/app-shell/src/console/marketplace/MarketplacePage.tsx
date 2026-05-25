@@ -20,7 +20,9 @@ import {
   Skeleton,
 } from '@object-ui/components';
 import { Package, Search, RefreshCcw, Store, AlertCircle, CheckCircle2, Settings } from 'lucide-react';
+import { useIsWorkspaceAdmin } from '@object-ui/auth';
 import { PackageIcon } from './PackageIcon';
+import { MarketplaceAccessDenied } from './MarketplaceAccessDenied';
 import {
   listMarketplacePackages,
   listLocalInstalls,
@@ -42,6 +44,7 @@ function formatRelative(iso?: string | null): string {
 export function MarketplacePage() {
   const navigate = useNavigate();
   const { appName } = useParams();
+  const isAdmin = useIsWorkspaceAdmin();
   const basePath = appName ? `/apps/${appName}` : '';
   const [items, setItems] = useState<MarketplacePackageSummary[]>([]);
   const [loading, setLoading] = useState(true);
@@ -93,6 +96,8 @@ export function MarketplacePage() {
       return hay.includes(q);
     });
   }, [items, query, category]);
+
+  if (!isAdmin) return <MarketplaceAccessDenied />;
 
   return (
     <div className="flex flex-col gap-6 p-4 sm:p-6">
