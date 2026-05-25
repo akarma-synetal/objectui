@@ -111,6 +111,15 @@ export interface ChatToolInvocation {
     | 'output-available'
     | 'output-error'
     | 'output-denied';
+  /**
+   * ObjectStack HITL extension. When the framework's `action-tools.ts`
+   * proposes a destructive action that requires human approval, the tool
+   * result carries `{ status: 'pending_approval', pendingActionId: 'pa_…' }`.
+   * `mapMessages.ts` lifts that id here so chat UIs can call the
+   * `POST /api/v1/ai/pending-actions/:id/{approve,reject}` REST endpoints
+   * without parsing the tool result JSON themselves.
+   */
+  pendingActionId?: string;
 }
 
 export interface ChatSource {
@@ -194,7 +203,20 @@ export interface ChatbotEnhancedProps extends React.HTMLAttributes<HTMLDivElemen
   toolDenyLabel?: string;
   /** Reason text sent with a denial response (default "User denied the operation"). */
   toolDenyReason?: string;
+  /**
+   * Client-side overlay for HITL approval outcomes, keyed by `toolCallId`.
+   * Driven by `useHitlInChat` (or any caller-owned map). When an entry is
+   * present for a tool in `approval-requested` state, the inline buttons are
+   * hidden and the configured message renders in their place — giving the
+   * operator immediate feedback while the server processes the decision.
+   */
+  toolDecisions?: Record<string, ToolDecisionState>;
 }
+
+export type ToolDecisionState =
+  | { state: 'pending'; message?: string }
+  | { state: 'success'; message?: string }
+  | { state: 'error'; message: string };
 
 export interface ChatbotModelOption {
   id: string;
@@ -248,6 +270,7 @@ const ChatbotEnhanced = React.forwardRef<HTMLDivElement, ChatbotEnhancedProps>(
       toolApproveLabel = 'Approve',
       toolDenyLabel = 'Deny',
       toolDenyReason = 'User denied the operation',
+      toolDecisions,
       ...props
     },
     ref
@@ -357,8 +380,11 @@ const ChatbotEnhanced = React.forwardRef<HTMLDivElement, ChatbotEnhancedProps>(
                                   ? 'output-available'
                                   : 'input-available');
                             const partType = `tool-${tool.toolName}` as `tool-${string}`;
+                            const decision = toolDecisions?.[tool.toolCallId];
                             const isAwaitingApproval =
-                              state === 'approval-requested' && Boolean(onToolApprove);
+                              state === 'approval-requested' && Boolean(onToolApprove) && !decision;
+                            const hidePendingPayload =
+                              state === 'approval-requested' && Boolean(tool.pendingActionId);
                             return (
                               <Tool key={tool.toolCallId} defaultOpen={state !== 'output-available'}>
                                 <ToolHeader
@@ -370,10 +396,40 @@ const ChatbotEnhanced = React.forwardRef<HTMLDivElement, ChatbotEnhancedProps>(
                                   {tool.args !== undefined ? (
                                     <ToolInput input={tool.args} />
                                   ) : null}
-                                  <ToolOutput
-                                    output={tool.result}
-                                    errorText={tool.errorText}
-                                  />
+                                  {hidePendingPayload ? null : (
+                                    <ToolOutput
+                                      output={tool.result}
+                                      errorText={tool.errorText}
+                                    />
+                                  )}
+                                  {decision ? (
+                                    <div
+                                      className={
+                                        'flex items-center gap-2 p-3 border-t text-xs ' +
+                                        (decision.state === 'error'
+                                          ? 'bg-destructive/10 text-destructive'
+                                          : decision.state === 'success'
+                                            ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400'
+                                            : 'bg-muted/30 text-muted-foreground')
+                                      }
+                                    >
+                                      <span aria-hidden="true">
+                                        {decision.state === 'pending'
+                                          ? '⏳'
+                                          : decision.state === 'success'
+                                            ? '✓'
+                                            : '✗'}
+                                      </span>
+                                      <span>
+                                        {decision.message ??
+                                          (decision.state === 'pending'
+                                            ? 'Submitting decision…'
+                                            : decision.state === 'success'
+                                              ? 'Action approved and executed.'
+                                              : 'Decision failed.')}
+                                      </span>
+                                    </div>
+                                  ) : null}
                                   {isAwaitingApproval ? (
                                     <div className="flex gap-2 p-3 border-t bg-muted/30">
                                       <button

@@ -59,6 +59,47 @@ function extractReasoning(parts: AnyPart[]): string | undefined {
   return joined.length > 0 ? joined : undefined;
 }
 
+/**
+ * Best-effort detector for the framework's HITL pending envelope. Server-side
+ * `action-tools.ts` returns a JSON string of shape
+ *   `{ "status": "pending_approval", "pendingActionId": "pa_…", … }`
+ * inside the tool's `output.value` when the action is dangerous and approval
+ * is enabled. We surface this on the invocation so chat UIs can render an
+ * inline approve/reject affordance without round-tripping back to the server.
+ */
+function detectPendingApproval(
+  result: unknown,
+): { pendingActionId: string; raw: Record<string, unknown> } | undefined {
+  const tryParse = (value: unknown): Record<string, unknown> | undefined => {
+    if (value && typeof value === 'object') return value as Record<string, unknown>;
+    if (typeof value !== 'string') return undefined;
+    const trimmed = value.trim();
+    if (!trimmed.startsWith('{')) return undefined;
+    try {
+      const parsed = JSON.parse(trimmed);
+      return parsed && typeof parsed === 'object' ? (parsed as Record<string, unknown>) : undefined;
+    } catch {
+      return undefined;
+    }
+  };
+  // The Vercel SDK wraps tool outputs as `{ type: 'text', value: string }`.
+  // Peel one layer if present, then fall back to the raw value.
+  const candidates: unknown[] = [result];
+  if (result && typeof result === 'object' && 'value' in (result as Record<string, unknown>)) {
+    candidates.push((result as Record<string, unknown>).value);
+  }
+  for (const candidate of candidates) {
+    const obj = tryParse(candidate);
+    if (!obj) continue;
+    const status = obj.status;
+    const id = obj.pendingActionId;
+    if (status === 'pending_approval' && typeof id === 'string' && id.length > 0) {
+      return { pendingActionId: id, raw: obj };
+    }
+  }
+  return undefined;
+}
+
 function extractToolInvocations(parts: AnyPart[]): ChatToolInvocation[] {
   return parts
     .filter((p) => {
@@ -72,14 +113,24 @@ function extractToolInvocations(parts: AnyPart[]): ChatToolInvocation[] {
           : typeof p.type === 'string'
             ? p.type.replace(/^tool-/, '')
             : 'tool';
+      const result = p.output ?? p.result;
+      const pending = detectPendingApproval(result);
+      const baseState = p.state;
+      // Promote pending HITL results to `approval-requested` so the UI
+      // unlocks the inline approve/reject buttons. Once the operator
+      // decides, `useHitlInChat` flips `state` back via the per-call
+      // override map and we render the normal output instead.
+      const state: ChatToolInvocation['state'] =
+        pending && baseState !== 'output-error' ? 'approval-requested' : baseState;
       return {
         toolCallId:
           p.toolCallId ?? p.id ?? `${p.type ?? 'tool'}-${Math.random().toString(36).slice(2, 8)}`,
         toolName,
         args: p.input ?? p.args,
-        result: p.output ?? p.result,
+        result,
         errorText: p.errorText,
-        state: p.state,
+        state,
+        pendingActionId: pending?.pendingActionId,
       } satisfies ChatToolInvocation;
     });
 }

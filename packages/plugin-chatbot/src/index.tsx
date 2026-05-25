@@ -282,6 +282,7 @@ export type {
   ChatMessage as ChatbotEnhancedMessage,
   ChatToolInvocation as ChatbotEnhancedToolInvocation,
   ChatSource as ChatbotEnhancedSource,
+  ToolDecisionState,
 } from './ChatbotEnhanced';
 
 // Re-export the vendored Vercel AI Elements (MIT, src/elements/) so app
@@ -296,3 +297,28 @@ export {
   uiMessageToChatMessage,
   uiMessagesToChatMessages,
 } from './mapMessages';
+
+// HITL (Human-In-The-Loop) pending-actions inbox. Talks to
+// `@objectstack/service-ai` at `/api/v1/ai/pending-actions/*`. Shared
+// between Console's workspace inbox page and Studio's assistant
+// builder panel.
+export { usePendingActions } from './usePendingActions';
+export type {
+  UsePendingActionsOptions,
+  UsePendingActionsReturn,
+  PendingActionRow,
+  PendingActionStatus,
+  ApproveOutcome,
+  RejectOutcome,
+} from './usePendingActions';
+export { AiPendingActionsInbox } from './AiPendingActionsInbox';
+export type { AiPendingActionsInboxProps } from './AiPendingActionsInbox';
+
+// Inline HITL bridge for the chat surface. Indexes pending-action ids
+// produced by the framework's tool result envelope and wires the inline
+// approve / reject buttons to the REST endpoints above.
+export { useHitlInChat } from './useHitlInChat';
+export type {
+  UseHitlInChatOptions,
+  UseHitlInChatReturn,
+} from './useHitlInChat';

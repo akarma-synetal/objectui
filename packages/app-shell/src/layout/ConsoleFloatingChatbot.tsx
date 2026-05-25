@@ -15,6 +15,7 @@ import {
   FloatingChatbot,
   useObjectChat,
   useAgents,
+  useHitlInChat,
   type ChatMessage,
   type AgentDescriptor,
 } from '@object-ui/plugin-chatbot';
@@ -68,6 +69,12 @@ interface ChatbotInnerProps {
   activeAgent: string | undefined;
   onAgentChange: (name: string) => void;
   chatApi: string | undefined;
+  /**
+   * Base URL of the AI service (no trailing slash). Forwarded to
+   * `useHitlInChat` so the inline approve/reject buttons can hit
+   * `POST /pending-actions/:id/{approve,reject}` on the right host.
+   */
+  apiBase: string;
 }
 
 function ChatbotInner({
@@ -79,6 +86,7 @@ function ChatbotInner({
   activeAgent,
   onAgentChange,
   chatApi,
+  apiBase,
 }: ChatbotInnerProps) {
   const objectNames = objects.map((o) => o.label || o.name).join(', ');
 
@@ -125,6 +133,14 @@ function ChatbotInner({
       ? `I can help you work with ${objectNames}. What would you like to do?`
       : "Thanks for your message! I'm here to help you navigate and manage your data.",
     autoResponseDelay: 600,
+  });
+
+  // HITL bridge — turns the pending-approval tool result envelope from the
+  // framework's action-tools.ts into inline approve/reject buttons that talk
+  // directly to /api/v1/ai/pending-actions/:id/{approve,reject}.
+  const hitl = useHitlInChat({
+    messages: messages as ChatMessage[],
+    apiBase,
   });
 
   const headerExtra =
@@ -181,6 +197,11 @@ function ChatbotInner({
       isLoading={isLoading}
       error={error}
       enableMarkdown
+      onToolApprove={hitl.decide}
+      toolDecisions={hitl.decisions}
+      toolApproveLabel="Approve & run"
+      toolDenyLabel="Reject"
+      toolDenyReason="Operator rejected from chat"
     />
   );
 }
@@ -224,6 +245,7 @@ export default function ConsoleFloatingChatbot({
       activeAgent={activeAgent}
       onAgentChange={setActiveAgent}
       chatApi={chatApi}
+      apiBase={apiBase}
     />
   );
 }

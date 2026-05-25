@@ -23,6 +23,7 @@ import { Route as PackageAutomationsIndexRouteImport } from './routes/$package.a
 import { Route as PackageApisIndexRouteImport } from './routes/$package.apis.index'
 import { Route as PackageAiIndexRouteImport } from './routes/$package.ai.index'
 import { Route as PackageObjectsNameRouteImport } from './routes/$package.objects.$name'
+import { Route as PackageAiApprovalsIndexRouteImport } from './routes/$package.ai.approvals.index'
 import { Route as PackageMetadataTypeNameRouteImport } from './routes/$package.metadata.$type.$name'
 
 const PackageRoute = PackageRouteImport.update({
@@ -95,6 +96,11 @@ const PackageObjectsNameRoute = PackageObjectsNameRouteImport.update({
   path: '/objects/$name',
   getParentRoute: () => PackageRoute,
 } as any)
+const PackageAiApprovalsIndexRoute = PackageAiApprovalsIndexRouteImport.update({
+  id: '/ai/approvals/',
+  path: '/ai/approvals/',
+  getParentRoute: () => PackageRoute,
+} as any)
 const PackageMetadataTypeNameRoute = PackageMetadataTypeNameRouteImport.update({
   id: '/metadata/$type/$name',
   path: '/metadata/$type/$name',
@@ -117,6 +123,7 @@ export interface FileRoutesByFullPath {
   '/$package/security/': typeof PackageSecurityIndexRoute
   '/$package/views/': typeof PackageViewsIndexRoute
   '/$package/metadata/$type/$name': typeof PackageMetadataTypeNameRoute
+  '/$package/ai/approvals/': typeof PackageAiApprovalsIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -133,6 +140,7 @@ export interface FileRoutesByTo {
   '/$package/security': typeof PackageSecurityIndexRoute
   '/$package/views': typeof PackageViewsIndexRoute
   '/$package/metadata/$type/$name': typeof PackageMetadataTypeNameRoute
+  '/$package/ai/approvals': typeof PackageAiApprovalsIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -151,6 +159,7 @@ export interface FileRoutesById {
   '/$package/security/': typeof PackageSecurityIndexRoute
   '/$package/views/': typeof PackageViewsIndexRoute
   '/$package/metadata/$type/$name': typeof PackageMetadataTypeNameRoute
+  '/$package/ai/approvals/': typeof PackageAiApprovalsIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -170,6 +179,7 @@ export interface FileRouteTypes {
     | '/$package/security/'
     | '/$package/views/'
     | '/$package/metadata/$type/$name'
+    | '/$package/ai/approvals/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -186,6 +196,7 @@ export interface FileRouteTypes {
     | '/$package/security'
     | '/$package/views'
     | '/$package/metadata/$type/$name'
+    | '/$package/ai/approvals'
   id:
     | '__root__'
     | '/'
@@ -203,6 +214,7 @@ export interface FileRouteTypes {
     | '/$package/security/'
     | '/$package/views/'
     | '/$package/metadata/$type/$name'
+    | '/$package/ai/approvals/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -310,6 +322,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PackageObjectsNameRouteImport
       parentRoute: typeof PackageRoute
     }
+    '/$package/ai/approvals/': {
+      id: '/$package/ai/approvals/'
+      path: '/ai/approvals'
+      fullPath: '/$package/ai/approvals/'
+      preLoaderRoute: typeof PackageAiApprovalsIndexRouteImport
+      parentRoute: typeof PackageRoute
+    }
     '/$package/metadata/$type/$name': {
       id: '/$package/metadata/$type/$name'
       path: '/metadata/$type/$name'
@@ -334,6 +353,7 @@ interface PackageRouteChildren {
   PackageSecurityIndexRoute: typeof PackageSecurityIndexRoute
   PackageViewsIndexRoute: typeof PackageViewsIndexRoute
   PackageMetadataTypeNameRoute: typeof PackageMetadataTypeNameRoute
+  PackageAiApprovalsIndexRoute: typeof PackageAiApprovalsIndexRoute
 }
 
 const PackageRouteChildren: PackageRouteChildren = {
@@ -350,6 +370,7 @@ const PackageRouteChildren: PackageRouteChildren = {
   PackageSecurityIndexRoute: PackageSecurityIndexRoute,
   PackageViewsIndexRoute: PackageViewsIndexRoute,
   PackageMetadataTypeNameRoute: PackageMetadataTypeNameRoute,
+  PackageAiApprovalsIndexRoute: PackageAiApprovalsIndexRoute,
 }
 
 const PackageRouteWithChildren =

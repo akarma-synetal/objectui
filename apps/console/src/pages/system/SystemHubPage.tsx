@@ -27,6 +27,7 @@ import {
   Loader2,
   Settings as SettingsIcon,
   Store,
+  Bot,
 } from 'lucide-react';
 import { useAdapter, useMetadata } from '@object-ui/app-shell';
 import { useIsWorkspaceAdmin } from '@object-ui/auth';
@@ -165,6 +166,14 @@ export function SystemHubPage() {
       href: `${basePath}/system/audit-log`,
       countLabel: 'entries',
       count: counts.auditLogs,
+    },
+    {
+      title: 'AI Approvals',
+      description: 'Review actions AI agents propose before they execute',
+      icon: Bot,
+      href: `${basePath}/system/ai-approvals`,
+      countLabel: '',
+      count: null,
     },
     {
       title: 'App Marketplace',
