@@ -28,8 +28,12 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
 } from '@object-ui/components';
-import { ArrowLeft, ExternalLink, Download, AlertCircle, Package, Trash2 } from 'lucide-react';
+import { ArrowLeft, ExternalLink, Download, AlertCircle, Package, Trash2, MoreHorizontal, CheckCircle2 } from 'lucide-react';
 import { PackageIcon } from './PackageIcon';
 import { MarkdownText } from './MarkdownText';
 import {
@@ -210,7 +214,7 @@ export function MarketplacePackagePage() {
 
   if (loading) {
     return (
-      <div className="flex flex-col gap-6 p-4 sm:p-6">
+      <div className="mx-auto w-full max-w-6xl flex flex-col gap-6 p-4 sm:p-6">
         <Skeleton className="h-8 w-32" />
         <Skeleton className="h-16 w-full" />
         <Skeleton className="h-64 w-full" />
@@ -220,7 +224,7 @@ export function MarketplacePackagePage() {
 
   if (error || !data) {
     return (
-      <div className="flex flex-col gap-6 p-4 sm:p-6">
+      <div className="mx-auto w-full max-w-6xl flex flex-col gap-6 p-4 sm:p-6">
         <Button variant="ghost" size="sm" onClick={() => navigate(`${basePath}/system/marketplace`)}>
           <ArrowLeft className="h-4 w-4 mr-1.5" aria-hidden="true" />
           Back to marketplace
@@ -240,88 +244,111 @@ export function MarketplacePackagePage() {
   const latestVersion = pkg.latest_version?.version ?? data.versions[0]?.version ?? null;
   const localInstall = localInstalls.find((i) => i.manifestId === pkg.manifest_id) ?? null;
 
+  const supportsLocal = getRuntimeConfig().features.installLocal;
+  const primaryDisabled = !latestVersion || installingLocal || installing;
+  const primaryAction = supportsLocal
+    ? {
+      label: installingLocal
+        ? 'Working…'
+        : localInstall
+          ? 'Reinstall'
+          : 'Install',
+      onClick: doInstallLocal,
+    }
+    : {
+      label: installing ? 'Installing…' : 'Install to cloud…',
+      onClick: openInstall,
+    };
+
   return (
-    <div className="flex flex-col gap-6 p-4 sm:p-6 max-w-5xl">
-      <Button variant="ghost" size="sm" className="self-start" onClick={() => navigate(`${basePath}/system/marketplace`)}>
+    <div className="mx-auto w-full max-w-6xl flex flex-col gap-6 p-4 sm:p-6">
+      <Button variant="ghost" size="sm" className="self-start -ml-2 text-muted-foreground hover:text-foreground" onClick={() => navigate(`${basePath}/system/marketplace`)}>
         <ArrowLeft className="h-4 w-4 mr-1.5" aria-hidden="true" />
         Back to marketplace
       </Button>
 
-      <div className="flex items-start gap-5 flex-wrap rounded-2xl border bg-gradient-to-br from-primary/5 via-background to-background p-6">
+      <div className="flex items-start gap-5 flex-wrap sm:flex-nowrap rounded-2xl border bg-gradient-to-br from-primary/5 via-background to-background p-6 sm:p-8">
         <PackageIcon
           iconUrl={pkg.icon_url}
           displayName={pkg.display_name}
           manifestId={pkg.manifest_id}
-          className="h-20 w-20 rounded-2xl shadow-sm ring-1 ring-border"
+          className="h-20 w-20 rounded-2xl shadow-sm ring-1 ring-border shrink-0"
           initialClassName="text-3xl font-bold"
         />
         <div className="flex-1 min-w-0">
-          <h1 className="text-3xl font-bold tracking-tight truncate">{pkg.display_name || pkg.manifest_id}</h1>
-          <div className="text-sm text-muted-foreground mt-2 flex flex-wrap items-center gap-2">
-            <code className="font-mono text-xs px-1.5 py-0.5 rounded bg-muted">{pkg.manifest_id}</code>
-            {latestVersion && (
-              <Badge variant="outline">v{latestVersion}</Badge>
+          <div className="flex items-center gap-2 flex-wrap">
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight truncate">{pkg.display_name || pkg.manifest_id}</h1>
+            {pkg.homepage_url && (
+              <a
+                href={pkg.homepage_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                title="Homepage"
+              >
+                <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
+                <span className="hidden sm:inline">Homepage</span>
+              </a>
             )}
+          </div>
+          <div className="text-sm text-muted-foreground mt-2 flex flex-wrap items-center gap-1.5">
+            <code className="font-mono text-xs px-1.5 py-0.5 rounded bg-muted">{pkg.manifest_id}</code>
+            {latestVersion && <Badge variant="outline">v{latestVersion}</Badge>}
             {pkg.publisher && pkg.publisher !== 'private' && (
               <Badge variant={pkg.publisher === 'objectstack' ? 'default' : 'secondary'}>{pkg.publisher}</Badge>
             )}
             {pkg.category && <Badge variant="outline">{pkg.category}</Badge>}
             {pkg.license && <Badge variant="outline" className="font-normal">{pkg.license}</Badge>}
             {localInstall && (
-              <Badge variant="default" className="bg-green-600 hover:bg-green-600">
+              <Badge variant="default" className="bg-green-600 hover:bg-green-600 gap-1">
+                <CheckCircle2 className="h-3 w-3" aria-hidden="true" />
                 Installed · v{localInstall.version}
               </Badge>
             )}
           </div>
           {pkg.description && (
-            <p className="text-base text-foreground/80 mt-4 max-w-2xl leading-relaxed">{pkg.description}</p>
+            <p className="text-sm sm:text-base text-foreground/80 mt-3 max-w-2xl leading-relaxed">{pkg.description}</p>
           )}
         </div>
-        <div className="flex flex-col gap-2 shrink-0 min-w-[14rem]">
-          {/*
-            "Install to this runtime" is only meaningful when the runtime
-            actually mounts MarketplaceInstallLocalPlugin. The server signals
-            that capability via /api/v1/runtime/config → features.installLocal.
-            Multi-tenant ObjectOS and the cloud control plane both return
-            false here, so the button is hidden there.
-          */}
-          {getRuntimeConfig().features.installLocal && (
-            <>
-              <Button onClick={doInstallLocal} disabled={!latestVersion || installingLocal} size="lg">
-                <Download className="h-4 w-4 mr-1.5" aria-hidden="true" />
-                {installingLocal
-                  ? 'Working…'
-                  : localInstall
-                    ? `Reinstall to this runtime`
-                    : 'Install to this runtime'}
-              </Button>
-              {localInstall && (
-                <Button variant="outline" onClick={doUninstallLocal} disabled={installingLocal}>
-                  <Trash2 className="h-4 w-4 mr-1.5" aria-hidden="true" />
-                  Uninstall from this runtime
-                </Button>
-              )}
-            </>
-          )}
-          <Button variant="ghost" onClick={openInstall} disabled={!latestVersion} size="sm">
+        <div className="flex items-center gap-2 shrink-0 self-start">
+          <Button onClick={primaryAction.onClick} disabled={primaryDisabled} size="lg" className="min-w-[8rem]">
             <Download className="h-4 w-4 mr-1.5" aria-hidden="true" />
-            Install to cloud environment…
+            {primaryAction.label}
           </Button>
-          {pkg.homepage_url && (
-            <a href={pkg.homepage_url} target="_blank" rel="noopener noreferrer">
-              <Button variant="ghost" size="sm" className="w-full">
-                <ExternalLink className="h-4 w-4 mr-1.5" aria-hidden="true" />
-                Homepage
-              </Button>
-            </a>
-          )}
-          {localResult && (
-            <div className={`rounded-md border p-2 text-xs whitespace-pre-wrap ${localResult.ok ? 'border-green-500/30 bg-green-500/5 text-green-700 dark:text-green-400' : 'border-destructive/30 bg-destructive/5 text-destructive'}`}>
-              {localResult.message}
-            </div>
+          {localInstall && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="lg" className="px-2.5" aria-label="More install options">
+                  <MoreHorizontal className="h-4 w-4" aria-hidden="true" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
+                <DropdownMenuItem onSelect={doUninstallLocal} disabled={installingLocal} className="text-destructive focus:text-destructive">
+                  <Trash2 className="h-4 w-4 mr-2" aria-hidden="true" />
+                  Uninstall from this runtime
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           )}
         </div>
       </div>
+
+      {localResult && (
+        <div
+          role="status"
+          className={`flex items-start gap-2 rounded-md border p-3 text-sm whitespace-pre-wrap ${localResult.ok ? 'border-green-500/30 bg-green-500/5 text-green-700 dark:text-green-400' : 'border-destructive/30 bg-destructive/5 text-destructive'}`}
+        >
+          {localResult.ok ? <CheckCircle2 className="h-4 w-4 mt-0.5 shrink-0" aria-hidden="true" /> : <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" aria-hidden="true" />}
+          <div className="flex-1">{localResult.message}</div>
+          <button
+            type="button"
+            className="text-xs underline opacity-60 hover:opacity-100"
+            onClick={() => setLocalResult(null)}
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
 
       <div className="grid gap-4 lg:grid-cols-3">
         <div className="lg:col-span-2 space-y-4">
