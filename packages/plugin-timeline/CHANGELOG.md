@@ -1,5 +1,15 @@
 # @object-ui/plugin-timeline
 
+## 6.0.1
+
+### Patch Changes
+
+- @object-ui/types@6.0.1
+- @object-ui/core@6.0.1
+- @object-ui/react@6.0.1
+- @object-ui/components@6.0.1
+- @object-ui/mobile@6.0.1
+
 ## 6.0.0
 
 ### Patch Changes

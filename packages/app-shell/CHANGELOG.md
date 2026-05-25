@@ -1,5 +1,23 @@
 # @object-ui/app-shell — Changelog
 
+## 6.0.1
+
+### Patch Changes
+
+- dbb9a98: cloud
+  - @object-ui/types@6.0.1
+  - @object-ui/core@6.0.1
+  - @object-ui/i18n@6.0.1
+  - @object-ui/react@6.0.1
+  - @object-ui/components@6.0.1
+  - @object-ui/fields@6.0.1
+  - @object-ui/layout@6.0.1
+  - @object-ui/data-objectstack@6.0.1
+  - @object-ui/auth@6.0.1
+  - @object-ui/permissions@6.0.1
+  - @object-ui/collaboration@6.0.1
+  - @object-ui/providers@6.0.1
+
 ## 6.0.0
 
 ### Major Changes
