@@ -188,11 +188,24 @@ export const ObjectMetricWidget: React.FC<ObjectMetricWidgetProps> = ({
         if (data.length === 0) {
           value = 0;
         } else if (aggregate.function === 'count') {
-          // Sum all count results
-          value = data.reduce((sum: number, r: any) => sum + (Number(r[aggregate.field]) || Number(r.count) || 0), 0);
+          // Sum all count results. Analytics service returns the count under
+          // `<field>_count` (or `count` when no field is specified); accept
+          // either, plus the bare field name for legacy drivers.
+          const suffixedKey = `${aggregate.field}_count`;
+          value = data.reduce((sum: number, r: any) => sum + (
+            Number(r[suffixedKey]) ||
+            Number(r[aggregate.field]) ||
+            Number(r.count) ||
+            0
+          ), 0);
         } else {
-          // Take the first result's value
-          value = data[0][aggregate.field] ?? 0;
+          // Take the first result's value. Analytics service returns the
+          // aggregated value under `<field>_<function>` (e.g. `views_sum`);
+          // fall back to the bare field name for drivers that don't apply the
+          // suffix, and finally to `value` for legacy responses.
+          const row = data[0] as Record<string, any>;
+          const suffixedKey = `${aggregate.field}_${aggregate.function}`;
+          value = row[suffixedKey] ?? row[aggregate.field] ?? row.value ?? 0;
         }
       } else if (typeof ds.find === 'function') {
         // Fallback: count records
