@@ -699,7 +699,16 @@ const PageHeaderRenderer: React.FC<any> = ({ schema, className, ...props }) => {
   const hostSystemActions = (ctx as any)?.headerSystemActions as any[] | undefined;
   const headerActions = React.useMemo<any[]>(() => {
     const recordData: any = ctx?.data;
-    const evalCtx = { record: recordData, data: recordData };
+    // Spread record fields as top-level bindings so author-friendly CEL like
+    // `status == "active"` or `is_default != true` resolves directly. Without
+    // this, bare identifiers fall through to the JS global scope and silently
+    // resolve to e.g. `window.status` (empty string), causing every action
+    // with a `visible` expression to be filtered out.
+    const evalCtx = {
+      ...(recordData && typeof recordData === 'object' ? recordData : {}),
+      record: recordData,
+      data: recordData,
+    };
     const evaluator = new ExpressionEvaluator(evalCtx);
     const evalExpr = (src: string): any => {
       try {
