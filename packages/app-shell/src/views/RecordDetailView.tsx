@@ -433,6 +433,15 @@ export function RecordDetailView({ dataSource, objects, onEdit, objectNameOverri
       const shouldRefresh = action.refreshAfter !== false;
       if (shouldRefresh) setActionRefreshKey(k => k + 1);
       const result = json?.data;
+      // ── redirectUrl convention ────────────────────────────────────────
+      // A script-action handler can return `{ redirectUrl: 'https://…' }`
+      // to ask the UI to open the URL in a new tab. Used by the
+      // `sso_as_owner` action on sys_environment to drop the operator
+      // into the env runtime as its admin. Same pattern works for any
+      // future "deep link" style action.
+      if (result && typeof result === 'object' && typeof (result as any).redirectUrl === 'string') {
+        try { window.open((result as any).redirectUrl, '_blank', 'noopener,noreferrer'); } catch { /* popup blocked — fall through */ }
+      }
       return { success: true, data: result, reload: shouldRefresh };
     } catch (error) {
       return { success: false, error: (error as Error).message };
