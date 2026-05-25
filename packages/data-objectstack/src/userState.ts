@@ -105,16 +105,31 @@ export function createObjectStackUserStateAdapter<T = unknown>(
   let cachedRowId: string | number | null = null;
 
   const findExisting = async (): Promise<UserPreferenceRecord | null> => {
+    // NOTE: `QueryParams` uses OData-style `$`-prefixed keys. Using the bare
+    // names (`filter`, `limit`) silently drops the predicate at the
+    // `convertQueryParams` layer, which then returns *any* row in the
+    // `sys_user_preference` table — that caused the Favorites adapter to load
+    // the Recents row (and vice-versa), so clicked items leaked into Starred.
     const params: QueryParams = {
-      filter: {
+      $filter: {
         user_id: userId,
         key,
       },
-      limit: 1,
+      $top: 1,
     };
     const result = await dataSource.find(resource, params);
     const rows = (result?.data ?? []) as UserPreferenceRecord[];
-    return rows.length > 0 ? rows[0] : null;
+    // Defensive: if the backend ignored our predicate and returned mixed
+    // rows, only accept ones tagged for this (user, key) pair. Rows that
+    // omit those metadata fields entirely are trusted (covers mocks and
+    // backends that strip metadata from the projection).
+    const match = rows.find(r => {
+      if (!r) return false;
+      const userMismatch = r.user_id !== undefined && r.user_id !== userId;
+      const keyMismatch = r.key !== undefined && r.key !== key;
+      return !userMismatch && !keyMismatch;
+    });
+    return match ?? null;
   };
 
   const decodeValue = (value: unknown): T[] => {

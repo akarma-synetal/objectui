@@ -39,8 +39,8 @@ describe('createObjectStackUserStateAdapter', () => {
 
       expect(items).toEqual([]);
       expect(ds.find).toHaveBeenCalledWith('sys_user_preference', {
-        filter: { user_id: 'u1', key: 'ui.favorites' },
-        limit: 1,
+        $filter: { user_id: 'u1', key: 'ui.favorites' },
+        $top: 1,
       });
     });
 
