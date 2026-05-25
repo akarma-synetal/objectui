@@ -8,13 +8,14 @@
  * @module
  */
 
-import React, { useEffect, Suspense, lazy } from 'react';
+import React, { useEffect } from 'react';
 import { AppShell } from '@object-ui/layout';
 import { useDiscovery } from '@object-ui/react';
 
-// Lazy-load the chatbot so its heavy markdown deps (~150 KB) stay out of
-// the initial paint until the AI assistant is actually enabled.
-const ConsoleFloatingChatbot = lazy(() => import('./ConsoleFloatingChatbot'));
+// Lightweight FAB stub — the heavy chat chunk graph (plugin-chatbot,
+// shiki, streamdown, mermaid, @ai-sdk, ~20MB) only downloads on first
+// hover/click. See ConsoleChatbotFab.tsx.
+import { ConsoleChatbotFab } from './ConsoleChatbotFab';
 import { UnifiedSidebar } from './UnifiedSidebar';
 import { AppHeader } from './AppHeader';
 import { MobileViewSwitcherProvider } from './MobileViewSwitcherContext';
@@ -108,11 +109,11 @@ export function ConsoleLayout({
       </ConsoleLayoutInner>
 
       {/* Global floating chatbot — rendered when AI service is available
-          OR when `VITE_AI_BASE_URL` has been explicitly configured. */}
+          OR when `VITE_AI_BASE_URL` has been explicitly configured. The
+          stub FAB is dependency-free; the heavy chat bundle only loads
+          on first interaction. */}
       {showChatbot && (
-        <Suspense fallback={null}>
-          <ConsoleFloatingChatbot appLabel={appLabel} objects={objects} />
-        </Suspense>
+        <ConsoleChatbotFab appLabel={appLabel} objects={objects} />
       )}
     </AppShell>
     </MobileViewSwitcherProvider>

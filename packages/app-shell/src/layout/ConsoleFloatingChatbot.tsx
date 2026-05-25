@@ -42,6 +42,8 @@ export interface ConsoleFloatingChatbotProps {
   apiBase?: string;
   /** Default agent name to select on first render. */
   defaultAgent?: string;
+  /** Whether the floating panel should open immediately on mount. */
+  defaultOpen?: boolean;
 }
 
 const DEFAULT_AI_PATH = '/api/v1/ai';
@@ -75,6 +77,8 @@ interface ChatbotInnerProps {
    * `POST /pending-actions/:id/{approve,reject}` on the right host.
    */
   apiBase: string;
+  /** Whether the floating panel should open immediately on mount. */
+  defaultOpen?: boolean;
 }
 
 function ChatbotInner({
@@ -87,6 +91,7 @@ function ChatbotInner({
   onAgentChange,
   chatApi,
   apiBase,
+  defaultOpen = false,
 }: ChatbotInnerProps) {
   const objectNames = objects.map((o) => o.label || o.name).join(', ');
 
@@ -180,7 +185,7 @@ function ChatbotInner({
     <FloatingChatbot
       floatingConfig={{
         position: 'bottom-right',
-        defaultOpen: false,
+        defaultOpen,
         panelWidth: 420,
         panelHeight: 560,
         title: `${appLabel} Assistant`,
@@ -216,6 +221,7 @@ export default function ConsoleFloatingChatbot({
   objects,
   apiBase: apiBaseProp,
   defaultAgent: defaultAgentProp,
+  defaultOpen = false,
 }: ConsoleFloatingChatbotProps) {
   const apiBase = React.useMemo(() => resolveApiBase(apiBaseProp), [apiBaseProp]);
   const env = (import.meta as any).env ?? {};
@@ -251,6 +257,7 @@ export default function ConsoleFloatingChatbot({
       onAgentChange={setActiveAgent}
       chatApi={chatApi}
       apiBase={apiBase}
+      defaultOpen={defaultOpen}
     />
   );
 }

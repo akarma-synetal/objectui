@@ -8,14 +8,14 @@
  * @module
  */
 
-import React, { useEffect, Suspense, lazy } from 'react';
+import React, { useEffect } from 'react';
 import { useNavigationContext } from '../../context/NavigationContext';
 import { AppHeader } from '../../layout/AppHeader';
 import { useDiscovery } from '@object-ui/react';
 
-// Lazy-load the chatbot so its heavy markdown deps stay out of the initial
-// paint until the AI assistant is actually enabled.
-const ConsoleFloatingChatbot = lazy(() => import('../../layout/ConsoleFloatingChatbot'));
+// Lightweight FAB stub — the heavy chat chunk graph only downloads on
+// first hover/click. See ../../layout/ConsoleChatbotFab.tsx.
+import { ConsoleChatbotFab } from '../../layout/ConsoleChatbotFab';
 
 interface HomeLayoutProps {
   children: React.ReactNode;
@@ -43,12 +43,10 @@ export function HomeLayout({ children }: HomeLayoutProps) {
         {children}
       </main>
 
-      {/* Global floating chatbot — also available on the home/workspace screen */}
-      {showChatbot && (
-        <Suspense fallback={null}>
-          <ConsoleFloatingChatbot appLabel="Workspace" objects={[]} />
-        </Suspense>
-      )}
+      {/* Global floating chatbot — also available on the home/workspace
+          screen. Stub FAB is dependency-free; the heavy chat bundle only
+          loads on first interaction. */}
+      {showChatbot && <ConsoleChatbotFab appLabel="Workspace" objects={[]} />}
     </div>
   );
 }
