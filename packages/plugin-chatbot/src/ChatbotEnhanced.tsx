@@ -165,6 +165,35 @@ export interface ChatbotEnhancedProps extends React.HTMLAttributes<HTMLDivElemen
   selectedModelId?: string;
   /** Fired when the user picks a different model. */
   onModelChange?: (modelId: string) => void;
+  /**
+   * Optional banner rendered between the message-count strip and the
+   * conversation. Used by shell-level UIs (e.g. Studio's assistant status
+   * row) without forcing them to fork the whole component.
+   */
+  headerSlot?: React.ReactNode;
+  /**
+   * Optional overlay rendered absolute-positioned above the prompt input.
+   * Intended for slash-command palettes / inline suggestion popups.
+   */
+  promptOverlaySlot?: React.ReactNode;
+  /**
+   * Fired on every keystroke in the prompt textarea (forwarded from the
+   * AI Elements `PromptInputTextarea`). Lets callers drive a slash-command
+   * palette without owning the textarea state.
+   */
+  onInputChange?: (value: string) => void;
+  /**
+   * When provided, tool parts in `approval-requested` state render Approve /
+   * Deny buttons inside their body. The callback receives the tool's
+   * `toolCallId` (use it to look up the AI SDK approval id if different).
+   */
+  onToolApprove?: (toolCallId: string, approved: boolean, reason?: string) => void;
+  /** Label for the approve button (default "Approve"). */
+  toolApproveLabel?: string;
+  /** Label for the deny button (default "Deny"). */
+  toolDenyLabel?: string;
+  /** Reason text sent with a denial response (default "User denied the operation"). */
+  toolDenyReason?: string;
 }
 
 export interface ChatbotModelOption {
@@ -212,6 +241,13 @@ const ChatbotEnhanced = React.forwardRef<HTMLDivElement, ChatbotEnhancedProps>(
       models,
       selectedModelId,
       onModelChange,
+      headerSlot,
+      promptOverlaySlot,
+      onInputChange,
+      onToolApprove,
+      toolApproveLabel = 'Approve',
+      toolDenyLabel = 'Deny',
+      toolDenyReason = 'User denied the operation',
       ...props
     },
     ref
@@ -270,6 +306,10 @@ const ChatbotEnhanced = React.forwardRef<HTMLDivElement, ChatbotEnhancedProps>(
           </div>
         )}
 
+        {headerSlot ? (
+          <div className="shrink-0 border-b bg-background/50">{headerSlot}</div>
+        ) : null}
+
         <Conversation className="flex-1 min-h-0">
           <ConversationContent className="space-y-4 px-4 py-3">
             {messages.length === 0 ? (
@@ -317,6 +357,8 @@ const ChatbotEnhanced = React.forwardRef<HTMLDivElement, ChatbotEnhancedProps>(
                                   ? 'output-available'
                                   : 'input-available');
                             const partType = `tool-${tool.toolName}` as `tool-${string}`;
+                            const isAwaitingApproval =
+                              state === 'approval-requested' && Boolean(onToolApprove);
                             return (
                               <Tool key={tool.toolCallId} defaultOpen={state !== 'output-available'}>
                                 <ToolHeader
@@ -332,6 +374,32 @@ const ChatbotEnhanced = React.forwardRef<HTMLDivElement, ChatbotEnhancedProps>(
                                     output={tool.result}
                                     errorText={tool.errorText}
                                   />
+                                  {isAwaitingApproval ? (
+                                    <div className="flex gap-2 p-3 border-t bg-muted/30">
+                                      <button
+                                        type="button"
+                                        onClick={() =>
+                                          onToolApprove?.(tool.toolCallId, true)
+                                        }
+                                        className="inline-flex h-7 items-center rounded-md bg-primary px-3 text-xs font-medium text-primary-foreground hover:bg-primary/90"
+                                      >
+                                        {toolApproveLabel}
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() =>
+                                          onToolApprove?.(
+                                            tool.toolCallId,
+                                            false,
+                                            toolDenyReason,
+                                          )
+                                        }
+                                        className="inline-flex h-7 items-center rounded-md border bg-background px-3 text-xs font-medium hover:bg-accent"
+                                      >
+                                        {toolDenyLabel}
+                                      </button>
+                                    </div>
+                                  ) : null}
                                 </ToolContent>
                               </Tool>
                             );
@@ -423,59 +491,71 @@ const ChatbotEnhanced = React.forwardRef<HTMLDivElement, ChatbotEnhancedProps>(
           </div>
         ) : null}
 
-        <PromptInput
-          accept={acceptedFileTypes}
-          maxFileSize={maxFileSize}
-          onSubmit={handleSubmit}
-          onError={(e) => {
-            // Surface upload-level validation errors via the existing toast/alert path
-            console.warn('[plugin-chatbot] prompt-input error', e);
-          }}
-        >
-          {enableFileUpload ? (
-            <PromptInputBody>
-              <PromptInputAttachments>
-                {(attachment) => <PromptInputAttachment data={attachment} />}
-              </PromptInputAttachments>
-            </PromptInputBody>
+        <div className="relative">
+          {promptOverlaySlot ? (
+            <div className="absolute bottom-full left-0 right-0 z-10 px-3 pb-1">
+              {promptOverlaySlot}
+            </div>
           ) : null}
-          <PromptInputTextarea
-            placeholder={placeholder}
-            disabled={disabled || status === 'streaming'}
-          />
-          <PromptInputFooter>
-            <PromptInputTools>
-              {enableFileUpload ? (
-                <PromptInputActionMenu>
-                  <PromptInputActionMenuTrigger />
-                  <PromptInputActionMenuContent>
-                    <PromptInputActionAddAttachments />
-                  </PromptInputActionMenuContent>
-                </PromptInputActionMenu>
-              ) : null}
-              {models && models.length > 0 ? (
-                <select
-                  aria-label="Model"
-                  value={selectedModelId ?? models[0].id}
-                  onChange={(e) => onModelChange?.(e.target.value)}
-                  className="h-7 rounded-md border bg-background px-2 text-xs text-muted-foreground hover:text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-                >
-                  {models.map((m) => (
-                    <option key={m.id} value={m.id}>
-                      {m.label ?? m.id}
-                      {m.provider ? ` · ${m.provider}` : ''}
-                    </option>
-                  ))}
-                </select>
-              ) : null}
-            </PromptInputTools>
-            <PromptInputSubmit
-              status={status}
-              disabled={disabled}
-              onClick={status === 'streaming' ? onStop : undefined}
+          <PromptInput
+            accept={acceptedFileTypes}
+            maxFileSize={maxFileSize}
+            onSubmit={handleSubmit}
+            onError={(e) => {
+              // Surface upload-level validation errors via the existing toast/alert path
+              console.warn('[plugin-chatbot] prompt-input error', e);
+            }}
+          >
+            {enableFileUpload ? (
+              <PromptInputBody>
+                <PromptInputAttachments>
+                  {(attachment) => <PromptInputAttachment data={attachment} />}
+                </PromptInputAttachments>
+              </PromptInputBody>
+            ) : null}
+            <PromptInputTextarea
+              placeholder={placeholder}
+              disabled={disabled || status === 'streaming'}
+              onChange={
+                onInputChange
+                  ? (e) => onInputChange(e.currentTarget.value)
+                  : undefined
+              }
             />
-          </PromptInputFooter>
-        </PromptInput>
+            <PromptInputFooter>
+              <PromptInputTools>
+                {enableFileUpload ? (
+                  <PromptInputActionMenu>
+                    <PromptInputActionMenuTrigger />
+                    <PromptInputActionMenuContent>
+                      <PromptInputActionAddAttachments />
+                    </PromptInputActionMenuContent>
+                  </PromptInputActionMenu>
+                ) : null}
+                {models && models.length > 0 ? (
+                  <select
+                    aria-label="Model"
+                    value={selectedModelId ?? models[0].id}
+                    onChange={(e) => onModelChange?.(e.target.value)}
+                    className="h-7 rounded-md border bg-background px-2 text-xs text-muted-foreground hover:text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                  >
+                    {models.map((m) => (
+                      <option key={m.id} value={m.id}>
+                        {m.label ?? m.id}
+                        {m.provider ? ` · ${m.provider}` : ''}
+                      </option>
+                    ))}
+                  </select>
+                ) : null}
+              </PromptInputTools>
+              <PromptInputSubmit
+                status={status}
+                disabled={disabled}
+                onClick={status === 'streaming' ? onStop : undefined}
+              />
+            </PromptInputFooter>
+          </PromptInput>
+        </div>
 
         {/* Suppress unused warnings on legacy props we accept for back-compat. */}
         <span

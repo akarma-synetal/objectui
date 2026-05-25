@@ -274,8 +274,25 @@ export type { FloatingChatbotPanelProps } from './FloatingChatbotPanel';
 // Export renderer to register the component with ObjectUI
 export * from './renderer';
 
+// Shared composition layer over the vendored AI Elements (used by both
+// Studio's sidebar panel and Console's floating chatbot).
+export { ChatbotEnhanced } from './ChatbotEnhanced';
+export type {
+  ChatbotEnhancedProps,
+  ChatMessage as ChatbotEnhancedMessage,
+  ChatToolInvocation as ChatbotEnhancedToolInvocation,
+  ChatSource as ChatbotEnhancedSource,
+} from './ChatbotEnhanced';
+
 // Re-export the vendored Vercel AI Elements (MIT, src/elements/) so app
 // authors who want to compose their own chat surface don't have to reach
 // into deep paths. Wrappers (e.g. ConsoleFloatingChatbot) should consume
 // these instead of dropping back to the legacy primitives.
 export * as AIElements from './elements';
+
+// UIMessage (AI SDK v6) → ChatMessage adapter. Apps that hold raw
+// `useChat` state can convert it to the shape `<ChatbotEnhanced>` expects.
+export {
+  uiMessageToChatMessage,
+  uiMessagesToChatMessages,
+} from './mapMessages';
