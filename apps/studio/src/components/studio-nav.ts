@@ -214,3 +214,78 @@ export const METADATA_TYPE_ICONS: Record<string, LucideIcon> = {
 export function iconForMetadataType(type: string): LucideIcon | undefined {
   return METADATA_TYPE_ICONS[type] ?? navItemForType(type)?.icon;
 }
+
+/**
+ * Plural display labels for metadata types — used by breadcrumbs and
+ * list-page headings (e.g. "Hooks", "RAG Pipelines").
+ *
+ * Overrides for irregular forms or domain-specific casing. Anything not
+ * listed falls through to {@link pluralTypeLabel}'s naive +s rule.
+ */
+export const METADATA_TYPE_PLURAL_LABELS: Record<string, string> = {
+  object: 'Objects',
+  view: 'Views',
+  app: 'Apps',
+  page: 'Pages',
+  dashboard: 'Dashboards',
+  report: 'Reports',
+  flow: 'Flows',
+  workflow: 'Workflows',
+  approval: 'Approvals',
+  hook: 'Hooks',
+  trigger: 'Triggers',
+  function: 'Functions',
+  agent: 'Agents',
+  tool: 'Tools',
+  skill: 'Skills',
+  role: 'Roles',
+  profile: 'Profiles',
+  permission: 'Permissions',
+  policy: 'Policies',
+  action: 'Actions',
+  api: 'APIs',
+  webhook: 'Webhooks',
+  connector: 'Connectors',
+  mapping: 'Mappings',
+  theme: 'Themes',
+  ragPipeline: 'RAG Pipelines',
+  sharingRule: 'Sharing Rules',
+  analyticsCube: 'Analytics Cubes',
+  data: 'Seed Data',
+};
+
+/**
+ * Pluralise + Title Case a metadata type, with a registry override for
+ * irregular forms. Centralised here (rather than inline in TopBar) so a
+ * future i18n catalog has a single hook point to translate every
+ * type-derived label across breadcrumbs, list pages, and chips.
+ */
+export function pluralTypeLabel(type: string): string {
+  if (METADATA_TYPE_PLURAL_LABELS[type]) return METADATA_TYPE_PLURAL_LABELS[type];
+  const spaced = type
+    .replace(/([A-Z])/g, ' $1')
+    .replace(/[_-]+/g, ' ')
+    .trim();
+  const titled = spaced.charAt(0).toUpperCase() + spaced.slice(1);
+  return titled.endsWith('s') ? titled : `${titled}s`;
+}
+
+/**
+ * Breadcrumb-only labels for stable virtual nodes (e.g. "Home",
+ * "Overview", "Studio"). Kept separate from {@link STUDIO_NAV} because
+ * these don't appear in the sidebar.
+ */
+export const BREADCRUMB_LABELS: Record<string, string> = {
+  home: 'Home',
+  'package-overview': 'Overview',
+  default: 'Studio',
+};
+
+/**
+ * Lookup a nav-category label by its STUDIO_NAV key (e.g. "objects" →
+ * "Objects", "views" → "Views & Apps"). Falls back to a Title-Cased key.
+ */
+export function navLabelByKey(key: string): string {
+  return STUDIO_NAV.find((item) => item.key === key)?.label
+    ?? key.charAt(0).toUpperCase() + key.slice(1);
+}

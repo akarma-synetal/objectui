@@ -19,7 +19,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from '@tanstack/react-router';
-import { ChevronRight, Eye, LayoutGrid, List, Plus, Search } from 'lucide-react';
+import { ChevronRight, Columns3, Eye, Hash, LayoutGrid, List, Plus, Search } from 'lucide-react';
 import { useClient, useMetadataSubscriptionCallback } from '@objectstack/client-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -68,6 +68,24 @@ interface Row {
   description?: string;
   updatedAt?: string;
   raw: any;
+}
+
+/**
+ * Compute a field count from an object spec (supports both the array
+ * and record-shaped `fields` schemas the spec allows).
+ */
+function objectFieldCount(raw: any): number | null {
+  const f = raw?.spec?.fields ?? raw?.fields;
+  if (Array.isArray(f)) return f.length;
+  if (f && typeof f === 'object') return Object.keys(f).length;
+  return null;
+}
+
+interface ObjectStats {
+  /** null = loading, undefined = unavailable (request failed). */
+  recordCount: number | null | undefined;
+  /** Server returned a hasMore hint without a total — surface as "N+". */
+  isLowerBound: boolean;
 }
 
 export function MetadataListPage({
@@ -135,6 +153,46 @@ export function MetadataListPage({
   useEffect(() => {
     load();
   }, [load]);
+
+  // Best-effort record counts for object cards. We issue these in parallel
+  // *after* the row list resolves so the grid renders immediately and counts
+  // fill in progressively. Failures are silent (counts simply don't appear).
+  const [objectStats, setObjectStats] = useState<Record<string, ObjectStats>>({});
+  useEffect(() => {
+    if (!types.includes('object')) return;
+    const objectRows = rows.filter((r) => r.type === 'object');
+    if (objectRows.length === 0) {
+      setObjectStats({});
+      return;
+    }
+    let cancelled = false;
+    setObjectStats((prev) => {
+      const next: Record<string, ObjectStats> = {};
+      for (const r of objectRows) next[r.name] = prev[r.name] ?? { recordCount: null, isLowerBound: false };
+      return next;
+    });
+    (async () => {
+      await Promise.all(objectRows.map(async (row) => {
+        try {
+          const r: any = await (client as any).data.find(row.name, { limit: 1 });
+          if (cancelled) return;
+          let stats: ObjectStats;
+          if (typeof r?.total === 'number') {
+            stats = { recordCount: r.total, isLowerBound: false };
+          } else if (Array.isArray(r?.records)) {
+            stats = { recordCount: r.records.length, isLowerBound: !!r.hasMore };
+          } else {
+            stats = { recordCount: undefined, isLowerBound: false };
+          }
+          setObjectStats((prev) => ({ ...prev, [row.name]: stats }));
+        } catch {
+          if (cancelled) return;
+          setObjectStats((prev) => ({ ...prev, [row.name]: { recordCount: undefined, isLowerBound: false } }));
+        }
+      }));
+    })();
+    return () => { cancelled = true; };
+  }, [client, rows, types]);
 
   useMetadataSubscriptionCallback('object', load);
   useMetadataSubscriptionCallback('view', load);
@@ -354,6 +412,37 @@ export function MetadataListPage({
                         {row.description}
                       </p>
                     ) : null}
+                    {row.type === 'object' && (() => {
+                      const fields = objectFieldCount(row.raw);
+                      const stats = objectStats[row.name];
+                      const records = stats?.recordCount;
+                      if (fields === null && records === null && records === undefined) return null;
+                      return (
+                        <div className="flex items-center gap-3 text-[11px] text-muted-foreground">
+                          {fields !== null && (
+                            <span className="inline-flex items-center gap-1" title={`${fields} field${fields === 1 ? '' : 's'}`}>
+                              <Columns3 className="h-3 w-3" />
+                              <span className="font-medium tabular-nums text-foreground/80">{fields}</span>
+                              <span>fields</span>
+                            </span>
+                          )}
+                          {records === null ? (
+                            <span className="inline-flex items-center gap-1 opacity-60" aria-label="Loading record count">
+                              <Hash className="h-3 w-3" />
+                              <span className="tabular-nums">…</span>
+                            </span>
+                          ) : typeof records === 'number' ? (
+                            <span className="inline-flex items-center gap-1" title={`${records.toLocaleString()}${stats?.isLowerBound ? '+' : ''} record${records === 1 ? '' : 's'}`}>
+                              <Hash className="h-3 w-3" />
+                              <span className="font-medium tabular-nums text-foreground/80">
+                                {records.toLocaleString()}{stats?.isLowerBound ? '+' : ''}
+                              </span>
+                              <span>records</span>
+                            </span>
+                          ) : null}
+                        </div>
+                      );
+                    })()}
                     <div className="mt-auto flex items-center justify-between gap-2 pt-1">
                       <code className="truncate text-[11px] text-muted-foreground/70" title={row.name}>
                         {row.name}

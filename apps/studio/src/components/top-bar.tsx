@@ -33,50 +33,7 @@ import { HmrStatusBadge } from '@/components/HmrStatusBadge';
 import { SidebarTrigger } from '@/components/ui/sidebar';
 import { usePackages } from '@/hooks/usePackages';
 import { CommandPalette } from '@/components/CommandPalette';
-
-const META_TYPE_LABELS: Record<string, string> = {
-  action: 'Actions',
-  dashboard: 'Dashboards',
-  report: 'Reports',
-  flow: 'Flows',
-  agent: 'Agents',
-  api: 'APIs',
-  ragPipeline: 'RAG Pipelines',
-  profile: 'Profiles',
-  sharingRule: 'Sharing Rules',
-  data: 'Seed Data',
-  view: 'Views',
-  app: 'Apps',
-  tool: 'Tools',
-  skill: 'Skills',
-  workflow: 'Workflows',
-  approval: 'Approvals',
-  webhook: 'Webhooks',
-  role: 'Roles',
-  permission: 'Permissions',
-  policy: 'Policies',
-  connector: 'Connectors',
-  object: 'Objects',
-  hook: 'Hooks',
-  trigger: 'Triggers',
-  function: 'Functions',
-  mapping: 'Mappings',
-  analyticsCube: 'Analytics Cubes',
-  page: 'Pages',
-  theme: 'Themes',
-};
-
-/** Pluralise + Title Case fallback when a type isn't in {@link META_TYPE_LABELS}. */
-function pluralMetaLabel(type: string): string {
-  if (META_TYPE_LABELS[type]) return META_TYPE_LABELS[type];
-  // Convert camelCase/snake_case to spaced Title Case, then add 's'.
-  const spaced = type
-    .replace(/([A-Z])/g, ' $1')
-    .replace(/[_-]+/g, ' ')
-    .trim();
-  const titled = spaced.charAt(0).toUpperCase() + spaced.slice(1);
-  return titled.endsWith('s') ? titled : `${titled}s`;
-}
+import { BREADCRUMB_LABELS, navLabelByKey, pluralTypeLabel } from '@/components/studio-nav';
 
 function StudioBrand() {
   return (
@@ -134,44 +91,32 @@ export function TopBar({ rightSlot }: { rightSlot?: React.ReactNode } = {}) {
     return 'default';
   }, [location.pathname, params]);
 
-  const NAV_LABELS: Record<string, string> = {
-    objects: 'Objects',
-    forms: 'Forms',
-    views: 'Views & Apps',
-    automations: 'Automations',
-    ai: 'AI',
-    security: 'Security',
-    apis: 'APIs',
-    playground: 'Playground',
-    logs: 'Logs',
-  };
-
   const breadcrumbs = useMemo(() => {
     const items: Array<{ label: string; href?: string }> = [];
     if (viewType.startsWith('nav:')) {
       const key = viewType.slice(4);
-      items.push({ label: NAV_LABELS[key] ?? key });
+      items.push({ label: navLabelByKey(key) });
       return items;
     }
     switch (viewType) {
       case 'home':
-        items.push({ label: 'Home' });
+        items.push({ label: BREADCRUMB_LABELS.home });
         break;
       case 'package-overview':
-        items.push({ label: 'Overview' });
+        items.push({ label: BREADCRUMB_LABELS['package-overview'] });
         break;
       case 'object':
-        items.push({ label: 'Objects' });
+        items.push({ label: navLabelByKey('objects') });
         if (params.name) items.push({ label: params.name });
         break;
       case 'metadata':
         if (params.type) {
-          items.push({ label: pluralMetaLabel(params.type) });
+          items.push({ label: pluralTypeLabel(params.type) });
         }
         if (params.name) items.push({ label: params.name });
         break;
       default:
-        items.push({ label: 'Studio' });
+        items.push({ label: BREADCRUMB_LABELS.default });
     }
     return items;
   }, [viewType, params]);

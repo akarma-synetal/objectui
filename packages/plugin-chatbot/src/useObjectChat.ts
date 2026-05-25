@@ -11,6 +11,7 @@ import type { ChatMessage as OuiChatMessage } from '@object-ui/types';
 import { useChat } from '@ai-sdk/react';
 import { DefaultChatTransport } from 'ai';
 import { generateUniqueId } from './utils';
+import { uiMessagesToChatMessages } from './mapMessages';
 
 /**
  * Configuration options for useObjectChat hook.
@@ -240,62 +241,16 @@ export function useObjectChat(options: UseObjectChatOptions = {}): UseObjectChat
 
     const isLoading = status === 'submitted' || status === 'streaming';
 
-    // Convert vercel/ai v3 UIMessage (parts: [{type:'text'|'reasoning'|'tool-*'|'source-url'|...}]) → OUI ChatMessage
-    const messages: OuiChatMessage[] = aiMessages.map((msg: any) => {
-      const parts: any[] = Array.isArray(msg.parts) ? msg.parts : [];
-
-      const text =
-        typeof msg.content === 'string'
-          ? msg.content
-          : parts
-              .filter((p: any) => p?.type === 'text')
-              .map((p: any) => p.text ?? '')
-              .join('');
-
-      const reasoning = parts
-        .filter((p: any) => p?.type === 'reasoning')
-        .map((p: any) => p.text ?? '')
-        .join('\n')
-        .trim() || undefined;
-
-      // AI SDK v3 surfaces tool parts as { type: 'tool-<name>', toolCallId, input, output, state, errorText }
-      const toolInvocations = parts
-        .filter((p: any) => typeof p?.type === 'string' && p.type.startsWith('tool-'))
-        .map((p: any) => ({
-          toolCallId: p.toolCallId ?? p.id ?? `${p.type}-${Math.random().toString(36).slice(2, 8)}`,
-          toolName: typeof p.type === 'string' ? p.type.replace(/^tool-/, '') : 'tool',
-          args: p.input ?? p.args,
-          result: p.output ?? p.result,
-          errorText: p.errorText,
-          state: p.state,
-        }));
-
-      const sources = parts
-        .filter((p: any) => p?.type === 'source-url' || p?.type === 'source')
-        .map((p: any) => ({
-          id: p.id,
-          title: p.title,
-          url: p.url ?? p.href,
-        }))
-        .filter((s: any) => Boolean(s.url));
-
-      // Legacy fallback: some adapters still expose msg.toolInvocations directly.
-      const legacyTools = Array.isArray(msg.toolInvocations) ? msg.toolInvocations : [];
-
-      return {
-        id: msg.id,
-        role: msg.role,
-        content: text,
-        toolInvocations: toolInvocations.length > 0 ? toolInvocations : legacyTools,
-        reasoning,
-        sources: sources.length > 0 ? sources : undefined,
-        metadata: msg.metadata,
-        streaming:
-          isLoading &&
-          msg.id === aiMessages[aiMessages.length - 1]?.id &&
-          msg.role === 'assistant',
-      } as OuiChatMessage;
-    });
+    // Vercel AI SDK v6 UIMessage → OUI ChatMessage. The shared mapper handles
+    // parts (text, reasoning, tool-*, source-*), streaming-cursor flagging,
+    // and legacy `msg.toolInvocations` fallback. We splice `metadata` back in
+    // because `ChatbotEnhanced.ChatMessage` doesn't carry it but OUI's does.
+    const messages: OuiChatMessage[] = uiMessagesToChatMessages(aiMessages, {
+      isStreaming: isLoading,
+    }).map((m, idx) => ({
+      ...m,
+      metadata: (aiMessages[idx] as any)?.metadata,
+    })) as OuiChatMessage[];
 
     // Local input state (v3 useChat no longer manages it) — declared above
     // at the top of the hook to comply with the Rules of Hooks.

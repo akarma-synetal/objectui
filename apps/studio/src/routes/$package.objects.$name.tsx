@@ -21,7 +21,7 @@ import { usePackages } from '@/hooks/usePackages';
 import { useMetadataHmr } from '@/hooks/useMetadataHmr';
 import { useRecentItems } from '@/hooks/useRecentItems';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import { Database, Layers, Columns3, Hash, ArrowRight, Sparkles, X } from 'lucide-react';
+import { Database, Layers, Columns3, Hash, ArrowRight, Sparkles } from 'lucide-react';
 import { RELATED_TYPES, itemReferencesObject } from '@/components/object-related/detector';
 
 function resolveLabel(val: unknown): string {
@@ -37,16 +37,6 @@ function ObjectHubComponent() {
   const resolvedPackageId = selectedPackage?.manifest?.id ?? packageId;
   const { version: hmrVersion } = useMetadataHmr();
   const [tab, setTab] = useState<string>('designer');
-  // Sessions-scoped: once the user dismisses or visits the Related tab,
-  // stop nagging them with the discovery callout in the Designer view.
-  const [relatedNudgeDismissed, setRelatedNudgeDismissed] = useState<boolean>(() => {
-    if (typeof window === 'undefined') return false;
-    return sessionStorage.getItem(`studio:object-related-nudge:${name}`) === '1';
-  });
-  const dismissRelatedNudge = () => {
-    setRelatedNudgeDismissed(true);
-    try { sessionStorage.setItem(`studio:object-related-nudge:${name}`, '1'); } catch {}
-  };
   const [object, setObject] = useState<any>(null);
   const [relatedCount, setRelatedCount] = useState<number | null>(null);
   const [recordCount, setRecordCount] = useState<number | null>(null);
@@ -122,7 +112,7 @@ function ObjectHubComponent() {
 
   return (
     <div className="flex h-full flex-col overflow-hidden">
-      <Tabs value={tab} onValueChange={(v) => { setTab(v); if (v === 'related') dismissRelatedNudge(); }} className="flex h-full flex-col overflow-hidden">
+      <Tabs value={tab} onValueChange={(v) => setTab(v)} className="flex h-full flex-col overflow-hidden">
         <div className="border-b">
           {/* Title row */}
           <div className="px-6 pt-3 pb-2">
@@ -153,6 +143,19 @@ function ObjectHubComponent() {
                       </span>
                       <span>records</span>
                     </span>
+                  )}
+                  {tab !== 'related' && relatedCount !== null && relatedCount > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setTab('related')}
+                      className="inline-flex items-center gap-1 rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-[11px] font-medium text-primary transition hover:bg-primary/15"
+                      title={`${relatedCount} item${relatedCount === 1 ? '' : 's'} reference this object — view forms, dashboards, hooks, flows`}
+                    >
+                      <Sparkles className="h-3 w-3" />
+                      <span className="tabular-nums">{relatedCount}</span>
+                      <span>related</span>
+                      <ArrowRight className="h-3 w-3" />
+                    </button>
                   )}
                 </div>
               </div>
@@ -188,34 +191,6 @@ function ObjectHubComponent() {
 
         <div className="flex-1 overflow-hidden">
           <TabsContent value="designer" className="m-0 flex h-full flex-col overflow-hidden">
-            {/* Discovery callout — gently nudges users toward Related when items exist */}
-            {tab === 'designer' && relatedCount !== null && relatedCount > 0 && !relatedNudgeDismissed && (
-              <div className="flex items-center gap-3 border-b bg-primary/5 px-6 py-2 text-xs">
-                <Sparkles className="h-4 w-4 flex-shrink-0 text-primary" />
-                <span className="flex-1 text-foreground/80">
-                  <span className="font-medium text-foreground">{relatedCount} item{relatedCount === 1 ? '' : 's'}</span>{' '}
-                  reference this object —
-                  view its forms, dashboards, hooks, flows and more.
-                </span>
-                <button
-                  type="button"
-                  onClick={() => setTab('related')}
-                  className="inline-flex items-center gap-1 rounded-md bg-primary px-2.5 py-1 text-[11px] font-medium text-primary-foreground transition hover:bg-primary/90"
-                >
-                  View Related
-                  <ArrowRight className="h-3 w-3" />
-                </button>
-                <button
-                  type="button"
-                  onClick={dismissRelatedNudge}
-                  className="rounded-md p-1 text-muted-foreground transition hover:bg-muted hover:text-foreground"
-                  aria-label="Dismiss"
-                  title="Dismiss"
-                >
-                  <X className="h-3 w-3" />
-                </button>
-              </div>
-            )}
             <div className="flex-1 overflow-hidden">
               <PluginHost metadataType="object" metadataName={name} packageId={packageId} />
             </div>
