@@ -76,6 +76,15 @@ export default defineConfig({
           if (/[\\/]@object-ui[\\/]plugin-form[\\/]/.test(id)) return 'vendor-object-ui-form';
           if (/[\\/]@object-ui[\\/]plugin-grid[\\/]/.test(id)) return 'vendor-object-ui-grid';
           if (/[\\/]@object-ui[\\/]plugin-(dashboard|report|kanban|calendar|timeline)[\\/]/.test(id)) return 'vendor-object-ui-views';
+          // Heavy AI-chat-only deps. The chat panel itself is lazy-loaded
+          // (see apps/studio/src/routes/__root.tsx), and these chunks are
+          // only requested when its dynamic import resolves — keeping
+          // first-paint clean of the ~23MB shiki grammar bundle.
+          if (/[\\/]@object-ui[\\/]plugin-chatbot[\\/]/.test(id)) return 'vendor-chat-ui';
+          if (/[\\/]shiki[\\/]|[\\/]@shikijs[\\/]/.test(id)) return 'vendor-chat-shiki';
+          if (/[\\/]streamdown[\\/]/.test(id)) return 'vendor-chat-streamdown';
+          if (/[\\/]mermaid[\\/]|[\\/]katex[\\/]|[\\/]cytoscape/.test(id)) return 'vendor-chat-diagrams';
+          if (/[\\/]@ai-sdk[\\/]|[\\/]ai[\\/]dist[\\/]/.test(id)) return 'vendor-ai-sdk';
           if (/[\\/]@object-ui[\\/]/.test(id)) return 'vendor-object-ui-core';
           if (/[\\/]@tanstack[\\/]/.test(id)) return 'vendor-tanstack';
           if (/[\\/]recharts[\\/]|[\\/]d3-/.test(id)) return 'vendor-charts';

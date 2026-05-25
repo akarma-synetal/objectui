@@ -255,6 +255,49 @@ import { AIElements } from '@object-ui/plugin-chatbot';
 </AIElements.Conversation>;
 ```
 
+### Message mapping helpers
+
+If you wire `@ai-sdk/react`'s `useChat()` directly and want to render its
+`UIMessage[]` with `<ChatbotEnhanced>`, use the exported mappers instead
+of writing your own — they handle `parts: [{ type: 'text' | 'reasoning'
+| 'tool-*' | 'source-*' }]`, the streaming-cursor flag, and the legacy
+`msg.toolInvocations` fallback:
+
+```tsx
+import { useChat } from '@ai-sdk/react';
+import {
+  ChatbotEnhanced,
+  uiMessagesToChatMessages,
+} from '@object-ui/plugin-chatbot';
+
+function MyChat() {
+  const { messages, status } = useChat({ api: '/api/chat' });
+  const isStreaming = status === 'streaming' || status === 'submitted';
+  return (
+    <ChatbotEnhanced
+      messages={uiMessagesToChatMessages(messages, { isStreaming })}
+      onSend={/* … */}
+    />
+  );
+}
+```
+
+`uiMessageToChatMessage(msg, { streaming })` is the single-message
+variant. Both are also used internally by `useObjectChat`, so the
+mapping logic stays consistent across direct and managed usage.
+
+## Bundle considerations
+
+This package depends on `streamdown`, `shiki`, `mermaid`, and `katex`
+for code/markdown rendering. Together they weigh ~20 MB minified.
+
+In host apps that don't always show the chat panel (e.g. Studio's
+opt-in AI sidebar), import this package via `React.lazy` so the heavy
+chunks only download when the panel actually opens. See
+`apps/studio/src/routes/__root.tsx` for the reference pattern, and
+`apps/studio/vite.config.ts` for the `manualChunks` rules that keep
+the chat-only deps in dedicated, lazy-loadable chunks.
+
 ## License
 
 MIT © ObjectStack Inc.

@@ -145,6 +145,42 @@ pnpm build
 pnpm preview
 ```
 
+## 🚀 Performance — lazy AI chat
+
+`AiChatPanel` is **lazy-loaded** (`React.lazy` + dynamic import in
+`src/routes/__root.tsx`) and only mounts when the user actually toggles
+the AI panel open. Because `@object-ui/plugin-chatbot` pulls in `shiki`
+(syntax-highlighting grammars ≈ 19 MB), `streamdown`, `mermaid`, and
+`katex`, keeping the panel behind a lazy boundary cuts first-paint
+vendor JS from ~23 MB to ~2.5 MB.
+
+The build's `manualChunks` (in `vite.config.ts`) routes these heavy
+deps to dedicated chunks so the dependency graph still resolves them
+lazily even when Vite's automatic code-splitting would otherwise inline
+them:
+
+| Chunk | Contents | When loaded |
+|---|---|---|
+| `vendor-chat-shiki` | Shiki + bundled grammars | AI panel open |
+| `vendor-chat-streamdown` | Streaming markdown renderer | AI panel open |
+| `vendor-chat-diagrams` | Mermaid + KaTeX + Cytoscape | AI panel open |
+| `vendor-chat-ui` | `@object-ui/plugin-chatbot` itself | AI panel open |
+| `vendor-ai-sdk` | `@ai-sdk/*`, `ai` | AI panel open |
+| `AiChatPanel-*` | The wrapper component | AI panel open |
+| `vendor` | Everything else (Studio core) | first paint |
+
+If you add new chat-only deps, mirror them in `vite.config.ts`'s
+`manualChunks` to keep first paint clean.
+
+## 🎨 Recent UX touches
+
+| Surface | Behaviour |
+|---|---|
+| **Theme toggle** (`src/components/theme-toggle.tsx`) | Persists `light` / `dark` / `system` to `localStorage` under `'theme'`, mirrored by an inline pre-React script in `index.html` to avoid FOUC. In `system` mode a `matchMedia('(prefers-color-scheme: dark)')` listener re-applies the class when the OS theme flips. The dropdown uses `RadioGroup` so the active mode is visibly checked. |
+| **Breadcrumb labels** (`src/components/top-bar.tsx`) | Read from a single registry in `src/components/studio-nav.ts` (`navLabelByKey`, `pluralTypeLabel`, `BREADCRUMB_LABELS`, `METADATA_TYPE_PLURAL_LABELS`). When i18n lands, replace those constants with `t(...)` calls in one file instead of three. |
+| **Object cards** (`src/components/MetadataListPage.tsx`) | Show `N fields  N records` chips on object cards in list pages. Field count comes from the loaded spec; record count is a best-effort `client.data.find(name, { limit: 1 })` fired in parallel after the row list resolves — failures simply hide the chip. |
+| **Related-items chip** (`src/routes/$package.objects.$name.tsx`) | Inline `Sparkles + N related` chip in the object-hub header instead of a full-width discovery banner. Click to jump to the Related tab. |
+
 ## 📄 License
 
 MIT - See [LICENSE](../../LICENSE) for details.

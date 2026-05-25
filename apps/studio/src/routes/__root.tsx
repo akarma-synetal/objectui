@@ -1,12 +1,18 @@
 // Copyright (c) 2025 ObjectStack. Licensed under the Apache-2.0 license.
 
 import { createRootRoute, Outlet } from '@tanstack/react-router';
-import { useEffect } from 'react';
+import { Suspense, lazy, useEffect } from 'react';
 import { ObjectStackProvider } from '@objectstack/client-react';
 import { ErrorBoundary } from '../components/ErrorBoundary';
 import { SidebarProvider } from '@/components/ui/sidebar';
 import { Toaster } from '@/components/ui/toaster';
-import { AiChatPanel } from '@/components/AiChatPanel';
+// AiChatPanel pulls in `@object-ui/plugin-chatbot` → streamdown → shiki, which
+// ships ~23MB of TextMate grammars. The panel is opt-in (Toggle AI Chat button),
+// so we lazy-load it and only mount when actually opened — the rest of Studio
+// no longer pays the cost on first paint.
+const AiChatPanel = lazy(() =>
+  import('@/components/AiChatPanel').then((m) => ({ default: m.AiChatPanel })),
+);
 import { ProductionGuardProvider } from '@/components/production-guard';
 import { StudioShell } from '@/components/StudioShell';
 import { StudioAccessDenied } from '@/components/StudioAccessDenied';
@@ -15,6 +21,7 @@ import { builtInPlugins } from '../plugins/built-in';
 import { useObjectStackClient } from '../hooks/useObjectStackClient';
 import { SessionProvider, useSession } from '../hooks/useSession';
 import { gotoAccountLogin } from '@/lib/auth-redirect';
+import { useAiChatPanel } from '@/hooks/use-ai-chat-panel';
 
 /**
  * Single-tenant Studio shell. Login is delegated to apps/account; if the
@@ -65,8 +72,16 @@ function RequireAuth({ children }: { children: React.ReactNode }) {
 
 function AuthedAiChatPanel() {
   const { user } = useSession();
-  if (!user || user.role !== 'admin') return null;
-  return <AiChatPanel />;
+  const { isOpen } = useAiChatPanel();
+  // Defer the heavy chunk (shiki, streamdown, etc.) until the panel is
+  // actually opened. AiChatPanel internally hides itself when !isOpen,
+  // but mounting it at all is what triggers the dynamic import.
+  if (!user || user.role !== 'admin' || !isOpen) return null;
+  return (
+    <Suspense fallback={null}>
+      <AiChatPanel />
+    </Suspense>
+  );
 }
 
 function RootComponent() {
