@@ -51,4 +51,16 @@ describe('resolveHomeUrl (browser)', () => {
     expect(url.hostname.endsWith('.')).toBe(false);
     expect(url.pathname.endsWith('/home')).toBe(true);
   });
+
+  it('does NOT append /home recursively when invoked from a /home* route', () => {
+    // Regression: when no <base> is present, document.baseURI inherits the
+    // current page URL. From /home/home/, new URL('home', baseURI) was
+    // resolving to /home/home/home, and each subsequent click added another
+    // segment. The resolver must ignore the current SPA route.
+    setBaseHref(null);
+    history.pushState({}, '', '/home/home/');
+    const url = new URL(resolveHomeUrl());
+    expect(url.pathname).toBe('/home');
+    history.pushState({}, '', '/');
+  });
 });

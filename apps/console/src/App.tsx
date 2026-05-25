@@ -42,20 +42,26 @@ import {
 const AUTH_URL = `${import.meta.env.VITE_SERVER_URL || ''}/api/v1/auth`;
 
 /**
- * Resolve the React Router basename.
+ * Resolve the React Router basename from an explicit `<base href>` tag.
  *
  * The published Console build uses a relative Vite base (`./`) so the
- * same `dist/` works under any mount path. That means `import.meta.env.BASE_URL`
- * is `./` and useless for routing — we derive the actual mount root
- * from `document.baseURI` at runtime instead.
+ * same `dist/` works under any mount path. Hosts that embed the SPA
+ * inject a `<base href="/path/">` into the served HTML (the framework
+ * CLI does this automatically); standalone / dev runs have no `<base>`
+ * and fall back to `'/'`.
  *
- * Hosts that embed the SPA should inject a `<base href="/path/">` into
- * the served HTML (the framework CLI does this automatically). Falls
- * back to `'/'` for dev / standalone deployments.
+ * **Do not use `document.baseURI`** — when no `<base>` tag is present
+ * it returns the *current document URL*, which would make the router
+ * treat e.g. `/home` as its basename and cascade into `/home/home/home`
+ * on every subsequent navigation.
  */
 function resolveBasename(): string {
   try {
-    const url = new URL(document.baseURI);
+    if (typeof document === 'undefined') return '/';
+    const baseEl = document.querySelector('base');
+    const href = baseEl?.getAttribute('href');
+    if (!href) return '/';
+    const url = new URL(href, window.location.origin);
     const path = url.pathname.replace(/\/$/, '');
     return path || '/';
   } catch {
