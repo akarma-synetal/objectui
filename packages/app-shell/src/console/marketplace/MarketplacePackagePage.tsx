@@ -45,6 +45,7 @@ import {
   type CloudEnvironment,
   type LocalInstallEntry,
 } from './marketplaceApi';
+import { getRuntimeConfig } from '../../runtime-config';
 
 export function MarketplacePackagePage() {
   const navigate = useNavigate();
@@ -70,6 +71,7 @@ export function MarketplacePackagePage() {
   const [localResult, setLocalResult] = useState<{ ok: boolean; message: string } | null>(null);
 
   useEffect(() => {
+    if (!getRuntimeConfig().features.installLocal) return;
     let cancelled = false;
     (async () => {
       const items = await listLocalInstalls();
@@ -276,19 +278,30 @@ export function MarketplacePackagePage() {
           )}
         </div>
         <div className="flex flex-col gap-2 shrink-0 min-w-[14rem]">
-          <Button onClick={doInstallLocal} disabled={!latestVersion || installingLocal} size="lg">
-            <Download className="h-4 w-4 mr-1.5" aria-hidden="true" />
-            {installingLocal
-              ? 'Working…'
-              : localInstall
-                ? `Reinstall to this runtime`
-                : 'Install to this runtime'}
-          </Button>
-          {localInstall && (
-            <Button variant="outline" onClick={doUninstallLocal} disabled={installingLocal}>
-              <Trash2 className="h-4 w-4 mr-1.5" aria-hidden="true" />
-              Uninstall from this runtime
-            </Button>
+          {/*
+            "Install to this runtime" is only meaningful when the runtime
+            actually mounts MarketplaceInstallLocalPlugin. The server signals
+            that capability via /api/v1/runtime/config → features.installLocal.
+            Multi-tenant ObjectOS and the cloud control plane both return
+            false here, so the button is hidden there.
+          */}
+          {getRuntimeConfig().features.installLocal && (
+            <>
+              <Button onClick={doInstallLocal} disabled={!latestVersion || installingLocal} size="lg">
+                <Download className="h-4 w-4 mr-1.5" aria-hidden="true" />
+                {installingLocal
+                  ? 'Working…'
+                  : localInstall
+                    ? `Reinstall to this runtime`
+                    : 'Install to this runtime'}
+              </Button>
+              {localInstall && (
+                <Button variant="outline" onClick={doUninstallLocal} disabled={installingLocal}>
+                  <Trash2 className="h-4 w-4 mr-1.5" aria-hidden="true" />
+                  Uninstall from this runtime
+                </Button>
+              )}
+            </>
           )}
           <Button variant="ghost" onClick={openInstall} disabled={!latestVersion} size="sm">
             <Download className="h-4 w-4 mr-1.5" aria-hidden="true" />

@@ -82,6 +82,18 @@ export {
 // Observability — Sentry integration, opt-in via VITE_SENTRY_DSN
 export { initSentry, captureError, setSentryUser, getSentry } from './observability';
 
+// Runtime configuration pushed by the server at boot. Consumers fetch
+// `/api/v1/runtime/config` via `initRuntimeConfig()` before first render
+// and read upstream cloud URL + capability flags from `getRuntimeConfig()`.
+export {
+  initRuntimeConfig,
+  getRuntimeConfig,
+  getCloudBase,
+  isRuntimeConfigInitialised,
+  resetRuntimeConfigForTesting,
+} from './runtime-config';
+export type { RuntimeConfig, RuntimeFeatures } from './runtime-config';
+
 // Standard inner-SPA views
 export {
   ObjectView,

@@ -13,6 +13,8 @@
  *   framework/packages/runtime/src/cloud/marketplace-proxy-plugin.ts
  */
 
+import { getCloudBase } from '../../runtime-config';
+
 const SERVER_URL = (import.meta.env.VITE_SERVER_URL || '').replace(/\/$/, '');
 const API_BASE = `${SERVER_URL}/api/v1/marketplace`;
 
@@ -101,11 +103,12 @@ export async function getMarketplacePackage(id: string): Promise<MarketplaceDeta
  * domain covers this origin. When that's not the case the call fails
  * with 401; the UI can then surface a "Sign in on cloud" link.
  *
- * `cloudBaseUrl` is read from `VITE_CLOUD_URL` if set; otherwise we fall
- * back to relative (assumes same-origin, which is true for cloud-hosted
- * consoles but generally not for tenant runtimes).
+ * `cloudBaseUrl` is supplied by the server at boot via
+ * `/api/v1/runtime/config` (see `runtime-config.ts`); we read it through
+ * `getCloudBase()` rather than hardcoding `VITE_CLOUD_URL` or sniffing
+ * `window.location.hostname`. When the runtime *is* the cloud,
+ * `getCloudBase()` returns `''` and we fall back to same-origin.
  */
-const CLOUD_BASE = (import.meta.env.VITE_CLOUD_URL || '').replace(/\/$/, '');
 
 export interface InstallResponse {
   installation?: { id: string; environment_id: string; package_id: string; version: string };
@@ -118,7 +121,7 @@ export async function installPackage(input: {
   environmentId: string;
   seedSampleData?: boolean;
 }): Promise<InstallResponse> {
-  const base = CLOUD_BASE || SERVER_URL;
+  const base = getCloudBase() || SERVER_URL;
   const res = await fetch(`${base}/api/v1/actions/sys_package/install_package`, {
     method: 'POST',
     credentials: 'include',
@@ -159,7 +162,7 @@ export interface CloudEnvironment {
 }
 
 export async function listCloudEnvironments(): Promise<CloudEnvironment[]> {
-  const base = CLOUD_BASE || SERVER_URL;
+  const base = getCloudBase() || SERVER_URL;
   const res = await fetch(`${base}/api/v1/data/sys_environment?limit=200`, {
     credentials: 'include',
     headers: { 'Accept': 'application/json' },
@@ -184,7 +187,7 @@ export async function listCloudEnvironments(): Promise<CloudEnvironment[]> {
  * can render a clean "no installable environments" state.
  */
 export async function listInstallableOrgIds(): Promise<Set<string>> {
-  const base = CLOUD_BASE || SERVER_URL;
+  const base = getCloudBase() || SERVER_URL;
   // sys_member rows are scoped to the caller; better-auth-managed table.
   const url = `${base}/api/v1/data/sys_member?limit=200`;
   let payload: any = null;
@@ -212,7 +215,7 @@ export async function listInstallableOrgIds(): Promise<Set<string>> {
 }
 
 export function cloudInstallDeepLink(packageId: string): string {
-  const base = CLOUD_BASE || 'https://cloud.objectos.app';
+  const base = getCloudBase() || 'https://cloud.objectos.app';
   return `${base}/apps/cloud-control/sys_package/${encodeURIComponent(packageId)}`;
 }
 

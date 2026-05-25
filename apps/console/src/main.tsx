@@ -12,7 +12,7 @@ import { I18nProvider } from '@object-ui/i18n';
 import { MobileProvider } from '@object-ui/mobile';
 import { ComponentRegistry } from '@object-ui/core';
 import { registerPlaceholders } from '@object-ui/components';
-import { initSentry } from '@object-ui/app-shell';
+import { initSentry, initRuntimeConfig } from '@object-ui/app-shell';
 import { loadLanguage } from './loadLanguage';
 import { preflightAuth } from './lib/auth-preflight';
 
@@ -142,13 +142,17 @@ import './components/schema/registerObjectDetailWidgets';
 // shadows a registered renderer.
 registerPlaceholders();
 
-// Drop any stale Bearer token in localStorage BEFORE React mounts.
-// Without this, a token left by a previous user (or by sign-out via the
-// Account SPA, which doesn't touch this localStorage key) would cause
-// AuthProvider's first `get-session` to be rejected by the server, even
-// though the current cookie session is valid — producing an infinite
-// /_account/login ↔ /_console/home bounce. See lib/auth-preflight.ts.
-preflightAuth(AUTH_URL).finally(() => {
+// Resolve server-pushed runtime config + drop stale Bearer tokens BEFORE
+// React mounts. `initRuntimeConfig()` populates the singleton consumed by
+// marketplace + install code paths (cloud URL, capability flags) — without
+// it the SPA would fall back to defaults on first paint and hit 404s.
+// Both kicks are awaited so first paint sees definitive values, but each
+// one absorbs its own failures so a missing endpoint never blocks boot.
+const SERVER_BASE = (import.meta.env.VITE_SERVER_URL || '').replace(/\/+$/, '');
+Promise.all([
+  initRuntimeConfig(SERVER_BASE),
+  preflightAuth(AUTH_URL),
+]).finally(() => {
   ReactDOM.createRoot(document.getElementById('root')!).render(
     <React.StrictMode>
       <MobileProvider pwa={{ enabled: true, name: 'ObjectUI Console', shortName: 'Console' }}>
