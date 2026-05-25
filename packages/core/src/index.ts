@@ -39,3 +39,4 @@ export * from './protocols/index.js';
 export { composeStacks } from '@objectstack/spec';
 export * from './utils/drill-down.js';
 export * from './utils/date-macros.js';
+export * from './utils/compare-to.js';

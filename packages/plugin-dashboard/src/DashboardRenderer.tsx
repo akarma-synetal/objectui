@@ -395,6 +395,7 @@ export const DashboardRenderer = forwardRef<HTMLDivElement, DashboardRendererPro
                     suffix: options.suffix,
                     drillDown: options.drillDown ?? { enabled: true },
                     title: options.label || tWidgetTitle(widget) || '',
+                    compareTo: (widget as any).compareTo,
                 };
             }
 
@@ -420,6 +421,7 @@ export const DashboardRenderer = forwardRef<HTMLDivElement, DashboardRendererPro
                     prefix: options.prefix,
                     suffix: options.suffix,
                     invert: options.invert,
+                    compareTo: (widget as any).compareTo,
                 };
             }
 
@@ -452,6 +454,7 @@ export const DashboardRenderer = forwardRef<HTMLDivElement, DashboardRendererPro
                         chartType: resolvedWidgetType,
                         objectName: objectForLabel,
                         aggregate: effectiveAggregate,
+                        filter: widgetData.filter || widget.filter,
                         xAxisKey: xAxisKey,
                         series: [{
                             dataKey: effectiveYField,
@@ -459,6 +462,7 @@ export const DashboardRenderer = forwardRef<HTMLDivElement, DashboardRendererPro
                         }],
                         colors: CHART_COLORS,
                         drillDown: options.drillDown ?? defaultChartDrill(resolvedWidgetType),
+                        compareTo: (widget as any).compareTo,
                         className: "h-[200px] sm:h-[250px] md:h-[300px]"
                     };
                 }
@@ -477,10 +481,12 @@ export const DashboardRenderer = forwardRef<HTMLDivElement, DashboardRendererPro
                         chartType: resolvedWidgetType,
                         objectName: widget.object,
                         aggregate,
+                        filter: widget.filter,
                         xAxisKey: xAxisKey,
                         series: [{ dataKey: yKey, label: resolveSeriesLabel(widget.object, yKey, widget.aggregate) }],
                         colors: CHART_COLORS,
                         drillDown: options.drillDown ?? defaultChartDrill(resolvedWidgetType),
+                        compareTo: (widget as any).compareTo,
                         className: "h-[200px] sm:h-[250px] md:h-[300px]"
                     };
                 }

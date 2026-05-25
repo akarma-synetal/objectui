@@ -12,7 +12,13 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, Dialog, DialogContent, Di
 import { isDrillEnabled, resolveDrillTitle } from '@object-ui/core';
 import type { DrillDownConfig } from '@object-ui/types';
 import { MetricWidget } from './MetricWidget';
-import { resolveDateMacros } from './utils';
+import {
+  resolveDateMacros,
+  shiftFilterByCompareTo,
+  compareToTrendLabelKey,
+  computeMetricDelta,
+  type CompareToConfig,
+} from './utils';
 
 /**
  * ObjectMetricWidget — Data-bound metric widget.
@@ -79,6 +85,21 @@ export interface ObjectMetricWidgetProps {
   drillDown?: DrillDownConfig;
   /** Title for the drill-down panel; defaults to the metric label. */
   title?: string | { key?: string; defaultValue?: string };
+  /**
+   * Period-over-period comparison configuration. When set, the widget
+   * issues a parallel aggregate for the comparison window and derives a
+   * trend (% delta + direction + i18n label like "vs last quarter").
+   *
+   * - `'previousPeriod'`: same window length immediately before the current.
+   * - `'previousYear'`: same window shifted back one year.
+   * - `{ offset: '7d' }`: sliding window shifted back by N days/weeks.
+   *
+   * Has no effect when no `filter` (or no date filter) is provided — the
+   * shift uses the filter's date range to compute the comparison window.
+   */
+  compareTo?: CompareToConfig;
+  /** Optional i18n translator used to localize the trend label. */
+  t?: (key: string, defaultValue: string) => string;
 }
 
 export const ObjectMetricWidget: React.FC<ObjectMetricWidgetProps> = ({
@@ -100,12 +121,15 @@ export const ObjectMetricWidget: React.FC<ObjectMetricWidgetProps> = ({
   invert,
   drillDown,
   title,
+  compareTo,
+  t: tProp,
 }) => {
   const context = useContext(SchemaRendererContext);
   const dataSource = propDataSource || context?.dataSource;
   const [drillOpen, setDrillOpen] = useState(false);
 
   const [fetchedValue, setFetchedValue] = useState<string | number | null>(null);
+  const [previousValue, setPreviousValue] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [objectSchema, setObjectSchema] = useState<any>(null);
@@ -165,6 +189,44 @@ export const ObjectMetricWidget: React.FC<ObjectMetricWidgetProps> = ({
     [resolvedFilter],
   );
 
+  const compareToKey = useMemo(
+    () => (compareTo ? JSON.stringify(compareTo) : ''),
+    [compareTo],
+  );
+
+  // Compute the single-bucket aggregate value for a given filter. Shared
+  // between the current-period and comparison-period queries.
+  const computeOne = useCallback(async (ds: any, filterForRun: any): Promise<number | string | null> => {
+    if (aggregate && typeof ds.aggregate === 'function') {
+      const results = await ds.aggregate(objectName, {
+        field: aggregate.field,
+        function: aggregate.function,
+        groupBy: aggregate.groupBy || '_all',
+        filter: filterForRun,
+      });
+      const data = Array.isArray(results) ? results : [];
+      if (data.length === 0) return 0;
+      if (aggregate.function === 'count') {
+        const suffixedKey = `${aggregate.field}_count`;
+        return data.reduce((sum: number, r: any) => sum + (
+          Number(r[suffixedKey]) ||
+          Number(r[aggregate.field]) ||
+          Number(r.count) ||
+          0
+        ), 0);
+      }
+      const row = data[0] as Record<string, any>;
+      const suffixedKey = `${aggregate.field}_${aggregate.function}`;
+      return row[suffixedKey] ?? row[aggregate.field] ?? row.value ?? 0;
+    }
+    if (typeof ds.find === 'function') {
+      const results = await ds.find(objectName, { $filter: filterForRun });
+      const records = Array.isArray(results) ? results : results?.data || results?.records || [];
+      return records.length;
+    }
+    return null;
+  }, [objectName, aggregateKey]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const fetchMetric = useCallback(async (ds: any, mounted: { current: boolean }) => {
     if (!ds || !objectName) return;
     if (mounted.current) {
@@ -173,51 +235,27 @@ export const ObjectMetricWidget: React.FC<ObjectMetricWidgetProps> = ({
     }
 
     try {
-      let value: string | number;
+      // Run current and (optional) comparison aggregates in parallel so
+      // a slow backend doesn't double the perceived load time.
+      // Pass the RAW (unresolved) filter so `shiftFilterByCompareTo` can
+      // substitute `{current_*}` tokens with their `{last_*}` counterparts
+      // (`previousPeriod`) or re-resolve macros against a shifted `now`
+      // (`previousYear` / `{offset}`). Passing the already-resolved filter
+      // would produce an identical query with no period shift.
+      const comparisonFilter = compareTo
+        ? shiftFilterByCompareTo(filter, compareTo)
+        : null;
 
-      if (aggregate && typeof ds.aggregate === 'function') {
-        // Server-side aggregation
-        const results = await ds.aggregate(objectName, {
-          field: aggregate.field,
-          function: aggregate.function,
-          groupBy: aggregate.groupBy || '_all',
-          filter: resolvedFilter,
-        });
-        const data = Array.isArray(results) ? results : [];
+      const [current, previous] = await Promise.all([
+        computeOne(ds, resolvedFilter),
+        comparisonFilter ? computeOne(ds, comparisonFilter) : Promise.resolve(null),
+      ]);
 
-        if (data.length === 0) {
-          value = 0;
-        } else if (aggregate.function === 'count') {
-          // Sum all count results. Analytics service returns the count under
-          // `<field>_count` (or `count` when no field is specified); accept
-          // either, plus the bare field name for legacy drivers.
-          const suffixedKey = `${aggregate.field}_count`;
-          value = data.reduce((sum: number, r: any) => sum + (
-            Number(r[suffixedKey]) ||
-            Number(r[aggregate.field]) ||
-            Number(r.count) ||
-            0
-          ), 0);
-        } else {
-          // Take the first result's value. Analytics service returns the
-          // aggregated value under `<field>_<function>` (e.g. `views_sum`);
-          // fall back to the bare field name for drivers that don't apply the
-          // suffix, and finally to `value` for legacy responses.
-          const row = data[0] as Record<string, any>;
-          const suffixedKey = `${aggregate.field}_${aggregate.function}`;
-          value = row[suffixedKey] ?? row[aggregate.field] ?? row.value ?? 0;
-        }
-      } else if (typeof ds.find === 'function') {
-        // Fallback: count records
-        const results = await ds.find(objectName, { $filter: resolvedFilter });
-        const records = Array.isArray(results) ? results : results?.data || results?.records || [];
-        value = records.length;
-      } else {
-        return;
-      }
+      if (current === null) return;
 
       if (mounted.current) {
-        setFetchedValue(value);
+        setFetchedValue(current);
+        setPreviousValue(typeof previous === 'number' && Number.isFinite(previous) ? previous : null);
       }
     } catch (e) {
       console.error('[ObjectMetricWidget] Fetch error:', e);
@@ -228,7 +266,7 @@ export const ObjectMetricWidget: React.FC<ObjectMetricWidgetProps> = ({
       if (mounted.current) setLoading(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [objectName, aggregateKey, resolvedFilterKey]);
+  }, [objectName, aggregateKey, resolvedFilterKey, compareToKey, computeOne]);
 
   useEffect(() => {
     const mounted = { current: true };
@@ -256,6 +294,33 @@ export const ObjectMetricWidget: React.FC<ObjectMetricWidgetProps> = ({
   if (invert && typeof displayValue === 'number' && isFinite(displayValue) && displayValue >= 0 && displayValue <= 1) {
     displayValue = 1 - displayValue;
   }
+
+  // Derive a trend descriptor from the parallel comparison aggregate. When
+  // `compareTo` is set and both values are finite numbers, this synthesizes
+  // a `{ value, direction, label }` trend that overrides any static `trend`
+  // prop passed in. The label uses the i18n key derived from `compareTo`
+  // (e.g. `dashboard.trend.vsLastQuarter`).
+  const derivedTrend = useMemo(() => {
+    if (!compareTo) return undefined;
+    if (typeof fetchedValue !== 'number' || !Number.isFinite(fetchedValue)) return undefined;
+    if (previousValue === null) return undefined;
+    const delta = computeMetricDelta(fetchedValue, previousValue);
+    if (!delta) return undefined;
+    const labelKey = compareToTrendLabelKey(compareTo, filter);
+    const fullKey = `dashboard.trend.${labelKey}`;
+    const defaults: Record<string, string> = {
+      vsPreviousPeriod: 'vs previous period',
+      vsLastWeek: 'vs last week',
+      vsLastMonth: 'vs last month',
+      vsLastQuarter: 'vs last quarter',
+      vsLastYear: 'vs last year',
+      vsYesterday: 'vs yesterday',
+    };
+    const labelText = tProp ? tProp(fullKey, defaults[labelKey] || labelKey) : (defaults[labelKey] || labelKey);
+    return { value: delta.value, direction: delta.direction, label: labelText };
+  }, [compareTo, fetchedValue, previousValue, filter, tProp]);
+
+  const effectiveTrend = derivedTrend ?? trend;
 
   // --- Drill-down --------------------------------------------------------
   // KPI cards drill into the underlying records they aggregate. The drill
@@ -336,7 +401,7 @@ export const ObjectMetricWidget: React.FC<ObjectMetricWidgetProps> = ({
       <MetricWidget
         label={label}
         value={displayValue}
-        trend={trend}
+        trend={effectiveTrend}
         icon={icon}
         className={className}
         description={description}

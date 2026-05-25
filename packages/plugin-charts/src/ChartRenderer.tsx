@@ -47,7 +47,7 @@ export interface ChartRendererProps {
     data?: Array<Record<string, any>>;
     config?: Record<string, any>;
     xAxisKey?: string;
-    series?: Array<{ dataKey: string; label?: string }>;
+    series?: Array<{ dataKey: string; label?: string; variant?: 'current' | 'comparison'; opacity?: number; dashArray?: string; chartType?: 'bar' | 'line' | 'area' }>;
   };
   /** Drill-down click handler — wired by ObjectChart when drillDown is enabled. */
   onChartClick?: (event: { category?: string; series?: string; value?: number }) => void;

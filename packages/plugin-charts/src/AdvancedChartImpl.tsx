@@ -72,12 +72,26 @@ const TW_COLORS: Record<string, string> = {
 
 const resolveColor = (color: string) => TW_COLORS[color] || color;
 
+/**
+ * Default visual treatment for a `variant: 'comparison'` series. Returns
+ * overrides per chart family so the comparison overlay reads as muted
+ * (dashed line, lower fill opacity) while still being color-matched to
+ * the primary series. Series-level `opacity` / `dashArray` win over defaults.
+ */
+const comparisonStyle = (s: any, kind: 'line' | 'area' | 'bar' | 'scatter') => {
+  if (s?.variant !== 'comparison') return null;
+  const strokeOpacity = typeof s.opacity === 'number' ? s.opacity : (kind === 'line' || kind === 'scatter' ? 0.5 : 0.6);
+  const fillOpacity = typeof s.opacity === 'number' ? s.opacity : (kind === 'bar' ? 0.4 : kind === 'area' ? 0.2 : 0.5);
+  const strokeDasharray = s.dashArray ?? (kind === 'line' || kind === 'area' ? '4 4' : undefined);
+  return { strokeOpacity, fillOpacity, strokeDasharray };
+};
+
 export interface AdvancedChartImplProps {
   chartType?: 'bar' | 'column' | 'horizontal-bar' | 'line' | 'area' | 'pie' | 'donut' | 'radar' | 'scatter' | 'funnel' | 'combo';
   data?: Array<Record<string, any>>;
   config?: ChartConfig;
   xAxisKey?: string;
-  series?: Array<{ dataKey: string; chartType?: 'bar' | 'line' | 'area' }>;
+  series?: Array<{ dataKey: string; chartType?: 'bar' | 'line' | 'area'; variant?: 'current' | 'comparison'; opacity?: number; dashArray?: string; label?: string }>;
   className?: string;
   /**
    * Optional drill-down click handler. Fires when a chart segment is clicked
@@ -387,12 +401,14 @@ export default function AdvancedChartImpl({
           {series.map((s: any, index: number) => {
             const palette = getPalette();
             const color = resolveColor(config[s.dataKey]?.color || palette[index % palette.length]);
+            const cmp = comparisonStyle(s, 'scatter');
             return (
               <Scatter
                 key={s.dataKey}
                 name={config[s.dataKey]?.label || s.dataKey}
                 data={data}
                 fill={color}
+                fillOpacity={cmp?.fillOpacity}
               />
             );
           })}
@@ -419,14 +435,15 @@ export default function AdvancedChartImpl({
             const color = resolveColor(config[s.dataKey]?.color || DEFAULT_CHART_COLOR);
             const seriesType = s.chartType || (index === 0 ? 'bar' : 'line');
             const yAxisId = seriesType === 'bar' ? 'left' : 'right';
-            
+            const cmp = comparisonStyle(s, seriesType as any);
+
             if (seriesType === 'line') {
-              return <Line key={s.dataKey} yAxisId={yAxisId} type="monotone" dataKey={s.dataKey} stroke={color} strokeWidth={2} dot={false} />;
+              return <Line key={s.dataKey} yAxisId={yAxisId} type="monotone" dataKey={s.dataKey} stroke={color} strokeWidth={2} dot={false} strokeOpacity={cmp?.strokeOpacity} strokeDasharray={cmp?.strokeDasharray} />;
             }
             if (seriesType === 'area') {
-              return <Area key={s.dataKey} yAxisId={yAxisId} type="monotone" dataKey={s.dataKey} fill={color} stroke={color} fillOpacity={0.4} />;
+              return <Area key={s.dataKey} yAxisId={yAxisId} type="monotone" dataKey={s.dataKey} fill={color} stroke={color} fillOpacity={cmp?.fillOpacity ?? 0.4} strokeOpacity={cmp?.strokeOpacity} strokeDasharray={cmp?.strokeDasharray} />;
             }
-            return <Bar key={s.dataKey} yAxisId={yAxisId} dataKey={s.dataKey} fill={color} radius={4} />;
+            return <Bar key={s.dataKey} yAxisId={yAxisId} dataKey={s.dataKey} fill={color} radius={4} fillOpacity={cmp?.fillOpacity} />;
           })}
         </BarChart>
       </ChartContainer>
@@ -465,15 +482,26 @@ export default function AdvancedChartImpl({
         />
         {series.map((s: any, sIdx: number) => {
           const palette = getPalette();
-          const seriesColor = resolveColor(config[s.dataKey]?.color || palette[sIdx % palette.length] || DEFAULT_CHART_COLOR);
+          // Comparison series should mirror the color of the primary series
+          // they overlay, not be assigned a fresh palette color. Find the
+          // first non-comparison series above this one and reuse its color.
+          const isComparison = s.variant === 'comparison';
+          const baseSeries = isComparison
+            ? (series.slice(0, sIdx).find((p: any) => p.variant !== 'comparison') || series[0])
+            : s;
+          const baseIdx = isComparison ? series.indexOf(baseSeries) : sIdx;
+          const seriesColor = resolveColor(config[baseSeries.dataKey]?.color || palette[baseIdx % palette.length] || DEFAULT_CHART_COLOR);
 
           if (chartType === 'bar' || chartType === 'horizontal-bar') {
-            // For categorical bar charts with a single series, color each bar
-            // distinctly so that categories are visually distinguishable.
-            // For multi-series bars, keep one color per series (standard behavior).
-            const colorPerCategory = series.length === 1 && data.length > 1;
+            // For categorical bar charts with a single primary series,
+            // color each bar distinctly. With a comparison overlay the
+            // chart effectively has two series, so revert to one color
+            // per series for visual consistency.
+            const primaryCount = series.filter((p: any) => p.variant !== 'comparison').length;
+            const colorPerCategory = primaryCount === 1 && !isComparison && series.length === 1 && data.length > 1;
+            const cmp = comparisonStyle(s, 'bar');
             return (
-              <Bar key={s.dataKey} dataKey={s.dataKey} fill={seriesColor} radius={4}>
+              <Bar key={s.dataKey} dataKey={s.dataKey} fill={seriesColor} radius={4} fillOpacity={cmp?.fillOpacity}>
                 {colorPerCategory && data.map((_entry, idx) => (
                   <Cell key={`cell-${idx}`} fill={resolveColor(palette[idx % palette.length])} />
                 ))}
@@ -481,10 +509,12 @@ export default function AdvancedChartImpl({
             );
           }
           if (chartType === 'line') {
-            return <Line key={s.dataKey} type="monotone" dataKey={s.dataKey} stroke={seriesColor} strokeWidth={2} dot={false} />;
+            const cmp = comparisonStyle(s, 'line');
+            return <Line key={s.dataKey} type="monotone" dataKey={s.dataKey} stroke={seriesColor} strokeWidth={2} dot={false} strokeOpacity={cmp?.strokeOpacity} strokeDasharray={cmp?.strokeDasharray} />;
           }
           if (chartType === 'area') {
-            return <Area key={s.dataKey} type="monotone" dataKey={s.dataKey} fill={seriesColor} stroke={seriesColor} fillOpacity={0.4} />;
+            const cmp = comparisonStyle(s, 'area');
+            return <Area key={s.dataKey} type="monotone" dataKey={s.dataKey} fill={seriesColor} stroke={seriesColor} fillOpacity={cmp?.fillOpacity ?? 0.4} strokeOpacity={cmp?.strokeOpacity} strokeDasharray={cmp?.strokeDasharray} />;
           }
           return null;
         })}

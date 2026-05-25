@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useContext, useCallback, useMemo, useRef } from 'react';
 import { useDataScope, SchemaRendererContext, SchemaRenderer } from '@object-ui/react';
 import { ChartRenderer } from './ChartRenderer';
-import { ComponentRegistry, extractRecords, computeDrillFilter, isDrillEnabled, resolveDrillTitle, resolveDateMacros, type DrillEvent } from '@object-ui/core';
+import { ComponentRegistry, extractRecords, computeDrillFilter, isDrillEnabled, resolveDrillTitle, resolveDateMacros, shiftFilterByCompareTo, compareToTrendLabelKey, type CompareToConfig, type DrillEvent } from '@object-ui/core';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, Dialog, DialogContent, DialogHeader, DialogTitle, RefreshIndicator } from '@object-ui/components';
 import { AlertCircle } from 'lucide-react';
 import { useSafeFieldLabel } from '@object-ui/i18n';
@@ -262,6 +262,38 @@ export const ObjectChart = (props: any) => {
     () => (schema.filter ? JSON.stringify(schema.filter) : ''),
     [schema.filter],
   );
+  const compareToKey = useMemo(
+    () => ((schema as any).compareTo ? JSON.stringify((schema as any).compareTo) : ''),
+    [(schema as any).compareTo],
+  );
+
+  // Pie / donut / funnel are single-distribution charts where a comparison
+  // overlay would be meaningless — we skip the comparison fetch entirely.
+  const supportsCompareTo = (ct?: string) => ct !== 'pie' && ct !== 'donut' && ct !== 'funnel';
+
+  // Run a single aggregate query (used for both the current and comparison
+  // windows). Extracted so the two queries share identical logic.
+  const runAggregate = useCallback(async (ds: any, filterForRun: any): Promise<any[]> => {
+    if (schema.aggregate && typeof ds.aggregate === 'function') {
+      const results = await ds.aggregate(schema.objectName, {
+        field: schema.aggregate.field,
+        function: schema.aggregate.function,
+        groupBy: schema.aggregate.groupBy,
+        filter: filterForRun,
+      });
+      return Array.isArray(results) ? results : [];
+    }
+    if (typeof ds.find === 'function') {
+      const results = await ds.find(schema.objectName, { $filter: filterForRun });
+      let data = extractRecords(results);
+      if (schema.aggregate && data.length > 0) {
+        data = aggregateRecords(data, schema.aggregate);
+      }
+      return data;
+    }
+    return [];
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [schema.objectName, aggregateKey]);
 
   const fetchData = useCallback(async (ds: any, mounted: { current: boolean }) => {
       if (!ds || !schema.objectName) {
@@ -275,41 +307,79 @@ export const ObjectChart = (props: any) => {
         setError(null);
       }
       try {
-          let data: any[];
           // Resolve relative-date macros (e.g. "{current_quarter_start}")
           // so both aggregate and find see real ISO dates and any drill-down
           // filter further down the line stays consistent.
           const resolvedFilter = resolveDateMacros(schema.filter);
+          const compareTo: CompareToConfig | undefined = (schema as any).compareTo;
+          const wantsComparison = !!compareTo && supportsCompareTo(schema.chartType);
+          // shiftFilterByCompareTo expects the raw filter (with date macros)
+          // so it can substitute `{current_*}` tokens or re-resolve macros
+          // against a shifted `now`.
+          const comparisonFilter = wantsComparison
+            ? shiftFilterByCompareTo(schema.filter, compareTo!)
+            : null;
 
-          // Prefer server-side aggregation when aggregate config is provided
-          // and dataSource supports the aggregate() method.
-          if (schema.aggregate && typeof ds.aggregate === 'function') {
-              const results = await ds.aggregate(schema.objectName, {
-                  field: schema.aggregate.field,
-                  function: schema.aggregate.function,
-                  groupBy: schema.aggregate.groupBy,
-                  filter: resolvedFilter,
-              });
-              data = Array.isArray(results) ? results : [];
-          } else if (typeof ds.find === 'function') {
-              // Fallback: fetch all records and aggregate client-side
-              const results = await ds.find(schema.objectName, {
-                 $filter: resolvedFilter
-              });
-              
-              data = extractRecords(results);
+          const [currentRowsRaw, comparisonRows] = await Promise.all([
+            runAggregate(ds, resolvedFilter),
+            comparisonFilter ? runAggregate(ds, comparisonFilter) : Promise.resolve([]),
+          ]);
 
-              // Apply client-side aggregation when aggregate config is provided
-              if (schema.aggregate && data.length > 0) {
-                  data = aggregateRecords(data, schema.aggregate);
+          // Merge comparison data BEFORE label resolution so we can match by
+          // the raw groupBy value (server-side enums like 'closed_won'),
+          // not by the humanized label ('Closed Won') which only exists
+          // post-resolution. Otherwise comparison-only buckets appear as
+          // duplicated raw rows alongside the humanized current rows.
+          let data = currentRowsRaw;
+          const groupByField = schema.aggregate?.groupBy || schema.xAxisKey;
+          if (wantsComparison && comparisonRows.length > 0 && schema.aggregate) {
+            const aggField = schema.aggregate.field;
+            const aggFn = schema.aggregate.function;
+            const readValue = (row: Record<string, any>): number | null => {
+              if (row == null) return null;
+              const suffixed = `${aggField}_${aggFn}`;
+              if (suffixed in row) return Number(row[suffixed]);
+              if (aggFn === 'count' && `${aggField}_count` in row) return Number(row[`${aggField}_count`]);
+              if (aggField in row) return Number(row[aggField]);
+              if ('value' in row) return Number(row.value);
+              if ('count' in row) return Number(row.count);
+              return null;
+            };
+            const comparisonKey = `${aggField}__comparison`;
+            const gb = groupByField;
+            if (gb && data.some((r: any) => r[gb] != null) && comparisonRows.some((r: any) => r[gb] != null)) {
+              const cmpByKey = new Map<string, number | null>();
+              for (const row of comparisonRows) {
+                const k = String(row[gb] ?? '');
+                cmpByKey.set(k, readValue(row));
               }
-          } else {
-              return;
+              data = data.map((row: any) => {
+                const k = String(row[gb] ?? '');
+                const v = cmpByKey.get(k);
+                return v == null ? row : { ...row, [comparisonKey]: v };
+              });
+              const seen = new Set(data.map((r: any) => String(r[gb] ?? '')));
+              for (const row of comparisonRows) {
+                const k = String(row[gb] ?? '');
+                if (!seen.has(k)) {
+                  data.push({ [gb]: k, [comparisonKey]: readValue(row) });
+                }
+              }
+            } else {
+              const padded = Math.max(data.length, comparisonRows.length);
+              const merged = [] as any[];
+              for (let i = 0; i < padded; i++) {
+                const cur = data[i] || {};
+                const cmp = comparisonRows[i];
+                merged.push(cmp ? { ...cur, [comparisonKey]: readValue(cmp) } : cur);
+              }
+              data = merged;
+            }
           }
 
-          // Resolve groupBy value→label using field metadata.
-          // The groupBy field is determined from aggregate config or xAxisKey.
-          const groupByField = schema.aggregate?.groupBy || schema.xAxisKey;
+          // Resolve groupBy value→label using field metadata. Now that the
+          // merge has happened on raw keys, the resolver can convert the
+          // shared groupBy column (e.g. 'closed_won' → 'Closed Won') uniformly.
           if (groupByField && typeof ds.getObjectSchema === 'function') {
               try {
                   const objectSchema = await ds.getObjectSchema(schema.objectName);
@@ -337,7 +407,7 @@ export const ObjectChart = (props: any) => {
           if (mounted.current) setLoading(false);
       }
       // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [schema.objectName, aggregateKey, filterKey, schema.xAxisKey]);
+  }, [schema.objectName, aggregateKey, filterKey, compareToKey, schema.xAxisKey, schema.chartType, runAggregate]);
 
   useEffect(() => {
     const mounted = { current: true };
@@ -350,7 +420,7 @@ export const ObjectChart = (props: any) => {
     }
     return () => { mounted.current = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [schema.objectName, dataSource, boundData, schema.data, filterKey, aggregateKey, fetchData]);
+  }, [schema.objectName, dataSource, boundData, schema.data, filterKey, aggregateKey, compareToKey, fetchData]);
 
   const rawData = boundData || schema.data || fetchedData;
   const finalData = Array.isArray(rawData) ? rawData : [];
@@ -383,10 +453,44 @@ export const ObjectChart = (props: any) => {
     return map;
   }, [finalData, groupByField]);
 
-  // Merge data if not provided in schema
+  // Merge data if not provided in schema. When `compareTo` is configured
+  // for a supported chart type, also synthesize a second series so the
+  // chart implementation renders the comparison overlay (dashed / muted).
+  const compareToConfig: CompareToConfig | undefined = (schema as any).compareTo;
+  const enableComparisonSeries =
+    !!compareToConfig &&
+    supportsCompareTo(schema.chartType) &&
+    !!schema.aggregate &&
+    finalData.some((row: Record<string, any>) => row[`${schema.aggregate!.field}__comparison`] != null);
+
+  const augmentedSeries = useMemo(() => {
+    const existing = Array.isArray((schema as any).series) ? (schema as any).series : null;
+    if (!enableComparisonSeries) return existing;
+    const primary = existing || [{ dataKey: schema.aggregate!.field }];
+    const labelMap: Record<string, string> = {
+      vsLastWeek: 'Previous week',
+      vsLastMonth: 'Previous month',
+      vsLastQuarter: 'Previous quarter',
+      vsLastYear: 'Previous year',
+      vsYesterday: 'Yesterday',
+      vsPreviousPeriod: 'Previous period',
+    };
+    const labelKey = compareToTrendLabelKey(compareToConfig!, schema.filter);
+    const friendlyLabel = labelMap[labelKey] || 'Previous period';
+    return [
+      ...primary.map((s: any) => ({ ...s, variant: s.variant || 'current' })),
+      {
+        dataKey: `${schema.aggregate!.field}__comparison`,
+        label: friendlyLabel,
+        variant: 'comparison',
+      },
+    ];
+  }, [enableComparisonSeries, (schema as any).series, schema.aggregate, schema.filter, compareToConfig]);
+
   const finalSchema = {
     ...schema,
-    data: finalData
+    data: finalData,
+    ...(augmentedSeries ? { series: augmentedSeries } : {}),
   };
   
   if (loading && finalData.length === 0) {
