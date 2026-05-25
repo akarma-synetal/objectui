@@ -111,6 +111,20 @@ export function MarketplacePackagePage() {
     setInstallOpen(true);
     setInstallResult(null);
     setEnvsError(null);
+
+    // When the runtime tells us which env we're on (tenant subdomain
+    // like demo.objectos.app), skip the picker entirely — the operator's
+    // domain already identifies the target. Just open the dialog with
+    // the env pre-selected so the sample-data checkbox + Install button
+    // remain in place.
+    const currentEnvId = getRuntimeConfig().defaultEnvironmentId;
+    if (currentEnvId) {
+      setEnvsLoading(false);
+      setSelectedEnv(currentEnvId);
+      setEnvs([]);
+      return;
+    }
+
     setEnvsLoading(true);
     try {
       const [list, adminOrgIds] = await Promise.all([
@@ -416,7 +430,9 @@ export function MarketplacePackagePage() {
           <DialogHeader>
             <DialogTitle>Install {pkg.display_name || pkg.manifest_id}</DialogTitle>
             <DialogDescription>
-              Choose an environment to install this app into. You need to be signed into ObjectStack Cloud.
+              {getRuntimeConfig().defaultEnvironmentId
+                ? `Install into this environment (${typeof window !== 'undefined' ? window.location.host : ''}).`
+                : 'Choose an environment to install this app into. You need to be signed into ObjectStack Cloud.'}
             </DialogDescription>
           </DialogHeader>
 
@@ -434,6 +450,17 @@ export function MarketplacePackagePage() {
                   Open on cloud
                 </Button>
               </a>
+            </div>
+          ) : getRuntimeConfig().defaultEnvironmentId ? (
+            <div className="flex items-center gap-2">
+              <Checkbox
+                id="seed"
+                checked={seedSampleData}
+                onCheckedChange={(c) => setSeedSampleData(c === true)}
+              />
+              <Label htmlFor="seed" className="text-sm font-normal cursor-pointer">
+                Include sample data
+              </Label>
             </div>
           ) : envs.length === 0 ? (
             <p className="text-sm text-muted-foreground">No environments found in your active organization.</p>
