@@ -1540,7 +1540,8 @@ const zh = {
         critical: '紧急',
       },
     },
-    marketplace: {
+  },
+  marketplace: {
       title: '应用市场',
       subtitle: '浏览已通过审核、发布到 ObjectStack 目录中的应用。点击应用查看详情并安装到你的某个环境中。',
       searchPlaceholder: '按名称或 manifest ID 搜索应用…',
@@ -1652,7 +1653,6 @@ const zh = {
         yearsAgo: '{{count}} 年前',
       },
     },
-  },
 } as const;
 
 export default zh;

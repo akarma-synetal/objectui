@@ -1545,8 +1545,9 @@ const en = {
         critical: 'Critical',
       },
     },
-    marketplace: {
-      title: 'App Marketplace',
+  },
+  marketplace: {
+    title: 'App Marketplace',
       subtitle: 'Browse approved apps published to the ObjectStack catalog. Click an app to view details and install it into one of your environments.',
       searchPlaceholder: 'Search apps by name or manifest ID…',
       searchAria: 'Search marketplace apps',
@@ -1657,7 +1658,6 @@ const en = {
         yearsAgo: '{{count}}y ago',
       },
     },
-  },
 } as const;
 
 export default en;

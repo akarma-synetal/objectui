@@ -43,7 +43,17 @@ function pickFromTranslations(
   field: L10nField,
 ): string | undefined {
   if (!translations) return undefined;
-  for (const code of uniqueLocales([locale, languageOf(locale), FALLBACK_LOCALE])) {
+  const lang = languageOf(locale);
+  // Build chain: exact → language-only → any regional variant matching the
+  // language (e.g. 'zh' → 'zh-CN' / 'zh-Hans') → fallback. The regional
+  // expansion covers the common case where the i18n provider returns a
+  // bare language code ('zh') but package manifests ship region-tagged
+  // translations ('zh-CN').
+  const variants = Object.keys(translations).filter(
+    (code) => code === lang || code.startsWith(`${lang}-`),
+  );
+  const chain = uniqueLocales([locale, lang, ...variants, FALLBACK_LOCALE]);
+  for (const code of chain) {
     const entry = translations[code];
     if (!entry) continue;
     const value = entry[field];
