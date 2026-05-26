@@ -596,9 +596,40 @@ function FieldControl({
       );
     }
   }
-  // Enum → Select.
+  // Enum / Select — fieldSpec.options takes precedence over schema.enum.
+  const options = fieldSpec?.options;
   const enumValues = (schema?.enum as unknown[] | undefined) ?? undefined;
+  
+  if (Array.isArray(options) && options.length > 0) {
+    // Render from fieldSpec.options (Data.SelectOption[])
+    return (
+      <Select
+        value={value == null ? '' : String(value)}
+        onValueChange={(v) => onChange(v)}
+        disabled={readOnly}
+      >
+        <SelectTrigger id={id}>
+          <SelectValue placeholder="Select…" />
+        </SelectTrigger>
+        <SelectContent>
+          {options.map((opt) => (
+            <SelectItem key={opt.value} value={opt.value}>
+              {opt.label}
+              {opt.color && (
+                <span
+                  className="ml-2 inline-block h-3 w-3 rounded"
+                  style={{ backgroundColor: opt.color }}
+                />
+              )}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    );
+  }
+  
   if (Array.isArray(enumValues) && enumValues.length > 0) {
+    // Fallback to schema.enum
     return (
       <Select
         value={value == null ? '' : String(value)}
@@ -636,13 +667,17 @@ function FieldControl({
     );
   }
 
-  // Number / integer → numeric input.
+  // Number / integer → numeric input with min/max from fieldSpec.
   if (schema?.type === 'number' || schema?.type === 'integer') {
+    const min = fieldSpec?.min;
+    const max = fieldSpec?.max;
     return (
       <Input
         id={id}
         type="number"
         value={value == null ? '' : String(value)}
+        min={min}
+        max={max}
         onChange={(e) => {
           const raw = e.target.value;
           if (raw === '') return onChange(undefined);
@@ -654,8 +689,9 @@ function FieldControl({
     );
   }
 
-  // String → Input (or Textarea if it looks long).
+  // String → Input (or Textarea if it looks long), with maxLength from fieldSpec.
   if (schema?.type === 'string') {
+    const maxLength = fieldSpec?.maxLength;
     const long =
       schema?.format === 'multiline' ||
       schema?.contentMediaType === 'text/markdown' ||
@@ -666,6 +702,7 @@ function FieldControl({
           id={id}
           rows={4}
           value={(value as string | undefined) ?? ''}
+          maxLength={maxLength}
           onChange={(e) => onChange(e.target.value || undefined)}
           readOnly={readOnly}
         />
@@ -675,6 +712,7 @@ function FieldControl({
       <Input
         id={id}
         value={(value as string | undefined) ?? ''}
+        maxLength={maxLength}
         onChange={(e) => onChange(e.target.value || undefined)}
         readOnly={readOnly}
       />
