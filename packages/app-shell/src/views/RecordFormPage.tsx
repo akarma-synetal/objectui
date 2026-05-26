@@ -28,7 +28,7 @@
  * @module views/RecordFormPage
  */
 
-import { useCallback, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams, useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { ObjectForm } from '@object-ui/plugin-form';
 import { Button, Empty, EmptyTitle, EmptyDescription } from '@object-ui/components';
@@ -68,7 +68,19 @@ export function RecordFormPage({ mode }: RecordFormPageProps) {
   const { objects, loading: metadataLoading } = useMetadata();
   const { t } = useObjectTranslation();
   const { objectLabel } = useObjectLabel();
-  const { user } = useAuth();
+  const { user, getAuthConfig } = useAuth();
+
+  // Pull deployment-level feature flags so action visibility predicates
+  // (e.g. `features.multiOrgEnabled != false` on sys_organization's create
+  // action) can see them inside the nested ExpressionProvider below.
+  const [features, setFeatures] = useState<Record<string, any>>({});
+  useEffect(() => {
+    let cancelled = false;
+    getAuthConfig()
+      .then(cfg => { if (!cancelled) setFeatures(cfg?.features ?? {}); })
+      .catch(() => { /* leave empty — predicates default to visible */ });
+    return () => { cancelled = true; };
+  }, [getAuthConfig]);
 
   /**
    * Query-string prefills for create mode. Used by related-list "+ New"
@@ -214,7 +226,7 @@ export function RecordFormPage({ mode }: RecordFormPageProps) {
   }
 
   return (
-    <ExpressionProvider user={expressionUser} app={{ name: appName }} data={{}}>
+    <ExpressionProvider user={expressionUser} app={{ name: appName }} data={{}} features={features}>
       <div
         className="flex flex-col h-full overflow-hidden bg-background"
         data-testid="record-form-page"

@@ -73,8 +73,29 @@ interface AppContentProps {
 
 export function AppContent({ extraRoutes, extraRoutesNoApp }: AppContentProps = {}) {
   const [connectionState, setConnectionState] = useState<ConnectionState>('disconnected');
-  const { user } = useAuth();
+  const { user, getAuthConfig } = useAuth();
   const dataSource = useAdapter();
+
+  // Deployment-level feature flags from `/api/v1/auth/config`. Used by
+  // CEL predicates on metadata actions (e.g. `sys_organization`'s
+  // create button is hidden when `multiOrgEnabled === false`). We keep
+  // it empty until the fetch resolves so predicates default to "visible"
+  // and we don't briefly hide UI on slow networks.
+  const [features, setFeatures] = useState<Record<string, any>>({});
+  useEffect(() => {
+    let cancelled = false;
+    getAuthConfig()
+      .then((cfg) => {
+        if (cancelled) return;
+        setFeatures((cfg?.features as Record<string, any>) ?? {});
+      })
+      .catch(() => {
+        /* leave empty — predicates default to visible */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [getAuthConfig]);
 
   const navigate = useNavigate();
   const location = useLocation();
@@ -311,7 +332,7 @@ export function AppContent({ extraRoutes, extraRoutesNoApp }: AppContentProps = 
     : { name: 'Anonymous', email: '', role: 'guest' };
 
   return (
-    <ExpressionProvider user={expressionUser} app={activeApp} data={{}}>
+    <ExpressionProvider user={expressionUser} app={activeApp} data={{}} features={features}>
       <NavigationSyncEffect />
       <ConsoleLayout
         activeAppName={activeApp.name}

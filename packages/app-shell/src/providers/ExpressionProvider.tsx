@@ -16,6 +16,7 @@
 
 import React, { createContext, useContext, useMemo } from 'react';
 import { ExpressionEvaluator } from '@object-ui/core';
+import { PredicateScopeProvider } from '@object-ui/react';
 
 export interface ExpressionContextValue {
   /** Current authenticated user */
@@ -24,6 +25,15 @@ export interface ExpressionContextValue {
   app: Record<string, any>;
   /** Additional data scope */
   data: Record<string, any>;
+  /**
+   * Deployment-level feature flags surfaced by `/api/v1/auth/config`
+   * (e.g. `multiOrgEnabled`). Used by CEL/template predicates on
+   * metadata actions and views to hide entries that would otherwise
+   * hit a forbidden endpoint. Empty `{}` when auth config hasn't
+   * loaded yet — predicates should default to "visible" in that case
+   * (see `sys_organization.create_organization.visible`).
+   */
+  features: Record<string, any>;
   /** The evaluator instance (for imperative use) */
   evaluator: ExpressionEvaluator;
 }
@@ -35,16 +45,26 @@ interface ExpressionProviderProps {
   user?: Record<string, any>;
   app?: Record<string, any>;
   data?: Record<string, any>;
+  features?: Record<string, any>;
 }
 
-export function ExpressionProvider({ children, user = {}, app = {}, data = {} }: ExpressionProviderProps) {
+export function ExpressionProvider({ children, user = {}, app = {}, data = {}, features = {} }: ExpressionProviderProps) {
   const value = useMemo(() => {
-    const context = { user, app, data };
+    const context = { user, app, data, features };
     const evaluator = new ExpressionEvaluator(context);
-    return { user, app, data, evaluator };
-  }, [user, app, data]);
+    return { user, app, data, features, evaluator };
+  }, [user, app, data, features]);
 
-  return <ExprCtx.Provider value={value}>{children}</ExprCtx.Provider>;
+  // Also feed the predicate scope used by useCondition/useExpression in
+  // @object-ui/react so action visibility predicates (e.g. on toolbar
+  // buttons) can see deployment-level flags like features.multiOrgEnabled.
+  const scope = useMemo(() => ({ user, app, data, features }), [user, app, data, features]);
+
+  return (
+    <ExprCtx.Provider value={value}>
+      <PredicateScopeProvider scope={scope}>{children}</PredicateScopeProvider>
+    </ExprCtx.Provider>
+  );
 }
 
 /**
@@ -55,7 +75,7 @@ export function useExpressionContext(): ExpressionContextValue {
   const ctx = useContext(ExprCtx);
   if (!ctx) {
     // Return a safe default so components can be used outside the provider
-    const fallback = { user: {}, app: {}, data: {} };
+    const fallback = { user: {}, app: {}, data: {}, features: {} };
     return { ...fallback, evaluator: new ExpressionEvaluator(fallback) };
   }
   return ctx;
