@@ -93,16 +93,38 @@ export interface MetadataResourceConfig {
    * Studio's Page Designer creates these for you").
    */
   emptyStateHint?: string;
+  /**
+   * Fallback JSONSchema used by the generic SchemaForm when the
+   * framework's `/meta/types` endpoint doesn't expose a `schema` field
+   * for this type (most types today). This lets us deliver a usable
+   * form-driven create/edit experience without first wiring full
+   * Zod→JSONSchema generation in the framework registry.
+   *
+   * If the server registry DOES return a `schema`, this is ignored.
+   */
+  defaultSchema?: Record<string, unknown>;
 }
 
 const REGISTRY = new Map<string, MetadataResourceConfig>();
 
 /**
- * Register (or replace) an entry. Idempotent — re-registering with the
- * same `type` overwrites, matching HMR semantics.
+ * Register (or merge) an entry. Idempotent — re-registering with the
+ * same `type` merges the new fields with any existing entry so that
+ * bespoke editors (e.g. PermissionMatrixEditor) and generic-engine
+ * defaults (e.g. `defaultSchema`) can be registered independently and
+ * coexist. Explicit `undefined` values do not overwrite.
  */
 export function registerMetadataResource(config: MetadataResourceConfig): void {
-  REGISTRY.set(config.type, config);
+  const prev = REGISTRY.get(config.type);
+  if (!prev) {
+    REGISTRY.set(config.type, config);
+    return;
+  }
+  const merged: MetadataResourceConfig = { ...prev };
+  for (const [k, v] of Object.entries(config as unknown as Record<string, unknown>)) {
+    if (v !== undefined) (merged as unknown as Record<string, unknown>)[k] = v;
+  }
+  REGISTRY.set(config.type, merged);
 }
 
 /** Look up an entry. Returns `undefined` when the type isn't registered. */
@@ -138,5 +160,6 @@ export function resolveResourceConfig(
     description: registered.description ?? serverEntry?.description,
     domain: (registered.domain ?? (serverEntry?.domain as MetadataDomain) ?? 'other'),
     allowOrgOverride: serverEntry?.allowOrgOverride,
+    defaultSchema: registered.defaultSchema,
   };
 }

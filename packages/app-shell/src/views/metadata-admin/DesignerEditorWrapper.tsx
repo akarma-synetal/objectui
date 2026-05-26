@@ -100,6 +100,7 @@ export function DesignerEditorWrapper<TValue = any>({
   const entry: RichMetadataTypeEntry | undefined = entries.find((t) => t.type === type);
   const resolved = resolveResourceConfig(type, entry);
   const writable = !!resolved.allowOrgOverride;
+  const locale = detectLocale();
 
   const [value, setValue] = React.useState<TValue | null>(null);
   const [original, setOriginal] = React.useState<TValue | null>(null);
@@ -166,7 +167,7 @@ export function DesignerEditorWrapper<TValue = any>({
   }
 
   async function doReset() {
-    if (!confirm(`Reset overlay for ${type}/${name}?`)) return;
+    if (!confirm(t('engine.edit.resetConfirm', locale).replace('{type}', type).replace('{name}', name))) return;
     setSaving(true);
     try {
       await client.reset(type, name);
@@ -177,8 +178,6 @@ export function DesignerEditorWrapper<TValue = any>({
       setSaving(false);
     }
   }
-
-  const locale = detectLocale();
 
   if (loading || value == null) {
     return (

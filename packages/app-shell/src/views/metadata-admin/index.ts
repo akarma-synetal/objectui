@@ -45,6 +45,12 @@ export type {
   MetadataDomain,
 } from './registry';
 
+// Side-effect: register fallback JSONSchemas for the 12 writable types
+// so the generic SchemaForm renders a real form (vs raw-JSON fallback)
+// until the framework wires Zod→JSONSchema generation into /meta/types.
+import { registerDefaultMetadataSchemas } from './default-schemas';
+registerDefaultMetadataSchemas();
+
 export {
   useMetadataClient,
   useMetadataTypes,

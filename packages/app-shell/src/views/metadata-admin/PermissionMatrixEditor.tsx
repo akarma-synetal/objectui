@@ -61,6 +61,7 @@ import {
 import { PageShell } from './PageShell';
 import { useMetadataClient, useMetadataTypes, type RichMetadataTypeEntry } from './useMetadata';
 import { resolveResourceConfig } from './registry';
+import { t as translate, detectLocale } from './i18n';
 
 /* ────────────────────────────────────────────────────────────────── */
 /* Domain shapes                                                      */
@@ -105,17 +106,21 @@ interface FieldSummary {
   label?: string;
 }
 
-const OBJECT_ACTIONS: Array<{ key: keyof ObjectPerm; short: string; tip: string }> = [
-  { key: 'allowCreate', short: 'C', tip: 'Create' },
-  { key: 'allowRead', short: 'R', tip: 'Read' },
-  { key: 'allowEdit', short: 'U', tip: 'Edit' },
-  { key: 'allowDelete', short: 'D', tip: 'Delete' },
-  { key: 'allowTransfer', short: 'Tr', tip: 'Transfer ownership' },
-  { key: 'allowRestore', short: 'Re', tip: 'Restore from trash' },
-  { key: 'allowPurge', short: 'Pu', tip: 'Hard delete (purge)' },
-  { key: 'viewAllRecords', short: 'VA', tip: 'View All Records (bypass sharing)' },
-  { key: 'modifyAllRecords', short: 'MA', tip: 'Modify All Records (bypass sharing)' },
-];
+function getObjectActions(
+  locale: string,
+): Array<{ key: keyof ObjectPerm; short: string; tip: string }> {
+  return [
+    { key: 'allowCreate', short: 'C', tip: translate('perm.action.create', locale) },
+    { key: 'allowRead', short: 'R', tip: translate('perm.action.read', locale) },
+    { key: 'allowEdit', short: 'U', tip: translate('perm.action.edit', locale) },
+    { key: 'allowDelete', short: 'D', tip: translate('perm.action.delete', locale) },
+    { key: 'allowTransfer', short: 'Tr', tip: translate('perm.action.transfer', locale) },
+    { key: 'allowRestore', short: 'Re', tip: translate('perm.action.restore', locale) },
+    { key: 'allowPurge', short: 'Pu', tip: translate('perm.action.purge', locale) },
+    { key: 'viewAllRecords', short: 'VA', tip: translate('perm.action.viewAll', locale) },
+    { key: 'modifyAllRecords', short: 'MA', tip: translate('perm.action.modifyAll', locale) },
+  ];
+}
 
 export interface PermissionMatrixEditPageProps {
   type: string;
@@ -133,6 +138,9 @@ export function PermissionMatrixEditPage({ type, name }: PermissionMatrixEditPag
   const entry: RichMetadataTypeEntry | undefined = entries.find((t) => t.type === type);
   const resolved = resolveResourceConfig(type, entry);
   const writable = !!resolved.allowOrgOverride;
+  const locale = React.useMemo(() => detectLocale(), []);
+  const t = React.useCallback((k: string) => translate(k, locale), [locale]);
+  const OBJECT_ACTIONS = React.useMemo(() => getObjectActions(locale), [locale]);
 
   const [draft, setDraft] = React.useState<PermissionSetDraft>({
     name,
@@ -313,11 +321,11 @@ export function PermissionMatrixEditPage({ type, name }: PermissionMatrixEditPag
 
   const stats = [
     {
-      label: 'Objects granted',
+      label: t('perm.stat.objectsGranted'),
       value: Object.values(draft.objects).filter((p) => Object.values(p).some(Boolean)).length,
     },
     {
-      label: 'Field overrides',
+      label: t('perm.stat.fieldOverrides'),
       value: Object.keys(draft.fields ?? {}).length,
     },
   ];
@@ -326,7 +334,7 @@ export function PermissionMatrixEditPage({ type, name }: PermissionMatrixEditPag
     return (
       <PageShell entry={entry} itemName={name}>
         <div className="p-6 text-sm text-muted-foreground flex items-center gap-2">
-          <Loader2 className="h-4 w-4 animate-spin" /> Loading permission set {name}…
+          <Loader2 className="h-4 w-4 animate-spin" /> {t('perm.loading').replace('{name}', name)}
         </div>
       </PageShell>
     );
@@ -336,7 +344,7 @@ export function PermissionMatrixEditPage({ type, name }: PermissionMatrixEditPag
     <PageShell
       entry={entry ?? { type, label: type }}
       itemName={name}
-      subtitle={draft.isProfile ? 'Profile' : 'Permission set'}
+      subtitle={draft.isProfile ? t('perm.subtitle.profile') : t('perm.subtitle.set')}
       stats={stats}
       actions={
         <>
@@ -345,7 +353,7 @@ export function PermissionMatrixEditPage({ type, name }: PermissionMatrixEditPag
             size="sm"
             onClick={() => navigate(`./history?type=${encodeURIComponent(type)}`)}
           >
-            <HistoryIcon className="h-4 w-4 mr-1" /> History
+            <HistoryIcon className="h-4 w-4 mr-1" /> {t('engine.edit.history')}
           </Button>
           {writable && (
             <Button size="sm" onClick={() => doSave(false)} disabled={saving}>
@@ -354,7 +362,7 @@ export function PermissionMatrixEditPage({ type, name }: PermissionMatrixEditPag
               ) : (
                 <Save className="h-4 w-4 mr-1" />
               )}
-              Save
+              {t('engine.edit.save')}
             </Button>
           )}
         </>
@@ -371,7 +379,7 @@ export function PermissionMatrixEditPage({ type, name }: PermissionMatrixEditPag
         {/* Header strip — name / label / isProfile */}
         <div className="px-6 py-3 border-b bg-muted/30 flex flex-wrap items-end gap-4">
           <div className="space-y-1">
-            <Label htmlFor="perm-name" className="text-xs">Name</Label>
+            <Label htmlFor="perm-name" className="text-xs">{t('perm.field.name')}</Label>
             <Input
               id="perm-name"
               value={draft.name}
@@ -381,7 +389,7 @@ export function PermissionMatrixEditPage({ type, name }: PermissionMatrixEditPag
             />
           </div>
           <div className="space-y-1">
-            <Label htmlFor="perm-label" className="text-xs">Label</Label>
+            <Label htmlFor="perm-label" className="text-xs">{t('perm.field.label')}</Label>
             <Input
               id="perm-label"
               value={draft.label ?? ''}
@@ -397,11 +405,11 @@ export function PermissionMatrixEditPage({ type, name }: PermissionMatrixEditPag
               disabled={!writable}
               onCheckedChange={(v) => setDraft((p) => ({ ...p, isProfile: !!v }))}
             />
-            <Label htmlFor="perm-is-profile" className="text-xs">Is profile</Label>
+            <Label htmlFor="perm-is-profile" className="text-xs">{t('perm.field.isProfile')}</Label>
           </div>
           {!writable && (
             <Badge variant="secondary" className="ml-auto">
-              Read-only (OS_METADATA_WRITABLE not enabled)
+              {t('perm.readOnly')}
             </Badge>
           )}
         </div>
@@ -409,7 +417,7 @@ export function PermissionMatrixEditPage({ type, name }: PermissionMatrixEditPag
         {/* Filter bar */}
         <div className="px-6 py-3 border-b flex items-center gap-3">
           <Input
-            placeholder="Filter objects…"
+            placeholder={t('perm.filter.placeholder')}
             value={filter}
             onChange={(e) => setFilter(e.target.value)}
             className="h-8 w-72"
@@ -420,10 +428,10 @@ export function PermissionMatrixEditPage({ type, name }: PermissionMatrixEditPag
               checked={showOnlyEnabled}
               onCheckedChange={(v) => setShowOnlyEnabled(!!v)}
             />
-            <Label htmlFor="only-enabled" className="text-xs">Only granted</Label>
+            <Label htmlFor="only-enabled" className="text-xs">{t('perm.filter.onlyGranted')}</Label>
           </div>
           <span className="text-xs text-muted-foreground ml-auto">
-            {filteredObjects.length} / {objects.length} objects
+            {filteredObjects.length} / {objects.length} {t('perm.stat.objectsSuffix')}
           </span>
         </div>
 
@@ -435,6 +443,8 @@ export function PermissionMatrixEditPage({ type, name }: PermissionMatrixEditPag
             expanded={expanded}
             fieldsByObject={fieldsByObject}
             writable={writable}
+            objectActions={OBJECT_ACTIONS}
+            t={t}
             onToggleExpand={toggleExpand}
             onObjectPerm={updateObjectPerm}
             onFieldPerm={updateFieldPerm}
@@ -448,11 +458,10 @@ export function PermissionMatrixEditPage({ type, name }: PermissionMatrixEditPag
         <DialogContent>
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <AlertTriangle className="h-4 w-4 text-amber-500" /> Destructive change
+              <AlertTriangle className="h-4 w-4 text-amber-500" /> {t('engine.edit.destructive')}
             </DialogTitle>
             <DialogDescription>
-              This save would break existing references. Review the issues, then
-              confirm to force-save.
+              {t('engine.edit.destructiveHint')}
             </DialogDescription>
           </DialogHeader>
           <ul className="text-sm space-y-1 max-h-64 overflow-auto">
@@ -464,14 +473,14 @@ export function PermissionMatrixEditPage({ type, name }: PermissionMatrixEditPag
             ))}
           </ul>
           <DialogFooter>
-            <Button variant="ghost" onClick={() => setDestructive(null)}>Cancel</Button>
+            <Button variant="ghost" onClick={() => setDestructive(null)}>{t('engine.cancel')}</Button>
             <Button
               variant="destructive"
               onClick={() => destructive && doSave(true, destructive.pending)}
               disabled={saving}
             >
               {saving && <Loader2 className="h-4 w-4 mr-1 animate-spin" />}
-              Force save
+              {t('engine.edit.forceSave')}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -490,6 +499,8 @@ interface PermissionTableProps {
   expanded: Set<string>;
   fieldsByObject: Record<string, FieldSummary[]>;
   writable: boolean;
+  objectActions: ReturnType<typeof getObjectActions>;
+  t: (key: string) => string;
   onToggleExpand: (objectName: string) => void;
   onObjectPerm: (objectName: string, action: keyof ObjectPerm, value: boolean) => void;
   onFieldPerm: (objectName: string, fieldName: string, action: keyof FieldPerm, value: boolean) => void;
@@ -502,6 +513,8 @@ function PermissionTable({
   expanded,
   fieldsByObject,
   writable,
+  objectActions,
+  t,
   onToggleExpand,
   onObjectPerm,
   onFieldPerm,
@@ -511,8 +524,8 @@ function PermissionTable({
     <table className="w-full text-sm">
       <thead className="sticky top-0 bg-background border-b z-10">
         <tr>
-          <th className="text-left px-4 py-2 font-medium w-72">Object</th>
-          {OBJECT_ACTIONS.map((a) => (
+          <th className="text-left px-4 py-2 font-medium w-72">{t('perm.col.object')}</th>
+          {objectActions.map((a) => (
             <th
               key={a.key as string}
               className="px-2 py-2 font-medium text-center w-14"
@@ -521,14 +534,14 @@ function PermissionTable({
               {a.short}
             </th>
           ))}
-          <th className="px-2 py-2 font-medium w-44 text-right">Bulk</th>
+          <th className="px-2 py-2 font-medium w-44 text-right">{t('perm.col.bulk')}</th>
         </tr>
       </thead>
       <tbody>
         {objects.length === 0 && (
           <tr>
-            <td colSpan={OBJECT_ACTIONS.length + 2} className="px-4 py-8 text-center text-muted-foreground">
-              No objects match the filter.
+            <td colSpan={objectActions.length + 2} className="px-4 py-8 text-center text-muted-foreground">
+              {t('perm.filter.empty')}
             </td>
           </tr>
         )}
@@ -555,7 +568,7 @@ function PermissionTable({
                     )}
                   </button>
                 </td>
-                {OBJECT_ACTIONS.map((a) => (
+                {objectActions.map((a) => (
                   <td key={a.key as string} className="text-center px-2 py-1.5">
                     <Checkbox
                       checked={!!perm[a.key]}
@@ -573,7 +586,7 @@ function PermissionTable({
                     disabled={!writable}
                     onClick={() => onBulkSet(o.name, 'read')}
                   >
-                    R
+                    {t('perm.bulk.read')}
                   </Button>
                   <Button
                     variant="ghost"
@@ -582,7 +595,7 @@ function PermissionTable({
                     disabled={!writable}
                     onClick={() => onBulkSet(o.name, 'crud')}
                   >
-                    CRUD
+                    {t('perm.bulk.crud')}
                   </Button>
                   <Button
                     variant="ghost"
@@ -591,7 +604,7 @@ function PermissionTable({
                     disabled={!writable}
                     onClick={() => onBulkSet(o.name, 'all')}
                   >
-                    All
+                    {t('perm.bulk.all')}
                   </Button>
                   <Button
                     variant="ghost"
@@ -600,18 +613,19 @@ function PermissionTable({
                     disabled={!writable}
                     onClick={() => onBulkSet(o.name, 'none')}
                   >
-                    None
+                    {t('perm.bulk.none')}
                   </Button>
                 </td>
               </tr>
               {open && (
                 <tr className="bg-muted/10">
-                  <td colSpan={OBJECT_ACTIONS.length + 2} className="px-12 py-3">
+                  <td colSpan={objectActions.length + 2} className="px-12 py-3">
                     <FieldsSubTable
                       objectName={o.name}
                       fields={fieldsByObject[o.name]}
                       fieldsState={draft.fields ?? {}}
                       writable={writable}
+                      t={t}
                       onFieldPerm={onFieldPerm}
                     />
                   </td>
@@ -630,31 +644,33 @@ function FieldsSubTable({
   fields,
   fieldsState,
   writable,
+  t,
   onFieldPerm,
 }: {
   objectName: string;
   fields: FieldSummary[] | undefined;
   fieldsState: Record<string, FieldPerm>;
   writable: boolean;
+  t: (key: string) => string;
   onFieldPerm: (objectName: string, fieldName: string, action: keyof FieldPerm, value: boolean) => void;
 }) {
   if (!fields) {
     return (
       <div className="text-xs text-muted-foreground flex items-center gap-2">
-        <Loader2 className="h-3 w-3 animate-spin" /> Loading fields…
+        <Loader2 className="h-3 w-3 animate-spin" /> {t('perm.field.loading')}
       </div>
     );
   }
   if (fields.length === 0) {
-    return <div className="text-xs text-muted-foreground">No fields registered for this object.</div>;
+    return <div className="text-xs text-muted-foreground">{t('perm.field.empty')}</div>;
   }
   return (
     <table className="w-full text-xs">
       <thead>
         <tr className="text-muted-foreground">
-          <th className="text-left py-1 font-medium">Field</th>
-          <th className="px-2 py-1 font-medium w-16 text-center" title="Readable">Read</th>
-          <th className="px-2 py-1 font-medium w-16 text-center" title="Editable">Edit</th>
+          <th className="text-left py-1 font-medium">{t('perm.field.col.name')}</th>
+          <th className="px-2 py-1 font-medium w-16 text-center" title={t('perm.field.read')}>{t('perm.field.read')}</th>
+          <th className="px-2 py-1 font-medium w-16 text-center" title={t('perm.field.edit')}>{t('perm.field.edit')}</th>
         </tr>
       </thead>
       <tbody>

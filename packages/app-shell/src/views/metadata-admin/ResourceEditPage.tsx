@@ -177,7 +177,13 @@ export function MetadataResourceEditPage({
       setDestructiveIssues(null);
       setPendingItem(null);
       if (createMode) {
-        navigate(`../${encodeURIComponent(savedName)}?type=${encodeURIComponent(type)}`);
+        // Use absolute path — react-router resolves `../` against the
+        // matched route pattern (`/apps/:app/component/:ns/:name/*`),
+        // which overshoots and lands at `/apps/:app`. Anchor on the
+        // location's pathname for predictable behaviour.
+        const here = window.location.pathname; // .../resource/new
+        const parent = here.replace(/\/new\/?$/, '');
+        navigate(`${parent}/${encodeURIComponent(savedName)}?type=${encodeURIComponent(type)}`);
       }
     } catch (err: any) {
       // Map destructive change → confirmation dialog.
@@ -231,7 +237,9 @@ export function MetadataResourceEditPage({
     );
   }
 
-  const schema = (entry?.schema as Record<string, unknown> | undefined) ?? undefined;
+  const schema =
+    (entry?.schema as Record<string, unknown> | undefined) ??
+    (config.defaultSchema as Record<string, unknown> | undefined);
   const readOnly = !entry?.allowOrgOverride && !createMode;
 
   return (
