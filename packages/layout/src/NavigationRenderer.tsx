@@ -323,6 +323,31 @@ function resolveHref(item: NavigationItem, basePath: string): { href: string; ex
       return { href: item.reportName ? `${basePath}/report/${item.reportName}` : '#', external: false };
     case 'url':
       return { href: item.url ?? '#', external: item.target === '_blank' };
+    case 'component': {
+      // Phase 3b: `componentRef` is colon-joined (e.g. `metadata:resource`).
+      // We map it to `/component/<ns>/<name>` so URLs stay clean and
+      // React Router can pull the segments via :ns/:name params.
+      // Any `params` on the nav item are serialised as querystring so
+      // the same component can be reused across many nav entries with
+      // different inputs (e.g. `params: { type: 'object' }` vs
+      // `params: { type: 'field' }`).
+      const ref = (item as any).componentRef as string | undefined;
+      if (!ref) return { href: '#', external: false };
+      const segs = ref.split(':').filter(Boolean);
+      if (segs.length === 0) return { href: '#', external: false };
+      let url = `${basePath}/component/${segs.join('/')}`;
+      const navParams = (item as any).params as Record<string, unknown> | undefined;
+      if (navParams && typeof navParams === 'object') {
+        const usp = new URLSearchParams();
+        for (const [k, v] of Object.entries(navParams)) {
+          if (v === undefined || v === null) continue;
+          usp.set(k, typeof v === 'string' ? v : JSON.stringify(v));
+        }
+        const qs = usp.toString();
+        if (qs) url += `?${qs}`;
+      }
+      return { href: url, external: false };
+    }
     default:
       return { href: '#', external: false };
   }

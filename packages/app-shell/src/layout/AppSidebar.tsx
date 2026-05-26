@@ -639,6 +639,23 @@ export function AppSidebar({ activeAppName, onAppChange }: { activeAppName: stri
           }
           else if (item.type === 'dashboard') href = item.dashboardName ? `${baseUrl}/dashboard/${item.dashboardName}` : '#';
           else if (item.type === 'page') href = item.pageName ? `${baseUrl}/page/${item.pageName}` : '#';
+          else if (item.type === 'component') {
+            const ref = (item as any).componentRef as string | undefined;
+            if (ref) {
+              const segs = ref.split(':').filter(Boolean);
+              href = `${baseUrl}/component/${segs.join('/')}`;
+              const navParams = (item as any).params as Record<string, unknown> | undefined;
+              if (navParams) {
+                const usp = new URLSearchParams();
+                for (const [k, v] of Object.entries(navParams)) {
+                  if (v === undefined || v === null) continue;
+                  usp.set(k, typeof v === 'string' ? v : JSON.stringify(v));
+                }
+                const qs = usp.toString();
+                if (qs) href += `?${qs}`;
+              }
+            }
+          }
           return (
             <Link key={item.id} to={href} className="flex flex-col items-center gap-0.5 px-2 py-1.5 text-muted-foreground hover:text-foreground transition-colors min-w-[44px] min-h-[44px] justify-center">
               <NavIcon className="h-5 w-5" />

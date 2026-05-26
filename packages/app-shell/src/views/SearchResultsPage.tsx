@@ -86,6 +86,10 @@ export function SearchResultsPage() {
       else if (item.type === 'dashboard') href = `${baseUrl}/dashboard/${item.dashboardName}`;
       else if (item.type === 'page') href = `${baseUrl}/page/${item.pageName}`;
       else if (item.type === 'report') href = `${baseUrl}/report/${item.reportName}`;
+      else if (item.type === 'component' && item.componentRef) {
+        const segs = String(item.componentRef).split(':').filter(Boolean);
+        href = `${baseUrl}/component/${segs.join('/')}`;
+      }
 
       return {
         id: item.id,

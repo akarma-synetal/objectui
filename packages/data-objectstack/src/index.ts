@@ -2079,6 +2079,8 @@ export type {
   MetadataSaveOptions,
   MetadataHistoryOptions,
   MetadataError,
+  MetadataLayered,
+  MetadataReference,
 } from './metadata-client';
 
 export { SecurityManager } from './security';

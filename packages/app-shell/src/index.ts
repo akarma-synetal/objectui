@@ -155,3 +155,47 @@ export { SettingsPage as DefaultSettingsPage } from './console/organizations/man
 export { AcceptInvitationPage as DefaultAcceptInvitationPage } from './console/organizations/manage/AcceptInvitationPage';
 export { AiChatPage as DefaultAiChatPage, AiChatPage } from './console/ai/AiChatPage';
 export { ConversationsSidebar } from './console/ai/ConversationsSidebar';
+
+// Phase 3b: Component nav registry — plugins use this to register
+// admin/setup UI surfaces that are addressable from App metadata via
+// `{ type: 'component', componentRef: 'ns:name' }` nav items.
+export {
+  registerAppComponent,
+  getAppComponent,
+  listAppComponents,
+  componentRefToUrlSegments,
+  urlSegmentsToComponentRef,
+} from './services/componentRegistry';
+export type { AppComponentRegistryEntry } from './services/componentRegistry';
+// Side-effect import: registers built-in admin components
+// (metadata:directory, metadata:resource) at module load.
+import './services/builtinComponents';
+
+// Phase 3c — generic metadata admin engine. Re-exported so plugins
+// can call `registerMetadataResource()` to override the per-type
+// list / edit / create components, and host apps can compose the
+// page primitives directly when needed.
+export {
+  MetadataDirectoryPage,
+  MetadataResourceRouter,
+  MetadataResourceListPage,
+  MetadataResourceEditPage,
+  MetadataResourceHistoryPage,
+  MetadataQuickFind,
+  MetadataPageShell,
+  SchemaForm,
+  LayeredDiff,
+  registerMetadataResource,
+  getMetadataResource,
+  listMetadataResources,
+  resolveResourceConfig,
+  useMetadataClient,
+  useMetadataTypes,
+  useTypesIndex,
+  matchesQuery,
+} from './views/metadata-admin';
+export type {
+  MetadataResourceConfig,
+  MetadataDomain,
+  RichMetadataTypeEntry,
+} from './views/metadata-admin';

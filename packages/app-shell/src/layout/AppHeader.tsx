@@ -43,7 +43,7 @@ import {
   LogOut,
   User as UserIcon,
   Boxes,
-  MessageCircle,
+  Bot,
 } from 'lucide-react';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
@@ -662,7 +662,7 @@ export function AppHeader({
             aria-label={t('topbar.aiAssistant', { defaultValue: 'AI Assistant' })}
           >
             <Link to="/ai">
-              <MessageCircle className="h-4 w-4" />
+              <Bot className="h-4 w-4" />
             </Link>
           </Button>
 

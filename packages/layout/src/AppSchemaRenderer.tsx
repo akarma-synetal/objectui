@@ -219,6 +219,23 @@ function MobileBottomNav({
         else if (item.type === 'page') href = item.pageName ? `${basePath}/page/${item.pageName}` : '#';
         else if (item.type === 'report') href = item.reportName ? `${basePath}/report/${item.reportName}` : '#';
         else if (item.type === 'url') href = item.url ?? '#';
+        else if (item.type === 'component') {
+          const ref = (item as any).componentRef as string | undefined;
+          if (ref) {
+            const segs = ref.split(':').filter(Boolean);
+            href = `${basePath}/component/${segs.join('/')}`;
+            const navParams = (item as any).params as Record<string, unknown> | undefined;
+            if (navParams) {
+              const usp = new URLSearchParams();
+              for (const [k, v] of Object.entries(navParams)) {
+                if (v === undefined || v === null) continue;
+                usp.set(k, typeof v === 'string' ? v : JSON.stringify(v));
+              }
+              const qs = usp.toString();
+              if (qs) href += `?${qs}`;
+            }
+          }
+        }
 
         const isActive = href !== '#' && location.pathname.startsWith(href);
 

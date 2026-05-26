@@ -9,7 +9,7 @@
 import * as React from "react"
 import { cn } from "@object-ui/components"
 import { Button } from "@object-ui/components"
-import { MessageCircle, X } from "lucide-react"
+import { Bot, X } from "lucide-react"
 import { useFloatingChatbot } from "./FloatingChatbotProvider"
 import { useObjectTranslation } from "@object-ui/react"
 
@@ -65,7 +65,7 @@ export function FloatingChatbotTrigger({
       {isOpen ? (
         <X className="h-6 w-6" />
       ) : (
-        <MessageCircle className="h-6 w-6" />
+        <Bot className="h-6 w-6" />
       )}
     </Button>
   )

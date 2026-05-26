@@ -62,6 +62,37 @@ export interface MetadataSaveOptions {
   ifMatch?: string;
   /** Optional actor id, sent as `X-Actor` for history attribution. */
   actor?: string;
+  /**
+   * Bypass destructive-change protection (Phase 3a). The server returns
+   * `409 destructive_change` with `issues[]` if a write would drop or
+   * narrow data; setting `force: true` adds `?force=true` to the request
+   * so the operator can confirm and proceed.
+   */
+  force?: boolean;
+}
+
+/** Layered view of a metadata item — Phase 3a `?layers=true`. */
+export interface MetadataLayered<T = unknown> {
+  /** Code-level (artifact) item; null if the item only exists as an overlay. */
+  code: T | null;
+  /** Org/environment overlay (just the saved delta or full overlay row). */
+  overlay: T | null;
+  /** Overlay scope (`organization` | `environment` | `package` | null). */
+  overlayScope: string | null;
+  /** Merged effective view — what the runtime actually sees. */
+  effective: T | null;
+}
+
+/** Reference back-pointer — Phase 3a `/references`. */
+export interface MetadataReference {
+  /** Referencing item's metadata type. */
+  fromType: string;
+  /** Referencing item's name. */
+  fromName: string;
+  /** JSON path within the referencing item that holds the reference. */
+  path: string;
+  /** The actual value seen at `path` (the referenced name). */
+  value: string;
 }
 
 export interface MetadataHistoryOptions {
@@ -155,7 +186,18 @@ export class MetadataClient {
     const res = await this.fetchImpl(this.base, { method: 'GET', headers: this.headers });
     if (!res.ok) throw await parseError(res);
     const data = await res.json();
-    return Array.isArray(data) ? data : (data?.items ?? []);
+    if (Array.isArray(data)) return data;
+    // Framework REST returns `{ types: string[], entries: TypeEntry[] }`
+    // where `entries` is the rich per-type registry row. Older / scoped
+    // shapes may use `items`. Prefer `entries` (rich), fall back to
+    // `items` (legacy), then synthesize stub entries from `types[]`
+    // if neither is present.
+    if (data && Array.isArray((data as any).entries)) return (data as any).entries;
+    if (data && Array.isArray((data as any).items)) return (data as any).items;
+    if (data && Array.isArray((data as any).types)) {
+      return (data as any).types.map((t: string) => ({ type: t }));
+    }
+    return [];
   }
 
   /** List items of a metadata type (e.g. `object`, `field`, `view`). */
@@ -198,7 +240,8 @@ export class MetadataClient {
     item: unknown,
     options: MetadataSaveOptions = {},
   ): Promise<T> {
-    const url = `${this.base}/${encodeURIComponent(type)}/${encodeURIComponent(name)}`;
+    const qs = options.force ? '?force=true' : '';
+    const url = `${this.base}/${encodeURIComponent(type)}/${encodeURIComponent(name)}${qs}`;
     const headers: Record<string, string> = {
       ...this.headers,
       'Content-Type': 'application/json',
@@ -212,6 +255,41 @@ export class MetadataClient {
     });
     if (!res.ok) throw await parseError(res);
     return (await res.json()) as T;
+  }
+
+  /**
+   * Get the 3-state layered view of a metadata item (Phase 3a). Returns
+   * `code` (the artifact / fallback default), `overlay` (the saved
+   * customisation, if any), and `effective` (what the runtime sees).
+   */
+  async layered<T = unknown>(type: string, name: string): Promise<MetadataLayered<T>> {
+    const url = `${this.base}/${encodeURIComponent(type)}/${encodeURIComponent(name)}?layers=true`;
+    const res = await this.fetchImpl(url, { method: 'GET', headers: this.headers });
+    if (res.status === 404) {
+      return { code: null, overlay: null, overlayScope: null, effective: null };
+    }
+    if (!res.ok) throw await parseError(res);
+    const body = (await res.json()) as MetadataLayered<T>;
+    return {
+      code: body.code ?? null,
+      overlay: body.overlay ?? null,
+      overlayScope: body.overlayScope ?? null,
+      effective: body.effective ?? null,
+    };
+  }
+
+  /**
+   * Find every metadata item that references this one (Phase 3a). Useful
+   * for pre-delete impact analysis: "Are any views pointing at this
+   * object before I drop it?".
+   */
+  async references(type: string, name: string): Promise<MetadataReference[]> {
+    const url = `${this.base}/${encodeURIComponent(type)}/${encodeURIComponent(name)}/references`;
+    const res = await this.fetchImpl(url, { method: 'GET', headers: this.headers });
+    if (res.status === 404) return [];
+    if (!res.ok) throw await parseError(res);
+    const data = await res.json();
+    return Array.isArray(data) ? (data as MetadataReference[]) : (data?.items ?? []);
   }
 
   /**

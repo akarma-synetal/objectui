@@ -32,7 +32,6 @@ import { AppContent } from './AppContent';
 import { AccountLoginRedirect } from './components/AccountLoginRedirect';
 import { CloudAwareRootRedirect } from './components/CloudAwareRootRedirect';
 import { FormPage } from './components/FormPage';
-import { DevMetaObjectsTestPage, DevMetaFieldsTestPage } from './components/DevMetaTestPage';
 import { MetadataHmrReloader } from './components/MetadataHmrReloader';
 import { SignOutOverlay } from './components/SignOutOverlay';
 import {
@@ -146,9 +145,6 @@ export function App() {
               * FormView whose `sharing.allowAnonymous === true`.
               */}
             <Route path="/f/:slug" element={<FormPage mode="public" />} />
-            {/* TEMPORARY: dev-only sandbox for metadata management pages */}
-            <Route path="/dev/meta" element={<DevMetaObjectsTestPage />} />
-            <Route path="/dev/meta/:objectName" element={<DevMetaFieldsTestPage />} />
             {/* Internal authed form — same renderer, different submit path. */}
             <Route path="/forms/:name" element={
               <ProtectedRoute>

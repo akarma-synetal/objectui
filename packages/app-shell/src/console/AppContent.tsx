@@ -42,6 +42,7 @@ const PageView = lazy(() => import('../views/PageView').then(m => ({ default: m.
 const ReportView = lazy(() => import('../views/ReportView').then(m => ({ default: m.ReportView })));
 const SearchResultsPage = lazy(() => import('../views/SearchResultsPage').then(m => ({ default: m.SearchResultsPage })));
 const RecordFormPage = lazy(() => import('../views/RecordFormPage').then(m => ({ default: m.RecordFormPage })));
+const ComponentNavView = lazy(() => import('../views/ComponentNavView').then(m => ({ default: m.ComponentNavView })));
 
 // Designer pages — sourced from @object-ui/plugin-designer so third-party hosts
 // can opt out by not registering these routes.
@@ -374,6 +375,12 @@ export function AppContent({ extraRoutes, extraRoutesNoApp }: AppContentProps = 
                 <Route path="dashboard/:dashboardName" element={<DashboardView dataSource={dataSource} />} />
                 <Route path="report/:reportName" element={<ReportView dataSource={dataSource} />} />
                 <Route path="page/:pageName" element={<PageView />} />
+                {/* Phase 3b: Component nav target — `metadata:resource` →
+                    /component/metadata/resource. The trailing /* lets the
+                    rendered component handle its own sub-routing (e.g.
+                    list / new / edit / history) without re-registering
+                    routes here. */}
+                <Route path="component/:ns/:name/*" element={<ComponentNavView />} />
                 <Route path="design/page/:pageName" element={<PageDesignPage />} />
                 <Route path="design/dashboard/:dashboardName" element={<DashboardDesignPage />} />
                 <Route path="search" element={<SearchResultsPage />} />
