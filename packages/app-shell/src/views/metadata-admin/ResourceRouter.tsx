@@ -76,6 +76,7 @@ export function MetadataResourceRouter({ type }: MetadataResourceRouterProps) {
   if (segments[0] === 'new' && segments.length === 1) {
     return (
       <MetadataResourceEditPage
+        key={`${resolvedType}:__new__`}
         type={resolvedType}
         name=""
         createMode
@@ -97,6 +98,7 @@ export function MetadataResourceRouter({ type }: MetadataResourceRouterProps) {
   if (segments.length === 1) {
     return (
       <MetadataResourceEditPage
+        key={`${resolvedType}:${segments[0]}`}
         type={resolvedType}
         name={decodeURIComponent(segments[0])}
       />

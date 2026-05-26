@@ -223,12 +223,31 @@ export function MetadataResourceEditPage({
       // Map schema validation → inline field errors.
       else if (err?.status === 422 || err?.code === 'invalid_metadata' || err?.code === 'invalid_payload') {
         const i = err?.body?.issues ?? [];
-        const mapped: SchemaFormIssue[] = (Array.isArray(i) ? i : []).map((x: any) => ({
+        let mapped: SchemaFormIssue[] = (Array.isArray(i) ? i : []).map((x: any) => ({
           path: Array.isArray(x.path) ? x.path.join('.') : String(x.path ?? ''),
           message: String(x.message ?? 'Invalid'),
         }));
+        // Backend's invalid_metadata sometimes returns a flat string like
+        // "<type>/<name> failed spec validation: <path>: <message>".
+        // Parse it into a single inline issue + summary so users see the
+        // real problem instead of "0 issues".
+        const raw: string = String(err?.body?.error ?? err?.message ?? '');
+        if (mapped.length === 0 && raw) {
+          const m = raw.match(/failed spec validation:\s*(.+?):\s*(.+)$/);
+          if (m) {
+            mapped = [{ path: m[1].trim(), message: m[2].trim() }];
+          } else {
+            mapped = [{ path: '', message: raw }];
+          }
+        }
         setIssues(mapped);
-        setError(`Validation failed (${mapped.length} issues).`);
+        if (mapped.length === 1 && !mapped[0].path) {
+          setError(mapped[0].message);
+        } else if (mapped.length === 1) {
+          setError(`${mapped[0].path}: ${mapped[0].message}`);
+        } else {
+          setError(`Validation failed (${mapped.length} issues).`);
+        }
       } else {
         setError(err?.message ?? String(err));
       }
