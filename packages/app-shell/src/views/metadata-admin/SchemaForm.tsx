@@ -576,6 +576,7 @@ function FieldControl({
           onChange={onChange}
           readOnly={readOnly}
           context={widgetContext}
+          fieldSpec={fieldSpec}
         />
       );
     }

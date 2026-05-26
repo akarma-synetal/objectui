@@ -46,6 +46,18 @@ export interface WidgetProps {
   onChange: (v: unknown) => void;
   readOnly?: boolean;
   context?: WidgetContext;
+  /** Optional FormFieldSpec with type/options/reference/constraints */
+  fieldSpec?: {
+    field: string;
+    type?: string;
+    options?: Array<{ label: string; value: string; color?: string }>;
+    reference?: string;
+    maxLength?: number;
+    minLength?: number;
+    min?: number;
+    max?: number;
+    multiple?: boolean;
+  };
 }
 
 export type WidgetRenderer = (props: WidgetProps) => React.ReactElement;
