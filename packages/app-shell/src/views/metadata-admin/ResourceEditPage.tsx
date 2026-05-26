@@ -325,6 +325,7 @@ export function MetadataResourceEditPage({
           <TabsContent value="form" className="mt-4">
             <SchemaForm
               schema={schema}
+              form={entry?.form as any}
               value={draft}
               onChange={setDraft}
               issues={issues}

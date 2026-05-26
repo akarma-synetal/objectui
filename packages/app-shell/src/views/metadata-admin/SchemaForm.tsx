@@ -42,8 +42,62 @@ import {
   SelectValue,
 } from '@object-ui/components';
 import { Badge } from '@object-ui/components';
+import {
+  Tabs,
+  TabsList,
+  TabsTrigger,
+  TabsContent,
+} from '@object-ui/components';
+import { evaluatePredicate } from './predicate';
 
 type JsonSchema = Record<string, any>;
+
+/** Widgets that don't need a custom renderer — they overlay on the
+ * existing default control (textarea/input/etc) and just act as a hint. */
+const KNOWN_PASSTHROUGH_WIDGETS = new Set<string>([
+  'text',
+  'textarea',
+  'number',
+  'switch',
+  'select',
+  'json',
+]);
+
+/* -------------------------------------------------------------------------- */
+/* FormView spec (subset)                                                     */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Lightweight shape of the spec `FormView` we consume. We deliberately
+ * accept `any` for forward compatibility — the spec evolves faster than
+ * we want this admin engine to break.
+ */
+export interface FormViewSpec {
+  type?: 'simple' | 'tabbed' | 'wizard' | 'split' | 'drawer' | 'modal';
+  sections?: FormSectionSpec[];
+}
+
+export interface FormSectionSpec {
+  label?: string;
+  description?: string;
+  collapsible?: boolean;
+  collapsed?: boolean;
+  columns?: 1 | 2 | 3 | 4;
+  fields: Array<string | FormFieldSpec>;
+}
+
+export interface FormFieldSpec {
+  field: string;
+  label?: string;
+  placeholder?: string;
+  helpText?: string;
+  readonly?: boolean;
+  required?: boolean;
+  hidden?: boolean;
+  colSpan?: 1 | 2 | 3 | 4;
+  widget?: string;
+  visibleOn?: string;
+}
 
 export interface SchemaFormIssue {
   path: string;
@@ -53,6 +107,12 @@ export interface SchemaFormIssue {
 export interface SchemaFormProps {
   /** JSONSchema for the root object. */
   schema: JsonSchema | undefined;
+  /**
+   * Optional FormView layout (sections, tabs, widget hints, visibleOn)
+   * shipped by the framework alongside `schema`. When present, fields
+   * are grouped into sections and visibility predicates are honoured.
+   */
+  form?: FormViewSpec;
   /** Current form value. */
   value: Record<string, unknown> | undefined;
   /** Called with the next full value on every change. */
@@ -69,6 +129,7 @@ export interface SchemaFormProps {
 
 export function SchemaForm({
   schema,
+  form,
   value,
   onChange,
   issues = [],
@@ -109,6 +170,23 @@ export function SchemaForm({
     onChange(next);
   }
 
+  // If the framework provided a FormView layout, render sections (tabbed
+  // or simple). Otherwise fall through to the flat property list.
+  if (form?.sections?.length) {
+    return (
+      <SectionedSchemaForm
+        form={form}
+        props={props}
+        required={required}
+        hiddenFields={hiddenFields}
+        issuesByPath={issuesByPath}
+        value={v as Record<string, unknown>}
+        readOnly={readOnly}
+        onChange={setField}
+      />
+    );
+  }
+
   return (
     <div className="space-y-4">
       {keys.map((key) => (
@@ -127,6 +205,155 @@ export function SchemaForm({
   );
 }
 
+/* ----- sectioned layout (FormView spec) ---------------------------------- */
+
+function normaliseField(f: string | FormFieldSpec): FormFieldSpec {
+  return typeof f === 'string' ? { field: f } : f;
+}
+
+function SectionedSchemaForm({
+  form,
+  props,
+  required,
+  hiddenFields,
+  issuesByPath,
+  value,
+  readOnly,
+  onChange,
+}: {
+  form: FormViewSpec;
+  props: Record<string, JsonSchema>;
+  required: string[];
+  hiddenFields: string[];
+  issuesByPath: Record<string, string[]>;
+  value: Record<string, unknown>;
+  readOnly?: boolean;
+  onChange: (key: string, val: unknown) => void;
+}) {
+  const sections = form.sections ?? [];
+
+  // Decide whether to render as tabs or stacked sections.
+  const isTabbed = form.type === 'tabbed' && sections.length > 1;
+
+  const renderSection = (s: FormSectionSpec, idx: number) => {
+    const fields = s.fields
+      .map(normaliseField)
+      .filter((f) => {
+        if (f.hidden) return false;
+        if (hiddenFields.includes(f.field)) return false;
+        if (f.visibleOn && !evaluatePredicate(f.visibleOn, { data: value })) {
+          return false;
+        }
+        return true;
+      });
+    if (fields.length === 0) return null;
+    const cols = s.columns ?? 1;
+    return (
+      <section
+        key={idx}
+        className="space-y-3 rounded-md border border-border/40 bg-card/30 p-4"
+      >
+        {s.label && (
+          <header>
+            <h3 className="text-sm font-semibold text-foreground/90">
+              {s.label}
+            </h3>
+            {s.description && (
+              <p className="text-xs text-muted-foreground">{s.description}</p>
+            )}
+          </header>
+        )}
+        <div
+          className="grid gap-4"
+          style={{
+            gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`,
+          }}
+        >
+          {fields.map((f) => {
+            const propSchema = props[f.field];
+            if (!propSchema) {
+              return (
+                <div
+                  key={f.field}
+                  className="rounded border border-dashed border-amber-500/40 bg-amber-500/5 p-2 text-xs text-amber-700 dark:text-amber-300"
+                  style={{ gridColumn: `span ${f.colSpan ?? 1}` }}
+                >
+                  ⚠️ Field <code>{f.field}</code> declared in form layout but
+                  missing from schema. Skipping.
+                </div>
+              );
+            }
+            return (
+              <div
+                key={f.field}
+                style={{ gridColumn: `span ${f.colSpan ?? 1}` }}
+              >
+                <FieldRow
+                  name={f.field}
+                  schema={{
+                    ...propSchema,
+                    ...(f.label ? { title: f.label } : {}),
+                    ...(f.helpText ? { description: f.helpText } : {}),
+                    ...(f.placeholder ? { placeholder: f.placeholder } : {}),
+                  }}
+                  value={value[f.field]}
+                  required={f.required ?? required.includes(f.field)}
+                  issues={issuesByPath[f.field]}
+                  readOnly={readOnly || f.readonly}
+                  widget={f.widget}
+                  onChange={(val) => onChange(f.field, val)}
+                />
+              </div>
+            );
+          })}
+        </div>
+      </section>
+    );
+  };
+
+  if (isTabbed) {
+    const tabSections = sections.filter(
+      (s) =>
+        s.fields
+          .map(normaliseField)
+          .some(
+            (f) =>
+              !f.hidden &&
+              !hiddenFields.includes(f.field) &&
+              (!f.visibleOn ||
+                evaluatePredicate(f.visibleOn, { data: value })),
+          ),
+    );
+    if (tabSections.length === 0) return null;
+    const defaultTab = (tabSections[0].label ?? 'section-0').toLowerCase();
+    return (
+      <Tabs defaultValue={defaultTab} className="w-full">
+        <TabsList className="flex flex-wrap gap-1">
+          {tabSections.map((s, i) => (
+            <TabsTrigger
+              key={i}
+              value={(s.label ?? `section-${i}`).toLowerCase()}
+            >
+              {s.label ?? `Section ${i + 1}`}
+            </TabsTrigger>
+          ))}
+        </TabsList>
+        {tabSections.map((s, i) => (
+          <TabsContent
+            key={i}
+            value={(s.label ?? `section-${i}`).toLowerCase()}
+            className="mt-4"
+          >
+            {renderSection(s, i)}
+          </TabsContent>
+        ))}
+      </Tabs>
+    );
+  }
+
+  return <div className="space-y-4">{sections.map(renderSection)}</div>;
+}
+
 /* ----- inner field row ---------------------------------------------------- */
 
 function FieldRow({
@@ -136,6 +363,7 @@ function FieldRow({
   required,
   issues,
   readOnly,
+  widget,
   onChange,
 }: {
   name: string;
@@ -144,6 +372,7 @@ function FieldRow({
   required: boolean;
   issues?: string[];
   readOnly?: boolean;
+  widget?: string;
   onChange: (v: unknown) => void;
 }) {
   const label = (schema?.title as string) || prettify(name);
@@ -159,9 +388,9 @@ function FieldRow({
             {name}
           </code>
         </Label>
-        {schema?.type && (
+        {(widget || schema?.type) && (
           <Badge variant="outline" className="text-[10px] font-mono">
-            {schemaTypeLabel(schema)}
+            {widget ?? schemaTypeLabel(schema)}
           </Badge>
         )}
       </div>
@@ -171,6 +400,7 @@ function FieldRow({
         value={value}
         onChange={onChange}
         readOnly={readOnly}
+        widget={widget}
       />
       {description && (
         <div className="text-xs text-muted-foreground">{description}</div>
@@ -190,13 +420,33 @@ function FieldControl({
   value,
   onChange,
   readOnly,
+  widget,
 }: {
   id: string;
   schema: JsonSchema;
   value: unknown;
   onChange: (v: unknown) => void;
   readOnly?: boolean;
+  widget?: string;
 }) {
+  // Widget hint overrides (best-effort placeholder until F5 registers
+  // real renderers). For now show a clear "via widget=…" hint and fall
+  // back to a JSON textarea so the value remains editable.
+  if (widget && !KNOWN_PASSTHROUGH_WIDGETS.has(widget)) {
+    return (
+      <div className="space-y-1">
+        <RawJsonEditor
+          value={value as any}
+          onChange={(v) => onChange(v)}
+          readOnly={readOnly}
+        />
+        <div className="text-[10px] text-muted-foreground">
+          widget <code className="font-mono">{widget}</code> — falling back to
+          JSON until a custom renderer is registered.
+        </div>
+      </div>
+    );
+  }
   // Enum → Select.
   const enumValues = (schema?.enum as unknown[] | undefined) ?? undefined;
   if (Array.isArray(enumValues) && enumValues.length > 0) {

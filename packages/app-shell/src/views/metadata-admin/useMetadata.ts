@@ -30,6 +30,8 @@ export interface RichMetadataTypeEntry {
   loadOrder?: number;
   /** JSONSchema for the type's item shape (Phase 3a addition). */
   schema?: Record<string, unknown>;
+  /** Canonical FormView layout for the type's editor (Phase 3c+). */
+  form?: Record<string, unknown>;
   /** UI hints (icon, color, etc.) the framework may include. */
   ui?: Record<string, unknown>;
 }
