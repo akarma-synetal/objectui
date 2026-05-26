@@ -183,7 +183,7 @@ export class MetadataClient {
 
   /** List all registered metadata types (returns the registry rows). */
   async listTypes(): Promise<unknown[]> {
-    const res = await this.fetchImpl(this.base, { method: 'GET', headers: this.headers });
+    const res = await this.fetchImpl(this.base, { method: 'GET', headers: this.headers, cache: 'no-store' });
     if (!res.ok) throw await parseError(res);
     const data = await res.json();
     if (Array.isArray(data)) return data;
@@ -206,7 +206,7 @@ export class MetadataClient {
       ? `?package=${encodeURIComponent(options.packageId)}`
       : '';
     const url = `${this.base}/${encodeURIComponent(type)}${qs}`;
-    const res = await this.fetchImpl(url, { method: 'GET', headers: this.headers });
+    const res = await this.fetchImpl(url, { method: 'GET', headers: this.headers, cache: 'no-store' });
     if (!res.ok) throw await parseError(res);
     const data = await res.json();
     if (Array.isArray(data)) return data as T[];
@@ -223,7 +223,7 @@ export class MetadataClient {
    */
   async get<T = unknown>(type: string, name: string): Promise<T | null> {
     const url = `${this.base}/${encodeURIComponent(type)}/${encodeURIComponent(name)}`;
-    const res = await this.fetchImpl(url, { method: 'GET', headers: this.headers });
+    const res = await this.fetchImpl(url, { method: 'GET', headers: this.headers, cache: 'no-store' });
     if (res.status === 404) return null;
     if (!res.ok) throw await parseError(res);
     return (await res.json()) as T;
@@ -264,12 +264,22 @@ export class MetadataClient {
    */
   async layered<T = unknown>(type: string, name: string): Promise<MetadataLayered<T>> {
     const url = `${this.base}/${encodeURIComponent(type)}/${encodeURIComponent(name)}?layers=true`;
-    const res = await this.fetchImpl(url, { method: 'GET', headers: this.headers });
+    const res = await this.fetchImpl(url, { method: 'GET', headers: this.headers, cache: 'no-store' });
     if (res.status === 404) {
       return { code: null, overlay: null, overlayScope: null, effective: null };
     }
     if (!res.ok) throw await parseError(res);
-    const body = (await res.json()) as MetadataLayered<T>;
+    const body = (await res.json()) as MetadataLayered<T> & Record<string, unknown>;
+    const hasEnvelope =
+      body && (('code' in body) || ('overlay' in body) || ('effective' in body));
+    if (!hasEnvelope) {
+      return {
+        code: null,
+        overlay: null,
+        overlayScope: null,
+        effective: body as unknown as T,
+      };
+    }
     return {
       code: body.code ?? null,
       overlay: body.overlay ?? null,
@@ -285,7 +295,7 @@ export class MetadataClient {
    */
   async references(type: string, name: string): Promise<MetadataReference[]> {
     const url = `${this.base}/${encodeURIComponent(type)}/${encodeURIComponent(name)}/references`;
-    const res = await this.fetchImpl(url, { method: 'GET', headers: this.headers });
+    const res = await this.fetchImpl(url, { method: 'GET', headers: this.headers, cache: 'no-store' });
     if (res.status === 404) return [];
     if (!res.ok) throw await parseError(res);
     const data = await res.json();
@@ -321,7 +331,7 @@ export class MetadataClient {
     if (options.limit !== undefined) params.set('limit', String(options.limit));
     const qs = params.toString();
     const url = `${this.base}/${encodeURIComponent(type)}/${encodeURIComponent(name)}/history${qs ? `?${qs}` : ''}`;
-    const res = await this.fetchImpl(url, { method: 'GET', headers: this.headers });
+    const res = await this.fetchImpl(url, { method: 'GET', headers: this.headers, cache: 'no-store' });
     if (!res.ok) throw await parseError(res);
     return (await res.json()) as T;
   }
