@@ -57,7 +57,10 @@ export interface WidgetProps {
     min?: number;
     max?: number;
     multiple?: boolean;
+    dependsOn?: string | string[];  // NEW: field name(s) this widget depends on
   };
+  /** All form data (for reading dependency values) */
+  formData?: Record<string, unknown>;
 }
 
 export type WidgetRenderer = (props: WidgetProps) => React.ReactElement;
@@ -115,6 +118,233 @@ function RefObjectWidget({
         ))}
       </SelectContent>
     </Select>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/* object-selector — multi-select object picker                               */
+/* -------------------------------------------------------------------------- */
+
+function ObjectSelectorWidget({
+  id,
+  value,
+  onChange,
+  readOnly,
+  context,
+  fieldSpec,
+}: WidgetProps) {
+  const names = context?.objectNames ?? [];
+  const multiple = fieldSpec?.multiple ?? false;
+  
+  // Parse value: string[], string (comma-separated), or empty
+  const selectedValues = React.useMemo(() => {
+    if (!value) return [];
+    if (Array.isArray(value)) return value.map(String);
+    return String(value).split(',').map(s => s.trim()).filter(Boolean);
+  }, [value]);
+
+  const handleToggle = (objName: string) => {
+    if (readOnly) return;
+    
+    if (!multiple) {
+      onChange(objName);
+      return;
+    }
+
+    const newSelection = selectedValues.includes(objName)
+      ? selectedValues.filter(v => v !== objName)
+      : [...selectedValues, objName];
+    
+    onChange(newSelection);
+  };
+
+  const handleRemove = (objName: string) => {
+    if (readOnly) return;
+    const newSelection = selectedValues.filter(v => v !== objName);
+    onChange(multiple ? newSelection : '');
+  };
+
+  if (context?.objectsLoading) {
+    return <Input id={id} value="Loading objects..." readOnly disabled />;
+  }
+
+  return (
+    <div className="space-y-2">
+      {/* Selected items */}
+      {selectedValues.length > 0 && (
+        <div className="flex flex-wrap gap-2">
+          {selectedValues.map(obj => (
+            <div
+              key={obj}
+              className="inline-flex items-center gap-1 rounded bg-secondary px-2 py-1 text-sm"
+            >
+              <span>{obj}</span>
+              {!readOnly && (
+                <button
+                  type="button"
+                  onClick={() => handleRemove(obj)}
+                  className="text-muted-foreground hover:text-foreground"
+                >
+                  ×
+                </button>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Object picker */}
+      <Select
+        value=""
+        onValueChange={handleToggle}
+        disabled={readOnly || names.length === 0}
+      >
+        <SelectTrigger id={id}>
+          <SelectValue placeholder={multiple ? "Add objects..." : "Select object..."} />
+        </SelectTrigger>
+        <SelectContent>
+          {names.map(name => (
+            <SelectItem key={name} value={name} disabled={!multiple && selectedValues.includes(name)}>
+              {name}
+              {selectedValues.includes(name) && ' ✓'}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </div>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/* field-selector — smart field picker (depends on selected object)          */
+/* -------------------------------------------------------------------------- */
+
+function FieldSelectorWidget({
+  id,
+  value,
+  onChange,
+  readOnly,
+  context,
+  fieldSpec,
+  formData,
+}: WidgetProps) {
+  const [fields, setFields] = React.useState<Array<{ name: string; label: string; type: string }>>([]);
+  const [loading, setLoading] = React.useState(false);
+  
+  // Resolve dependency: fieldSpec.dependsOn or fieldSpec.reference or 'objectName'
+  const dependsOnField = fieldSpec?.dependsOn || fieldSpec?.reference || 'objectName';
+  const objectName = formData?.[dependsOnField] as string | undefined;
+
+  // Load fields when objectName changes
+  React.useEffect(() => {
+    if (!objectName) {
+      setFields([]);
+      return;
+    }
+
+    setLoading(true);
+    fetch(`/api/v1/objects/${objectName}/fields`)
+      .then(r => r.json())
+      .then(data => {
+        setFields(data.fields || []);
+        setLoading(false);
+      })
+      .catch(err => {
+        console.error('Failed to load fields:', err);
+        setFields([]);
+        setLoading(false);
+      });
+  }, [objectName]);
+
+  const multiple = fieldSpec?.multiple ?? false;
+  
+  // Parse value
+  const selectedValues = React.useMemo(() => {
+    if (!value) return [];
+    if (Array.isArray(value)) return value.map(String);
+    return String(value).split(',').map(s => s.trim()).filter(Boolean);
+  }, [value]);
+
+  const handleToggle = (fieldName: string) => {
+    if (readOnly) return;
+    
+    if (!multiple) {
+      onChange(fieldName);
+      return;
+    }
+
+    const newSelection = selectedValues.includes(fieldName)
+      ? selectedValues.filter(v => v !== fieldName)
+      : [...selectedValues, fieldName];
+    
+    onChange(newSelection);
+  };
+
+  const handleRemove = (fieldName: string) => {
+    if (readOnly) return;
+    const newSelection = selectedValues.filter(v => v !== fieldName);
+    onChange(multiple ? newSelection : '');
+  };
+
+  if (!objectName) {
+    return <Input id={id} value="(Select an object first)" readOnly disabled />;
+  }
+
+  if (loading) {
+    return <Input id={id} value="Loading fields..." readOnly disabled />;
+  }
+
+  return (
+    <div className="space-y-2">
+      {/* Selected fields */}
+      {selectedValues.length > 0 && (
+        <div className="flex flex-wrap gap-2">
+          {selectedValues.map(field => {
+            const fieldMeta = fields.find(f => f.name === field);
+            return (
+              <div
+                key={field}
+                className="inline-flex items-center gap-1 rounded bg-secondary px-2 py-1 text-sm"
+              >
+                <span>{fieldMeta?.label || field}</span>
+                <code className="text-xs text-muted-foreground">{fieldMeta?.type}</code>
+                {!readOnly && (
+                  <button
+                    type="button"
+                    onClick={() => handleRemove(field)}
+                    className="text-muted-foreground hover:text-foreground"
+                  >
+                    ×
+                  </button>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Field picker */}
+      <Select
+        value=""
+        onValueChange={handleToggle}
+        disabled={readOnly || fields.length === 0}
+      >
+        <SelectTrigger id={id}>
+          <SelectValue placeholder={multiple ? "Add fields..." : "Select field..."} />
+        </SelectTrigger>
+        <SelectContent>
+          {fields.map(f => (
+            <SelectItem key={f.name} value={f.name} disabled={!multiple && selectedValues.includes(f.name)}>
+              <div className="flex items-center gap-2">
+                <span>{f.label || f.name}</span>
+                <code className="text-xs text-muted-foreground">{f.type}</code>
+                {selectedValues.includes(f.name) && ' ✓'}
+              </div>
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </div>
   );
 }
 
@@ -481,6 +711,8 @@ function ObjectFieldsWidget({
 
 export const WIDGETS: Record<string, WidgetRenderer> = {
   'ref:object': RefObjectWidget,
+  'object-selector': ObjectSelectorWidget,
+  'field-selector': FieldSelectorWidget,
   'master-detail': MasterDetailWidget,
   'string-tags': StringTagsWidget,
   'object-fields': ObjectFieldsWidget,

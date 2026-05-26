@@ -312,6 +312,7 @@ export function SchemaForm({
           issues={issuesByPath[key]}
           readOnly={readOnly}
           widgetContext={widgetContext}
+          formData={v as Record<string, unknown>}
           onChange={(val) => setField(key, val)}
         />
       ))}
@@ -420,6 +421,7 @@ function SectionedSchemaForm({
                   readOnly={readOnly || f.readonly}
                   fieldSpec={f}
                   widgetContext={widgetContext}
+                  formData={value}
                   onChange={(val) => onChange(f.field, val)}
                 />
               </div>
@@ -484,6 +486,7 @@ function FieldRow({
   readOnly,
   fieldSpec,
   widgetContext,
+  formData,
   onChange,
 }: {
   name: string;
@@ -494,6 +497,7 @@ function FieldRow({
   readOnly?: boolean;
   fieldSpec?: FormFieldSpec;
   widgetContext?: WidgetContext;
+  formData?: Record<string, unknown>;
   onChange: (v: unknown) => void;
 }) {
   const label = (schema?.title as string) || prettify(name);
@@ -528,6 +532,7 @@ function FieldRow({
         widget={widget}
         fieldSpec={fieldSpec}
         widgetContext={widgetContext}
+        formData={formData}
       />
       {description && (
         <div className="text-xs text-muted-foreground">{description}</div>
@@ -548,8 +553,9 @@ function FieldControl({
   onChange,
   readOnly,
   widget,
-  fieldSpec, // TODO: pass to widgets when they support options/reference/constraints
+  fieldSpec,
   widgetContext,
+  formData,
 }: {
   id: string;
   schema: JsonSchema;
@@ -559,10 +565,8 @@ function FieldControl({
   widget?: string;
   fieldSpec?: FormFieldSpec;
   widgetContext?: WidgetContext;
+  formData?: Record<string, unknown>;
 }) {
-  // Silence TS unused warning — will be used when widgets are extended
-  void fieldSpec;
-  
   // Widget hint takes precedence: try the registry first, then the
   // passthrough hint list, then fall back to JSON with an inline hint.
   if (widget) {
@@ -577,6 +581,7 @@ function FieldControl({
           readOnly={readOnly}
           context={widgetContext}
           fieldSpec={fieldSpec}
+          formData={formData}
         />
       );
     }
