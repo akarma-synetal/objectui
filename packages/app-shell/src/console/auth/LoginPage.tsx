@@ -2,8 +2,9 @@
  * Login Page for ObjectStack Console
  */
 
+import { useEffect, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { LoginForm, type AuthLinkComponentProps } from '@object-ui/auth';
+import { LoginForm, useAuth, type AuthLinkComponentProps } from '@object-ui/auth';
 import { useObjectTranslation } from '@object-ui/i18n';
 import { AuthPageLayout } from './AuthPageLayout';
 
@@ -14,12 +15,27 @@ const RouterLink = ({ href, className, children }: AuthLinkComponentProps) => (
 export function LoginPage() {
   const navigate = useNavigate();
   const { t } = useObjectTranslation();
+  const { getAuthConfig } = useAuth();
+
+  // Hide the "Sign up" link when the deployment has disabled
+  // self-service registration (env `OS_DISABLE_SIGNUP=true` or
+  // `emailAndPassword.disableSignUp` in objectstack.config.ts). We start
+  // undefined so we don't flicker the link on first paint, and pass
+  // `undefined` (LoginForm hides the link) once we know signup is off.
+  const [signUpDisabled, setSignUpDisabled] = useState<boolean | undefined>(undefined);
+  useEffect(() => {
+    let cancelled = false;
+    getAuthConfig()
+      .then(cfg => { if (!cancelled) setSignUpDisabled(cfg?.emailPassword?.disableSignUp === true); })
+      .catch(() => { if (!cancelled) setSignUpDisabled(false); });
+    return () => { cancelled = true; };
+  }, [getAuthConfig]);
 
   return (
     <AuthPageLayout>
       <LoginForm
         onSuccess={() => navigate('/')}
-        registerUrl="/register"
+        registerUrl={signUpDisabled ? undefined : '/register'}
         forgotPasswordUrl="/forgot-password"
         title={t('auth.login.title')}
         description={t('auth.login.description')}

@@ -13,7 +13,7 @@
  * turns are appended to `ai_messages` automatically.
  */
 
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '@object-ui/auth';
 import {
@@ -102,10 +102,45 @@ export function AiChatPage({ apiBase: apiBaseProp, defaultAgent: defaultAgentPro
     }
   }, [urlConversationId, conversationId, navigate]);
 
-  const handleSent = useCallback(() => {
-    // New user turn → bump sidebar list so the row's preview/timestamp refreshes.
-    setRefreshKey((k) => k + 1);
-  }, []);
+  const titledRef = useRef<Set<string>>(new Set());
+
+  // A resumed conversation already has history; treat it as already-titled
+  // so we don't clobber the original title on the next user turn.
+  useEffect(() => {
+    if (conversationId && initialMessages.length > 0) {
+      titledRef.current.add(conversationId);
+    }
+  }, [conversationId, initialMessages.length]);
+
+  const handleSent = useCallback(
+    (firstUserMessage?: string) => {
+      // New user turn → bump sidebar list so the row's preview/timestamp refreshes.
+      setRefreshKey((k) => k + 1);
+
+      // Auto-title the conversation from the first user message. Server only
+      // tracks `title` when we PATCH it; without this every row shows the same
+      // "New conversation" placeholder. We mark `conversationId` as titled in a
+      // ref so subsequent turns don't re-rename and clobber a manual rename.
+      if (!firstUserMessage || !conversationId) return;
+      if (titledRef.current.has(conversationId)) return;
+      titledRef.current.add(conversationId);
+      const text = firstUserMessage.trim();
+      if (!text) return;
+      const truncated = text.length > 40 ? `${text.slice(0, 40)}…` : text;
+      fetch(`${apiBase}/conversations/${encodeURIComponent(conversationId)}`, {
+        method: 'PATCH',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title: truncated }),
+      })
+        .then(() => setRefreshKey((k) => k + 1))
+        .catch(() => {
+          // Leave it untitled; user can rename manually.
+          titledRef.current.delete(conversationId);
+        });
+    },
+    [apiBase, conversationId],
+  );
 
   return (
     <div className="flex h-svh w-full flex-col bg-background" data-testid="ai-chat-page">
@@ -151,7 +186,7 @@ interface ChatPaneProps {
   conversationId: string | undefined;
   initialMessages: HydratedUIMessage[];
   hydrating: boolean;
-  onSent: () => void;
+  onSent: (firstUserMessage?: string) => void;
 }
 
 function ChatPane({
@@ -226,7 +261,7 @@ function ChatPane({
   const handleSend = useCallback(
     (content: string, files?: File[]) => {
       sendMessage(content, files);
-      onSent();
+      onSent(content);
     },
     [sendMessage, onSent],
   );

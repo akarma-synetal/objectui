@@ -34,6 +34,7 @@ export interface UseConversationListReturn {
   error: Error | undefined;
   refetch: () => Promise<void>;
   remove: (id: string) => Promise<void>;
+  rename: (id: string, title: string) => Promise<void>;
 }
 
 interface ServerConversation {
@@ -114,6 +115,28 @@ export function useConversationList(
     [apiBase],
   );
 
+  const rename = useCallback(
+    async (id: string, title: string) => {
+      const trimmed = title.trim();
+      // Optimistic update so the sidebar reflects the new title immediately.
+      setConversations((rows) =>
+        rows.map((r) => (r.id === id ? { ...r, title: trimmed || undefined } : r)),
+      );
+      const res = await fetch(`${apiBase}/conversations/${encodeURIComponent(id)}`, {
+        method: 'PATCH',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title: trimmed }),
+      });
+      if (!res.ok) {
+        // Roll back by refetching.
+        setInternalKey((k) => k + 1);
+        throw new Error(`PATCH conversation failed: ${res.status}`);
+      }
+    },
+    [apiBase],
+  );
+
   useEffect(() => {
     if (!userId) {
       setConversations([]);
@@ -155,5 +178,5 @@ export function useConversationList(
     };
   }, [userId, apiBase, limit, internalKey, refreshKey]);
 
-  return { conversations, isLoading, error, refetch, remove };
+  return { conversations, isLoading, error, refetch, remove, rename };
 }
