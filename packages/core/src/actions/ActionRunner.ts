@@ -117,6 +117,10 @@ export interface ActionDef {
   onSuccess?: ActionDef | ActionDef[];
   /** Callback on failure */
   onFailure?: ActionDef | ActionDef[];
+  /** When true, the runner pre-opens about:blank synchronously on click so the
+   *  handler can drive it to a returned `redirectUrl` after an awaited fetch
+   *  without tripping popup blockers. Used by actions like `sso_as_owner`. */
+  opensInNewTab?: boolean;
   /** Any additional properties */
   [key: string]: any;
 }

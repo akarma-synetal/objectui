@@ -414,6 +414,21 @@ export function RecordDetailView({ dataSource, objects, onEdit, objectNameOverri
     const params = (action.params && !Array.isArray(action.params))
       ? (action.params as Record<string, unknown>)
       : {};
+
+    // ── Popup-blocker workaround ──────────────────────────────────────
+    // When `action.opensInNewTab` is set, the handler is known to return
+    // `{ redirectUrl: ... }` for the UI to navigate to. We pre-open
+    // `about:blank` synchronously *here*, before the await fetch — this
+    // preserves the user-gesture context so Chrome/Safari don't block
+    // the eventual navigation. Drives the same tab to `redirectUrl`
+    // after the server replies. If pre-open fails (popup blocker on the
+    // initial gesture), we fall back to navigating the current tab so
+    // the user always gets there.
+    let preOpenedTab: Window | null = null;
+    if ((action as any).opensInNewTab) {
+      try { preOpenedTab = window.open('about:blank', '_blank', 'noopener,noreferrer'); } catch { preOpenedTab = null; }
+    }
+
     try {
       const baseUrl = import.meta.env.VITE_SERVER_URL || '';
       const obj = action.objectName || objectName || 'global';
@@ -428,6 +443,7 @@ export function RecordDetailView({ dataSource, objects, onEdit, objectNameOverri
       const json = await res.json().catch(() => null);
       if (!res.ok || (json && json.success === false)) {
         const errMsg = json?.error || `Action "${targetName}" failed (HTTP ${res.status})`;
+        if (preOpenedTab) { try { preOpenedTab.close(); } catch { /* ignore */ } }
         return { success: false, error: errMsg };
       }
       const shouldRefresh = action.refreshAfter !== false;
@@ -435,15 +451,31 @@ export function RecordDetailView({ dataSource, objects, onEdit, objectNameOverri
       const result = json?.data;
       // ── redirectUrl convention ────────────────────────────────────────
       // A script-action handler can return `{ redirectUrl: 'https://…' }`
-      // to ask the UI to open the URL in a new tab. Used by the
-      // `sso_as_owner` action on sys_environment to drop the operator
-      // into the env runtime as its admin. Same pattern works for any
-      // future "deep link" style action.
+      // to ask the UI to open the URL. If the action declared
+      // `opensInNewTab: true`, we drive the pre-opened tab to that URL
+      // (popup-blocker-safe). Otherwise we open lazily and, if blocked,
+      // fall back to navigating the current tab so the user always gets
+      // to the destination.
       if (result && typeof result === 'object' && typeof (result as any).redirectUrl === 'string') {
-        try { window.open((result as any).redirectUrl, '_blank', 'noopener,noreferrer'); } catch { /* popup blocked — fall through */ }
+        const redirectUrl = (result as any).redirectUrl as string;
+        if (preOpenedTab) {
+          try { preOpenedTab.location.href = redirectUrl; } catch {
+            try { preOpenedTab.close(); } catch { /* ignore */ }
+            window.location.href = redirectUrl;
+          }
+        } else {
+          let popup: Window | null = null;
+          try { popup = window.open(redirectUrl, '_blank', 'noopener,noreferrer'); } catch { popup = null; }
+          if (!popup) { window.location.href = redirectUrl; }
+        }
+      } else if (preOpenedTab) {
+        // Handler didn't return a redirectUrl — close the empty tab we
+        // optimistically pre-opened so the user isn't left with about:blank.
+        try { preOpenedTab.close(); } catch { /* ignore */ }
       }
       return { success: true, data: result, reload: shouldRefresh };
     } catch (error) {
+      if (preOpenedTab) { try { preOpenedTab.close(); } catch { /* ignore */ } }
       return { success: false, error: (error as Error).message };
     }
   }, [authFetch, pureRecordId, objectName]);
