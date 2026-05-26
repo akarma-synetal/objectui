@@ -193,6 +193,15 @@ export interface NavigationRendererProps {
   resolveGroupLabel?: (groupId: string, fallbackLabel: string) => string;
 
   /**
+   * Optional label resolver for non-object/non-dashboard/non-group nav
+   * items (url, page, report, custom). Called with `(itemId, fallbackLabel)`
+   * for items that have a plain-string label and a stable `id`.
+   * Convention: `{ns}.apps.{appName}.navigation.{itemId}.label` — same
+   * key shape as `resolveGroupLabel` so a single i18n helper covers both.
+   */
+  resolveItemLabel?: (itemId: string, fallbackLabel: string) => string;
+
+  /**
    * Optional i18n translation function for resolving I18nLabel objects
    * (`{ key, defaultValue }`). When provided, labels are translated
    * through i18next; otherwise falls back to `defaultValue`.
@@ -243,13 +252,14 @@ export function resolveLabel(
  * 3. Convention-based i18n for dashboard-type items with plain string labels
  *    (when `resolveDashboardLabel` is provided)
  */
-function resolveItemLabel(
+function resolveNavItemLabel(
   item: NavigationItem,
   resolver?: (objectName: string, fallbackLabel: string) => string,
   t?: (key: string, options?: any) => string,
   dashboardResolver?: (dashboardName: string, fallbackLabel: string) => string,
   groupResolver?: (groupId: string, fallbackLabel: string) => string,
   viewResolver?: (objectName: string, viewName: string, fallbackLabel: string) => string,
+  itemResolver?: (itemId: string, fallbackLabel: string) => string,
 ): string {
   const base = resolveLabel(item.label, t);
   // Only apply convention-based resolution for items with plain string labels.
@@ -273,6 +283,11 @@ function resolveItemLabel(
   }
   if (groupResolver && item.type === 'group' && item.id) {
     return groupResolver(item.id, base);
+  }
+  // Fallback for non-object/non-dashboard/non-group items (url, page, report,
+  // custom) with a stable id — translate via the per-app navigation namespace.
+  if (itemResolver && item.id) {
+    return itemResolver(item.id, base);
   }
   return base;
 }
@@ -418,6 +433,7 @@ function SortableNavigationItem({
   resolveDashboardLabel,
   resolveGroupLabel,
   resolveViewLabel,
+  resolveItemLabel,
   t: tProp,
 }: {
   item: NavigationItem;
@@ -433,6 +449,7 @@ function SortableNavigationItem({
   resolveDashboardLabel?: (dashboardName: string, fallbackLabel: string) => string;
   resolveGroupLabel?: (groupId: string, fallbackLabel: string) => string;
   resolveViewLabel?: (objectName: string, viewName: string, fallbackLabel: string) => string;
+  resolveItemLabel?: (itemId: string, fallbackLabel: string) => string;
   t?: (key: string, options?: any) => string;
 }) {
   const {
@@ -467,6 +484,7 @@ function SortableNavigationItem({
         resolveDashboardLabel={resolveDashboardLabel}
         resolveGroupLabel={resolveGroupLabel}
         resolveViewLabel={resolveViewLabel}
+        resolveItemLabel={resolveItemLabel}
         t={tProp}
       />
     </div>
@@ -491,6 +509,7 @@ function NavigationItemRenderer({
   resolveDashboardLabel,
   resolveGroupLabel,
   resolveViewLabel,
+  resolveItemLabel,
   t: tProp,
 }: {
   item: NavigationItem;
@@ -506,6 +525,7 @@ function NavigationItemRenderer({
   resolveDashboardLabel?: (dashboardName: string, fallbackLabel: string) => string;
   resolveGroupLabel?: (groupId: string, fallbackLabel: string) => string;
   resolveViewLabel?: (objectName: string, viewName: string, fallbackLabel: string) => string;
+  resolveItemLabel?: (itemId: string, fallbackLabel: string) => string;
   t?: (key: string, options?: any) => string;
 }) {
   const location = useLocation();
@@ -578,7 +598,7 @@ function NavigationItemRenderer({
       .slice()
       .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
 
-    const groupLabel = resolveItemLabel(item, resolveObjectLabel, tProp, resolveDashboardLabel, resolveGroupLabel, resolveViewLabel);
+    const groupLabel = resolveNavItemLabel(item, resolveObjectLabel, tProp, resolveDashboardLabel, resolveGroupLabel, resolveViewLabel, resolveItemLabel);
 
     return (
       <Collapsible open={isOpen} onOpenChange={setIsOpen}>
@@ -609,6 +629,7 @@ function NavigationItemRenderer({
                     resolveDashboardLabel={resolveDashboardLabel}
                     resolveGroupLabel={resolveGroupLabel}
                     resolveViewLabel={resolveViewLabel}
+                    resolveItemLabel={resolveItemLabel}
                     t={tProp}
                   />
                 ))}
@@ -675,7 +696,7 @@ function NavigationItemRenderer({
   const Icon = resolveIcon(item.icon);
   const { href, external } = resolveHref(item, basePath);
   const isActive = computeIsActive(item, href, location.pathname);
-  const itemLabel = resolveItemLabel(item, resolveObjectLabel, tProp, resolveDashboardLabel, resolveGroupLabel, resolveViewLabel);
+  const itemLabel = resolveNavItemLabel(item, resolveObjectLabel, tProp, resolveDashboardLabel, resolveGroupLabel, resolveViewLabel, resolveItemLabel);
 
   const content = (
     <>
@@ -784,6 +805,7 @@ export function NavigationRenderer({
   resolveDashboardLabel,
   resolveGroupLabel,
   resolveViewLabel,
+  resolveItemLabel,
   t: tProp,
 }: NavigationRendererProps) {
   // --- Search filtering ---
@@ -835,6 +857,7 @@ export function NavigationRenderer({
     resolveDashboardLabel,
     resolveGroupLabel,
     resolveViewLabel,
+    resolveItemLabel,
     t: tProp,
   };
 

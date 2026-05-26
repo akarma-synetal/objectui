@@ -314,6 +314,7 @@ export function UnifiedSidebar({ activeAppName }: UnifiedSidebarProps) {
              resolveObjectLabel={(objectName, fallback) => resolveNavObjectLabel({ name: objectName, label: fallback })}
              resolveDashboardLabel={(dashboardName, fallback) => resolveNavDashboardLabel({ name: dashboardName, label: fallback })}
              resolveGroupLabel={activeApp ? (groupId, fallback) => resolveNavGroupLabel(activeApp.name, groupId, fallback) : undefined}
+             resolveItemLabel={activeApp ? (itemId, fallback) => resolveNavGroupLabel(activeApp.name, itemId, fallback) : undefined}
              resolveViewLabel={(objectName, viewName, fallback) => resolveNavViewLabel(objectName, viewName, fallback)}
              t={t}
            />
