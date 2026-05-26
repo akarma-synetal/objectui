@@ -37,6 +37,7 @@
     "@dnd-kit/utilities": "^3.2.2",
     "@object-ui/components": "workspace:*",
     "@object-ui/core": "workspace:*",
+    "@object-ui/data-objectstack": "workspace:*",
     "@object-ui/fields": "workspace:*",
     "@object-ui/i18n": "workspace:*",
     "@object-ui/plugin-form": "workspace:*",

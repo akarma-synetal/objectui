@@ -2068,6 +2068,19 @@ export type { PluginContract, PluginExport, PluginAPIContract, ContractValidatio
 export { IntegrationManager } from './integration';
 export type { IntegrationConfig, IntegrationTrigger, IntegrationProvider, SlackIntegrationConfig, EmailIntegrationConfig, WebhookIntegrationConfig } from './integration';
 
+// Metadata API client — read/write protocol metadata via /api/v1/meta/*.
+// Used by plugin-designer to back the Setup-app Object Manager and Field
+// Designer surfaces; kept separate from ObjectStackAdapter so callers
+// can use it without the full data-source surface.
+export { MetadataClient } from './metadata-client';
+export type {
+  MetadataClientConfig,
+  MetadataListOptions,
+  MetadataSaveOptions,
+  MetadataHistoryOptions,
+  MetadataError,
+} from './metadata-client';
+
 export { SecurityManager } from './security';
 export type { SecurityPolicy, CSPConfig, AuditLogConfig, AuditEventType, DataMaskingConfig, DataMaskingRule, AuditLogEntry } from './security';
 

@@ -72,6 +72,17 @@ export { EditAppPage } from './pages/EditAppPage';
 export { PageDesignPage } from './pages/PageDesignPage';
 export { DashboardDesignPage } from './pages/DashboardDesignPage';
 
+// Metadata management pages (Setup-app "Data Model" group). Unlike the
+// designer pages above, these talk directly to the metadata REST API
+// (`/api/v1/meta/*`) via `MetadataClient` from
+// `@object-ui/data-objectstack`, and do not require an app/adapter
+// context. They are the visual counterpart of the `sys_metadata`
+// object's `only_objects` / `only_fields` list views.
+export { MetadataObjectsPage } from './MetadataObjectsPage';
+export type { MetadataObjectsPageProps } from './MetadataObjectsPage';
+export { MetadataFieldsPage } from './MetadataFieldsPage';
+export type { MetadataFieldsPageProps } from './MetadataFieldsPage';
+
 // Register page designer component
 ComponentRegistry.register(
   'page-designer',
