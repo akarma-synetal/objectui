@@ -64,6 +64,97 @@ const KNOWN_PASSTHROUGH_WIDGETS = new Set<string>([
   'json',
 ]);
 
+/**
+ * Infer widget name from FormFieldSpec.type (Data.FieldType) and schema.
+ * Priority: explicit widget > type-based inference > schema-based inference > default.
+ */
+function inferWidget(
+  fieldSpec: FormFieldSpec | undefined,
+  schema: JsonSchema | undefined,
+): string | undefined {
+  // 1. Explicit widget always wins
+  if (fieldSpec?.widget) return fieldSpec.widget;
+
+  // 2. Infer from Data.FieldType
+  if (fieldSpec?.type) {
+    const t = fieldSpec.type;
+    // Text types
+    if (t === 'text' || t === 'email' || t === 'url' || t === 'phone' || t === 'password') return 'text';
+    if (t === 'textarea' || t === 'markdown' || t === 'html' || t === 'richtext') return 'textarea';
+    
+    // Number types
+    if (t === 'number' || t === 'currency' || t === 'percent') return 'number';
+    
+    // Date/time
+    if (t === 'date' || t === 'datetime' || t === 'time') return 'date-picker';
+    
+    // Boolean
+    if (t === 'boolean' || t === 'toggle') return 'switch';
+    
+    // Selection
+    if (t === 'select' || t === 'radio') return fieldSpec.multiple ? 'multiselect' : 'select';
+    if (t === 'multiselect' || t === 'checkboxes' || t === 'tags') return 'string-tags';
+    
+    // Relational
+    if (t === 'lookup' || t === 'master_detail') return 'ref-object';
+    if (t === 'tree') return 'ref-object';
+    
+    // Media
+    if (t === 'image' || t === 'file' || t === 'avatar' || t === 'video' || t === 'audio') return 'file-upload';
+    
+    // Code/JSON
+    if (t === 'code' || t === 'json') return 'json';
+    
+    // Enhanced
+    if (t === 'location' || t === 'address') return 'json';
+    if (t === 'color') return 'color-picker';
+    if (t === 'rating') return 'number';
+    if (t === 'slider') return 'slider';
+    if (t === 'signature') return 'signature';
+    if (t === 'qrcode') return 'qrcode';
+    if (t === 'progress') return 'number';
+    
+    // Calculated
+    if (t === 'formula' || t === 'summary' || t === 'autonumber') return 'text';
+    
+    // Vector
+    if (t === 'vector') return 'json';
+  }
+
+  // 3. Infer from JSON Schema
+  if (schema) {
+    const type = schema.type;
+    
+    // Array of strings → string-tags
+    if (type === 'array' && schema.items?.type === 'string') return 'string-tags';
+    
+    // Array of objects → master-detail
+    if (type === 'array' && schema.items?.type === 'object') return 'master-detail';
+    
+    // Object → object-fields
+    if (type === 'object') return 'object-fields';
+    
+    // Boolean → switch
+    if (type === 'boolean') return 'switch';
+    
+    // Number → number
+    if (type === 'number' || type === 'integer') return 'number';
+    
+    // Enum → select
+    if (Array.isArray(schema.enum)) return 'select';
+    
+    // String with format
+    if (type === 'string') {
+      if (schema.format === 'date' || schema.format === 'date-time') return 'date-picker';
+      if (schema.format === 'email' || schema.format === 'uri' || schema.format === 'uri-reference') return 'text';
+      if (schema.format === 'multiline') return 'textarea';
+    }
+  }
+
+  // 4. Default fallback
+  return undefined;
+}
+
 /* -------------------------------------------------------------------------- */
 /* FormView spec (subset)                                                     */
 /* -------------------------------------------------------------------------- */
@@ -90,6 +181,22 @@ export interface FormSectionSpec {
 
 export interface FormFieldSpec {
   field: string;
+  
+  // 🆕 Field type from Data.FieldType (auto-infers widget)
+  type?: string;
+  
+  // 🆕 Field config from Data.Field
+  options?: Array<{ label: string; value: string; color?: string }>;
+  reference?: string;
+  maxLength?: number;
+  minLength?: number;
+  min?: number;
+  max?: number;
+  precision?: number;
+  scale?: number;
+  multiple?: boolean;
+  
+  // UI overrides
   label?: string;
   placeholder?: string;
   helpText?: string;
@@ -311,7 +418,7 @@ function SectionedSchemaForm({
                   required={f.required ?? required.includes(f.field)}
                   issues={issuesByPath[f.field]}
                   readOnly={readOnly || f.readonly}
-                  widget={f.widget}
+                  fieldSpec={f}
                   widgetContext={widgetContext}
                   onChange={(val) => onChange(f.field, val)}
                 />
@@ -375,7 +482,7 @@ function FieldRow({
   required,
   issues,
   readOnly,
-  widget,
+  fieldSpec,
   widgetContext,
   onChange,
 }: {
@@ -385,13 +492,17 @@ function FieldRow({
   required: boolean;
   issues?: string[];
   readOnly?: boolean;
-  widget?: string;
+  fieldSpec?: FormFieldSpec;
   widgetContext?: WidgetContext;
   onChange: (v: unknown) => void;
 }) {
   const label = (schema?.title as string) || prettify(name);
   const description = schema?.description as string | undefined;
   const id = `mdf-${name}`;
+  
+  // Auto-infer widget from fieldSpec.type or schema
+  const widget = inferWidget(fieldSpec, schema);
+  
   return (
     <div className="space-y-1.5">
       <div className="flex items-center justify-between gap-2">
@@ -402,9 +513,9 @@ function FieldRow({
             {name}
           </code>
         </Label>
-        {(widget || schema?.type) && (
+        {(widget || fieldSpec?.type || schema?.type) && (
           <Badge variant="outline" className="text-[10px] font-mono">
-            {widget ?? schemaTypeLabel(schema)}
+            {widget ?? fieldSpec?.type ?? schemaTypeLabel(schema)}
           </Badge>
         )}
       </div>
@@ -415,6 +526,7 @@ function FieldRow({
         onChange={onChange}
         readOnly={readOnly}
         widget={widget}
+        fieldSpec={fieldSpec}
         widgetContext={widgetContext}
       />
       {description && (
@@ -436,6 +548,7 @@ function FieldControl({
   onChange,
   readOnly,
   widget,
+  fieldSpec, // TODO: pass to widgets when they support options/reference/constraints
   widgetContext,
 }: {
   id: string;
@@ -444,8 +557,12 @@ function FieldControl({
   onChange: (v: unknown) => void;
   readOnly?: boolean;
   widget?: string;
+  fieldSpec?: FormFieldSpec;
   widgetContext?: WidgetContext;
 }) {
+  // Silence TS unused warning — will be used when widgets are extended
+  void fieldSpec;
+  
   // Widget hint takes precedence: try the registry first, then the
   // passthrough hint list, then fall back to JSON with an inline hint.
   if (widget) {
