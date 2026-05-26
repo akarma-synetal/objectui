@@ -330,7 +330,16 @@ describe('AppSchemaRenderer', () => {
       const onPinToggle = vi.fn();
       renderApp(schemaWithNav, { enablePinning: true, onPinToggle });
       fireEvent.click(screen.getByLabelText('Pin Accounts'));
-      expect(onPinToggle).toHaveBeenCalledWith('n1', true);
+      // Args: (itemId, pinned, item?, basePath?) — match on the first two
+      // and accept any item/basePath. NavigationRenderer forwards the
+      // NavigationItem + basePath so consumers can synthesize portable
+      // favorites; older signatures still work via positional args.
+      expect(onPinToggle).toHaveBeenCalledWith(
+        'n1',
+        true,
+        expect.objectContaining({ id: 'n1' }),
+        expect.any(String),
+      );
     });
   });
 

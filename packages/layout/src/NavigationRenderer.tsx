@@ -131,8 +131,19 @@ export interface NavigationRendererProps {
   /** Enable pin/favorite toggle on navigation items */
   enablePinning?: boolean;
 
-  /** Called when a navigation item is pinned or unpinned */
-  onPinToggle?: (itemId: string, pinned: boolean) => void;
+  /**
+   * Called when a navigation item is pinned or unpinned. The optional
+   * `item` and `basePath` arguments are passed so consumers can synthesize
+   * a portable favorite record (with a real label/href) instead of storing
+   * only the raw nav id. Older consumers that ignore the extra args keep
+   * working unchanged.
+   */
+  onPinToggle?: (
+    itemId: string,
+    pinned: boolean,
+    item?: NavigationItem,
+    basePath?: string,
+  ) => void;
 
   /** Enable drag-to-reorder for navigation items */
   enableReorder?: boolean;
@@ -416,7 +427,7 @@ function SortableNavigationItem({
   checkCap: CapabilityChecker;
   onAction?: (item: NavigationItem) => void;
   enablePinning?: boolean;
-  onPinToggle?: (itemId: string, pinned: boolean) => void;
+  onPinToggle?: (itemId: string, pinned: boolean, item?: NavigationItem, basePath?: string) => void;
   enableReorder?: boolean;
   resolveObjectLabel?: (objectName: string, fallbackLabel: string) => string;
   resolveDashboardLabel?: (dashboardName: string, fallbackLabel: string) => string;
@@ -489,7 +500,7 @@ function NavigationItemRenderer({
   checkCap: CapabilityChecker;
   onAction?: (item: NavigationItem) => void;
   enablePinning?: boolean;
-  onPinToggle?: (itemId: string, pinned: boolean) => void;
+  onPinToggle?: (itemId: string, pinned: boolean, item?: NavigationItem, basePath?: string) => void;
   dragListeners?: Record<string, any>;
   resolveObjectLabel?: (objectName: string, fallbackLabel: string) => string;
   resolveDashboardLabel?: (dashboardName: string, fallbackLabel: string) => string;
@@ -639,7 +650,7 @@ function NavigationItemRenderer({
         {enablePinning && onPinToggle && (
           <SidebarMenuAction
             showOnHover
-            onClick={() => onPinToggle(item.id, !item.pinned)}
+            onClick={() => onPinToggle(item.id, !item.pinned, item, basePath)}
             aria-label={
               tProp
                 ? tProp(item.pinned ? 'console.nav.unpinItem' : 'console.nav.pinItem', {
@@ -703,7 +714,7 @@ function NavigationItemRenderer({
       {enablePinning && onPinToggle && (
         <SidebarMenuAction
           showOnHover
-          onClick={() => onPinToggle(item.id, !item.pinned)}
+          onClick={() => onPinToggle(item.id, !item.pinned, item, basePath)}
           aria-label={
             tProp
               ? tProp(item.pinned ? 'console.nav.unpinItem' : 'console.nav.pinItem', {

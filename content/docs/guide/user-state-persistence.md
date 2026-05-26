@@ -2,7 +2,7 @@
 title: "User-Scoped State Persistence"
 ---
 
-Object UI keeps two pieces of per-user UI state — **Favorites** (pinned apps) and **Recent Items** (last visited entities) — alive across reloads, devices, and accounts. The persistence layer is **backend-agnostic**: drop in an adapter, or just let it run on localStorage.
+Object UI keeps two pieces of per-user UI state — **Favorites** (pinned apps, starred records, and pinned navigation entries) and **Recent Items** (last visited entities) — alive across reloads, devices, and accounts. The persistence layer is **backend-agnostic**: drop in an adapter, or just let it run on localStorage.
 
 ## Design
 
@@ -176,12 +176,34 @@ Each provider keeps a monotonic `hydrationToken`. If the user switches accounts 
 | `UserStateAdaptersProvider` | `@object-ui/app-shell` | Adapter registry; place above the providers. |
 | `useAttachUserStateAdapters()` | `@object-ui/app-shell` | Imperative API for a bridge component to attach/detach adapters. |
 | `useUserStateAdapter(kind)` | `@object-ui/app-shell` | Read the currently-attached adapter (rarely needed by app code). |
-| `useFavorites()` | `@object-ui/app-shell` | `{ favorites, addFavorite, removeFavorite, toggleFavorite, isFavorite, clearFavorites }` |
+| `useFavorites()` | `@object-ui/app-shell` | `{ favorites, addFavorite, removeFavorite, toggleFavorite, isFavorite, clearFavorites, setPinned, isPinned, pinnedNavIds }` |
+| `useNavPins()` | `@object-ui/app-shell` | Thin shim over `useFavorites` for sidebar pinning — `{ pinnedIds, togglePin, isPinned, applyPins, clearPins }`. |
 | `useRecentItems()` | `@object-ui/app-shell` | `{ recentItems, addRecentItem, clearRecentItems }` |
 | `createObjectStackUserStateAdapter(opts)` | `@object-ui/data-objectstack` | Official adapter against the `user_app_state` object. |
 
 ## Limits
 
-- **20** favorites per user, **8** recent items. Both enforced by the providers; older entries roll off.
+- **20** favorites and **20** nav-pins per user (independent buckets), **8** recent items. Enforced by the providers; older entries roll off within their own bucket without evicting the other.
 - One JSON blob per (user, kind). Not designed for high-frequency / large payloads — this is UI state, not data.
 - No automatic cross-tab sync today (see the roadmap).
+
+## Unified Favorites + Nav Pins
+
+The left-sidebar "Pin" feature and the object-page top-right "Favorite" are stored in the **same** `favorites` collection. A `FavoriteItem` now carries three optional fields used by the navigation pin flow:
+
+```ts
+interface FavoriteItem {
+  id: string;            // 'nav:<navId>' for nav pins, '<objectName>:<recordId>' for records, etc.
+  type?: 'object' | 'record' | 'view' | 'page' | 'nav';
+  pinned?: boolean;      // true => render in the sidebar Pinned section
+  navId?: string;        // back-reference to the original NavigationItem.id
+  // …plus existing fields: label, href, icon, addedAt, …
+}
+```
+
+- **One source of truth, one server roundtrip.** Both flows write through the same `UserDataAdapter<FavoriteItem>` (`kind: 'favorites'`).
+- **Cross-device sync.** Pinning a sidebar item on the desktop shows up in the same place on mobile, behind the same backend that already syncs Favorites.
+- **Bucketed caps.** Content favorites and nav pins each have an independent cap of 20 — migrating sidebar pins never evicts starred records.
+- **Legacy migration (one-shot).** The old `objectui-nav-pins` localStorage key (a plain `string[]`) is read once on first mount, converted to `type:'nav'` favorites with `pinned: true`, then removed. If an adapter is attached, the migrated set is also pushed to the backend on the next debounce window.
+
+UIs that surface "favorites" (HomePage Starred, the sidebar Favorites section) filter out `type === 'nav'` so nav-pin records don't pollute the user-visible list. The sidebar Pinned section is rendered from the live navigation tree decorated by `useNavPins.applyPins`.

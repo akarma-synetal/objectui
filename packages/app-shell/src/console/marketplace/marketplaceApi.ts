@@ -18,6 +18,22 @@ import { getCloudBase } from '../../runtime-config';
 const SERVER_URL = (import.meta.env.VITE_SERVER_URL || '').replace(/\/$/, '');
 const API_BASE = `${SERVER_URL}/api/v1/marketplace`;
 
+/**
+ * Per-locale overrides for translatable package fields. Mirrors
+ * `PackageTranslation` from @objectstack/spec/cloud — duplicated here
+ * to avoid pulling the spec package into the app-shell bundle.
+ * See framework/packages/spec/src/cloud/package.zod.ts.
+ */
+export interface MarketplacePackageTranslation {
+  displayName?: string;
+  description?: string;
+  readme?: string;
+  tagline?: string;
+  screenshotCaptions?: Record<string, string>;
+}
+
+export type MarketplacePackageTranslations = Record<string, MarketplacePackageTranslation>;
+
 export interface MarketplacePackageSummary {
   id: string;
   manifest_id: string;
@@ -32,6 +48,12 @@ export interface MarketplacePackageSummary {
   is_starter?: boolean;
   created_at?: string;
   updated_at?: string;
+  /**
+   * Locale-keyed overrides for display_name / description / readme.
+   * Optional on the wire: older control planes / older runtimes may not
+   * project this column yet. UI should fall back to the base field.
+   */
+  translations?: MarketplacePackageTranslations | null;
   latest_version: MarketplacePackageVersion | null;
 }
 

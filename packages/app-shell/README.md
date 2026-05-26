@@ -241,11 +241,20 @@ The official ObjectStack adapter lives in `@object-ui/data-objectstack`
 (`createObjectStackUserStateAdapter`).
 
 ```tsx
-import { useFavorites, useRecentItems } from '@object-ui/app-shell';
+import { useFavorites, useRecentItems, useNavPins } from '@object-ui/app-shell';
 
 const { favorites, toggleFavorite, isFavorite } = useFavorites();
 const { recentItems, addRecentItem } = useRecentItems();
+// Sidebar pins live in the same store as Favorites — synced to the backend
+// via the same `UserDataAdapter<FavoriteItem>` when one is attached.
+const { pinnedIds, togglePin, isPinned, applyPins } = useNavPins();
 ```
+
+Nav pins and Favorites share a single `favorites` collection. `FavoriteItem`
+carries optional `type: 'nav'`, `pinned`, and `navId` fields so a single
+adapter syncs both flows. The legacy `objectui-nav-pins` localStorage key is
+migrated on first mount and then removed. Content favorites (20) and nav
+pins (20) each have an independent cap. See the guide below for details.
 
 See [User-Scoped State Persistence](../../content/docs/guide/user-state-persistence.md)
 for the adapter contract, backend schema, and how to plug in your own backend.

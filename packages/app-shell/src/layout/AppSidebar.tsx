@@ -480,8 +480,10 @@ export function AppSidebar({ activeAppName, onAppChange }: { activeAppName: stri
              </SidebarGroup>
            )}
 
-           {/* Record Favorites */}
-           {favorites.length > 0 && (
+           {/* Record Favorites — nav-pinned entries (type 'nav') are
+               rendered in the Pinned section above by NavigationRenderer,
+               so we filter them out here to avoid showing them twice. */}
+           {favorites.some(f => f.type !== 'nav') && (
              <SidebarGroup>
                <SidebarGroupLabel className="flex items-center gap-1.5">
                  <Star className="h-3.5 w-3.5" />
@@ -489,7 +491,7 @@ export function AppSidebar({ activeAppName, onAppChange }: { activeAppName: stri
                </SidebarGroupLabel>
                <SidebarGroupContent>
                  <SidebarMenu>
-                   {favorites.slice(0, 8).map(item => (
+                   {favorites.filter(f => f.type !== 'nav').slice(0, 8).map(item => (
                      <SidebarMenuItem key={item.id}>
                        <SidebarMenuButton asChild tooltip={item.label}>
                          <Link to={item.href}>

@@ -28,6 +28,7 @@ import {
 } from '@object-ui/components';
 import { ArrowLeft, RefreshCcw, Store, Trash2, AlertCircle, ExternalLink } from 'lucide-react';
 import { useIsWorkspaceAdmin } from '@object-ui/auth';
+import { useObjectTranslation } from '@object-ui/i18n';
 import {
   listLocalInstalls,
   uninstallLocal,
@@ -39,6 +40,7 @@ export function MarketplaceInstalledPage() {
   const navigate = useNavigate();
   const { appName } = useParams<{ appName?: string }>();
   const isAdmin = useIsWorkspaceAdmin();
+  const { t, language } = useObjectTranslation();
   const basePath = appName ? `/apps/${appName}` : '';
 
   const [items, setItems] = useState<LocalInstallEntry[]>([]);
@@ -59,7 +61,7 @@ export function MarketplaceInstalledPage() {
   useEffect(() => { void load(); }, []);
 
   const doUninstall = async (entry: LocalInstallEntry) => {
-    if (!confirm(`Uninstall ${entry.manifestId} v${entry.version} from this runtime?\n\nThe cached manifest will be removed. The app will remain loaded in the running kernel until the next restart.`)) {
+    if (!confirm(t('marketplace.uninstall.confirm', { manifestId: entry.manifestId, version: entry.version }))) {
       return;
     }
     setWorking(entry.manifestId);
@@ -68,7 +70,7 @@ export function MarketplaceInstalledPage() {
       await uninstallLocal(entry.manifestId);
       setResult({
         ok: true,
-        message: `Removed ${entry.manifestId}. Restart the runtime to fully unload it from the running kernel.`,
+        message: t('marketplace.uninstall.successInList', { manifestId: entry.manifestId }),
       });
       await load();
     } catch (e: any) {
@@ -89,22 +91,24 @@ export function MarketplaceInstalledPage() {
         onClick={() => navigate(`${basePath}/system/marketplace`)}
       >
         <ArrowLeft className="h-4 w-4 mr-1.5" aria-hidden="true" />
-        Back to marketplace
+        {t('marketplace.back')}
       </Button>
 
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
           <div className="flex items-center gap-2">
             <Store className="h-6 w-6 text-primary" aria-hidden="true" />
-            <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Installed Apps</h1>
+            <h1 className="text-xl sm:text-2xl font-bold tracking-tight">{t('marketplace.installedTitle')}</h1>
           </div>
-          <p className="text-sm text-muted-foreground mt-1">
-            Marketplace packages currently installed into this runtime's kernel. Cached manifests live in <code className="font-mono text-xs">.objectstack/installed-packages/</code> and survive restarts.
-          </p>
+          <p
+            className="text-sm text-muted-foreground mt-1"
+            // Subtitle contains an inline <code> path; render translated HTML from our own bundle.
+            dangerouslySetInnerHTML={{ __html: t('marketplace.installedSubtitle') }}
+          />
         </div>
         <Button variant="outline" size="sm" onClick={() => void load()} disabled={loading}>
           <RefreshCcw className="h-4 w-4 mr-1.5" aria-hidden="true" />
-          Refresh
+          {t('marketplace.refresh')}
         </Button>
       </div>
 
@@ -125,13 +129,13 @@ export function MarketplaceInstalledPage() {
         </div>
       ) : items.length === 0 ? (
         <div className="text-center py-12 text-sm text-muted-foreground border rounded-md">
-          <p>No marketplace apps installed in this runtime yet.</p>
+          <p>{t('marketplace.installedEmpty')}</p>
           <Button
             variant="link"
             className="mt-2"
             onClick={() => navigate(`${basePath}/system/marketplace`)}
           >
-            Browse the marketplace →
+            {t('marketplace.browseLink')}
           </Button>
         </div>
       ) : (
@@ -142,12 +146,12 @@ export function MarketplaceInstalledPage() {
                 <div className="min-w-0">
                   <CardTitle className="text-base truncate flex items-center gap-2">
                     {entry.manifestId}
-                    <Badge variant="outline">v{entry.version}</Badge>
+                    <Badge variant="outline">{t('marketplace.versionBadge', { version: entry.version })}</Badge>
                   </CardTitle>
                   <div className="text-xs text-muted-foreground mt-1 flex flex-wrap gap-x-3 gap-y-1">
-                    <span>Installed {new Date(entry.installedAt).toLocaleString()}</span>
-                    {entry.installedBy && <span>by {entry.installedBy}</span>}
-                    <span>package <code className="font-mono">{entry.packageId}</code></span>
+                    <span>{t('marketplace.installedAt', { when: new Date(entry.installedAt).toLocaleString(language || undefined) })}</span>
+                    {entry.installedBy && <span>{t('marketplace.installedBy', { user: entry.installedBy })}</span>}
+                    <span>{t('marketplace.installedPackageId')} <code className="font-mono">{entry.packageId}</code></span>
                   </div>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
@@ -157,7 +161,7 @@ export function MarketplaceInstalledPage() {
                     onClick={() => navigate(`${basePath}/system/marketplace/${entry.packageId}`)}
                   >
                     <ExternalLink className="h-4 w-4 mr-1.5" aria-hidden="true" />
-                    Details
+                    {t('marketplace.action.details')}
                   </Button>
                   <Button
                     variant="outline"
@@ -166,23 +170,27 @@ export function MarketplaceInstalledPage() {
                     disabled={working === entry.manifestId}
                   >
                     <Trash2 className="h-4 w-4 mr-1.5" aria-hidden="true" />
-                    {working === entry.manifestId ? 'Uninstalling…' : 'Uninstall'}
+                    {working === entry.manifestId ? t('marketplace.action.uninstalling') : t('marketplace.action.uninstall')}
                   </Button>
                 </div>
               </CardHeader>
-              <CardContent className="pt-0 text-xs text-muted-foreground">
-                Cached as <code className="font-mono">.objectstack/installed-packages/{entry.manifestId.replace(/[^a-zA-Z0-9._-]/g, '_')}.json</code>
-              </CardContent>
+              <CardContent
+                className="pt-0 text-xs text-muted-foreground"
+                dangerouslySetInnerHTML={{
+                  __html: t('marketplace.cachedAs', {
+                    path: `.objectstack/installed-packages/${entry.manifestId.replace(/[^a-zA-Z0-9._-]/g, '_')}.json`,
+                  }),
+                }}
+              />
             </Card>
           ))}
         </div>
       )}
 
-      <p className="text-xs text-muted-foreground border-t pt-4">
-        <strong>Note:</strong> The kernel API is additive only — uninstall removes the on-disk
-        manifest so the package won't load on next boot, but the running kernel keeps the app
-        registered until you restart the runtime.
-      </p>
+      <p
+        className="text-xs text-muted-foreground border-t pt-4"
+        dangerouslySetInnerHTML={{ __html: t('marketplace.installedAdditiveNote') }}
+      />
     </div>
   );
 }

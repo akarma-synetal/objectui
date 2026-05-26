@@ -107,7 +107,7 @@ export interface AppSchemaRendererProps {
   enablePinning?: boolean;
 
   /** Called when a navigation item is pinned or unpinned */
-  onPinToggle?: (itemId: string, pinned: boolean) => void;
+  onPinToggle?: (itemId: string, pinned: boolean, item?: NavigationItem, basePath?: string) => void;
 
   /** Enable drag-to-reorder for navigation items */
   enableReorder?: boolean;
@@ -276,7 +276,7 @@ function InternalSidebar({
   resolvedNavigation: NavigationItem[];
   enableSearch?: boolean;
   enablePinning?: boolean;
-  onPinToggle?: (itemId: string, pinned: boolean) => void;
+  onPinToggle?: (itemId: string, pinned: boolean, item?: NavigationItem, basePath?: string) => void;
   enableReorder?: boolean;
   onReorder?: (reorderedItems: NavigationItem[]) => void;
 }) {

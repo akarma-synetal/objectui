@@ -206,6 +206,9 @@ describe('FavoritesProvider', () => {
     expect(result.current.favorites).toEqual([]);
     expect(() => result.current.addFavorite({ id: 'x', label: 'X', href: '/x', type: 'object' })).not.toThrow();
     expect(result.current.isFavorite('x')).toBe(false);
+    expect(result.current.isPinned('x')).toBe(false);
+    expect(result.current.pinnedNavIds.size).toBe(0);
+    expect(() => result.current.setPinned('x', true)).not.toThrow();
   });
 
   it('syncs across tabs via the window storage event', async () => {
@@ -269,5 +272,137 @@ describe('FavoritesProvider', () => {
     mockUser.current = { id: 'user-B' } as any;
     const { result: result2 } = renderHook(() => useFavorites(), { wrapper });
     expect(result2.current.favorites.map(f => f.id)).toEqual(['B']);
+  });
+
+  describe('pin merge — nav pins live in the favorites store', () => {
+    it('setPinned flips the pinned flag and persists', () => {
+      const { result } = renderHook(() => useFavorites(), { wrapper });
+      act(() => {
+        result.current.addFavorite({
+          id: 'nav:contacts',
+          label: 'Contacts',
+          href: '/contacts',
+          type: 'nav',
+          navId: 'contacts',
+          pinned: true,
+        });
+      });
+      expect(result.current.isPinned('nav:contacts')).toBe(true);
+      expect(result.current.pinnedNavIds.has('contacts')).toBe(true);
+
+      act(() => result.current.setPinned('nav:contacts', false));
+      expect(result.current.isPinned('nav:contacts')).toBe(false);
+      expect(result.current.pinnedNavIds.has('contacts')).toBe(false);
+
+      const stored = JSON.parse(
+        localStorage.getItem('objectui-favorites:u:user-1') || '[]',
+      );
+      expect(stored[0].pinned).toBe(false);
+    });
+
+    it('migrates legacy objectui-nav-pins on mount (offline path) and deletes the key', async () => {
+      localStorage.setItem('objectui-nav-pins', JSON.stringify(['contacts', 'orders']));
+      const { result } = renderHook(() => useFavorites(), { wrapper });
+
+      await waitFor(() => {
+        expect(result.current.pinnedNavIds.has('contacts')).toBe(true);
+      });
+      expect(result.current.pinnedNavIds.has('orders')).toBe(true);
+      // Legacy key consumed.
+      expect(localStorage.getItem('objectui-nav-pins')).toBeNull();
+      // Persisted as nav favorites.
+      const stored: FavoriteItem[] = JSON.parse(
+        localStorage.getItem('objectui-favorites:u:user-1') || '[]',
+      );
+      expect(stored.filter(f => f.type === 'nav').map(f => f.navId).sort()).toEqual([
+        'contacts',
+        'orders',
+      ]);
+    });
+
+    it('migration is idempotent and does not duplicate existing nav favorites', async () => {
+      localStorage.setItem('objectui-nav-pins', JSON.stringify(['contacts']));
+      localStorage.setItem(
+        'objectui-favorites:u:user-1',
+        JSON.stringify([
+          {
+            id: 'nav:contacts',
+            label: 'Contacts',
+            href: '/contacts',
+            type: 'nav',
+            navId: 'contacts',
+            pinned: true,
+            favoritedAt: '2024-01-01',
+          },
+        ]),
+      );
+
+      const { result } = renderHook(() => useFavorites(), { wrapper });
+
+      await waitFor(() => {
+        expect(localStorage.getItem('objectui-nav-pins')).toBeNull();
+      });
+      // Still exactly one nav favorite for `contacts`.
+      const nav = result.current.favorites.filter(f => f.type === 'nav');
+      expect(nav).toHaveLength(1);
+      expect(nav[0].navId).toBe('contacts');
+    });
+
+    it('migrates and pushes to backend when adapter is attached', async () => {
+      localStorage.setItem('objectui-nav-pins', JSON.stringify(['sales']));
+      const adapter = makeAdapter([]); // backend says: no favorites
+
+      const { result } = renderHook(() => useTestHarness(), { wrapper });
+      act(() => result.current.attach('favorites', adapter));
+
+      await waitFor(() => {
+        expect(adapter.loadMock).toHaveBeenCalled();
+      });
+      await waitFor(() => {
+        expect(result.current.favs.pinnedNavIds.has('sales')).toBe(true);
+      });
+      // Legacy key cleared.
+      expect(localStorage.getItem('objectui-nav-pins')).toBeNull();
+      // The merged list (with the migrated nav pin) was scheduled for the
+      // backend.
+      await waitFor(
+        () => expect(adapter.saveMock).toHaveBeenCalled(),
+        { timeout: 1500 },
+      );
+      const persisted = adapter.saveMock.mock.calls.at(-1)![0] as FavoriteItem[];
+      expect(persisted.some(f => f.type === 'nav' && f.navId === 'sales')).toBe(true);
+    });
+
+    it('content (20) and nav (20) buckets cap independently', () => {
+      const { result } = renderHook(() => useFavorites(), { wrapper });
+
+      act(() => {
+        for (let i = 0; i < 22; i++) {
+          result.current.addFavorite({
+            id: `obj-${i}`,
+            label: `O${i}`,
+            href: `/o/${i}`,
+            type: 'object',
+          });
+        }
+        for (let i = 0; i < 22; i++) {
+          result.current.addFavorite({
+            id: `nav:n-${i}`,
+            label: `N${i}`,
+            href: '',
+            type: 'nav',
+            navId: `n-${i}`,
+            pinned: true,
+          });
+        }
+      });
+
+      const byType = result.current.favorites.reduce<Record<string, number>>(
+        (acc, f) => ({ ...acc, [f.type]: (acc[f.type] ?? 0) + 1 }),
+        {},
+      );
+      expect(byType.object).toBe(20);
+      expect(byType.nav).toBe(20);
+    });
   });
 });
