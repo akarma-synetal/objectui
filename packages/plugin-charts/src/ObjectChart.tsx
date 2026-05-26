@@ -275,10 +275,37 @@ export const ObjectChart = (props: any) => {
   // windows). Extracted so the two queries share identical logic.
   const runAggregate = useCallback(async (ds: any, filterForRun: any): Promise<any[]> => {
     if (schema.aggregate && typeof ds.aggregate === 'function') {
+      const gb = schema.aggregate.groupBy as any;
+      // Structured GroupBy node (e.g. `{ field, dateGranularity: 'day' }`)
+      // requires the spec-shape `{ groupBy: GroupByNode[], aggregations,
+      // where }` payload so the server-side date-bucket engine kicks in.
+      // The legacy `{ field, function, groupBy, filter }` cube/analytics
+      // path does NOT honour `dateGranularity`.
+      const isStructured = gb && typeof gb === 'object' && !Array.isArray(gb);
+      if (isStructured) {
+        const aggField = schema.aggregate.field;
+        const aggFn = schema.aggregate.function;
+        // Project the measure under its plain field name so downstream
+        // (xAxisKey + series.dataKey lookups) finds it unchanged.
+        const alias = aggField || aggFn;
+        // For `count`, omit `field` so the engine emits `count(*)` /
+        // `COUNT(*)`. The upstream dashboard wiring defaults `field: 'value'`
+        // for charts without an explicit valueField, which crashes on SQL
+        // drivers ("no such column: value") since dashboards typically
+        // count rows, not a measure column.
+        const aggregationNode: Record<string, unknown> = { function: aggFn, alias };
+        if (aggFn !== 'count' && aggField) aggregationNode.field = aggField;
+        const results = await ds.aggregate(schema.objectName, {
+          groupBy: [gb],
+          aggregations: [aggregationNode],
+          where: filterForRun,
+        });
+        return Array.isArray(results) ? results : [];
+      }
       const results = await ds.aggregate(schema.objectName, {
         field: schema.aggregate.field,
         function: schema.aggregate.function,
-        groupBy: schema.aggregate.groupBy,
+        groupBy: gb,
         filter: filterForRun,
       });
       return Array.isArray(results) ? results : [];
@@ -331,7 +358,13 @@ export const ObjectChart = (props: any) => {
           // post-resolution. Otherwise comparison-only buckets appear as
           // duplicated raw rows alongside the humanized current rows.
           let data = currentRowsRaw;
-          const groupByField = schema.aggregate?.groupBy || schema.xAxisKey;
+          // groupBy may be a bare string or a structured `{field, dateGranularity}`
+          // node (when categoryGranularity is configured upstream). Normalise
+          // to the underlying string field name so all column lookups work.
+          const gbRaw = schema.aggregate?.groupBy as any;
+          const groupByField: string | undefined = (gbRaw && typeof gbRaw === 'object' && !Array.isArray(gbRaw))
+            ? gbRaw.alias || gbRaw.field
+            : (gbRaw || schema.xAxisKey);
           if (wantsComparison && comparisonRows.length > 0 && schema.aggregate) {
             const aggField = schema.aggregate.field;
             const aggFn = schema.aggregate.function;

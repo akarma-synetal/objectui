@@ -442,10 +442,19 @@ export const DashboardRenderer = forwardRef<HTMLDivElement, DashboardRendererPro
                     // Widget-level fields take precedence so that config panel
                     // edits are immediately reflected in the live preview.
                     const providerAgg = widgetData.aggregate;
+                    const effectiveGroupBy = (() => {
+                        const baseField = widget.categoryField || providerAgg?.groupBy;
+                        if (!baseField) return undefined;
+                        if (widget.categoryGranularity && typeof baseField === 'string') {
+                            // Structured GroupBy node — engine date-buckets it server-side.
+                            return { field: baseField, dateGranularity: widget.categoryGranularity } as any;
+                        }
+                        return baseField;
+                    })();
                     const effectiveAggregate = providerAgg ? {
                         field: widget.valueField || providerAgg.field,
                         function: widget.aggregate || providerAgg.function,
-                        groupBy: widget.categoryField || providerAgg.groupBy,
+                        groupBy: effectiveGroupBy,
                     } : undefined;
                     const effectiveYField = effectiveAggregate?.field || yField;
                     const objectForLabel = widget.object || widgetData.object;
@@ -470,10 +479,14 @@ export const DashboardRenderer = forwardRef<HTMLDivElement, DashboardRendererPro
                 // No explicit data provider but widget has object binding
                 // (e.g. newly created widget via config panel) — build object-chart
                 if (!widgetData && widget.object) {
+                    const baseField = widget.categoryField || 'name';
+                    const structuredGroupBy = widget.categoryGranularity
+                        ? ({ field: baseField, dateGranularity: widget.categoryGranularity } as any)
+                        : baseField;
                     const aggregate = widget.aggregate ? {
                         field: widget.valueField || 'value',
                         function: widget.aggregate,
-                        groupBy: widget.categoryField || 'name',
+                        groupBy: structuredGroupBy,
                     } : undefined;
                     const yKey = widget.valueField || 'value';
                     return {

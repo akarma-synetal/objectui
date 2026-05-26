@@ -695,6 +695,14 @@ export interface DashboardWidgetSchema {
    */
   categoryField?: string;
   /**
+   * Date bucket granularity for `categoryField` when it points at a
+   * date/datetime field. Aligned with @objectstack/spec
+   * DashboardWidgetSchema.categoryGranularity. Without this, time-series
+   * charts group by raw timestamp and typically render flat (1 record per
+   * bucket).
+   */
+  categoryGranularity?: 'day' | 'week' | 'month' | 'quarter' | 'year';
+  /**
    * Data binding: Value field for aggregation.
    * Aligned with @objectstack/spec DashboardWidgetSchema.valueField.
    */
