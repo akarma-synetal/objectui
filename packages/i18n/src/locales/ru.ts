@@ -842,6 +842,7 @@ const ru = {
     welcomeDescription: 'Начните с создания вашего первого приложения или настройки системы.',
     createFirstApp: 'Создайте первое приложение',
     systemSettings: 'Системные настройки',
+    browseMarketplace: 'Обзор маркетплейса приложений',
     quickActions: {
       title: 'Быстрые действия',
       createApp: 'Создать приложение',

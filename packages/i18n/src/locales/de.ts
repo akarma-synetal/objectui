@@ -836,6 +836,7 @@ const de = {
     welcomeDescription: 'Erstellen Sie zunächst Ihre erste Anwendung oder konfigurieren Sie Ihre Systemeinstellungen.',
     createFirstApp: 'Erstellen Sie Ihre erste App',
     systemSettings: 'Systemeinstellungen',
+    browseMarketplace: 'App-Marktplatz durchsuchen',
     quickActions: {
       title: 'Schnellaktionen',
       createApp: 'App erstellen',

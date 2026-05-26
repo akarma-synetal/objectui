@@ -1271,6 +1271,7 @@ const en = {
     welcomeDescription: 'Get started by creating your first application or configure your system settings.',
     createFirstApp: 'Create Your First App',
     systemSettings: 'System Settings',
+    browseMarketplace: 'Browse App Marketplace',
     quickActions: {
       title: 'Quick Actions',
       createApp: 'Create App',

@@ -822,6 +822,7 @@ const pt = {
     welcomeDescription: 'Comece criando sua primeira aplicação ou configurando as preferências do sistema.',
     createFirstApp: 'Crie sua primeira app',
     systemSettings: 'Configurações do sistema',
+    browseMarketplace: 'Explorar marketplace de apps',
     quickActions: {
       title: 'Ações rápidas',
       createApp: 'Criar app',

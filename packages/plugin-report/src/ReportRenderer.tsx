@@ -27,6 +27,7 @@ import {
   type SpecReport,
   type DataSource,
 } from '@object-ui/types';
+import { SchemaRendererContext } from '@object-ui/react';
 import { LegacyReportRenderer, type LegacyReportRendererProps } from './LegacyReportRenderer';
 import { SpecReportGrid } from './SpecReportGrid';
 import { MatrixRenderer } from './MatrixRenderer';
@@ -65,7 +66,7 @@ const PLACEHOLDER_BANNER: React.CSSProperties = {
 
 export const ReportRenderer: React.FC<ReportRendererProps> = (props) => {
   const {
-    dataSource,
+    dataSource: propDataSource,
     rows,
     runtimeFilter,
     actionRunner,
@@ -73,6 +74,17 @@ export const ReportRenderer: React.FC<ReportRendererProps> = (props) => {
     drillOpenIn,
     className,
   } = props;
+  // Fall back to the SchemaRenderer context when no dataSource prop is
+  // supplied. This happens when ReportRenderer is dispatched through
+  // <SchemaRenderer schema={{ type: 'spec-report', ... }} /> (e.g. from
+  // the dashboard drill-down drawer), which does not forward runtime
+  // context as props. Without this fallback the report cannot fetch
+  // data and the matrix renders empty cells.
+  const context = React.useContext(SchemaRendererContext);
+  const dataSource = (propDataSource ?? context?.dataSource) as
+    | DataSource
+    | Record<string, unknown>
+    | undefined;
   let schema = props.schema;
   // Unwrap SchemaRenderer wrapper: { type: 'spec-report', report: {...real spec report...} }.
   // SchemaRenderer registry dispatches on the outer `type`; the actual spec

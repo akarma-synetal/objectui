@@ -1271,6 +1271,7 @@ const zh = {
     welcomeDescription: '从创建您的第一个应用开始，或者先完成系统设置。',
     createFirstApp: '创建您的第一个应用',
     systemSettings: '系统设置',
+    browseMarketplace: '浏览应用市场',
     quickActions: {
       title: '快捷操作',
       createApp: '创建应用',

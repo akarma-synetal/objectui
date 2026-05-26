@@ -833,6 +833,7 @@ const ja = {
     welcomeDescription: '最初のアプリケーションを作成するか、システム設定を行ってください。',
     createFirstApp: '最初のアプリを作成',
     systemSettings: 'システム設定',
+    browseMarketplace: 'アプリマーケットプレイスを参照',
     quickActions: {
       title: 'クイックアクション',
       createApp: 'アプリを作成',

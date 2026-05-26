@@ -823,6 +823,7 @@ const ar = {
     welcomeDescription: 'ابدأ بإنشاء تطبيقك الأول أو تكوين إعدادات النظام.',
     createFirstApp: 'أنشئ أول تطبيق لك',
     systemSettings: 'إعدادات النظام',
+    browseMarketplace: 'تصفح متجر التطبيقات',
     quickActions: {
       title: 'إجراءات سريعة',
       createApp: 'إنشاء تطبيق',

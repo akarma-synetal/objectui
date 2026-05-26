@@ -43,6 +43,7 @@ import {
   LogOut,
   User as UserIcon,
   Boxes,
+  MessageCircle,
 } from 'lucide-react';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
@@ -651,6 +652,19 @@ export function AppHeader({
             onMarkAllRead={markAllRead}
             onMarkRead={markNotificationRead}
           />
+
+          {/* AI Assistant */}
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 shrink-0"
+            asChild
+            aria-label={t('topbar.aiAssistant', { defaultValue: 'AI Assistant' })}
+          >
+            <Link to="/ai">
+              <MessageCircle className="h-4 w-4" />
+            </Link>
+          </Button>
 
           {/* Help */}
           <Button

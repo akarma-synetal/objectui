@@ -836,6 +836,7 @@ const fr = {
     welcomeDescription: 'Commencez par créer votre première application ou configurer les paramètres système.',
     createFirstApp: 'Créez votre première app',
     systemSettings: 'Paramètres système',
+    browseMarketplace: "Parcourir la marketplace d'apps",
     quickActions: {
       title: 'Actions rapides',
       createApp: 'Créer une app',

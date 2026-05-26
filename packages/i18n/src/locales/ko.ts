@@ -822,6 +822,7 @@ const ko = {
     welcomeDescription: '첫 애플리케이션을 만들거나 시스템 설정을 구성하여 시작하세요.',
     createFirstApp: '첫 앱 만들기',
     systemSettings: '시스템 설정',
+    browseMarketplace: '앱 마켓플레이스 탐색',
     quickActions: {
       title: '빠른 작업',
       createApp: '앱 생성',
