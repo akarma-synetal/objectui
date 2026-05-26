@@ -46,7 +46,7 @@
     "@object-ui/react": "workspace:*",
     "@object-ui/types": "workspace:*",
     "@objectstack/client": "^6.5.1",
-    "@objectstack/client-react": "^5.2.0",
+    "@objectstack/client-react": "^6.7.0",
     "@objectstack/spec": "^5.2.0",
     "@playwright/test": "^1.60.0",
     "@radix-ui/react-avatar": "^1.1.11",
