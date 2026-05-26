@@ -49,6 +49,7 @@ import {
   TabsContent,
 } from '@object-ui/components';
 import { evaluatePredicate } from './predicate';
+import { WIDGETS, type WidgetContext } from './widgets';
 
 type JsonSchema = Record<string, any>;
 
@@ -83,6 +84,7 @@ export interface FormSectionSpec {
   collapsible?: boolean;
   collapsed?: boolean;
   columns?: 1 | 2 | 3 | 4;
+  visibleOn?: string | { dialect?: string; source: string };
   fields: Array<string | FormFieldSpec>;
 }
 
@@ -96,7 +98,7 @@ export interface FormFieldSpec {
   hidden?: boolean;
   colSpan?: 1 | 2 | 3 | 4;
   widget?: string;
-  visibleOn?: string;
+  visibleOn?: string | { dialect?: string; source: string };
 }
 
 export interface SchemaFormIssue {
@@ -125,6 +127,8 @@ export interface SchemaFormProps {
   fieldOrder?: string[];
   /** Disable all inputs (e.g. when env-var write lock is off). */
   readOnly?: boolean;
+  /** Out-of-band data widgets need (object list, etc). */
+  widgetContext?: WidgetContext;
 }
 
 export function SchemaForm({
@@ -136,6 +140,7 @@ export function SchemaForm({
   hiddenFields = [],
   fieldOrder = [],
   readOnly = false,
+  widgetContext,
 }: SchemaFormProps) {
   // No schema → escape hatch: raw JSON textarea so admins still get
   // SOMETHING. Better to expose a "JSON view" than a blank screen.
@@ -182,6 +187,7 @@ export function SchemaForm({
         issuesByPath={issuesByPath}
         value={v as Record<string, unknown>}
         readOnly={readOnly}
+        widgetContext={widgetContext}
         onChange={setField}
       />
     );
@@ -198,6 +204,7 @@ export function SchemaForm({
           required={required.includes(key)}
           issues={issuesByPath[key]}
           readOnly={readOnly}
+          widgetContext={widgetContext}
           onChange={(val) => setField(key, val)}
         />
       ))}
@@ -219,6 +226,7 @@ function SectionedSchemaForm({
   issuesByPath,
   value,
   readOnly,
+  widgetContext,
   onChange,
 }: {
   form: FormViewSpec;
@@ -228,9 +236,12 @@ function SectionedSchemaForm({
   issuesByPath: Record<string, string[]>;
   value: Record<string, unknown>;
   readOnly?: boolean;
+  widgetContext?: WidgetContext;
   onChange: (key: string, val: unknown) => void;
 }) {
-  const sections = form.sections ?? [];
+  const sections = (form.sections ?? []).filter(
+    (s) => !s.visibleOn || evaluatePredicate(s.visibleOn, { data: value }),
+  );
 
   // Decide whether to render as tabs or stacked sections.
   const isTabbed = form.type === 'tabbed' && sections.length > 1;
@@ -301,6 +312,7 @@ function SectionedSchemaForm({
                   issues={issuesByPath[f.field]}
                   readOnly={readOnly || f.readonly}
                   widget={f.widget}
+                  widgetContext={widgetContext}
                   onChange={(val) => onChange(f.field, val)}
                 />
               </div>
@@ -364,6 +376,7 @@ function FieldRow({
   issues,
   readOnly,
   widget,
+  widgetContext,
   onChange,
 }: {
   name: string;
@@ -373,6 +386,7 @@ function FieldRow({
   issues?: string[];
   readOnly?: boolean;
   widget?: string;
+  widgetContext?: WidgetContext;
   onChange: (v: unknown) => void;
 }) {
   const label = (schema?.title as string) || prettify(name);
@@ -401,6 +415,7 @@ function FieldRow({
         onChange={onChange}
         readOnly={readOnly}
         widget={widget}
+        widgetContext={widgetContext}
       />
       {description && (
         <div className="text-xs text-muted-foreground">{description}</div>
@@ -421,6 +436,7 @@ function FieldControl({
   onChange,
   readOnly,
   widget,
+  widgetContext,
 }: {
   id: string;
   schema: JsonSchema;
@@ -428,24 +444,39 @@ function FieldControl({
   onChange: (v: unknown) => void;
   readOnly?: boolean;
   widget?: string;
+  widgetContext?: WidgetContext;
 }) {
-  // Widget hint overrides (best-effort placeholder until F5 registers
-  // real renderers). For now show a clear "via widget=…" hint and fall
-  // back to a JSON textarea so the value remains editable.
-  if (widget && !KNOWN_PASSTHROUGH_WIDGETS.has(widget)) {
-    return (
-      <div className="space-y-1">
-        <RawJsonEditor
-          value={value as any}
-          onChange={(v) => onChange(v)}
+  // Widget hint takes precedence: try the registry first, then the
+  // passthrough hint list, then fall back to JSON with an inline hint.
+  if (widget) {
+    const Renderer = WIDGETS[widget];
+    if (Renderer) {
+      return (
+        <Renderer
+          id={id}
+          schema={schema}
+          value={value}
+          onChange={onChange}
           readOnly={readOnly}
+          context={widgetContext}
         />
-        <div className="text-[10px] text-muted-foreground">
-          widget <code className="font-mono">{widget}</code> — falling back to
-          JSON until a custom renderer is registered.
+      );
+    }
+    if (!KNOWN_PASSTHROUGH_WIDGETS.has(widget)) {
+      return (
+        <div className="space-y-1">
+          <RawJsonEditor
+            value={value as any}
+            onChange={(v) => onChange(v)}
+            readOnly={readOnly}
+          />
+          <div className="text-[10px] text-muted-foreground">
+            widget <code className="font-mono">{widget}</code> — falling back
+            to JSON until a custom renderer is registered.
+          </div>
         </div>
-      </div>
-    );
+      );
+    }
   }
   // Enum → Select.
   const enumValues = (schema?.enum as unknown[] | undefined) ?? undefined;

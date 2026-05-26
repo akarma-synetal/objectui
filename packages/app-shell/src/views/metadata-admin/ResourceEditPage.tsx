@@ -107,6 +107,34 @@ export function MetadataResourceEditPage({
   >(null);
   const [pendingItem, setPendingItem] = React.useState<unknown>(null);
 
+  // Prefetch object name list once — fuels the `ref:object` widget.
+  // We don't block render on it; the widget shows a "Loading…" state.
+  const [objectNames, setObjectNames] = React.useState<string[]>([]);
+  const [objectsLoading, setObjectsLoading] = React.useState(true);
+  React.useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const list = (await client.list('object')) as Array<{ name?: string }>;
+        if (cancelled) return;
+        setObjectNames(
+          list.map((x) => x?.name).filter((n): n is string => !!n).sort(),
+        );
+      } catch {
+        if (!cancelled) setObjectNames([]);
+      } finally {
+        if (!cancelled) setObjectsLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [client]);
+  const widgetContext = React.useMemo(
+    () => ({ objectNames, objectsLoading }),
+    [objectNames, objectsLoading],
+  );
+
   // Load layered view + initial draft.
   React.useEffect(() => {
     if (createMode) {
@@ -332,6 +360,7 @@ export function MetadataResourceEditPage({
               hiddenFields={config.hiddenFields}
               fieldOrder={config.fieldOrder}
               readOnly={readOnly}
+              widgetContext={widgetContext}
             />
           </TabsContent>
 

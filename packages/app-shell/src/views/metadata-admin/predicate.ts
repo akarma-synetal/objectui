@@ -27,11 +27,14 @@
  */
 
 export function evaluatePredicate(
-  expr: string,
+  expr: string | { dialect?: string; source: string } | null | undefined,
   ctx: { data: Record<string, unknown> },
 ): boolean {
+  if (expr == null) return true;
+  const source = typeof expr === 'string' ? expr : expr.source;
+  if (!source) return true;
   try {
-    return evalExpr(expr.trim(), ctx);
+    return evalExpr(source.trim(), ctx);
   } catch {
     return true;
   }
@@ -62,12 +65,14 @@ function evalExpr(
     const right = parseLiteral(inMatch[2]);
     return Array.isArray(right) && right.includes(left as never);
   }
-  // Handle == / !=
+  // Handle == / != (CEL-style loose equality: null == undefined)
   const eqMatch = expr.match(/^(.+?)\s*(==|!=)\s*(.+)$/);
   if (eqMatch) {
     const left = resolveValue(eqMatch[1].trim(), ctx);
     const right = parseLiteral(eqMatch[3].trim());
-    return eqMatch[2] === '==' ? left === right : left !== right;
+    const nullish = (v: unknown) => v === null || v === undefined;
+    const equal = nullish(left) && nullish(right) ? true : left === right;
+    return eqMatch[2] === '==' ? equal : !equal;
   }
   // Bare truthy check
   return Boolean(resolveValue(expr, ctx));
