@@ -117,7 +117,16 @@ function MasterDetailWidget({
   readOnly,
   context,
 }: WidgetProps) {
-  const items = (schema?.items ?? {}) as Record<string, any>;
+  // Unwrap anyOf/oneOf: pick the first array-of-object branch.
+  let resolved = schema as Record<string, any> | undefined;
+  if (resolved?.anyOf || resolved?.oneOf) {
+    const branches = (resolved.anyOf ?? resolved.oneOf) as any[];
+    const objBranch = branches.find(
+      (b) => b?.type === 'array' && b?.items?.type === 'object',
+    );
+    if (objBranch) resolved = { ...resolved, ...objBranch };
+  }
+  const items = (resolved?.items ?? {}) as Record<string, any>;
   const itemProps = (items.properties ?? {}) as Record<string, any>;
   const required = new Set<string>(
     Array.isArray(items.required) ? items.required : [],
@@ -130,8 +139,7 @@ function MasterDetailWidget({
     return (
       <div className="rounded border border-dashed border-amber-500/40 bg-amber-500/5 p-2 text-xs text-amber-700 dark:text-amber-300">
         master-detail widget requires <code>items.properties</code> on the
-        JSON schema. Falling back is not supported here — defaulting to
-        empty array.
+        JSON schema (or an <code>anyOf</code> branch that has them).
       </div>
     );
   }
@@ -311,10 +319,159 @@ function RowCell({
 }
 
 /* -------------------------------------------------------------------------- */
+/* string-tags — chip input for string[] (e.g. searchableFields)              */
+/* -------------------------------------------------------------------------- */
+
+function StringTagsWidget({
+  id,
+  value,
+  onChange,
+  readOnly,
+}: WidgetProps) {
+  const tags = Array.isArray(value) ? (value as string[]) : [];
+  const [draft, setDraft] = React.useState('');
+
+  function add(raw: string) {
+    const parts = raw
+      .split(/[,\n]/)
+      .map((s) => s.trim())
+      .filter(Boolean);
+    if (parts.length === 0) return;
+    const next = [...tags];
+    for (const p of parts) if (!next.includes(p)) next.push(p);
+    onChange(next);
+    setDraft('');
+  }
+  function remove(idx: number) {
+    const next = tags.slice();
+    next.splice(idx, 1);
+    onChange(next);
+  }
+
+  return (
+    <div className="rounded border border-input bg-background p-1.5">
+      <div className="flex flex-wrap items-center gap-1">
+        {tags.map((t, i) => (
+          <span
+            key={i}
+            className="inline-flex items-center gap-1 rounded bg-muted px-1.5 py-0.5 text-xs"
+          >
+            <span className="font-mono">{t}</span>
+            {!readOnly && (
+              <button
+                type="button"
+                aria-label={`Remove ${t}`}
+                onClick={() => remove(i)}
+                className="text-muted-foreground hover:text-destructive"
+              >
+                ×
+              </button>
+            )}
+          </span>
+        ))}
+        <input
+          id={id}
+          type="text"
+          value={draft}
+          disabled={readOnly}
+          placeholder={tags.length === 0 ? 'Type and press Enter…' : ''}
+          onChange={(e) => setDraft(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ',') {
+              e.preventDefault();
+              add(draft);
+            } else if (e.key === 'Backspace' && !draft && tags.length > 0) {
+              remove(tags.length - 1);
+            }
+          }}
+          onBlur={() => draft && add(draft)}
+          className="min-w-[8rem] flex-1 bg-transparent text-sm outline-none"
+        />
+      </div>
+    </div>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/* object-fields — render each property of a nested object as a labeled input */
+/* -------------------------------------------------------------------------- */
+
+function ObjectFieldsWidget({
+  schema,
+  value,
+  onChange,
+  readOnly,
+  context,
+}: WidgetProps) {
+  const props = (schema?.properties ?? {}) as Record<string, any>;
+  const required = new Set<string>(
+    Array.isArray(schema?.required) ? (schema!.required as string[]) : [],
+  );
+  const keys = Object.keys(props);
+  const obj = (value && typeof value === 'object'
+    ? (value as Record<string, unknown>)
+    : {}) as Record<string, unknown>;
+
+  if (keys.length === 0) {
+    return (
+      <div className="text-xs text-muted-foreground">
+        (no properties declared)
+      </div>
+    );
+  }
+
+  function set(k: string, v: unknown) {
+    const next = { ...obj };
+    if (v === undefined || v === '' || v === null) {
+      delete next[k];
+    } else {
+      next[k] = v;
+    }
+    onChange(Object.keys(next).length === 0 ? undefined : next);
+  }
+
+  return (
+    <div className="grid grid-cols-2 gap-3 rounded border border-border/40 bg-card/30 p-3">
+      {keys.map((k) => {
+        const sub = props[k] ?? {};
+        const title = (sub.title as string) ?? k;
+        const desc = sub.description as string | undefined;
+        const isReq = required.has(k);
+        return (
+          <div key={k} className="space-y-1">
+            <Label className="text-xs font-medium">
+              {title}
+              {isReq && <span className="text-destructive ml-0.5">*</span>}
+              <span className="ml-1 font-mono text-[10px] text-muted-foreground">
+                {k}
+              </span>
+            </Label>
+            <RowCell
+              schema={sub}
+              value={obj[k]}
+              readOnly={readOnly}
+              context={context}
+              onChange={(v) => set(k, v)}
+            />
+            {desc && (
+              <p className="text-[11px] text-muted-foreground">{desc}</p>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
 /* registry                                                                   */
 /* -------------------------------------------------------------------------- */
 
 export const WIDGETS: Record<string, WidgetRenderer> = {
   'ref:object': RefObjectWidget,
   'master-detail': MasterDetailWidget,
+  'string-tags': StringTagsWidget,
+  'object-fields': ObjectFieldsWidget,
+  // Reasonable fallbacks until dedicated builders ship:
+  'filter-builder': MasterDetailWidget,
 };
