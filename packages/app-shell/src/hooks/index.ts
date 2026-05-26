@@ -22,3 +22,9 @@ export {
   type UseChatConversationOptions,
   type UseChatConversationReturn,
 } from './useChatConversation';
+export {
+  useConversationList,
+  type ConversationSummary,
+  type UseConversationListOptions,
+  type UseConversationListReturn,
+} from './useConversationList';

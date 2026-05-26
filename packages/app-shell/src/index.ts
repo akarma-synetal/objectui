@@ -153,3 +153,5 @@ export { MembersPage as DefaultMembersPage } from './console/organizations/manag
 export { InvitationsPage as DefaultInvitationsPage } from './console/organizations/manage/InvitationsPage';
 export { SettingsPage as DefaultSettingsPage } from './console/organizations/manage/SettingsPage';
 export { AcceptInvitationPage as DefaultAcceptInvitationPage } from './console/organizations/manage/AcceptInvitationPage';
+export { AiChatPage as DefaultAiChatPage, AiChatPage } from './console/ai/AiChatPage';
+export { ConversationsSidebar } from './console/ai/ConversationsSidebar';

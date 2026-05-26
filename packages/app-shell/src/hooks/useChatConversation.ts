@@ -31,6 +31,13 @@ export interface UseChatConversationOptions {
    * `${apiBase}/conversations[/...]`. Required.
    */
   apiBase: string;
+  /**
+   * Explicit conversation id to hydrate. When provided the cache is bypassed
+   * and the hook fetches this conversation directly; falls back to creating a
+   * fresh one if the server returns 404/403. When omitted the hook keeps its
+   * original cache-first / create-on-miss behaviour.
+   */
+  activeId?: string;
 }
 
 export interface UseChatConversationReturn {
@@ -145,11 +152,15 @@ async function deleteConversation(apiBase: string, id: string): Promise<void> {
 export function useChatConversation(
   options: UseChatConversationOptions,
 ): UseChatConversationReturn {
-  const { userId, scope, apiBase } = options;
+  const { userId, scope, apiBase, activeId } = options;
   const [conversationId, setConversationId] = useState<string | undefined>(undefined);
   const [initialMessages, setInitialMessages] = useState<HydratedUIMessage[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(Boolean(userId));
   const mountedRef = useRef(true);
+  // Tracks "we have already resolved a no-activeId conversation for this user".
+  // Prevents creating duplicate conversations when sibling state (e.g. the
+  // page's selected agent / `scope`) transitions during the same /ai visit.
+  const resolvedForUserRef = useRef<string | undefined>(undefined);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -163,6 +174,12 @@ export function useChatConversation(
       setConversationId(undefined);
       setInitialMessages([]);
       setIsLoading(false);
+      resolvedForUserRef.current = undefined;
+      return;
+    }
+    // Already resolved a conversation for this user during the no-activeId
+    // window — don't re-create just because `scope` or another dep changed.
+    if (!activeId && resolvedForUserRef.current === userId && conversationId) {
       return;
     }
     let cancelled = false;
@@ -171,22 +188,38 @@ export function useChatConversation(
 
     (async () => {
       try {
-        const cached = readCache(key);
-        if (cached) {
-          const existing = await fetchConversation(apiBase, cached);
+        if (activeId) {
+          const existing = await fetchConversation(apiBase, activeId);
           if (cancelled) return;
           if (existing) {
+            writeCache(key, existing.id);
             setConversationId(existing.id);
             setInitialMessages(toUIMessages(existing.messages));
+            resolvedForUserRef.current = userId;
             return;
           }
+          // Requested id is gone — fall through to create a fresh one.
           writeCache(key, undefined);
+        } else {
+          const cached = readCache(key);
+          if (cached) {
+            const existing = await fetchConversation(apiBase, cached);
+            if (cancelled) return;
+            if (existing) {
+              setConversationId(existing.id);
+              setInitialMessages(toUIMessages(existing.messages));
+              resolvedForUserRef.current = userId;
+              return;
+            }
+            writeCache(key, undefined);
+          }
         }
         const fresh = await createConversation(apiBase);
         if (cancelled) return;
         writeCache(key, fresh.id);
         setConversationId(fresh.id);
         setInitialMessages(toUIMessages(fresh.messages));
+        resolvedForUserRef.current = userId;
       } catch {
         if (!cancelled) {
           setConversationId(undefined);
@@ -200,7 +233,11 @@ export function useChatConversation(
     return () => {
       cancelled = true;
     };
-  }, [userId, scope, apiBase]);
+    // `conversationId` intentionally omitted: it's only read inside the
+    // short-circuit guard, which is governed by the ref. Including it would
+    // re-run the effect after we successfully resolved an id.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userId, scope, apiBase, activeId]);
 
   const reset = useCallback(async () => {
     if (!userId) return;

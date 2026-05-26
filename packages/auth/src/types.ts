@@ -119,6 +119,12 @@ export interface AuthPublicConfig {
     passkeys?: boolean;
     magicLink?: boolean;
     organization?: boolean;
+    /**
+     * When `false`, the server's `beforeCreateOrganization` hook blocks
+     * creation of new organizations. The org plugin endpoints (list, update,
+     * invite-accept) still work — only fresh creation is forbidden.
+     */
+    multiOrgEnabled?: boolean;
   };
 }
 

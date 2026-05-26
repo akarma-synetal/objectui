@@ -47,13 +47,34 @@ export function CreateWorkspaceDialog({
   onCreated,
 }: CreateWorkspaceDialogProps) {
   const { t } = useObjectTranslation();
-  const { createOrganization } = useAuth();
+  const { createOrganization, getAuthConfig } = useAuth();
 
   const [name, setName] = useState('');
   const [slug, setSlug] = useState('');
   const [slugManuallyEdited, setSlugManuallyEdited] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Defense-in-depth: the toolbar button that opens this dialog is already
+  // hidden when `multiOrgEnabled === false`, but if a future caller opens the
+  // dialog by another path we still want to fail fast with a friendly message
+  // instead of bouncing off the server's FORBIDDEN.
+  const [multiOrgDisabled, setMultiOrgDisabled] = useState(false);
+
+  useEffect(() => {
+    if (!open) return;
+    let cancelled = false;
+    getAuthConfig()
+      .then((cfg) => {
+        if (cancelled) return;
+        setMultiOrgDisabled(cfg?.features?.multiOrgEnabled === false);
+      })
+      .catch(() => {
+        /* leave default — server still enforces */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [open, getAuthConfig]);
 
   // Auto-generate slug from name (unless manually edited)
   useEffect(() => {
@@ -76,6 +97,14 @@ export function CreateWorkspaceDialog({
     async (e: React.FormEvent) => {
       e.preventDefault();
       if (!name.trim() || !slug.trim()) return;
+      if (multiOrgDisabled) {
+        setError(
+          t('workspace.multiOrgDisabled', {
+            defaultValue: 'Creating new organizations is disabled on this instance.',
+          }),
+        );
+        return;
+      }
 
       setIsSubmitting(true);
       setError(null);

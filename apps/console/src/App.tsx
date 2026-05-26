@@ -25,6 +25,7 @@ import {
   DefaultHomePage,
   DefaultOrganizationsLayout,
   DefaultOrganizationsPage,
+  DefaultAiChatPage,
 } from '@object-ui/app-shell';
 
 import { AppContent } from './AppContent';
@@ -161,6 +162,16 @@ export function App() {
               </ProtectedRoute>
             } />
             <Route path="/system/*" element={<SystemRedirect />} />
+            <Route path="/ai" element={
+              <ProtectedRoute>
+                <DefaultAiChatPage />
+              </ProtectedRoute>
+            } />
+            <Route path="/ai/:conversationId" element={
+              <ProtectedRoute>
+                <DefaultAiChatPage />
+              </ProtectedRoute>
+            } />
             <Route path="/apps/:appName/*" element={
               <ProtectedRoute>
                 <AppContent />

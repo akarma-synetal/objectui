@@ -43,11 +43,32 @@ export function OrganizationsPage() {
     activeOrganization,
     isOrganizationsLoading,
     switchOrganization,
+    getAuthConfig,
   } = useAuth();
 
   const [query, setQuery] = useState('');
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [switchingId, setSwitchingId] = useState<string | null>(null);
+  // `multiOrgEnabled === false` ⇒ server-side `beforeCreateOrganization` hook
+  // blocks creation. Mirror that in the UI so users don't see a button that
+  // only ever fails. Default to allowing creation until we've heard back so
+  // we don't briefly hide the button on slow networks.
+  const [canCreateOrg, setCanCreateOrg] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    getAuthConfig()
+      .then((cfg) => {
+        if (cancelled) return;
+        if (cfg?.features?.multiOrgEnabled === false) setCanCreateOrg(false);
+      })
+      .catch(() => {
+        /* leave default — server will still enforce */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [getAuthConfig]);
 
   const orgList = organizations ?? [];
 
@@ -135,10 +156,12 @@ export function OrganizationsPage() {
             data-testid="organizations-search"
           />
         </div>
-        <Button onClick={() => setIsCreateOpen(true)} data-testid="organizations-new">
-          <Plus className="mr-2 h-4 w-4" />
-          {t('organizations.new', { defaultValue: 'New organization' })}
-        </Button>
+        {canCreateOrg && (
+          <Button onClick={() => setIsCreateOpen(true)} data-testid="organizations-new">
+            <Plus className="mr-2 h-4 w-4" />
+            {t('organizations.new', { defaultValue: 'New organization' })}
+          </Button>
+        )}
       </div>
 
       {orgList.length === 0 ? (
@@ -151,10 +174,12 @@ export function OrganizationsPage() {
               defaultValue: 'Create your first organization to get started.',
             })}
           </EmptyDescription>
-          <Button className="mt-6" onClick={() => setIsCreateOpen(true)}>
-            <Plus className="mr-2 h-4 w-4" />
-            {t('organizations.new', { defaultValue: 'New organization' })}
-          </Button>
+          {canCreateOrg && (
+            <Button className="mt-6" onClick={() => setIsCreateOpen(true)}>
+              <Plus className="mr-2 h-4 w-4" />
+              {t('organizations.new', { defaultValue: 'New organization' })}
+            </Button>
+          )}
         </Empty>
       ) : filtered.length === 0 ? (
         <div className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">
