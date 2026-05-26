@@ -224,7 +224,6 @@ function FieldSelectorWidget({
   value,
   onChange,
   readOnly,
-  context,
   fieldSpec,
   formData,
 }: WidgetProps) {
@@ -232,7 +231,8 @@ function FieldSelectorWidget({
   const [loading, setLoading] = React.useState(false);
   
   // Resolve dependency: fieldSpec.dependsOn or fieldSpec.reference or 'objectName'
-  const dependsOnField = fieldSpec?.dependsOn || fieldSpec?.reference || 'objectName';
+  const dependsOnRaw = fieldSpec?.dependsOn || fieldSpec?.reference || 'objectName';
+  const dependsOnField = Array.isArray(dependsOnRaw) ? dependsOnRaw[0] : dependsOnRaw;
   const objectName = formData?.[dependsOnField] as string | undefined;
 
   // Load fields when objectName changes
@@ -635,7 +635,7 @@ function StringTagsWidget({
 }
 
 /* -------------------------------------------------------------------------- */
-/* object-fields — render each property of a nested object as a labeled input */
+/* object-fields — render each property of a nested object (recursive)        */
 /* -------------------------------------------------------------------------- */
 
 function ObjectFieldsWidget({
@@ -644,6 +644,7 @@ function ObjectFieldsWidget({
   onChange,
   readOnly,
   context,
+  formData,
 }: WidgetProps) {
   const props = (schema?.properties ?? {}) as Record<string, any>;
   const required = new Set<string>(
@@ -673,30 +674,47 @@ function ObjectFieldsWidget({
   }
 
   return (
-    <div className="grid grid-cols-2 gap-3 rounded border border-border/40 bg-card/30 p-3">
+    <div className="space-y-3 rounded border border-border/40 bg-card/30 p-4">
       {keys.map((k) => {
         const sub = props[k] ?? {};
         const title = (sub.title as string) ?? k;
         const desc = sub.description as string | undefined;
         const isReq = required.has(k);
+        
+        // For nested objects, use recursive rendering instead of RowCell
+        const isNested = sub.type === 'object' && sub.properties;
+        
         return (
-          <div key={k} className="space-y-1">
-            <Label className="text-xs font-medium">
+          <div key={k} className="space-y-1.5">
+            <Label className="text-sm font-medium">
               {title}
               {isReq && <span className="text-destructive ml-0.5">*</span>}
-              <span className="ml-1 font-mono text-[10px] text-muted-foreground">
+              <code className="ml-2 text-[10px] font-mono text-muted-foreground">
                 {k}
-              </span>
+              </code>
             </Label>
-            <RowCell
-              schema={sub}
-              value={obj[k]}
-              readOnly={readOnly}
-              context={context}
-              onChange={(v) => set(k, v)}
-            />
+            {isNested ? (
+              // Recursive: nested object gets its own ObjectFieldsWidget
+              <ObjectFieldsWidget
+                schema={sub}
+                value={obj[k]}
+                onChange={(v) => set(k, v)}
+                readOnly={readOnly}
+                context={context}
+                formData={formData}
+              />
+            ) : (
+              // Simple field: use RowCell
+              <RowCell
+                schema={sub}
+                value={obj[k]}
+                readOnly={readOnly}
+                context={context}
+                onChange={(v) => set(k, v)}
+              />
+            )}
             {desc && (
-              <p className="text-[11px] text-muted-foreground">{desc}</p>
+              <p className="text-xs text-muted-foreground">{desc}</p>
             )}
           </div>
         );
