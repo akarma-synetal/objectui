@@ -21,8 +21,8 @@ The standard runtime UI for ObjectStack applications. This package provides the 
 # From the repository root
 pnpm install
 
-# Start the in-repo backend + the console SPA in parallel
-pnpm dev:full
+# Start the console SPA (requires a running ObjectStack backend)
+pnpm dev
 
 # Build for production
 pnpm build
@@ -31,55 +31,27 @@ pnpm build
 pnpm test
 ```
 
-`pnpm dev:full` boots two processes:
+The console is a **pure SPA** and requires an external ObjectStack backend.
+Point it at any running ObjectStack instance via `VITE_SERVER_URL` in
+`apps/console/.env.development` (defaults to `http://localhost:3000`).
 
-- **`@object-ui/dev-server`** on `http://localhost:3000` — a thin
-  `@objectstack/cli` shell with fixture metadata under `apps/dev-server/`.
-  Bundles `@objectstack/account` so `/_account/*` (login, setup,
-  org self-service) is mounted on the same origin.
-- **`@object-ui/console`** (Vite) on `http://localhost:5180` — pre-wired
-  via `.env.development` (`VITE_SERVER_URL=http://localhost:3000`).
-  Vite proxies `/api/*` and `/_account/*` to `:3000`.
-
-You can also run them independently with `pnpm dev:server` and `pnpm dev`.
-
-### First-time setup
-
-On a fresh checkout the in-repo SQLite database (`apps/dev-server/.objectstack/data/standalone.db`)
-is empty. After `pnpm dev:full` opens the SPA:
-
-1. The console redirects to `/_account/setup` automatically.
-2. Create the owner account (e.g. `admin@dev.local` / `password123`).
-3. You are logged in and dropped at `/home`.
-
-Reset by deleting `apps/dev-server/.objectstack/` and restarting.
-
-### Environment knobs
-
-The `dev` script in `apps/dev-server/package.json` sets safe defaults
-that you can override by exporting your own values before
-`pnpm dev:full`:
-
-| Variable | Default | Purpose |
-| --- | --- | --- |
-| `AUTH_SECRET` | `dev-secret-…` | Required by `plugin-auth` outside `--dev` mode. **Never** ship the default to production. |
-| `OS_TRUSTED_ORIGINS` | `http://localhost:*` | Lets better-auth accept the Vite origin (`:5180`). |
-| `OS_DISABLE_STUDIO` | `1` | Skip mounting `/_studio/` (irrelevant for console debugging). |
-| `OS_DISABLE_CONSOLE` | `1` | Skip cli-bundled `/_console/` — the SPA under test runs via Vite. |
+To run a backend locally, use the `@objectstack/cli` from a separate
+ObjectStack project checkout — we no longer ship an in-repo dev-server
+because it pinned ObjectStack versions and caused drift against the
+published packages.
 
 ## Running Modes
 
-The console supports two running modes:
+The console runs as a standalone SPA against any ObjectStack backend:
 
-### 1. Development Mode (with in-repo backend)
-**Command:** `pnpm dev:full` (or `pnpm dev` if a backend is already up)
+### 1. Development Mode
+**Command:** `pnpm dev`
 
 - Vite dev server with Hot Module Replacement (HMR), opens at
   http://localhost:5180.
-- Talks to the **in-repo** ObjectStack backend at
-  http://localhost:3000 (`apps/dev-server`). No external repository
-  required.
-- Best for UI development and end-to-end debugging.
+- Talks to the ObjectStack backend defined by `VITE_SERVER_URL`
+  (default `http://localhost:3000`).
+- Vite proxies `/api/*` and `/_account/*` to that backend.
 
 ### 2. Standalone SPA preview
 **Command:** `pnpm start`
@@ -87,6 +59,7 @@ The console supports two running modes:
 - Runs `vite preview` against the built `dist/` directory.
 - Connects to whatever backend `VITE_SERVER_URL` points at — useful for
   smoke-testing a production build against a remote ObjectStack instance.
+
 - Opens at http://localhost:4173 (Vite preview default).
 
 **Required environment variable** (set in the Vercel project's *Environment Variables* panel):

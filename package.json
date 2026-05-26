@@ -17,8 +17,6 @@
   ],
   "scripts": {
     "dev": "pnpm --filter @object-ui/console dev",
-    "dev:server": "pnpm --filter @object-ui/dev-server dev",
-    "dev:full": "concurrently -k -n server,console -c blue,green \"pnpm dev:server\" \"wait-on -t 60000 http://localhost:3000/api/v1/health && pnpm dev\"",
     "start": "pnpm --filter @object-ui/console preview",
     "build": "turbo run build --filter=!@object-ui/site",
     "build:all": "turbo run build",

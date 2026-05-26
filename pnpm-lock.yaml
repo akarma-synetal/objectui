@@ -347,30 +347,6 @@ importers:
         specifier: ^4.1.7
         version: 4.1.7(@opentelemetry/api@1.9.1)(@types/node@25.9.1)(@vitest/coverage-v8@4.1.7)(@vitest/ui@4.1.7)(happy-dom@20.9.0)(jsdom@29.1.1(@noble/hashes@2.2.0))(msw@2.14.6(@types/node@25.9.1)(typescript@6.0.3))(vite@8.0.14(@types/node@25.9.1)(esbuild@0.28.0)(jiti@2.7.0)(tsx@4.22.3)(yaml@2.9.0))
 
-  apps/dev-server:
-    dependencies:
-      '@objectstack/account':
-        specifier: ^5.2.0
-        version: 5.2.0(@types/react-dom@19.2.3(@types/react@19.2.15))(@types/react@19.2.15)(ai@6.0.191(zod@4.4.3))(typescript@6.0.3)
-      '@objectstack/cli':
-        specifier: ^5.2.0
-        version: 5.2.0(@ai-sdk/anthropic@3.0.69(zod@4.4.3))(@ai-sdk/google@3.0.63(zod@4.4.3))(@ai-sdk/openai@3.0.52(zod@4.4.3))(@better-auth/core@1.6.11(@better-auth/utils@0.4.0)(@better-fetch/fetch@1.1.21)(@opentelemetry/api@1.9.1)(better-call@1.3.5(zod@4.4.3))(jose@6.2.3)(kysely@0.28.17)(nanostores@1.3.0))(@better-auth/utils@0.4.0)(@better-fetch/fetch@1.1.21)(@objectstack/core@5.2.0(ai@6.0.191(zod@4.4.3)))(@opentelemetry/api@1.9.1)(@types/react-dom@19.2.3(@types/react@19.2.15))(@types/react@19.2.15)(ai@6.0.191(zod@4.4.3))(better-call@1.3.5(zod@4.4.3))(better-sqlite3@12.9.0)(i18next@26.2.0(typescript@6.0.3))(mongodb@7.2.0)(next@16.2.6(@babel/core@7.29.7)(@opentelemetry/api@1.9.1)(@playwright/test@1.60.0)(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(react-dom@19.2.6(react@19.2.6))(react-grid-layout@2.2.3(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(react-is@19.2.6)(react-router-dom@7.15.1(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(react@19.2.6)(tailwindcss@4.3.0)(typescript@6.0.3)(vitest@4.1.7)
-      '@objectstack/driver-memory':
-        specifier: ^5.2.0
-        version: 5.2.0(ai@6.0.191(zod@4.4.3))
-      '@objectstack/metadata':
-        specifier: ^5.2.0
-        version: 5.2.0(ai@6.0.191(zod@4.4.3))(vitest@4.1.7)
-      '@objectstack/objectql':
-        specifier: ^5.2.0
-        version: 5.2.0(ai@6.0.191(zod@4.4.3))(vitest@4.1.7)
-      '@objectstack/runtime':
-        specifier: ^5.2.0
-        version: 5.2.0(@better-auth/core@1.6.11(@better-auth/utils@0.4.0)(@better-fetch/fetch@1.1.21)(@opentelemetry/api@1.9.1)(better-call@1.3.5(zod@4.4.3))(jose@6.2.3)(kysely@0.28.17)(nanostores@1.3.0))(@better-auth/utils@0.4.0)(@better-fetch/fetch@1.1.21)(@opentelemetry/api@1.9.1)(ai@6.0.191(zod@4.4.3))(better-call@1.3.5(zod@4.4.3))(better-sqlite3@12.9.0)(mongodb@7.2.0)(next@16.2.6(@babel/core@7.29.7)(@opentelemetry/api@1.9.1)(@playwright/test@1.60.0)(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(vitest@4.1.7)
-      '@objectstack/spec':
-        specifier: ^5.2.0
-        version: 5.2.0(ai@6.0.191(zod@4.4.3))
-
   apps/site:
     dependencies:
       '@monaco-editor/react':
@@ -4784,9 +4760,6 @@ packages:
   '@object-ui/types@5.3.1':
     resolution: {integrity: sha512-2krZF5mwKIk95ph83tR28HkOVkqPgUSq8dMJOj2bagJR2zqHuRbE7kaiH8Kauo+5jpZtoAxco1xg5E3dxBw7Pg==}
 
-  '@objectstack/account@5.2.0':
-    resolution: {integrity: sha512-9AxbhgPriTQT4SGETM3Xd6wl0MfOc5xKSTSHza/nW/5JnvOxrNviNB3v5CSsWaza7cDX9EueIV16yWowoEGzyg==}
-
   '@objectstack/cli@5.2.0':
     resolution: {integrity: sha512-tkpGM7BqFmaAsbA8bAlzp3hNHJFsZgdMHVl3iQ7Io9jaI8q6xA214Z9bgIredUNTIO9sQBASo3YcNl+aDF/DRw==}
     engines: {node: '>=18.0.0'}
@@ -4848,14 +4821,6 @@ packages:
     peerDependenciesMeta:
       vitest:
         optional: true
-
-  '@objectstack/metadata-fs@5.2.0':
-    resolution: {integrity: sha512-yWfEj1ncKhCkiJIJVjtVxQos1SUPldRA6CqUBk5lACqu1z6QBdIcS4AfY7ZBgehkPJXAinHKXC2E7lXgfnc7GA==}
-    engines: {node: '>=18.0.0'}
-
-  '@objectstack/metadata@5.2.0':
-    resolution: {integrity: sha512-JrJCBV28j9BxaviHVVT62LNPh+x21OAR6me7GiePx3xkQUUr/V3dlWiuF9zucKyFdl/GRRrQTc/nhlGnplv5Qg==}
-    engines: {node: '>=18.0.0'}
 
   '@objectstack/objectql@5.2.0':
     resolution: {integrity: sha512-1nmwP/Rd/uiS0MZ/S1n2Kat/RxJL75TDFj5eWdSrI/BawsRG2uegvL1rQIJfozWEHeDCDMCgnr0m1JQAFOKSwg==}
@@ -6582,13 +6547,6 @@ packages:
       '@tanstack/router-core':
         optional: true
 
-  '@tanstack/react-router@1.170.7':
-    resolution: {integrity: sha512-4Q8M8Q9sGobhyt72yW+vxzUOSPfrCAHwjPOCb7+ocReQnFQ37t9Qh4RNG4+7zsFQ4tW9C8LpllRe49aK2RYy2Q==}
-    engines: {node: '>=20.19'}
-    peerDependencies:
-      react: 19.2.6
-      react-dom: 19.2.6
-
   '@tanstack/react-router@1.170.8':
     resolution: {integrity: sha512-Qw2ju6jjnIsMpuW+VrnHZWHuugqs592PWsnI56sG28qNhg14CgRLahOcNajfuJR9P4MxKGP94WVzmFKSYUz/ig==}
     engines: {node: '>=20.19'}
@@ -6607,10 +6565,6 @@ packages:
     peerDependencies:
       react: 19.2.6
       react-dom: 19.2.6
-
-  '@tanstack/router-core@1.171.5':
-    resolution: {integrity: sha512-BfilbQqqWiQwJn68cD8wmk1ajEWIO3IlEA1zVuWslWbiVc23CDn+6ACO5tfPAcc96ED37hxela5ij3VBvAtusw==}
-    engines: {node: '>=20.19'}
 
   '@tanstack/router-core@1.171.6':
     resolution: {integrity: sha512-Ol6DQ+j6rf/rPVELIzo8LHwOQV2KL+zry3b+39kL/GKrt7YId52WJRAFMzuseY4XceSW+PU7sG/Cc1QkwJr0hg==}
@@ -11535,12 +11489,6 @@ packages:
       '@types/react':
         optional: true
 
-  react-resizable-panels@4.11.1:
-    resolution: {integrity: sha512-kA4w58V6wYdRLm2rg9pzroZwGlqBLul1FjMP0J8kqTo3zSHtjeH+LXmZaldCo6+HWqs1e5hOcPoajKXdOze37Q==}
-    peerDependencies:
-      react: 19.2.6
-      react-dom: 19.2.6
-
   react-resizable-panels@4.11.2:
     resolution: {integrity: sha512-+kfFbDZ8mygc7g0vxOcDzCVGuwiIUOnILqPoUHo6/uP+Mmyx6HzZU+kj1aOPDlktXuobYbr6BtQekvJwHRX4Eg==}
     peerDependencies:
@@ -15761,41 +15709,6 @@ snapshots:
     transitivePeerDependencies:
       - ai
 
-  '@objectstack/account@5.2.0(@types/react-dom@19.2.3(@types/react@19.2.15))(@types/react@19.2.15)(ai@6.0.191(zod@4.4.3))(typescript@6.0.3)':
-    dependencies:
-      '@object-ui/i18n': 5.3.1(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(typescript@6.0.3)
-      '@objectstack/client': 5.2.0(ai@6.0.191(zod@4.4.3))
-      '@objectstack/client-react': 5.2.0(ai@6.0.191(zod@4.4.3))(react@19.2.6)
-      '@objectstack/spec': 5.2.0(ai@6.0.191(zod@4.4.3))
-      '@radix-ui/react-avatar': 1.1.11(@types/react-dom@19.2.3(@types/react@19.2.15))(@types/react@19.2.15)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
-      '@radix-ui/react-checkbox': 1.3.3(@types/react-dom@19.2.3(@types/react@19.2.15))(@types/react@19.2.15)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
-      '@radix-ui/react-collapsible': 1.1.12(@types/react-dom@19.2.3(@types/react@19.2.15))(@types/react@19.2.15)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
-      '@radix-ui/react-dialog': 1.1.15(@types/react-dom@19.2.3(@types/react@19.2.15))(@types/react@19.2.15)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
-      '@radix-ui/react-dropdown-menu': 2.1.16(@types/react-dom@19.2.3(@types/react@19.2.15))(@types/react@19.2.15)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
-      '@radix-ui/react-label': 2.1.8(@types/react-dom@19.2.3(@types/react@19.2.15))(@types/react@19.2.15)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
-      '@radix-ui/react-scroll-area': 1.2.10(@types/react-dom@19.2.3(@types/react@19.2.15))(@types/react@19.2.15)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
-      '@radix-ui/react-select': 2.2.6(@types/react-dom@19.2.3(@types/react@19.2.15))(@types/react@19.2.15)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
-      '@radix-ui/react-separator': 1.1.8(@types/react-dom@19.2.3(@types/react@19.2.15))(@types/react@19.2.15)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
-      '@radix-ui/react-slot': 1.2.4(@types/react@19.2.15)(react@19.2.6)
-      '@radix-ui/react-switch': 1.2.6(@types/react-dom@19.2.3(@types/react@19.2.15))(@types/react@19.2.15)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
-      '@radix-ui/react-tabs': 1.1.13(@types/react-dom@19.2.3(@types/react@19.2.15))(@types/react@19.2.15)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
-      '@radix-ui/react-toast': 1.2.15(@types/react-dom@19.2.3(@types/react@19.2.15))(@types/react@19.2.15)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
-      '@radix-ui/react-tooltip': 1.2.8(@types/react-dom@19.2.3(@types/react@19.2.15))(@types/react@19.2.15)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
-      '@tanstack/react-router': 1.170.7(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
-      class-variance-authority: 0.7.1
-      clsx: 2.1.1
-      lucide-react: 1.16.0(react@19.2.6)
-      react: 19.2.6
-      react-dom: 19.2.6(react@19.2.6)
-      react-resizable-panels: 4.11.1(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
-      tailwind-merge: 3.6.0
-    transitivePeerDependencies:
-      - '@types/react'
-      - '@types/react-dom'
-      - ai
-      - react-native
-      - typescript
-
   '@objectstack/cli@5.2.0(@ai-sdk/anthropic@3.0.69(zod@4.4.3))(@ai-sdk/google@3.0.63(zod@4.4.3))(@ai-sdk/openai@3.0.52(zod@4.4.3))(@better-auth/core@1.6.11(@better-auth/utils@0.4.0)(@better-fetch/fetch@1.1.21)(@opentelemetry/api@1.9.1)(better-call@1.3.5(zod@4.4.3))(jose@6.2.3)(kysely@0.28.17)(nanostores@1.3.0))(@better-auth/utils@0.4.0)(@better-fetch/fetch@1.1.21)(@objectstack/core@5.2.0(ai@6.0.191(zod@4.4.3)))(@opentelemetry/api@1.9.1)(@types/react-dom@19.2.3(@types/react@19.2.15))(@types/react@19.2.15)(ai@6.0.191(zod@4.4.3))(better-call@1.3.5(zod@4.4.3))(better-sqlite3@12.9.0)(i18next@26.2.0(typescript@6.0.3))(mongodb@7.2.0)(next@16.2.6(@babel/core@7.29.7)(@opentelemetry/api@1.9.1)(@playwright/test@1.60.0)(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(react-dom@19.2.6(react@19.2.6))(react-grid-layout@2.2.3(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(react-is@19.2.6)(react-router-dom@7.15.1(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(react@19.2.6)(tailwindcss@4.3.0)(typescript@6.0.3)(vitest@4.1.7)':
     dependencies:
       '@ai-sdk/gateway': 3.0.120(zod@4.4.3)
@@ -16015,29 +15928,6 @@ snapshots:
       zod: 4.4.3
     optionalDependencies:
       vitest: 4.1.7(@opentelemetry/api@1.9.1)(@types/node@25.9.1)(@vitest/coverage-v8@4.1.7)(@vitest/ui@4.1.7)(happy-dom@20.9.0)(jsdom@29.1.1(@noble/hashes@2.2.0))(msw@2.14.6(@types/node@25.9.1)(typescript@6.0.3))(vite@8.0.14(@types/node@25.9.1)(esbuild@0.28.0)(jiti@2.7.0)(tsx@4.22.3)(yaml@2.9.0))
-
-  '@objectstack/metadata-fs@5.2.0(vitest@4.1.7)':
-    dependencies:
-      '@objectstack/metadata-core': 5.2.0(vitest@4.1.7)
-      chokidar: 5.0.0
-    transitivePeerDependencies:
-      - vitest
-
-  '@objectstack/metadata@5.2.0(ai@6.0.191(zod@4.4.3))(vitest@4.1.7)':
-    dependencies:
-      '@objectstack/core': 5.2.0(ai@6.0.191(zod@4.4.3))
-      '@objectstack/metadata-core': 5.2.0(vitest@4.1.7)
-      '@objectstack/metadata-fs': 5.2.0(vitest@4.1.7)
-      '@objectstack/platform-objects': 5.2.0(ai@6.0.191(zod@4.4.3))
-      '@objectstack/spec': 5.2.0(ai@6.0.191(zod@4.4.3))
-      '@objectstack/types': 5.2.0(ai@6.0.191(zod@4.4.3))
-      chokidar: 5.0.0
-      glob: 13.0.6
-      js-yaml: 4.1.1
-      zod: 4.4.3
-    transitivePeerDependencies:
-      - ai
-      - vitest
 
   '@objectstack/objectql@5.2.0(ai@6.0.191(zod@4.4.3))(vitest@4.1.7)':
     dependencies:
@@ -17101,7 +16991,7 @@ snapshots:
 
   '@radix-ui/rect@1.1.1': {}
 
-  '@reduxjs/toolkit@2.11.2(react-redux@9.2.0(@types/react@19.2.15)(react@19.2.6)(redux@5.0.1))(react@19.2.6)':
+  '@reduxjs/toolkit@2.11.2(react-redux@9.2.0(@types/react@19.2.15)(react@19.2.6))(react@19.2.6)':
     dependencies:
       '@standard-schema/spec': 1.1.0
       '@standard-schema/utils': 0.3.0
@@ -17981,15 +17871,6 @@ snapshots:
     transitivePeerDependencies:
       - csstype
 
-  '@tanstack/react-router@1.170.7(react-dom@19.2.6(react@19.2.6))(react@19.2.6)':
-    dependencies:
-      '@tanstack/history': 1.162.0
-      '@tanstack/react-store': 0.9.3(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
-      '@tanstack/router-core': 1.171.5
-      isbot: 5.1.40
-      react: 19.2.6
-      react-dom: 19.2.6(react@19.2.6)
-
   '@tanstack/react-router@1.170.8(react-dom@19.2.6(react@19.2.6))(react@19.2.6)':
     dependencies:
       '@tanstack/history': 1.162.0
@@ -18011,13 +17892,6 @@ snapshots:
       '@tanstack/virtual-core': 3.15.0
       react: 19.2.6
       react-dom: 19.2.6(react@19.2.6)
-
-  '@tanstack/router-core@1.171.5':
-    dependencies:
-      '@tanstack/history': 1.162.0
-      cookie-es: 3.1.1
-      seroval: 1.5.4
-      seroval-plugins: 1.5.4(seroval@1.5.4)
 
   '@tanstack/router-core@1.171.6':
     dependencies:
@@ -23792,11 +23666,6 @@ snapshots:
     optionalDependencies:
       '@types/react': 19.2.15
 
-  react-resizable-panels@4.11.1(react-dom@19.2.6(react@19.2.6))(react@19.2.6):
-    dependencies:
-      react: 19.2.6
-      react-dom: 19.2.6(react@19.2.6)
-
   react-resizable-panels@4.11.2(react-dom@19.2.6(react@19.2.6))(react@19.2.6):
     dependencies:
       react: 19.2.6
@@ -23896,7 +23765,7 @@ snapshots:
 
   recharts@3.8.1(@types/react@19.2.15)(react-dom@19.2.6(react@19.2.6))(react-is@19.2.6)(react@19.2.6)(redux@5.0.1):
     dependencies:
-      '@reduxjs/toolkit': 2.11.2(react-redux@9.2.0(@types/react@19.2.15)(react@19.2.6)(redux@5.0.1))(react@19.2.6)
+      '@reduxjs/toolkit': 2.11.2(react-redux@9.2.0(@types/react@19.2.15)(react@19.2.6))(react@19.2.6)
       clsx: 2.1.1
       decimal.js-light: 2.5.1
       es-toolkit: 1.45.1
