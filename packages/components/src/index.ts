@@ -76,3 +76,6 @@ export function initializeComponents() {
 
 // Debug panel (tree-shakeable — only included when imported)
 export * from './debug';
+
+// Platform share-link dialog (Notion / Figma-style "anyone with the link")
+export * from './share';

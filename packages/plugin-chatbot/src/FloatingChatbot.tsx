@@ -19,6 +19,8 @@ export interface FloatingChatbotProps extends ChatbotEnhancedProps {
   floatingConfig?: FloatingChatbotConfig
   /** Optional content rendered in the panel header (e.g. an agent picker) */
   headerExtra?: React.ReactNode
+  /** Extra action buttons rendered to the left of the panel's fullscreen / close controls. */
+  headerActions?: React.ReactNode
 }
 
 /**
@@ -31,6 +33,7 @@ export interface FloatingChatbotProps extends ChatbotEnhancedProps {
 export function FloatingChatbot({
   floatingConfig,
   headerExtra,
+  headerActions,
   ...chatbotProps
 }: FloatingChatbotProps) {
   const {
@@ -74,6 +77,7 @@ export function FloatingChatbot({
         width={panelWidth}
         height={panelHeight}
         headerExtra={headerExtra}
+        headerActions={headerActions}
       >
         <ChatbotEnhanced
           {...chatbotProps}

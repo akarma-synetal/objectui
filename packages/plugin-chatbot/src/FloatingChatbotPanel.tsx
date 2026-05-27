@@ -27,6 +27,8 @@ export interface FloatingChatbotPanelProps {
   className?: string
   /** Optional content rendered in the header, between the title and the action buttons (e.g. an agent picker) */
   headerExtra?: React.ReactNode
+  /** Extra action buttons rendered to the left of the fullscreen / close controls. */
+  headerActions?: React.ReactNode
 }
 
 /**
@@ -42,6 +44,7 @@ export function FloatingChatbotPanel({
   children,
   className,
   headerExtra,
+  headerActions,
 }: FloatingChatbotPanelProps) {
   const { isOpen, isFullscreen, close, toggleFullscreen } = useFloatingChatbot()
 
@@ -76,6 +79,7 @@ export function FloatingChatbotPanel({
           </div>
         ) : null}
         <div className="flex items-center gap-1 shrink-0">
+          {headerActions}
           <Button
             variant="ghost"
             size="icon"

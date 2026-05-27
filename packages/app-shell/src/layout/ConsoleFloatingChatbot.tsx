@@ -25,7 +25,10 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
+  Button,
+  ShareDialog,
 } from '@object-ui/components';
+import { Share2 } from 'lucide-react';
 import { useChatConversation, type HydratedUIMessage } from '../hooks';
 
 interface ConsoleObject {
@@ -215,38 +218,72 @@ function ChatbotInner({
       </Select>
     ) : null;
 
+  // Share-link control. Sits to the left of the panel's built-in
+  // fullscreen / close buttons so users can mint a public link without
+  // jumping out to the full `/ai/:id` page.
+  const [shareOpen, setShareOpen] = React.useState(false);
+  const restApiBase = React.useMemo(
+    () => apiBase.replace(/\/v1\/ai$/, '').replace(/\/ai$/, '') || '/api',
+    [apiBase],
+  );
+  const headerActions = conversationId ? (
+    <Button
+      variant="ghost"
+      size="icon"
+      className="h-7 w-7"
+      aria-label="Share conversation"
+      data-testid="floating-chatbot-share"
+      onClick={() => setShareOpen(true)}
+    >
+      <Share2 className="h-4 w-4" />
+    </Button>
+  ) : null;
+
   return (
-    <FloatingChatbot
-      floatingConfig={{
-        position: 'bottom-right',
-        defaultOpen,
-        panelWidth: 420,
-        panelHeight: 560,
-        title: `${appLabel} Assistant`,
-        triggerSize: 56,
-      }}
-      headerExtra={headerExtra}
-      messages={messages as ChatMessage[]}
-      placeholder={
-        activeAgent
-          ? `Ask ${activeAgentLabel}...`
-          : agentsLoading
-            ? 'Loading agents...'
-            : 'Ask anything...'
-      }
-      onSendMessage={(content: string) => sendMessage(content)}
-      onClear={clear}
-      onStop={isLoading ? stop : undefined}
-      onReload={reload}
-      isLoading={isLoading}
-      error={error}
-      enableMarkdown
-      onToolApprove={hitl.decide}
-      toolDecisions={hitl.decisions}
-      toolApproveLabel="Approve & run"
-      toolDenyLabel="Reject"
-      toolDenyReason="Operator rejected from chat"
-    />
+    <>
+      <FloatingChatbot
+        floatingConfig={{
+          position: 'bottom-right',
+          defaultOpen,
+          panelWidth: 420,
+          panelHeight: 560,
+          title: `${appLabel} Assistant`,
+          triggerSize: 56,
+        }}
+        headerExtra={headerExtra}
+        headerActions={headerActions}
+        messages={messages as ChatMessage[]}
+        placeholder={
+          activeAgent
+            ? `Ask ${activeAgentLabel}...`
+            : agentsLoading
+              ? 'Loading agents...'
+              : 'Ask anything...'
+        }
+        onSendMessage={(content: string) => sendMessage(content)}
+        onClear={clear}
+        onStop={isLoading ? stop : undefined}
+        onReload={reload}
+        isLoading={isLoading}
+        error={error}
+        enableMarkdown
+        onToolApprove={hitl.decide}
+        toolDecisions={hitl.decisions}
+        toolApproveLabel="Approve & run"
+        toolDenyLabel="Reject"
+        toolDenyReason="Operator rejected from chat"
+      />
+      {conversationId && (
+        <ShareDialog
+          open={shareOpen}
+          onOpenChange={setShareOpen}
+          objectName="ai_conversations"
+          recordId={conversationId}
+          recordLabel="this conversation"
+          apiBase={restApiBase}
+        />
+      )}
+    </>
   );
 }
 
