@@ -18,7 +18,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { AlertTriangle, Link2, Loader2, MessageSquare } from 'lucide-react';
-import { Streamdown } from 'streamdown';
 
 import {
   Button,
@@ -246,9 +245,9 @@ export default function SharedRecordPage() {
                     {isUser ? (
                       <p className="whitespace-pre-wrap">{text}</p>
                     ) : (
-                      <div className="prose prose-sm max-w-none dark:prose-invert">
-                        <Streamdown>{text}</Streamdown>
-                      </div>
+                      <pre className="whitespace-pre-wrap font-sans text-sm leading-relaxed">
+                        {text}
+                      </pre>
                     )}
                   </div>
                 </li>

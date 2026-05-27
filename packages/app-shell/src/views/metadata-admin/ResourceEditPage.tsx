@@ -31,6 +31,8 @@ import {
   AlertTriangle,
   Layers3,
   Eye,
+  Pencil,
+  X,
 } from 'lucide-react';
 import { Button } from '@object-ui/components';
 import { Badge } from '@object-ui/components';
@@ -123,6 +125,16 @@ export function MetadataResourceEditPage({
   >(null);
   const [pendingItem, setPendingItem] = React.useState<unknown>(null);
 
+  // Form edit mode. The form is read-only by default — admins land in a
+  // "view" state and must click Edit to mutate, mirroring the Salesforce /
+  // Notion convention. createMode is always editing (you can't view what
+  // doesn't exist yet). Truly read-only types (no allowOrgOverride) stay
+  // read-only regardless.
+  const [editing, setEditing] = React.useState<boolean>(!!createMode);
+  // Snapshot of the last saved draft. Used by Cancel to revert in-flight
+  // edits, and as the source-of-truth when entering edit mode.
+  const draftSnapshotRef = React.useRef<Record<string, unknown> | null>(null);
+
   // Prefetch object name list once — fuels the `ref:object` widget.
   // We don't block render on it; the widget shows a "Loading…" state.
   const [objectNames, setObjectNames] = React.useState<string[]>([]);
@@ -168,6 +180,7 @@ export function MetadataResourceEditPage({
         // Initial draft = effective if available, otherwise code.
         const initial = (lay.effective ?? lay.code ?? {}) as Record<string, unknown>;
         setDraft(initial);
+        draftSnapshotRef.current = initial;
         setLoading(false);
       } catch (err: any) {
         if (!cancelled) {
@@ -258,9 +271,14 @@ export function MetadataResourceEditPage({
       // Refresh layered after save.
       const lay = await client.layered<any>(type, savedName);
       setLayered(lay);
-      setDraft((lay.effective ?? itemToSave) as Record<string, unknown>);
+      const fresh = (lay.effective ?? itemToSave) as Record<string, unknown>;
+      setDraft(fresh);
+      draftSnapshotRef.current = fresh;
       setDestructiveIssues(null);
       setPendingItem(null);
+      // Exit edit mode on successful save (unless we were creating —
+      // navigation to the new record's URL will reset state anyway).
+      if (!createMode) setEditing(false);
       if (createMode) {
         navigate(`../${encodeURIComponent(savedName)}`);
       }
@@ -317,7 +335,10 @@ export function MetadataResourceEditPage({
       await client.reset(type, name);
       const lay = await client.layered<any>(type, name);
       setLayered(lay);
-      setDraft((lay.effective ?? lay.code ?? {}) as Record<string, unknown>);
+      const fresh = (lay.effective ?? lay.code ?? {}) as Record<string, unknown>;
+      setDraft(fresh);
+      draftSnapshotRef.current = fresh;
+      setEditing(false);
     } catch (err: any) {
       setError(err?.message ?? String(err));
     } finally {
@@ -348,6 +369,31 @@ export function MetadataResourceEditPage({
   // drawer (the parent context owns the preview surface).
   const PreviewComponent = !createMode && !embedded ? getMetadataPreview(type) : undefined;
 
+  // Cancel edits: revert the draft to the last saved snapshot and exit
+  // edit mode. Safe to call even with no snapshot (no-op).
+  function doCancelEdit() {
+    if (draftSnapshotRef.current) {
+      setDraft(draftSnapshotRef.current);
+    }
+    setIssues([]);
+    setError(null);
+    setEditing(false);
+  }
+
+  // When the form is "live" but not yet in edit mode, it renders as
+  // read-only. createMode is always editing; truly read-only types
+  // (no allowOrgOverride) ignore the editing toggle entirely.
+  const formReadOnly = readOnly || (!editing && !createMode);
+
+  // Default tab priority:
+  //   1. URL ?tab= (explicit user nav / deep link)
+  //   2. Designer (custom rich editor present)
+  //   3. Preview  (live preview present — most informative landing)
+  //   4. Form
+  const defaultTab =
+    initialTabRef.current ??
+    (DesignerTab ? 'designer' : PreviewComponent ? 'preview' : 'form');
+
   return (
     <PageShell
       entry={entry ?? { type, label: type }}
@@ -371,7 +417,26 @@ export function MetadataResourceEditPage({
               History
             </Button>
           )}
-          {entry?.allowOrgOverride && (
+          {/* Edit-mode toggle. Three states:
+              - View (default, !editing & !createMode): show "Edit".
+              - Editing: show Cancel + Save.
+              - createMode: always editing, show Save only (Cancel would
+                discard the whole create flow which is awkward; users can
+                navigate away to cancel).
+              Truly read-only types (no allowOrgOverride) skip all of this. */}
+          {entry?.allowOrgOverride && !createMode && !editing && (
+            <Button size="sm" onClick={() => setEditing(true)}>
+              <Pencil className="h-4 w-4 mr-1" />
+              Edit
+            </Button>
+          )}
+          {entry?.allowOrgOverride && !createMode && editing && (
+            <Button variant="ghost" size="sm" onClick={doCancelEdit} disabled={saving}>
+              <X className="h-4 w-4 mr-1" />
+              Cancel
+            </Button>
+          )}
+          {entry?.allowOrgOverride && (editing || createMode) && (
             <Button size="sm" onClick={() => doSave(false)} disabled={saving}>
               {saving ? (
                 <Loader2 className="h-4 w-4 mr-1 animate-spin" />
@@ -400,9 +465,7 @@ export function MetadataResourceEditPage({
         )}
 
         <Tabs
-          defaultValue={
-            initialTabRef.current ?? (DesignerTab ? 'designer' : 'form')
-          }
+          defaultValue={defaultTab}
           className="w-full"
           onValueChange={(v) => {
             if (typeof window === 'undefined' || embedded) return;
@@ -460,7 +523,18 @@ export function MetadataResourceEditPage({
             </TabsContent>
           )}
 
-          <TabsContent value="form" className="mt-4">
+          <TabsContent value="form" className="mt-4 space-y-3">
+            {formReadOnly && !readOnly && entry?.allowOrgOverride && !createMode && (
+              <div className="flex items-center justify-between gap-3 text-xs text-muted-foreground border rounded p-2.5 bg-muted/30">
+                <span>
+                  Viewing in read-only mode. Click <strong>Edit</strong> to make changes.
+                </span>
+                <Button size="sm" variant="outline" onClick={() => setEditing(true)}>
+                  <Pencil className="h-3.5 w-3.5 mr-1" />
+                  Edit
+                </Button>
+              </div>
+            )}
             <SchemaForm
               schema={schema}
               form={entry?.form as any}
@@ -469,7 +543,7 @@ export function MetadataResourceEditPage({
               issues={issues}
               hiddenFields={config.hiddenFields}
               fieldOrder={config.fieldOrder}
-              readOnly={readOnly}
+              readOnly={formReadOnly}
               createMode={createMode}
               widgetContext={widgetContext}
             />
