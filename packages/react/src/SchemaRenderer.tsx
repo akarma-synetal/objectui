@@ -178,7 +178,16 @@ export const SchemaRenderer = forwardRef<any, { schema: SchemaNode } & Record<st
   // Re-render trigger when the global ComponentRegistry mutates (e.g. a
   // lazy-loaded plugin finishes registering its components).
   const [, forceUpdate] = useReducer((n: number) => n + 1, 0);
-  useEffect(() => ComponentRegistry.subscribe(forceUpdate), []);
+  useEffect(() => {
+    const unsubscribe = ComponentRegistry.subscribe(forceUpdate);
+    // Recheck after mount: if the lazy plugin finished registering between
+    // the first render and this effect (e.g. its module was already cached so
+    // notify() fired synchronously before subscribe()), we'd otherwise stay
+    // stuck on the "Loading…" fallback forever. A one-shot forceUpdate gives
+    // the next render a fresh look at the registry.
+    forceUpdate();
+    return unsubscribe;
+  }, []);
   const [lazyError, setLazyError] = useState<Error | null>(null);
 
   // Evaluate schema expressions against the data source

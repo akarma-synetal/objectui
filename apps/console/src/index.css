@@ -21,6 +21,14 @@
 @source '../../../packages/plugin-map/src/**/*.{ts,tsx}';
 @source '../../../packages/plugin-charts/src/**/*.{ts,tsx}';
 @source '../../../packages/plugin-chatbot/src/**/*.{ts,tsx}';
+/* Streamdown (used by chatbot markdown) emits a fixed set of Tailwind utility
+   classes at runtime from inside node_modules — Tailwind v4 doesn't scan
+   node_modules by default, so we explicitly inline the classes we know it
+   needs. Without this, ordered/unordered list markers and table borders
+   render unstyled. Keep in sync with streamdown's component class strings. */
+@source inline("{,group-hover:}list-{inside,outside,decimal,disc,none}");
+@source inline("whitespace-{normal,nowrap,pre,pre-wrap,pre-line}");
+@source inline("[li_&]:pl-{2,3,4,5,6,8}");
 @source '../../../packages/plugin-editor/src/**/*.{ts,tsx}';
 @source '../../../packages/plugin-view/src/**/*.{ts,tsx}';
 @source '../../../packages/plugin-detail/src/**/*.{ts,tsx}';

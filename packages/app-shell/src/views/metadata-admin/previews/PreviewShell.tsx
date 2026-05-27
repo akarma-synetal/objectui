@@ -1,0 +1,92 @@
+// Copyright (c) 2025 ObjectStack. Licensed under the Apache-2.0 license.
+
+/**
+ * Shared chrome for Preview-tab renderers — gives every preview the
+ * same border, padding, header strip, and empty/error states so they
+ * feel like one feature instead of seven one-offs.
+ */
+
+import * as React from 'react';
+import { AlertCircle, Eye } from 'lucide-react';
+
+export interface PreviewShellProps {
+  /** Right-hand badge/label, e.g. the resolved view type or row count. */
+  hint?: React.ReactNode;
+  /** Optional title override. Defaults to `Preview`. */
+  title?: React.ReactNode;
+  /** Optional toolbar rendered on the right of the header. */
+  toolbar?: React.ReactNode;
+  children: React.ReactNode;
+}
+
+export function PreviewShell({ hint, title = 'Preview', toolbar, children }: PreviewShellProps) {
+  return (
+    <div className="rounded-lg border bg-background overflow-hidden">
+      <div className="flex items-center justify-between border-b bg-muted/30 px-3 py-2">
+        <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
+          <Eye className="h-3.5 w-3.5" />
+          <span>{title}</span>
+          {hint != null && (
+            <span className="ml-1 text-[10px] uppercase tracking-wider opacity-70">{hint}</span>
+          )}
+        </div>
+        {toolbar}
+      </div>
+      <div className="bg-background">{children}</div>
+    </div>
+  );
+}
+
+export function PreviewMessage({
+  tone = 'info',
+  children,
+}: {
+  tone?: 'info' | 'warn' | 'error';
+  children: React.ReactNode;
+}) {
+  const styles =
+    tone === 'warn'
+      ? 'text-amber-800 bg-amber-50 border-amber-200'
+      : tone === 'error'
+        ? 'text-destructive bg-destructive/5 border-destructive/30'
+        : 'text-muted-foreground border-muted';
+  return (
+    <div className={`m-4 rounded border p-3 text-sm flex items-start gap-2 ${styles}`}>
+      {tone !== 'info' && <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />}
+      <div className="flex-1">{children}</div>
+    </div>
+  );
+}
+
+/**
+ * Catch render errors from third-party preview renderers so a buggy
+ * widget can't blank the whole edit page. Keeps the rest of the tabs
+ * (Form / Layers / References) usable.
+ */
+export class PreviewErrorBoundary extends React.Component<
+  { children: React.ReactNode; fallbackHint?: string },
+  { error: Error | null }
+> {
+  state = { error: null as Error | null };
+  static getDerivedStateFromError(error: Error) {
+    return { error };
+  }
+  componentDidCatch(error: Error) {
+    // eslint-disable-next-line no-console
+    console.error('[MetadataPreview] render failed', error);
+  }
+  render() {
+    if (this.state.error) {
+      return (
+        <PreviewMessage tone="error">
+          <div className="font-medium">Preview failed to render</div>
+          <div className="text-xs mt-1 font-mono opacity-80">{this.state.error.message}</div>
+          {this.props.fallbackHint && (
+            <div className="text-xs mt-2 opacity-70">{this.props.fallbackHint}</div>
+          )}
+        </PreviewMessage>
+      );
+    }
+    return this.props.children as React.ReactElement;
+  }
+}

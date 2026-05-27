@@ -30,6 +30,7 @@ import {
   Loader2,
   AlertTriangle,
   Layers3,
+  Eye,
 } from 'lucide-react';
 import { Button } from '@object-ui/components';
 import { Badge } from '@object-ui/components';
@@ -67,6 +68,7 @@ import {
 } from './registry';
 import { RelatedPanel, type RelatedTarget } from './RelatedPanel';
 import { MetadataDetailDrawer } from './MetadataDetailDrawer';
+import { getMetadataPreview } from './preview-registry';
 
 export interface MetadataResourceEditPageProps {
   type?: string;
@@ -341,6 +343,11 @@ export function MetadataResourceEditPage({
   const DesignerTab = !createMode ? customConfig?.DesignerTab : undefined;
   const designerTabLabel = customConfig?.designerTabLabel ?? 'Designer';
 
+  // Preview tab — opt-in via `registerMetadataPreview()`. Hidden in
+  // create mode (nothing to preview yet) and inside the embedded
+  // drawer (the parent context owns the preview surface).
+  const PreviewComponent = !createMode && !embedded ? getMetadataPreview(type) : undefined;
+
   return (
     <PageShell
       entry={entry ?? { type, label: type }}
@@ -409,6 +416,12 @@ export function MetadataResourceEditPage({
               <TabsTrigger value="designer">{designerTabLabel}</TabsTrigger>
             )}
             <TabsTrigger value="form">Form</TabsTrigger>
+            {PreviewComponent && (
+              <TabsTrigger value="preview">
+                <Eye className="h-3.5 w-3.5 mr-1" />
+                Preview
+              </TabsTrigger>
+            )}
             {!createMode && (
               <TabsTrigger value="layers">
                 Layers
@@ -461,6 +474,12 @@ export function MetadataResourceEditPage({
               widgetContext={widgetContext}
             />
           </TabsContent>
+
+          {PreviewComponent && (
+            <TabsContent value="preview" className="mt-4">
+              <PreviewComponent type={type} name={name} draft={draft} />
+            </TabsContent>
+          )}
 
           {!createMode && (
             <TabsContent value="layers" className="mt-4">

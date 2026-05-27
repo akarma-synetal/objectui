@@ -61,6 +61,19 @@ registerBuiltinAnchors();
 import { registerDefaultMetadataSchemas } from './default-schemas';
 registerDefaultMetadataSchemas();
 
+// Side-effect: register built-in Preview-tab renderers (page, view,
+// dashboard, report, app, object, email_template). Plugins can add or
+// override entries via `registerMetadataPreview()`.
+import { registerBuiltinPreviews } from './previews';
+registerBuiltinPreviews();
+
+export {
+  registerMetadataPreview,
+  getMetadataPreview,
+  listMetadataPreviewTypes,
+} from './preview-registry';
+export type { MetadataPreview, MetadataPreviewProps } from './preview-registry';
+
 export {
   useMetadataClient,
   useMetadataTypes,
