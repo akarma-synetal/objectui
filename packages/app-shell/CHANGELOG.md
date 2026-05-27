@@ -1,5 +1,47 @@
 # @object-ui/app-shell — Changelog
 
+## 6.2.2
+
+### Patch Changes
+
+- c5821ce: `AiChatPage` no longer PATCHes a client-side title-from-first-message
+  on the freshly-created conversation. The server (`@objectstack/service-ai`
+  ≥ next minor) now generates a concise LLM-summarised title fire-and-forget
+  after the first assistant turn lands, and a client-side truncated title
+  would race that and win — pinning every conversation row to a 40-char
+  substring of the first user message instead of a real summary.
+
+  Drop the PATCH; bump the sidebar list a couple of times (2.5 s + 6 s)
+  to pick up the LLM title whenever the model finally responds.
+
+- 3b35084: Fix: floating chatbot now replays persisted conversation history on mount.
+
+  The right-corner floating chatbot (`ConsoleFloatingChatbot`) was passing only
+  `conversationId` to its inner `useObjectChat`, dropping the `initialMessages`
+  returned by `useChatConversation`. Backend persistence already worked — the
+  server-side `ai_conversation` + `ai_message` rows were created and survived a
+  page refresh — but the UI started each session with just the static "welcome"
+  bubble, making users believe their history had been lost.
+
+  Now matches the `/ai/:conversationId` full-page chat: history is hydrated
+  into the chat surface, and the welcome bubble is suppressed when prior turns
+  exist (showing it above real user/assistant turns is confusing).
+
+- Updated dependencies [a66f788]
+  - @object-ui/react@6.2.2
+  - @object-ui/components@6.2.2
+  - @object-ui/fields@6.2.2
+  - @object-ui/layout@6.2.2
+  - @object-ui/plugin-editor@6.2.2
+  - @object-ui/types@6.2.2
+  - @object-ui/core@6.2.2
+  - @object-ui/i18n@6.2.2
+  - @object-ui/data-objectstack@6.2.2
+  - @object-ui/auth@6.2.2
+  - @object-ui/permissions@6.2.2
+  - @object-ui/collaboration@6.2.2
+  - @object-ui/providers@6.2.2
+
 ## 6.2.1
 
 ### Patch Changes
