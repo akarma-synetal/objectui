@@ -8,16 +8,35 @@
 
 import { useAuth } from './useAuth';
 
+const ADMIN_ROLES = new Set([
+  'owner',
+  'admin',
+  'super_admin',
+  'superadmin',
+  'platform_admin',
+  'system_admin',
+]);
+
+function isAdminRole(role: unknown): boolean {
+  return typeof role === 'string' && ADMIN_ROLES.has(role.toLowerCase());
+}
+
 /**
- * Returns true when the current user has owner/admin role on the active
- * organization. Defaults to `false` until the active member row has loaded —
- * this avoids flashing admin-only UI to regular members on first paint.
+ * Returns true when the current user has owner/admin privileges.
  *
- * In preview-mode / no-auth-enabled mode the provider seeds an admin member,
+ * Sources considered (any one is sufficient):
+ *  - The active organization member row (multi-tenant mode).
+ *  - The top-level `user.role` / `user.roles` from the session — this covers
+ *    platform / system administrators in single-tenant deployments where
+ *    there is no `activeMember` row to read a role from.
+ *
+ * In preview-mode / no-auth-enabled mode the provider seeds an admin user,
  * so this returns `true` for dev/demo setups.
  */
 export function useIsWorkspaceAdmin(): boolean {
-  const { activeMember } = useAuth();
-  const role = String(activeMember?.role ?? '').toLowerCase();
-  return role === 'owner' || role === 'admin';
+  const { activeMember, user } = useAuth();
+  if (isAdminRole(activeMember?.role)) return true;
+  if (isAdminRole(user?.role)) return true;
+  if (Array.isArray(user?.roles) && user!.roles!.some(isAdminRole)) return true;
+  return false;
 }
