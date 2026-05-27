@@ -1,5 +1,15 @@
 # @object-ui/plugin-markdown
 
+## 6.2.2
+
+### Patch Changes
+
+- Updated dependencies [a66f788]
+  - @object-ui/react@6.2.2
+  - @object-ui/components@6.2.2
+  - @object-ui/types@6.2.2
+  - @object-ui/core@6.2.2
+
 ## 6.2.1
 
 ### Patch Changes

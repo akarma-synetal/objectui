@@ -1,5 +1,11 @@
 # @object-ui/collaboration
 
+## 6.2.2
+
+### Patch Changes
+
+- @object-ui/types@6.2.2
+
 ## 6.2.1
 
 ### Patch Changes
