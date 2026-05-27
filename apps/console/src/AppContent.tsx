@@ -25,6 +25,10 @@ const AiPendingActionsPage = lazy(() => import('./pages/system/AiPendingActionsP
 const AuditLogPage = lazy(() => import('./pages/system/AuditLogPage').then(m => ({ default: m.AuditLogPage })));
 const SettingsHub = lazy(() => import('./pages/settings/SettingsHub').then(m => ({ default: m.SettingsHub })));
 const SettingsView = lazy(() => import('./pages/settings/SettingsView').then(m => ({ default: m.SettingsView })));
+const DeveloperHubPage = lazy(() => import('./pages/developer/DeveloperHubPage').then(m => ({ default: m.DeveloperHubPage })));
+const ApiConsolePage = lazy(() => import('./pages/developer/ApiConsolePage').then(m => ({ default: m.ApiConsolePage })));
+const FlowRunsPage = lazy(() => import('./pages/developer/FlowRunsPage').then(m => ({ default: m.FlowRunsPage })));
+const PublicFormsPage = lazy(() => import('./pages/developer/PublicFormsPage').then(m => ({ default: m.PublicFormsPage })));
 
 // Note: marketplace routes (`system/marketplace`, `system/marketplace/:packageId`)
 // are registered by DefaultAppContent in @object-ui/app-shell so they're
@@ -58,6 +62,10 @@ const systemRoutes = (
     <Route path="system/audit-log" element={<Suspense fallback={<LoadingScreen />}><AuditLogPage /></Suspense>} />
     <Route path="system/settings" element={<Suspense fallback={<LoadingScreen />}><SettingsHub /></Suspense>} />
     <Route path="system/settings/:namespace" element={<Suspense fallback={<LoadingScreen />}><SettingsView /></Suspense>} />
+    <Route path="developer" element={<Suspense fallback={<LoadingScreen />}><DeveloperHubPage /></Suspense>} />
+    <Route path="developer/api-console" element={<Suspense fallback={<LoadingScreen />}><ApiConsolePage /></Suspense>} />
+    <Route path="developer/flow-runs" element={<Suspense fallback={<LoadingScreen />}><FlowRunsPage /></Suspense>} />
+    <Route path="developer/public-forms" element={<Suspense fallback={<LoadingScreen />}><PublicFormsPage /></Suspense>} />
     {ENABLE_LEGACY_METADATA_EDITOR && (
       <>
         <Route path="system/objects" element={<ObjectRedirect />} />

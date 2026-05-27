@@ -365,6 +365,18 @@ export function AppContent({ extraRoutes, extraRoutesNoApp }: AppContentProps = 
               <RouteFader>
                 <Routes>
                 <Route path="/" element={<Navigate to={resolveLandingRoute(activeApp)} replace />} />
+                {/* Metadata admin routes — declared BEFORE the generic
+                    `:objectName/...` routes so the static `metadata` prefix
+                    wins React Router's score tiebreaker (both
+                    `metadata/:type/:name` and `:objectName/view/:viewId`
+                    score 16; declaration order breaks the tie). */}
+                <Route path="metadata">
+                  <Route index element={<MetadataDirectoryPage />} />
+                  <Route path=":type" element={<MetadataResourceListPage />} />
+                  <Route path=":type/new" element={<MetadataResourceEditPage createMode />} />
+                  <Route path=":type/:name" element={<MetadataResourceEditPage />} />
+                  <Route path=":type/:name/history" element={<MetadataResourceHistoryPage />} />
+                </Route>
                 <Route path=":objectName" element={
                   <ObjectView dataSource={dataSource} objects={allObjects} onEdit={handleEdit} externalRefreshKey={refreshKey} />
                 } />
@@ -383,18 +395,6 @@ export function AppContent({ extraRoutes, extraRoutesNoApp }: AppContentProps = 
                 <Route path="dashboard/:dashboardName" element={<DashboardView dataSource={dataSource} />} />
                 <Route path="report/:reportName" element={<ReportView dataSource={dataSource} />} />
                 <Route path="page/:pageName" element={<PageView />} />
-                {/* Phase 3b: Component nav target — `metadata:resource` →
-                    /component/metadata/resource. The trailing /* lets the
-                    rendered component handle its own sub-routing (e.g.
-                    list / new / edit / history) without re-registering
-                    routes here. */}
-                <Route path="metadata">
-                  <Route index element={<MetadataDirectoryPage />} />
-                  <Route path=":type" element={<MetadataResourceListPage />} />
-                  <Route path=":type/new" element={<MetadataResourceEditPage createMode />} />
-                  <Route path=":type/:name" element={<MetadataResourceEditPage />} />
-                  <Route path=":type/:name/history" element={<MetadataResourceHistoryPage />} />
-                </Route>
                 <Route path="component/:ns/:name/*" element={<ComponentNavView />} />
                 {/* Legacy: old metadata routes built before the REST-style nesting
                     landed. Redirect to the new /metadata/:type/... shape. */}

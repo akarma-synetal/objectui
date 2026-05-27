@@ -28,6 +28,7 @@ import {
   Settings as SettingsIcon,
   Store,
   Bot,
+  Terminal,
 } from 'lucide-react';
 import { useAdapter, useMetadata } from '@object-ui/app-shell';
 import { useIsWorkspaceAdmin } from '@object-ui/auth';
@@ -189,6 +190,14 @@ export function SystemHubPage() {
       description: 'Configure mail, branding, feature flags, and more',
       icon: SettingsIcon,
       href: `${basePath}/system/settings`,
+      countLabel: '',
+      count: null,
+    },
+    {
+      title: 'Developer',
+      description: 'API console, flow runs, and public form management',
+      icon: Terminal,
+      href: `${basePath}/developer`,
       countLabel: '',
       count: null,
     },
