@@ -478,13 +478,13 @@ export function MetadataResourceEditPage({
             {DesignerTab && (
               <TabsTrigger value="designer">{designerTabLabel}</TabsTrigger>
             )}
-            <TabsTrigger value="form">Form</TabsTrigger>
             {PreviewComponent && (
               <TabsTrigger value="preview">
                 <Eye className="h-3.5 w-3.5 mr-1" />
                 Preview
               </TabsTrigger>
             )}
+            <TabsTrigger value="form">Detail</TabsTrigger>
             {!createMode && (
               <TabsTrigger value="layers">
                 Layers
