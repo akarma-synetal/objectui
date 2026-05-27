@@ -38,6 +38,8 @@ export function registerBuiltinAnchors(): void {
     anchors: [{
       anchorType: 'object',
       source: 'embedded',
+      editAs: 'field',
+      embeddedPath: 'fields',
       extract: (parent) => mapOrArrayToList((parent as { fields?: unknown }).fields),
       groupLabel: 'Fields',
       order: 5,
@@ -50,6 +52,7 @@ export function registerBuiltinAnchors(): void {
     anchors: [{
       anchorType: 'object',
       source: 'embedded',
+      embeddedPath: 'indexes',
       extract: (parent) => {
         const raw = (parent as { indexes?: unknown }).indexes;
         if (!Array.isArray(raw)) return [];
@@ -71,6 +74,8 @@ export function registerBuiltinAnchors(): void {
     anchors: [{
       anchorType: 'object',
       source: 'embedded',
+      editAs: 'validation',
+      embeddedPath: 'validations',
       extract: (parent) => mapOrArrayToList((parent as { validations?: unknown }).validations),
       groupLabel: 'Embedded Validations',
       order: 15,

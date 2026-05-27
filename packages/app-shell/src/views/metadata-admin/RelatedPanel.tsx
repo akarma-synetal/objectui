@@ -68,6 +68,10 @@ export type RelatedTarget =
       groupLabel: string;
       itemName: string;
       raw: Record<string, unknown>;
+      /** Metadata type whose schema drives the editor (e.g. 'field'). */
+      editAs?: string;
+      /** Dotted path inside parent where this collection lives (e.g. 'fields'). */
+      embeddedPath?: string;
     };
 
 interface ChildItem {
@@ -300,6 +304,8 @@ export function RelatedPanel({
                                   g.anchor.groupLabel ?? g.childType,
                                 itemName: it.name,
                                 raw: it.raw,
+                                editAs: g.anchor.editAs,
+                                embeddedPath: g.anchor.embeddedPath,
                               }
                             : {
                                 kind: 'metadata',

@@ -28,6 +28,7 @@ import {
   cn,
 } from '@object-ui/components';
 import { MetadataResourceEditPage } from './ResourceEditPage';
+import { EmbeddedItemEditor } from './EmbeddedItemEditor';
 import type { RelatedTarget } from './RelatedPanel';
 
 export interface MetadataDetailDrawerProps {
@@ -118,30 +119,19 @@ export function MetadataDetailDrawer({
               embedded
             />
           )}
-          {isEmbedded && <EmbeddedItemView raw={target.raw} />}
+          {isEmbedded && (
+            <EmbeddedItemEditor
+              key={`${target.parentType}/${target.parentName}/${target.embeddedPath}/${target.itemName}`}
+              parentType={target.parentType}
+              parentName={target.parentName}
+              embeddedPath={target.embeddedPath}
+              itemName={target.itemName}
+              editAs={target.editAs}
+              initialRaw={target.raw}
+            />
+          )}
         </div>
       </SheetContent>
     </Sheet>
-  );
-}
-
-/**
- * Read-only JSON preview for embedded items (fields, indexes, embedded
- * validations). Editing happens via the parent's Form tab; jumping
- * straight to that field is a future enhancement — for now the user
- * can inspect the spec here and click "Edit in Form tab" in the panel.
- */
-function EmbeddedItemView({ raw }: { raw: Record<string, unknown> }) {
-  const json = React.useMemo(() => JSON.stringify(raw, null, 2), [raw]);
-  return (
-    <div className="p-4 space-y-3">
-      <div className="text-xs text-muted-foreground">
-        This item lives inside its parent's body. Edit it in the parent's{' '}
-        <span className="font-medium">Form</span> tab.
-      </div>
-      <pre className="text-xs font-mono bg-muted/40 border rounded p-3 overflow-auto whitespace-pre-wrap break-all">
-        {json}
-      </pre>
-    </div>
   );
 }

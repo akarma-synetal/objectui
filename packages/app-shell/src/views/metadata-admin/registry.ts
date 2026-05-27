@@ -186,6 +186,23 @@ export interface MetadataAnchor {
    * numbers float to the top. Defaults to 100 if unset.
    */
   order?: number;
+  /**
+   * For `source: 'embedded'` only. The metadata type whose schema /
+   * form should drive the embedded item's editor. Defaults to the
+   * synthetic `type` from the registration when omitted (which will
+   * fall back to JSON view).
+   *
+   * Example: object.fields → `editAs: 'field'` so the embedded editor
+   * pulls `field`'s schema + form from `/meta/types`.
+   */
+  editAs?: string;
+  /**
+   * For `source: 'embedded'` only. Dotted path inside the parent body
+   * where the collection lives (e.g. `fields`, `validations`). Used by
+   * the embedded editor to write the modified item back into the
+   * parent on save.
+   */
+  embeddedPath?: string;
 }
 
 /**
