@@ -175,7 +175,7 @@ export function ShareDialog({
     () =>
       `${apiBase.replace(/\/+$/, '')}/v1/share-links?object=${encodeURIComponent(
         objectName,
-      )}&record=${encodeURIComponent(recordId)}`,
+      )}&recordId=${encodeURIComponent(recordId)}`,
     [apiBase, objectName, recordId],
   );
 
@@ -216,11 +216,11 @@ export function ShareDialog({
         headers: h,
         credentials: 'include',
         body: JSON.stringify({
-          object_name: objectName,
-          record_id: recordId,
+          object: objectName,
+          recordId,
           permission: draft.permission,
           audience: draft.audience,
-          expires_at: expiresAt,
+          expiresAt,
           password: draft.password.trim() || undefined,
           label: draft.label.trim() || undefined,
         }),

@@ -34,6 +34,7 @@ import { CloudAwareRootRedirect } from './components/CloudAwareRootRedirect';
 import { FormPage } from './components/FormPage';
 import { MetadataHmrReloader } from './components/MetadataHmrReloader';
 import { SignOutOverlay } from './components/SignOutOverlay';
+import SharedRecordPage from './pages/SharedRecordPage';
 import {
   gotoAccountLogin,
   gotoAccountRegister,
@@ -145,6 +146,13 @@ export function App() {
               * FormView whose `sharing.allowAnonymous === true`.
               */}
             <Route path="/f/:slug" element={<FormPage mode="public" />} />
+            {/*
+              * Public capability-token landing page. Lives outside
+              * ProtectedRoute so anonymous visitors can open a share
+              * link. The page itself talks directly to the framework
+              * REST API and renders a read-only view.
+              */}
+            <Route path="/s/:token" element={<SharedRecordPage />} />
             {/* Internal authed form — same renderer, different submit path. */}
             <Route path="/forms/:name" element={
               <ProtectedRoute>
