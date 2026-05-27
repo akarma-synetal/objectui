@@ -41,7 +41,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@object-ui/components';
-import { Badge } from '@object-ui/components';
 import { Button } from '@object-ui/components';
 import { Plus, Trash2, ChevronDown, ChevronRight } from 'lucide-react';
 import {
@@ -545,25 +544,68 @@ function FieldRow({
   const label = (schema?.title as string) || prettify(name);
   const description = schema?.description as string | undefined;
   const id = `mdf-${name}`;
-  
+
   // Auto-infer widget from fieldSpec.type or schema
   const widget = inferWidget(fieldSpec, schema);
-  
+
+  // Booleans with a schema default are never *missing* — don't show the
+  // required asterisk (which would otherwise lie about user obligation).
+  const isBoolean = schema?.type === 'boolean' || widget === 'switch';
+  const hasDefault = schema?.default !== undefined;
+  const showRequiredStar = required && !(isBoolean && hasDefault);
+
+  // Only show the machine name when it materially differs from the
+  // prettified label (e.g. `is_active` → "Is Active" matches, hide it;
+  // `rls` → "Rls" doesn't, show it). Cuts ~50% of the visual noise.
+  const labelMatchesName = prettify(name).toLowerCase() === label.toLowerCase();
+
+  // Booleans render inline (label · description · switch) on one row to
+  // save vertical space and feel like a real settings panel.
+  if (isBoolean) {
+    return (
+      <div className="flex items-start justify-between gap-3 py-1.5">
+        <div className="min-w-0 flex-1">
+          <Label htmlFor={id} className="text-sm font-medium cursor-pointer">
+            {label}
+            {showRequiredStar && <span className="text-destructive ml-0.5">*</span>}
+          </Label>
+          {description && (
+            <div className="text-xs text-muted-foreground mt-0.5">{description}</div>
+          )}
+          {issues?.map((m, i) => (
+            <div key={i} className="text-xs text-destructive mt-0.5">{m}</div>
+          ))}
+        </div>
+        <FieldControl
+          id={id}
+          schema={schema}
+          value={value}
+          onChange={onChange}
+          readOnly={readOnly}
+          widget={widget}
+          fieldSpec={fieldSpec}
+          widgetContext={widgetContext}
+          formData={formData}
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-1.5">
       <div className="flex items-center justify-between gap-2">
         <Label htmlFor={id} className="text-sm font-medium">
           {label}
-          {required && <span className="text-destructive ml-0.5">*</span>}
-          <code className="ml-2 text-[10px] font-mono text-muted-foreground">
-            {name}
-          </code>
+          {showRequiredStar && <span className="text-destructive ml-0.5">*</span>}
+          {!labelMatchesName && (
+            <code
+              className="ml-2 text-[10px] font-mono text-muted-foreground/70"
+              title="Machine name"
+            >
+              {name}
+            </code>
+          )}
         </Label>
-        {(widget || fieldSpec?.type || schema?.type) && (
-          <Badge variant="outline" className="text-[10px] font-mono">
-            {widget ?? fieldSpec?.type ?? schemaTypeLabel(schema)}
-          </Badge>
-        )}
       </div>
       <FieldControl
         id={id}
@@ -609,14 +651,21 @@ function FieldControl({
   widgetContext?: WidgetContext;
   formData?: Record<string, unknown>;
 }) {
-  // Composite / repeater are first-class structured types — render natively
+  // Composite/repeater are first-class structured types — render natively
   // with recursive FieldRow calls so all UI features (widgets, options,
   // visibility, readonly) work uniformly at every nesting level.
-  if (fieldSpec?.type === 'composite' && fieldSpec.fields?.length) {
+  // When `fields` is omitted, fall back to schema-derived sub-fields
+  // (all schema.properties / items.properties) so authors don't have to
+  // enumerate every sub-property by hand.
+  if (fieldSpec?.type === 'composite') {
+    const fields =
+      fieldSpec.fields?.length
+        ? fieldSpec.fields
+        : derivePropertyNames(schema);
     return (
       <CompositeField
         value={value}
-        fields={fieldSpec.fields}
+        fields={fields}
         schema={schema}
         readOnly={readOnly}
         widgetContext={widgetContext}
@@ -624,11 +673,16 @@ function FieldControl({
       />
     );
   }
-  if (fieldSpec?.type === 'repeater' && fieldSpec.fields?.length) {
+  if (fieldSpec?.type === 'repeater') {
+    const itemSchema = (schema?.items as JsonSchema | undefined) ?? {};
+    const fields =
+      fieldSpec.fields?.length
+        ? fieldSpec.fields
+        : derivePropertyNames(itemSchema);
     return (
       <RepeaterField
         value={value}
-        fields={fieldSpec.fields}
+        fields={fields}
         schema={schema}
         readOnly={readOnly}
         widgetContext={widgetContext}
@@ -726,20 +780,16 @@ function FieldControl({
     );
   }
 
-  // Boolean → Switch.
+  // Boolean → Switch (no redundant "true/false" text; the toggle state
+  // already conveys the value).
   if (schema?.type === 'boolean') {
     return (
-      <div className="flex items-center">
-        <Switch
-          id={id}
-          checked={!!value}
-          onCheckedChange={(c) => onChange(c)}
-          disabled={readOnly}
-        />
-        <span className="ml-2 text-xs text-muted-foreground">
-          {value ? 'true' : 'false'}
-        </span>
-      </div>
+      <Switch
+        id={id}
+        checked={!!value}
+        onCheckedChange={(c) => onChange(c)}
+        disabled={readOnly}
+      />
     );
   }
 
@@ -1177,20 +1227,19 @@ function prettify(key: string): string {
     .replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
-function schemaTypeLabel(schema: JsonSchema): string {
-  if (schema?.enum) return 'enum';
-  if (Array.isArray(schema?.type)) return schema.type.join('|');
-  if (schema?.type === 'array') {
-    const inner = (schema?.items as JsonSchema | undefined)?.type;
-    return inner ? `${inner}[]` : 'array';
-  }
-  return (schema?.type as string) || 'any';
-}
-
 function orderKeys(keys: string[], preferred: string[]): string[] {
   if (!preferred.length) return keys;
   const set = new Set(keys);
   const head = preferred.filter((k) => set.has(k));
   const tail = keys.filter((k) => !preferred.includes(k));
   return [...head, ...tail];
+}
+
+/**
+ * Derive a fields[] list for `composite` / `repeater` from a JSON schema.
+ * Used when the form author hasn't explicitly enumerated sub-fields.
+ */
+function derivePropertyNames(schema: JsonSchema | undefined): string[] {
+  const props = (schema?.properties ?? {}) as Record<string, unknown>;
+  return Object.keys(props);
 }

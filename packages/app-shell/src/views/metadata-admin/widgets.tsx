@@ -647,94 +647,6 @@ function StringTagsWidget({
   );
 }
 
-/* -------------------------------------------------------------------------- */
-/* object-fields — render each property of a nested object (recursive)        */
-/* -------------------------------------------------------------------------- */
-
-function ObjectFieldsWidget({
-  schema,
-  value,
-  onChange,
-  readOnly,
-  context,
-  formData,
-}: WidgetProps) {
-  const props = (schema?.properties ?? {}) as Record<string, any>;
-  const required = new Set<string>(
-    Array.isArray(schema?.required) ? (schema!.required as string[]) : [],
-  );
-  const keys = Object.keys(props);
-  const obj = (value && typeof value === 'object'
-    ? (value as Record<string, unknown>)
-    : {}) as Record<string, unknown>;
-
-  if (keys.length === 0) {
-    return (
-      <div className="text-xs text-muted-foreground">
-        (no properties declared)
-      </div>
-    );
-  }
-
-  function set(k: string, v: unknown) {
-    const next = { ...obj };
-    if (v === undefined || v === '' || v === null) {
-      delete next[k];
-    } else {
-      next[k] = v;
-    }
-    onChange(Object.keys(next).length === 0 ? undefined : next);
-  }
-
-  return (
-    <div className="space-y-3 rounded border border-border/40 bg-card/30 p-4">
-      {keys.map((k) => {
-        const sub = props[k] ?? {};
-        const title = (sub.title as string) ?? k;
-        const desc = sub.description as string | undefined;
-        const isReq = required.has(k);
-        
-        // For nested objects, use recursive rendering instead of RowCell
-        const isNested = sub.type === 'object' && sub.properties;
-        
-        return (
-          <div key={k} className="space-y-1.5">
-            <Label className="text-sm font-medium">
-              {title}
-              {isReq && <span className="text-destructive ml-0.5">*</span>}
-              <code className="ml-2 text-[10px] font-mono text-muted-foreground">
-                {k}
-              </code>
-            </Label>
-            {isNested ? (
-              // Recursive: nested object gets its own ObjectFieldsWidget
-              <ObjectFieldsWidget
-                schema={sub}
-                value={obj[k]}
-                onChange={(v) => set(k, v)}
-                readOnly={readOnly}
-                context={context}
-                formData={formData}
-              />
-            ) : (
-              // Simple field: use RowCell
-              <RowCell
-                schema={sub}
-                value={obj[k]}
-                readOnly={readOnly}
-                context={context}
-                onChange={(v) => set(k, v)}
-              />
-            )}
-            {desc && (
-              <p className="text-xs text-muted-foreground">{desc}</p>
-            )}
-          </div>
-        );
-      })}
-    </div>
-  );
-}
 
 /* -------------------------------------------------------------------------- */
 /* registry                                                                   */
@@ -746,7 +658,6 @@ export const WIDGETS: Record<string, WidgetRenderer> = {
   'field-selector': FieldSelectorWidget,
   'master-detail': MasterDetailWidget,
   'string-tags': StringTagsWidget,
-  'object-fields': ObjectFieldsWidget,
   'code': CodeWidget,
   // Reasonable fallbacks until dedicated builders ship:
   'filter-builder': MasterDetailWidget,
