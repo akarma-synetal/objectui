@@ -379,6 +379,7 @@ export function MetadataResourceEditPage({
               hiddenFields={config.hiddenFields}
               fieldOrder={config.fieldOrder}
               readOnly={readOnly}
+              createMode={createMode}
               widgetContext={widgetContext}
             />
           </TabsContent>

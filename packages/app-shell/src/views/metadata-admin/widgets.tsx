@@ -58,6 +58,19 @@ export interface WidgetProps {
     max?: number;
     multiple?: boolean;
     dependsOn?: string | string[];  // NEW: field name(s) this widget depends on
+    /** Sub-fields for `composite` / `repeater` types */
+    fields?: Array<any>;
+    /** Code editor language (for type=code) */
+    language?: string;
+    /** Form-level helpers passed through from FormField */
+    label?: string;
+    placeholder?: string;
+    helpText?: string;
+    widget?: string;
+    colSpan?: number;
+    immutable?: boolean;
+    readonly?: boolean;
+    required?: boolean;
   };
   /** All form data (for reading dependency values) */
   formData?: Record<string, unknown>;
@@ -734,6 +747,70 @@ export const WIDGETS: Record<string, WidgetRenderer> = {
   'master-detail': MasterDetailWidget,
   'string-tags': StringTagsWidget,
   'object-fields': ObjectFieldsWidget,
+  'code': CodeWidget,
   // Reasonable fallbacks until dedicated builders ship:
   'filter-builder': MasterDetailWidget,
 };
+
+/* -------------------------------------------------------------------------- */
+/* CodeWidget — Monaco editor for `type: 'code'` fields                       */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Infer language from fieldSpec.language → schema.format → field name.
+ */
+function inferCodeLanguage(fieldSpec?: WidgetProps['fieldSpec'], schema?: Record<string, any>): string {
+  if (fieldSpec?.language) return fieldSpec.language;
+  if (typeof schema?.format === 'string') {
+    const f = schema.format.toLowerCase();
+    if (f === 'sql' || f === 'javascript' || f === 'typescript' || f === 'json' || f === 'yaml' || f === 'html' || f === 'css' || f === 'python') return f;
+  }
+  // Common hook/action field name heuristics
+  const name = fieldSpec?.field?.toLowerCase() ?? '';
+  if (name.includes('sql') || name === 'query') return 'sql';
+  if (name === 'source' || name === 'body' || name === 'script' || name === 'handler') return 'javascript';
+  if (name === 'expression' || name === 'predicate' || name === 'formula' || name === 'condition') return 'javascript';
+  return 'javascript';
+}
+
+const LazyCodeEditor = React.lazy(() =>
+  import('@object-ui/plugin-editor').then((m) => ({ default: m.CodeEditorRenderer })),
+);
+
+export function CodeWidget({
+  schema,
+  value,
+  onChange,
+  readOnly,
+  fieldSpec,
+}: WidgetProps) {
+  const language = inferCodeLanguage(fieldSpec, schema);
+  const stringValue = typeof value === 'string' ? value : (value == null ? '' : String(value));
+  return (
+    <div className="rounded-md border border-border/50 overflow-hidden">
+      <div className="flex items-center justify-between px-2 py-1 bg-muted/40 border-b border-border/30 text-[10px] font-mono text-muted-foreground">
+        <span>{language}</span>
+        {readOnly && <span>read-only</span>}
+      </div>
+      <React.Suspense
+        fallback={
+          <div className="h-[280px] flex items-center justify-center text-xs text-muted-foreground">
+            Loading editor…
+          </div>
+        }
+      >
+        <LazyCodeEditor
+          schema={{
+            type: 'code',
+            language,
+            theme: 'vs-dark',
+            height: '280px',
+            readOnly,
+          }}
+          value={stringValue}
+          onChange={(v) => onChange(v ?? '')}
+        />
+      </React.Suspense>
+    </div>
+  );
+}

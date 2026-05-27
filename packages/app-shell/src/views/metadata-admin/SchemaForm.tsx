@@ -42,6 +42,8 @@ import {
   SelectValue,
 } from '@object-ui/components';
 import { Badge } from '@object-ui/components';
+import { Button } from '@object-ui/components';
+import { Plus, Trash2, ChevronDown, ChevronRight } from 'lucide-react';
 import {
   Tabs,
   TabsList,
@@ -94,7 +96,13 @@ function inferWidget(
     // Selection
     if (t === 'select' || t === 'radio') return fieldSpec.multiple ? 'multiselect' : 'select';
     if (t === 'multiselect' || t === 'checkboxes' || t === 'tags') return 'string-tags';
-    
+
+    // Embedded structured (composite/repeater handled natively in FieldControl
+    // BEFORE the WIDGETS registry — return the type name so the badge is
+    // accurate; FieldControl short-circuits before widget lookup).
+    if (t === 'composite') return 'composite';
+    if (t === 'repeater') return 'repeater';
+
     // Relational
     if (t === 'lookup' || t === 'master_detail') return 'ref-object';
     if (t === 'tree') return 'ref-object';
@@ -103,7 +111,8 @@ function inferWidget(
     if (t === 'image' || t === 'file' || t === 'avatar' || t === 'video' || t === 'audio') return 'file-upload';
     
     // Code/JSON
-    if (t === 'code' || t === 'json') return 'json';
+    if (t === 'code') return 'code';
+    if (t === 'json') return 'json';
     
     // Enhanced
     if (t === 'location' || t === 'address') return 'json';
@@ -201,11 +210,22 @@ export interface FormFieldSpec {
   placeholder?: string;
   helpText?: string;
   readonly?: boolean;
+  /**
+   * When true, the field is editable on create but locked once the
+   * record exists (e.g. immutable `name` machine identifiers). Combined
+   * with `SchemaFormProps.createMode` at render time.
+   */
+  immutable?: boolean;
   required?: boolean;
   hidden?: boolean;
   colSpan?: 1 | 2 | 3 | 4;
   widget?: string;
+  /** For `type: 'code'` — syntax highlighting language (e.g. 'javascript', 'sql', 'json'). */
+  language?: string;
   visibleOn?: string | { dialect?: string; source: string };
+  /** Sub-fields for `composite` (single embedded object) and `repeater`
+   * (array of embedded objects) types. Recursive. */
+  fields?: Array<string | FormFieldSpec>;
 }
 
 export interface SchemaFormIssue {
@@ -234,6 +254,12 @@ export interface SchemaFormProps {
   fieldOrder?: string[];
   /** Disable all inputs (e.g. when env-var write lock is off). */
   readOnly?: boolean;
+  /**
+   * True when rendering the "new record" form (no existing item).
+   * Used by per-field `immutable: true` flag to allow editing on
+   * create but lock the value once the record exists.
+   */
+  createMode?: boolean;
   /** Out-of-band data widgets need (object list, etc). */
   widgetContext?: WidgetContext;
 }
@@ -247,19 +273,32 @@ export function SchemaForm({
   hiddenFields = [],
   fieldOrder = [],
   readOnly = false,
+  createMode = false,
   widgetContext,
 }: SchemaFormProps) {
-  // No schema → escape hatch: raw JSON textarea so admins still get
-  // SOMETHING. Better to expose a "JSON view" than a blank screen.
-  if (!schema || typeof schema !== 'object') {
-    return (
-      <RawJsonEditor value={value} onChange={onChange} readOnly={readOnly} />
-    );
+  // No schema → synthesize one from the value's top-level keys so the
+  // form renderer can still produce a structured, labelled view (with
+  // proper read-only semantics) instead of falling back to a raw JSON
+  // dump. This handles metadata types the framework hasn't yet shipped
+  // a Zod schema for (`hook`, `trigger`, `validation`, etc.).
+  //
+  // Editable + truly unknown shape → keep the raw JSON editor as a
+  // last resort, since we can't safely guess primitive types for
+  // fields the user might add.
+  let effectiveSchema: JsonSchema | undefined = schema;
+  if (!effectiveSchema || typeof effectiveSchema !== 'object') {
+    if (value && typeof value === 'object') {
+      effectiveSchema = inferSchemaFromValue(value as Record<string, unknown>);
+    } else {
+      return (
+        <RawJsonEditor value={value} onChange={onChange} readOnly={readOnly} />
+      );
+    }
   }
 
   // Resolve top-level object properties.
-  const props = (schema.properties ?? {}) as Record<string, JsonSchema>;
-  const required: string[] = Array.isArray(schema.required) ? schema.required : [];
+  const props = (effectiveSchema.properties ?? {}) as Record<string, JsonSchema>;
+  const required: string[] = Array.isArray(effectiveSchema.required) ? effectiveSchema.required : [];
   const keys = orderKeys(Object.keys(props), fieldOrder).filter(
     (k) => !hiddenFields.includes(k),
   );
@@ -294,6 +333,7 @@ export function SchemaForm({
         issuesByPath={issuesByPath}
         value={v as Record<string, unknown>}
         readOnly={readOnly}
+        createMode={createMode}
         widgetContext={widgetContext}
         onChange={setField}
       />
@@ -334,6 +374,7 @@ function SectionedSchemaForm({
   issuesByPath,
   value,
   readOnly,
+  createMode,
   widgetContext,
   onChange,
 }: {
@@ -344,6 +385,7 @@ function SectionedSchemaForm({
   issuesByPath: Record<string, string[]>;
   value: Record<string, unknown>;
   readOnly?: boolean;
+  createMode?: boolean;
   widgetContext?: WidgetContext;
   onChange: (key: string, val: unknown) => void;
 }) {
@@ -418,7 +460,7 @@ function SectionedSchemaForm({
                   value={value[f.field]}
                   required={f.required ?? required.includes(f.field)}
                   issues={issuesByPath[f.field]}
-                  readOnly={readOnly || f.readonly}
+                  readOnly={readOnly || f.readonly || (f.immutable && !createMode)}
                   fieldSpec={f}
                   widgetContext={widgetContext}
                   formData={value}
@@ -567,6 +609,35 @@ function FieldControl({
   widgetContext?: WidgetContext;
   formData?: Record<string, unknown>;
 }) {
+  // Composite / repeater are first-class structured types — render natively
+  // with recursive FieldRow calls so all UI features (widgets, options,
+  // visibility, readonly) work uniformly at every nesting level.
+  if (fieldSpec?.type === 'composite' && fieldSpec.fields?.length) {
+    return (
+      <CompositeField
+        value={value}
+        fields={fieldSpec.fields}
+        schema={schema}
+        readOnly={readOnly}
+        widgetContext={widgetContext}
+        onChange={onChange}
+      />
+    );
+  }
+  if (fieldSpec?.type === 'repeater' && fieldSpec.fields?.length) {
+    return (
+      <RepeaterField
+        value={value}
+        fields={fieldSpec.fields}
+        schema={schema}
+        readOnly={readOnly}
+        widgetContext={widgetContext}
+        widget={fieldSpec.widget}
+        onChange={onChange}
+      />
+    );
+  }
+
   // Widget hint takes precedence: try the registry first, then the
   // passthrough hint list, then fall back to JSON with an inline hint.
   if (widget) {
@@ -760,6 +831,228 @@ function FieldControl({
   return <RawJsonEditor value={value} onChange={onChange} readOnly={readOnly} small />;
 }
 
+/* ----- composite / repeater (embedded structured values) ----------------- */
+
+/**
+ * Resolve the JSONSchema fragment for a sub-field of a composite/repeater.
+ * Looks under parent `schema.properties[subName]` (composite) or
+ * `schema.items.properties[subName]` (repeater). Falls back to `{}`.
+ */
+function pickSubSchema(parent: JsonSchema | undefined, kind: 'composite' | 'repeater', subName: string): JsonSchema {
+  if (!parent) return {};
+  const props = kind === 'composite'
+    ? (parent.properties as Record<string, JsonSchema> | undefined)
+    : ((parent.items as JsonSchema | undefined)?.properties as Record<string, JsonSchema> | undefined);
+  return (props?.[subName] as JsonSchema) ?? {};
+}
+
+function CompositeField({
+  value,
+  fields,
+  schema,
+  readOnly,
+  widgetContext,
+  onChange,
+}: {
+  value: unknown;
+  fields: Array<string | FormFieldSpec>;
+  schema: JsonSchema;
+  readOnly?: boolean;
+  widgetContext?: WidgetContext;
+  onChange: (v: unknown) => void;
+}) {
+  const obj = (value && typeof value === 'object' && !Array.isArray(value))
+    ? (value as Record<string, unknown>)
+    : {};
+  const specs = fields.map(normaliseField);
+  return (
+    <div className="rounded-md border border-border/50 bg-muted/20 p-3 space-y-3">
+      {specs.map((spec) => {
+        const subSchema = pickSubSchema(schema, 'composite', spec.field);
+        return (
+          <FieldRow
+            key={spec.field}
+            name={spec.field}
+            schema={subSchema}
+            value={obj[spec.field]}
+            required={Boolean(spec.required)}
+            readOnly={readOnly || spec.readonly}
+            fieldSpec={spec}
+            widgetContext={widgetContext}
+            formData={obj}
+            onChange={(v) => onChange({ ...obj, [spec.field]: v })}
+          />
+        );
+      })}
+    </div>
+  );
+}
+
+function RepeaterField({
+  value,
+  fields,
+  schema,
+  readOnly,
+  widgetContext,
+  widget,
+  onChange,
+}: {
+  value: unknown;
+  fields: Array<string | FormFieldSpec>;
+  schema: JsonSchema;
+  readOnly?: boolean;
+  widgetContext?: WidgetContext;
+  widget?: string;
+  onChange: (v: unknown) => void;
+}) {
+  const rows = Array.isArray(value) ? (value as Array<Record<string, unknown>>) : [];
+  const specs = fields.map(normaliseField);
+  const [openIdx, setOpenIdx] = React.useState<number | null>(null);
+
+  // Default to card layout (one fieldset per row). `widget: 'grid'` opts
+  // into compact inline-table layout for short, atomic sub-fields.
+  const useGrid = widget === 'grid' || widget === 'table';
+
+  const update = (i: number, patch: Record<string, unknown>) => {
+    const next = rows.map((r, idx) => (idx === i ? { ...r, ...patch } : r));
+    onChange(next);
+  };
+  const remove = (i: number) => onChange(rows.filter((_, idx) => idx !== i));
+  const add = () => {
+    const blank: Record<string, unknown> = {};
+    specs.forEach((s) => { blank[s.field] = undefined; });
+    onChange([...rows, blank]);
+    setOpenIdx(rows.length);
+  };
+
+  if (useGrid) {
+    return (
+      <div className="space-y-2">
+        <div className="overflow-x-auto rounded-md border border-border/50">
+          <table className="w-full text-sm">
+            <thead className="bg-muted/40">
+              <tr>
+                {specs.map((s) => (
+                  <th key={s.field} className="px-2 py-1.5 text-left text-xs font-medium">
+                    {s.label || prettify(s.field)}
+                    {s.required && <span className="text-destructive ml-0.5">*</span>}
+                  </th>
+                ))}
+                {!readOnly && <th className="w-8" />}
+              </tr>
+            </thead>
+            <tbody>
+              {rows.length === 0 && (
+                <tr><td colSpan={specs.length + 1} className="px-2 py-3 text-center text-xs text-muted-foreground">
+                  No items. Click + to add.
+                </td></tr>
+              )}
+              {rows.map((row, idx) => (
+                <tr key={idx} className="border-t border-border/30 align-top">
+                  {specs.map((s) => {
+                    const sub = pickSubSchema(schema, 'repeater', s.field);
+                    return (
+                      <td key={s.field} className="p-1.5">
+                        <FieldControl
+                          id={`rep-${idx}-${s.field}`}
+                          schema={sub}
+                          value={row?.[s.field]}
+                          readOnly={readOnly || s.readonly}
+                          widget={inferWidget(s, sub)}
+                          fieldSpec={s}
+                          widgetContext={widgetContext}
+                          formData={row}
+                          onChange={(v) => update(idx, { [s.field]: v })}
+                        />
+                      </td>
+                    );
+                  })}
+                  {!readOnly && (
+                    <td className="p-1.5 text-right">
+                      <Button type="button" variant="ghost" size="sm" onClick={() => remove(idx)}
+                        className="h-7 w-7 p-0" aria-label="Remove">
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </td>
+                  )}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        {!readOnly && (
+          <Button type="button" variant="outline" size="sm" onClick={add}>
+            <Plus className="h-3.5 w-3.5 mr-1" /> Add
+          </Button>
+        )}
+      </div>
+    );
+  }
+
+  // Card layout — one collapsible fieldset per row.
+  return (
+    <div className="space-y-2">
+      {rows.length === 0 && (
+        <div className="rounded-md border border-dashed border-border/50 px-3 py-4 text-center text-xs text-muted-foreground">
+          No items yet.
+        </div>
+      )}
+      {rows.map((row, idx) => {
+        const isOpen = openIdx === idx;
+        const summary = specs
+          .map((s) => row?.[s.field])
+          .find((v) => v != null && v !== '');
+        return (
+          <div key={idx} className="rounded-md border border-border/50 bg-muted/10">
+            <div className="flex items-center justify-between gap-2 px-2 py-1.5 border-b border-border/30">
+              <button
+                type="button"
+                onClick={() => setOpenIdx(isOpen ? null : idx)}
+                className="flex items-center gap-1.5 text-sm font-medium text-left flex-1 min-w-0"
+              >
+                {isOpen ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
+                <span className="truncate">#{idx + 1}{summary != null ? ` — ${String(summary)}` : ''}</span>
+              </button>
+              {!readOnly && (
+                <Button type="button" variant="ghost" size="sm" onClick={() => remove(idx)}
+                  className="h-7 w-7 p-0" aria-label="Remove">
+                  <Trash2 className="h-3.5 w-3.5" />
+                </Button>
+              )}
+            </div>
+            {isOpen && (
+              <div className="p-3 space-y-3">
+                {specs.map((s) => {
+                  const sub = pickSubSchema(schema, 'repeater', s.field);
+                  return (
+                    <FieldRow
+                      key={s.field}
+                      name={s.field}
+                      schema={sub}
+                      value={row?.[s.field]}
+                      required={Boolean(s.required)}
+                      readOnly={readOnly || s.readonly}
+                      fieldSpec={s}
+                      widgetContext={widgetContext}
+                      formData={row}
+                      onChange={(v) => update(idx, { [s.field]: v })}
+                    />
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        );
+      })}
+      {!readOnly && (
+        <Button type="button" variant="outline" size="sm" onClick={add}>
+          <Plus className="h-3.5 w-3.5 mr-1" /> Add item
+        </Button>
+      )}
+    </div>
+  );
+}
+
 /* ----- raw JSON fallback -------------------------------------------------- */
 
 function RawJsonEditor({
@@ -811,6 +1104,59 @@ function RawJsonEditor({
       {error && <div className="text-xs text-destructive">{error}</div>}
     </div>
   );
+}
+
+/**
+ * Synthesize a minimal JSON Schema by introspecting a runtime value.
+ *
+ * Used as the fallback when the framework hasn't shipped a Zod schema
+ * for a metadata type (e.g. `hook`, `trigger`, `validation`). The
+ * resulting schema lets `SchemaForm` render a real labelled form
+ * (respecting `readOnly`) instead of bailing out to a raw JSON dump.
+ *
+ * Types are guessed conservatively from the value: scalars become
+ * `string` / `number` / `boolean`; arrays of strings become string
+ * tags; arrays of objects become master-detail tables; objects become
+ * nested JSON regions. Anything indeterminate falls back to `string`
+ * so the field still renders.
+ */
+function inferSchemaFromValue(value: Record<string, unknown>): JsonSchema {
+  const properties: Record<string, JsonSchema> = {};
+  for (const [k, v] of Object.entries(value)) {
+    if (k.startsWith('_')) continue;
+    if (v === null || v === undefined) {
+      properties[k] = { type: 'string' };
+    } else if (typeof v === 'string') {
+      properties[k] = v.length > 80 || v.includes('\n')
+        ? { type: 'string', format: 'multiline' }
+        : { type: 'string' };
+    } else if (typeof v === 'number') {
+      properties[k] = { type: Number.isInteger(v) ? 'integer' : 'number' };
+    } else if (typeof v === 'boolean') {
+      properties[k] = { type: 'boolean' };
+    } else if (Array.isArray(v)) {
+      if (v.length > 0 && typeof v[0] === 'string') {
+        properties[k] = { type: 'array', items: { type: 'string' } };
+      } else if (v.length > 0 && typeof v[0] === 'object' && v[0] !== null) {
+        const sample = v[0] as Record<string, unknown>;
+        const itemProps: Record<string, JsonSchema> = {};
+        for (const key of Object.keys(sample)) {
+          itemProps[key] = { type: 'string' };
+        }
+        properties[k] = {
+          type: 'array',
+          items: { type: 'object', properties: itemProps },
+        };
+      } else {
+        properties[k] = { type: 'array', items: { type: 'string' } };
+      }
+    } else if (typeof v === 'object') {
+      properties[k] = { type: 'object', additionalProperties: true };
+    } else {
+      properties[k] = { type: 'string' };
+    }
+  }
+  return { type: 'object', properties, additionalProperties: true };
 }
 
 /* ----- helpers ------------------------------------------------------------ */

@@ -859,6 +859,9 @@ importers:
       '@object-ui/plugin-detail':
         specifier: workspace:^
         version: link:../plugin-detail
+      '@object-ui/plugin-editor':
+        specifier: workspace:*
+        version: link:../plugin-editor
       '@object-ui/plugin-form':
         specifier: workspace:^
         version: link:../plugin-form

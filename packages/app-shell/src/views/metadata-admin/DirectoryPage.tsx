@@ -60,6 +60,15 @@ const DOMAIN_ORDER = [
   'other',
 ];
 
+/**
+ * Types intentionally hidden from the directory + list views.
+ *
+ * `field` is managed in-context via the parent object's edit form
+ * (master-detail widget). A flat global list of every field across
+ * every object is rarely useful and clutters the admin surface.
+ */
+const HIDDEN_TYPES = new Set(['field']);
+
 export function MetadataDirectoryPage() {
   const client = useMetadataClient();
   const { loading, error, entries } = useMetadataTypes(client);
@@ -71,17 +80,19 @@ export function MetadataDirectoryPage() {
 
   // Counts per domain for the filter chip bar.
   const domainCounts = React.useMemo(() => {
-    const c: Record<string, number> = { all: entries.length };
-    for (const e of entries) {
+    const visible = entries.filter((e) => !HIDDEN_TYPES.has(e.type));
+    const c: Record<string, number> = { all: visible.length };
+    for (const e of visible) {
       const d = e.domain ?? 'other';
       c[d] = (c[d] ?? 0) + 1;
     }
     return c;
   }, [entries]);
 
-  const writableCount = entries.filter((e) => e.allowOrgOverride).length;
+  const writableCount = entries.filter((e) => !HIDDEN_TYPES.has(e.type) && e.allowOrgOverride).length;
 
   const filtered = entries.filter((e) => {
+    if (HIDDEN_TYPES.has(e.type)) return false;
     if (writableOnly && !e.allowOrgOverride) return false;
     if (domainFilter !== 'all' && (e.domain ?? 'other') !== domainFilter) return false;
     if (query) {
@@ -124,7 +135,7 @@ export function MetadataDirectoryPage() {
           className="text-sm text-muted-foreground mt-1 max-w-3xl"
           dangerouslySetInnerHTML={{
             __html: tFormat('engine.directory.description', locale, {
-              count: `<strong class="text-foreground">${entries.length}</strong>`,
+              count: `<strong class="text-foreground">${entries.filter((e) => !HIDDEN_TYPES.has(e.type)).length}</strong>`,
               writable: writableCount,
             }),
           }}

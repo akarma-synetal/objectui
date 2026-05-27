@@ -18,13 +18,12 @@
  * inside the unified Setup-app shell.
  */
 
-import { lazy } from 'react';
+import { lazy, Suspense } from 'react';
 import { registerAppComponent } from './componentRegistry';
 import {
   MetadataDirectoryPage,
   MetadataResourceRouter,
   registerMetadataResource,
-  useMetadataClient,
 } from '../views/metadata-admin';
 import { PermissionMatrixEditPage } from '../views/metadata-admin/PermissionMatrixEditor';
 import { DesignerEditorWrapper } from '../views/metadata-admin/DesignerEditorWrapper';
@@ -52,48 +51,18 @@ registerAppComponent({
 /* -------------------------------------------------------------------------- */
 /* 2) Specialised editors for flagship types — opt the generic engine        */
 /*    out for the types that already have polished bespoke surfaces.         */
+/*                                                                            */
+/*    Note: `object` and `field` intentionally use the generic engine so the */
+/*    Metadata Directory has a consistent list/edit experience across every  */
+/*    type (only `permission`, `view`, `dashboard`, `page` keep bespoke      */
+/*    editors below — those are visual designers, not list/form pages).      */
 /* -------------------------------------------------------------------------- */
-
-// Lazy so the heavy designer bundle isn't pulled in when the admin
-// only navigates to lighter types (e.g. flow, view).
-const MetadataObjectsPage = lazy(() =>
-  import('@object-ui/plugin-designer').then((m) => ({ default: m.MetadataObjectsPage })),
-);
-const MetadataFieldsPage = lazy(() =>
-  import('@object-ui/plugin-designer').then((m) => ({ default: m.MetadataFieldsPage })),
-);
-
-function ObjectListWrapper() {
-  const client = useMetadataClient();
-  return <MetadataObjectsPage client={client} hideSystemObjects={false} />;
-}
-
-function ObjectEditWrapper({ name }: { type: string; name: string }) {
-  // Editing an object = managing its fields. Hop straight into the
-  // FieldDesigner shell scoped to this object's name.
-  const client = useMetadataClient();
-  return (
-    <div className="p-6">
-      <Suspense fallback={<div className="text-sm text-muted-foreground">Loading fields…</div>}>
-        <MetadataFieldsPage client={client} objectName={name} />
-      </Suspense>
-    </div>
-  );
-}
-
-function FieldListWrapper() {
-  // Render the picker shell — same flow used in 3b's MetadataAdminPages.
-  const client = useMetadataClient();
-  return <FieldPickerShell client={client} />;
-}
 
 registerMetadataResource({
   type: 'object',
   label: 'Objects',
   description: 'Domain entities — tables in the data model. Each object owns its fields, relationships, validations, and lifecycle hooks.',
   domain: 'data',
-  ListPage: ObjectListWrapper,
-  EditPage: ObjectEditWrapper,
   searchableFields: ['name', 'label', 'description'],
   listColumns: [
     { key: 'name', label: 'Name', width: '25%' },
@@ -105,9 +74,15 @@ registerMetadataResource({
 registerMetadataResource({
   type: 'field',
   label: 'Fields',
-  description: 'Columns attached to objects. Pick an object to manage its fields.',
+  description: 'Columns attached to objects — name, type, validation, and storage settings.',
   domain: 'data',
-  ListPage: FieldListWrapper,
+  searchableFields: ['name', 'label', 'object', 'type'],
+  listColumns: [
+    { key: 'name', label: 'Name', width: '25%' },
+    { key: 'object', label: 'Object', width: '20%' },
+    { key: 'type', label: 'Type', width: '15%' },
+    { key: 'label', label: 'Label' },
+  ],
 });
 
 /* -------------------------------------------------------------------------- */
@@ -259,65 +234,3 @@ registerMetadataResource({
     { key: 'route', label: 'Route' },
   ],
 });
-
-/* -------------------------------------------------------------------------- */
-/* Helpers                                                                    */
-/* -------------------------------------------------------------------------- */
-
-import * as React from 'react';
-import { Suspense } from 'react';
-import type { MetadataClient } from '@object-ui/data-objectstack';
-
-function FieldPickerShell({ client }: { client: MetadataClient }) {
-  const [objects, setObjects] = React.useState<Array<{ name: string; label?: string }>>([]);
-  const [selected, setSelected] = React.useState<string>('');
-  const [loading, setLoading] = React.useState(true);
-
-  React.useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const items = await client.list<any>('object');
-        if (cancelled) return;
-        const list = (items as any[])
-          .map((o) => ({
-            name: o?.item?.name ?? o?.name,
-            label: o?.item?.label ?? o?.label,
-          }))
-          .filter((o) => !!o.name);
-        setObjects(list);
-        if (list[0]) setSelected(list[0].name);
-        setLoading(false);
-      } catch {
-        setLoading(false);
-      }
-    })();
-    return () => { cancelled = true; };
-  }, [client]);
-
-  if (loading) return <div className="p-6 text-sm text-muted-foreground">Loading objects…</div>;
-
-  return (
-    <div className="p-6 space-y-3">
-      <div className="flex items-center gap-2 text-sm">
-        <label className="font-medium">Object:</label>
-        <select
-          className="rounded border px-2 py-1 bg-background"
-          value={selected}
-          onChange={(e) => setSelected(e.target.value)}
-        >
-          {objects.map((o) => (
-            <option key={o.name} value={o.name}>
-              {o.label ?? o.name} ({o.name})
-            </option>
-          ))}
-        </select>
-      </div>
-      {selected && (
-        <Suspense fallback={<div className="text-sm text-muted-foreground">Loading fields…</div>}>
-          <MetadataFieldsPage key={selected} client={client} objectName={selected} />
-        </Suspense>
-      )}
-    </div>
-  );
-}
