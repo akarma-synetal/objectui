@@ -162,12 +162,10 @@ export function MetadataQuickFind({ appSlug }: MetadataQuickFindProps = {}) {
     setOpen(false);
     const base = appSlug ? `/apps/${appSlug}` : '..';
     if (r.kind === 'type') {
-      navigate(`${base}/component/metadata/resource?type=${encodeURIComponent(r.entry.type)}`);
+      navigate(`${base}/metadata/${encodeURIComponent(r.entry.type)}`);
     } else {
       navigate(
-        `${base}/component/metadata/resource/${encodeURIComponent(r.name)}?type=${encodeURIComponent(
-          r.type,
-        )}`,
+        `${base}/metadata/${encodeURIComponent(r.type)}/${encodeURIComponent(r.name)}`,
       );
     }
   }

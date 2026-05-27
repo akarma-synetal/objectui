@@ -16,7 +16,7 @@
  */
 
 import * as React from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, RefreshCw, Loader2 } from 'lucide-react';
 import { Button } from '@object-ui/components';
 import { Badge } from '@object-ui/components';
@@ -29,8 +29,8 @@ import {
 } from './useMetadata';
 
 export interface MetadataResourceHistoryPageProps {
-  type: string;
-  name: string;
+  type?: string;
+  name?: string;
 }
 
 type HistoryEvent = {
@@ -43,9 +43,12 @@ type HistoryEvent = {
 };
 
 export function MetadataResourceHistoryPage({
-  type,
-  name,
+  type: typeProp,
+  name: nameProp,
 }: MetadataResourceHistoryPageProps) {
+  const params = useParams<{ type?: string; name?: string }>();
+  const type = typeProp ?? params.type ?? '';
+  const name = nameProp ?? params.name ?? '';
   const navigate = useNavigate();
   const client = useMetadataClient();
   const { entries } = useMetadataTypes(client);
@@ -97,9 +100,7 @@ export function MetadataResourceHistoryPage({
           <Button
             variant="ghost"
             size="sm"
-            onClick={() =>
-              navigate(`../${encodeURIComponent(name)}?type=${encodeURIComponent(type)}`)
-            }
+            onClick={() => navigate(`../${encodeURIComponent(name)}`)}
           >
             <ArrowLeft className="h-4 w-4 mr-1" />
             Back to item

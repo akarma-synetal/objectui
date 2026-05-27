@@ -13,7 +13,7 @@
  */
 
 import * as React from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import { Plus, Search, RefreshCw } from 'lucide-react';
 import { Button } from '@object-ui/components';
 import { Input } from '@object-ui/components';
@@ -40,7 +40,7 @@ import {
 import { t, detectLocale } from './i18n';
 
 export interface MetadataResourceListPageProps {
-  type: string;
+  type?: string;
 }
 
 type ItemRow = {
@@ -52,7 +52,9 @@ type ItemRow = {
   source?: string;
 };
 
-export function MetadataResourceListPage({ type }: MetadataResourceListPageProps) {
+export function MetadataResourceListPage({ type: typeProp }: MetadataResourceListPageProps) {
+  const params = useParams<{ type?: string }>();
+  const type = typeProp ?? params.type ?? '';
   const navigate = useNavigate();
   const client = useMetadataClient();
   const { entries: typesEntries } = useMetadataTypes(client);
@@ -150,7 +152,7 @@ export function MetadataResourceListPage({ type }: MetadataResourceListPageProps
           {entry?.allowOrgOverride && (
             <Button
               size="sm"
-              onClick={() => navigate(`./new?type=${encodeURIComponent(type)}`)}
+              onClick={() => navigate(`./new`)}
             >
               <Plus className="h-4 w-4 mr-1" />
               {t('engine.list.create', locale)}
@@ -238,7 +240,7 @@ export function MetadataResourceListPage({ type }: MetadataResourceListPageProps
                           <td key={c.key} className="px-3 py-2 align-top">
                             {ci === 0 ? (
                               <Link
-                                to={`./${encodeURIComponent(name)}?type=${encodeURIComponent(type)}`}
+                                to={`./${encodeURIComponent(name)}`}
                                 className="text-primary hover:underline font-mono"
                               >
                                 {cell}

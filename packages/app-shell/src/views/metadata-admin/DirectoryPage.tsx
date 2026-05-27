@@ -256,7 +256,7 @@ function TypeTile({ entry, locale }: { entry: RichMetadataTypeEntry; locale?: st
   const label = translateMetadataType(entry.type, locale, entry.label);
   return (
     <Link
-      to={`../component/metadata/resource?type=${encodeURIComponent(entry.type)}`}
+      to={`./${encodeURIComponent(entry.type)}`}
       className="block p-4 border rounded-lg hover:border-primary hover:bg-accent transition-colors"
     >
       <div className="flex items-start justify-between gap-2">

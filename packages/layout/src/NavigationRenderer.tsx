@@ -335,8 +335,27 @@ function resolveHref(item: NavigationItem, basePath: string): { href: string; ex
       if (!ref) return { href: '#', external: false };
       const segs = ref.split(':').filter(Boolean);
       if (segs.length === 0) return { href: '#', external: false };
-      let url = `${basePath}/component/${segs.join('/')}`;
       const navParams = (item as any).params as Record<string, unknown> | undefined;
+      // Special-case metadata refs: route to nested REST-style /metadata paths.
+      //   metadata:directory                  → /metadata
+      //   metadata:resource (+ params.type)   → /metadata/:type
+      //   metadata:resource (+ type + name)   → /metadata/:type/:name
+      if (segs[0] === 'metadata') {
+        const kind = segs[1];
+        const type = navParams && typeof navParams.type === 'string' ? navParams.type : undefined;
+        const name = navParams && typeof navParams.name === 'string' ? navParams.name : undefined;
+        if (kind === 'directory' || !kind) {
+          return { href: `${basePath}/metadata`, external: false };
+        }
+        if (kind === 'resource' && type) {
+          const tail = name
+            ? `/${encodeURIComponent(type)}/${encodeURIComponent(name)}`
+            : `/${encodeURIComponent(type)}`;
+          return { href: `${basePath}/metadata${tail}`, external: false };
+        }
+        return { href: `${basePath}/metadata`, external: false };
+      }
+      let url = `${basePath}/component/${segs.join('/')}`;
       if (navParams && typeof navParams === 'object') {
         const usp = new URLSearchParams();
         for (const [k, v] of Object.entries(navParams)) {

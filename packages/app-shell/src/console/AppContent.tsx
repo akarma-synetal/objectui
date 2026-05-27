@@ -44,6 +44,14 @@ const SearchResultsPage = lazy(() => import('../views/SearchResultsPage').then(m
 const RecordFormPage = lazy(() => import('../views/RecordFormPage').then(m => ({ default: m.RecordFormPage })));
 const ComponentNavView = lazy(() => import('../views/ComponentNavView').then(m => ({ default: m.ComponentNavView })));
 
+// Metadata admin — mounted under /apps/:app/metadata. Lives at the top
+// level so URLs read like a normal nested resource (RFC-style) instead of
+// piggy-backing on the legacy ComponentRegistry fan-out.
+const MetadataDirectoryPage = lazy(() => import('../views/metadata-admin').then(m => ({ default: m.MetadataDirectoryPage })));
+const MetadataResourceListPage = lazy(() => import('../views/metadata-admin').then(m => ({ default: m.MetadataResourceListPage })));
+const MetadataResourceEditPage = lazy(() => import('../views/metadata-admin').then(m => ({ default: m.MetadataResourceEditPage })));
+const MetadataResourceHistoryPage = lazy(() => import('../views/metadata-admin').then(m => ({ default: m.MetadataResourceHistoryPage })));
+
 // Designer pages — sourced from @object-ui/plugin-designer so third-party hosts
 // can opt out by not registering these routes.
 const CreateAppPage = lazy(() => import('@object-ui/plugin-designer').then(m => ({ default: m.CreateAppPage })));
@@ -380,7 +388,18 @@ export function AppContent({ extraRoutes, extraRoutesNoApp }: AppContentProps = 
                     rendered component handle its own sub-routing (e.g.
                     list / new / edit / history) without re-registering
                     routes here. */}
+                <Route path="metadata">
+                  <Route index element={<MetadataDirectoryPage />} />
+                  <Route path=":type" element={<MetadataResourceListPage />} />
+                  <Route path=":type/new" element={<MetadataResourceEditPage createMode />} />
+                  <Route path=":type/:name" element={<MetadataResourceEditPage />} />
+                  <Route path=":type/:name/history" element={<MetadataResourceHistoryPage />} />
+                </Route>
                 <Route path="component/:ns/:name/*" element={<ComponentNavView />} />
+                {/* Legacy: old metadata routes built before the REST-style nesting
+                    landed. Redirect to the new /metadata/:type/... shape. */}
+                <Route path="component/metadata/directory" element={<LegacyMetadataRedirect mode="directory" />} />
+                <Route path="component/metadata/resource/*" element={<LegacyMetadataRedirect mode="resource" />} />
                 <Route path="design/page/:pageName" element={<PageDesignPage />} />
                 <Route path="design/dashboard/:dashboardName" element={<DashboardDesignPage />} />
                 <Route path="search" element={<SearchResultsPage />} />
@@ -524,6 +543,7 @@ const RESERVED_SECOND_SEGMENTS = new Set([
   'new', 'view', 'record', 'edit',
   'dashboard', 'report', 'page',
   'design', 'search', 'create-app', 'edit-app',
+  'metadata',
 ]);
 
 function looksLikeRecordId(segment: string | undefined): boolean {
@@ -533,6 +553,28 @@ function looksLikeRecordId(segment: string | undefined): boolean {
   if (!/^[A-Za-z0-9_-]+$/.test(segment)) return false;
   // Most record ids are at least 6 chars (UUID, ULID, nanoid all >=8).
   return segment.length >= 6;
+}
+
+/**
+ * Translates pre-refactor metadata admin URLs
+ * (`/apps/:app/component/metadata/resource/:name?type=:type`,
+ *  `/apps/:app/component/metadata/directory`) into the new REST-style
+ * shape (`/apps/:app/metadata/:type/:name`). Keeps bookmarks and any
+ * still-unmigrated link producers working.
+ */
+function LegacyMetadataRedirect({ mode }: { mode: 'directory' | 'resource' }) {
+  const location = useLocation();
+  const appBase = location.pathname.replace(/\/component\/metadata\/.*$/, '');
+  if (mode === 'directory') {
+    return <Navigate to={`${appBase}/metadata${location.search}${location.hash}`} replace />;
+  }
+  const sp = new URLSearchParams(location.search);
+  const type = sp.get('type') ?? '';
+  const tail = location.pathname.match(/\/component\/metadata\/resource(\/.*)?$/)?.[1] ?? '';
+  const target = type
+    ? `${appBase}/metadata/${encodeURIComponent(type)}${tail}${location.hash}`
+    : `${appBase}/metadata${location.hash}`;
+  return <Navigate to={target} replace />;
 }
 
 /**

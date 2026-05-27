@@ -215,7 +215,7 @@ export function DesignerEditorBody<TValue = any>({
         <Button
           variant="ghost"
           size="sm"
-          onClick={() => navigate(`./history?type=${encodeURIComponent(type)}`)}
+          onClick={() => navigate(`./history`)}
         >
           <HistoryIcon className="h-4 w-4 mr-1" /> {t('engine.edit.history', locale)}
         </Button>

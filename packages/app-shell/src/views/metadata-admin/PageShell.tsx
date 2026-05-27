@@ -16,7 +16,7 @@
  */
 
 import * as React from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { Badge } from '@object-ui/components';
 import { Button } from '@object-ui/components';
 import { ChevronRight } from 'lucide-react';
@@ -51,18 +51,26 @@ export function PageShell({
   // Prefer locale-table translation over server's English label.
   const label = translateMetadataType(type, locale, entry?.label);
 
+  // Compute base path up to /metadata so breadcrumb links work regardless
+  // of how deep the current route is (list, edit, history, …).
+  const { pathname } = useLocation();
+  const metadataBase = React.useMemo(() => {
+    const idx = pathname.indexOf('/metadata');
+    return idx >= 0 ? pathname.slice(0, idx + '/metadata'.length) : '/metadata';
+  }, [pathname]);
+
   return (
     <div className="flex flex-col h-full overflow-hidden">
       {/* Header */}
       <div className="px-6 pt-5 pb-4 border-b bg-background">
         {/* Breadcrumb */}
         <nav className="flex items-center gap-1.5 text-xs text-muted-foreground mb-2">
-          <Link to="../component/metadata/directory" className="hover:text-foreground">
+          <Link to={metadataBase} className="hover:text-foreground">
             {t('engine.breadcrumb.allTypes', locale)}
           </Link>
           <ChevronRight className="h-3 w-3" />
           <Link
-            to={`../component/metadata/resource?type=${encodeURIComponent(type)}`}
+            to={`${metadataBase}/${encodeURIComponent(type)}`}
             className="hover:text-foreground"
           >
             {label}

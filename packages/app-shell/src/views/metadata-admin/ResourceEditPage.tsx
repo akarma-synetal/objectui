@@ -21,7 +21,7 @@
  */
 
 import * as React from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import {
   Save,
   RotateCcw,
@@ -65,17 +65,20 @@ import {
 } from './registry';
 
 export interface MetadataResourceEditPageProps {
-  type: string;
-  name: string;
+  type?: string;
+  name?: string;
   /** When true, this is the Create flow (skip initial fetch). */
   createMode?: boolean;
 }
 
 export function MetadataResourceEditPage({
-  type,
-  name,
+  type: typeProp,
+  name: nameProp,
   createMode = false,
 }: MetadataResourceEditPageProps) {
+  const params = useParams<{ type?: string; name?: string }>();
+  const type = typeProp ?? params.type ?? '';
+  const name = nameProp ?? params.name ?? '';
   const navigate = useNavigate();
   const client = useMetadataClient();
   const { entries } = useMetadataTypes(client);
@@ -205,13 +208,7 @@ export function MetadataResourceEditPage({
       setDestructiveIssues(null);
       setPendingItem(null);
       if (createMode) {
-        // Use absolute path — react-router resolves `../` against the
-        // matched route pattern (`/apps/:app/component/:ns/:name/*`),
-        // which overshoots and lands at `/apps/:app`. Anchor on the
-        // location's pathname for predictable behaviour.
-        const here = window.location.pathname; // .../resource/new
-        const parent = here.replace(/\/new\/?$/, '');
-        navigate(`${parent}/${encodeURIComponent(savedName)}?type=${encodeURIComponent(type)}`);
+        navigate(`../${encodeURIComponent(savedName)}`);
       }
     } catch (err: any) {
       // Map destructive change → confirmation dialog.
@@ -309,7 +306,7 @@ export function MetadataResourceEditPage({
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => navigate(`./history?type=${encodeURIComponent(type)}`)}
+              onClick={() => navigate(`./history`)}
             >
               <History className="h-4 w-4 mr-1" />
               History
