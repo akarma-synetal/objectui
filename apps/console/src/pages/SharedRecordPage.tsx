@@ -113,8 +113,18 @@ export default function SharedRecordPage() {
           setLoading(false);
           return;
         }
-        const body = (await res.json()) as { data: ResolvedShare };
-        setData(body.data);
+        const body = (await res.json()) as
+          | { data: ResolvedShare }
+          | { record: unknown; link: ResolvedShare['link']; redactFields?: string[] };
+        const resolved: ResolvedShare =
+          'data' in body
+            ? body.data
+            : {
+                record: body.record as Record<string, unknown>,
+                link: body.link,
+                redactedFields: (body as any).redactFields,
+              };
+        setData(resolved);
         setNeedsPassword(false);
       } catch (e: any) {
         setError(e?.message ?? 'Failed to load shared content.');
