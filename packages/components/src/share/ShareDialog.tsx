@@ -186,8 +186,8 @@ export function ShareDialog({
       const h = await headers();
       const res = await fetch(listUrl, { headers: h, credentials: 'include' });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const body = (await res.json()) as { data?: ShareLink[] };
-      setLinks(body.data ?? []);
+      const body = (await res.json()) as { links?: ShareLink[]; data?: ShareLink[] };
+      setLinks(body.links ?? body.data ?? []);
     } catch (err: any) {
       setError(err?.message ?? 'Failed to load share links');
     } finally {
@@ -229,12 +229,14 @@ export function ShareDialog({
         const body = await res.json().catch(() => ({}));
         throw new Error(body?.error?.message || `HTTP ${res.status}`);
       }
-      const created = (await res.json()) as { data: ShareLink };
-      setLinks((prev) => [created.data, ...prev]);
-      const url = buildPublicUrl(publicBaseUrl, created.data.token);
+      const created = (await res.json()) as { link?: ShareLink; data?: ShareLink };
+      const newLink = created.link ?? created.data;
+      if (!newLink) throw new Error('Share link create response missing link payload');
+      setLinks((prev) => [newLink, ...prev]);
+      const url = buildPublicUrl(publicBaseUrl, newLink.token);
       const copied = await copyToClipboard(url);
       if (copied) {
-        setJustCopied(created.data.id);
+        setJustCopied(newLink.id);
         setTimeout(() => setJustCopied(null), 1500);
       }
       setDraft(DEFAULT_DRAFT);

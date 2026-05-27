@@ -52,7 +52,9 @@ interface AiMessage {
 function resolveServerUrl(): string {
   const env = (import.meta as any).env ?? {};
   const explicit = (env.VITE_SERVER_URL as string | undefined) ?? '';
-  return explicit.replace(/\/$/, '');
+  if (explicit) return explicit.replace(/\/$/, '');
+  if (typeof window !== 'undefined') return window.location.origin;
+  return '';
 }
 
 function extractMessageText(m: AiMessage): string {
