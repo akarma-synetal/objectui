@@ -22,6 +22,63 @@
 import { registerMetadataResource, anchorByField } from './registry';
 
 export function registerBuiltinAnchors(): void {
+  // ── EMBEDDED: items stored inside the object body itself ──────────
+  //
+  // Fields, indexes, and embedded validations don't have a top-level
+  // metadata type; they live under `object.fields`, `object.indexes[]`,
+  // `object.validations[]`. We surface them with `source: 'embedded'`
+  // so the Related panel can list them without a separate API call.
+  //
+  // `fields` is stored as a NAME-KEYED MAP (`{ email: {...}, name: {...} }`)
+  // — not an array — so we adapt it into an array carrying the key as
+  // `name` for the panel to render.
+  registerMetadataResource({
+    type: '__object_field' as any,
+    label: 'Field',
+    anchors: [{
+      anchorType: 'object',
+      source: 'embedded',
+      extract: (parent) => mapOrArrayToList((parent as { fields?: unknown }).fields),
+      groupLabel: 'Fields',
+      order: 5,
+    }],
+  });
+
+  registerMetadataResource({
+    type: '__object_index' as any,
+    label: 'Index',
+    anchors: [{
+      anchorType: 'object',
+      source: 'embedded',
+      extract: (parent) => {
+        const raw = (parent as { indexes?: unknown }).indexes;
+        if (!Array.isArray(raw)) return [];
+        // Indexes have no `name`; synthesise one from their column list.
+        return (raw as Array<Record<string, unknown>>).map((idx, i) => {
+          const fields = Array.isArray(idx.fields) ? idx.fields.join(',') : '';
+          const synthesised = fields ? `idx_${fields}` : `index_${i}`;
+          return { name: synthesised, ...idx };
+        });
+      },
+      groupLabel: 'Indexes',
+      order: 10,
+    }],
+  });
+
+  registerMetadataResource({
+    type: '__object_validation' as any,
+    label: 'Embedded validation',
+    anchors: [{
+      anchorType: 'object',
+      source: 'embedded',
+      extract: (parent) => mapOrArrayToList((parent as { validations?: unknown }).validations),
+      groupLabel: 'Embedded Validations',
+      order: 15,
+    }],
+  });
+
+  // ── LIST: standalone child metadata types ─────────────────────────
+
   // hook.object → object (beforeInsert / afterUpdate / …)
   registerMetadataResource({
     type: 'hook',
@@ -165,4 +222,23 @@ export function registerBuiltinAnchors(): void {
       order: 81,
     }],
   });
+}
+
+/**
+ * Coerce an embedded "collection" into a list of `{ name, …rest }`.
+ *
+ * ObjectStack stores some embedded collections as name-keyed maps
+ * (`object.fields`) and others as arrays (`object.indexes`). Both want
+ * to render the same way in Related; this helper papers over the gap
+ * by injecting the map key as `name` when needed.
+ */
+function mapOrArrayToList(raw: unknown): Array<Record<string, unknown>> {
+  if (Array.isArray(raw)) return raw as Array<Record<string, unknown>>;
+  if (raw && typeof raw === 'object') {
+    return Object.entries(raw as Record<string, unknown>).map(([k, v]) => {
+      const body = v && typeof v === 'object' ? (v as Record<string, unknown>) : {};
+      return { name: k, ...body };
+    });
+  }
+  return [];
 }

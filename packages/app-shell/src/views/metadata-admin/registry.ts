@@ -150,11 +150,27 @@ export interface MetadataAnchor {
   /** The parent metadata type whose Related tab should surface this. */
   anchorType: string;
   /**
+   * Where the anchored items live.
+   *   - 'list' (default): query `client.list(childType)` and filter with
+   *     `match()`. Used for first-class metadata types (hooks, views, …).
+   *   - 'embedded': items are stored inside the parent body itself
+   *     (e.g. `object.fields[]`). `extract()` plucks the array; no
+   *     network call is made.
+   */
+  source?: 'list' | 'embedded';
+  /**
    * Returns true when the child `item` belongs to the parent identified
    * by `anchorName`. The default helper `byField('object')` covers the
-   * common case of an explicit `object: 'foo'` reference.
+   * common case of an explicit `object: 'foo'` reference. Required when
+   * `source === 'list'` (the default); ignored for `'embedded'`.
    */
-  match: (item: Record<string, unknown>, anchorName: string) => boolean;
+  match?: (item: Record<string, unknown>, anchorName: string) => boolean;
+  /**
+   * For `source: 'embedded'` only. Returns the embedded items array
+   * given the fully-loaded parent body. Items should already carry a
+   * `name` (or be normalised by the renderer).
+   */
+  extract?: (parentItem: Record<string, unknown>) => Array<Record<string, unknown>>;
   /**
    * Optional override for the group label shown on the Related panel.
    * Defaults to the child type's resolved label.

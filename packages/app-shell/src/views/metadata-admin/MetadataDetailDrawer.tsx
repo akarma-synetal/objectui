@@ -28,10 +28,11 @@ import {
   cn,
 } from '@object-ui/components';
 import { MetadataResourceEditPage } from './ResourceEditPage';
+import type { RelatedTarget } from './RelatedPanel';
 
 export interface MetadataDetailDrawerProps {
   /** When non-null, drawer is open and shows this target. */
-  target: { type: string; name: string } | null;
+  target: RelatedTarget | null;
   /** Called when the drawer requests close (overlay click, esc, close btn). */
   onClose: () => void;
   /** Optional context: parent's type / name, shown in the title. */
@@ -45,6 +46,19 @@ export function MetadataDetailDrawer({
 }: MetadataDetailDrawerProps) {
   const navigate = useNavigate();
 
+  const isMetadata = target?.kind === 'metadata';
+  const isEmbedded = target?.kind === 'embedded';
+  const headerType = isMetadata
+    ? target.type
+    : isEmbedded
+      ? target.groupLabel
+      : '';
+  const headerName = isMetadata
+    ? target.name
+    : isEmbedded
+      ? target.itemName
+      : '';
+
   return (
     <Sheet
       open={target !== null}
@@ -56,39 +70,38 @@ export function MetadataDetailDrawer({
         side="right"
         className={cn(
           'w-[92vw] sm:max-w-[1100px] p-0 flex flex-col gap-0',
-          // Override default vertical padding so the embedded PageShell
-          // owns the entire scroll surface.
         )}
       >
         <SheetHeader className="px-4 py-3 border-b space-y-1">
           <div className="flex items-center gap-2">
             <Badge variant="outline" className="font-mono text-[10px]">
-              {target?.type}
+              {headerType}
             </Badge>
             <SheetTitle className="font-mono text-base truncate">
-              {target?.name}
+              {headerName}
             </SheetTitle>
             <div className="ml-auto flex items-center gap-1">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => {
-                  if (!target) return;
-                  navigate(
-                    `../../${encodeURIComponent(target.type)}/${encodeURIComponent(target.name)}`,
-                  );
-                  onClose();
-                }}
-                title="Open in full page"
-              >
-                <ExternalLink className="h-3.5 w-3.5 mr-1" />
-                Open full page
-              </Button>
+              {isMetadata && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    navigate(
+                      `../../${encodeURIComponent(target.type)}/${encodeURIComponent(target.name)}`,
+                    );
+                    onClose();
+                  }}
+                  title="Open in full page"
+                >
+                  <ExternalLink className="h-3.5 w-3.5 mr-1" />
+                  Open full page
+                </Button>
+              )}
             </div>
           </div>
           {parentContext && (
             <SheetDescription className="text-xs">
-              Related to{' '}
+              {isEmbedded ? 'Embedded in ' : 'Related to '}
               <span className="font-mono">
                 {parentContext.type}/{parentContext.name}
               </span>
@@ -97,7 +110,7 @@ export function MetadataDetailDrawer({
         </SheetHeader>
 
         <div className="flex-1 min-h-0 overflow-auto">
-          {target && (
+          {isMetadata && (
             <MetadataResourceEditPage
               key={`${target.type}/${target.name}`}
               type={target.type}
@@ -105,8 +118,30 @@ export function MetadataDetailDrawer({
               embedded
             />
           )}
+          {isEmbedded && <EmbeddedItemView raw={target.raw} />}
         </div>
       </SheetContent>
     </Sheet>
+  );
+}
+
+/**
+ * Read-only JSON preview for embedded items (fields, indexes, embedded
+ * validations). Editing happens via the parent's Form tab; jumping
+ * straight to that field is a future enhancement — for now the user
+ * can inspect the spec here and click "Edit in Form tab" in the panel.
+ */
+function EmbeddedItemView({ raw }: { raw: Record<string, unknown> }) {
+  const json = React.useMemo(() => JSON.stringify(raw, null, 2), [raw]);
+  return (
+    <div className="p-4 space-y-3">
+      <div className="text-xs text-muted-foreground">
+        This item lives inside its parent's body. Edit it in the parent's{' '}
+        <span className="font-medium">Form</span> tab.
+      </div>
+      <pre className="text-xs font-mono bg-muted/40 border rounded p-3 overflow-auto whitespace-pre-wrap break-all">
+        {json}
+      </pre>
+    </div>
   );
 }

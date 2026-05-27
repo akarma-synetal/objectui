@@ -65,7 +65,7 @@ import {
   resolveResourceConfig,
   listAnchorsFor,
 } from './registry';
-import { RelatedPanel } from './RelatedPanel';
+import { RelatedPanel, type RelatedTarget } from './RelatedPanel';
 import { MetadataDetailDrawer } from './MetadataDetailDrawer';
 
 export interface MetadataResourceEditPageProps {
@@ -199,16 +199,17 @@ export function MetadataResourceEditPage({
   // Related drawer state. `null` = closed. We avoid querystring round-
   // trips on every keystroke; URL state is best-effort sync via effect
   // below.
-  const [relatedTarget, setRelatedTarget] = React.useState<
-    { type: string; name: string } | null
-  >(null);
+  const [relatedTarget, setRelatedTarget] = React.useState<RelatedTarget | null>(null);
 
   const hasAnchors = React.useMemo(
     () => !createMode && !embedded && listAnchorsFor(type).length > 0,
     [type, createMode, embedded],
   );
 
-  // Read ?tab and ?open on first mount so deep-links work.
+  // Read ?tab and ?open on first mount so deep-links work. Embedded
+  // items are not deep-linkable (they live in the parent body and need
+  // the parent payload to materialise) so we only restore metadata
+  // targets here.
   const initialTabRef = React.useRef<string | null>(null);
   React.useEffect(() => {
     if (typeof window === 'undefined' || embedded) return;
@@ -218,7 +219,7 @@ export function MetadataResourceEditPage({
     const open = sp.get('open');
     if (open && open.includes(':')) {
       const [t, n] = open.split(':', 2);
-      if (t && n) setRelatedTarget({ type: t, name: n });
+      if (t && n) setRelatedTarget({ kind: 'metadata', type: t, name: n });
     }
     // intentionally empty deps — first mount only
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -228,7 +229,7 @@ export function MetadataResourceEditPage({
   React.useEffect(() => {
     if (typeof window === 'undefined' || embedded) return;
     const url = new URL(window.location.href);
-    if (relatedTarget) {
+    if (relatedTarget?.kind === 'metadata') {
       url.searchParams.set('open', `${relatedTarget.type}:${relatedTarget.name}`);
     } else {
       url.searchParams.delete('open');
@@ -478,6 +479,7 @@ export function MetadataResourceEditPage({
               <RelatedPanel
                 type={type}
                 name={name}
+                parentItem={draft}
                 onOpen={(t) => setRelatedTarget(t)}
               />
             </TabsContent>

@@ -43,9 +43,32 @@ export interface RelatedPanelProps {
   type: string;
   /** Parent item name (e.g. `sys_user`). */
   name: string;
+  /**
+   * Effective parent body — used to feed `source: 'embedded'` anchors
+   * (e.g. `object.fields[]`). Optional: if absent, embedded groups are
+   * skipped.
+   */
+  parentItem?: Record<string, unknown> | null;
   /** Invoked when the user clicks a row. Parent should open a drawer. */
-  onOpen: (target: { type: string; name: string }) => void;
+  onOpen: (target: RelatedTarget) => void;
 }
+
+/**
+ * Target opened from a Related row. For first-class metadata items
+ * `kind: 'metadata'` carries the addressable (type, name). For embedded
+ * items we hand back the raw object plus the path it came from so the
+ * parent can render a focused detail view.
+ */
+export type RelatedTarget =
+  | { kind: 'metadata'; type: string; name: string }
+  | {
+      kind: 'embedded';
+      parentType: string;
+      parentName: string;
+      groupLabel: string;
+      itemName: string;
+      raw: Record<string, unknown>;
+    };
 
 interface ChildItem {
   name: string;
@@ -62,7 +85,12 @@ interface GroupState {
   items: ChildItem[];
 }
 
-export function RelatedPanel({ type, name, onOpen }: RelatedPanelProps) {
+export function RelatedPanel({
+  type,
+  name,
+  parentItem,
+  onOpen,
+}: RelatedPanelProps) {
   const client = useMetadataClient();
   const navigate = useNavigate();
   const anchors = React.useMemo(() => listAnchorsFor(type), [type]);
@@ -76,25 +104,44 @@ export function RelatedPanel({ type, name, onOpen }: RelatedPanelProps) {
       return;
     }
     let cancelled = false;
-    // Seed groups in loading state, ordered by registry order.
+    // Seed groups in loading state, ordered by registry order. Embedded
+    // groups resolve synchronously from `parentItem`; list groups dispatch
+    // a `client.list(childType)` and filter.
     const initial: GroupState[] = [...anchors]
       .sort((a, b) => (a.anchor.order ?? 999) - (b.anchor.order ?? 999))
-      .map((entry) => ({
-        childType: entry.type,
-        anchor: entry.anchor,
-        loading: true,
-        error: null,
-        items: [],
-      }));
+      .map((entry) => {
+        const isEmbedded = entry.anchor.source === 'embedded';
+        if (isEmbedded) {
+          const raw = entry.anchor.extract && parentItem
+            ? entry.anchor.extract(parentItem)
+            : [];
+          return {
+            childType: entry.type,
+            anchor: entry.anchor,
+            loading: false,
+            error: null,
+            items: raw.map(normaliseItem),
+          };
+        }
+        return {
+          childType: entry.type,
+          anchor: entry.anchor,
+          loading: true,
+          error: null,
+          items: [],
+        };
+      });
     setGroups(initial);
 
     void Promise.all(
       initial.map(async (g) => {
+        if (g.anchor.source === 'embedded') return g;
         try {
           const list = (await client.list(g.childType)) as Array<Record<string, unknown>>;
           if (cancelled) return g;
+          const matchFn = g.anchor.match ?? (() => false);
           const filtered = list
-            .filter((item) => g.anchor.match(item, name))
+            .filter((item) => matchFn(item, name))
             .map((item) => normaliseItem(item));
           return { ...g, loading: false, items: filtered };
         } catch (err: unknown) {
@@ -114,7 +161,7 @@ export function RelatedPanel({ type, name, onOpen }: RelatedPanelProps) {
     return () => {
       cancelled = true;
     };
-  }, [client, type, name, anchors]);
+  }, [client, type, name, anchors, parentItem]);
 
   if (anchors.length === 0) {
     return (
@@ -190,14 +237,29 @@ export function RelatedPanel({ type, name, onOpen }: RelatedPanelProps) {
                 variant="ghost"
                 size="sm"
                 className="h-7 px-2"
-                onClick={() =>
+                onClick={() => {
+                  if (g.anchor.source === 'embedded') {
+                    // Embedded items are edited inside the parent's Form
+                    // tab; jump there rather than to a nonexistent route.
+                    if (typeof window !== 'undefined') {
+                      const url = new URL(window.location.href);
+                      url.searchParams.set('tab', 'form');
+                      url.searchParams.delete('open');
+                      window.location.assign(url.toString());
+                    }
+                    return;
+                  }
                   navigate(
                     `../../${encodeURIComponent(g.childType)}/_new?anchor=${encodeURIComponent(
                       `${type}:${name}`,
                     )}`,
-                  )
+                  );
+                }}
+                title={
+                  g.anchor.source === 'embedded'
+                    ? `Edit in Form tab`
+                    : `New ${g.childType}`
                 }
-                title={`New ${g.childType}`}
               >
                 <Plus className="h-3.5 w-3.5" />
               </Button>
@@ -223,11 +285,29 @@ export function RelatedPanel({ type, name, onOpen }: RelatedPanelProps) {
                 )}
                 {!g.loading &&
                   !g.error &&
-                  matches.map((it) => (
+                  matches.map((it, idx) => (
                     <button
-                      key={it.name}
+                      key={`${it.name}-${idx}`}
                       type="button"
-                      onClick={() => onOpen({ type: g.childType, name: it.name })}
+                      onClick={() =>
+                        onOpen(
+                          g.anchor.source === 'embedded'
+                            ? {
+                                kind: 'embedded',
+                                parentType: type,
+                                parentName: name,
+                                groupLabel:
+                                  g.anchor.groupLabel ?? g.childType,
+                                itemName: it.name,
+                                raw: it.raw,
+                              }
+                            : {
+                                kind: 'metadata',
+                                type: g.childType,
+                                name: it.name,
+                              },
+                        )
+                      }
                       className="w-full text-left px-3 py-2 hover:bg-accent/50 flex items-center gap-3"
                     >
                       <div className="min-w-0 flex-1">
