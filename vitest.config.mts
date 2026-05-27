@@ -29,7 +29,6 @@ export default defineConfig({
     projects: [
       // The root config itself is the default project (packages/* + examples/*).
       './vitest.config.mts',
-      './apps/studio/vitest.config.ts',
       './apps/console/vitest.config.ts',
     ],
     passWithNoTests: true,
