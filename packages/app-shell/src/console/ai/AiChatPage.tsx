@@ -215,6 +215,11 @@ function ChatPane({
     }));
   }, [initialMessages]);
 
+  const suggestions = useMemo<string[] | undefined>(() => {
+    if (hydrated.length > 0) return undefined;
+    return buildAgentSuggestions(activeAgent, activeAgentLabel);
+  }, [hydrated.length, activeAgent, activeAgentLabel]);
+
   const {
     messages,
     isLoading,
@@ -232,19 +237,7 @@ function ChatPane({
         agentName: activeAgent,
       },
     },
-    initialMessages: hydrated.length > 0
-      ? hydrated
-      : [
-          {
-            id: 'welcome',
-            role: 'assistant' as const,
-            content: activeAgent
-              ? `Hello! I'm **${activeAgentLabel}**. How can I help you today?`
-              : `Hello! I'm your AI assistant.${
-                  agentsError ? ' (Backend unreachable — running in offline demo mode.)' : ''
-                }`,
-          },
-        ],
+    initialMessages: hydrated,
     autoResponse: !chatApi,
     autoResponseText: "Thanks for your message! I'm here to help.",
     autoResponseDelay: 600,
@@ -268,7 +261,7 @@ function ChatPane({
 
   const headerSlot =
     agents.length > 0 ? (
-      <div className="flex items-center gap-2 px-4 py-2">
+      <div className="flex flex-wrap items-center gap-2 px-4 py-2">
         <span className="text-xs text-muted-foreground">Agent:</span>
         <Select value={activeAgent} onValueChange={onAgentChange} disabled={agentsLoading}>
           <SelectTrigger className="h-7 w-[220px] text-xs" data-testid="ai-chat-agent-picker">
@@ -290,6 +283,14 @@ function ChatPane({
         {hydrating ? (
           <span className="text-[10px] text-muted-foreground">Loading history…</span>
         ) : null}
+        {agentsError ? (
+          <span
+            className="text-[10px] text-amber-700 dark:text-amber-400"
+            title={agentsError.message}
+          >
+            ⚠ Offline demo mode — agent list unavailable
+          </span>
+        ) : null}
       </div>
     ) : null;
 
@@ -301,11 +302,12 @@ function ChatPane({
       messages={messages as ChatMessage[]}
       placeholder={
         activeAgent
-          ? `Ask ${activeAgentLabel}...`
+          ? `Ask ${activeAgentLabel}…  (try “${(suggestions?.[0]) ?? 'How can you help?'}”)`
           : agentsLoading
-            ? 'Loading agents...'
-            : 'Ask anything...'
+            ? 'Loading agents…'
+            : 'Ask anything…'
       }
+      suggestions={suggestions}
       onSendMessage={handleSend}
       onClear={clear}
       onStop={isLoading ? stop : undefined}
@@ -321,6 +323,38 @@ function ChatPane({
       data-testid="ai-chat-panel"
     />
   );
+}
+
+const AGENT_SUGGESTIONS: Record<string, string[]> = {
+  data_chat: [
+    '系统里有多少个用户？列出他们的邮箱。',
+    '帮我列出最近创建的 5 条记录。',
+    '统计每个对象的记录数。',
+  ],
+  metadata_assistant: [
+    '系统里注册了哪些对象类型？',
+    'sys_user 对象有哪些字段？',
+    '描述一下用户相关的对象关系。',
+  ],
+};
+
+const GENERIC_SUGGESTIONS = [
+  'What can you help me with?',
+  'List the available data objects.',
+  'Summarize my recent activity.',
+];
+
+function buildAgentSuggestions(
+  agentName: string | undefined,
+  agentLabel: string,
+): string[] {
+  if (agentName && AGENT_SUGGESTIONS[agentName]) {
+    return AGENT_SUGGESTIONS[agentName];
+  }
+  const lower = (agentName ?? agentLabel).toLowerCase();
+  if (lower.includes('data')) return AGENT_SUGGESTIONS.data_chat;
+  if (lower.includes('metadata')) return AGENT_SUGGESTIONS.metadata_assistant;
+  return GENERIC_SUGGESTIONS;
 }
 
 export default AiChatPage;
