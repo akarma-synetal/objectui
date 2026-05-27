@@ -26,7 +26,7 @@ import {
   registerMetadataResource,
 } from '../views/metadata-admin';
 import { PermissionMatrixEditPage } from '../views/metadata-admin/PermissionMatrixEditor';
-import { DesignerEditorWrapper } from '../views/metadata-admin/DesignerEditorWrapper';
+import { DesignerEditorBody } from '../views/metadata-admin/DesignerEditorWrapper';
 
 /* -------------------------------------------------------------------------- */
 /* 1) Top-level admin pages — bound to `metadata:directory` + `metadata:resource` */
@@ -127,7 +127,7 @@ const PageCanvasEditor = lazy(() =>
 
 function ViewEditPage(props: { type: string; name: string }) {
   return (
-    <DesignerEditorWrapper
+    <DesignerEditorBody
       {...props}
       fromMetadata={(raw: any) => {
         // Normalize backend view metadata into the shape ObjectViewConfigurator expects.
@@ -157,7 +157,7 @@ function ViewEditPage(props: { type: string; name: string }) {
 
 function DashboardEditPage(props: { type: string; name: string }) {
   return (
-    <DesignerEditorWrapper
+    <DesignerEditorBody
       {...props}
       renderDesigner={(value, onChange, readOnly) => (
         <Suspense fallback={<DesignerFallback label="dashboard editor" />}>
@@ -174,7 +174,7 @@ function DashboardEditPage(props: { type: string; name: string }) {
 
 function PageEditPage(props: { type: string; name: string }) {
   return (
-    <DesignerEditorWrapper
+    <DesignerEditorBody
       {...props}
       renderDesigner={(value: any, onChange, readOnly) => (
         <Suspense fallback={<DesignerFallback label="page canvas" />}>
@@ -200,7 +200,8 @@ registerMetadataResource({
   label: 'Views',
   description: 'Saved list / kanban / calendar / gantt configurations on top of an object.',
   domain: 'ui',
-  EditPage: ViewEditPage,
+  DesignerTab: ViewEditPage,
+  designerTabLabel: 'View designer',
   listColumns: [
     { key: 'name', label: 'Name', width: '30%' },
     { key: 'object', label: 'Object', width: '20%' },
@@ -214,7 +215,8 @@ registerMetadataResource({
   label: 'Dashboards',
   description: 'Composed dashboards with charts, KPIs, and tables.',
   domain: 'ui',
-  EditPage: DashboardEditPage,
+  DesignerTab: DashboardEditPage,
+  designerTabLabel: 'Dashboard designer',
   listColumns: [
     { key: 'name', label: 'Name', width: '30%' },
     { key: 'label', label: 'Label', width: '30%' },
@@ -227,7 +229,8 @@ registerMetadataResource({
   label: 'Pages',
   description: 'Visual page layouts authored in the Page Canvas editor.',
   domain: 'ui',
-  EditPage: PageEditPage,
+  DesignerTab: PageEditPage,
+  designerTabLabel: 'Page canvas',
   listColumns: [
     { key: 'name', label: 'Name', width: '30%' },
     { key: 'label', label: 'Label', width: '30%' },

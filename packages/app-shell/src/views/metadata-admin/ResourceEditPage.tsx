@@ -289,6 +289,9 @@ export function MetadataResourceEditPage({
     (config.defaultSchema as Record<string, unknown> | undefined);
   const readOnly = !entry?.allowOrgOverride && !createMode;
 
+  const DesignerTab = !createMode ? customConfig?.DesignerTab : undefined;
+  const designerTabLabel = customConfig?.designerTabLabel ?? 'Designer';
+
   return (
     <PageShell
       entry={entry ?? { type, label: type }}
@@ -340,8 +343,11 @@ export function MetadataResourceEditPage({
           </div>
         )}
 
-        <Tabs defaultValue="form" className="w-full">
+        <Tabs defaultValue={DesignerTab ? 'designer' : 'form'} className="w-full">
           <TabsList>
+            {DesignerTab && (
+              <TabsTrigger value="designer">{designerTabLabel}</TabsTrigger>
+            )}
             <TabsTrigger value="form">Form</TabsTrigger>
             {!createMode && (
               <TabsTrigger value="layers">
@@ -368,6 +374,12 @@ export function MetadataResourceEditPage({
               </TabsTrigger>
             )}
           </TabsList>
+
+          {DesignerTab && (
+            <TabsContent value="designer" className="mt-4">
+              <DesignerTab type={type} name={name} />
+            </TabsContent>
+          )}
 
           <TabsContent value="form" className="mt-4">
             <SchemaForm

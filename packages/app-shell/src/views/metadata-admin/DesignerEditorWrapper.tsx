@@ -87,13 +87,27 @@ export interface DesignerEditorWrapperProps<TValue = any> {
   toMetadata?: (value: TValue) => unknown;
 }
 
-export function DesignerEditorWrapper<TValue = any>({
+export function DesignerEditorWrapper<TValue = any>(
+  props: DesignerEditorWrapperProps<TValue>,
+) {
+  return <DesignerEditorBody {...props} withChrome />;
+}
+
+/**
+ * Embedded variant — same state machine, but no surrounding `PageShell`.
+ * Used by `ResourceEditPage` to host the designer inside a tab alongside
+ * the generic Form / Layers / References tabs. The action toolbar (Save /
+ * Reset / Refresh) is rendered inline at the top of the panel so the tab
+ * remains self-sufficient.
+ */
+export function DesignerEditorBody<TValue = any>({
   type,
   name,
   renderDesigner,
   fromMetadata,
   toMetadata,
-}: DesignerEditorWrapperProps<TValue>) {
+  withChrome = false,
+}: DesignerEditorWrapperProps<TValue> & { withChrome?: boolean }) {
   const navigate = useNavigate();
   const client = useMetadataClient();
   const { entries } = useMetadataTypes(client);
@@ -180,12 +194,122 @@ export function DesignerEditorWrapper<TValue = any>({
   }
 
   if (loading || value == null) {
-    return (
-      <PageShell entry={entry} itemName={name}>
-        <div className="p-6 text-sm text-muted-foreground flex items-center gap-2">
-          <Loader2 className="h-4 w-4 animate-spin" /> {t('engine.edit.loading', locale)} {type}/{name}…
+    const loadingBody = (
+      <div className="p-6 text-sm text-muted-foreground flex items-center gap-2">
+        <Loader2 className="h-4 w-4 animate-spin" /> {t('engine.edit.loading', locale)} {type}/{name}…
+      </div>
+    );
+    return withChrome ? (
+      <PageShell entry={entry} itemName={name}>{loadingBody}</PageShell>
+    ) : (
+      loadingBody
+    );
+  }
+
+  const toolbarButtons = (
+    <>
+      <Button variant="ghost" size="sm" onClick={load} disabled={saving}>
+        <RefreshCw className="h-4 w-4 mr-1" /> {t('engine.list.refresh', locale)}
+      </Button>
+      {withChrome && (
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => navigate(`./history?type=${encodeURIComponent(type)}`)}
+        >
+          <HistoryIcon className="h-4 w-4 mr-1" /> {t('engine.edit.history', locale)}
+        </Button>
+      )}
+      {writable && (
+        <Button variant="ghost" size="sm" onClick={doReset} disabled={saving}>
+          <RotateCcw className="h-4 w-4 mr-1" /> {t('engine.edit.reset', locale)}
+        </Button>
+      )}
+      {writable && (
+        <Button size="sm" onClick={() => doSave(false)} disabled={saving || !dirty}>
+          {saving ? (
+            <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+          ) : (
+            <Save className="h-4 w-4 mr-1" />
+          )}
+          {t('engine.edit.save', locale)}
+        </Button>
+      )}
+    </>
+  );
+
+  const banners = (
+    <>
+      {!writable && (
+        <div className="mx-6 mt-4 rounded-md border bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
+          {t('engine.edit.readOnlyHint', locale)}
         </div>
-      </PageShell>
+      )}
+      {error && (
+        <div className="mx-6 mt-4 rounded-md border border-destructive/40 bg-destructive/5 p-3 text-sm text-destructive flex items-start gap-2">
+          <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
+          <span>{error}</span>
+        </div>
+      )}
+      {dirty && writable && (
+        <div className="mx-6 mt-3 flex items-center gap-2 rounded-md border border-amber-300/50 bg-amber-50 dark:bg-amber-950/30 px-3 py-1.5 text-xs">
+          <Badge variant="outline">{t('engine.edit.unsaved', locale)}</Badge>
+          <span>{t('engine.edit.unsavedHint', locale)}</span>
+        </div>
+      )}
+    </>
+  );
+
+  const designerArea = (
+    <div className="flex-1 min-h-0 overflow-auto">
+      {renderDesigner(value, (next) => setValue(next), !writable)}
+    </div>
+  );
+
+  const destructiveDialog = (
+    <Dialog open={!!destructive} onOpenChange={(open) => !open && setDestructive(null)}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <AlertTriangle className="h-4 w-4 text-amber-500" /> {t('engine.edit.destructive', locale)}
+          </DialogTitle>
+          <DialogDescription>
+            {t('engine.edit.destructiveHint', locale)}
+          </DialogDescription>
+        </DialogHeader>
+        <ul className="text-sm space-y-1 max-h-64 overflow-auto">
+          {destructive?.issues.map((i, idx) => (
+            <li key={idx} className="border-l-2 border-amber-500 pl-2">
+              {i.kind && <Badge variant="outline" className="mr-2">{i.kind}</Badge>}
+              {i.message ?? JSON.stringify(i)}
+            </li>
+          ))}
+        </ul>
+        <DialogFooter>
+          <Button variant="ghost" onClick={() => setDestructive(null)}>{t('engine.cancel', locale)}</Button>
+          <Button
+            variant="destructive"
+            onClick={() => destructive && doSave(true, destructive.pending)}
+            disabled={saving}
+          >
+            {saving && <Loader2 className="h-4 w-4 mr-1 animate-spin" />}
+            {t('engine.edit.forceSave', locale)}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+
+  if (!withChrome) {
+    return (
+      <div className="flex flex-col h-full overflow-hidden">
+        <div className="flex items-center justify-end gap-1 px-6 pt-3">
+          {toolbarButtons}
+        </div>
+        {banners}
+        {designerArea}
+        {destructiveDialog}
+      </div>
     );
   }
 
@@ -194,90 +318,13 @@ export function DesignerEditorWrapper<TValue = any>({
       entry={entry ?? { type, label: type }}
       itemName={name}
       subtitle={t('engine.edit.bespokeDesigner', locale)}
-      actions={
-        <>
-          <Button variant="ghost" size="sm" onClick={load} disabled={saving}>
-            <RefreshCw className="h-4 w-4 mr-1" /> {t('engine.list.refresh', locale)}
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => navigate(`./history?type=${encodeURIComponent(type)}`)}
-          >
-            <HistoryIcon className="h-4 w-4 mr-1" /> {t('engine.edit.history', locale)}
-          </Button>
-          {writable && (
-            <Button variant="ghost" size="sm" onClick={doReset} disabled={saving}>
-              <RotateCcw className="h-4 w-4 mr-1" /> {t('engine.edit.reset', locale)}
-            </Button>
-          )}
-          {writable && (
-            <Button size="sm" onClick={() => doSave(false)} disabled={saving || !dirty}>
-              {saving ? (
-                <Loader2 className="h-4 w-4 mr-1 animate-spin" />
-              ) : (
-                <Save className="h-4 w-4 mr-1" />
-              )}
-              {t('engine.edit.save', locale)}
-            </Button>
-          )}
-        </>
-      }
+      actions={toolbarButtons}
     >
       <div className="flex flex-col h-full overflow-hidden">
-        {!writable && (
-          <div className="mx-6 mt-4 rounded-md border bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
-            {t('engine.edit.readOnlyHint', locale)}
-          </div>
-        )}
-        {error && (
-          <div className="mx-6 mt-4 rounded-md border border-destructive/40 bg-destructive/5 p-3 text-sm text-destructive flex items-start gap-2">
-            <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
-            <span>{error}</span>
-          </div>
-        )}
-        {dirty && writable && (
-          <div className="mx-6 mt-3 flex items-center gap-2 rounded-md border border-amber-300/50 bg-amber-50 dark:bg-amber-950/30 px-3 py-1.5 text-xs">
-            <Badge variant="outline">{t('engine.edit.unsaved', locale)}</Badge>
-            <span>{t('engine.edit.unsavedHint', locale)}</span>
-          </div>
-        )}
-        <div className="flex-1 min-h-0 overflow-auto">
-          {renderDesigner(value, (next) => setValue(next), !writable)}
-        </div>
+        {banners}
+        {designerArea}
       </div>
-
-      <Dialog open={!!destructive} onOpenChange={(open) => !open && setDestructive(null)}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <AlertTriangle className="h-4 w-4 text-amber-500" /> {t('engine.edit.destructive', locale)}
-            </DialogTitle>
-            <DialogDescription>
-              {t('engine.edit.destructiveHint', locale)}
-            </DialogDescription>
-          </DialogHeader>
-          <ul className="text-sm space-y-1 max-h-64 overflow-auto">
-            {destructive?.issues.map((i, idx) => (
-              <li key={idx} className="border-l-2 border-amber-500 pl-2">
-                {i.kind && <Badge variant="outline" className="mr-2">{i.kind}</Badge>}
-                {i.message ?? JSON.stringify(i)}
-              </li>
-            ))}
-          </ul>
-          <DialogFooter>
-            <Button variant="ghost" onClick={() => setDestructive(null)}>{t('engine.cancel', locale)}</Button>
-            <Button
-              variant="destructive"
-              onClick={() => destructive && doSave(true, destructive.pending)}
-              disabled={saving}
-            >
-              {saving && <Loader2 className="h-4 w-4 mr-1 animate-spin" />}
-              {t('engine.edit.forceSave', locale)}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {destructiveDialog}
     </PageShell>
   );
 }
