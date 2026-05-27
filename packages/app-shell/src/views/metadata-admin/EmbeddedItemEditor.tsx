@@ -260,9 +260,16 @@ function spliceEmbedded(
 
 /**
  * Inline JSONSchema + form-spec fallbacks for sub-types that the
- * framework's `/meta` registry doesn't expose a `schema`/`form` for
- * (e.g. `index`, `validation`). Mirrors the framework Zod shapes
- * observed on disk under `packages/data-objectstack` fixtures.
+ * framework's `/meta` registry doesn't expose a `schema`/`form` for.
+ *
+ * `index` is the only one we still need to ship here: it's an
+ * embedded-only sub-type (lives inside `object.indexes[]`) and is not
+ * registered as a standalone metadata type, so the server has no slot
+ * to publish a schema for it. Once / if the framework grows an
+ * embedded-sub-type registry, this can move server-side too.
+ *
+ * `validation` used to be here but is now published by the server via
+ * `HAND_CRAFTED_SCHEMAS.validation` in `objectql/protocol.ts`.
  */
 const FALLBACK_SCHEMAS: Record<
   string,
@@ -300,63 +307,6 @@ const FALLBACK_SCHEMAS: Record<
           title: 'Partial-index predicate',
           description: 'Optional WHERE clause for a partial index.',
         },
-      },
-    },
-  },
-  validation: {
-    schema: {
-      type: 'object',
-      required: ['name', 'type'],
-      properties: {
-        name: { type: 'string', title: 'Name' },
-        type: {
-          type: 'string',
-          title: 'Type',
-          enum: ['expression', 'unique', 'required', 'regex', 'range', 'custom'],
-          default: 'expression',
-        },
-        active: { type: 'boolean', title: 'Active', default: true },
-        severity: {
-          type: 'string',
-          title: 'Severity',
-          enum: ['error', 'warning', 'info'],
-          default: 'error',
-        },
-        message: {
-          type: 'string',
-          title: 'Error message',
-          description: 'Shown to the user when validation fails.',
-        },
-        priority: { type: 'number', title: 'Priority', default: 100 },
-        events: {
-          type: 'array',
-          title: 'Events',
-          description: 'Lifecycle events that trigger this rule.',
-          items: {
-            type: 'string',
-            enum: ['insert', 'update', 'delete'],
-          },
-        },
-        fields: {
-          type: 'array',
-          title: 'Fields',
-          description: 'Field names this rule applies to.',
-          items: { type: 'string' },
-        },
-        expression: {
-          type: 'string',
-          title: 'Expression (CEL)',
-          format: 'multiline',
-          description: 'Required when type = expression.',
-        },
-        pattern: {
-          type: 'string',
-          title: 'Regex pattern',
-          description: 'Required when type = regex.',
-        },
-        min: { type: 'number', title: 'Min' },
-        max: { type: 'number', title: 'Max' },
-        caseSensitive: { type: 'boolean', title: 'Case sensitive' },
       },
     },
   },
