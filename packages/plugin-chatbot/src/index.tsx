@@ -298,6 +298,15 @@ export {
   uiMessagesToChatMessages,
 } from './mapMessages';
 
+// Display helpers used internally by ChatbotEnhanced. Exported so app
+// authors composing their own chat surface get the same pretty tool-call
+// rendering and friendly error summaries for free.
+export {
+  humanizeToolName,
+  unwrapToolResult,
+  summarizeChatError,
+} from './tool-display';
+
 // HITL (Human-In-The-Loop) pending-actions inbox. Talks to
 // `@objectstack/service-ai` at `/api/v1/ai/pending-actions/*`. Shared
 // between Console's workspace inbox page and Studio's assistant
