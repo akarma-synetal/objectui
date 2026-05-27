@@ -325,7 +325,7 @@ export function MetadataResourceEditPage({
         </>
       }
     >
-      <div className="p-6 space-y-6 max-w-5xl">
+      <div className="p-6 space-y-6 max-w-7xl">
         {error && (
           <div className="text-sm text-destructive border border-destructive/30 rounded p-3 bg-destructive/5">
             {error}
