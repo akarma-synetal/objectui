@@ -79,6 +79,160 @@ export interface CanvasComponent {
   type: string;
   label: string;
   props?: Record<string, unknown>;
+  /** Source region name when the page schema uses `regions[].components[]`. */
+  regionName?: string;
+  /** Whether the original component shape used `properties` (regions/body) vs inline (children). */
+  shape?: 'properties' | 'inline';
+}
+
+/** Page schema shape detected on load — used to round-trip back the same way. */
+type PageContentShape = 'regions' | 'body' | 'children' | 'empty';
+
+interface RegionMeta {
+  name: string;
+  type?: string;
+  width?: string | number;
+  className?: string;
+}
+
+function detectShape(schema: PageSchema): PageContentShape {
+  const anySchema = schema as any;
+  if (Array.isArray(anySchema.regions) && anySchema.regions.length > 0) return 'regions';
+  if (Array.isArray(anySchema.body) && anySchema.body.length > 0) return 'body';
+  if (anySchema.children) return 'children';
+  return 'empty';
+}
+
+function flattenSchema(schema: PageSchema): {
+  components: CanvasComponent[];
+  regionMeta: RegionMeta[];
+} {
+  const anySchema = schema as any;
+  const out: CanvasComponent[] = [];
+  const regionMeta: RegionMeta[] = [];
+
+  if (Array.isArray(anySchema.regions) && anySchema.regions.length > 0) {
+    anySchema.regions.forEach((region: any) => {
+      regionMeta.push({
+        name: region.name,
+        type: region.type,
+        width: region.width,
+        className: region.className,
+      });
+      const comps = Array.isArray(region.components) ? region.components : [];
+      comps.forEach((child: any, i: number) => {
+        out.push({
+          id: child.id || `${region.name}_${i}_${out.length}`,
+          type: child.type || 'grid',
+          label:
+            child.title ||
+            child.label ||
+            child?.properties?.title ||
+            child?.properties?.label ||
+            `${child.type || 'Component'} ${out.length + 1}`,
+          props: child.properties ?? child.props ?? {},
+          regionName: region.name,
+          shape: 'properties',
+        });
+      });
+    });
+    return { components: out, regionMeta };
+  }
+
+  if (Array.isArray(anySchema.body) && anySchema.body.length > 0) {
+    anySchema.body.forEach((child: any, i: number) => {
+      out.push({
+        id: child.id || `body_${i}`,
+        type: child.type || 'grid',
+        label:
+          child.title ||
+          child.label ||
+          child?.properties?.title ||
+          `${child.type || 'Component'} ${i + 1}`,
+        props: child.properties ?? child.props ?? {},
+        shape: 'properties',
+      });
+    });
+    return { components: out, regionMeta };
+  }
+
+  const children = anySchema.children
+    ? Array.isArray(anySchema.children) ? anySchema.children : [anySchema.children]
+    : [];
+  children.forEach((child: any, i: number) => {
+    out.push({
+      id: child.id || `existing_${i}`,
+      type: child.type || 'grid',
+      label: child.title || child.label || `Component ${i + 1}`,
+      props: child,
+      shape: 'inline',
+    });
+  });
+  return { components: out, regionMeta };
+}
+
+function serializeComponent(c: CanvasComponent): any {
+  if (c.shape === 'properties') {
+    return {
+      type: c.type,
+      id: c.id,
+      properties: c.props ?? {},
+    };
+  }
+  // Legacy inline shape (children).
+  return {
+    type: c.type,
+    id: c.id,
+    title: c.label,
+    ...c.props,
+  };
+}
+
+function buildSchemaFromComponents(
+  baseSchema: PageSchema,
+  components: CanvasComponent[],
+  shape: PageContentShape,
+  regionMeta: RegionMeta[],
+): PageSchema {
+  const cleared: any = { ...baseSchema };
+  delete cleared.regions;
+  delete cleared.body;
+  delete cleared.children;
+
+  if (shape === 'regions') {
+    const byRegion = new Map<string, any[]>();
+    regionMeta.forEach((r) => byRegion.set(r.name, []));
+    components.forEach((c) => {
+      const key = c.regionName ?? regionMeta[0]?.name ?? 'main';
+      if (!byRegion.has(key)) byRegion.set(key, []);
+      byRegion.get(key)!.push(serializeComponent(c));
+    });
+    cleared.regions = Array.from(byRegion.entries()).map(([name, comps]) => {
+      const meta = regionMeta.find((r) => r.name === name);
+      return {
+        name,
+        ...(meta?.type ? { type: meta.type } : {}),
+        ...(meta?.width != null ? { width: meta.width } : {}),
+        ...(meta?.className ? { className: meta.className } : {}),
+        components: comps,
+      };
+    });
+    return cleared as PageSchema;
+  }
+
+  if (shape === 'body') {
+    cleared.body = components.map(serializeComponent);
+    return cleared as PageSchema;
+  }
+
+  // Default to `children` (legacy inline shape) for new pages.
+  cleared.children = components.map((c) => ({
+    type: c.type,
+    id: c.id,
+    title: c.label,
+    ...(c.props ?? {}),
+  })) as any;
+  return cleared as PageSchema;
 }
 
 // ============================================================================
@@ -302,17 +456,22 @@ export function PageCanvasEditor({
   const containerRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const [components, setComponents] = useState<CanvasComponent[]>(() => {
-    const children = schema.children
-      ? Array.isArray(schema.children) ? schema.children : [schema.children]
-      : [];
-    return children.map((child: any, i: number) => ({
-      id: child.id || `existing_${i}`,
-      type: child.type || 'grid',
-      label: child.title || child.label || `Component ${i + 1}`,
-      props: child,
-    }));
-  });
+  const initialFlat = React.useMemo(() => flattenSchema(schema), []);
+  const [components, setComponents] = useState<CanvasComponent[]>(initialFlat.components);
+  const shapeRef = useRef<PageContentShape>(detectShape(schema));
+  const regionMetaRef = useRef<RegionMeta[]>(initialFlat.regionMeta);
+
+  // Re-sync if the loaded schema identity changes (e.g. after fetch completes
+  // or the user navigates between pages).
+  const schemaIdentityRef = useRef(schema);
+  useEffect(() => {
+    if (schemaIdentityRef.current === schema) return;
+    schemaIdentityRef.current = schema;
+    const flat = flattenSchema(schema);
+    shapeRef.current = detectShape(schema);
+    regionMetaRef.current = flat.regionMeta;
+    setComponents(flat.components);
+  }, [schema]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [previewMode, setPreviewMode] = useState(false);
   const [canvasMode, setCanvasMode] = useState<CanvasMode>('page');
@@ -330,15 +489,10 @@ export function PageCanvasEditor({
     (updated: CanvasComponent[]) => {
       setComponents(updated);
       pushHistory(updated);
-      onChange({
-        ...schema,
-        children: updated.map((c) => ({
-          type: c.type,
-          id: c.id,
-          title: c.label,
-          ...c.props,
-        })) as any,
-      });
+      const shape = shapeRef.current === 'empty' ? 'children' : shapeRef.current;
+      onChange(
+        buildSchemaFromComponents(schema, updated, shape, regionMetaRef.current),
+      );
     },
     [schema, onChange, pushHistory]
   );
@@ -444,17 +598,11 @@ export function PageCanvasEditor({
         try {
           const parsed = JSON.parse(reader.result as string) as PageSchema;
           if (parsed && parsed.type === 'page') {
-            const children = parsed.children
-              ? Array.isArray(parsed.children) ? parsed.children : [parsed.children]
-              : [];
-            const imported = children.map((child: any, i: number) => ({
-              id: child.id || `imported_${i}`,
-              type: child.type || 'grid',
-              label: child.title || child.label || `Component ${i + 1}`,
-              props: child,
-            }));
-            setComponents(imported);
-            pushHistory(imported);
+            const flat = flattenSchema(parsed);
+            shapeRef.current = detectShape(parsed);
+            regionMetaRef.current = flat.regionMeta;
+            setComponents(flat.components);
+            pushHistory(flat.components);
             onChange(parsed);
             onImport?.(parsed);
           }
