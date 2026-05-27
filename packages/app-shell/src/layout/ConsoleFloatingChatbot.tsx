@@ -26,7 +26,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@object-ui/components';
-import { useChatConversation } from '../hooks';
+import { useChatConversation, type HydratedUIMessage } from '../hooks';
 
 interface ConsoleObject {
   name: string;
@@ -92,6 +92,12 @@ interface ChatbotInnerProps {
    * server-side auto-persist kicks in). Undefined while hydrating.
    */
   conversationId?: string;
+  /**
+   * Previously-saved messages for the resolved conversation. Replayed into
+   * the chat UI on mount so a page refresh shows the user's prior history
+   * instead of an empty "welcome" thread.
+   */
+  initialMessages?: HydratedUIMessage[];
 }
 
 function ChatbotInner({
@@ -106,8 +112,20 @@ function ChatbotInner({
   apiBase,
   defaultOpen = false,
   conversationId,
+  initialMessages: persistedMessages,
 }: ChatbotInnerProps) {
   const objectNames = objects.map((o) => o.label || o.name).join(', ');
+
+  // Replay persisted history when present. Suppress the static "welcome"
+  // bubble in that case — showing it above real prior turns is confusing.
+  const hydratedHistory = React.useMemo<ChatMessage[]>(() => {
+    if (!persistedMessages || persistedMessages.length === 0) return [];
+    return persistedMessages.map((m) => ({
+      id: m.id,
+      role: m.role,
+      content: m.parts.map((p) => p.text).join(''),
+    }));
+  }, [persistedMessages]);
 
   const activeAgentLabel = React.useMemo<string>(() => {
     const found = agents.find((a) => a.name === activeAgent);
@@ -138,13 +156,15 @@ function ChatbotInner({
         agentName: activeAgent,
       },
     },
-    initialMessages: [
-      {
-        id: 'welcome',
-        role: 'assistant' as const,
-        content: welcomeContent,
-      },
-    ],
+    initialMessages: hydratedHistory.length > 0
+      ? hydratedHistory
+      : [
+          {
+            id: 'welcome',
+            role: 'assistant' as const,
+            content: welcomeContent,
+          },
+        ],
     // Local-mode fallback: only used when `chatApi` is undefined (no agent
     // resolved yet, or no backend available). Keeps the UI usable.
     autoResponse: !chatApi,
@@ -260,7 +280,7 @@ export default function ConsoleFloatingChatbot({
   // Server-backed conversation. Scoped by agent so each agent gets its own
   // persistent history. Hook is inert until `userId` is provided; without it
   // the FAB continues to work in local-only mode (no persistence).
-  const { conversationId } = useChatConversation({
+  const { conversationId, initialMessages } = useChatConversation({
     userId,
     scope: activeAgent,
     apiBase,
@@ -283,6 +303,7 @@ export default function ConsoleFloatingChatbot({
       apiBase={apiBase}
       defaultOpen={defaultOpen}
       conversationId={conversationId}
+      initialMessages={initialMessages}
     />
   );
 }
