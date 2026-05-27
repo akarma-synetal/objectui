@@ -19,8 +19,13 @@
  */
 import * as React from 'react';
 import { cn } from '@object-ui/components';
-import { AlertCircle, Copy, Check, RefreshCw } from 'lucide-react';
+import { AlertCircle, Copy, Check, RefreshCw, CornerDownLeft } from 'lucide-react';
 import type { ChatStatus } from 'ai';
+import {
+  humanizeToolName,
+  summarizeChatError,
+  unwrapToolResult,
+} from './tool-display';
 import {
   Conversation,
   ConversationContent,
@@ -385,12 +390,24 @@ const ChatbotEnhanced = React.forwardRef<HTMLDivElement, ChatbotEnhancedProps>(
                               state === 'approval-requested' && Boolean(onToolApprove) && !decision;
                             const hidePendingPayload =
                               state === 'approval-requested' && Boolean(tool.pendingActionId);
+                            const friendlyTitle = humanizeToolName(tool.toolName);
+                            const renderableResult = unwrapToolResult(tool.result);
+                            const titleNode = (
+                              <span className="inline-flex items-center gap-2">
+                                <span>{friendlyTitle || tool.toolName}</span>
+                                {friendlyTitle && friendlyTitle.toLowerCase() !== tool.toolName.toLowerCase() ? (
+                                  <code className="rounded bg-muted px-1 py-px text-[10px] font-mono text-muted-foreground">
+                                    {tool.toolName}
+                                  </code>
+                                ) : null}
+                              </span>
+                            );
                             return (
                               <Tool key={tool.toolCallId} defaultOpen={state !== 'output-available'}>
                                 <ToolHeader
                                   type={partType}
                                   state={state}
-                                  title={tool.toolName}
+                                  title={titleNode}
                                 />
                                 <ToolContent>
                                   {tool.args !== undefined ? (
@@ -398,7 +415,7 @@ const ChatbotEnhanced = React.forwardRef<HTMLDivElement, ChatbotEnhancedProps>(
                                   ) : null}
                                   {hidePendingPayload ? null : (
                                     <ToolOutput
-                                      output={tool.result}
+                                      output={renderableResult}
                                       errorText={tool.errorText}
                                     />
                                   )}
@@ -529,22 +546,7 @@ const ChatbotEnhanced = React.forwardRef<HTMLDivElement, ChatbotEnhancedProps>(
         </Conversation>
 
         {error ? (
-          <div
-            className="flex items-center gap-2 px-4 py-2 border-t bg-destructive/10 text-destructive text-sm"
-            role="alert"
-          >
-            <AlertCircle className="h-4 w-4 shrink-0" />
-            <span className="flex-1 truncate">{error.message || 'An error occurred'}</span>
-            {onReload ? (
-              <button
-                type="button"
-                onClick={onReload}
-                className="text-xs underline hover:no-underline"
-              >
-                Retry
-              </button>
-            ) : null}
-          </div>
+          <ErrorBanner error={error} onReload={onReload} />
         ) : null}
 
         <div className="relative">
@@ -603,6 +605,16 @@ const ChatbotEnhanced = React.forwardRef<HTMLDivElement, ChatbotEnhancedProps>(
                     ))}
                   </select>
                 ) : null}
+                <span
+                  className="hidden items-center gap-1 text-[10px] text-muted-foreground sm:inline-flex"
+                  aria-hidden="true"
+                >
+                  <kbd className="inline-flex h-4 items-center rounded border bg-muted px-1 font-mono text-[10px] leading-none">
+                    ⌘
+                  </kbd>
+                  <CornerDownLeft className="h-3 w-3" />
+                  <span className="opacity-70">to send</span>
+                </span>
               </PromptInputTools>
               <PromptInputSubmit
                 status={status}
@@ -625,5 +637,52 @@ const ChatbotEnhanced = React.forwardRef<HTMLDivElement, ChatbotEnhancedProps>(
 );
 
 ChatbotEnhanced.displayName = 'ChatbotEnhanced';
+
+function ErrorBanner({
+  error,
+  onReload,
+}: {
+  error: Error;
+  onReload?: () => void;
+}) {
+  const { summary, details } = React.useMemo(() => summarizeChatError(error), [error]);
+  const [expanded, setExpanded] = React.useState(false);
+  return (
+    <div
+      className="flex flex-col gap-1 border-t bg-destructive/10 px-4 py-2 text-destructive text-sm"
+      role="alert"
+    >
+      <div className="flex items-center gap-2">
+        <AlertCircle className="h-4 w-4 shrink-0" />
+        <span className="flex-1 leading-snug">{summary || 'An error occurred'}</span>
+        {details ? (
+          <button
+            type="button"
+            onClick={() => setExpanded((v) => !v)}
+            className="text-xs underline hover:no-underline"
+            aria-expanded={expanded}
+          >
+            {expanded ? 'Hide details' : 'Details'}
+          </button>
+        ) : null}
+        {onReload ? (
+          <button
+            type="button"
+            onClick={onReload}
+            className="inline-flex h-7 items-center rounded-md border border-destructive/30 bg-destructive/10 px-2 text-xs font-medium hover:bg-destructive/20"
+          >
+            <RefreshCw className="mr-1 h-3 w-3" />
+            Retry
+          </button>
+        ) : null}
+      </div>
+      {expanded && details ? (
+        <pre className="max-h-32 overflow-auto whitespace-pre-wrap break-words rounded bg-destructive/5 px-2 py-1 font-mono text-[11px] leading-snug text-destructive/90">
+          {details}
+        </pre>
+      ) : null}
+    </div>
+  );
+}
 
 export { ChatbotEnhanced };
