@@ -29,6 +29,7 @@ import {
   Link2,
   Loader2,
   AlertTriangle,
+  Layers3,
 } from 'lucide-react';
 import { Button } from '@object-ui/components';
 import { Badge } from '@object-ui/components';
@@ -62,19 +63,29 @@ import {
 import {
   getMetadataResource,
   resolveResourceConfig,
+  listAnchorsFor,
 } from './registry';
+import { RelatedPanel } from './RelatedPanel';
+import { MetadataDetailDrawer } from './MetadataDetailDrawer';
 
 export interface MetadataResourceEditPageProps {
   type?: string;
   name?: string;
   /** When true, this is the Create flow (skip initial fetch). */
   createMode?: boolean;
+  /**
+   * When true, the editor is rendered inside another surface (e.g.
+   * the Related drawer). Hides Related-tab and URL-sync so the inner
+   * page does not fight the outer page for `?tab` / `?open`.
+   */
+  embedded?: boolean;
 }
 
 export function MetadataResourceEditPage({
   type: typeProp,
   name: nameProp,
   createMode = false,
+  embedded = false,
 }: MetadataResourceEditPageProps) {
   const params = useParams<{ type?: string; name?: string }>();
   const type = typeProp ?? params.type ?? '';
@@ -184,6 +195,46 @@ export function MetadataResourceEditPage({
       setRefsLoading(false);
     }
   }
+
+  // Related drawer state. `null` = closed. We avoid querystring round-
+  // trips on every keystroke; URL state is best-effort sync via effect
+  // below.
+  const [relatedTarget, setRelatedTarget] = React.useState<
+    { type: string; name: string } | null
+  >(null);
+
+  const hasAnchors = React.useMemo(
+    () => !createMode && !embedded && listAnchorsFor(type).length > 0,
+    [type, createMode, embedded],
+  );
+
+  // Read ?tab and ?open on first mount so deep-links work.
+  const initialTabRef = React.useRef<string | null>(null);
+  React.useEffect(() => {
+    if (typeof window === 'undefined' || embedded) return;
+    const sp = new URLSearchParams(window.location.search);
+    const tab = sp.get('tab');
+    if (tab) initialTabRef.current = tab;
+    const open = sp.get('open');
+    if (open && open.includes(':')) {
+      const [t, n] = open.split(':', 2);
+      if (t && n) setRelatedTarget({ type: t, name: n });
+    }
+    // intentionally empty deps — first mount only
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Reflect drawer target into the URL so refresh/share works.
+  React.useEffect(() => {
+    if (typeof window === 'undefined' || embedded) return;
+    const url = new URL(window.location.href);
+    if (relatedTarget) {
+      url.searchParams.set('open', `${relatedTarget.type}:${relatedTarget.name}`);
+    } else {
+      url.searchParams.delete('open');
+    }
+    window.history.replaceState({}, '', url.toString());
+  }, [relatedTarget, embedded]);
 
   async function doSave(force: boolean) {
     setSaving(true);
@@ -340,7 +391,18 @@ export function MetadataResourceEditPage({
           </div>
         )}
 
-        <Tabs defaultValue={DesignerTab ? 'designer' : 'form'} className="w-full">
+        <Tabs
+          defaultValue={
+            initialTabRef.current ?? (DesignerTab ? 'designer' : 'form')
+          }
+          className="w-full"
+          onValueChange={(v) => {
+            if (typeof window === 'undefined' || embedded) return;
+            const url = new URL(window.location.href);
+            url.searchParams.set('tab', v);
+            window.history.replaceState({}, '', url.toString());
+          }}
+        >
           <TabsList>
             {DesignerTab && (
               <TabsTrigger value="designer">{designerTabLabel}</TabsTrigger>
@@ -368,6 +430,12 @@ export function MetadataResourceEditPage({
                     {refs.length}
                   </Badge>
                 )}
+              </TabsTrigger>
+            )}
+            {hasAnchors && (
+              <TabsTrigger value="related">
+                <Layers3 className="h-3.5 w-3.5 mr-1" />
+                Related
               </TabsTrigger>
             )}
           </TabsList>
@@ -404,8 +472,24 @@ export function MetadataResourceEditPage({
               <ReferencesPanel refs={refs} loading={refsLoading} />
             </TabsContent>
           )}
+
+          {hasAnchors && (
+            <TabsContent value="related" className="mt-4">
+              <RelatedPanel
+                type={type}
+                name={name}
+                onOpen={(t) => setRelatedTarget(t)}
+              />
+            </TabsContent>
+          )}
         </Tabs>
       </div>
+
+      <MetadataDetailDrawer
+        target={relatedTarget}
+        onClose={() => setRelatedTarget(null)}
+        parentContext={{ type, name }}
+      />
 
       {/* Destructive-change confirmation dialog */}
       <Dialog

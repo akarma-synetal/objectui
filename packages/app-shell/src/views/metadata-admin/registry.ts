@@ -121,6 +121,85 @@ export interface MetadataResourceConfig {
    * If the server registry DOES return a `schema`, this is ignored.
    */
   defaultSchema?: Record<string, unknown>;
+
+  /**
+   * Declares that items of this type are "anchored" to one or more
+   * parent metadata types. The Related tab on the parent's edit page
+   * lists every item that matches the anchor predicate.
+   *
+   * For example, registering `hook` with
+   * `{ anchorType: 'object', match: (item, name) => item.object === name }`
+   * makes every `hook` whose `object` field equals `account` show up in
+   * the Account object's Related tab under a "Hooks" group.
+   *
+   * Multiple anchors are allowed (e.g. a field could anchor to both
+   * `object` and `view`). The Related panel groups by anchored type.
+   */
+  anchors?: MetadataAnchor[];
+}
+
+/**
+ * Anchor declaration — "items of type X are children of items of type Y
+ * when this predicate matches". Used to power the Related tab.
+ *
+ * The predicate runs in the client against the unwrapped item shape
+ * returned by `client.list(type)`. Keep it cheap (just property reads);
+ * we evaluate it once per item per render.
+ */
+export interface MetadataAnchor {
+  /** The parent metadata type whose Related tab should surface this. */
+  anchorType: string;
+  /**
+   * Returns true when the child `item` belongs to the parent identified
+   * by `anchorName`. The default helper `byField('object')` covers the
+   * common case of an explicit `object: 'foo'` reference.
+   */
+  match: (item: Record<string, unknown>, anchorName: string) => boolean;
+  /**
+   * Optional override for the group label shown on the Related panel.
+   * Defaults to the child type's resolved label.
+   */
+  groupLabel?: string;
+  /**
+   * Optional icon override for the group header. Falls back to the
+   * child type's registered icon.
+   */
+  iconName?: string;
+  /**
+   * Optional explicit ordering hint inside the Related panel. Lower
+   * numbers float to the top. Defaults to 100 if unset.
+   */
+  order?: number;
+}
+
+/**
+ * Helper that returns a `match` reading a (possibly dotted) field path
+ * from the item and comparing it to the anchor name.
+ *
+ *   anchorByField('object')                  // item.object === name
+ *   anchorByField('data.object')             // item.data?.object === name
+ *   anchorByField(['list.data.object',
+ *                  'form.data.object'])      // either path matches
+ */
+export function anchorByField(
+  paths: string | string[],
+): MetadataAnchor['match'] {
+  const list = (Array.isArray(paths) ? paths : [paths]).map((p) => p.split('.'));
+  return (item, name) => {
+    for (const segs of list) {
+      let cur: unknown = item;
+      for (const s of segs) {
+        if (cur && typeof cur === 'object' && s in (cur as Record<string, unknown>)) {
+          cur = (cur as Record<string, unknown>)[s];
+        } else {
+          cur = undefined;
+          break;
+        }
+      }
+      if (cur === name) return true;
+    }
+    return false;
+  };
 }
 
 const REGISTRY = new Map<string, MetadataResourceConfig>();
@@ -153,6 +232,35 @@ export function getMetadataResource(type: string): MetadataResourceConfig | unde
 /** Snapshot of all registered entries (diagnostics; directory page). */
 export function listMetadataResources(): MetadataResourceConfig[] {
   return Array.from(REGISTRY.values());
+}
+
+/**
+ * Build the list of child types whose items can be "anchored to" a
+ * parent type. Used by the Related tab to decide which `client.list`
+ * calls to make.
+ *
+ * Returns an array of `{ type, anchor }` pairs, sorted by `anchor.order`
+ * (lower first) and then by child type label for stable rendering.
+ */
+export function listAnchorsFor(
+  parentType: string,
+): Array<{ type: string; config: MetadataResourceConfig; anchor: MetadataAnchor }> {
+  const hits: Array<{ type: string; config: MetadataResourceConfig; anchor: MetadataAnchor }> = [];
+  for (const cfg of REGISTRY.values()) {
+    if (!cfg.anchors?.length) continue;
+    for (const a of cfg.anchors) {
+      if (a.anchorType === parentType) hits.push({ type: cfg.type, config: cfg, anchor: a });
+    }
+  }
+  hits.sort((a, b) => {
+    const ao = a.anchor.order ?? 100;
+    const bo = b.anchor.order ?? 100;
+    if (ao !== bo) return ao - bo;
+    const al = a.anchor.groupLabel ?? a.config.label ?? a.type;
+    const bl = b.anchor.groupLabel ?? b.config.label ?? b.type;
+    return al.localeCompare(bl);
+  });
+  return hits;
 }
 
 /**

@@ -18,6 +18,8 @@ export { MetadataDirectoryPage } from './DirectoryPage';
 export { MetadataResourceRouter } from './ResourceRouter';
 export { MetadataResourceListPage } from './ResourceListPage';
 export { MetadataResourceEditPage } from './ResourceEditPage';
+export { RelatedPanel } from './RelatedPanel';
+export { MetadataDetailDrawer } from './MetadataDetailDrawer';
 export { MetadataResourceHistoryPage } from './ResourceHistoryPage';
 export { MetadataQuickFind } from './QuickFind';
 export { PageShell as MetadataPageShell } from './PageShell';
@@ -38,12 +40,20 @@ export {
   registerMetadataResource,
   getMetadataResource,
   listMetadataResources,
+  listAnchorsFor,
   resolveResourceConfig,
+  anchorByField,
 } from './registry';
 export type {
   MetadataResourceConfig,
   MetadataDomain,
+  MetadataAnchor,
 } from './registry';
+
+// Side-effect: register the built-in anchor relationships so the Related
+// tab works out of the box for objects (hooks, views, pages, …).
+import { registerBuiltinAnchors } from './anchors';
+registerBuiltinAnchors();
 
 // Side-effect: register fallback JSONSchemas for the 12 writable types
 // so the generic SchemaForm renders a real form (vs raw-JSON fallback)
