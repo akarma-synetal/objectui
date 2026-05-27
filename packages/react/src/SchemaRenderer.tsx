@@ -44,37 +44,50 @@ const __DEV__ = (() => {
   }
 })();
 
-const _validatedSchemas: WeakSet<object> =
+type _ValidationCacheEntry = { valid: boolean; messages: string[] };
+const _validationCache: WeakMap<object, _ValidationCacheEntry> =
+  typeof WeakMap !== 'undefined'
+    ? new WeakMap()
+    : ({ set() {}, get() { return undefined; }, has() { return false; } } as any);
+const _warnedSchemas: WeakSet<object> =
   typeof WeakSet !== 'undefined' ? new WeakSet() : ({ add() {}, has() { return false; } } as any);
 
-function validateSchemaOnce(schema: any): { valid: boolean; messages: string[] } {
+function validateSchemaOnce(schema: any): _ValidationCacheEntry {
   if (!__DEV__ || !schema || typeof schema !== 'object') {
     return { valid: true, messages: [] };
   }
-  if (_validatedSchemas.has(schema)) {
-    // We don't cache the result intentionally — once a schema object has
-    // been logged, we don't re-log on every re-render. Visual invalid flag
-    // still derives from the structural presence of required fields below.
-    return { valid: true, messages: [] };
+  // Return cached result so re-renders (and the post-mount forceUpdate that
+  // runs to pick up lazy plugin registrations) preserve the invalid flag.
+  // Dedup of the console.warn is handled separately via _warnedSchemas.
+  const cached = _validationCache.get(schema);
+  if (cached) {
+    return cached;
   }
-  _validatedSchemas.add(schema);
+  let entry: _ValidationCacheEntry = { valid: true, messages: [] };
   try {
     const result = validateSchema(schema);
     if (!result.valid) {
       const msgs = result.errors.map(e => `${e.path}: ${e.message}`);
-      // eslint-disable-next-line no-console
-      console.warn(
-        '[ObjectUI] Invalid schema detected:\n' + msgs.join('\n'),
-        schema
-      );
-      return { valid: false, messages: msgs };
+      entry = { valid: false, messages: msgs };
+      if (!_warnedSchemas.has(schema)) {
+        _warnedSchemas.add(schema);
+        // eslint-disable-next-line no-console
+        console.warn(
+          '[ObjectUI] Invalid schema detected:\n' + msgs.join('\n'),
+          schema
+        );
+      }
     }
   } catch (err) {
     // Validator itself failed — surface but don't crash render.
-    // eslint-disable-next-line no-console
-    console.warn('[ObjectUI] Schema validator threw:', err);
+    if (!_warnedSchemas.has(schema)) {
+      _warnedSchemas.add(schema);
+      // eslint-disable-next-line no-console
+      console.warn('[ObjectUI] Schema validator threw:', err);
+    }
   }
-  return { valid: true, messages: [] };
+  _validationCache.set(schema, entry);
+  return entry;
 }
 
 /**
