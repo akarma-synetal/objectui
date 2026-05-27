@@ -52,6 +52,7 @@ export function registerBuiltinAnchors(): void {
     anchors: [{
       anchorType: 'object',
       source: 'embedded',
+      editAs: 'index',
       embeddedPath: 'indexes',
       extract: (parent) => {
         const raw = (parent as { indexes?: unknown }).indexes;

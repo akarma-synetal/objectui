@@ -37,6 +37,7 @@ import {
   MessageActions,
   MessageAction,
   MessageContent,
+  MessageResponse,
   type MessageProps,
 } from './elements/message';
 import {
@@ -241,6 +242,24 @@ function formatMessageProps(role: ChatMessage['role']): MessageProps['from'] {
   return role === 'user' ? 'user' : 'assistant';
 }
 
+/**
+ * Heuristic: does a tool/output string look like JSON we should syntax-highlight
+ * (object / array literal) rather than render as markdown? Plain prose, code
+ * fences, and inline backticks should NOT be rendered as JSON.
+ */
+function looksLikeJson(text: string): boolean {
+  const t = text.trim();
+  if (t.length < 2) return false;
+  if (!(t.startsWith('{') || t.startsWith('['))) return false;
+  if (!(t.endsWith('}') || t.endsWith(']'))) return false;
+  try {
+    JSON.parse(t);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 const ChatbotEnhanced = React.forwardRef<HTMLDivElement, ChatbotEnhancedProps>(
   (
     {
@@ -403,7 +422,13 @@ const ChatbotEnhanced = React.forwardRef<HTMLDivElement, ChatbotEnhancedProps>(
                               </span>
                             );
                             return (
-                              <Tool key={tool.toolCallId} defaultOpen={state !== 'output-available'}>
+                              <Tool
+                                key={tool.toolCallId}
+                                defaultOpen={
+                                  state === 'output-error' ||
+                                  state === 'approval-requested'
+                                }
+                              >
                                 <ToolHeader
                                   type={partType}
                                   state={state}
@@ -414,7 +439,7 @@ const ChatbotEnhanced = React.forwardRef<HTMLDivElement, ChatbotEnhancedProps>(
                                     <ToolInput input={tool.args} />
                                   ) : null}
                                   {hidePendingPayload ? null : (
-                                    <ToolOutput
+                                    <SmartToolOutput
                                       output={renderableResult}
                                       errorText={tool.errorText}
                                     />
@@ -478,7 +503,15 @@ const ChatbotEnhanced = React.forwardRef<HTMLDivElement, ChatbotEnhancedProps>(
                             );
                           })
                         : null}
-                      {message.content}
+                      {isUser ? (
+                        message.content ? (
+                          <div className="whitespace-pre-wrap break-words">
+                            {message.content}
+                          </div>
+                        ) : null
+                      ) : message.content ? (
+                        <MessageResponse>{message.content}</MessageResponse>
+                      ) : null}
                       {message.streaming ? (
                         <span
                           aria-hidden
@@ -683,6 +716,42 @@ function ErrorBanner({
       ) : null}
     </div>
   );
+}
+
+/**
+ * Tool result renderer. The vendored `<ToolOutput>` blindly wraps every string
+ * in a JSON-highlighted `<CodeBlock>`, which mangles plain text / markdown
+ * results from tools (e.g. "Created task 42" or a bullet list). This wrapper
+ *
+ *  - renders plain-text / markdown strings via `<MessageResponse>` (streamdown)
+ *  - falls through to the vendored `<ToolOutput>` for real JSON objects/arrays
+ *    and for strings that actually look like JSON literals
+ *  - preserves error rendering unchanged
+ */
+function SmartToolOutput({
+  output,
+  errorText,
+}: {
+  output: unknown;
+  errorText?: string;
+}) {
+  if (errorText) {
+    return <ToolOutput output={undefined} errorText={errorText} />;
+  }
+  if (output == null || output === '') return null;
+  if (typeof output === 'string' && !looksLikeJson(output)) {
+    return (
+      <div className="space-y-2 p-4">
+        <h4 className="font-medium text-muted-foreground text-xs uppercase tracking-wide">
+          Result
+        </h4>
+        <div className="overflow-x-auto rounded-md bg-muted/40 px-3 py-2 text-sm text-foreground">
+          <MessageResponse>{output}</MessageResponse>
+        </div>
+      </div>
+    );
+  }
+  return <ToolOutput output={output as never} errorText={undefined} />;
 }
 
 export { ChatbotEnhanced };

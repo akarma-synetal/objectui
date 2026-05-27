@@ -49,6 +49,14 @@ export function EmbeddedItemEditor({
   const client = useMetadataClient();
   const { entries } = useMetadataTypes(client);
   const subEntry = editAs ? entries.find((e) => e.type === editAs) : undefined;
+  // Fallback inline schemas for sub-types the framework registers without
+  // a JSON-Schema (validation / index live in object.body but the
+  // registry only exposes their metadata, not their shape). The
+  // schemas below mirror the framework's Zod definitions and the
+  // shapes we see on disk under packages/data-objectstack fixtures.
+  const fallback = !subEntry?.schema && editAs ? FALLBACK_SCHEMAS[editAs] : undefined;
+  const schema = (subEntry?.schema as Record<string, unknown> | undefined) ?? fallback?.schema;
+  const form = (subEntry?.form as any) ?? fallback?.form;
 
   const [draft, setDraft] = React.useState<Record<string, unknown>>(initialRaw);
   const [saving, setSaving] = React.useState(false);
@@ -64,8 +72,6 @@ export function EmbeddedItemEditor({
     setSavedAt(null);
   }, [initialRaw, itemName, parentType, parentName]);
 
-  const schema = (subEntry?.schema as Record<string, unknown> | undefined) ?? undefined;
-  const form = subEntry?.form as any;
   const readOnly =
     subEntry != null && !subEntry.allowOrgOverride;
 
@@ -251,3 +257,107 @@ function spliceEmbedded(
   }
   return next;
 }
+
+/**
+ * Inline JSONSchema + form-spec fallbacks for sub-types that the
+ * framework's `/meta` registry doesn't expose a `schema`/`form` for
+ * (e.g. `index`, `validation`). Mirrors the framework Zod shapes
+ * observed on disk under `packages/data-objectstack` fixtures.
+ */
+const FALLBACK_SCHEMAS: Record<
+  string,
+  { schema: Record<string, unknown>; form?: Record<string, unknown> }
+> = {
+  index: {
+    schema: {
+      type: 'object',
+      required: ['fields'],
+      properties: {
+        name: {
+          type: 'string',
+          title: 'Name',
+          description: 'Synthesised from columns if omitted (e.g. idx_email).',
+        },
+        fields: {
+          type: 'array',
+          title: 'Fields',
+          description: 'Columns to index, in order.',
+          items: { type: 'string' },
+        },
+        type: {
+          type: 'string',
+          title: 'Algorithm',
+          enum: ['btree', 'hash', 'gin', 'gist', 'brin'],
+          default: 'btree',
+        },
+        unique: {
+          type: 'boolean',
+          title: 'Unique',
+          description: 'Enforce uniqueness across the indexed columns.',
+        },
+        where: {
+          type: 'string',
+          title: 'Partial-index predicate',
+          description: 'Optional WHERE clause for a partial index.',
+        },
+      },
+    },
+  },
+  validation: {
+    schema: {
+      type: 'object',
+      required: ['name', 'type'],
+      properties: {
+        name: { type: 'string', title: 'Name' },
+        type: {
+          type: 'string',
+          title: 'Type',
+          enum: ['expression', 'unique', 'required', 'regex', 'range', 'custom'],
+          default: 'expression',
+        },
+        active: { type: 'boolean', title: 'Active', default: true },
+        severity: {
+          type: 'string',
+          title: 'Severity',
+          enum: ['error', 'warning', 'info'],
+          default: 'error',
+        },
+        message: {
+          type: 'string',
+          title: 'Error message',
+          description: 'Shown to the user when validation fails.',
+        },
+        priority: { type: 'number', title: 'Priority', default: 100 },
+        events: {
+          type: 'array',
+          title: 'Events',
+          description: 'Lifecycle events that trigger this rule.',
+          items: {
+            type: 'string',
+            enum: ['insert', 'update', 'delete'],
+          },
+        },
+        fields: {
+          type: 'array',
+          title: 'Fields',
+          description: 'Field names this rule applies to.',
+          items: { type: 'string' },
+        },
+        expression: {
+          type: 'string',
+          title: 'Expression (CEL)',
+          format: 'multiline',
+          description: 'Required when type = expression.',
+        },
+        pattern: {
+          type: 'string',
+          title: 'Regex pattern',
+          description: 'Required when type = regex.',
+        },
+        min: { type: 'number', title: 'Min' },
+        max: { type: 'number', title: 'Max' },
+        caseSensitive: { type: 'boolean', title: 'Case sensitive' },
+      },
+    },
+  },
+};
