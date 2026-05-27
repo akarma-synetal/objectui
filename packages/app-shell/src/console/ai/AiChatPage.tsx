@@ -22,7 +22,10 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
+  Button,
+  ShareDialog,
 } from '@object-ui/components';
+import { Share2 } from 'lucide-react';
 import {
   ChatbotEnhanced,
   useAgents,
@@ -93,6 +96,11 @@ export function AiChatPage({ apiBase: apiBaseProp, defaultAgent: defaultAgentPro
   });
 
   const [refreshKey, setRefreshKey] = useState(0);
+  const [shareOpen, setShareOpen] = useState(false);
+  const restApiBase = useMemo(
+    () => apiBase.replace(/\/v1\/ai$/, '').replace(/\/ai$/, '') || '/api',
+    [apiBase],
+  );
 
   // After the hook resolves a real id for a fresh `/ai` visit, mirror it into
   // the URL so the sidebar's active-row + share/refresh both work.
@@ -141,7 +149,31 @@ export function AiChatPage({ apiBase: apiBaseProp, defaultAgent: defaultAgentPro
     <div className="flex h-svh w-full flex-col bg-background" data-testid="ai-chat-page">
       <header className="sticky top-0 z-30 flex h-14 w-full shrink-0 items-center gap-2 border-b bg-background px-2 sm:px-4">
         <AppHeader variant="home" />
+        <div className="ml-auto flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-8 gap-1.5"
+            onClick={() => setShareOpen(true)}
+            disabled={!conversationId}
+            data-testid="ai-chat-share-button"
+            title={conversationId ? 'Share this conversation' : 'Start chatting to enable sharing'}
+          >
+            <Share2 className="h-3.5 w-3.5" />
+            Share
+          </Button>
+        </div>
       </header>
+      {conversationId && (
+        <ShareDialog
+          open={shareOpen}
+          onOpenChange={setShareOpen}
+          objectName="ai_conversations"
+          recordId={conversationId}
+          recordLabel="this conversation"
+          apiBase={restApiBase}
+        />
+      )}
       <div className="flex flex-1 min-h-0 w-full">
         <ConversationsSidebar
           userId={userId}
