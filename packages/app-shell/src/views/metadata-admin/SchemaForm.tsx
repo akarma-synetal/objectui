@@ -782,7 +782,16 @@ function FieldControl({
 
   // Boolean → Switch (no redundant "true/false" text; the toggle state
   // already conveys the value).
-  if (schema?.type === 'boolean') {
+  //
+  // We must also honor `widget === 'switch'` (resolved by inferWidget from
+  // `fieldSpec.type === 'boolean'` / `'toggle'`), because for composite
+  // sub-fields the JSON schema fragment is often `{}` — the parent declares
+  // `additionalProperties: true` and no per-property `properties`, so
+  // `schema?.type` is undefined even though the form spec clearly marks
+  // the sub-field as boolean. Without this, capability toggles inside the
+  // Object editor's "Capabilities" section fell through to RawJsonEditor
+  // and rendered as empty textareas.
+  if (schema?.type === 'boolean' || widget === 'switch' || fieldSpec?.type === 'boolean' || fieldSpec?.type === 'toggle') {
     return (
       <Switch
         id={id}

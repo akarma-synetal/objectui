@@ -136,6 +136,9 @@ for (const variant of ['report-viewer', 'report-builder', 'spec-report']) {
 // Register console-specific schema widgets (object detail page sections)
 import './components/schema/registerObjectDetailWidgets';
 
+// Register `developer:*` component refs used by the Studio app sidebar.
+import './registerDeveloperComponents';
+
 // Register placeholder fallbacks for any protocol-defined component types
 // that don't yet have a real renderer (e.g. ai:chat_window). Must run AFTER
 // all real plugin registrations above so it only fills the gaps and never
