@@ -117,29 +117,24 @@ export function AiChatPage({ apiBase: apiBaseProp, defaultAgent: defaultAgentPro
       // New user turn → bump sidebar list so the row's preview/timestamp refreshes.
       setRefreshKey((k) => k + 1);
 
-      // Auto-title the conversation from the first user message. Server only
-      // tracks `title` when we PATCH it; without this every row shows the same
-      // "New conversation" placeholder. We mark `conversationId` as titled in a
-      // ref so subsequent turns don't re-rename and clobber a manual rename.
+      // Server now generates a concise LLM-summarised title fire-and-forget
+      // after the first assistant turn lands (see service-ai
+      // `summarizeConversation`). We don't PATCH a truncated preview from the
+      // client anymore — that races the LLM and wins, which would block the
+      // real title. Instead, bump the sidebar a couple of times so the new
+      // title is picked up whenever the model finally responds.
       if (!firstUserMessage || !conversationId) return;
       if (titledRef.current.has(conversationId)) return;
       titledRef.current.add(conversationId);
-      const text = firstUserMessage.trim();
-      if (!text) return;
-      const truncated = text.length > 40 ? `${text.slice(0, 40)}…` : text;
-      fetch(`${apiBase}/conversations/${encodeURIComponent(conversationId)}`, {
-        method: 'PATCH',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title: truncated }),
-      })
-        .then(() => setRefreshKey((k) => k + 1))
-        .catch(() => {
-          // Leave it untitled; user can rename manually.
-          titledRef.current.delete(conversationId);
-        });
+      const bump = () => setRefreshKey((k) => k + 1);
+      const t1 = setTimeout(bump, 2500);
+      const t2 = setTimeout(bump, 6000);
+      // Best-effort: if the component unmounts before the bumps fire, the
+      // setRefreshKey call is a no-op so we don't bother tracking the timers.
+      void t1;
+      void t2;
     },
-    [apiBase, conversationId],
+    [conversationId],
   );
 
   return (
