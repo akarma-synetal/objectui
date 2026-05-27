@@ -1,59 +1,73 @@
+// Copyright (c) 2025 ObjectStack. Licensed under the Apache-2.0 license.
+
 /**
- * Object Manager List Adapter
+ * Object Manager list page — custom `ListPage` for the `object` metadata
+ * type, registered with the metadata-admin engine via
+ * `registerMetadataResource()`.
  *
- * Custom list component for the `object` metadata type, injected via the
- * `listComponent` extension point on MetadataTypeConfig. Wraps the existing
- * `ObjectManager` from @object-ui/plugin-designer and wires it to the
- * MetadataService CRUD pipeline (optimistic update → API call → rollback).
- *
- * The adapter is rendered by MetadataManagerPage when the resolved config
- * specifies a `listComponent`, replacing the default card/grid list.
- *
- * @module components/ObjectManagerListAdapter
+ * Wraps `ObjectManager` from `@object-ui/plugin-designer` (the rich
+ * visual designer) and bridges it to the MetadataService CRUD pipeline
+ * (optimistic update → API call → rollback). Selecting an object navigates
+ * into the engine's edit page so authors keep the Form/Layers/References
+ * tabs from there.
  */
 
 import { useState, useCallback, useMemo, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
 import { ObjectManager } from '@object-ui/plugin-designer';
 import type { ObjectDefinition } from '@object-ui/types';
 import { toast } from 'sonner';
-import { useMetadata } from '@object-ui/app-shell';
-import { useMetadataService } from '@object-ui/app-shell';
+import { useMetadata, useMetadataService } from '@object-ui/app-shell';
 import { MetadataService } from '../services/MetadataService';
 import { toObjectDefinition } from '../utils/metadataConverters';
-import type { MetadataListComponentProps } from '../config/metadataTypeRegistry';
 
-export function ObjectManagerListAdapter({ basePath, metadataType }: MetadataListComponentProps) {
+interface ObjectManagerListPageProps {
+  /** Singular metadata type, always `'object'` here. */
+  type: string;
+}
+
+/**
+ * Derive the metadata-admin base path (everything up to and including
+ * `…/component/metadata/resource`) from the current URL so the edit links
+ * survive whichever app/sub-app the user is in.
+ */
+function useResourceBase(): string {
+  const location = useLocation();
+  const marker = '/component/metadata/resource';
+  const idx = location.pathname.indexOf(marker);
+  if (idx >= 0) return location.pathname.slice(0, idx + marker.length);
+  // Fallback — shouldn't happen since this page is only mounted under that
+  // route, but keep something sensible.
+  return location.pathname;
+}
+
+export function ObjectManagerListPage({ type }: ObjectManagerListPageProps) {
   const navigate = useNavigate();
+  const resourceBase = useResourceBase();
   const { objects: metadataObjects, refresh } = useMetadata();
   const metadataService = useMetadataService();
 
-  // Convert metadata objects to ObjectDefinition[]
   const objects = useMemo<ObjectDefinition[]>(
     () => (metadataObjects || []).map(toObjectDefinition),
     [metadataObjects],
   );
 
-  // State for local object edits and saving indicator
   const [localObjects, setLocalObjects] = useState<ObjectDefinition[] | null>(null);
   const [saving, setSaving] = useState(false);
   const displayObjects = localObjects ?? objects;
   const prevObjectsRef = useRef<ObjectDefinition[]>(displayObjects);
 
-  // Navigate to object detail page via the metadata detail route
   const handleSelectObject = useCallback(
     (obj: ObjectDefinition) => {
-      navigate(`${basePath}/system/metadata/${metadataType}/${obj.name}`);
+      navigate(`${resourceBase}/${obj.name}?type=${type}`);
     },
-    [navigate, basePath, metadataType],
+    [navigate, resourceBase, type],
   );
 
   const handleObjectsChange = useCallback(
     async (updated: ObjectDefinition[]) => {
       const previous = prevObjectsRef.current;
-
-      // Optimistic update
       setLocalObjects(updated);
       prevObjectsRef.current = updated;
 
@@ -63,25 +77,20 @@ export function ObjectManagerListAdapter({ basePath, metadataType }: MetadataLis
       }
 
       const diff = MetadataService.diffObjects(previous, updated);
-
       setSaving(true);
       try {
         if (diff) {
           if (diff.type === 'delete') {
             await metadataService.deleteObject(diff.object.name);
           } else {
-            // create or update — saveItem is an upsert
             await metadataService.saveObject(diff.object);
           }
         } else {
-          // Multiple changes or reorder — save all objects
           for (const obj of updated) {
             await metadataService.saveObject(obj);
           }
         }
-
         await refresh();
-
         const actionLabel = diff
           ? diff.type === 'create'
             ? `Object "${diff.object.label || diff.object.name}" created`
@@ -91,7 +100,6 @@ export function ObjectManagerListAdapter({ basePath, metadataType }: MetadataLis
           : 'Object definitions updated';
         toast.success(actionLabel);
       } catch (err: any) {
-        // Rollback on failure
         setLocalObjects(previous);
         prevObjectsRef.current = previous;
         toast.error(err?.message || 'Failed to save object changes');
@@ -103,8 +111,7 @@ export function ObjectManagerListAdapter({ basePath, metadataType }: MetadataLis
   );
 
   return (
-    <>
-      {/* Saving indicator */}
+    <div className="flex flex-col gap-4 p-4 sm:p-6">
       {saving && (
         <div
           className="flex items-center gap-2 text-sm text-muted-foreground"
@@ -114,14 +121,12 @@ export function ObjectManagerListAdapter({ basePath, metadataType }: MetadataLis
           Saving object changes…
         </div>
       )}
-
-      {/* ObjectManager from @object-ui/plugin-designer */}
       <ObjectManager
         objects={displayObjects}
         onObjectsChange={handleObjectsChange}
         onSelectObject={handleSelectObject}
         showSystemObjects
       />
-    </>
+    </div>
   );
 }

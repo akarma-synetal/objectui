@@ -29,11 +29,11 @@ import {
   Store,
   Bot,
   Terminal,
+  Database,
+  LayoutGrid,
 } from 'lucide-react';
-import { useAdapter, useMetadata } from '@object-ui/app-shell';
+import { useAdapter } from '@object-ui/app-shell';
 import { useIsWorkspaceAdmin } from '@object-ui/auth';
-import { getHubMetadataTypes } from '../../config/metadataTypeRegistry';
-import { getIcon } from '../../utils/getIcon';
 
 interface HubCard {
   title: string;
@@ -50,22 +50,14 @@ export function SystemHubPage() {
   const { appName } = useParams();
   const basePath = appName ? `/apps/${appName}` : '';
   const dataSource = useAdapter();
-  const metadata = useMetadata();
   const isWorkspaceAdmin = useIsWorkspaceAdmin();
-  const { apps, objects: metadataObjects, dashboards, reports, pages } = metadata;
 
   const [counts, setCounts] = useState<Record<string, number | null>>({
-    apps: null,
-    objects: null,
     users: null,
     orgs: null,
     roles: null,
     permissions: null,
     auditLogs: null,
-    // Metadata type counts
-    dashboard: null,
-    page: null,
-    report: null,
   });
   const [loading, setLoading] = useState(true);
 
@@ -82,49 +74,42 @@ export function SystemHubPage() {
         dataSource.find('sys_audit_log').catch(() => ({ data: [] })),
       ]);
       setCounts({
-        apps: apps?.length ?? 0,
-        objects: metadataObjects?.length ?? 0,
         users: usersRes.data?.length ?? 0,
         orgs: orgsRes.data?.length ?? 0,
         roles: rolesRes.data?.length ?? 0,
         permissions: permsRes.data?.length ?? 0,
         auditLogs: logsRes.data?.length ?? 0,
-        // Metadata type counts from MetadataProvider
-        dashboard: dashboards?.length ?? 0,
-        page: pages?.length ?? 0,
-        report: reports?.length ?? 0,
       });
     } catch {
       // Keep nulls on failure
     } finally {
       setLoading(false);
     }
-  }, [dataSource, apps, metadataObjects, dashboards, reports, pages]);
+  }, [dataSource]);
 
   useEffect(() => { fetchCounts(); }, [fetchCounts]);
 
-  // Build metadata-type cards dynamically from registry
-  const metadataTypeCards: HubCard[] = getHubMetadataTypes().map((cfg) => {
-    const href = cfg.customRoute
-      ? `${basePath}${cfg.customRoute}`
-      : `${basePath}/system/metadata/${cfg.type}`;
-    const Icon = getIcon(cfg.icon);
-
-    // Resolve count from metadata context or data source counts
-    let count: number | null = null;
-    if (cfg.type === 'app') count = counts.apps;
-    else if (cfg.type === 'object') count = counts.objects;
-    else count = counts[cfg.type] ?? null;
-
-    return {
-      title: cfg.pluralLabel,
-      description: cfg.description,
-      icon: Icon,
-      href,
-      countLabel: cfg.pluralLabel.toLowerCase(),
-      count,
-    };
-  });
+  // Metadata: single entry point to the server-driven metadata-admin engine.
+  // Per-type cards were removed when the engine started auto-listing every
+  // type registered with the framework (`/api/v1/meta`).
+  const metadataTypeCards: HubCard[] = [
+    {
+      title: 'Applications',
+      description: 'Manage all configured applications',
+      icon: LayoutGrid,
+      href: `${basePath}/system/apps`,
+      countLabel: '',
+      count: null,
+    },
+    {
+      title: 'Metadata',
+      description: 'Browse and edit every metadata type the platform exposes',
+      icon: Database,
+      href: `${basePath}/component/metadata/directory`,
+      countLabel: '',
+      count: null,
+    },
+  ];
 
   // System admin cards (non-metadata, always present)
   const systemCards: HubCard[] = [

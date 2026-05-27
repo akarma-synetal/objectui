@@ -136,8 +136,12 @@ for (const variant of ['report-viewer', 'report-builder', 'spec-report']) {
 // Register console-specific schema widgets (object detail page sections)
 import './components/schema/registerObjectDetailWidgets';
 
-// Register `developer:*` component refs used by the Studio app sidebar.
+// Register `developer:*` component refs.
 import './registerDeveloperComponents';
+
+// Register per-type overrides for the metadata-admin engine
+// (e.g. the rich ObjectManager designer for type=object).
+import './registerMetadataResources';
 
 // Register placeholder fallbacks for any protocol-defined component types
 // that don't yet have a real renderer (e.g. ai:chat_window). Must run AFTER

@@ -3,20 +3,18 @@
 /**
  * Developer component registrations.
  *
- * Binds the `developer:*` registry keys referenced from the Studio app's
- * Developer navigation group (see `packages/platform-objects/src/apps/
- * studio.app.ts` in the framework repo) to the lazy-loaded console pages
+ * Binds the `developer:*` registry keys (referenced from the framework's
+ * default developer navigation group) to the lazy-loaded console pages
  * that already host these tools.
  *
  * URL shape resolved by `ComponentNavView`:
- *   developer:api-console  → /apps/studio/component/developer/api-console
- *   developer:flow-runs    → /apps/studio/component/developer/flow-runs
- *   developer:public-forms → /apps/studio/component/developer/public-forms
+ *   developer:api-console  → /apps/<app>/component/developer/api-console
+ *   developer:flow-runs    → /apps/<app>/component/developer/flow-runs
+ *   developer:public-forms → /apps/<app>/component/developer/public-forms
  *
  * The existing standalone `/developer/*` routes in `AppContent.tsx` are
  * left in place — they remain reachable from the Console-shell Developer
- * Hub. This module only wires the metadata-driven entry from the Studio
- * app sidebar.
+ * Hub. This module only wires the metadata-driven entry from app sidebars.
  */
 
 import { lazy, Suspense } from 'react';

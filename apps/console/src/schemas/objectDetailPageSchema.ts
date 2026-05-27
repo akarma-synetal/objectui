@@ -8,7 +8,7 @@
  *
  * Usage:
  *   const schema = buildObjectDetailPageSchema('account', metadataItem);
- *   // Render via SchemaRenderer or as body nodes in MetadataDetailPage
+ *   // Render via SchemaRenderer (e.g. inside a custom metadata-admin EditPage).
  *
  * @module schemas/objectDetailPageSchema
  */

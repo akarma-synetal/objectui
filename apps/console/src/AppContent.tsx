@@ -34,21 +34,37 @@ const PublicFormsPage = lazy(() => import('./pages/developer/PublicFormsPage').t
 // are registered by DefaultAppContent in @object-ui/app-shell so they're
 // available to every host (including framework/console).
 
-const ENABLE_LEGACY_METADATA_EDITOR = import.meta.env.VITE_LEGACY_METADATA_EDITOR === 'true';
-const MetadataManagerPage = lazy(() => import('./legacy/MetadataManagerPage').then(m => ({ default: m.MetadataManagerPage })));
-const MetadataDetailPage = lazy(() => import('./legacy/MetadataDetailPage').then(m => ({ default: m.MetadataDetailPage })));
-
 /**
- * Forwards legacy `system/objects/:objectName` URLs to the canonical
- * `system/metadata/object/<name>` location preserving the active-app prefix.
+ * Forwards legacy `system/objects/:objectName` URLs to the metadata-admin
+ * engine's edit route, preserving the active-app prefix. The engine route is
+ * `…/component/metadata/resource/<name>?type=object`.
  */
 function ObjectRedirect() {
   const { objectName } = useParams<{ objectName?: string }>();
   const location = useLocation();
   const prefix = location.pathname.replace(/\/objects(\/.*)?$/, '');
   const target = objectName
-    ? `${prefix}/metadata/object/${objectName}`
-    : `${prefix}/metadata/object`;
+    ? `${prefix}/component/metadata/resource/${objectName}?type=object`
+    : `${prefix}/component/metadata/resource?type=object`;
+  return <Navigate to={target} replace />;
+}
+
+/**
+ * Forwards legacy `system/metadata/:metadataType[/:itemName]` URLs to the
+ * metadata-admin engine. The legacy page-based editor was removed once the
+ * server's `/api/v1/meta` endpoint started emitting JSON Schema per type,
+ * letting the engine render every type generically.
+ */
+function MetadataRedirect() {
+  const { metadataType, itemName } = useParams<{ metadataType?: string; itemName?: string }>();
+  const location = useLocation();
+  const prefix = location.pathname.replace(/\/metadata(\/.*)?$/, '');
+  const base = `${prefix}/component/metadata/resource`;
+  const target = !metadataType
+    ? `${prefix}/component/metadata/directory`
+    : itemName
+      ? `${base}/${itemName}?type=${metadataType}`
+      : `${base}?type=${metadataType}`;
   return <Navigate to={target} replace />;
 }
 
@@ -66,14 +82,12 @@ const systemRoutes = (
     <Route path="developer/api-console" element={<Suspense fallback={<LoadingScreen />}><ApiConsolePage /></Suspense>} />
     <Route path="developer/flow-runs" element={<Suspense fallback={<LoadingScreen />}><FlowRunsPage /></Suspense>} />
     <Route path="developer/public-forms" element={<Suspense fallback={<LoadingScreen />}><PublicFormsPage /></Suspense>} />
-    {ENABLE_LEGACY_METADATA_EDITOR && (
-      <>
-        <Route path="system/objects" element={<ObjectRedirect />} />
-        <Route path="system/objects/:objectName" element={<ObjectRedirect />} />
-        <Route path="system/metadata/:metadataType" element={<Suspense fallback={<LoadingScreen />}><MetadataManagerPage /></Suspense>} />
-        <Route path="system/metadata/:metadataType/:itemName" element={<Suspense fallback={<LoadingScreen />}><MetadataDetailPage /></Suspense>} />
-      </>
-    )}
+    {/* Legacy URL redirects → metadata-admin engine (zero-cost compatibility). */}
+    <Route path="system/objects" element={<ObjectRedirect />} />
+    <Route path="system/objects/:objectName" element={<ObjectRedirect />} />
+    <Route path="system/metadata" element={<MetadataRedirect />} />
+    <Route path="system/metadata/:metadataType" element={<MetadataRedirect />} />
+    <Route path="system/metadata/:metadataType/:itemName" element={<MetadataRedirect />} />
   </>
 );
 
