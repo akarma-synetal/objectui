@@ -556,6 +556,7 @@ export function buildDefaultPageSchema(
           relationshipField: rel.relationshipField,
           title: rel.title,
           icon: rel.icon,
+          displayField: rel.displayField,
           limit: 3,
         })),
       });

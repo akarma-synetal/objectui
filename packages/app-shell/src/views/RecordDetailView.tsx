@@ -527,17 +527,36 @@ export function RecordDetailView({ dataSource, objects, onEdit, objectNameOverri
 
   // Discover reverse references: other objects with lookup/master_detail fields
   // pointing to the current object (e.g., order_item.order → order).
+  //
+  // Audit FKs (`created_by` / `updated_by` / `owner_id`) are skipped — they
+  // exist on virtually every object, and on a `sys_user` page they would
+  // produce one related entry per (object × audit-FK) pair (dozens of
+  // duplicate "用户偏好 / 邮件模板 / 角色 …" cards in the right rail and
+  // tabs). The semantic owner field for a child record is its primary
+  // `*_id` lookup; audit attribution belongs in audit views, not in the
+  // related-records summary.
   const childRelations = useMemo(() => {
     if (!objectDef || !objects) return [];
+    const AUDIT_FIELDS = new Set(['created_by', 'updated_by', 'owner_id']);
     const relations: Array<{ childObject: string; childLabel: string; referenceField: string }> = [];
+    // Dedupe by childObject — if a child has multiple non-audit FKs to this
+    // object (e.g. sys_user_permission_set with user_id + assigned_by + …),
+    // we only surface the first FK to keep the right rail / tabs from
+    // ballooning into N duplicate cards per child object. The primary
+    // semantic relation is almost always the canonical `<parent>_id` field
+    // (e.g. `user_id`), which is what most schemas declare first.
+    const seenChild = new Set<string>();
     for (const obj of objects) {
       if (obj.name === objectDef.name) continue;
       for (const [fieldName, fieldDef] of Object.entries<any>(obj.fields || {})) {
+        if (AUDIT_FIELDS.has(fieldName)) continue;
         if (
           fieldDef &&
           (fieldDef.type === 'lookup' || fieldDef.type === 'master_detail') &&
           (fieldDef.reference_to || fieldDef.reference) === objectDef.name
         ) {
+          if (seenChild.has(obj.name)) continue;
+          seenChild.add(obj.name);
           relations.push({
             childObject: obj.name,
             childLabel: obj.label || obj.name,
@@ -1307,6 +1326,14 @@ export function RecordDetailView({ dataSource, objects, onEdit, objectNameOverri
         data: childRelatedData[childObject] || [],
         referenceField,
         icon: childObjectDef?.icon,
+        // Surface the child object's canonical display field so the
+        // right-rail can show meaningful labels (`user_agent`, `email`,
+        // …) instead of opaque IDs like `kCc8mhJr0bRs0r9Ykd09…`.
+        displayField:
+          childObjectDef?.displayNameField ||
+          (Array.isArray(childObjectDef?.compactLayout)
+            ? childObjectDef.compactLayout[0]
+            : undefined),
         onNew,
         onViewAll,
         onRowClick,

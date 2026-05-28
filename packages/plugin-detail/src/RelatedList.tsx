@@ -402,7 +402,21 @@ export const RelatedList: React.FC<RelatedListProps> = ({
       });
     };
 
-    if (columns && columns.length > 0) return pruneEmpty(filterFLS(filterFK(columns)));
+    // Normalize bare-string column entries (e.g. `'user_agent'`) into the
+     // `{accessorKey, header}` shape the data-table renderer expects.
+     // Without this, page authors passing `columns: ['user_agent', 'ip_address']`
+     // would see empty rows on desktop and "Untitled" cards on mobile because
+     // the renderer cannot extract field values from raw strings.
+     const normalizeColumn = (c: any): any => {
+       if (typeof c !== 'string') return c;
+       const fieldDef = objectSchema?.fields?.[c] as any;
+       const header = fieldDef?.label || resolveFieldLabel(relatedObjectName, c, fieldDef) || c;
+       return { accessorKey: c, header, fieldDef, fieldType: fieldDef?.type };
+     };
+     if (columns && columns.length > 0) {
+       const normalized = columns.map(normalizeColumn);
+       return pruneEmpty(filterFLS(filterFK(normalized)));
+     }
     if (!objectSchema?.fields) return [];
 
     const resolvedObjectName = relatedObjectName;

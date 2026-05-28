@@ -17,13 +17,47 @@ import { ReportPreview } from './ReportPreview';
 import { AppPreview } from './AppPreview';
 import { ObjectPreview } from './ObjectPreview';
 import { EmailTemplatePreview } from './EmailTemplatePreview';
+import { FlowPreview } from './FlowPreview';
+import { WorkflowPreview } from './WorkflowPreview';
+import { AgentPreview } from './AgentPreview';
+import { ToolPreview } from './ToolPreview';
+import { PermissionPreview } from './PermissionPreview';
+import { ActionPreview } from './ActionPreview';
+import { ApprovalPreview } from './ApprovalPreview';
+import { JobPreview } from './JobPreview';
+import { TranslationPreview } from './TranslationPreview';
+import { RolePreview } from './RolePreview';
+import { SkillPreview } from './SkillPreview';
+import { DatasourcePreview } from './DatasourcePreview';
+import { ValidationPreview } from './ValidationPreview';
 
 export function registerBuiltinPreviews(): void {
+  // UI surfaces
   registerMetadataPreview('page', PagePreview);
   registerMetadataPreview('view', ViewPreview);
   registerMetadataPreview('dashboard', DashboardPreview);
   registerMetadataPreview('report', ReportPreview);
   registerMetadataPreview('app', AppPreview);
+  registerMetadataPreview('action', ActionPreview);
+  // Data
   registerMetadataPreview('object', ObjectPreview);
+  registerMetadataPreview('datasource', DatasourcePreview);
+  registerMetadataPreview('validation', ValidationPreview);
+  // System
   registerMetadataPreview('email_template', EmailTemplatePreview);
+  registerMetadataPreview('translation', TranslationPreview);
+  // Automation
+  registerMetadataPreview('flow', FlowPreview);
+  registerMetadataPreview('workflow', WorkflowPreview);
+  registerMetadataPreview('approval', ApprovalPreview);
+  registerMetadataPreview('job', JobPreview);
+  // AI
+  registerMetadataPreview('agent', AgentPreview);
+  registerMetadataPreview('tool', ToolPreview);
+  registerMetadataPreview('skill', SkillPreview);
+  // Security & Identity
+  // `profile` is a PermissionSet with `isProfile: true` — reuse the same preview.
+  registerMetadataPreview('permission', PermissionPreview);
+  registerMetadataPreview('profile', PermissionPreview);
+  registerMetadataPreview('role', RolePreview);
 }

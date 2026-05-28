@@ -390,8 +390,31 @@ export function resolveHref(
     }
     case 'dashboard':
       return { href: item.dashboardName ? `${basePath}/dashboard/${item.dashboardName}` : '#', external: false };
-    case 'page':
-      return { href: item.pageName ? `${basePath}/page/${item.pageName}` : '#', external: false };
+    case 'page': {
+      if (!item.pageName) return { href: '#', external: false };
+      // Forward `params` as querystring so the page can read them via
+      // `useSearchParams()` (PageView already does this). String values
+      // additionally pass through `applyNavTemplate` so nav entries can
+      // refer to `{current_user_id}` / `{current_org_id}` — exactly like
+      // the `recordId` substitution above for object-typed nav items.
+      const pageParams = (item as any).params as Record<string, unknown> | undefined;
+      let url = `${basePath}/page/${item.pageName}`;
+      if (pageParams && typeof pageParams === 'object') {
+        const usp = new URLSearchParams();
+        for (const [k, v] of Object.entries(pageParams)) {
+          if (v === undefined || v === null) continue;
+          if (typeof v === 'string') {
+            const resolved = applyNavTemplate(v, templateContext);
+            if (resolved !== null) usp.set(k, resolved);
+          } else {
+            usp.set(k, JSON.stringify(v));
+          }
+        }
+        const qs = usp.toString();
+        if (qs) url += `?${qs}`;
+      }
+      return { href: url, external: false };
+    }
     case 'report':
       return { href: item.reportName ? `${basePath}/report/${item.reportName}` : '#', external: false };
     case 'url':

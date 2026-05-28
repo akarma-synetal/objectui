@@ -41,6 +41,11 @@ export interface ReferenceRailEntry {
   icon?: string;
   /** Top-N preview cap. Defaults to 3. */
   limit?: number;
+  /**
+   * Canonical field on the related object to render in each preview row.
+   * Falls back to `name / title / subject / label / id` when omitted.
+   */
+  displayField?: string;
 }
 
 export interface RecordReferenceRailRendererProps {
@@ -74,13 +79,26 @@ const humanize = (s: string) =>
     .replace(/\b\w/g, (c) => c.toUpperCase())
     .trim();
 
-const pickDisplayName = (row: any): string =>
-  row?.name ||
-  row?.title ||
-  row?.subject ||
-  row?.label ||
-  row?.id ||
-  '—';
+const pickDisplayName = (row: any, displayField?: string): string => {
+  if (displayField && row?.[displayField] != null && row[displayField] !== '') {
+    return String(row[displayField]);
+  }
+  return (
+    row?.name ||
+    row?.title ||
+    row?.subject ||
+    row?.label ||
+    row?.email ||
+    row?.username ||
+    row?.code ||
+    row?.slug ||
+    row?.provider_id ||
+    row?.user_agent ||
+    row?.ip_address ||
+    row?.id ||
+    '—'
+  );
+};
 
 export const RecordReferenceRailRenderer: React.FC<RecordReferenceRailRendererProps> = ({
   schema = {},
@@ -225,7 +243,7 @@ export const RecordReferenceRailRenderer: React.FC<RecordReferenceRailRendererPr
                 <ul className="divide-y">
                   {state.items.map((item) => {
                     const id = item.id || item._id;
-                    const name = pickDisplayName(item);
+                    const name = pickDisplayName(item, entry.displayField);
                     const href = id
                       ? `../${entry.objectName}/record/${encodeURIComponent(String(id))}`
                       : undefined;

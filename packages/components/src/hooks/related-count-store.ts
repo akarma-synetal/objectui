@@ -90,15 +90,23 @@ async function fetchCount(
       $filter[relField] = parentId;
     }
     try {
-      const res: any = await probe(objectName, { $filter, $top: 1 });
+      // Request the server-side count instead of relying on the page length.
+      // Without `$count: true` most adapters omit `total`, and we'd fall
+      // back to `records.length` which is capped to `$top: 1` → badge
+      // shows "1" no matter how many rows exist.
+      const res: any = await probe(objectName, { $filter, $top: 1, $count: true });
       const total =
         typeof res?.total === 'number'
           ? res.total
-          : Array.isArray(res?.data)
-            ? res.data.length
-            : Array.isArray(res)
-              ? res.length
-              : 0;
+          : typeof res?.count === 'number'
+            ? res.count
+            : Array.isArray(res?.records)
+              ? res.records.length
+              : Array.isArray(res?.data)
+                ? res.data.length
+                : Array.isArray(res)
+                  ? res.length
+                  : 0;
       const n = typeof total === 'number' ? total : 0;
       setCount(objectName, relField, parentId, n);
       return n;
