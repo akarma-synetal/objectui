@@ -194,17 +194,8 @@ export const RecordAlertRenderer: React.FC<RecordAlertProps> = ({ schema = {}, c
   };
 
   const handleCta = () => {
-    if (!ctaAction?.name) {
-      // eslint-disable-next-line no-console
-      console.warn('[record:alert] CTA click: no ctaAction', { ctaName, objectMeta });
-      return;
-    }
-    // eslint-disable-next-line no-console
-    console.log('[record:alert] executeAction', ctaAction.name, ctaAction);
-    void executeAction(ctaAction.name).then(
-      (res) => console.log('[record:alert] result', res),
-      (err) => console.error('[record:alert] error', err),
-    );
+    if (!ctaAction?.name) return;
+    void executeAction(ctaAction.name);
   };
 
   return (
