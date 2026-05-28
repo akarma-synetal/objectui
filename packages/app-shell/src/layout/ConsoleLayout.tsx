@@ -22,6 +22,7 @@ import { MobileViewSwitcherProvider } from './MobileViewSwitcherContext';
 import { useResponsiveSidebar } from '../hooks/useResponsiveSidebar';
 import { useNavigationContext } from '../context/NavigationContext';
 import { resolveI18nLabel } from '../utils';
+import { getProductName } from '../runtime-config';
 import type { ConnectionState } from '@object-ui/data-objectstack';
 
 /** Minimal object shape used by the chatbot context */
@@ -104,7 +105,7 @@ export function ConsoleLayout({
               favicon: activeApp.branding.favicon,
               logo: activeApp.branding.logo,
               title: activeApp.label
-                ? `${resolveI18nLabel(activeApp.label)} — ObjectStack Console`
+                ? `${resolveI18nLabel(activeApp.label)} — ${getProductName()}`
                 : undefined,
             }
           : undefined

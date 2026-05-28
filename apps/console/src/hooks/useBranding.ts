@@ -8,6 +8,7 @@
  */
 
 import { useAppShellBranding } from '@object-ui/layout';
+import { getProductName } from '@object-ui/app-shell';
 
 interface AppBranding {
   primaryColor?: string;
@@ -26,6 +27,6 @@ export function useBranding(app: { branding?: AppBranding; label?: string } | un
           logo: app.branding.logo,
         }
       : undefined,
-    app?.label ? `${app.label} — ObjectStack Console` : undefined,
+    app?.label ? `${app.label} — ${getProductName()}` : undefined,
   );
 }

@@ -27,6 +27,13 @@ export interface RuntimeFeatures {
   marketplace: boolean;
 }
 
+export interface RuntimeBranding {
+  /** Product name shown in browser title, splash, account chrome. */
+  productName: string;
+  /** Short variant for PWA shortName / compact spots. */
+  productShortName: string;
+}
+
 export interface RuntimeConfig {
   /**
    * Upstream cloud base URL — the SPA dispatches install + env listing
@@ -39,6 +46,7 @@ export interface RuntimeConfig {
   defaultOrgId?: string | null;
   defaultEnvironmentId?: string | null;
   features: RuntimeFeatures;
+  branding: RuntimeBranding;
 }
 
 const defaults: RuntimeConfig = {
@@ -47,6 +55,7 @@ const defaults: RuntimeConfig = {
   defaultOrgId: null,
   defaultEnvironmentId: null,
   features: { installLocal: false, marketplace: true },
+  branding: { productName: 'ObjectOS', productShortName: 'ObjectOS' },
 };
 
 let current: RuntimeConfig = { ...defaults };
@@ -60,6 +69,10 @@ function applyUpdate(patch: Partial<RuntimeConfig>): void {
     features: {
       ...current.features,
       ...(patch.features ?? {}),
+    },
+    branding: {
+      ...current.branding,
+      ...(patch.branding ?? {}),
     },
   };
 }
@@ -95,6 +108,18 @@ export async function initRuntimeConfig(baseUrl: string = ''): Promise<void> {
           marketplace: body.features.marketplace !== false,
         }
         : current.features,
+      branding: body.branding
+        ? {
+          productName:
+            typeof body.branding.productName === 'string' && body.branding.productName.trim()
+              ? body.branding.productName.trim()
+              : current.branding.productName,
+          productShortName:
+            typeof body.branding.productShortName === 'string' && body.branding.productShortName.trim()
+              ? body.branding.productShortName.trim()
+              : current.branding.productShortName,
+        }
+        : current.branding,
     });
   } catch {
     // Endpoint missing or network failure ⇒ keep defaults. Older runtimes
@@ -107,6 +132,20 @@ export async function initRuntimeConfig(baseUrl: string = ''): Promise<void> {
 /** Read-only accessor. Returns the current snapshot. */
 export function getRuntimeConfig(): RuntimeConfig {
   return current;
+}
+
+/**
+ * Product name shown in browser title, splash, account chrome.
+ * Falls back to `'ObjectOS'` when the server hasn't been contacted yet.
+ * Operators override via `OS_PRODUCT_NAME` env var or
+ * `new RuntimeConfigPlugin({ productName: 'Acme Studio' })`.
+ */
+export function getProductName(): string {
+  return current.branding?.productName || 'ObjectOS';
+}
+
+export function getProductShortName(): string {
+  return current.branding?.productShortName || getProductName();
 }
 
 /** Whether `initRuntimeConfig()` has run at least once. */
@@ -126,6 +165,10 @@ export function getCloudBase(): string {
 
 /** Test/dev helper. */
 export function resetRuntimeConfigForTesting(): void {
-  current = { ...defaults, features: { ...defaults.features } };
+  current = {
+    ...defaults,
+    features: { ...defaults.features },
+    branding: { ...defaults.branding },
+  };
   initialised = false;
 }

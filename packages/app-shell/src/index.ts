@@ -89,10 +89,12 @@ export {
   initRuntimeConfig,
   getRuntimeConfig,
   getCloudBase,
+  getProductName,
+  getProductShortName,
   isRuntimeConfigInitialised,
   resetRuntimeConfigForTesting,
 } from './runtime-config';
-export type { RuntimeConfig, RuntimeFeatures } from './runtime-config';
+export type { RuntimeConfig, RuntimeFeatures, RuntimeBranding } from './runtime-config';
 
 // Standard inner-SPA views
 export {

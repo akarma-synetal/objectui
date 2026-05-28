@@ -876,7 +876,7 @@ const en = {
     },
   },
   console: {
-    title: 'ObjectStack Console',
+    title: 'ObjectOS',
     initializing: 'Initializing application...',
     search: 'Search…',
     breadcrumb: {

@@ -103,6 +103,12 @@ export interface ActionDef {
   params?: Record<string, any>;
   /** ActionParam definitions to collect from user before execution (from spec ActionSchema.params) */
   actionParams?: ActionParamDef[];
+  /**
+   * Result dialog spec — when present and the action succeeds, the runner
+   * suppresses the successMessage toast and asks the consumer to open a
+   * reveal dialog rendering `result.data` (see ResultDialogSpec).
+   */
+  resultDialog?: ResultDialogSpec;
   /** Script/expression to execute (for type: 'script') */
   execute?: string;
   /** Target URL or identifier (for type: 'url', 'modal', 'flow') */
@@ -173,6 +179,41 @@ export type ParamCollectionHandler = (
 ) => Promise<Record<string, any> | null>;
 
 /**
+ * Result dialog spec — declarative description of how to render a
+ * one-shot reveal of an action's API response. Mirrors
+ * `Action.resultDialog` in @objectstack/spec.
+ *
+ * When set on an action and the action succeeds, the runner suppresses
+ * the success toast and awaits a ResultDialogHandler instead. Used for
+ * values the user must copy NOW (2FA secret, OAuth client_secret, backup
+ * codes).
+ */
+export interface ResultDialogFieldSpec {
+  path: string;
+  label?: string;
+  format?: 'qrcode' | 'code-list' | 'secret' | 'text' | 'json';
+}
+export interface ResultDialogSpec {
+  title?: string;
+  description?: string;
+  acknowledge?: string;
+  format?: 'qrcode' | 'code-list' | 'secret' | 'text' | 'json';
+  fields?: ResultDialogFieldSpec[];
+}
+
+/**
+ * Result dialog handler — consumers provide to render the post-success
+ * reveal dialog. Returns a promise that resolves when the user
+ * acknowledges. Errors / rejections are treated as acknowledge for
+ * cleanup purposes (the action already succeeded).
+ */
+export type ResultDialogHandler = (
+  spec: ResultDialogSpec,
+  data: unknown,
+  action?: ActionDef,
+) => Promise<void>;
+
+/**
  * ActionParam definition accepted by the runner.
  * Compatible with @objectstack/spec ActionParam.
  */
@@ -224,6 +265,7 @@ export class ActionRunner {
   private modalHandler: ModalHandler | null;
   private navigationHandler: NavigationHandler | null;
   private paramCollectionHandler: ParamCollectionHandler | null;
+  private resultDialogHandler: ResultDialogHandler | null;
 
   constructor(context: ActionContext = {}) {
     this.context = context;
@@ -234,6 +276,7 @@ export class ActionRunner {
     this.modalHandler = null;
     this.navigationHandler = null;
     this.paramCollectionHandler = null;
+    this.resultDialogHandler = null;
   }
 
   /**
@@ -270,6 +313,15 @@ export class ActionRunner {
    */
   setParamCollectionHandler(handler: ParamCollectionHandler): void {
     this.paramCollectionHandler = handler;
+  }
+
+  /**
+   * Set a result dialog handler — shows a one-shot reveal dialog after
+   * a successful action whose spec declares `resultDialog`. Used for
+   * values the user must copy now (2FA codes, OAuth client_secret).
+   */
+  setResultDialogHandler(handler: ResultDialogHandler): void {
+    this.resultDialogHandler = handler;
   }
 
   registerHandler(actionName: string, handler: ActionHandler): void {
@@ -459,12 +511,19 @@ export class ActionRunner {
    * Post-execution: emit toast notifications, handle chaining, callbacks.
    */
   private async handlePostExecution(action: ActionDef, result: ActionResult): Promise<void> {
+    // resultDialog SUPPRESSES the successMessage toast — these are one-shot
+    // reveals (2FA codes, fresh OAuth secrets) where a toast would let the
+    // user dismiss the value before copying it. The reveal dialog itself
+    // requires explicit acknowledgement; we await it here so refreshAfter
+    // / chain steps don't fire until the user closes the dialog.
+    const hasResultDialog = !!(action.resultDialog && result.success);
+
     // Toast notifications
     if (this.toastHandler) {
       const showToast = action.toast ?? { showOnSuccess: true, showOnError: true };
       const duration = action.toast?.duration;
 
-      if (result.success && showToast.showOnSuccess !== false) {
+      if (result.success && !hasResultDialog && showToast.showOnSuccess !== false) {
         const message = action.successMessage || 'Action completed successfully';
         this.toastHandler(message, { type: 'success', duration });
       }
@@ -472,6 +531,28 @@ export class ActionRunner {
       if (!result.success && showToast.showOnError !== false && result.error) {
         const message = action.errorMessage || result.error;
         this.toastHandler(message, { type: 'error', duration });
+      }
+    }
+
+    // Open the reveal dialog. If no handler is registered we still mark the
+    // execution successful but log — better to lose the value visibility
+    // than to silently re-toast and dismiss it.
+    if (hasResultDialog) {
+      if (this.resultDialogHandler) {
+        try {
+          await this.resultDialogHandler(action.resultDialog!, result.data, action);
+        } catch (err) {
+          // Acknowledgement failure is non-fatal; the underlying action already
+          // succeeded. Log so consumers can wire it through their error reporter.
+          // eslint-disable-next-line no-console
+          console.warn('[ActionRunner] resultDialog handler rejected; treating as acknowledged', err);
+        }
+      } else {
+        // eslint-disable-next-line no-console
+        console.warn(
+          '[ActionRunner] action.resultDialog set but no resultDialogHandler registered — the response value will not be shown to the user.',
+          { action: action.name, data: result.data }
+        );
       }
     }
 

@@ -12,7 +12,7 @@ import { I18nProvider } from '@object-ui/i18n';
 import { MobileProvider } from '@object-ui/mobile';
 import { ComponentRegistry } from '@object-ui/core';
 import { registerPlaceholders } from '@object-ui/components';
-import { initSentry, initRuntimeConfig } from '@object-ui/app-shell';
+import { initSentry, initRuntimeConfig, getProductName, getProductShortName } from '@object-ui/app-shell';
 import { loadLanguage } from './loadLanguage';
 import { preflightAuth } from './lib/auth-preflight';
 
@@ -162,7 +162,7 @@ Promise.all([
 ]).finally(() => {
   ReactDOM.createRoot(document.getElementById('root')!).render(
     <React.StrictMode>
-      <MobileProvider pwa={{ enabled: true, name: 'ObjectUI Console', shortName: 'Console' }}>
+      <MobileProvider pwa={{ enabled: true, name: getProductName(), shortName: getProductShortName() }}>
         <I18nProvider loadLanguage={loadLanguage}>
           <App />
         </I18nProvider>

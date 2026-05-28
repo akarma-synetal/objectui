@@ -2,6 +2,7 @@
 import { Spinner, Button } from '@object-ui/components';
 import { Database, CheckCircle2, Loader2, AlertCircle, RefreshCw } from 'lucide-react';
 import { useState, useEffect, useMemo } from 'react';
+import { getProductName } from '../runtime-config';
 
 interface LoadingScreenProps {
   /** Optional message override */
@@ -20,8 +21,9 @@ interface LoadingScreenProps {
 // render and would prevent the splash from rendering at all on a server-down
 // boot. Strings stay hardcoded English; localized error UX should happen
 // post-bootstrap, after i18n has loaded successfully.
+// The product name is read from the runtime-config singleton (sync) so it
+// reflects server-pushed branding when available, falling back to 'ObjectOS'.
 const STRINGS = {
-  title: 'ObjectUI Console',
   initializing: 'Initializing…',
   steps: {
     connecting: 'Connecting to server',
@@ -68,7 +70,7 @@ export function LoadingScreen({ message, error, onRetry, retrying }: LoadingScre
 
         {/* Title */}
         <div className="text-center space-y-2">
-          <h1 className="text-2xl font-bold tracking-tight">{STRINGS.title}</h1>
+          <h1 className="text-2xl font-bold tracking-tight">{getProductName()}</h1>
           <p className="text-sm text-muted-foreground">{STRINGS.initializing}</p>
         </div>
 
