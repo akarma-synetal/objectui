@@ -25,6 +25,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import {
   Save,
   RotateCcw,
+  Trash2,
   History,
   Link2,
   Loader2,
@@ -386,19 +387,33 @@ export function MetadataResourceEditPage({
   }
 
   async function doReset() {
-    if (!confirm(`Reset overlay for ${type}/${name}? Code-level value will be restored.`)) {
+    // Two semantics:
+    //   - artifact-backed item: "Reset overlay" — keep the code default.
+    //   - DB-only item: "Delete" — the item disappears entirely (no
+    //     artifact baseline to fall back to). Navigate back to the list
+    //     since the current URL no longer refers to anything.
+    const itemIsArtifact = !createMode && layered?.code != null;
+    const confirmKey = itemIsArtifact
+      ? 'engine.edit.resetConfirm'
+      : 'engine.edit.deleteConfirm';
+    if (!confirm(tFormat(confirmKey, locale, { type, name: name ?? '' }))) {
       return;
     }
     setSaving(true);
     setError(null);
     try {
       await client.reset(type, name);
-      const lay = await client.layered<any>(type, name);
-      setLayered(lay);
-      const fresh = (lay.effective ?? lay.code ?? {}) as Record<string, unknown>;
-      setDraft(fresh);
-      draftSnapshotRef.current = fresh;
-      setEditing(false);
+      if (itemIsArtifact) {
+        const lay = await client.layered<any>(type, name);
+        setLayered(lay);
+        const fresh = (lay.effective ?? lay.code ?? {}) as Record<string, unknown>;
+        setDraft(fresh);
+        draftSnapshotRef.current = fresh;
+        setEditing(false);
+      } else {
+        // No artifact baseline → return to the list view.
+        navigate(`../`);
+      }
     } catch (err: any) {
       setError(err?.message ?? String(err));
     } finally {
@@ -512,8 +527,17 @@ export function MetadataResourceEditPage({
           )}
           {!createMode && canWrite && layered?.overlay && (
             <Button variant="ghost" size="sm" onClick={doReset} disabled={saving}>
-              <RotateCcw className="h-4 w-4 mr-1" />
-              {t('engine.edit.reset', locale)}
+              {isArtifactItem ? (
+                <>
+                  <RotateCcw className="h-4 w-4 mr-1" />
+                  {t('engine.edit.reset', locale)}
+                </>
+              ) : (
+                <>
+                  <Trash2 className="h-4 w-4 mr-1" />
+                  {t('engine.edit.delete', locale)}
+                </>
+              )}
             </Button>
           )}
           {!createMode && (
