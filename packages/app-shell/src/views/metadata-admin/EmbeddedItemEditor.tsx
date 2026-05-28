@@ -73,7 +73,7 @@ export function EmbeddedItemEditor({
   }, [initialRaw, itemName, parentType, parentName]);
 
   const readOnly =
-    subEntry != null && !subEntry.allowOrgOverride;
+    subEntry != null && !subEntry.allowOrgOverride && !subEntry.allowRuntimeCreate;
 
   async function doSave() {
     if (!embeddedPath) {

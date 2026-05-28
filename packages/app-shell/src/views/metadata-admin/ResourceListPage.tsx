@@ -157,7 +157,7 @@ function DefaultMetadataList({ type }: { type: string }) {
           >
             <RefreshCw className="h-4 w-4" />
           </Button>
-          {entry?.allowOrgOverride && (
+          {(entry?.allowOrgOverride || entry?.allowRuntimeCreate) && (
             <Button
               size="sm"
               onClick={() => navigate(`./new`)}
@@ -212,7 +212,7 @@ function DefaultMetadataList({ type }: { type: string }) {
             </EmptyTitle>
             <EmptyDescription>
               {config.emptyStateHint ??
-                (entry?.allowOrgOverride
+                (entry?.allowOrgOverride || entry?.allowRuntimeCreate
                   ? tFormat('engine.list.createHint', locale, { type: typeLabel })
                   : t('engine.list.readOnlyHint', locale))}
             </EmptyDescription>

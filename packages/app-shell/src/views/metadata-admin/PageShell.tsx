@@ -112,6 +112,13 @@ export function PageShell({
                 >
                   {t('engine.badge.writable', locale)}
                 </Badge>
+              ) : entry?.allowRuntimeCreate ? (
+                <Badge
+                  className="text-[10px] bg-sky-100 text-sky-800 hover:bg-sky-100"
+                  title="Code-shipped items are locked; new items can be created at runtime"
+                >
+                  {t('engine.badge.createOnly', locale)}
+                </Badge>
               ) : (
                 <Badge variant="outline" className="text-[10px] text-muted-foreground">
                   {t('engine.badge.readOnly', locale)}

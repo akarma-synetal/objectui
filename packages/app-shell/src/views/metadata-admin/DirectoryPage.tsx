@@ -89,11 +89,13 @@ export function MetadataDirectoryPage() {
     return c;
   }, [entries]);
 
-  const writableCount = entries.filter((e) => !HIDDEN_TYPES.has(e.type) && e.allowOrgOverride).length;
+  const writableCount = entries.filter(
+    (e) => !HIDDEN_TYPES.has(e.type) && (e.allowOrgOverride || e.allowRuntimeCreate),
+  ).length;
 
   const filtered = entries.filter((e) => {
     if (HIDDEN_TYPES.has(e.type)) return false;
-    if (writableOnly && !e.allowOrgOverride) return false;
+    if (writableOnly && !(e.allowOrgOverride || e.allowRuntimeCreate)) return false;
     if (domainFilter !== 'all' && (e.domain ?? 'other') !== domainFilter) return false;
     if (query) {
       const q = query.toLowerCase();
@@ -281,6 +283,13 @@ function TypeTile({ entry, locale }: { entry: RichMetadataTypeEntry; locale?: st
             }
           >
             {t('engine.badge.writable', locale)}
+          </Badge>
+        ) : entry.allowRuntimeCreate ? (
+          <Badge
+            className="text-[10px] shrink-0 bg-sky-100 text-sky-800 hover:bg-sky-100"
+            title="Code-shipped items are locked; new items can be created at runtime"
+          >
+            {t('engine.badge.createOnly', locale)}
           </Badge>
         ) : (
           <Badge variant="outline" className="text-[10px] shrink-0 text-muted-foreground">

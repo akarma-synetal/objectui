@@ -24,6 +24,13 @@ export interface RichMetadataTypeEntry {
   description?: string;
   domain?: string;
   allowOrgOverride?: boolean;
+  /**
+   * Two-tier model (PR-10d.7): brand-new items of this type can be
+   * authored at runtime even when `allowOrgOverride` is false. UI
+   * affordances ("+ New", Save, Delete on DB-only items) should
+   * activate when either flag is true.
+   */
+  allowRuntimeCreate?: boolean;
   /** 'registry' = ADR opt-in; 'env' = unlocked via OBJECTSTACK_METADATA_WRITABLE. */
   overrideSource?: 'registry' | 'env';
   supportsOverlay?: boolean;

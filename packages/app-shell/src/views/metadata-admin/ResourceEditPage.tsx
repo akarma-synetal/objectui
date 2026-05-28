@@ -434,7 +434,23 @@ export function MetadataResourceEditPage({
   const schema =
     (entry?.schema as Record<string, unknown> | undefined) ??
     (config.defaultSchema as Record<string, unknown> | undefined);
-  const readOnly = !entry?.allowOrgOverride && !createMode;
+
+  // Two-tier authorization (PR-10d.7):
+  //   - artifact-backed items (layered.code != null) need allowOrgOverride
+  //   - DB-only items (no artifact) need allowOrgOverride OR allowRuntimeCreate
+  //   - createMode is always writable (the server will gate on intent)
+  const isArtifactItem = !createMode && layered?.code != null;
+  const canWrite = createMode
+    ? !!(entry?.allowOrgOverride || entry?.allowRuntimeCreate)
+    : isArtifactItem
+      ? !!entry?.allowOrgOverride
+      : !!(entry?.allowOrgOverride || entry?.allowRuntimeCreate);
+  const readOnly = !canWrite && !createMode;
+  // Banner variant: when type ships with allowRuntimeCreate but this
+  // specific item is locked because it comes from a code package, we
+  // show a different message inviting the user to create their own.
+  const showArtifactLockedBanner =
+    readOnly && isArtifactItem && !!entry?.allowRuntimeCreate;
 
   // Preview tab — opt-in via `registerMetadataPreview()`. Hidden in
   // create mode (nothing to preview yet) and inside the embedded
@@ -494,7 +510,7 @@ export function MetadataResourceEditPage({
                 : t('engine.edit.hideInspector', locale)}
             </Button>
           )}
-          {!createMode && entry?.allowOrgOverride && (
+          {!createMode && canWrite && layered?.overlay && (
             <Button variant="ghost" size="sm" onClick={doReset} disabled={saving}>
               <RotateCcw className="h-4 w-4 mr-1" />
               {t('engine.edit.reset', locale)}
@@ -517,19 +533,19 @@ export function MetadataResourceEditPage({
                 discard the whole create flow which is awkward; users can
                 navigate away to cancel).
               Truly read-only types (no allowOrgOverride) skip all of this. */}
-          {entry?.allowOrgOverride && !createMode && !editing && (
+          {canWrite && !createMode && !editing && (
             <Button size="sm" onClick={() => setEditing(true)}>
               <Pencil className="h-4 w-4 mr-1" />
               {t('engine.edit.edit', locale)}
             </Button>
           )}
-          {entry?.allowOrgOverride && !createMode && editing && (
+          {canWrite && !createMode && editing && (
             <Button variant="ghost" size="sm" onClick={doCancelEdit} disabled={saving}>
               <X className="h-4 w-4 mr-1" />
               {t('engine.cancel', locale)}
             </Button>
           )}
-          {entry?.allowOrgOverride && (editing || createMode) && (
+          {canWrite && (editing || createMode) && (
             <Button
               size="sm"
               onClick={() => doSave(false)}
@@ -578,20 +594,44 @@ export function MetadataResourceEditPage({
               </div>
             )}
             {readOnly && (
-              <div className="text-xs text-amber-800 border border-amber-300 bg-amber-50 rounded p-3 dark:text-amber-200 dark:border-amber-700/50 dark:bg-amber-950/30">
-                {/* The platform i18n bundle ships `engine.edit.readOnlyTypeBanner`
-                    with `{flag} / {type} / {override}` placeholders so the
-                    monospace tokens are inlined inside the translated sentence
-                    in any locale. Splitting on the three tokens preserves the
-                    sentence order across translations. */}
-                {t('engine.edit.readOnlyTypeBanner', locale)
-                  .split(/(\{flag\}|\{type\}|\{override\})/)
-                  .map((part, i) => {
-                    if (part === '{flag}') return <code key={i} className="font-mono">OBJECTSTACK_METADATA_WRITABLE</code>;
-                    if (part === '{type}') return <code key={i} className="font-mono">{type}</code>;
-                    if (part === '{override}') return <code key={i} className="font-mono">allowOrgOverride</code>;
-                    return <React.Fragment key={i}>{part}</React.Fragment>;
-                  })}
+              <div className="text-xs text-amber-800 border border-amber-300 bg-amber-50 rounded p-3 dark:text-amber-200 dark:border-amber-700/50 dark:bg-amber-950/30 flex items-start gap-3">
+                <div className="flex-1">
+                  {showArtifactLockedBanner ? (
+                    /* Type allows runtime-create but THIS item ships from
+                       a code package. Tell the user clearly and provide
+                       a CTA to author their own. */
+                    t('engine.edit.artifactLockedBanner', locale)
+                      .split(/(\{type\})/)
+                      .map((part, i) => {
+                        if (part === '{type}') return <code key={i} className="font-mono">{type}</code>;
+                        return <React.Fragment key={i}>{part}</React.Fragment>;
+                      })
+                  ) : (
+                    /* The platform i18n bundle ships `engine.edit.readOnlyTypeBanner`
+                       with `{flag} / {type} / {override}` placeholders so the
+                       monospace tokens are inlined inside the translated sentence
+                       in any locale. Splitting on the three tokens preserves the
+                       sentence order across translations. */
+                    t('engine.edit.readOnlyTypeBanner', locale)
+                      .split(/(\{flag\}|\{type\}|\{override\})/)
+                      .map((part, i) => {
+                        if (part === '{flag}') return <code key={i} className="font-mono">OBJECTSTACK_METADATA_WRITABLE</code>;
+                        if (part === '{type}') return <code key={i} className="font-mono">{type}</code>;
+                        if (part === '{override}') return <code key={i} className="font-mono">allowOrgOverride</code>;
+                        return <React.Fragment key={i}>{part}</React.Fragment>;
+                      })
+                  )}
+                </div>
+                {showArtifactLockedBanner && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="shrink-0"
+                    onClick={() => navigate(`../new`)}
+                  >
+                    {t('engine.list.create', locale)}
+                  </Button>
+                )}
               </div>
             )}
           </div>
@@ -660,7 +700,7 @@ export function MetadataResourceEditPage({
                 "可写" badge in the header plus the Edit button in the
                 action bar already convey both signal and call-to-action,
                 and saving every vertical pixel for the canvas matters. */}
-            {!PreviewComponent && formReadOnly && !readOnly && entry?.allowOrgOverride && !createMode && (
+            {!PreviewComponent && formReadOnly && !readOnly && canWrite && !createMode && (
               <div className="flex items-center justify-between gap-3 text-xs text-muted-foreground border rounded p-2.5 bg-muted/30">
                 <span>
                   {t('engine.edit.readOnlyBanner', locale).split(/\{edit\}/).map((part, i, arr) => (
