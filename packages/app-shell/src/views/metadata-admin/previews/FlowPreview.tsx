@@ -57,6 +57,8 @@ interface FlowVariable {
   type?: string;
   defaultValue?: unknown;
   description?: string;
+  isInput?: boolean;
+  isOutput?: boolean;
 }
 
 function nodeIcon(type: string) {
@@ -188,7 +190,7 @@ export function FlowPreview({ draft }: MetadataPreviewProps) {
                           </span>
                         </div>
                         {summarizeNodeConfig(node) && (
-                          <div className="text-xs text-muted-foreground mt-0.5 truncate">
+                          <div className="text-xs text-muted-foreground mt-0.5 font-mono break-all">
                             {summarizeNodeConfig(node)}
                           </div>
                         )}
@@ -239,11 +241,21 @@ export function FlowPreview({ draft }: MetadataPreviewProps) {
               <ul className="space-y-1.5">
                 {variables.map((v, i) => (
                   <li key={v.name || i} className="rounded border bg-background p-1.5">
-                    <div className="flex items-baseline gap-1">
+                    <div className="flex items-baseline gap-1 flex-wrap">
                       <span className="font-mono">{v.name}</span>
                       {v.type && (
                         <span className="text-[10px] uppercase text-muted-foreground">
                           {v.type}
+                        </span>
+                      )}
+                      {v.isInput && (
+                        <span className="text-[9px] font-semibold uppercase px-1 rounded bg-sky-100 text-sky-700">
+                          in
+                        </span>
+                      )}
+                      {v.isOutput && (
+                        <span className="text-[9px] font-semibold uppercase px-1 rounded bg-emerald-100 text-emerald-700">
+                          out
                         </span>
                       )}
                     </div>
@@ -266,14 +278,123 @@ export function FlowPreview({ draft }: MetadataPreviewProps) {
 function summarizeNodeConfig(node: FlowNode): string | undefined {
   const c = node.config as Record<string, unknown> | undefined;
   if (!c) return undefined;
-  // Surface the most informative single-line bits.
+
+  // Node-type-specific summaries (matches packages/spec/src/automation/flow.zod.ts).
+  switch (node.type) {
+    case 'get_record':
+    case 'get_records':
+    case 'find_records':
+      return fmt('object', c.objectName) + fmt(' · id', c.recordId) + fmt(' → ', c.outputVariable);
+    case 'create_record':
+    case 'create_records':
+      return fmt('create', c.objectName) + fmtFields(c.fields) + fmt(' → ', c.outputVariable);
+    case 'update_record':
+    case 'update_records':
+      return fmt('update', c.objectName) + fmt(' #', c.recordId) + fmtFields(c.fields);
+    case 'delete_record':
+    case 'delete_records':
+      return fmt('delete', c.objectName) + fmt(' #', c.recordId);
+    case 'decision':
+    case 'branch':
+    case 'gateway': {
+      const conds = c.conditions;
+      if (Array.isArray(conds)) {
+        const lines = conds
+          .slice(0, 3)
+          .map((cc: any) => (cc.label ?? cc.expression ?? '?'))
+          .map((s: any) => String(s));
+        return lines.length ? lines.join(' | ') + (conds.length > 3 ? ' …' : '') : undefined;
+      }
+      return fmtExpr(c.expression);
+    }
+    case 'screen': {
+      const fields = c.fields;
+      if (Array.isArray(fields) && fields.length > 0) {
+        const names = fields.slice(0, 4).map((f: any) => f.name ?? f.label ?? '?').join(', ');
+        return `${fields.length} field(s): ${names}${fields.length > 4 ? ' …' : ''}`;
+      }
+      if (typeof c.message === 'string') return `"${c.message}"`;
+      return undefined;
+    }
+    case 'assignment':
+    case 'assign': {
+      const assigns = c.assignments;
+      if (Array.isArray(assigns)) {
+        const lines = assigns
+          .slice(0, 3)
+          .map((a: any) => `${a.variable ?? a.target ?? '?'} = ${formatLit(a.value ?? a.expression)}`);
+        return lines.join('; ') + (assigns.length > 3 ? ' …' : '');
+      }
+      return undefined;
+    }
+    case 'subflow':
+    case 'flow':
+      return fmt('flow', c.flowName ?? c.flowId);
+    case 'action':
+      return fmt('action', c.actionName ?? c.actionId);
+    case 'wait':
+    case 'timer':
+      return fmt('wait', c.duration ?? c.delayMs ?? c.until);
+    case 'loop':
+    case 'for_each':
+      return fmt('collection', c.collection) + fmt(' as ', c.itemVariable);
+    case 'http_call':
+      return `${String(c.method ?? 'POST').toUpperCase()} ${c.url ?? '?'}`;
+    case 'send_email':
+      return fmt('template', c.template ?? c.templateName) + fmt(' → ', formatRecipientsCfg(c.recipients ?? c.to));
+    case 'invoke_agent':
+    case 'agent':
+      return fmt('agent', c.agentName ?? c.agentId);
+    case 'end':
+    case 'start':
+      return undefined;
+  }
+
+  // Fallback: surface the most informative single-line bits.
   if (typeof c.objectName === 'string') return `object: ${c.objectName}`;
   if (typeof c.flowName === 'string') return `flow: ${c.flowName}`;
   if (typeof c.actionName === 'string') return `action: ${c.actionName}`;
   if (typeof c.eventType === 'string') return `event: ${c.eventType}`;
   if (typeof c.expression === 'string') return `expr: ${c.expression}`;
-  const keys = Object.keys(c).slice(0, 3);
-  return keys.length ? keys.map((k) => `${k}`).join(', ') : undefined;
+  // Last resort: show a JSON sketch (one line, truncated).
+  try {
+    const json = JSON.stringify(c);
+    return json.length > 100 ? json.slice(0, 97) + '…' : json;
+  } catch {
+    return undefined;
+  }
+}
+
+function fmt(prefix: string, v: unknown): string {
+  if (v == null || v === '') return '';
+  return `${prefix}: ${String(v)}`;
+}
+
+function fmtExpr(e: unknown): string | undefined {
+  if (typeof e === 'string') return `if ${e}`;
+  if (e && typeof e === 'object' && typeof (e as any).source === 'string') return `if ${(e as any).source}`;
+  return undefined;
+}
+
+function fmtFields(f: unknown): string {
+  if (!f || typeof f !== 'object') return '';
+  const keys = Object.keys(f as Record<string, unknown>);
+  if (keys.length === 0) return '';
+  return ` {${keys.slice(0, 3).join(', ')}${keys.length > 3 ? ', …' : ''}}`;
+}
+
+function formatLit(v: unknown): string {
+  if (v == null) return '∅';
+  if (typeof v === 'string') return `"${v}"`;
+  if (typeof v === 'object' && typeof (v as any).source === 'string') return (v as any).source;
+  if (typeof v === 'object') return JSON.stringify(v);
+  return String(v);
+}
+
+function formatRecipientsCfg(r: unknown): string {
+  if (Array.isArray(r)) return r.slice(0, 3).join(', ') + (r.length > 3 ? ', …' : '');
+  if (typeof r === 'string') return r;
+  return '';
 }
 
 function Pill({

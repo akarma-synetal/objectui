@@ -73,18 +73,22 @@ function actionIcon(type: string) {
 function summarizeAction(a: WorkflowAction): string | undefined {
   switch (a.type) {
     case 'field_update':
-      return `${a.objectName ?? '?'}.${a.fieldName ?? '?'} = ${formatLiteral(a.value)}`;
+      // Canonical: { field, value }. Legacy: { objectName, fieldName, value }.
+      return `${a.field ?? (a.objectName ? `${a.objectName}.${a.fieldName ?? '?'}` : '?')} = ${formatLiteral(a.value)}`;
     case 'email_alert':
-      return `template: ${a.templateName ?? '?'} → ${formatRecipients(a)}`;
+      // Canonical: { template, recipients[] }. Legacy: { templateName, to }.
+      return `template: ${a.template ?? a.templateName ?? '?'} → ${formatRecipients(a)}`;
     case 'http_call':
     case 'webhook':
       return `${String(a.method ?? 'POST').toUpperCase()} ${a.url ?? a.endpoint ?? '?'}`;
     case 'task_creation':
-      return `assign to ${a.assigneeRef ?? a.assignee ?? '?'} — ${a.subject ?? ''}`;
+      // Canonical: { taskObject, subject, assignedTo?, dueDate? }.
+      return `create ${a.taskObject ?? '?'}${a.assignedTo ? ` → ${a.assignedTo}` : ''}${a.subject ? `: "${a.subject}"` : ''}`;
     case 'push_notification':
-      return `${a.title ?? ''}`;
+      return a.title ? `"${a.title}"` : undefined;
     case 'custom_script':
-      return `${a.scriptName ?? a.functionName ?? '?'}`;
+      // Canonical: { language, code }.
+      return a.language ? `${a.language}${typeof a.code === 'string' ? ` (${(a.code as string).length} chars)` : ''}` : (a.scriptName as string ?? a.functionName as string ?? undefined);
     case 'connector_action':
       return `${a.connectorId ?? '?'}.${a.actionId ?? '?'}`;
     default:
@@ -205,12 +209,14 @@ export function WorkflowPreview({ draft }: MetadataPreviewProps) {
 function ActionRow({ action }: { action: WorkflowAction }) {
   const Icon = actionIcon(action.type);
   const summary = summarizeAction(action);
+  const aName = (action as any).name as string | undefined;
   return (
     <li className="flex items-start gap-2 px-3 py-2 text-xs">
       <Icon className="h-3.5 w-3.5 mt-0.5 text-muted-foreground shrink-0" />
       <div className="min-w-0 flex-1">
-        <div className="flex items-baseline gap-2">
+        <div className="flex items-baseline gap-2 flex-wrap">
           <span className="font-medium">{prettyActionType(action.type)}</span>
+          {aName && <code className="font-mono text-[10px] text-foreground">{aName}</code>}
           <span className="font-mono text-[10px] text-muted-foreground">{action.type}</span>
         </div>
         {summary && <div className="text-muted-foreground font-mono break-all">{summary}</div>}

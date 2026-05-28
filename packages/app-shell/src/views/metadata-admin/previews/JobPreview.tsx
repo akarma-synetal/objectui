@@ -3,15 +3,20 @@
 /**
  * JobPreview — read-only summary of a Background Job draft.
  *
- * The framework has no canonical `job.zod.ts` yet; downstream apps
- * supply their own shape (cron-style, interval-style, or one-shot).
- * This preview is therefore defensive and shape-tolerant: it accepts
- *   • `cron` / `schedule` (Unix cron expression, 5 or 6 fields)
- *   • `every` (interval like "5m", "1h")
- *   • `at` (one-shot ISO timestamp)
- *   • `timezone` for cron evaluation
- *   • `handler` / `target` / `function` for the work
- *   • `retries` / `maxRetries` / `timeoutMs`
+ * Canonical shape (see `packages/spec/src/system/job.zod.ts`):
+ *   schedule: { type: 'cron',     expression: string | { dialect:'cron', source:string }, timezone? }
+ *           | { type: 'interval', intervalMs: number }
+ *           | { type: 'once',     at: string (ISO) }
+ *   handler: string         — function key registered in defineStack({ functions })
+ *   retryPolicy?: { maxRetries, backoffMs, backoffMultiplier }
+ *   timeout?: number (ms)
+ *   enabled?: boolean
+ *
+ * Legacy / app-supplied flat shapes are also tolerated:
+ *   • `cron` (string)        — top-level cron expression
+ *   • `every` / `interval`   — interval like "5m" or millis number
+ *   • `at` / `runAs`         — one-shot ISO
+ *   • `timezone` / `tz`
  *   • `active` / `enabled`
  *
  * For cron schedules we compute the **next 5 fire times** locally so
@@ -178,22 +183,95 @@ function formatWhen(d: Date): string {
   });
 }
 
+/**
+ * Normalize the canonical Schedule discriminated-union and legacy flat
+ * shapes into `{ cron?, every?, at?, timezone? }` for rendering.
+ *
+ * Supports:
+ *   • d.schedule = { type:'cron',     expression: string | {source}, timezone? }
+ *   • d.schedule = { type:'interval', intervalMs: number }
+ *   • d.schedule = { type:'once',     at: string }
+ *   • d.schedule = "0 9 * * 1-5"     (legacy: string cron)
+ *   • d.cron / d.every / d.interval / d.at / d.runAt / d.timezone / d.tz
+ */
+function normalizeSchedule(d: Record<string, unknown>): {
+  cron?: string;
+  every?: string;
+  at?: string;
+  timezone?: string;
+} {
+  // Canonical discriminated-union schedule object.
+  if (d.schedule && typeof d.schedule === 'object') {
+    const s = d.schedule as Record<string, unknown>;
+    const t = String(s.type ?? '');
+    const tz = (s.timezone as string | undefined) ?? (d.timezone as string | undefined) ?? (d.tz as string | undefined);
+    if (t === 'cron') {
+      const expr = s.expression;
+      const src =
+        typeof expr === 'string'
+          ? expr
+          : expr && typeof expr === 'object' && typeof (expr as any).source === 'string'
+            ? (expr as any).source
+            : undefined;
+      return { cron: src, timezone: tz };
+    }
+    if (t === 'interval') {
+      const ms = Number(s.intervalMs);
+      return { every: Number.isFinite(ms) && ms > 0 ? humanizeMs(ms) : undefined, timezone: tz };
+    }
+    if (t === 'once') {
+      return { at: typeof s.at === 'string' ? s.at : undefined, timezone: tz };
+    }
+  }
+
+  // Flat legacy shapes.
+  const cron =
+    typeof d.cron === 'string'
+      ? d.cron
+      : typeof d.schedule === 'string'
+        ? d.schedule
+        : undefined;
+  const everyRaw = d.every ?? d.interval;
+  const every =
+    typeof everyRaw === 'string'
+      ? everyRaw
+      : typeof everyRaw === 'number'
+        ? humanizeMs(everyRaw)
+        : undefined;
+  const at = typeof d.at === 'string' ? d.at : typeof d.runAt === 'string' ? d.runAt : undefined;
+  const timezone = (d.timezone as string | undefined) ?? (d.tz as string | undefined);
+  return { cron, every, at, timezone };
+}
+
+function humanizeMs(ms: number): string {
+  if (ms % 86_400_000 === 0) return `${ms / 86_400_000}d`;
+  if (ms % 3_600_000 === 0) return `${ms / 3_600_000}h`;
+  if (ms % 60_000 === 0) return `${ms / 60_000}m`;
+  if (ms % 1000 === 0) return `${ms / 1000}s`;
+  return `${ms}ms`;
+}
+
 export function JobPreview({ name, draft }: MetadataPreviewProps) {
   const d = draft as Record<string, unknown>;
   const jobName = String(d.name ?? name ?? '');
   const label = String(d.label ?? jobName);
   const description = (d.description as string | undefined) ?? '';
-  const cron = (d.cron as string | undefined) ?? (d.schedule as string | undefined);
-  const every = (d.every as string | undefined) ?? (d.interval as string | undefined);
-  const at = (d.at as string | undefined) ?? (d.runAt as string | undefined);
-  const timezone = (d.timezone as string | undefined) ?? (d.tz as string | undefined);
+
+  const { cron, every, at, timezone } = normalizeSchedule(d);
+
   const handler = (d.handler as string | undefined)
     ?? (d.target as string | undefined)
     ?? (d.function as string | undefined)
     ?? (d.functionName as string | undefined);
   const active = d.active !== false && d.enabled !== false;
-  const maxRetries = (d.maxRetries as number | undefined) ?? (d.retries as number | undefined);
-  const timeoutMs = (d.timeoutMs as number | undefined) ?? (d.timeout as number | undefined);
+  // Canonical: retryPolicy.{maxRetries,backoffMs,backoffMultiplier}; legacy: flat fields.
+  const retryPolicy = d.retryPolicy as Record<string, unknown> | undefined;
+  const maxRetries =
+    (retryPolicy?.maxRetries as number | undefined)
+    ?? (d.maxRetries as number | undefined)
+    ?? (d.retries as number | undefined);
+  const backoffMs = retryPolicy?.backoffMs as number | undefined;
+  const timeoutMs = (d.timeout as number | undefined) ?? (d.timeoutMs as number | undefined);
   const concurrency = (d.concurrency as number | undefined);
 
   const intervalMs = every ? parseInterval(every) : null;
@@ -239,8 +317,8 @@ export function JobPreview({ name, draft }: MetadataPreviewProps) {
                 <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px]">
                   <Pill icon={Power} label={active ? 'Active' : 'Paused'} tone={active ? 'green' : 'gray'} />
                   {timezone && <Pill icon={Globe2} label={timezone} mono />}
-                  {maxRetries != null && <Pill icon={RotateCcw} label={`retries: ${maxRetries}`} />}
-                  {timeoutMs != null && <Pill icon={Timer} label={`timeout: ${timeoutMs}ms`} />}
+                  {maxRetries != null && <Pill icon={RotateCcw} label={`retries: ${maxRetries}${backoffMs ? ` (${humanizeMs(backoffMs)} backoff)` : ''}`} />}
+                  {timeoutMs != null && <Pill icon={Timer} label={`timeout: ${humanizeMs(timeoutMs)}`} />}
                   {concurrency != null && <Pill label={`concurrency: ${concurrency}`} />}
                 </div>
               </div>
