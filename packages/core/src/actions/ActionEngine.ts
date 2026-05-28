@@ -192,17 +192,8 @@ export class ActionEngine {
           // coerces to `true` — silently leaking actions whose preconditions
           // failed (e.g. `ctx` undefined). Surface the error so our catch
           // below can hide the action.
-          const result = evaluator.evaluateCondition(expr as any, { throwOnError: true } as any);
-          if ((globalThis as any).__OS_DEBUG_VISIBILITY) {
-            // eslint-disable-next-line no-console
-            console.log('[ActionEngine.visible]', ra.action.name, 'expr=', expr, 'result=', result, 'ctx=', evaluator.getContext().toObject());
-          }
-          return result;
-        } catch (err) {
-          if ((globalThis as any).__OS_DEBUG_VISIBILITY) {
-            // eslint-disable-next-line no-console
-            console.log('[ActionEngine.visible THROW]', ra.action.name, 'expr=', expr, 'err=', (err as any)?.message, 'ctx=', evaluator.getContext().toObject());
-          }
+          return evaluator.evaluateCondition(expr as any, { throwOnError: true } as any);
+        } catch {
           return false;
         }
       })
