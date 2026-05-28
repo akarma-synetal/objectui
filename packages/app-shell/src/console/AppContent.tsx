@@ -53,10 +53,12 @@ const MetadataResourceListPage = lazy(() => import('../views/metadata-admin').th
 const MetadataResourceEditPage = lazy(() => import('../views/metadata-admin').then(m => ({ default: m.MetadataResourceEditPage })));
 const MetadataResourceHistoryPage = lazy(() => import('../views/metadata-admin').then(m => ({ default: m.MetadataResourceHistoryPage })));
 
-// App authoring pages — sourced from @object-ui/plugin-designer so third-party
-// hosts can opt out by not registering these routes.
+// App authoring + dashboard editor pages — sourced from
+// @object-ui/plugin-designer so third-party hosts can opt out by not
+// registering these routes.
 const CreateAppPage = lazy(() => import('@object-ui/plugin-designer').then(m => ({ default: m.CreateAppPage })));
 const EditAppPage = lazy(() => import('@object-ui/plugin-designer').then(m => ({ default: m.EditAppPage })));
+const DashboardDesignPage = lazy(() => import('@object-ui/plugin-designer').then(m => ({ default: m.DashboardDesignPage })));
 
 // Marketplace pages — first-class platform feature; mounted at `system/marketplace`
 // under any active app so admins can browse + install from inside the runtime.
@@ -406,6 +408,7 @@ export function AppContent({ extraRoutes, extraRoutesNoApp }: AppContentProps = 
                     landed. Redirect to the new /metadata/:type/... shape. */}
                 <Route path="component/metadata/directory" element={<LegacyMetadataRedirect mode="directory" />} />
                 <Route path="component/metadata/resource/*" element={<LegacyMetadataRedirect mode="resource" />} />
+                <Route path="design/dashboard/:dashboardName" element={<DashboardDesignPage />} />
                 <Route path="search" element={<SearchResultsPage />} />
                 <Route path="create-app" element={<CreateAppPage />} />
                 <Route path="edit-app/:editAppName" element={<EditAppPage />} />
