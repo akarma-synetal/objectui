@@ -367,6 +367,9 @@ function summarizeNodeConfig(node: FlowNode): string | undefined {
 
 function fmt(prefix: string, v: unknown): string {
   if (v == null || v === '') return '';
+  // If prefix already contains an arrow/separator, render as `${prefix}${value}`;
+  // otherwise use the canonical `${prefix}: ${value}` form.
+  if (/[→=]\s*$/.test(prefix)) return `${prefix}${String(v)}`;
   return `${prefix}: ${String(v)}`;
 }
 
