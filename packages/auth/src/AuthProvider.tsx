@@ -188,8 +188,15 @@ export function AuthProvider({
       setError(null);
       try {
         const result = await client.signUp({ name, email, password });
+        if (result.requiresVerification) {
+          // No session was created — the user must verify their email before
+          // they can sign in. Leave auth state untouched so the caller can
+          // render a "check your inbox" UI without bouncing through guards.
+          return { requiresVerification: true };
+        }
         setUser(result.user);
         setSession(result.session);
+        return { requiresVerification: false };
       } catch (err) {
         const authError = err instanceof Error ? err : new Error(String(err));
         setError(authError);
@@ -235,6 +242,20 @@ export function AuthProvider({
       setError(null);
       try {
         await client.forgotPassword(email);
+      } catch (err) {
+        const authError = err instanceof Error ? err : new Error(String(err));
+        setError(authError);
+        throw authError;
+      }
+    },
+    [client],
+  );
+
+  const sendVerificationEmail = useCallback(
+    async (email: string, callbackURL?: string) => {
+      setError(null);
+      try {
+        await client.sendVerificationEmail(email, callbackURL);
       } catch (err) {
         const authError = err instanceof Error ? err : new Error(String(err));
         setError(authError);
@@ -527,6 +548,7 @@ export function AuthProvider({
       signOut,
       updateUser,
       forgotPassword,
+      sendVerificationEmail,
       resetPassword,
       changePassword,
       setInitialPassword,
@@ -556,7 +578,7 @@ export function AuthProvider({
     }),
     [
       user, session, isAuthenticated, isAuthEnabled, isLoading, error, isPreviewMode, previewMode,
-      signIn, signUp, signOut, updateUser, forgotPassword, resetPassword, changePassword, setInitialPassword, hasLocalPassword, getAuthConfig, signInWithProvider,
+      signIn, signUp, signOut, updateUser, forgotPassword, sendVerificationEmail, resetPassword, changePassword, setInitialPassword, hasLocalPassword, getAuthConfig, signInWithProvider,
       organizations, activeOrganization, activeMember, isOrganizationsLoading, switchOrganization, createOrganization, refreshOrganizations,
       updateOrganization, deleteOrganization, leaveOrganization,
       getMembers, inviteMember, removeMember, updateMemberRole,

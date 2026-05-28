@@ -42,8 +42,13 @@ export interface RegisterFormLabels {
 }
 
 export interface RegisterFormProps {
-  /** Callback on successful registration */
+  /** Callback on successful registration AND auto sign-in. Not called when the
+   *  server requires email verification — use `onVerificationRequired` for that. */
   onSuccess?: () => void;
+  /** Callback when the server accepted the registration but is gating
+   *  sign-in on email verification. The page should swap the form for a
+   *  "check your inbox" confirmation. */
+  onVerificationRequired?: (email: string) => void;
   /** Callback on registration error */
   onError?: (error: Error) => void;
   /** Link to login page */
@@ -99,6 +104,7 @@ const DefaultUserPlusIcon = () => (
  */
 export function RegisterForm({
   onSuccess,
+  onVerificationRequired,
   onError,
   loginUrl = '/login',
   title = 'Create an account',
@@ -149,7 +155,11 @@ export function RegisterForm({
     }
 
     try {
-      await signUp(name, email, password);
+      const result = await signUp(name, email, password);
+      if (result?.requiresVerification) {
+        onVerificationRequired?.(email);
+        return;
+      }
       onSuccess?.();
     } catch (err) {
       const authError = err instanceof Error ? err : new Error(String(err));

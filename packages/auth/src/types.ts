@@ -142,14 +142,16 @@ export interface SignInWithProviderOptions {
 export interface AuthClient {
   /** Sign in with email/password */
   signIn: (credentials: SignInCredentials) => Promise<{ user: AuthUser; session: AuthSession }>;
-  /** Sign up with email/password */
-  signUp: (data: SignUpData) => Promise<{ user: AuthUser; session: AuthSession }>;
+  /** Sign up with email/password. `session` is null when email verification is required. */
+  signUp: (data: SignUpData) => Promise<{ user: AuthUser; session: AuthSession | null; requiresVerification: boolean }>;
   /** Sign out */
   signOut: () => Promise<void>;
   /** Get current session */
   getSession: () => Promise<{ user: AuthUser; session: AuthSession } | null>;
   /** Reset password request */
   forgotPassword: (email: string) => Promise<void>;
+  /** Send (or resend) the email-verification link to the given address. */
+  sendVerificationEmail: (email: string, callbackURL?: string) => Promise<void>;
   /** Reset password with token */
   resetPassword: (token: string, newPassword: string) => Promise<void>;
   /** Change password (requires current password). For users who already have a local password. */

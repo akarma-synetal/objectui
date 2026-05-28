@@ -72,12 +72,12 @@ describe('createAuthClient', () => {
     expect(result.session.token).toBe('tok123');
   });
 
-  it('signUp sends POST to /sign-up/email', async () => {
+  it('signUp sends POST to /sign-up/email and returns the session when verification is off', async () => {
     const { mockFn, calls } = createMockFetch({
       '/sign-up/email': {
         body: {
           user: { id: '2', name: 'New User', email: 'new@test.com' },
-          session: { token: 'tok456', id: 's2', userId: '2', expiresAt: '2025-01-01' },
+          token: 'tok456',
         },
       },
     });
@@ -90,6 +90,26 @@ describe('createAuthClient', () => {
     expect(calls[0].method).toBe('POST');
     expect(JSON.parse(calls[0].body!)).toMatchObject({ email: 'new@test.com', name: 'New User' });
     expect(result.user.name).toBe('New User');
+    expect(result.session?.token).toBe('tok456');
+    expect(result.requiresVerification).toBe(false);
+  });
+
+  it('signUp surfaces requiresVerification when the server returns a null token', async () => {
+    const { mockFn } = createMockFetch({
+      '/sign-up/email': {
+        body: {
+          user: { id: '3', name: 'Pending', email: 'pending@test.com' },
+          token: null,
+        },
+      },
+    });
+    const client = createAuthClient({ baseURL: 'http://localhost/api/auth', fetchFn: mockFn });
+
+    const result = await client.signUp({ name: 'Pending', email: 'pending@test.com', password: 'pass123' });
+
+    expect(result.user.email).toBe('pending@test.com');
+    expect(result.session).toBeNull();
+    expect(result.requiresVerification).toBe(true);
   });
 
   it('signOut sends POST to /sign-out', async () => {

@@ -1193,6 +1193,14 @@ const en = {
       submittingButton: 'Creating account...',
       hasAccountText: 'Already have an account?',
       signInText: 'Sign in',
+      verifyInbox: {
+        title: 'Check your inbox',
+        description: "We've sent a verification link to {{email}}. Click the link to activate your account.",
+        resend: 'Resend verification email',
+        resending: 'Sending…',
+        resent: 'Verification email sent.',
+        backToSignIn: 'Back to sign in',
+      },
     },
     forgotPassword: {
       title: 'Reset your password',

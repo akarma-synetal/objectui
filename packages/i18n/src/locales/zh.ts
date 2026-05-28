@@ -1193,6 +1193,14 @@ const zh = {
       submittingButton: '创建中...',
       hasAccountText: '已有账户？',
       signInText: '登录',
+      verifyInbox: {
+        title: '请检查您的邮箱',
+        description: '我们已向 {{email}} 发送了一封验证邮件，请点击邮件中的链接激活账户。',
+        resend: '重新发送验证邮件',
+        resending: '发送中…',
+        resent: '验证邮件已发送。',
+        backToSignIn: '返回登录',
+      },
     },
     forgotPassword: {
       title: '重置密码',

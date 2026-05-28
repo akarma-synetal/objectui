@@ -33,14 +33,19 @@ export interface AuthContextValue {
   previewMode: PreviewModeOptions | null;
   /** Sign in with email and password */
   signIn: (email: string, password: string) => Promise<void>;
-  /** Sign up with name, email, and password */
-  signUp: (name: string, email: string, password: string) => Promise<void>;
+  /** Sign up with name, email, and password.
+   *  Returns `{ requiresVerification: true }` when the server accepted the
+   *  account but is gating sign-in on email verification; callers should
+   *  show a "check your inbox" UI instead of navigating to a protected page. */
+  signUp: (name: string, email: string, password: string) => Promise<{ requiresVerification: boolean }>;
   /** Sign out the current user */
   signOut: () => Promise<void>;
   /** Update user profile */
   updateUser: (data: Partial<AuthUser>) => Promise<void>;
   /** Request password reset */
   forgotPassword: (email: string) => Promise<void>;
+  /** Send (or resend) the email-verification link to the given address. */
+  sendVerificationEmail: (email: string, callbackURL?: string) => Promise<void>;
   /** Reset password with token */
   resetPassword: (token: string, newPassword: string) => Promise<void>;
   /**

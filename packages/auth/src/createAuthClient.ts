@@ -170,11 +170,45 @@ export function createAuthClient(config: AuthClientConfig): AuthClient {
       if (error) {
         throw new Error(error.message ?? `Auth request failed with status ${error.status}`);
       }
-      const payload = data as unknown as { user: AuthUser; session: AuthSession };
-      if (payload.session?.token) {
-        TokenStorage.set(payload.session.token);
+      // better-auth's /sign-up/email returns { token: string | null, user }.
+      // - When auto sign-in is enabled and verification is not required, `token`
+      //   is the new session token (cookie also set server-side).
+      // - When `requireEmailVerification` is on (or `autoSignIn: false`),
+      //   `token` is null — no session, no cookie. The user must verify their
+      //   email before signing in.
+      // Some deployments / older mocks return a `{ user, session }` shape; we
+      // accept either to stay compatible.
+      const payload = data as unknown as {
+        user: AuthUser;
+        token?: string | null;
+        session?: AuthSession | null;
+      };
+      const token = payload.token ?? payload.session?.token ?? null;
+      if (token) {
+        TokenStorage.set(token);
       }
-      return { user: payload.user, session: payload.session };
+      // Synthesize a session object when the server returned a flat token so
+      // existing callers that read `result.session` keep working.
+      let session: AuthSession | null = payload.session ?? null;
+      if (!session && token) {
+        session = { token } as AuthSession;
+      }
+      return {
+        user: payload.user,
+        session,
+        requiresVerification: token === null,
+      };
+    },
+
+    async sendVerificationEmail(email: string, callbackURL?: string) {
+      // better-auth client exposes this on the root, not under a namespace.
+      const baseAuth = betterAuth as unknown as {
+        sendVerificationEmail: (args: { email: string; callbackURL?: string }) => Promise<{ error?: { message?: string; status?: number } | null }>;
+      };
+      const { error } = await baseAuth.sendVerificationEmail({ email, callbackURL });
+      if (error) {
+        throw new Error(error.message ?? `Auth request failed with status ${error.status}`);
+      }
     },
 
     async signOut() {
