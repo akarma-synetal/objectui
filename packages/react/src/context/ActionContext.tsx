@@ -64,7 +64,7 @@ interface ActionContextValue {
   updateContext: (ctx: Partial<ActionCtx>) => void;
 }
 
-const ActionCtxReact = createContext<ActionContextValue | null>(null);
+export const ActionCtxReact = createContext<ActionContextValue | null>(null);
 
 /**
  * ActionProvider — Provides a shared ActionRunner to the tree.

@@ -16,7 +16,7 @@
  */
 
 import React from 'react';
-import { useRecordContext, useActionEngine, useMetadataItem, useAction } from '@object-ui/react';
+import { useRecordContext, useActionEngine, useMetadataItem } from '@object-ui/react';
 import { usePermissions } from '@object-ui/permissions';
 import { Button, cn } from '@object-ui/components';
 import type { ActionDef, ActionLocation } from '@object-ui/core';
@@ -105,12 +105,11 @@ export const RecordQuickActionsRenderer: React.FC<RecordQuickActionsRendererProp
 
   const location: ActionLocation = (schema.location as ActionLocation) || 'record_header';
 
-  // Use the local engine purely for *filtering* (location + visible CEL eval).
-  // For *execution* fall back to the global ActionProvider runner so we
-  // inherit its installed confirm/param-collection/modal/result-dialog/toast
-  // handlers — without those, actions that declare `params: [...]` or
-  // `confirmText: '...'` would silently no-op on click.
-  const { getActionsForLocation } = useActionEngine({
+  // useActionEngine now shares the surrounding ActionProvider's runner
+  // (see packages/react/src/hooks/useActionEngine.ts) so executeAction
+  // automatically picks up confirm/param/modal/result-dialog/toast handlers
+  // — no need to thread a separate globalExecute.
+  const { getActionsForLocation, executeAction } = useActionEngine({
     actions,
     context: {
       record: ctx?.data,
@@ -118,7 +117,6 @@ export const RecordQuickActionsRenderer: React.FC<RecordQuickActionsRendererProp
       objectName: ctx?.objectName,
     } as any,
   });
-  const { execute: globalExecute } = useAction();
 
   const visibleActions = actions.length > 0 ? getActionsForLocation(location) : [];
 
@@ -171,7 +169,7 @@ export const RecordQuickActionsRenderer: React.FC<RecordQuickActionsRendererProp
                 void action.onClick();
                 return;
               }
-              if (action.name) void globalExecute(action);
+              if (action.name) void executeAction(action.name);
             }}
           >
             {label}

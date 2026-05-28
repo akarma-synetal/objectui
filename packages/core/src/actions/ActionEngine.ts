@@ -71,8 +71,20 @@ export class ActionEngine {
   private normalizedShortcutMap = new Map<string, string>();
   private runner: ActionRunner;
 
-  constructor(context: ActionContext = {}) {
-    this.runner = new ActionRunner(context);
+  /**
+   * @param contextOrRunner Either an initial `ActionContext` (constructs a
+   *  new local `ActionRunner`) or an existing `ActionRunner` to share.
+   *  Sharing is how nested consumers (e.g. `record:quick_actions` inside
+   *  an `<ActionProvider>`) inherit the provider's confirm/param/modal/
+   *  toast/navigate handlers without redeclaring them — without this,
+   *  any action declaring `params: [...]` or `confirmText` would silently
+   *  no-op in the nested engine.
+   */
+  constructor(contextOrRunner: ActionContext | ActionRunner = {}) {
+    this.runner =
+      contextOrRunner instanceof ActionRunner
+        ? contextOrRunner
+        : new ActionRunner(contextOrRunner);
   }
 
   /** Get the underlying ActionRunner for handler configuration */
@@ -132,10 +144,34 @@ export class ActionEngine {
     this.mappings.push(mapping);
   }
 
-  /** Get actions available at a specific location, sorted by priority */
+  /**
+   * Get actions available at a specific location, sorted by priority.
+   *
+   * Filtering applied (in order):
+   *   1. `locations.includes(location)` — location/region match
+   *   2. `action.visible` — evaluated against the runner's current context
+   *      ({ record, recordId, objectName, user, … }). Missing or `true`
+   *      passes; any other value is coerced to boolean. Evaluator errors
+   *      hide the action (fail-closed) rather than throwing — this matches
+   *      the contract used by every individual action renderer
+   *      (`action-button`, `action-menu`, `action-bar`, …) so the same
+   *      action behaves identically whether surfaced via the engine or
+   *      consumed standalone.
+   */
   getActionsForLocation(location: ActionLocation): ActionDef[] {
+    const evaluator = this.runner.getEvaluator();
     return Array.from(this.actions.values())
       .filter(ra => ra.locations.includes(location))
+      .filter(ra => {
+        const v = (ra.action as any).visible;
+        if (v == null || v === '' || v === true) return true;
+        if (v === false) return false;
+        try {
+          return evaluator.evaluateCondition(v as any);
+        } catch {
+          return false;
+        }
+      })
       .sort((a, b) => (a.priority ?? 100) - (b.priority ?? 100))
       .map(ra => ra.action);
   }

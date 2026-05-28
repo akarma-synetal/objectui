@@ -23,7 +23,7 @@
  * ```
  */
 
-import { useCallback, useMemo } from 'react';
+import { useCallback, useContext, useMemo } from 'react';
 import {
   ActionEngine,
   type ActionLocation,
@@ -31,6 +31,7 @@ import {
   type ActionContext,
   type ActionResult,
 } from '@object-ui/core';
+import { ActionCtxReact } from '../context/ActionContext';
 
 export interface UseActionEngineOptions {
   /** Action definitions to register */
@@ -54,13 +55,31 @@ export interface UseActionEngineReturn {
 
 export function useActionEngine(options: UseActionEngineOptions = {}): UseActionEngineReturn {
   const { actions = [], context = {} } = options;
+  // When wrapped in an <ActionProvider>, reuse its ActionRunner so that:
+  //   • Visibility / disabled / condition CEL expressions evaluate against
+  //     the same context (user, datasource, etc.) the provider was seeded
+  //     with — not just the per-call `context` arg.
+  //   • Action execution (executeAction / handleShortcut) inherits the
+  //     provider's confirm / param-collection / modal / result-dialog /
+  //     toast / navigate handlers. Without sharing, a nested engine would
+  //     silently no-op on any action that declares `params: [...]` or
+  //     `confirmText`, because its local runner has no handlers installed.
+  // When no provider is present (unit tests, standalone playgrounds), we
+  // fall back to a self-contained runner constructed from the `context` arg.
+  const providerCtx = useContext(ActionCtxReact);
+  const sharedRunner = providerCtx?.runner ?? null;
 
   const engine = useMemo(() => {
-    const e = new ActionEngine(context);
+    const e = sharedRunner ? new ActionEngine(sharedRunner) : new ActionEngine(context);
+    // Layer the caller's per-render context on top of the shared runner's
+    // baseline (e.g. record-scoped data into a user-scoped provider).
+    if (sharedRunner && context && Object.keys(context).length > 0) {
+      e.getRunner().updateContext(context);
+    }
     e.registerActions(actions);
     return e;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [JSON.stringify(actions), JSON.stringify(context)]);
+  }, [sharedRunner, JSON.stringify(actions), JSON.stringify(context)]);
 
   const getActionsForLocation = useCallback(
     (location: ActionLocation) => engine.getActionsForLocation(location),
