@@ -70,11 +70,9 @@ export function useActionEngine(options: UseActionEngineOptions = {}): UseAction
   const sharedRunner = providerCtx?.runner ?? null;
 
   const engine = useMemo(() => {
-    // Normalize context to expose both flat (`record`, `user`) and `ctx.*`
-    // namespaces. Mirrors `ActionProvider`'s normalization so predicates that
-    // use `ctx.user.id` (the CEL convention) resolve the same way whether
-    // the engine is sharing a provider runner or operating standalone.
-    const normalized = (context && Object.keys(context).length > 0)
+    // When standalone (no surrounding `<ActionProvider>`), normalize the
+    // context so predicates can use both `record`/`user` and `ctx.*`.
+    const normalizedStandalone = (context && Object.keys(context).length > 0)
       ? {
           ...context,
           ctx: ((context as any).ctx && typeof (context as any).ctx === 'object')
@@ -82,11 +80,25 @@ export function useActionEngine(options: UseActionEngineOptions = {}): UseAction
             : { ...context },
         }
       : context;
-    const e = sharedRunner ? new ActionEngine(sharedRunner) : new ActionEngine(normalized as any);
-    // Layer the caller's per-render context on top of the shared runner's
-    // baseline (e.g. record-scoped data into a user-scoped provider).
-    if (sharedRunner && normalized && Object.keys(normalized).length > 0) {
-      e.getRunner().updateContext(normalized as any);
+    const e = sharedRunner ? new ActionEngine(sharedRunner) : new ActionEngine(normalizedStandalone as any);
+    // When sharing a provider runner, MERGE per-render flat keys into the
+    // existing `ctx` instead of overwriting it. The provider seeds
+    // `ctx: { record, user, objectName, … }` once; if we replaced it with
+    // just `ctx: { record, recordId, objectName }` here we would erase
+    // `ctx.user` and every `record.id == ctx.user.id` predicate would
+    // evaluate against `undefined.id` (→ throws → hidden).
+    if (sharedRunner && context && Object.keys(context).length > 0) {
+      const runner = e.getRunner();
+      const existing = runner.getEvaluator().getContext().toObject() as Record<string, any>;
+      const existingCtx = (existing && typeof existing.ctx === 'object') ? existing.ctx : {};
+      const callerCtx = ((context as any).ctx && typeof (context as any).ctx === 'object')
+        ? (context as any).ctx
+        : context;
+      const merged = {
+        ...context,
+        ctx: { ...existingCtx, ...callerCtx },
+      };
+      runner.updateContext(merged as any);
     }
     e.registerActions(actions);
     return e;
