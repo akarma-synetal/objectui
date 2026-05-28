@@ -41,7 +41,7 @@
 - 📚 **Refreshed documentation** across every package README and the [objectui.org docs site](https://www.objectui.org)
 - 🏗️ **Thin integration packages** — `@object-ui/app-shell` and `@object-ui/providers` enable third-party integration in ~50KB instead of pulling the full console
 - 🔌 **Spec v4 alignment** — plain-string `label` types across Navigation schemas, Protocol bridges updated
-- 🧠 **Unified Copilot Skills** — consolidated skill tree aligned with shadcn/ui best practices
+- 🧠 **Unified Agent Skill** — `npx skills add objectstack-ai/objectui` installs a consolidated skill (works with Claude Code, Cursor, Codex, GitHub Copilot, Windsurf, Gemini, Cline). See [`skills/objectui/`](./skills/objectui/) and [skills.sh](https://skills.sh/objectstack-ai/objectui).
 
 ### Component Namespaces
 Organize components into namespaces to prevent naming conflicts:
