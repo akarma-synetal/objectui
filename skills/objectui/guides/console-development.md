@@ -353,3 +353,24 @@ function MyWidget({ schema }) {
 - Not registering custom widgets before MetadataDetailPage renders — SchemaRenderer produces fallback.
 - Using legacy routes (`/system/objects`) instead of unified metadata routes (`/system/metadata/object`).
 - Modifying `src/ui/**/*.tsx` files directly — these are Shadcn upstream files that get overwritten by sync scripts.
+
+## Debugging & Browser Simulation Strategy
+
+When debugging the simulated browser environment (e.g., `apps/console` in mock mode), strict adherence to the official toolchain is required.
+
+### Rule #1: Official MSW Integration
+
+- **Startup:** Use `@objectstack/plugin-msw` to initialize the mock API server. Do NOT write custom fetch interceptors or manual mock servers unless absolutely necessary.
+- **Configuration:** Ensure the `MSWPlugin` is configured with the correct `baseUrl` (e.g., `/api/v1`) to match the client's expectations.
+
+### Rule #2: Client Data Fetching
+
+- **Data Access:** Always use `@objectstack/client` for data fetching. Do not use raw `fetch` or `axios` directly in components.
+- **Alignment:** Verify that the client's `baseUrl` matches the mock server's configuration.
+
+### Rule #3: Upstream Fixes First
+
+- **Principle:** If you encounter a bug or limitation in the official packages (`@objectstack/*`):
+  - **Action 1:** Do NOT rely solely on local workarounds (monkey-patching) in the app.
+  - **Action 2:** Prompt the user to modify the source code in the official packages (if available in the workspace) or report the issue.
+  - **Reasoning:** We prioritize fixing the core engine over patching individual apps.

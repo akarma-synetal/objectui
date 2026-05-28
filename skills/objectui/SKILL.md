@@ -1,6 +1,6 @@
 ---
 name: objectui
-description: Universal Server-Driven UI (SDUI) Engine for building JSON-driven React interfaces with Shadcn design quality. Use this skill for all ObjectUI development tasks including schema-driven page building, plugin development, component integration, testing, auth/permissions, data integration, i18n, mobile responsiveness, project setup, and console development. Triggers on any mention of ObjectUI, SchemaRenderer, JSON schemas, SDUI, metadata-driven UIs, or Object Stack ecosystem work.
+description: Universal Server-Driven UI (SDUI) Engine for building JSON-driven React interfaces with Shadcn design quality. Use for schema-driven page building, plugin development, component integration, testing, auth/permissions, data integration, i18n, mobile responsiveness, project setup, and ObjectUI console development. Triggers on ObjectUI, SchemaRenderer, JSON UI schemas, SDUI, metadata-driven UIs, `@object-ui/*` packages. Do NOT use for server-side ObjectStack concerns (data modelling, API endpoints, automation, formulas, agents) — those belong to the `objectstack-*` skills.
 user-invocable: false
 ---
 
@@ -16,6 +16,21 @@ ObjectUI renders JSON metadata from the `@objectstack/spec` protocol into pixel-
 
 - **The "JSON-to-Shadcn" Bridge:** The only library combining Low-Code speed with Shadcn/Tailwind design quality
 - **The "Face" of ObjectStack:** Official renderer for the ecosystem, while remaining **Backend Agnostic**
+
+## Scope
+
+**In scope** (use this skill):
+- Anything under `packages/` in this repo — `@object-ui/*` core, plugins, components, fields, layout, providers, app-shell, runner, CLI.
+- The `apps/console` and `apps/site` consumer apps.
+- Authoring or debugging JSON schemas consumed by `<SchemaRenderer>`.
+
+**Out of scope** (defer to sibling skills):
+- Designing data objects, fields, validations, hooks → `objectstack-data`.
+- REST/GraphQL endpoints, auth providers, route guards → `objectstack-api`.
+- Flows, workflows, triggers, approvals → `objectstack-automation`.
+- CEL formulas / predicates → `objectstack-formula`.
+- Bootstrap, plugins, kernel hooks, drivers → `objectstack-platform`.
+- ObjectQL query construction → `objectstack-query`.
 
 ## Core Principles
 
@@ -332,27 +347,6 @@ export const SchemaRenderer = ({ schema }: { schema: UIComponent }) => {
 
 1. **JSON First:** Always show the JSON configuration first.
 2. **Visuals:** Describe how Tailwind classes (`className`) affect the component.
-
-## Debugging & Browser Simulation Strategy
-
-When debugging the simulated browser environment (e.g., `apps/console` in mock mode), strict adherence to the official toolchain is required.
-
-### Rule #1: Official MSW Integration
-
-- **Startup:** Use `@objectstack/plugin-msw` to initialize the mock API server. Do NOT write custom fetch interceptors or manual mock servers unless absolutely necessary.
-- **Configuration:** Ensure the `MSWPlugin` is configured with the correct `baseUrl` (e.g., `/api/v1`) to match the client's expectations.
-
-### Rule #2: Client Data Fetching
-
-- **Data Access:** Always use `@objectstack/client` for data fetching. Do not use raw `fetch` or `axios` directly in components.
-- **Alignment:** Verify that the client's `baseUrl` matches the mock server's configuration.
-
-### Rule #3: Upstream Fixes First
-
-- **Principle:** If you encounter a bug or limitation in the official packages (`@objectstack/*`):
-  - **Action 1:** Do NOT rely solely on local workarounds (monkey-patching) in the app.
-  - **Action 2:** Prompt the user to modify the source code in the official packages (if available in the workspace) or report the issue.
-  - **Reasoning:** We prioritize fixing the core engine over patching individual apps.
 
 ## Common Mistakes to Avoid
 

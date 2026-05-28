@@ -1,34 +1,42 @@
 # ObjectUI Copilot Skill
 
-This directory contains the unified ObjectUI Copilot skill, consolidating all ObjectUI development knowledge into a single tree-based structure aligned with [shadcn/ui](https://github.com/shadcn-ui/ui/tree/main/skills/shadcn) best practices.
+A single, tree-based Copilot skill consolidating all ObjectUI development knowledge, aligned with [shadcn/ui's skill structure](https://github.com/shadcn-ui/ui/tree/main/skills/shadcn).
 
-## Structure
+## Layout
 
 ```
 skills/objectui/
-├── SKILL.md                  # Main entry point - core principles, full package map & architecture
-├── rules/                    # Global non-negotiable constraints
-│   ├── protocol.md          # JSON Protocol compliance rules
-│   ├── styling.md           # Tailwind & Shadcn styling rules
-│   ├── composition.md       # Component composition patterns
-│   └── no-touch-zones.md    # Protected upstream files
-├── guides/                   # Domain-specific expertise (10 guides)
-│   ├── page-builder.md              # Schema-driven page building + full plugin catalog
-│   ├── plugin-development.md        # Creating custom plugins
-│   ├── schema-expressions.md        # Expression syntax & debugging
-│   ├── data-integration.md          # DataSource & API integration
-│   ├── project-setup.md             # CLI, Vite, Tailwind, runner & integration packages
-│   ├── testing.md                   # Testing patterns (Vitest, Playwright)
-│   ├── i18n.md                      # Internationalization & localization
-│   ├── mobile.md                    # Mobile responsiveness & PWA
-│   ├── auth-permissions.md          # Authentication, RBAC & multi-tenancy
-│   └── console-development.md       # Console app + @object-ui/app-shell patterns
-└── evals/                    # Evaluation test cases (10 JSON files)
+├── SKILL.md      # Main entry — core principles, tech stack, package map, JSON protocol
+├── rules/        # Non-negotiable global constraints
+│   ├── protocol.md
+│   ├── styling.md
+│   ├── composition.md
+│   └── no-touch-zones.md
+├── guides/       # Domain-specific deep dives
+│   ├── page-builder.md
+│   ├── plugin-development.md
+│   ├── schema-expressions.md
+│   ├── data-integration.md
+│   ├── project-setup.md
+│   ├── testing.md
+│   ├── i18n.md
+│   ├── mobile.md
+│   ├── auth-permissions.md
+│   └── console-development.md
+└── evals/        # Evaluation prompts (one per guide)
 ```
+
+For the full table of contents (rules + guides links), see the **Quick Reference** section in `SKILL.md`.
+
+## How the agent uses it
+
+1. Reads `SKILL.md` for core principles and architecture orientation.
+2. Loads the relevant `rules/*.md` to ensure non-negotiables are respected.
+3. Pulls one or more `guides/*.md` matching the task.
 
 ## Coverage map
 
-The skill keeps in sync with the `packages/` tree:
+The skill stays in sync with the `packages/` tree:
 
 - **Core renderer:** `@object-ui/types`, `core`, `components`, `fields`, `layout`, `react`
 - **Integration:** `@object-ui/app-shell`, `providers`, `runner`, `data-objectstack`
@@ -36,78 +44,18 @@ The skill keeps in sync with the `packages/` tree:
 - **Plugins (19):** `plugin-{grid, list, detail, form, kanban, calendar, timeline, gantt, dashboard, report, charts, map, editor, markdown, view, designer, workflow, ai, chatbot}`
 - **Tooling:** `@object-ui/cli`, `create-plugin`, `vscode-extension`
 
-## Why This Structure?
-
-### Before (10 Parallel Skills)
-- `skills/objectui-auth-permissions/`
-- `skills/objectui-console-development/`
-- `skills/objectui-data-integration/`
-- `skills/objectui-i18n/`
-- `skills/objectui-mobile/`
-- `skills/objectui-plugin-development/`
-- `skills/objectui-project-setup/`
-- `skills/objectui-schema-expressions/`
-- `skills/objectui-sdui-page-builder/`
-- `skills/objectui-testing/`
-
-**Problems:**
-- Agent had to choose between 10+ skills
-- Cross-skill knowledge was fragmented
-- Maintenance overhead (10 separate manifests)
-- Inconsistent with shadcn/ui single-skill model
-
-### After (1 Tree-Based Skill)
-- `skills/objectui/` (single skill)
-  - `SKILL.md` - unified entry point
-  - `rules/` - global constraints
-  - `guides/` - domain expertise
-
-**Benefits:**
-- ✅ Single unified entry point
-- ✅ AI agent always knows where to look
-- ✅ Global rules apply consistently
-- ✅ Aligned with shadcn/ui architecture
-- ✅ Easier maintenance and updates
-
-## Usage
-
-When working with ObjectUI, the AI agent will:
-
-1. **Start with `SKILL.md`** - Core principles, architecture, and quick reference
-2. **Check `rules/`** - Ensure compliance with non-negotiable constraints
-3. **Consult `guides/`** - Get deep domain expertise for specific tasks
-
-### Example Flow
-
-**User:** "Help me build a dashboard page with ObjectUI"
-
-**Agent:**
-1. Reads `SKILL.md` → Understands core principles
-2. Checks `rules/protocol.md` → Learns JSON schema structure
-3. Checks `rules/styling.md` → Learns Tailwind requirements
-4. Reads `guides/page-builder.md` → Gets dashboard building patterns
-5. Reads `guides/schema-expressions.md` → Learns dynamic expressions
-
 ## Maintenance
 
 When adding new content:
 
-- **Core principles or architecture changes** → Update `SKILL.md`
-- **New global rule** → Add to `rules/`
-- **New domain area** → Add guide to `guides/`
-- **New eval test** → Add JSON to `evals/`
+- **Core principles / architecture / package map change** → update `SKILL.md`.
+- **New non-negotiable constraint** → add a file under `rules/`.
+- **New domain area** → add a guide under `guides/` *and* an eval JSON under `evals/` with the same basename.
+- **Removing or renaming a guide** → rename the matching `evals/<name>.json` in the same change.
 
-## Migration Notes
-
-This structure was created on April 14, 2026, consolidating:
-- 10 parallel skill directories
-- 10 SKILL.md files → 1 SKILL.md + 10 guides
-- 10 evals directories → 1 unified evals/
-- Cross-skill references unified into single namespace
-
-All content preserved and reorganized for better discoverability.
+All authored text — including eval prompts and expected outputs — must be **English-only** (see `SKILL.md` Core Principle 0).
 
 ## Reference
 
-- **shadcn/ui skill structure**: https://github.com/shadcn-ui/ui/tree/main/skills/shadcn
-- **Issue**: [#架构优化-将-objectui-多-Copilot-skill-合并为单-skill-树状体系](https://github.com/objectstack-ai/objectui/issues)
+- shadcn/ui skill structure: https://github.com/shadcn-ui/ui/tree/main/skills/shadcn
+- ObjectUI repository: https://github.com/objectstack-ai/objectui
