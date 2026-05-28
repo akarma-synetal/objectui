@@ -106,9 +106,13 @@ describe('ActionRunner - target interpolation', () => {
     const runner = new ActionRunner({});
     runner.setNavigationHandler(navHandler);
 
+    // NOTE: We deliberately use a non-`/api/` path here. `executeUrl` short-circuits
+    // any URL matching `/api/`, `/_auth/`, or `/_account/` to `window.location.href`
+    // so that better-auth's OAuth redirect dance is followed by the browser, not
+    // the SPA router. Those paths intentionally bypass `navigationHandler`.
     await runner.execute({
       type: 'url',
-      target: '/api/v1/auth/sign-in/social?provider=${param.provider}&callbackURL=${ctx.origin}/done',
+      target: '/auth/sign-in/social?provider=${param.provider}&callbackURL=${ctx.origin}/done',
       params: { provider: 'google' },
     });
 
@@ -118,8 +122,42 @@ describe('ActionRunner - target interpolation', () => {
     // We don't assert its concrete value, but the provider must land URL-encoded
     // and the rest of the path must survive unchanged.
     expect(url).toContain('provider=google');
-    expect(url).toContain('/api/v1/auth/sign-in/social');
+    expect(url).toContain('/auth/sign-in/social');
     expect(url).toContain('/done');
+  });
+
+  it('bypasses navigationHandler for /api/, /_auth/, /_account/ paths (OAuth redirect dance)', async () => {
+    // Lock in the intentional short-circuit added for better-auth's social login
+    // flow. Same-origin API calls need to be a full-page navigation so the
+    // browser follows the server-issued 302; pushing them through the SPA
+    // router lands on a 404 and silently falls back to the home page.
+    const navHandler = vi.fn();
+    const runner = new ActionRunner({});
+    runner.setNavigationHandler(navHandler);
+
+    // Save & stub window.location.href via a settable mock
+    const originalLocation = window.location;
+    const hrefSetter = vi.fn();
+    Object.defineProperty(window, 'location', {
+      writable: true,
+      value: { ...originalLocation, set href(v: string) { hrefSetter(v); } } as any,
+    });
+
+    try {
+      const result = await runner.execute({
+        type: 'url',
+        target: '/api/v1/auth/sign-in/social?provider=${param.provider}',
+        params: { provider: 'google' },
+      });
+
+      expect(result.success).toBe(true);
+      expect(navHandler).not.toHaveBeenCalled();
+      expect(hrefSetter).toHaveBeenCalledOnce();
+      expect(hrefSetter.mock.calls[0][0]).toContain('/api/v1/auth/sign-in/social');
+      expect(hrefSetter.mock.calls[0][0]).toContain('provider=google');
+    } finally {
+      Object.defineProperty(window, 'location', { writable: true, value: originalLocation });
+    }
   });
 
   it('URL-encodes values with reserved characters', async () => {
