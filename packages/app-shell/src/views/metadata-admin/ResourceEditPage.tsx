@@ -672,7 +672,7 @@ export function MetadataResourceEditPage({
                 <PanelGroup
                   direction="horizontal"
                   className="flex-1 min-h-0 rounded-md border bg-background overflow-hidden"
-                  autoSaveId={`metadata-edit:${type}`}
+                  id={`metadata-edit-${type}`}
                 >
                   <ResizablePanel defaultSize={inspectorCollapsed ? 100 : 62} minSize={30}>
                     <div className="h-full overflow-auto p-4 bg-[radial-gradient(circle_at_1px_1px,theme(colors.border)_1px,transparent_0)] [background-size:16px_16px] bg-muted/30">
