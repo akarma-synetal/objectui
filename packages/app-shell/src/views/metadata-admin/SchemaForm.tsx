@@ -541,8 +541,8 @@ function FieldRow({
   formData?: Record<string, unknown>;
   onChange: (v: unknown) => void;
 }) {
-  const label = (schema?.title as string) || prettify(name);
-  const description = schema?.description as string | undefined;
+  const label = (fieldSpec?.label as string | undefined) || (schema?.title as string) || prettify(name);
+  const description = (fieldSpec?.helpText as string | undefined) || (schema?.description as string | undefined);
   const id = `mdf-${name}`;
 
   // Auto-infer widget from fieldSpec.type or schema

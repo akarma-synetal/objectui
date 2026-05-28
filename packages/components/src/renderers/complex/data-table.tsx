@@ -997,6 +997,7 @@ const DataTableRenderer = ({ schema }: { schema: DataTableSchema }) => {
                               col.cellClassName,
                               col.align === 'right' && 'text-right',
                               col.align === 'center' && 'text-center',
+                              'overflow-hidden',
                               isEditable && !isEditing && "cursor-text hover:bg-muted/50",
                               hasPendingChange && "font-semibold text-amber-700 dark:text-amber-400",
                               isFrozen && 'sticky z-10 bg-background',
@@ -1021,10 +1022,12 @@ const DataTableRenderer = ({ schema }: { schema: DataTableSchema }) => {
                                 onKeyDown={handleEditKeyDown}
                                 className="h-8 px-2 py-1"
                               />
-                            ) : typeof col.cell === 'function' ? (
-                              col.cell(cellValue, row)
                             ) : (
-                              cellValue != null && typeof cellValue === 'object' ? String(cellValue) : formatCellValue(cellValue) as any
+                              <div className="truncate w-full" title={cellValue != null && typeof cellValue !== 'object' ? String(cellValue) : undefined}>
+                                {typeof col.cell === 'function'
+                                  ? col.cell(cellValue, row)
+                                  : (cellValue != null && typeof cellValue === 'object' ? String(cellValue) : formatCellValue(cellValue) as any)}
+                              </div>
                             )}
                           </TableCell>
                         );

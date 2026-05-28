@@ -57,7 +57,7 @@ const LinkCell: React.FC<{
     role="link"
     tabIndex={0}
     data-testid={testId}
-    className="text-primary font-medium underline-offset-4 hover:underline cursor-pointer inline-flex items-center gap-1"
+    className="text-primary font-medium underline-offset-4 hover:underline cursor-pointer truncate block max-w-full"
     onClick={(e) => {
       e.stopPropagation();
       onActivate();
