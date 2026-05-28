@@ -341,7 +341,7 @@ export function MetadataResourceEditPage({
       // navigation to the new record's URL will reset state anyway).
       if (!createMode) setEditing(false);
       if (createMode) {
-        navigate(`../${encodeURIComponent(savedName)}`);
+        navigate(`../${encodeURIComponent(savedName)}`, { relative: 'path' });
       }
     } catch (err: any) {
       // Map destructive change → confirmation dialog.
@@ -412,7 +412,7 @@ export function MetadataResourceEditPage({
         setEditing(false);
       } else {
         // No artifact baseline → return to the list view.
-        navigate(`../`);
+        navigate(`../`, { relative: 'path' });
       }
     } catch (err: any) {
       setError(err?.message ?? String(err));
@@ -544,7 +544,7 @@ export function MetadataResourceEditPage({
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => navigate(`./history`)}
+              onClick={() => navigate(`./history`, { relative: 'path' })}
             >
               <History className="h-4 w-4 mr-1" />
               {t('engine.edit.history', locale)}
@@ -651,7 +651,7 @@ export function MetadataResourceEditPage({
                     size="sm"
                     variant="outline"
                     className="shrink-0"
-                    onClick={() => navigate(`../new`)}
+                    onClick={() => navigate(`../new`, { relative: 'path' })}
                   >
                     {t('engine.list.create', locale)}
                   </Button>

@@ -48,9 +48,30 @@ type ItemRow = {
   raw: any;
   /** Flattened item content for display. */
   item: Record<string, unknown>;
-  /** Best-effort source classification ('code' | 'overlay' | 'effective' | undefined). */
-  source?: string;
+  /**
+   * Provenance classification derived from `_packageId` tag:
+   *   - 'artifact' = shipped by a real code package
+   *   - 'runtime'  = authored at runtime (DB-only, no packageId or sentinel)
+   *
+   * Server may also pre-classify via a top-level `source` field
+   * ('code' / 'overlay' / 'effective'); we honor that when present
+   * and fall back to packageId-derived inference otherwise.
+   */
+  source: 'artifact' | 'runtime';
 };
+
+/**
+ * Derive provenance from item._packageId. The `loadMetaFromDb` path
+ * tags objects with the synthetic packageId 'sys_metadata' (see
+ * framework protocol.ts:3092); treat that sentinel as runtime-authored.
+ */
+function classifyProvenance(item: Record<string, unknown>, rawSource?: string): 'artifact' | 'runtime' {
+  if (rawSource === 'overlay' || rawSource === 'runtime') return 'runtime';
+  if (rawSource === 'code' || rawSource === 'artifact') return 'artifact';
+  const pkg = item._packageId as string | undefined;
+  if (!pkg || pkg === 'sys_metadata') return 'runtime';
+  return 'artifact';
+}
 
 export function MetadataResourceListPage({ type: typeProp }: MetadataResourceListPageProps) {
   const params = useParams<{ type?: string }>();
@@ -95,7 +116,7 @@ function DefaultMetadataList({ type }: { type: string }) {
           return {
             raw,
             item,
-            source: raw?.source,
+            source: classifyProvenance(item, raw?.source),
           };
         });
         setItems(rows);
@@ -115,15 +136,15 @@ function DefaultMetadataList({ type }: { type: string }) {
   const searchableFields = config.searchableFields ?? ['name', 'label', 'description'];
   const filtered = items.filter((row) => {
     if (!matchesQuery(row.item, query, searchableFields)) return false;
-    if (sourceFilter !== 'all' && row.source && row.source !== sourceFilter) return false;
+    if (sourceFilter !== 'all' && row.source !== sourceFilter) return false;
     return true;
   });
 
   // Compute source counts for the filter dropdown.
   const sourceCounts = React.useMemo(() => {
-    const c: Record<string, number> = { all: items.length, code: 0, overlay: 0, effective: 0 };
+    const c = { all: items.length, artifact: 0, runtime: 0 };
     for (const r of items) {
-      if (r.source && c[r.source] !== undefined) c[r.source]++;
+      c[r.source]++;
     }
     return c;
   }, [items]);
@@ -187,9 +208,8 @@ function DefaultMetadataList({ type }: { type: string }) {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">{t('engine.list.allSources', locale)} ({sourceCounts.all})</SelectItem>
-              <SelectItem value="code">Code ({sourceCounts.code})</SelectItem>
-              <SelectItem value="overlay">Overlay ({sourceCounts.overlay})</SelectItem>
-              <SelectItem value="effective">Effective ({sourceCounts.effective})</SelectItem>
+              <SelectItem value="artifact">{t('engine.list.source.artifact', locale)} ({sourceCounts.artifact})</SelectItem>
+              <SelectItem value="runtime">{t('engine.list.source.runtime', locale)} ({sourceCounts.runtime})</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -260,21 +280,22 @@ function DefaultMetadataList({ type }: { type: string }) {
                         );
                       })}
                       <td className="px-3 py-2 text-right align-top">
-                        {row.source ? (
-                          <Badge
-                            variant="outline"
-                            className={
-                              'text-[10px] ' +
-                              (row.source === 'overlay'
-                                ? 'border-emerald-500 text-emerald-700'
-                                : '')
-                            }
-                          >
-                            {row.source}
-                          </Badge>
-                        ) : (
-                          <span className="text-muted-foreground text-xs">—</span>
-                        )}
+                        <Badge
+                          variant="outline"
+                          className={
+                            'text-[10px] ' +
+                            (row.source === 'artifact'
+                              ? 'border-sky-500/50 text-sky-700 dark:text-sky-300'
+                              : 'border-emerald-500/50 text-emerald-700 dark:text-emerald-300')
+                          }
+                          title={
+                            row.source === 'artifact'
+                              ? `${t('engine.list.source.artifactDesc', locale)}${row.item._packageId ? ` (${row.item._packageId})` : ''}`
+                              : t('engine.list.source.runtimeDesc', locale)
+                          }
+                        >
+                          {t(`engine.list.source.${row.source}`, locale)}
+                        </Badge>
                       </td>
                     </tr>
                   );
