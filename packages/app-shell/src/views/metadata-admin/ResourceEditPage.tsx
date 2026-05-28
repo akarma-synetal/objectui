@@ -578,11 +578,20 @@ export function MetadataResourceEditPage({
               </div>
             )}
             {readOnly && (
-              <div className="text-xs text-amber-800 border border-amber-300 bg-amber-50 rounded p-3">
-                This type is read-only. To enable runtime editing, set{' '}
-                <code className="font-mono">OBJECTSTACK_METADATA_WRITABLE</code> to
-                include <code className="font-mono">{type}</code>, or flip{' '}
-                <code className="font-mono">allowOrgOverride</code> in the registry.
+              <div className="text-xs text-amber-800 border border-amber-300 bg-amber-50 rounded p-3 dark:text-amber-200 dark:border-amber-700/50 dark:bg-amber-950/30">
+                {/* The platform i18n bundle ships `engine.edit.readOnlyTypeBanner`
+                    with `{flag} / {type} / {override}` placeholders so the
+                    monospace tokens are inlined inside the translated sentence
+                    in any locale. Splitting on the three tokens preserves the
+                    sentence order across translations. */}
+                {t('engine.edit.readOnlyTypeBanner', locale)
+                  .split(/(\{flag\}|\{type\}|\{override\})/)
+                  .map((part, i) => {
+                    if (part === '{flag}') return <code key={i} className="font-mono">OBJECTSTACK_METADATA_WRITABLE</code>;
+                    if (part === '{type}') return <code key={i} className="font-mono">{type}</code>;
+                    if (part === '{override}') return <code key={i} className="font-mono">allowOrgOverride</code>;
+                    return <React.Fragment key={i}>{part}</React.Fragment>;
+                  })}
               </div>
             )}
           </div>

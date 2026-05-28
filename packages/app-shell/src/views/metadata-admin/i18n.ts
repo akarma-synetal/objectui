@@ -170,7 +170,7 @@ const ENGINE_STRINGS_EN: Record<string, string> = {
   'engine.edit.overlay': 'overlay',
   'engine.edit.readOnlyBanner': 'Viewing in read-only mode. Click {edit} to make changes.',
   'engine.edit.readOnlyTypeBanner':
-    'This type is read-only. To enable runtime editing, set {flag} to include {type}, or flip {override} in the registry.',
+    'This metadata type is read-only for safety: it ships executable code or sensitive configuration and cannot be overlaid at runtime. Edit the source in your package and redeploy. To override this lock (use with caution), set {flag} to include {type}, or flip {override} in the registry.',
   'engine.repeater.empty': 'No items. Click + to add.',
   'engine.badge.writable': 'writable',
   'engine.badge.readOnly': 'read-only',
@@ -284,7 +284,7 @@ const ENGINE_STRINGS_ZH: Record<string, string> = {
   'engine.edit.overlay': '覆盖',
   'engine.edit.readOnlyBanner': '当前为只读模式。点击 {edit} 进行修改。',
   'engine.edit.readOnlyTypeBanner':
-    '此类型为只读。如需启用运行时编辑，请将 {flag} 设置为包含 {type}，或在注册表中开启 {override}。',
+    '出于安全考虑，此元数据类型为只读：它包含可执行代码或敏感配置，不允许在运行时通过覆盖层修改。请编辑包内源代码后重新部署。如需临时解除限制（请谨慎使用），可将 {flag} 设置为包含 {type}，或在注册表中开启 {override}。',
   'engine.repeater.empty': '暂无条目。点击 + 添加。',
   'engine.badge.writable': '可写',
   'engine.badge.readOnly': '只读',
