@@ -1,6 +1,18 @@
-# ObjectUI Copilot Skill
+# ObjectUI Skill
 
-A single, tree-based Copilot skill consolidating all ObjectUI development knowledge, aligned with [shadcn/ui's skill structure](https://github.com/shadcn-ui/ui/tree/main/skills/shadcn).
+[![skills.sh](https://skills.sh/b/objectstack-ai/objectui)](https://skills.sh/objectstack-ai/objectui)
+
+A single, tree-based Agent Skill consolidating all ObjectUI development knowledge, aligned with [shadcn/ui's skill structure](https://github.com/shadcn-ui/ui/tree/main/skills/shadcn). Works with Claude Code, Cursor, Codex, GitHub Copilot, Windsurf, Gemini, Cline, and other agents on [skills.sh](https://skills.sh).
+
+## Install
+
+```bash
+npx skills add objectstack-ai/objectui
+```
+
+The CLI auto-detects your agent and writes the skill to the right location (e.g. `.claude/skills/objectui/` for Claude Code, `.github/copilot/skills/objectui/` for GitHub Copilot). See [skills.sh/docs](https://skills.sh/docs) for the full list of supported agents.
+
+Once installed, the skill activates automatically when you describe ObjectUI work (schema-driven pages, plugins, `@object-ui/*` packages, etc.). No further configuration required.
 
 ## Layout
 

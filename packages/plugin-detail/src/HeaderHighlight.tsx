@@ -83,7 +83,12 @@ export const HeaderHighlight: React.FC<HeaderHighlightProps> = ({
             resolvedType === 'percent' ||
             resolvedType === 'decimal';
 
-          // Booleans get their own pill rendering — the default
+          // Emails frequently exceed the default highlight column width
+          // and look mangled when truncated mid-domain
+          // (`zhuangjianguo@gmail.co` swallowing the `…m`). Let those
+          // columns grow wider so the address fits on one line. Same
+          // treatment for textarea fields that authors may opt into.
+          const isWide = resolvedType === 'email' || resolvedType === 'url' || resolvedType === 'textarea';
           // BooleanCellRenderer paints a tiny disabled checkbox which
           // reads as "empty input" in the header context. Pills with
           // ✓ / ✗ icons match how every modern enterprise UI
@@ -93,7 +98,10 @@ export const HeaderHighlight: React.FC<HeaderHighlightProps> = ({
           return (
             <div
               key={field.name}
-              className="flex min-w-[8rem] max-w-[16rem] basis-[10rem] flex-col gap-1"
+              className={cn(
+                'flex flex-col gap-1 min-w-[8rem] basis-[10rem]',
+                isWide ? 'max-w-[24rem] basis-[16rem]' : 'max-w-[16rem]',
+              )}
             >
               <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
                 {fieldLabel(objectName || '', field.name, field.label)}
