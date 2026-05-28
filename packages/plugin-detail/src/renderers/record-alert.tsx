@@ -161,6 +161,20 @@ export const RecordAlertRenderer: React.FC<RecordAlertProps> = ({ schema = {}, c
     return (objectMeta.actions as ActionDef[]).find((a) => a.name === ctaName);
   }, [ctaName, objectMeta]);
 
+  // Route execution through the shared ActionEngine so confirm /
+  // param-dialog / result-dialog / toast handlers from the surrounding
+  // ActionProvider all fire — same pipeline that record:quick_actions
+  // uses for its Salesforce-Lightning-style toolbar.
+  const engineActions = React.useMemo(() => (ctaAction ? [ctaAction] : []), [ctaAction]);
+  const { executeAction } = useActionEngine({
+    actions: engineActions,
+    context: {
+      record,
+      recordId,
+      objectName,
+    } as any,
+  });
+
   // Hide if dismissed, if record hasn't loaded yet (avoids false alerts
   // during the empty initial-render frame), or if the visibility predicate
   // returns false.
@@ -180,8 +194,17 @@ export const RecordAlertRenderer: React.FC<RecordAlertProps> = ({ schema = {}, c
   };
 
   const handleCta = () => {
-    if (!ctaAction) return;
-    void actionCtx.execute(ctaAction);
+    if (!ctaAction?.name) {
+      // eslint-disable-next-line no-console
+      console.warn('[record:alert] CTA click: no ctaAction', { ctaName, objectMeta });
+      return;
+    }
+    // eslint-disable-next-line no-console
+    console.log('[record:alert] executeAction', ctaAction.name, ctaAction);
+    void executeAction(ctaAction.name).then(
+      (res) => console.log('[record:alert] result', res),
+      (err) => console.error('[record:alert] error', err),
+    );
   };
 
   return (

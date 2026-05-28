@@ -18,7 +18,9 @@
  * inside the unified Setup-app shell.
  */
 
-import { lazy, Suspense } from 'react';
+import { lazy, Suspense, useState } from 'react';
+import { PanelRightClose, PanelRightOpen } from 'lucide-react';
+import { Button } from '@object-ui/components';
 import { registerAppComponent } from './componentRegistry';
 import {
   MetadataDirectoryPage,
@@ -27,6 +29,7 @@ import {
 } from '../views/metadata-admin';
 import { PermissionMatrixEditPage } from '../views/metadata-admin/PermissionMatrixEditor';
 import { DesignerEditorBody } from '../views/metadata-admin/DesignerEditorWrapper';
+import { ViewPreview } from '../views/metadata-admin/previews/ViewPreview';
 
 /* -------------------------------------------------------------------------- */
 /* 1) Top-level admin pages — bound to `metadata:directory` + `metadata:resource` */
@@ -143,15 +146,86 @@ function ViewEditPage(props: { type: string; name: string }) {
         };
       }}
       renderDesigner={(value, onChange, readOnly) => (
-        <Suspense fallback={<DesignerFallback label="view designer" />}>
-          <ObjectViewConfigurator
-            config={value as any}
-            onChange={(next) => onChange(next as any)}
-            readOnly={readOnly}
-          />
-        </Suspense>
+        <ViewDesignerSplit
+          name={props.name}
+          value={value}
+          onChange={onChange}
+          readOnly={readOnly}
+        />
       )}
     />
+  );
+}
+
+/**
+ * Two-column layout for the View designer:
+ * - Left: live view rendered from the current draft (so the author sees
+ *   exactly what end users will see).
+ * - Right: collapsible edit panel hosting `ObjectViewConfigurator`.
+ *
+ * Replaces the previous "designer-only" tab where the configurator was
+ * shown in isolation, which left the entire right half of the screen
+ * blank and provided no visual feedback for edits.
+ */
+function ViewDesignerSplit({
+  name,
+  value,
+  onChange,
+  readOnly,
+}: {
+  name: string;
+  value: any;
+  onChange: (next: any) => void;
+  readOnly: boolean;
+}) {
+  const [panelOpen, setPanelOpen] = useState(true);
+
+  return (
+    <div className="flex h-full min-h-0">
+      <div className="flex-1 min-w-0 overflow-auto p-4">
+        <ViewPreview
+          type="view"
+          name={name}
+          draft={(value ?? {}) as Record<string, unknown>}
+        />
+      </div>
+
+      {panelOpen ? (
+        <aside className="w-[380px] shrink-0 border-l bg-background flex flex-col min-h-0">
+          <div className="sticky top-0 z-10 flex items-center justify-between px-3 py-2 border-b bg-background">
+            <span className="text-sm font-medium">View settings</span>
+            <Button
+              variant="ghost"
+              size="icon"
+              aria-label="Close settings panel"
+              onClick={() => setPanelOpen(false)}
+            >
+              <PanelRightClose className="h-4 w-4" />
+            </Button>
+          </div>
+          <div className="flex-1 min-h-0 overflow-auto p-3">
+            <Suspense fallback={<DesignerFallback label="view designer" />}>
+              <ObjectViewConfigurator
+                config={value as any}
+                onChange={(next) => onChange(next as any)}
+                readOnly={readOnly}
+              />
+            </Suspense>
+          </div>
+        </aside>
+      ) : (
+        <div className="shrink-0 border-l flex items-start">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="m-2"
+            onClick={() => setPanelOpen(true)}
+          >
+            <PanelRightOpen className="h-4 w-4 mr-1" /> Settings
+          </Button>
+        </div>
+      )}
+    </div>
   );
 }
 
