@@ -403,6 +403,13 @@ function computeIsActive(item: NavigationItem, href: string, pathname: string): 
   if (href === '#') return false;
   if (pathname === href) return true;
 
+  // Directory/index components (e.g. `metadata:directory`) link to a parent
+  // route that also hosts more-specific child items (`metadata:resource`
+  // pointing at `/metadata/:type`). Without this guard, both the index and
+  // the matching child light up at the same time.
+  const ref = (item as any).componentRef as string | undefined;
+  if (ref && ref.split(':')[1] === 'directory') return false;
+
   if (item.type === 'object' && item.objectName) {
     if (item.viewName) {
       // View-scoped item — only exact match. Avoids fighting with its

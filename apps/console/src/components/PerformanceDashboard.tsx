@@ -15,7 +15,7 @@ import type { BudgetViolation } from '@object-ui/react';
 import { X, Activity, ChevronDown, ChevronUp } from 'lucide-react';
 
 // Only render in development mode
-const IS_DEV = process.env.NODE_ENV !== 'production';
+const IS_DEV = import.meta.env.DEV;
 
 function MetricCard({ label, value, unit, budget, status }: {
   label: string;

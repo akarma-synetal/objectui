@@ -55,18 +55,25 @@ type ItemRow = {
 export function MetadataResourceListPage({ type: typeProp }: MetadataResourceListPageProps) {
   const params = useParams<{ type?: string }>();
   const type = typeProp ?? params.type ?? '';
-  const navigate = useNavigate();
-  const client = useMetadataClient();
-  const { entries: typesEntries } = useMetadataTypes(client);
-  const entry: RichMetadataTypeEntry | undefined = typesEntries.find((t) => t.type === type);
-  const config = resolveResourceConfig(type, entry);
 
   // If a fully custom ListPage is registered, render it and bail.
+  // Done before any other hooks so hook count stays stable across type
+  // switches between custom and default list pages.
   const customConfig = getMetadataResource(type);
   if (customConfig?.ListPage) {
     const Custom = customConfig.ListPage;
     return <Custom type={type} />;
   }
+
+  return <DefaultMetadataList type={type} />;
+}
+
+function DefaultMetadataList({ type }: { type: string }) {
+  const navigate = useNavigate();
+  const client = useMetadataClient();
+  const { entries: typesEntries } = useMetadataTypes(client);
+  const entry: RichMetadataTypeEntry | undefined = typesEntries.find((t) => t.type === type);
+  const config = resolveResourceConfig(type, entry);
 
   const [items, setItems] = React.useState<ItemRow[]>([]);
   const [loading, setLoading] = React.useState(true);
