@@ -97,7 +97,20 @@ export const ActionProvider: React.FC<ActionProviderProps> = ({
   const [result, setResult] = useState<ActionResult | null>(null);
 
   const runner = useMemo(() => {
-    const r = new ActionRunner(context);
+    // Normalize the evaluator scope so predicates can use *either* flat
+    // (`record`, `user`, `objectName`) *or* the canonical `ctx.*` namespace
+    // (`ctx.user`, `ctx.record`, `ctx.objectName`). The CEL/predicate
+    // convention used across the platform (sys-user, sys-invitation,
+    // skills/objectstack-formula, …) is `ctx.user.id` — exposing both
+    // shapes from one place keeps every consumer working without forcing
+    // every call site to repeat the same `{ ..., ctx: { ... } }` boilerplate.
+    const normalizedContext = {
+      ...context,
+      ctx: (context && typeof (context as any).ctx === 'object')
+        ? { ...context, ...(context as any).ctx }
+        : { ...context },
+    } as ActionCtx;
+    const r = new ActionRunner(normalizedContext);
     if (onConfirm) r.setConfirmHandler(onConfirm);
     if (onToast) r.setToastHandler(onToast);
     if (onModal) r.setModalHandler(onModal);

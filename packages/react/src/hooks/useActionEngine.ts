@@ -70,11 +70,23 @@ export function useActionEngine(options: UseActionEngineOptions = {}): UseAction
   const sharedRunner = providerCtx?.runner ?? null;
 
   const engine = useMemo(() => {
-    const e = sharedRunner ? new ActionEngine(sharedRunner) : new ActionEngine(context);
+    // Normalize context to expose both flat (`record`, `user`) and `ctx.*`
+    // namespaces. Mirrors `ActionProvider`'s normalization so predicates that
+    // use `ctx.user.id` (the CEL convention) resolve the same way whether
+    // the engine is sharing a provider runner or operating standalone.
+    const normalized = (context && Object.keys(context).length > 0)
+      ? {
+          ...context,
+          ctx: ((context as any).ctx && typeof (context as any).ctx === 'object')
+            ? { ...context, ...(context as any).ctx }
+            : { ...context },
+        }
+      : context;
+    const e = sharedRunner ? new ActionEngine(sharedRunner) : new ActionEngine(normalized as any);
     // Layer the caller's per-render context on top of the shared runner's
     // baseline (e.g. record-scoped data into a user-scoped provider).
-    if (sharedRunner && context && Object.keys(context).length > 0) {
-      e.getRunner().updateContext(context);
+    if (sharedRunner && normalized && Object.keys(normalized).length > 0) {
+      e.getRunner().updateContext(normalized as any);
     }
     e.registerActions(actions);
     return e;

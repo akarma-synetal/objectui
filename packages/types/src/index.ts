@@ -907,6 +907,8 @@ export type {
   UndoRedoState,
 } from './ui-action';
 
+export { ACTION_LOCATIONS, ActionLocationSchema } from './ui-action';
+
 // ============================================================================
 // ObjectStack Protocol Namespaces - Protocol Re-exports
 // ============================================================================

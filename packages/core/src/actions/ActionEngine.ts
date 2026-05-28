@@ -158,17 +158,41 @@ export class ActionEngine {
    *      (`action-button`, `action-menu`, `action-bar`, …) so the same
    *      action behaves identically whether surfaced via the engine or
    *      consumed standalone.
+   *
+   *   Predicate normalization matches `@object-ui/react`'s `toPredicateInput`:
+   *   raw strings (`'record.foo == true'`) are wrapped as `${...}` so they
+   *   evaluate as expressions, not as truthy string literals. Spec-style
+   *   `{ dialect, source }` envelopes are unwrapped to their `source`.
+   *   Without this, every per-action renderer (which already calls
+   *   `toPredicateInput`) and the engine path would disagree on the same
+   *   `visible:` predicate.
    */
   getActionsForLocation(location: ActionLocation): ActionDef[] {
     const evaluator = this.runner.getEvaluator();
     return Array.from(this.actions.values())
       .filter(ra => ra.locations.includes(location))
       .filter(ra => {
-        const v = (ra.action as any).visible;
-        if (v == null || v === '' || v === true) return true;
-        if (v === false) return false;
+        const raw = (ra.action as any).visible;
+        if (raw == null || raw === '' || raw === true) return true;
+        if (raw === false) return false;
+        let expr: string | boolean;
+        if (typeof raw === 'string') {
+          expr = `\${${raw}}`;
+        } else if (typeof raw === 'object' && typeof (raw as any).source === 'string') {
+          const src = (raw as any).source as string;
+          if (!src) return true;
+          expr = `\${${src}}`;
+        } else {
+          expr = Boolean(raw);
+        }
         try {
-          return evaluator.evaluateCondition(v as any);
+          // `throwOnError: true` is required for fail-closed semantics: the
+          // evaluator's default behavior swallows expression errors and
+          // returns the raw template string, which `Boolean(string)` then
+          // coerces to `true` — silently leaking actions whose preconditions
+          // failed (e.g. `ctx` undefined). Surface the error so our catch
+          // below can hide the action.
+          return evaluator.evaluateCondition(expr as any, { throwOnError: true } as any);
         } catch {
           return false;
         }
