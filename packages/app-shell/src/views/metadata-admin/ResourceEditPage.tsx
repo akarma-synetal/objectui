@@ -363,9 +363,6 @@ export function MetadataResourceEditPage({
     (config.defaultSchema as Record<string, unknown> | undefined);
   const readOnly = !entry?.allowOrgOverride && !createMode;
 
-  const DesignerTab = !createMode ? customConfig?.DesignerTab : undefined;
-  const designerTabLabel = customConfig?.designerTabLabel ?? 'Designer';
-
   // Preview tab — opt-in via `registerMetadataPreview()`. Hidden in
   // create mode (nothing to preview yet) and inside the embedded
   // drawer (the parent context owns the preview surface).
@@ -389,12 +386,11 @@ export function MetadataResourceEditPage({
 
   // Default tab priority:
   //   1. URL ?tab= (explicit user nav / deep link)
-  //   2. Designer (custom rich editor present)
-  //   3. Preview  (live preview present — most informative landing)
-  //   4. Form
+  //   2. Preview  (live preview present — most informative landing)
+  //   3. Form
   const defaultTab =
     initialTabRef.current ??
-    (DesignerTab ? 'designer' : PreviewComponent ? 'preview' : 'form');
+    (PreviewComponent ? 'preview' : 'form');
 
   return (
     <PageShell
@@ -477,9 +473,6 @@ export function MetadataResourceEditPage({
           }}
         >
           <TabsList>
-            {DesignerTab && (
-              <TabsTrigger value="designer">{designerTabLabel}</TabsTrigger>
-            )}
             {PreviewComponent && (
               <TabsTrigger value="preview">
                 <Eye className="h-3.5 w-3.5 mr-1" />
@@ -518,12 +511,6 @@ export function MetadataResourceEditPage({
               </TabsTrigger>
             )}
           </TabsList>
-
-          {DesignerTab && (
-            <TabsContent value="designer" className="mt-4">
-              <DesignerTab type={type} name={name} />
-            </TabsContent>
-          )}
 
           <TabsContent value="form" className="mt-4 space-y-3">
             {formReadOnly && !readOnly && entry?.allowOrgOverride && !createMode && (

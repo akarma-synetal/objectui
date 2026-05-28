@@ -78,24 +78,9 @@ export interface MetadataResourceConfig {
    * Fully custom edit page. Receives `{ type, name }`.
    *
    * Use this when the bespoke editor replaces the JSONSchema form entirely
-   * (e.g. PermissionMatrix grid). For visual designers that should coexist
-   * with the generic Form/Layers/References tabs, prefer `DesignerTab`.
+   * (e.g. PermissionMatrix grid).
    */
   EditPage?: ComponentType<{ type: string; name: string }>;
-  /**
-   * Optional visual designer that renders inside its own dedicated tab on
-   * the generic edit page, alongside Form / Layers / References. Receives
-   * `{ type, name }` and should render without an outer `PageShell` — the
-   * generic engine owns the chrome.
-   *
-   * When both `EditPage` and `DesignerTab` are provided, `EditPage` wins
-   * (full takeover); the tab variant is only used when `EditPage` is unset.
-   */
-  DesignerTab?: ComponentType<{ type: string; name: string }>;
-  /**
-   * Optional label for the Designer tab. Defaults to "Designer".
-   */
-  designerTabLabel?: string;
   /**
    * Fully custom create page. Receives `{ type }`.
    */

@@ -26,8 +26,6 @@ export { PageShell as MetadataPageShell } from './PageShell';
 export { SchemaForm } from './SchemaForm';
 export { LayeredDiff } from './LayeredDiff';
 export { PermissionMatrixEditPage } from './PermissionMatrixEditor';
-export { DesignerEditorWrapper, DesignerEditorBody } from './DesignerEditorWrapper';
-export type { DesignerEditorWrapperProps } from './DesignerEditorWrapper';
 export {
   translateMetadataType,
   translateMetadataDomain,
