@@ -1745,6 +1745,11 @@ export function ObjectView({ dataSource, objects, onEdit, externalRefreshKey }: 
             context={{
                 objectName: objectDef.name,
                 user: currentUser,
+                // Backend origin — lets `type: 'url'` actions issue
+                // full-page navigations to API endpoints (e.g.
+                // better-auth's `/sign-in/social`) even when the SPA
+                // and API are on different origins in dev.
+                apiBase: (import.meta as any).env?.VITE_SERVER_URL || '',
                 // Expose active org so `type: 'url'` actions can template
                 // `/organizations/${activeOrganization.slug}/...` etc.
                 activeOrganization: activeOrganization

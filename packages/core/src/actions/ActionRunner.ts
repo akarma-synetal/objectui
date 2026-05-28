@@ -347,8 +347,6 @@ export class ActionRunner {
   }
 
   async execute(action: ActionDef): Promise<ActionResult> {
-    // eslint-disable-next-line no-console
-    console.log('[ActionRunner.execute] action=', { type: action.type, actionType: action.actionType, name: action.name, target: action.target });
     try {
       // Resolve the action type
       const actionType = action.type || action.actionType || action.name || '';
@@ -636,7 +634,7 @@ export class ActionRunner {
     // here also URL-encodes values (required for query-position params
     // like `?provider=foo+bar`).
     const interpolated = this.interpolateTarget(rawUrl, action);
-    const url = this.evaluator.evaluate(interpolated) as string;
+    let url = this.evaluator.evaluate(interpolated) as string;
 
     if (!this.isValidUrl(url)) {
       return {
@@ -645,16 +643,30 @@ export class ActionRunner {
       };
     }
 
+    // Promote same-origin-style `/api/...` paths to absolute when an
+    // `apiBase` is provided in context (typical of split SPA + backend
+    // dev setups). Without this, `window.location.href = "/api/..."`
+    // hits the SPA host (e.g. Vite at :5173), the router has no match,
+    // and the browser silently falls back to the home page instead of
+    // following better-auth's 302 to the IdP.
+    const apiBase = typeof this.context.apiBase === 'string' ? this.context.apiBase.replace(/\/+$/, '') : '';
+    if (apiBase && /^\/(api|_auth|_account)\//.test(url)) {
+      url = `${apiBase}${url}`;
+    }
+
     const isExternal = url.startsWith('http://') || url.startsWith('https://');
-    // eslint-disable-next-line no-console
-    console.log('[executeUrl] action.type=', action.type, 'rawUrl=', rawUrl, 'url=', url, 'isExternal=', isExternal);
     // Same-origin API endpoints (most commonly the auth provider's
     // `/api/v1/auth/sign-in/social` redirect dance) issue server-side
     // 302s that must be followed by the *browser*, not the SPA router.
     // Pushing `/api/...` into React Router lands on no matching route
     // and silently falls back to the default page, so the OAuth flow
     // never starts. Short-circuit to a full-page navigation here.
-    const isApiCall = !isExternal && /^\/(api|_auth|_account)\//.test(url);
+    // For absolute URLs (now also produced by the apiBase prefix above),
+    // we need full-page navigation for any URL that is going to issue a
+    // server-side redirect dance — better-auth's `/sign-in/social` is the
+    // canonical case. Detect "looks like a same-origin API path" both for
+    // bare-relative input AND for the apiBase-prefixed form.
+    const isApiCall = /\/(api|_auth|_account)\//.test(url) && (isExternal || url.startsWith('/'));
     if (isApiCall) {
       window.location.href = url;
       return { success: true };
@@ -905,6 +917,13 @@ export class ActionRunner {
   private buildInterpolationContext(): Record<string, unknown> {
     const ctx: Record<string, unknown> = {
       origin: typeof window !== 'undefined' ? window.location.origin : '',
+      // Backend API origin (typically `import.meta.env.VITE_SERVER_URL`
+      // passed in from the host app). Empty string means "same-origin",
+      // which collapses `${ctx.apiBase}/api/...` to a regular relative
+      // path — exactly the production-deployment behaviour.
+      apiBase: typeof this.context.apiBase === 'string'
+        ? this.context.apiBase.replace(/\/+$/, '')
+        : '',
       user: this.context.user ?? {},
       org: this.context.org ?? this.context.organization ?? {},
       recordId: this.context.record?.id ?? this.context.recordId,
