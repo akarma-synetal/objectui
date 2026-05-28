@@ -12,9 +12,9 @@ export default function HomePage() {
             <div className="mb-8 inline-flex items-center rounded-full border border-fd-primary/20 bg-fd-primary/10 px-4 py-1.5 text-sm font-medium text-fd-primary">
               ✨ The Universal Schema-Driven UI Engine
             </div>
-            <h1 className="mb-6 text-5xl font-bold tracking-tight text-fd-foreground sm:text-7xl">
+            <h1 className="mb-6 text-4xl font-bold tracking-tight text-fd-foreground sm:text-5xl md:text-6xl lg:text-7xl">
               From JSON to
-              <span className="bg-gradient-to-r from-fd-primary to-fd-accent bg-clip-text text-transparent"> World-Class UI </span>
+              <span className="bg-gradient-to-r from-blue-600 to-violet-600 bg-clip-text text-transparent dark:from-blue-400 dark:to-violet-400"> World-Class UI </span>
               in Minutes
             </h1>
             <p className="mb-10 text-lg leading-8 text-fd-muted-foreground">
@@ -220,9 +220,9 @@ export default function HomePage() {
       </section>
 
       {/* Stats Section */}
-      <section className="bg-gradient-to-r from-fd-primary to-fd-accent py-24 sm:py-32">
+      <section className="bg-gradient-to-r from-blue-600 to-violet-600 py-24 sm:py-32 dark:from-blue-700 dark:to-violet-700">
         <div className="mx-auto max-w-7xl px-6 lg:px-8">
-          <div className="grid grid-cols-1 gap-8 sm:grid-cols-3 text-center text-fd-primary-foreground">
+          <div className="grid grid-cols-1 gap-8 sm:grid-cols-3 text-center text-white">
             <div>
               <div className="text-5xl font-bold mb-2">60+</div>
               <div className="text-xl opacity-90">Components</div>
@@ -288,12 +288,12 @@ export default function HomePage() {
       {/* CTA Section */}
       <section className="py-24 sm:py-32">
         <div className="mx-auto max-w-7xl px-6 lg:px-8">
-          <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-fd-primary to-fd-accent px-8 py-16 text-center shadow-2xl sm:px-16">
+          <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-blue-600 to-violet-600 px-8 py-16 text-center shadow-2xl sm:px-16 dark:from-blue-700 dark:to-violet-700">
             <div className="relative z-10">
-              <h2 className="text-3xl font-bold tracking-tight text-fd-primary-foreground sm:text-4xl">
+              <h2 className="text-3xl font-bold tracking-tight text-white sm:text-4xl">
                 Ready to Build Something Amazing?
               </h2>
-              <p className="mx-auto mt-6 max-w-2xl text-lg text-fd-primary-foreground/90">
+              <p className="mx-auto mt-6 max-w-2xl text-lg text-white/90">
                 Join developers who are building faster with ObjectUI. Get started in minutes with our comprehensive documentation.
               </p>
               <div className="mt-10 flex items-center justify-center gap-4">

@@ -134,7 +134,7 @@ export function ReactVsObjectUI() {
           </div>
           <h2 className="text-3xl font-bold tracking-tight text-fd-foreground sm:text-4xl">
             Same UI.{' '}
-            <span className="bg-gradient-to-r from-fd-primary to-fd-accent bg-clip-text text-transparent">
+            <span className="bg-gradient-to-r from-blue-600 to-violet-600 bg-clip-text text-transparent dark:from-blue-400 dark:to-violet-400">
               {REDUCTION_PCT}% less code.
             </span>
           </h2>
