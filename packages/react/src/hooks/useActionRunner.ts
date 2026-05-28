@@ -16,6 +16,8 @@ import {
   type ToastHandler,
   type ModalHandler,
   type NavigationHandler,
+  type ParamCollectionHandler,
+  type ResultDialogHandler,
 } from '@object-ui/core';
 
 export interface UseActionRunnerOptions {
@@ -28,6 +30,10 @@ export interface UseActionRunnerOptions {
   onModal?: ModalHandler;
   /** Custom navigation handler — SPA-aware routing */
   onNavigate?: NavigationHandler;
+  /** Custom param-collection handler — show dialog to gather params before execution */
+  onParamCollection?: ParamCollectionHandler;
+  /** Custom result-dialog handler — one-shot reveal of API response on success */
+  onResultDialog?: ResultDialogHandler;
 }
 
 /**
@@ -57,7 +63,7 @@ export function useActionRunner(
     ? optionsOrContext as UseActionRunnerOptions
     : { context: optionsOrContext as ActionContext };
 
-  const { context = {}, onConfirm, onToast, onModal, onNavigate } = options;
+  const { context = {}, onConfirm, onToast, onModal, onNavigate, onParamCollection, onResultDialog } = options;
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -69,6 +75,8 @@ export function useActionRunner(
     if (onToast) r.setToastHandler(onToast);
     if (onModal) r.setModalHandler(onModal);
     if (onNavigate) r.setNavigationHandler(onNavigate);
+    if (onParamCollection) r.setParamCollectionHandler(onParamCollection);
+    if (onResultDialog) r.setResultDialogHandler(onResultDialog);
     return r;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [JSON.stringify(context)]);

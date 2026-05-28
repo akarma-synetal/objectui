@@ -628,7 +628,13 @@ export class ActionRunner {
       return { success: false, error: 'No URL provided for url action' };
     }
 
-    const url = this.evaluator.evaluate(rawUrl) as string;
+    // Apply target ${param.X} / ${ctx.X} interpolation FIRST — the
+    // ExpressionEvaluator that follows would otherwise see unresolved
+    // `param.provider` and either error or substitute undefined. Doing it
+    // here also URL-encodes values (required for query-position params
+    // like `?provider=foo+bar`).
+    const interpolated = this.interpolateTarget(rawUrl, action);
+    const url = this.evaluator.evaluate(interpolated) as string;
 
     if (!this.isValidUrl(url)) {
       return {
@@ -773,13 +779,13 @@ export class ActionRunner {
 
       if (typeof apiConfig === 'string') {
         // Simple string endpoint
-        url = apiConfig;
+        url = this.interpolateTarget(apiConfig, action);
         method = action.method || 'POST';
         body = JSON.stringify(action.params || this.context.data || {});
       } else {
         // Complex ApiConfig
         const config = apiConfig as ApiConfig;
-        url = config.url;
+        url = this.interpolateTarget(config.url, action);
         method = config.method || action.method || 'POST';
         headers = { ...headers, ...config.headers };
         responseType = config.responseType || 'json';
@@ -841,6 +847,59 @@ export class ActionRunner {
     );
   }
 
+  /**
+   * Substitute `${param.X}` and `${ctx.X}` tokens in an action target.
+   *
+   * Used by executeUrl and executeAPI so metadata can produce dynamic
+   * URLs without coupling to the wider ExpressionEvaluator surface
+   * (which would also evaluate operators, member access, etc. — overkill
+   * and unsafe for URL-position values).
+   *
+   * Every substituted value is `encodeURIComponent`'d, since the only
+   * legitimate use case so far (better-auth `/sign-in/social?provider=…`)
+   * places interpolated values in URL query positions. Callers MUST
+   * therefore put tokens after a `?` or `&` — using `${param.x}` inside a
+   * path segment will produce percent-encoded slashes, which is the
+   * correct behaviour for opaque IDs but would break a literal path
+   * fragment.
+   *
+   * `ctx.origin`, `ctx.user.*`, `ctx.org.*`, `ctx.recordId` are surfaced
+   * implicitly from the runner's ActionContext + window. Consumers can
+   * extend by stuffing extra keys under `context.ctx = {...}` before
+   * calling `runner.execute()`.
+   */
+  private interpolateTarget(target: string, action: ActionDef): string {
+    if (typeof target !== 'string' || target.indexOf('${') === -1) return target;
+    const params = (action.params && typeof action.params === 'object' && !Array.isArray(action.params))
+      ? (action.params as Record<string, unknown>)
+      : {};
+    const ctx = this.buildInterpolationContext();
+    return target.replace(/\$\{(param|ctx)\.([\w.]+)\}/g, (_match, scope: string, path: string) => {
+      const root = scope === 'param' ? params : ctx;
+      const value = readPath(root, path);
+      if (value == null) return '';
+      return encodeURIComponent(String(value));
+    });
+  }
+
+  /**
+   * Assemble the `ctx` namespace exposed to target interpolation.
+   * Built-in keys: origin, user, org, recordId. Anything the consumer
+   * placed under context.ctx is merged on top.
+   */
+  private buildInterpolationContext(): Record<string, unknown> {
+    const ctx: Record<string, unknown> = {
+      origin: typeof window !== 'undefined' ? window.location.origin : '',
+      user: this.context.user ?? {},
+      org: this.context.org ?? this.context.organization ?? {},
+      recordId: this.context.record?.id ?? this.context.recordId,
+    };
+    if (this.context.ctx && typeof this.context.ctx === 'object') {
+      Object.assign(ctx, this.context.ctx);
+    }
+    return ctx;
+  }
+
   updateContext(newContext: Partial<ActionContext>): void {
     this.context = { ...this.context, ...newContext };
     this.evaluator.updateContext(newContext);
@@ -867,4 +926,16 @@ export async function executeAction(
 ): Promise<ActionResult> {
   const runner = new ActionRunner(context);
   return await runner.execute(action);
+}
+
+/**
+ * Dot-path read used by target interpolation. Plain reduce — kept inline
+ * to avoid pulling lodash for a 3-line helper.
+ */
+function readPath(root: unknown, path: string): unknown {
+  if (root == null) return undefined;
+  return path.split('.').reduce<unknown>((acc, key) => {
+    if (acc == null) return undefined;
+    return (acc as Record<string, unknown>)[key];
+  }, root);
 }

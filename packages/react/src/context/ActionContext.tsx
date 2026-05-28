@@ -24,6 +24,7 @@ import {
   type ModalHandler,
   type NavigationHandler,
   type ParamCollectionHandler,
+  type ResultDialogHandler,
 } from '@object-ui/core';
 
 export interface ActionProviderProps {
@@ -40,6 +41,8 @@ export interface ActionProviderProps {
   onNavigate?: NavigationHandler;
   /** Custom param collection handler — show dialog to collect ActionParam values */
   onParamCollection?: ParamCollectionHandler;
+  /** Custom result-dialog handler — show one-shot reveal of API response after success */
+  onResultDialog?: ResultDialogHandler;
   /** Pre-registered custom action handlers */
   handlers?: Record<string, (action: ActionDef, ctx: ActionCtx) => Promise<ActionResult>>;
 }
@@ -86,6 +89,7 @@ export const ActionProvider: React.FC<ActionProviderProps> = ({
   onModal,
   onNavigate,
   onParamCollection,
+  onResultDialog,
   handlers,
 }) => {
   const [loading, setLoading] = useState(false);
@@ -99,6 +103,7 @@ export const ActionProvider: React.FC<ActionProviderProps> = ({
     if (onModal) r.setModalHandler(onModal);
     if (onNavigate) r.setNavigationHandler(onNavigate);
     if (onParamCollection) r.setParamCollectionHandler(onParamCollection);
+    if (onResultDialog) r.setResultDialogHandler(onResultDialog);
     if (handlers) {
       Object.entries(handlers).forEach(([name, handler]) => {
         r.registerHandler(name, handler);

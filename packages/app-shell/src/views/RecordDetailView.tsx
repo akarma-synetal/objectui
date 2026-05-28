@@ -23,6 +23,7 @@ import { resolveCrudAffordances } from '../utils/crudAffordances';
 import { hasExplicitDiscussion } from '../utils/pageSchemaIntrospect';
 import { ActionConfirmDialog, type ConfirmDialogState } from './ActionConfirmDialog';
 import { ActionParamDialog, type ParamDialogState } from './ActionParamDialog';
+import { ActionResultDialog, type ResultDialogState } from './ActionResultDialog';
 import { resolveActionParams } from '../utils/resolveActionParams';
 import { useRecordBreadcrumbTitle } from '../context/NavigationContext';
 import type { DetailViewSchema, FeedItem, HighlightField, SectionGroup } from '@object-ui/types';
@@ -293,6 +294,16 @@ export function RecordDetailView({ dataSource, objects, onEdit, objectNameOverri
 
   // Param collection dialog state (promise-based)
   const [paramState, setParamState] = useState<ParamDialogState>({ open: false, params: [] });
+
+  // Result-dialog state — one-shot reveal of action response data
+  // (2FA secrets, OAuth client_secret, recovery codes).
+  const [resultDialogState, setResultDialogState] = useState<ResultDialogState>({ open: false });
+  const resultDialogHandler = useCallback(
+    (spec: any, data: unknown) => new Promise<void>((resolve) => {
+      setResultDialogState({ open: true, spec, data, resolve });
+    }),
+    [],
+  );
 
   const confirmHandler = useCallback((message: string, options?: { title?: string; confirmText?: string; cancelText?: string }) => {
     return new Promise<boolean>((resolve) => {
@@ -1593,6 +1604,7 @@ export function RecordDetailView({ dataSource, objects, onEdit, objectNameOverri
             onToast={toastHandler}
             onNavigate={navigateHandler}
             onParamCollection={paramCollectionHandler}
+            onResultDialog={resultDialogHandler}
             handlers={{ api: apiHandler, flow: flowHandler, script: serverActionHandler, modal: serverActionHandler, approval: approvalHandler }}
           >
             <div className="flex-1 overflow-hidden flex flex-row">
@@ -1657,6 +1669,15 @@ export function RecordDetailView({ dataSource, objects, onEdit, objectNameOverri
             if (!open) setParamState(s => ({ ...s, open: false }));
           }}
         />
+
+        {/* Action Result Reveal Dialog */}
+        <ActionResultDialog
+          state={resultDialogState}
+          onAcknowledge={() => {
+            resultDialogState.resolve?.();
+            setResultDialogState({ open: false });
+          }}
+        />
       </div>
     );
   }
@@ -1684,6 +1705,7 @@ export function RecordDetailView({ dataSource, objects, onEdit, objectNameOverri
             onToast={toastHandler}
             onNavigate={navigateHandler}
             onParamCollection={paramCollectionHandler}
+            onResultDialog={resultDialogHandler}
             handlers={{ api: apiHandler, flow: flowHandler, script: serverActionHandler, modal: serverActionHandler, approval: approvalHandler }}
           >
             <DetailView
@@ -1745,6 +1767,15 @@ export function RecordDetailView({ dataSource, objects, onEdit, objectNameOverri
         state={paramState}
         onOpenChange={(open) => {
           if (!open) setParamState(s => ({ ...s, open: false }));
+        }}
+      />
+
+      {/* Action Result Reveal Dialog */}
+      <ActionResultDialog
+        state={resultDialogState}
+        onAcknowledge={() => {
+          resultDialogState.resolve?.();
+          setResultDialogState({ open: false });
         }}
       />
     </div>

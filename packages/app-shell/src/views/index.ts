@@ -8,6 +8,7 @@ export { ReportView } from './ReportView';
 export { SearchResultsPage } from './SearchResultsPage';
 export { ActionConfirmDialog } from './ActionConfirmDialog';
 export { ActionParamDialog } from './ActionParamDialog';
+export { ActionResultDialog, type ResultDialogState } from './ActionResultDialog';
 export { MetadataToggle, MetadataPanel } from './MetadataInspector';
 export { ViewConfigPanel } from './ViewConfigPanel';
 export { CreateViewDialog } from './CreateViewDialog';

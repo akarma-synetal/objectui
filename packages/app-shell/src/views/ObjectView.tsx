@@ -54,6 +54,7 @@ import { ActionProvider, useNavigationOverlay, SchemaRenderer } from '@object-ui
 import { toast } from 'sonner';
 import { ActionConfirmDialog, type ConfirmDialogState } from './ActionConfirmDialog';
 import { ActionParamDialog, type ParamDialogState } from './ActionParamDialog';
+import { ActionResultDialog, type ResultDialogState } from './ActionResultDialog';
 import { resolveActionParams } from '../utils/resolveActionParams';
 import type { ActionDef, ActionParamDef } from '@object-ui/core';
 
@@ -819,6 +820,14 @@ export function ObjectView({ dataSource, objects, onEdit, externalRefreshKey }: 
     // Airtable-style confirmation flow.
     const [confirmState, setConfirmState] = useState<ConfirmDialogState>({ open: false, message: '' });
     const [paramState, setParamState] = useState<ParamDialogState>({ open: false, params: [] });
+    const [resultDialogState, setResultDialogState] = useState<ResultDialogState>({ open: false });
+
+    const resultDialogHandler = useCallback(
+        (spec: any, data: unknown) => new Promise<void>((resolve) => {
+            setResultDialogState({ open: true, spec, data, resolve });
+        }),
+        [],
+    );
 
     const confirmHandler = useCallback((message: string, options?: { title?: string; confirmText?: string; cancelText?: string }) => {
         return new Promise<boolean>((resolve) => {
@@ -1746,6 +1755,7 @@ export function ObjectView({ dataSource, objects, onEdit, externalRefreshKey }: 
             onToast={toastHandler}
             onNavigate={navigateHandler}
             onParamCollection={paramCollectionHandler}
+            onResultDialog={resultDialogHandler}
             handlers={{ api: apiHandler, flow: flowHandler, script: serverActionHandler, modal: serverActionHandler }}
         >
         <div className="h-full flex flex-col bg-background min-w-0 overflow-hidden">
@@ -2126,6 +2136,13 @@ export function ObjectView({ dataSource, objects, onEdit, externalRefreshKey }: 
         <ActionParamDialog state={paramState} onOpenChange={(open) => {
             if (!open) setParamState({ open: false, params: [] });
         }} />
+        <ActionResultDialog
+            state={resultDialogState}
+            onAcknowledge={() => {
+                resultDialogState.resolve?.();
+                setResultDialogState({ open: false });
+            }}
+        />
         </ActionProvider>
     );
 }
