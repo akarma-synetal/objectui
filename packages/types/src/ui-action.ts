@@ -24,17 +24,18 @@
 // ============================================================================
 
 /**
- * Action placement locations
- * Canonical definition from @objectstack/spec/ui ActionSchema.locations.
+ * Action placement locations.
+ *
+ * Single source of truth lives in `@objectstack/spec/ui` as
+ * `ACTION_LOCATIONS` + `ActionLocationSchema` + `ActionLocation`. Re-export
+ * here so existing `@object-ui/types` consumers keep working without coupling
+ * them to a duplicated, drift-prone enum. To add a new location, edit
+ * `packages/spec/src/ui/action.zod.ts` — every layer (spec, core, types,
+ * Studio designer dropdowns) picks up the new value automatically.
  */
-export type ActionLocation = 
-  | 'list_toolbar'       // Top toolbar in list views
-  | 'list_item'          // Per-item actions in list
-  | 'record_header'      // Header area of record detail
-  | 'record_more'        // More menu in record detail
-  | 'record_related'     // Related lists section
-  | 'record_section'     // Embedded section within a record page (e.g. Security tab panels)
-  | 'global_nav';        // Global navigation bar
+export type { ActionLocation } from '@objectstack/spec/ui';
+export { ACTION_LOCATIONS, ActionLocationSchema } from '@objectstack/spec/ui';
+import type { ActionLocation } from '@objectstack/spec/ui';
 
 /**
  * Visual component type for actions

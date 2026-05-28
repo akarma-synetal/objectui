@@ -34,6 +34,7 @@
 import React, { forwardRef, useMemo } from 'react';
 import { ComponentRegistry } from '@object-ui/core';
 import type { ActionSchema, ActionLocation, ActionComponent } from '@object-ui/types';
+import { ACTION_LOCATIONS } from '@object-ui/types';
 import { useCondition, toPredicateInput } from '@object-ui/react';
 import { useObjectTranslation } from '@object-ui/i18n';
 import { cn } from '../../lib/utils';
@@ -248,7 +249,7 @@ ComponentRegistry.register('action:bar', ActionBarRenderer, {
       name: 'location',
       type: 'enum',
       label: 'Location',
-      enum: ['list_toolbar', 'list_item', 'record_header', 'record_more', 'record_related', 'record_section', 'global_nav'],
+      enum: [...ACTION_LOCATIONS],
     },
     {
       name: 'maxVisible',

@@ -10,6 +10,7 @@ overrides:
   '@types/react': 19.2.15
   '@types/react-dom': 19.2.3
   dompurify: ^3.4.5
+  '@objectstack/spec': link:../framework/packages/spec
 
 importers:
 
@@ -26,8 +27,8 @@ importers:
         specifier: ^10.0.1
         version: 10.0.1(eslint@10.4.0(jiti@2.7.0))
       '@objectstack/spec':
-        specifier: ^6.7.1
-        version: 6.7.1(ai@6.0.191(zod@4.4.3))
+        specifier: link:../framework/packages/spec
+        version: link:../framework/packages/spec
       '@playwright/test':
         specifier: ^1.60.0
         version: 1.60.0
@@ -246,10 +247,10 @@ importers:
         version: link:../../packages/types
       '@objectstack/client':
         specifier: ^6.7.1
-        version: 6.7.1(ai@6.0.191(zod@4.4.3))
+        version: 6.7.1
       '@objectstack/spec':
-        specifier: ^6.7.1
-        version: 6.7.1(ai@6.0.191(zod@4.4.3))
+        specifier: link:../../../framework/packages/spec
+        version: link:../../../framework/packages/spec
       '@tailwindcss/postcss':
         specifier: ^4.3.0
         version: 4.3.0
@@ -1013,8 +1014,8 @@ importers:
         specifier: workspace:*
         version: link:../types
       '@objectstack/spec':
-        specifier: ^6.7.1
-        version: 6.7.1(ai@6.0.191(zod@4.4.3))
+        specifier: link:../../../framework/packages/spec
+        version: link:../../../framework/packages/spec
       lodash:
         specifier: ^4.18.1
         version: 4.18.1
@@ -1073,7 +1074,7 @@ importers:
         version: link:../types
       '@objectstack/client':
         specifier: ^6.7.1
-        version: 6.7.1(ai@6.0.191(zod@4.4.3))
+        version: 6.7.1
     devDependencies:
       tsup:
         specifier: ^8.5.1
@@ -1807,8 +1808,8 @@ importers:
         specifier: workspace:*
         version: link:../types
       '@objectstack/spec':
-        specifier: ^6.7.1
-        version: 6.7.1(ai@6.0.191(zod@4.4.3))
+        specifier: link:../../../framework/packages/spec
+        version: link:../../../framework/packages/spec
       lucide-react:
         specifier: ^1.16.0
         version: 1.16.0(react@19.2.6)
@@ -2030,8 +2031,8 @@ importers:
         specifier: workspace:*
         version: link:../types
       '@objectstack/spec':
-        specifier: ^6.7.1
-        version: 6.7.1(ai@6.0.191(zod@4.4.3))
+        specifier: link:../../../framework/packages/spec
+        version: link:../../../framework/packages/spec
       lucide-react:
         specifier: ^1.16.0
         version: 1.16.0(react@19.2.6)
@@ -2201,8 +2202,8 @@ importers:
         specifier: workspace:*
         version: link:../types
       '@objectstack/spec':
-        specifier: ^6.7.1
-        version: 6.7.1(ai@6.0.191(zod@4.4.3))
+        specifier: link:../../../framework/packages/spec
+        version: link:../../../framework/packages/spec
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1
@@ -2382,8 +2383,8 @@ importers:
         specifier: workspace:*
         version: link:../types
       '@objectstack/spec':
-        specifier: ^6.7.1
-        version: 6.7.1(ai@6.0.191(zod@4.4.3))
+        specifier: link:../../../framework/packages/spec
+        version: link:../../../framework/packages/spec
       react:
         specifier: 19.2.6
         version: 19.2.6
@@ -2496,8 +2497,8 @@ importers:
   packages/types:
     dependencies:
       '@objectstack/spec':
-        specifier: ^6.7.1
-        version: 6.7.1(ai@6.0.191(zod@4.4.3))
+        specifier: link:../../../framework/packages/spec
+        version: link:../../../framework/packages/spec
       zod:
         specifier: ^4.4.3
         version: 4.4.3
@@ -3854,15 +3855,6 @@ packages:
   '@objectstack/core@6.7.1':
     resolution: {integrity: sha512-aE9M2PuUQtKWnK3zoQELVOL4qxZYk+gLaUROXbRfEcgKRaFyFHD6Q0BOXHi0OO5HLWnrYZfAg2puJY6bZZL3Zw==}
     engines: {node: '>=18.0.0'}
-
-  '@objectstack/spec@6.7.1':
-    resolution: {integrity: sha512-CNJJvDs9KPBmEWP83kIH2vc3N2AeeFvfcsOmf+gyilSW96pfLUaxrsBecAM3mhtUR1WhTG4Y7/qqaFQfXIWBxA==}
-    engines: {node: '>=18.0.0'}
-    peerDependencies:
-      ai: ^6.0.0
-    peerDependenciesMeta:
-      ai:
-        optional: true
 
   '@open-draft/deferred-promise@2.2.0':
     resolution: {integrity: sha512-CecwLWx3rhxVQF6V4bAgPS5t+So2sTbPgAzafKkVizyi7tlwpcFpdFqq+wqF2OwNBmqFuu6tOyouTuxgpMfzmA==}
@@ -11752,25 +11744,15 @@ snapshots:
       '@nodelib/fs.scandir': 2.1.5
       fastq: 1.20.1
 
-  '@objectstack/client@6.7.1(ai@6.0.191(zod@4.4.3))':
+  '@objectstack/client@6.7.1':
     dependencies:
-      '@objectstack/core': 6.7.1(ai@6.0.191(zod@4.4.3))
-      '@objectstack/spec': 6.7.1(ai@6.0.191(zod@4.4.3))
-    transitivePeerDependencies:
-      - ai
+      '@objectstack/core': 6.7.1
+      '@objectstack/spec': link:../framework/packages/spec
 
-  '@objectstack/core@6.7.1(ai@6.0.191(zod@4.4.3))':
+  '@objectstack/core@6.7.1':
     dependencies:
-      '@objectstack/spec': 6.7.1(ai@6.0.191(zod@4.4.3))
+      '@objectstack/spec': link:../framework/packages/spec
       zod: 4.4.3
-    transitivePeerDependencies:
-      - ai
-
-  '@objectstack/spec@6.7.1(ai@6.0.191(zod@4.4.3))':
-    dependencies:
-      zod: 4.4.3
-    optionalDependencies:
-      ai: 6.0.191(zod@4.4.3)
 
   '@open-draft/deferred-promise@2.2.0': {}
 

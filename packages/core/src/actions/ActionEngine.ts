@@ -19,15 +19,16 @@
 
 import { ActionRunner, type ActionDef, type ActionContext, type ActionResult } from './ActionRunner';
 
-/** Action location types (from @objectstack/spec) */
-export type ActionLocation =
-  | 'list_toolbar'
-  | 'list_item'
-  | 'record_header'
-  | 'record_more'
-  | 'record_related'
-  | 'record_section'
-  | 'global_nav';
+/**
+ * Action location types — re-exported from `@objectstack/spec/ui` so the
+ * platform has one source of truth (`ACTION_LOCATIONS`). Do NOT redeclare
+ * this enum locally; add new values in
+ * `framework/packages/spec/src/ui/action.zod.ts` and they propagate here
+ * automatically.
+ */
+export type { ActionLocation } from '@objectstack/spec/ui';
+export { ACTION_LOCATIONS } from '@objectstack/spec/ui';
+import type { ActionLocation } from '@objectstack/spec/ui';
 
 /** Registered action with metadata */
 export interface RegisteredAction {
