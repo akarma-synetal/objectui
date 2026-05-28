@@ -37,7 +37,7 @@ import {
   getMetadataResource,
   resolveResourceConfig,
 } from './registry';
-import { t, detectLocale } from './i18n';
+import { t, tFormat, translateMetadataType, detectLocale } from './i18n';
 
 export interface MetadataResourceListPageProps {
   type?: string;
@@ -123,6 +123,7 @@ export function MetadataResourceListPage({ type: typeProp }: MetadataResourceLis
 
   const columns = config.listColumns ?? defaultColumns(config.primaryKey ?? 'name');
   const locale = detectLocale();
+  const typeLabel = translateMetadataType(type, locale, entry?.label ?? type);
 
   // Localise default column labels — registered columns keep their
   // hand-authored labels (consumers may want bespoke wording).
@@ -199,14 +200,14 @@ export function MetadataResourceListPage({ type: typeProp }: MetadataResourceLis
           <Empty>
             <EmptyTitle>
               {items.length === 0
-                ? `No ${type} items registered`
-                : `No matches for "${query}"`}
+                ? tFormat('engine.list.emptyType', locale, { type: typeLabel })
+                : tFormat('engine.list.emptyQuery', locale, { query })}
             </EmptyTitle>
             <EmptyDescription>
               {config.emptyStateHint ??
                 (entry?.allowOrgOverride
-                  ? `Click "New" above to create the first ${type}.`
-                  : `This type is read-only — instances are defined by code artifacts in packages.`)}
+                  ? tFormat('engine.list.createHint', locale, { type: typeLabel })
+                  : t('engine.list.readOnlyHint', locale))}
             </EmptyDescription>
           </Empty>
         )}

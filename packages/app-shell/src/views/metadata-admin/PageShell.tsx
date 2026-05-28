@@ -21,7 +21,7 @@ import { Badge } from '@object-ui/components';
 import { Button } from '@object-ui/components';
 import { ChevronRight } from 'lucide-react';
 import type { RichMetadataTypeEntry } from './useMetadata';
-import { detectLocale, t, translateMetadataType } from './i18n';
+import { detectLocale, t, translateMetadataType, translateMetadataDomain } from './i18n';
 
 export interface PageShellProps {
   /** The type entry from `/meta/types` (or a synthesized stub). */
@@ -93,7 +93,7 @@ export function PageShell({
               </code>
               {entry?.domain && (
                 <Badge variant="outline" className="text-[10px] uppercase tracking-wider">
-                  {entry.domain}
+                  {translateMetadataDomain(entry.domain, locale)}
                 </Badge>
               )}
               {entry?.allowOrgOverride ? (
