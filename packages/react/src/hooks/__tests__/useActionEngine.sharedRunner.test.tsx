@@ -31,7 +31,7 @@ import React from 'react';
 import { describe, it, expect } from 'vitest';
 import { renderHook } from '@testing-library/react';
 import { useActionEngine } from '../useActionEngine';
-import { ActionProvider } from '../../context/ActionContext';
+import { ActionProvider, useAction } from '../../context/ActionContext';
 
 const SELF_ID = 'user-self';
 
@@ -42,19 +42,24 @@ function withProvider(providerContext: any) {
 
 describe('useActionEngine — shared ActionProvider runner', () => {
   it('reuses the provider runner instead of building a standalone one', () => {
-    // If the hook ignored the provider, two nested `useActionEngine` calls
-    // would each get their own runner with different evaluator state.
-    // Sharing means both see the same in-memory engine.
+    // Render the hook and `useAction()` under the same provider tree and
+    // verify both observe the same in-memory `ActionRunner` instance.
+    // (Two separate `renderHook` calls would each instantiate their own
+    // provider, so identity comparison there is meaningless.)
     const wrapper = withProvider({
       record: { id: SELF_ID },
       user: { id: SELF_ID },
       objectName: 'sys_user',
     });
 
-    const a = renderHook(() => useActionEngine({ actions: [] }), { wrapper });
-    const b = renderHook(() => useActionEngine({ actions: [] }), { wrapper });
-    // Both engines must wrap the same underlying ActionRunner.
-    expect(a.result.current.engine.getRunner()).toBe(b.result.current.engine.getRunner());
+    const { result } = renderHook(
+      () => ({
+        hook: useActionEngine({ actions: [] }),
+        provider: useAction(),
+      }),
+      { wrapper }
+    );
+    expect(result.current.hook.engine.getRunner()).toBe(result.current.provider.runner);
   });
 
   it('preserves provider `ctx.user` when hook layers per-render context (regression)', () => {
