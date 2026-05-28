@@ -2,6 +2,7 @@
   "title": "Guide",
   "pages": [
     "quick-start",
+    "agent-skills",
     "architecture",
     "architecture-overview",
     "schema-rendering",

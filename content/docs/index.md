@@ -124,6 +124,11 @@ ObjectUI provides a complete toolkit for building schema-driven applications:
   pnpm --filter @object-ui/runner dev
   ```
 
+- **[Agent Skill](/docs/guide/agent-skills)** - Install the ObjectUI skill into Claude Code, Cursor, Codex, GitHub Copilot, Windsurf, Gemini, Cline and more
+  ```bash
+  npx skills add objectstack-ai/objectui
+  ```
+
 ### Data Integration
 
 - **[ObjectStack Adapter](/docs/utilities/data-objectstack)** - Connect to ObjectStack backends
