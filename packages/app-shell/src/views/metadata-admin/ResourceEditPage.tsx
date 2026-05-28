@@ -71,6 +71,7 @@ import {
 import { RelatedPanel, type RelatedTarget } from './RelatedPanel';
 import { MetadataDetailDrawer } from './MetadataDetailDrawer';
 import { getMetadataPreview } from './preview-registry';
+import { detectLocale, t, tFormat } from './i18n';
 
 export interface MetadataResourceEditPageProps {
   type?: string;
@@ -99,6 +100,7 @@ export function MetadataResourceEditPage({
   const { entries } = useMetadataTypes(client);
   const entry: RichMetadataTypeEntry | undefined = entries.find((t) => t.type === type);
   const config = resolveResourceConfig(type, entry);
+  const locale = React.useMemo(() => detectLocale(), []);
 
   // Custom editor takes over.
   const customConfig = getMetadataResource(type);
@@ -398,13 +400,13 @@ export function MetadataResourceEditPage({
     <PageShell
       entry={entry ?? { type, label: type }}
       itemName={createMode ? '(new)' : name}
-      subtitle={createMode ? 'Create new' : 'Edit overlay'}
+      subtitle={createMode ? t('engine.edit.createNew', locale) : t('engine.edit.editOverlay', locale)}
       actions={
         <>
           {!createMode && entry?.allowOrgOverride && (
             <Button variant="ghost" size="sm" onClick={doReset} disabled={saving}>
               <RotateCcw className="h-4 w-4 mr-1" />
-              Reset overlay
+              {t('engine.edit.reset', locale)}
             </Button>
           )}
           {!createMode && (
@@ -414,7 +416,7 @@ export function MetadataResourceEditPage({
               onClick={() => navigate(`./history`)}
             >
               <History className="h-4 w-4 mr-1" />
-              History
+              {t('engine.edit.history', locale)}
             </Button>
           )}
           {/* Edit-mode toggle. Three states:
@@ -427,13 +429,13 @@ export function MetadataResourceEditPage({
           {entry?.allowOrgOverride && !createMode && !editing && (
             <Button size="sm" onClick={() => setEditing(true)}>
               <Pencil className="h-4 w-4 mr-1" />
-              Edit
+              {t('engine.edit.edit', locale)}
             </Button>
           )}
           {entry?.allowOrgOverride && !createMode && editing && (
             <Button variant="ghost" size="sm" onClick={doCancelEdit} disabled={saving}>
               <X className="h-4 w-4 mr-1" />
-              Cancel
+              {t('engine.cancel', locale)}
             </Button>
           )}
           {entry?.allowOrgOverride && (editing || createMode) && (
@@ -443,7 +445,7 @@ export function MetadataResourceEditPage({
               ) : (
                 <Save className="h-4 w-4 mr-1" />
               )}
-              Save
+              {t('engine.edit.save', locale)}
             </Button>
           )}
         </>
@@ -481,16 +483,16 @@ export function MetadataResourceEditPage({
             {PreviewComponent && (
               <TabsTrigger value="preview">
                 <Eye className="h-3.5 w-3.5 mr-1" />
-                Preview
+                {t('engine.edit.preview', locale)}
               </TabsTrigger>
             )}
-            <TabsTrigger value="form">Detail</TabsTrigger>
+            <TabsTrigger value="form">{t('engine.edit.detail', locale)}</TabsTrigger>
             {!createMode && (
               <TabsTrigger value="layers">
-                Layers
+                {t('engine.edit.layers', locale)}
                 {layered?.overlay && (
                   <Badge className="ml-1.5 text-[10px] bg-emerald-600 text-emerald-50">
-                    overlay
+                    {t('engine.edit.overlay', locale)}
                   </Badge>
                 )}
               </TabsTrigger>
@@ -501,7 +503,7 @@ export function MetadataResourceEditPage({
                 onClick={loadReferences}
               >
                 <Link2 className="h-3.5 w-3.5 mr-1" />
-                References
+                {t('engine.edit.references', locale)}
                 {refs && (
                   <Badge variant="outline" className="ml-1.5 text-[10px]">
                     {refs.length}
@@ -512,7 +514,7 @@ export function MetadataResourceEditPage({
             {hasAnchors && (
               <TabsTrigger value="related">
                 <Layers3 className="h-3.5 w-3.5 mr-1" />
-                Related
+                {t('engine.edit.related', locale)}
               </TabsTrigger>
             )}
           </TabsList>
@@ -527,11 +529,16 @@ export function MetadataResourceEditPage({
             {formReadOnly && !readOnly && entry?.allowOrgOverride && !createMode && (
               <div className="flex items-center justify-between gap-3 text-xs text-muted-foreground border rounded p-2.5 bg-muted/30">
                 <span>
-                  Viewing in read-only mode. Click <strong>Edit</strong> to make changes.
+                  {t('engine.edit.readOnlyBanner', locale).split(/\{edit\}/).map((part, i, arr) => (
+                    <React.Fragment key={i}>
+                      {part}
+                      {i < arr.length - 1 && <strong>{t('engine.edit.edit', locale)}</strong>}
+                    </React.Fragment>
+                  ))}
                 </span>
                 <Button size="sm" variant="outline" onClick={() => setEditing(true)}>
                   <Pencil className="h-3.5 w-3.5 mr-1" />
-                  Edit
+                  {t('engine.edit.edit', locale)}
                 </Button>
               </div>
             )}

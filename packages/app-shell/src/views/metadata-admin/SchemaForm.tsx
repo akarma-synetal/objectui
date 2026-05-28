@@ -51,6 +51,7 @@ import {
 } from '@object-ui/components';
 import { evaluatePredicate } from './predicate';
 import { WIDGETS, type WidgetContext } from './widgets';
+import { detectLocale, t } from './i18n';
 
 type JsonSchema = Record<string, any>;
 
@@ -1003,7 +1004,7 @@ function RepeaterField({
             <tbody>
               {rows.length === 0 && (
                 <tr><td colSpan={specs.length + 1} className="px-2 py-3 text-center text-xs text-muted-foreground">
-                  No items. Click + to add.
+                  {t('engine.repeater.empty', detectLocale())}
                 </td></tr>
               )}
               {rows.map((row, idx) => (
@@ -1053,7 +1054,7 @@ function RepeaterField({
     <div className="space-y-2">
       {rows.length === 0 && (
         <div className="rounded-md border border-dashed border-border/50 px-3 py-4 text-center text-xs text-muted-foreground">
-          No items yet.
+          {t('engine.list.empty', detectLocale())}
         </div>
       )}
       {rows.map((row, idx) => {

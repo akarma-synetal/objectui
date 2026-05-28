@@ -52,6 +52,8 @@ import {
   getCloudInstallationInfo,
   reseedSampleData,
   purgeSampleData,
+  reseedLocalSampleData,
+  purgeLocalSampleData,
   type MarketplaceDetailResponse,
   type CloudEnvironment,
   type LocalInstallEntry,
@@ -384,6 +386,59 @@ export function MarketplacePackagePage() {
     }
   };
 
+  const doReseedLocalSampleData = async () => {
+    if (!localInstall) return;
+    setSampleDataBusy('reseed');
+    setSampleDataMsg(null);
+    try {
+      const r = await reseedLocalSampleData(localInstall.manifestId);
+      setLocalInstalls((prev) => prev.map((i) =>
+        i.manifestId === localInstall.manifestId ? { ...i, withSampleData: true } : i,
+      ));
+      const inserted = r.inserted ?? 0;
+      const updated = r.updated ?? 0;
+      setSampleDataMsg({
+        ok: true,
+        text: t('marketplace.detail.reseedLocalSuccess', { inserted, updated })
+          || `Sample data re-seeded (inserted=${inserted}, updated=${updated}).`,
+      });
+    } catch (err: any) {
+      setSampleDataMsg({ ok: false, text: err?.message || 'Re-seed failed' });
+    } finally {
+      setSampleDataBusy(null);
+    }
+  };
+
+  const doPurgeLocalSampleData = async () => {
+    if (!localInstall) return;
+    if (!confirm(
+      t('marketplace.detail.purgeConfirm')
+      || 'Delete all sample records seeded by this package? User-added records will NOT be touched.',
+    )) {
+      return;
+    }
+    setSampleDataBusy('purge');
+    setSampleDataMsg(null);
+    try {
+      const r = await purgeLocalSampleData(localInstall.manifestId);
+      setLocalInstalls((prev) => prev.map((i) =>
+        i.manifestId === localInstall.manifestId ? { ...i, withSampleData: false } : i,
+      ));
+      const removed = r.deleted ?? 0;
+      setSampleDataMsg({
+        ok: true,
+        text: removed > 0
+          ? (t('marketplace.detail.purgeSuccess', { count: removed })
+              || `Removed ${removed} sample record(s).`)
+          : (t('marketplace.detail.purgeNoData') || 'No sample records found to purge.'),
+      });
+    } catch (err: any) {
+      setSampleDataMsg({ ok: false, text: err?.message || 'Purge failed' });
+    } finally {
+      setSampleDataBusy(null);
+    }
+  };
+
   if (loading) {
     return (
       <div className="mx-auto w-full max-w-6xl flex flex-col gap-6 p-4 sm:p-6">
@@ -512,6 +567,24 @@ export function MarketplacePackagePage() {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-56">
+                <DropdownMenuItem onSelect={doReseedLocalSampleData} disabled={sampleDataBusy !== null}>
+                  {sampleDataBusy === 'reseed'
+                    ? <Loader2 className="h-4 w-4 mr-2 animate-spin" aria-hidden="true" />
+                    : <Database className="h-4 w-4 mr-2" aria-hidden="true" />}
+                  {localInstall.withSampleData
+                    ? (t('marketplace.detail.reseedAgain') || 'Re-seed sample data')
+                    : (t('marketplace.detail.addSampleData') || 'Add sample data')}
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onSelect={doPurgeLocalSampleData}
+                  disabled={sampleDataBusy !== null || !localInstall.withSampleData}
+                  className="text-destructive focus:text-destructive"
+                >
+                  {sampleDataBusy === 'purge'
+                    ? <Loader2 className="h-4 w-4 mr-2 animate-spin" aria-hidden="true" />
+                    : <Trash2 className="h-4 w-4 mr-2" aria-hidden="true" />}
+                  {t('marketplace.detail.purgeSampleData') || 'Purge sample data'}
+                </DropdownMenuItem>
                 <DropdownMenuItem onSelect={doUninstallLocal} disabled={installingLocal} className="text-destructive focus:text-destructive">
                   <Trash2 className="h-4 w-4 mr-2" aria-hidden="true" />
                   {t('marketplace.detail.uninstallFromRuntime')}

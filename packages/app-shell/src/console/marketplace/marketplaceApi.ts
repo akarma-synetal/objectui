@@ -392,6 +392,9 @@ export interface LocalInstallEntry {
   version: string;
   installedAt: string;
   installedBy: string | null;
+  /** Whether the bundled seed datasets are currently loaded in the local
+   *  kernel DB. True after install (with seed) or reseed; false after purge. */
+  withSampleData?: boolean;
 }
 
 export interface LocalInstallResult {
@@ -456,4 +459,39 @@ export async function uninstallLocal(manifestId: string): Promise<void> {
     const message = payload?.error?.message ?? res.statusText;
     throw new Error(typeof message === 'string' ? message : `HTTP_${res.status}`);
   }
+}
+
+export interface LocalSampleDataResult {
+  manifestId: string;
+  inserted?: number;
+  updated?: number;
+  deleted?: number;
+  skipped?: number;
+  errors?: number;
+  withSampleData: boolean;
+}
+
+async function postLocalSampleAction(manifestId: string, action: 'reseed' | 'purge'): Promise<LocalSampleDataResult> {
+  const path = action === 'reseed' ? 'reseed-sample-data' : 'purge-sample-data';
+  const res = await fetch(`${API_BASE}/install-local/${encodeURIComponent(manifestId)}/${path}`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Accept': 'application/json' },
+  });
+  const payload: any = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const message = payload?.error?.message ?? res.statusText;
+    const err = new Error(typeof message === 'string' ? message : `HTTP_${res.status}`);
+    (err as any).code = payload?.error?.code ?? `HTTP_${res.status}`;
+    throw err;
+  }
+  return (payload?.data ?? payload) as LocalSampleDataResult;
+}
+
+export function reseedLocalSampleData(manifestId: string): Promise<LocalSampleDataResult> {
+  return postLocalSampleAction(manifestId, 'reseed');
+}
+
+export function purgeLocalSampleData(manifestId: string): Promise<LocalSampleDataResult> {
+  return postLocalSampleAction(manifestId, 'purge');
 }
