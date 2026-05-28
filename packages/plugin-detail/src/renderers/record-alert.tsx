@@ -51,7 +51,7 @@ import {
   useMetadataItem,
   useCondition,
   toPredicateInput,
-  useAction,
+  useActionEngine,
 } from '@object-ui/react';
 import { Alert, AlertTitle, AlertDescription, Button, cn, LazyIcon } from '@object-ui/components';
 import type { ActionDef } from '@object-ui/core';
@@ -118,7 +118,6 @@ export const RecordAlertRenderer: React.FC<RecordAlertProps> = ({ schema = {}, c
   const record = recordCtx?.data;
   const objectName = recordCtx?.objectName || '';
   const recordId = (recordCtx?.recordId as any) ?? record?.id;
-  const actionCtx = useAction();
 
   const severity: Severity = (['info', 'warning', 'error', 'success'] as const).includes(props.severity)
     ? (props.severity as Severity)
