@@ -33,6 +33,7 @@ export type ActionLocation =
   | 'record_header'      // Header area of record detail
   | 'record_more'        // More menu in record detail
   | 'record_related'     // Related lists section
+  | 'record_section'     // Embedded section within a record page (e.g. Security tab panels)
   | 'global_nav';        // Global navigation bar
 
 /**

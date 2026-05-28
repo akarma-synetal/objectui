@@ -16,7 +16,7 @@
  */
 
 import React from 'react';
-import { useRecordContext, useActionEngine } from '@object-ui/react';
+import { useRecordContext, useActionEngine, useMetadataItem, useAction } from '@object-ui/react';
 import { usePermissions } from '@object-ui/permissions';
 import { Button, cn } from '@object-ui/components';
 import type { ActionDef, ActionLocation } from '@object-ui/core';
@@ -53,13 +53,40 @@ export const RecordQuickActionsRenderer: React.FC<RecordQuickActionsRendererProp
 
   // Spec bridge inlines `properties.*` onto the node but also preserves the
   // raw bag. Read from both for compatibility.
-  const actions: ActionDef[] = Array.isArray(schema.actions)
+  const rawActions: unknown = Array.isArray(schema.actions)
     ? schema.actions
     : Array.isArray(schema.properties?.actions)
-      ? (schema.properties!.actions as ActionDef[])
+      ? schema.properties!.actions
+      : [];
+  const actionNames: string[] = Array.isArray(schema.actionNames)
+    ? schema.actionNames
+    : Array.isArray(schema.properties?.actionNames)
+      ? (schema.properties!.actionNames as string[])
       : [];
 
   const objectName = ctx?.objectName || '';
+
+  // Lookup-by-name path: when the page schema passes `actionNames: ['...']`
+  // (or `actions: ['...']` as strings), resolve the ActionDef[] from the
+  // object's own metadata. Keeps page schemas DRY — actions stay defined
+  // once on the object.
+  const namesToResolve: string[] = actionNames.length > 0
+    ? actionNames
+    : (Array.isArray(rawActions) && rawActions.every((a) => typeof a === 'string')
+        ? (rawActions as string[])
+        : []);
+  const needsLookup = namesToResolve.length > 0 && !!objectName;
+  const { item: objectMeta } = useMetadataItem('object', needsLookup ? objectName : null);
+
+  const actions: ActionDef[] = needsLookup
+    ? (() => {
+        const all: ActionDef[] = Array.isArray(objectMeta?.actions) ? objectMeta!.actions : [];
+        const byName = new Map(all.map((a) => [a.name, a]));
+        return namesToResolve
+          .map((n) => byName.get(n))
+          .filter((a): a is ActionDef => !!a);
+      })()
+    : (Array.isArray(rawActions) ? (rawActions as ActionDef[]) : []);
   const required: string[] = Array.isArray(schema.requiredPermissions)
     ? schema.requiredPermissions
     : [];
@@ -78,7 +105,12 @@ export const RecordQuickActionsRenderer: React.FC<RecordQuickActionsRendererProp
 
   const location: ActionLocation = (schema.location as ActionLocation) || 'record_header';
 
-  const { getActionsForLocation, executeAction } = useActionEngine({
+  // Use the local engine purely for *filtering* (location + visible CEL eval).
+  // For *execution* fall back to the global ActionProvider runner so we
+  // inherit its installed confirm/param-collection/modal/result-dialog/toast
+  // handlers — without those, actions that declare `params: [...]` or
+  // `confirmText: '...'` would silently no-op on click.
+  const { getActionsForLocation } = useActionEngine({
     actions,
     context: {
       record: ctx?.data,
@@ -86,6 +118,7 @@ export const RecordQuickActionsRenderer: React.FC<RecordQuickActionsRendererProp
       objectName: ctx?.objectName,
     } as any,
   });
+  const { execute: globalExecute } = useAction();
 
   const visibleActions = actions.length > 0 ? getActionsForLocation(location) : [];
 
@@ -138,7 +171,7 @@ export const RecordQuickActionsRenderer: React.FC<RecordQuickActionsRendererProp
                 void action.onClick();
                 return;
               }
-              if (action.name) void executeAction(action.name);
+              if (action.name) void globalExecute(action);
             }}
           >
             {label}

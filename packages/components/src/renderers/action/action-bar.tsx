@@ -248,7 +248,7 @@ ComponentRegistry.register('action:bar', ActionBarRenderer, {
       name: 'location',
       type: 'enum',
       label: 'Location',
-      enum: ['list_toolbar', 'list_item', 'record_header', 'record_more', 'record_related', 'global_nav'],
+      enum: ['list_toolbar', 'list_item', 'record_header', 'record_more', 'record_related', 'record_section', 'global_nav'],
     },
     {
       name: 'maxVisible',

@@ -26,6 +26,7 @@ export type ActionLocation =
   | 'record_header'
   | 'record_more'
   | 'record_related'
+  | 'record_section'
   | 'global_nav';
 
 /** Registered action with metadata */
