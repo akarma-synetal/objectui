@@ -134,11 +134,18 @@ export function AppContent({ extraRoutes, extraRoutesNoApp }: AppContentProps = 
     return () => { cancelled = true; };
   }, [ensureType]);
 
+  // Hidden apps (`App.hidden`) are excluded from app-listing surfaces
+  // (sidebar switcher, home grid, app switcher). The active app for the
+  // current route is still looked up across ALL apps so /apps/account
+  // resolves correctly; only the fallback (no appName → first app)
+  // skips hidden apps to avoid landing the user on a personal-settings
+  // app by default.
   const activeApps = apps.filter((a: any) => a.active !== false);
+  const launcherApps = activeApps.filter((a: any) => a.hidden !== true);
   const activeApp =
     apps.find((a: any) => a.name === appName) ||
-    activeApps.find((a: any) => a.isDefault === true) ||
-    activeApps[0];
+    launcherApps.find((a: any) => a.isDefault === true) ||
+    launcherApps[0];
 
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingRecord, setEditingRecord] = useState<any>(null);

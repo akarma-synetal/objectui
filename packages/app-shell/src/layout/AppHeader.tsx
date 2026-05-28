@@ -39,9 +39,7 @@ import {
   ChevronDown,
   Check,
   Lock,
-  Settings,
   LogOut,
-  User as UserIcon,
   Boxes,
   Bot,
 } from 'lucide-react';
@@ -720,14 +718,6 @@ export function AppHeader({
                   {t('organizations.mine', { defaultValue: 'My Organizations' })}
                 </DropdownMenuItem>
               )}
-              <DropdownMenuItem onClick={() => navigate('/apps/setup/system/profile')}>
-                <UserIcon className="mr-2 h-4 w-4" />
-                {t('user.profile', { defaultValue: 'Profile' })}
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => navigate('/apps/setup')}>
-                <Settings className="mr-2 h-4 w-4" />
-                {t('sidebar.settings', { defaultValue: 'Settings' })}
-              </DropdownMenuItem>
               {/*
                * Hidden apps (App.hidden === true) surface here instead
                * of in the App Switcher. This is the standard pattern for

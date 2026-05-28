@@ -170,9 +170,11 @@ export function AppSidebar({ activeAppName, onAppChange }: { activeAppName: stri
   
   const { apps: metadataApps, objects: metadataObjects } = useMetadata();
   const apps = metadataApps || [];
-  // Filter out inactive apps
-  const activeApps = apps.filter((a: any) => a.active !== false);
-  const activeApp = activeApps.find((a: any) => a.name === activeAppName) || activeApps[0];
+  // Filter out inactive + hidden apps from the switcher list.
+  const activeApps = apps.filter((a: any) => a.active !== false && a.hidden !== true);
+  // The active-app lookup still spans ALL apps (incl. hidden) so a
+  // direct /apps/account navigation keeps rendering the Account branding.
+  const activeApp = apps.find((a: any) => a.name === activeAppName && a.active !== false) || activeApps[0];
 
   // Extract branding information from spec
   const logo = activeApp?.branding?.logo;

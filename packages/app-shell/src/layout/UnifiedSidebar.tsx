@@ -161,8 +161,10 @@ export function UnifiedSidebar({ activeAppName }: UnifiedSidebarProps) {
 
   const { apps: metadataApps, objects: metadataObjects } = useMetadata();
   const apps = metadataApps || [];
-  const activeApps = apps.filter((a: any) => a.active !== false);
-  const activeApp = activeApps.find((a: any) => a.name === (activeAppName || currentAppName)) || activeApps[0];
+  // Filter switcher to non-hidden apps; active-app lookup spans all so
+  // direct navigation to /apps/account still renders.
+  const activeApps = apps.filter((a: any) => a.active !== false && a.hidden !== true);
+  const activeApp = apps.find((a: any) => a.name === (activeAppName || currentAppName) && a.active !== false) || activeApps[0];
 
   // Drag-reorder and pin persistence
   const { applyOrder, handleReorder } = useNavOrder(activeApp?.name || 'home');

@@ -90,7 +90,7 @@ export function HomePage() {
   const { user } = useAuth();
   const isAdmin = useIsWorkspaceAdmin();
 
-  const activeApps = apps.filter((a: any) => a.active !== false);
+  const activeApps = apps.filter((a: any) => a.active !== false && a.hidden !== true);
 
   const recentApps = recentItems
     .filter(item => item.type === 'object' || item.type === 'dashboard' || item.type === 'page' || item.type === 'record')
