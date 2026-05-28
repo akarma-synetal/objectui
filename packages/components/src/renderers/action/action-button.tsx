@@ -87,6 +87,11 @@ const ActionButtonRenderer = forwardRef<HTMLButtonElement, ActionButtonProps>(
           errorMessage: schema.errorMessage,
           refreshAfter: schema.refreshAfter,
           toast: schema.toast,
+          // One-shot reveal dialog for actions whose response is shown
+          // exactly once (2FA setup, OAuth client_secret, regenerated
+          // backup codes). Without this forward the ActionRunner falls
+          // back to the success toast and the user loses the value.
+          resultDialog: (schema as any).resultDialog,
           ...localContext,
         });
       } finally {

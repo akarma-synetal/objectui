@@ -347,6 +347,8 @@ export class ActionRunner {
   }
 
   async execute(action: ActionDef): Promise<ActionResult> {
+    // eslint-disable-next-line no-console
+    console.log('[ActionRunner.execute] action=', { type: action.type, actionType: action.actionType, name: action.name, target: action.target });
     try {
       // Resolve the action type
       const actionType = action.type || action.actionType || action.name || '';
@@ -644,6 +646,19 @@ export class ActionRunner {
     }
 
     const isExternal = url.startsWith('http://') || url.startsWith('https://');
+    // eslint-disable-next-line no-console
+    console.log('[executeUrl] action.type=', action.type, 'rawUrl=', rawUrl, 'url=', url, 'isExternal=', isExternal);
+    // Same-origin API endpoints (most commonly the auth provider's
+    // `/api/v1/auth/sign-in/social` redirect dance) issue server-side
+    // 302s that must be followed by the *browser*, not the SPA router.
+    // Pushing `/api/...` into React Router lands on no matching route
+    // and silently falls back to the default page, so the OAuth flow
+    // never starts. Short-circuit to a full-page navigation here.
+    const isApiCall = !isExternal && /^\/(api|_auth|_account)\//.test(url);
+    if (isApiCall) {
+      window.location.href = url;
+      return { success: true };
+    }
     const newTab = action.params?.newTab ?? isExternal;
 
     if (this.navigationHandler) {
