@@ -60,6 +60,7 @@ const TYPE_LABELS_EN: Record<string, string> = {
   // Platform
   package: 'Package',
   data: 'Dataset',
+  job: 'Background Job',
 };
 
 const TYPE_LABELS_ZH: Record<string, string> = {
@@ -91,6 +92,7 @@ const TYPE_LABELS_ZH: Record<string, string> = {
   skill: 'AI 技能',
   package: '包',
   data: '数据集',
+  job: '后台任务',
 };
 
 const DOMAIN_LABELS_EN: Record<string, string> = {
@@ -160,6 +162,8 @@ const ENGINE_STRINGS_EN: Record<string, string> = {
   'engine.edit.readOnlyTypeBanner':
     'This type is read-only. To enable runtime editing, set {flag} to include {type}, or flip {override} in the registry.',
   'engine.repeater.empty': 'No items. Click + to add.',
+  'engine.badge.writable': 'writable',
+  'engine.badge.readOnly': 'read-only',
   'engine.edit.readOnly': 'Read-only (runtime overrides disabled).',
   'engine.edit.loading': 'Loading',
   'engine.edit.bespokeDesigner': 'Designer',
@@ -263,6 +267,8 @@ const ENGINE_STRINGS_ZH: Record<string, string> = {
   'engine.edit.readOnlyTypeBanner':
     '此类型为只读。如需启用运行时编辑，请将 {flag} 设置为包含 {type}，或在注册表中开启 {override}。',
   'engine.repeater.empty': '暂无条目。点击 + 添加。',
+  'engine.badge.writable': '可写',
+  'engine.badge.readOnly': '只读',
   'engine.edit.readOnly': '只读（运行时覆盖未启用）。',
   'engine.edit.loading': '加载中',
   'engine.edit.bespokeDesigner': '可视化编辑器',

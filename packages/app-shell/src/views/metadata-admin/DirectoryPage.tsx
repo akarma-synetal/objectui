@@ -280,11 +280,11 @@ function TypeTile({ entry, locale }: { entry: RichMetadataTypeEntry; locale?: st
                 : 'Writable per ADR-0005 overlay opt-in'
             }
           >
-            writable
+            {t('engine.badge.writable', locale)}
           </Badge>
         ) : (
           <Badge variant="outline" className="text-[10px] shrink-0 text-muted-foreground">
-            read-only
+            {t('engine.badge.readOnly', locale)}
           </Badge>
         )}
       </div>

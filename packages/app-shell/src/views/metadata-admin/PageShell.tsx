@@ -110,11 +110,11 @@ export function PageShell({
                       : 'Writable per ADR-0005 overlay opt-in'
                   }
                 >
-                  writable
+                  {t('engine.badge.writable', locale)}
                 </Badge>
               ) : (
                 <Badge variant="outline" className="text-[10px] text-muted-foreground">
-                  read-only
+                  {t('engine.badge.readOnly', locale)}
                 </Badge>
               )}
             </div>
