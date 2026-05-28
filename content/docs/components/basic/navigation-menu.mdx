@@ -9,65 +9,11 @@ The Navigation Menu component provides an accessible menu for site navigation.
 
 ## Basic Usage
 
-<ComponentDemo
-  schema={{
-    type: 'navigation-menu',
-    items: [
-      {
-        label: 'Home',
-        href: '/'
-      },
-      {
-        label: 'Products',
-        items: [
-          { label: 'All Products', href: '/products' },
-          { label: 'New Arrivals', href: '/products/new' },
-          { label: 'Best Sellers', href: '/products/popular' }
-        ]
-      },
-      {
-        label: 'About',
-        href: '/about'
-      },
-      {
-        label: 'Contact',
-        href: '/contact'
-      }
-    ]
-  }}
-  title="Site Navigation"
-/>
+<SchemaExample id="components-basic-navigation-menu/site-navigation" />
 
 ## With Descriptions
 
-<ComponentDemo
-  schema={{
-    type: 'navigation-menu',
-    items: [
-      {
-        label: 'Getting Started',
-        items: [
-          {
-            label: 'Introduction',
-            description: 'Learn the basics',
-            href: '/docs/intro'
-          },
-          {
-            label: 'Installation',
-            description: 'Install the package',
-            href: '/docs/install'
-          },
-          {
-            label: 'Quick Start',
-            description: 'Build your first app',
-            href: '/docs/quick-start'
-          }
-        ]
-      }
-    ]
-  }}
-  title="Documentation Nav"
-/>
+<SchemaExample id="components-basic-navigation-menu/documentation-nav" />
 
 ## Schema
 

@@ -1,0 +1,116 @@
+{
+  "type": "scroll-area",
+  "width": "100%",
+  "height": "150px",
+  "orientation": "horizontal",
+  "className": "rounded-md border",
+  "content": [
+    {
+      "type": "flex",
+      "gap": 4,
+      "className": "p-4",
+      "children": [
+        {
+          "type": "div",
+          "className": "w-40 h-32 bg-slate-200 rounded flex-shrink-0 flex items-center justify-center",
+          "children": [
+            {
+              "type": "text",
+              "content": "Item 1"
+            }
+          ]
+        },
+        {
+          "type": "div",
+          "className": "w-40 h-32 bg-slate-200 rounded flex-shrink-0 flex items-center justify-center",
+          "children": [
+            {
+              "type": "text",
+              "content": "Item 2"
+            }
+          ]
+        },
+        {
+          "type": "div",
+          "className": "w-40 h-32 bg-slate-200 rounded flex-shrink-0 flex items-center justify-center",
+          "children": [
+            {
+              "type": "text",
+              "content": "Item 3"
+            }
+          ]
+        },
+        {
+          "type": "div",
+          "className": "w-40 h-32 bg-slate-200 rounded flex-shrink-0 flex items-center justify-center",
+          "children": [
+            {
+              "type": "text",
+              "content": "Item 4"
+            }
+          ]
+        },
+        {
+          "type": "div",
+          "className": "w-40 h-32 bg-slate-200 rounded flex-shrink-0 flex items-center justify-center",
+          "children": [
+            {
+              "type": "text",
+              "content": "Item 5"
+            }
+          ]
+        },
+        {
+          "type": "div",
+          "className": "w-40 h-32 bg-slate-200 rounded flex-shrink-0 flex items-center justify-center",
+          "children": [
+            {
+              "type": "text",
+              "content": "Item 6"
+            }
+          ]
+        },
+        {
+          "type": "div",
+          "className": "w-40 h-32 bg-slate-200 rounded flex-shrink-0 flex items-center justify-center",
+          "children": [
+            {
+              "type": "text",
+              "content": "Item 7"
+            }
+          ]
+        },
+        {
+          "type": "div",
+          "className": "w-40 h-32 bg-slate-200 rounded flex-shrink-0 flex items-center justify-center",
+          "children": [
+            {
+              "type": "text",
+              "content": "Item 8"
+            }
+          ]
+        },
+        {
+          "type": "div",
+          "className": "w-40 h-32 bg-slate-200 rounded flex-shrink-0 flex items-center justify-center",
+          "children": [
+            {
+              "type": "text",
+              "content": "Item 9"
+            }
+          ]
+        },
+        {
+          "type": "div",
+          "className": "w-40 h-32 bg-slate-200 rounded flex-shrink-0 flex items-center justify-center",
+          "children": [
+            {
+              "type": "text",
+              "content": "Item 10"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

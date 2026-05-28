@@ -9,37 +9,14 @@ The Spinner component displays a loading indicator.
 
 ## Basic Usage
 
-<ComponentDemo
-  schema={{
-    type: 'spinner'
-  }}
-  title="Default Spinner"
-/>
+<SchemaExample id="components-feedback-spinner/default-spinner" />
 
 ## Sizes
 
 <DemoGrid>
-  <ComponentDemo
-    schema={{
-      type: 'spinner',
-      size: 'sm'
-    }}
-    title="Small"
-  />
-  <ComponentDemo
-    schema={{
-      type: 'spinner',
-      size: 'md'
-    }}
-    title="Medium"
-  />
-  <ComponentDemo
-    schema={{
-      type: 'spinner',
-      size: 'lg'
-    }}
-    title="Large"
-  />
+  <SchemaExample id="components-feedback-spinner/small" />
+  <SchemaExample id="components-feedback-spinner/medium" />
+  <SchemaExample id="components-feedback-spinner/large" />
 </DemoGrid>
 
 ## Schema
@@ -56,30 +33,8 @@ interface SpinnerSchema {
 
 ### In Button
 
-<ComponentDemo
-  schema={{
-    type: 'button',
-    label: 'Loading...',
-    disabled: true,
-    children: [
-      { type: 'spinner', size: 'sm' },
-      { type: 'text', value: 'Please wait' }
-    ]
-  }}
-  title="Loading Button"
-/>
+<SchemaExample id="components-feedback-spinner/loading-button" />
 
 ### Centered
 
-<ComponentDemo
-  schema={{
-    type: 'flex',
-    justify: 'center',
-    align: 'center',
-    className: 'h-32',
-    children: [
-      { type: 'spinner', size: 'lg' }
-    ]
-  }}
-  title="Centered Spinner"
-/>
+<SchemaExample id="components-feedback-spinner/centered-spinner" />

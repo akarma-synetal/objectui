@@ -9,40 +9,11 @@ The Lookup Field component provides a reference field for creating relationships
 
 ## Basic Usage
 
-<ComponentDemo
-  schema={{
-    type: 'lookup',
-    name: 'assigned_to',
-    label: 'Assigned To',
-    placeholder: 'Select user...',
-    reference_to: 'users',
-    options: [
-      { label: 'John Doe', value: 'user_1' },
-      { label: 'Jane Smith', value: 'user_2' },
-      { label: 'Bob Johnson', value: 'user_3' }
-    ]
-  }}
-  title="Basic Lookup"
-/>
+<SchemaExample id="fields-lookup/basic-lookup" />
 
 ## Multiple References
 
-<ComponentDemo
-  schema={{
-    type: 'lookup',
-    name: 'team_members',
-    label: 'Team Members',
-    placeholder: 'Select team members...',
-    reference_to: 'users',
-    multiple: true,
-    options: [
-      { label: 'Alice Brown', value: 'user_4' },
-      { label: 'Charlie Davis', value: 'user_5' },
-      { label: 'Diana Wilson', value: 'user_6' }
-    ]
-  }}
-  title="Multi-Select Lookup"
-/>
+<SchemaExample id="fields-lookup/multi-select-lookup" />
 
 ## Field Schema
 

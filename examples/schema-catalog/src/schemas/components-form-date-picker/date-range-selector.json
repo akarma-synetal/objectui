@@ -1,0 +1,19 @@
+{
+  "type": "flex",
+  "gap": 2,
+  "align": "center",
+  "children": [
+    {
+      "type": "date-picker",
+      "placeholder": "Start date"
+    },
+    {
+      "type": "text",
+      "value": "to"
+    },
+    {
+      "type": "date-picker",
+      "placeholder": "End date"
+    }
+  ]
+}

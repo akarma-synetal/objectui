@@ -1,0 +1,20 @@
+{
+  "type": "select",
+  "name": "status",
+  "label": "Status",
+  "placeholder": "Select status...",
+  "options": [
+    {
+      "label": "Draft",
+      "value": "draft"
+    },
+    {
+      "label": "In Progress",
+      "value": "in_progress"
+    },
+    {
+      "label": "Completed",
+      "value": "completed"
+    }
+  ]
+}

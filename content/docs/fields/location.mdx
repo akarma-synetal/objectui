@@ -9,40 +9,15 @@ The Location Field component provides an input for geographic coordinates, stori
 
 ## Basic Usage
 
-<ComponentDemo
-  schema={{
-    type: 'location',
-    name: 'office_location',
-    label: 'Office Location',
-    placeholder: 'latitude, longitude'
-  }}
-  title="Basic Location Field"
-/>
+<SchemaExample id="fields-location/basic-location-field" />
 
 ## With Default Value
 
-<ComponentDemo
-  schema={{
-    type: 'location',
-    name: 'store_location',
-    label: 'Store Location',
-    value: { latitude: 37.7749, longitude: -122.4194 }
-  }}
-  title="San Francisco Coordinates"
-/>
+<SchemaExample id="fields-location/san-francisco-coordinates" />
 
 ## Read-Only
 
-<ComponentDemo
-  schema={{
-    type: 'location',
-    name: 'headquarters',
-    label: 'Headquarters',
-    value: { latitude: 40.7128, longitude: -74.0060 },
-    readonly: true
-  }}
-  title="Read-Only Location"
-/>
+<SchemaExample id="fields-location/read-only-location" />
 
 ## Field Schema
 

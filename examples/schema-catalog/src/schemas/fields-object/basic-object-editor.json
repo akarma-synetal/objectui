@@ -1,0 +1,6 @@
+{
+  "type": "object",
+  "name": "metadata",
+  "label": "Metadata",
+  "placeholder": "{\n  \"key\": \"value\"\n}"
+}

@@ -1,0 +1,10 @@
+{
+  "type": "button",
+  "label": "Save",
+  "onClick": {
+    "action": "toast",
+    "title": "Saved Successfully",
+    "description": "Your changes have been saved.",
+    "duration": 3000
+  }
+}

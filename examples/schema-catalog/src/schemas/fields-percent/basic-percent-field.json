@@ -1,0 +1,6 @@
+{
+  "type": "percent",
+  "name": "completion",
+  "label": "Completion",
+  "placeholder": "0"
+}

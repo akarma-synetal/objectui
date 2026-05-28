@@ -32,33 +32,7 @@ The View Switcher component renders a selector and the active view schema in one
 
 ## Basic Usage
 
-<ComponentDemo
-  schema={{
-    type: 'view-switcher',
-    variant: 'tabs',
-    position: 'top',
-    defaultView: 'grid',
-    views: [
-      {
-        type: 'grid',
-        label: 'Grid',
-        schema: { type: 'text', content: 'Grid content' }
-      },
-      {
-        type: 'kanban',
-        label: 'Kanban',
-        schema: { type: 'text', content: 'Kanban content' }
-      },
-      {
-        type: 'calendar',
-        label: 'Calendar',
-        schema: { type: 'text', content: 'Calendar content' }
-      }
-    ]
-  }}
-  title="View Switcher"
-  description="Switch between multiple view schemas using tabs."
-/>
+<SchemaExample id="components-complex-view-switcher/view-switcher" />
 
 ## Schema
 

@@ -1,0 +1,6 @@
+{
+  "type": "datetime",
+  "name": "appointment",
+  "label": "Appointment",
+  "required": true
+}

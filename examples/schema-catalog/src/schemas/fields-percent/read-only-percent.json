@@ -1,0 +1,7 @@
+{
+  "type": "percent",
+  "name": "success_rate",
+  "label": "Success Rate",
+  "value": 0.875,
+  "readonly": true
+}

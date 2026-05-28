@@ -1,0 +1,10 @@
+{
+  "type": "button",
+  "label": "Show Toast with Action",
+  "onClick": {
+    "action": "toast",
+    "title": "Update Available",
+    "description": "A new version is available.",
+    "actionLabel": "Update Now"
+  }
+}

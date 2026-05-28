@@ -1,0 +1,40 @@
+{
+  "type": "card",
+  "className": "max-w-sm mx-auto",
+  "children": [
+    {
+      "type": "stack",
+      "spacing": 4,
+      "className": "items-center text-center p-4",
+      "children": [
+        {
+          "type": "div",
+          "className": "w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center",
+          "children": [
+            {
+              "type": "icon",
+              "name": "zap",
+              "className": "h-6 w-6 text-primary"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "content": "Fast Performance",
+          "className": "text-lg font-semibold"
+        },
+        {
+          "type": "text",
+          "content": "Lightning-fast response times with optimized bundle sizes and edge caching support.",
+          "className": "text-sm text-muted-foreground"
+        },
+        {
+          "type": "button",
+          "label": "Learn More",
+          "variant": "outline",
+          "size": "sm"
+        }
+      ]
+    }
+  ]
+}

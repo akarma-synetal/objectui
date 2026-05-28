@@ -1,0 +1,27 @@
+{
+  "type": "flex",
+  "gap": 4,
+  "align": "center",
+  "children": [
+    {
+      "type": "icon",
+      "name": "star",
+      "size": "sm"
+    },
+    {
+      "type": "icon",
+      "name": "star",
+      "size": "md"
+    },
+    {
+      "type": "icon",
+      "name": "star",
+      "size": "lg"
+    },
+    {
+      "type": "icon",
+      "name": "star",
+      "size": "xl"
+    }
+  ]
+}

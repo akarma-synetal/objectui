@@ -1,0 +1,7 @@
+{
+  "type": "currency",
+  "name": "amount",
+  "label": "Amount",
+  "placeholder": "$0.00",
+  "currency": "USD"
+}

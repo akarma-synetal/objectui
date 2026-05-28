@@ -7,69 +7,11 @@ import { ComponentDemo, DemoGrid } from '@/app/components/ComponentDemo';
 
 ## Examples
 
-  <ComponentDemo
-    schema={{
-      type: "icon",
-      name: "home"
-}}
-    title="Basic Icon"
-  />
+  <SchemaExample id="components-basic-icon/basic-icon" />
 
-  <ComponentDemo
-    schema={{
-      type: "flex",
-      gap: 4,
-      align: "center",
-      children: [
-            {
-                  type: "icon",
-                  name: "star",
-                  size: "sm"
-            },
-            {
-                  type: "icon",
-                  name: "star",
-                  size: "md"
-            },
-            {
-                  type: "icon",
-                  name: "star",
-                  size: "lg"
-            },
-            {
-                  type: "icon",
-                  name: "star",
-                  size: "xl"
-            }
-      ]
-}}
-    title="Icon Sizes"
-  />
+  <SchemaExample id="components-basic-icon/icon-sizes" />
 
-  <ComponentDemo
-    schema={{
-      type: "flex",
-      gap: 4,
-      children: [
-            {
-                  type: "icon",
-                  name: "heart",
-                  color: "text-red-500"
-            },
-            {
-                  type: "icon",
-                  name: "star",
-                  color: "text-yellow-500"
-            },
-            {
-                  type: "icon",
-                  name: "check",
-                  color: "text-green-500"
-            }
-      ]
-}}
-    title="Colored Icons"
-  />
+  <SchemaExample id="components-basic-icon/colored-icons" />
 
 ## Schema
 

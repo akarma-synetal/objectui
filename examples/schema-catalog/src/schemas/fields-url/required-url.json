@@ -1,0 +1,7 @@
+{
+  "type": "url",
+  "name": "portfolio",
+  "label": "Portfolio URL",
+  "placeholder": "https://yoursite.com",
+  "required": true
+}

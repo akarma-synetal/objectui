@@ -1,0 +1,7 @@
+{
+  "type": "percent",
+  "name": "progress",
+  "label": "Progress",
+  "precision": 1,
+  "value": 0.753
+}

@@ -9,46 +9,15 @@ The Formula Field component displays computed values calculated from other field
 
 ## Basic Usage
 
-<ComponentDemo
-  schema={{
-    type: 'formula',
-    name: 'total',
-    label: 'Total Amount',
-    formula: 'quantity * price',
-    return_type: 'number',
-    readonly: true
-  }}
-  title="Numeric Formula"
-/>
+<SchemaExample id="fields-formula/numeric-formula" />
 
 ## Text Formula
 
-<ComponentDemo
-  schema={{
-    type: 'formula',
-    name: 'full_name',
-    label: 'Full Name',
-    formula: 'first_name + " " + last_name',
-    return_type: 'text',
-    readonly: true,
-    value: 'John Doe'
-  }}
-  title="Text Concatenation"
-/>
+<SchemaExample id="fields-formula/text-concatenation" />
 
 ## Date Formula
 
-<ComponentDemo
-  schema={{
-    type: 'formula',
-    name: 'due_date',
-    label: 'Due Date',
-    formula: 'created_at + 30 days',
-    return_type: 'date',
-    readonly: true
-  }}
-  title="Date Calculation"
-/>
+<SchemaExample id="fields-formula/date-calculation" />
 
 ## Field Schema
 

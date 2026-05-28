@@ -9,51 +9,11 @@ The Filter Builder component provides a visual interface for creating complex fi
 
 ## Basic Usage
 
-<ComponentDemo
-  schema={{
-    type: 'filter-builder',
-    name: 'filters',
-    label: 'Build Filter',
-    fields: [
-      { value: 'name', label: 'Name', type: 'text' },
-      { value: 'email', label: 'Email', type: 'text' },
-      { value: 'age', label: 'Age', type: 'number' },
-      { value: 'status', label: 'Status', type: 'text' }
-    ],
-    value: {
-      id: 'root',
-      logic: 'and',
-      conditions: []
-    }
-  }}
-  title="Empty Filter Builder"
-/>
+<SchemaExample id="components-complex-filter-builder/empty-filter-builder" />
 
 ## With Initial Conditions
 
-<ComponentDemo
-  schema={{
-    type: 'filter-builder',
-    name: 'userFilters',
-    label: 'User Filters',
-    fields: [
-      { value: 'name', label: 'Name', type: 'text' },
-      { value: 'email', label: 'Email', type: 'text' },
-      { value: 'age', label: 'Age', type: 'number' },
-      { value: 'department', label: 'Department', type: 'text' },
-      { value: 'salary', label: 'Salary', type: 'number' }
-    ],
-    value: {
-      id: 'root',
-      logic: 'and',
-      conditions: [
-        { id: '1', field: 'age', operator: 'gt', value: '25' },
-        { id: '2', field: 'department', operator: 'eq', value: 'Engineering' }
-      ]
-    }
-  }}
-  title="With Conditions"
-/>
+<SchemaExample id="components-complex-filter-builder/with-conditions" />
 
 ## Schema
 
@@ -120,97 +80,15 @@ interface FilterBuilderSchema {
 
 ### Product Filters
 
-<ComponentDemo
-  schema={{
-    type: 'filter-builder',
-    name: 'productFilters',
-    label: 'Product Search Filters',
-    fields: [
-      { value: 'name', label: 'Product Name', type: 'text' },
-      { value: 'category', label: 'Category', type: 'text' },
-      { value: 'price', label: 'Price', type: 'number' },
-      { value: 'stock', label: 'Stock Quantity', type: 'number' },
-      { value: 'rating', label: 'Rating', type: 'number' }
-    ],
-    value: {
-      id: 'root',
-      logic: 'and',
-      conditions: [
-        { id: '1', field: 'category', operator: 'eq', value: 'Electronics' },
-        { id: '2', field: 'price', operator: 'lt', value: '1000' },
-        { id: '3', field: 'stock', operator: 'gt', value: '0' }
-      ]
-    }
-  }}
-  title="Product Search"
-/>
+<SchemaExample id="components-complex-filter-builder/product-search" />
 
 ### User Query Builder
 
-<ComponentDemo
-  schema={{
-    type: 'filter-builder',
-    name: 'userQuery',
-    label: 'Find Users',
-    fields: [
-      { value: 'firstName', label: 'First Name', type: 'text' },
-      { value: 'lastName', label: 'Last Name', type: 'text' },
-      { value: 'email', label: 'Email', type: 'text' },
-      { value: 'role', label: 'Role', type: 'text' },
-      { value: 'active', label: 'Active', type: 'boolean' },
-      { value: 'createdAt', label: 'Created Date', type: 'date' }
-    ],
-    value: {
-      id: 'root',
-      logic: 'and',
-      conditions: []
-    }
-  }}
-  title="User Filters"
-/>
+<SchemaExample id="components-complex-filter-builder/user-filters" />
 
 ### Advanced Query
 
-<ComponentDemo
-  schema={{
-    type: 'div',
-    className: 'space-y-4 p-6 border rounded-lg max-w-3xl',
-    children: [
-      { type: 'text', content: 'Advanced Search', className: 'text-xl font-bold' },
-      { type: 'text', content: 'Build complex queries with multiple conditions', className: 'text-sm text-muted-foreground mb-4' },
-      {
-        type: 'filter-builder',
-        name: 'advancedFilters',
-        fields: [
-          { value: 'title', label: 'Title', type: 'text' },
-          { value: 'author', label: 'Author', type: 'text' },
-          { value: 'publishDate', label: 'Publish Date', type: 'date' },
-          { value: 'views', label: 'Views', type: 'number' },
-          { value: 'likes', label: 'Likes', type: 'number' },
-          { value: 'published', label: 'Published', type: 'boolean' }
-        ],
-        value: {
-          id: 'root',
-          logic: 'and',
-          conditions: [
-            { id: '1', field: 'published', operator: 'eq', value: 'true' },
-            { id: '2', field: 'views', operator: 'gt', value: '1000' }
-          ]
-        }
-      },
-      {
-        type: 'flex',
-        gap: 2,
-        className: 'mt-4',
-        children: [
-          { type: 'button', label: 'Apply Filters', variant: 'default' },
-          { type: 'button', label: 'Clear', variant: 'outline' }
-        ]
-      }
-    ]
-  }}
-  title="Search Interface"
-/>
+<SchemaExample id="components-complex-filter-builder/search-interface" />
 
 ## Supported Operators
 

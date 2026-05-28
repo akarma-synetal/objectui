@@ -1,0 +1,6 @@
+{
+  "type": "time",
+  "name": "start_time",
+  "label": "Start Time",
+  "placeholder": "HH:MM"
+}

@@ -9,61 +9,15 @@ The Grid Field component provides an inline table for managing related records o
 
 ## Basic Usage
 
-<ComponentDemo
-  schema={{
-    type: 'grid',
-    name: 'line_items',
-    label: 'Line Items',
-    columns: [
-      { name: 'product', label: 'Product', type: 'text' },
-      { name: 'quantity', label: 'Quantity', type: 'number' },
-      { name: 'price', label: 'Price', type: 'currency' }
-    ]
-  }}
-  title="Basic Grid"
-/>
+<SchemaExample id="fields-grid/basic-grid" />
 
 ## With Data
 
-<ComponentDemo
-  schema={{
-    type: 'grid',
-    name: 'order_items',
-    label: 'Order Items',
-    columns: [
-      { name: 'item', label: 'Item', type: 'text' },
-      { name: 'qty', label: 'Qty', type: 'number' },
-      { name: 'price', label: 'Price', type: 'currency' }
-    ],
-    value: [
-      { item: 'Widget A', qty: 2, price: 29.99 },
-      { item: 'Widget B', qty: 1, price: 49.99 },
-      { item: 'Widget C', qty: 5, price: 9.99 }
-    ]
-  }}
-  title="Grid with Data"
-/>
+<SchemaExample id="fields-grid/grid-with-data" />
 
 ## Read-Only
 
-<ComponentDemo
-  schema={{
-    type: 'grid',
-    name: 'transaction_history',
-    label: 'Transaction History',
-    columns: [
-      { name: 'date', label: 'Date', type: 'date' },
-      { name: 'description', label: 'Description', type: 'text' },
-      { name: 'amount', label: 'Amount', type: 'currency' }
-    ],
-    readonly: true,
-    value: [
-      { date: '2024-03-15', description: 'Payment received', amount: 100.00 },
-      { date: '2024-03-14', description: 'Service charge', amount: -5.00 }
-    ]
-  }}
-  title="Read-Only Grid"
-/>
+<SchemaExample id="fields-grid/read-only-grid" />
 
 ## Field Schema
 

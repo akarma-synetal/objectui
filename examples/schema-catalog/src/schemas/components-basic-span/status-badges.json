@@ -1,0 +1,36 @@
+{
+  "type": "flex",
+  "gap": 2,
+  "children": [
+    {
+      "type": "badge",
+      "variant": "default",
+      "children": [
+        {
+          "type": "text",
+          "content": "● Active"
+        }
+      ]
+    },
+    {
+      "type": "badge",
+      "variant": "secondary",
+      "children": [
+        {
+          "type": "text",
+          "content": "● Pending"
+        }
+      ]
+    },
+    {
+      "type": "badge",
+      "variant": "destructive",
+      "children": [
+        {
+          "type": "text",
+          "content": "● Inactive"
+        }
+      ]
+    }
+  ]
+}

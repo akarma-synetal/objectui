@@ -1,0 +1,8 @@
+{
+  "type": "number",
+  "name": "age",
+  "label": "Age",
+  "placeholder": "Enter age",
+  "min": 0,
+  "max": 120
+}

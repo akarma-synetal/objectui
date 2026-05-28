@@ -1,0 +1,8 @@
+{
+  "type": "formula",
+  "name": "total",
+  "label": "Total Amount",
+  "formula": "quantity * price",
+  "return_type": "number",
+  "readonly": true
+}

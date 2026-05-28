@@ -1,0 +1,7 @@
+{
+  "type": "percent",
+  "name": "discount",
+  "label": "Discount Rate",
+  "required": true,
+  "precision": 2
+}

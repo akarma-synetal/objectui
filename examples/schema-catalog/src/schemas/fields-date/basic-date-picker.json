@@ -1,0 +1,6 @@
+{
+  "type": "date",
+  "name": "birthdate",
+  "label": "Birth Date",
+  "placeholder": "Select date..."
+}

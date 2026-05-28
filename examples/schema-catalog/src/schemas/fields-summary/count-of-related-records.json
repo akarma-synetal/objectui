@@ -1,0 +1,10 @@
+{
+  "type": "summary",
+  "name": "order_count",
+  "label": "Total Orders",
+  "summary_object": "orders",
+  "summary_field": "id",
+  "summary_type": "count",
+  "readonly": true,
+  "value": 42
+}

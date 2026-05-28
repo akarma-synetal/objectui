@@ -1,0 +1,12 @@
+{
+  "type": "button",
+  "label": "Show with Action",
+  "onClick": {
+    "action": {
+      "label": "View",
+      "onClick": "viewFile"
+    },
+    "message": "File uploaded",
+    "description": "Your file has been uploaded successfully"
+  }
+}

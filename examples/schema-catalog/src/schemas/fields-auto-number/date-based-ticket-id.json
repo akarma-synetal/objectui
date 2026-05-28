@@ -1,0 +1,8 @@
+{
+  "type": "auto_number",
+  "name": "ticket_id",
+  "label": "Ticket ID",
+  "format": "TKT-{YYYY}{MM}-{0000}",
+  "readonly": true,
+  "value": "TKT-202403-0567"
+}

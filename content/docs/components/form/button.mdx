@@ -9,139 +9,38 @@ The Button component triggers actions when clicked. It supports multiple variant
 
 ## Basic Usage
 
-<ComponentDemo
-  schema={{
-    type: 'button',
-    label: 'Click Me'
-  }}
-  title="Simple Button"
-/>
+<SchemaExample id="components-form-button/simple-button" />
 
 ## Variants
 
 <DemoGrid>
-  <ComponentDemo
-    schema={{
-      type: 'button',
-      label: 'Default',
-      variant: 'default'
-    }}
-    title="Default"
-  />
-  <ComponentDemo
-    schema={{
-      type: 'button',
-      label: 'Destructive',
-      variant: 'destructive'
-    }}
-    title="Destructive"
-  />
-  <ComponentDemo
-    schema={{
-      type: 'button',
-      label: 'Outline',
-      variant: 'outline'
-    }}
-    title="Outline"
-  />
-  <ComponentDemo
-    schema={{
-      type: 'button',
-      label: 'Secondary',
-      variant: 'secondary'
-    }}
-    title="Secondary"
-  />
-  <ComponentDemo
-    schema={{
-      type: 'button',
-      label: 'Ghost',
-      variant: 'ghost'
-    }}
-    title="Ghost"
-  />
-  <ComponentDemo
-    schema={{
-      type: 'button',
-      label: 'Link',
-      variant: 'link'
-    }}
-    title="Link"
-  />
+  <SchemaExample id="components-form-button/default" />
+  <SchemaExample id="components-form-button/destructive" />
+  <SchemaExample id="components-form-button/outline" />
+  <SchemaExample id="components-form-button/secondary" />
+  <SchemaExample id="components-form-button/ghost" />
+  <SchemaExample id="components-form-button/link" />
 </DemoGrid>
 
 ## Sizes
 
 <DemoGrid>
-  <ComponentDemo
-    schema={{
-      type: 'flex',
-      gap: 2,
-      align: 'center',
-      children: [
-        { type: 'button', label: 'Small', size: 'sm' },
-        { type: 'button', label: 'Default', size: 'default' },
-        { type: 'button', label: 'Large', size: 'lg' }
-      ]
-    }}
-    title="Button Sizes"
-  />
-  <ComponentDemo
-    schema={{
-      type: 'flex',
-      gap: 2,
-      align: 'center',
-      children: [
-        { type: 'button', label: '🎯', size: 'icon' }
-      ]
-    }}
-    title="Icon Button"
-  />
+  <SchemaExample id="components-form-button/button-sizes" />
+  <SchemaExample id="components-form-button/icon-button" />
 </DemoGrid>
 
 ## With Icons
 
 <DemoGrid>
-  <ComponentDemo
-    schema={{
-      type: 'button',
-      label: 'Send Email',
-      icon: 'mail',
-      variant: 'default'
-    }}
-    title="Button with Icon"
-  />
-  <ComponentDemo
-    schema={{
-      type: 'button',
-      label: 'Download',
-      icon: 'download',
-      iconPosition: 'right',
-      variant: 'outline'
-    }}
-    title="Icon on Right"
-  />
+  <SchemaExample id="components-form-button/button-with-icon" />
+  <SchemaExample id="components-form-button/icon-on-right" />
 </DemoGrid>
 
 ## States
 
 <DemoGrid>
-  <ComponentDemo
-    schema={{
-      type: 'button',
-      label: 'Disabled',
-      disabled: true
-    }}
-    title="Disabled State"
-  />
-  <ComponentDemo
-    schema={{
-      type: 'button',
-      label: 'Loading',
-      loading: true
-    }}
-    title="Loading State"
-  />
+  <SchemaExample id="components-form-button/disabled-state" />
+  <SchemaExample id="components-form-button/loading-state" />
 </DemoGrid>
 
 ## Schema
@@ -175,41 +74,8 @@ interface ButtonSchema {
 
 ### Action Buttons
 
-<ComponentDemo
-  schema={{
-    type: 'flex',
-    gap: 3,
-    children: [
-      { 
-        type: 'button', 
-        label: 'Save', 
-        variant: 'default',
-        icon: 'save'
-      },
-      { 
-        type: 'button', 
-        label: 'Cancel', 
-        variant: 'outline'
-      },
-      { 
-        type: 'button', 
-        label: 'Delete', 
-        variant: 'destructive',
-        icon: 'trash'
-      }
-    ]
-  }}
-  title="Common Action Buttons"
-/>
+<SchemaExample id="components-form-button/common-action-buttons" />
 
 ### Full Width
 
-<ComponentDemo
-  schema={{
-    type: 'button',
-    label: 'Full Width Button',
-    fullWidth: true,
-    variant: 'default'
-  }}
-  title="Full Width Button"
-/>
+<SchemaExample id="components-form-button/full-width-button" />

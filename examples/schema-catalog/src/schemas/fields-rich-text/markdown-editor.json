@@ -1,0 +1,7 @@
+{
+  "type": "markdown",
+  "name": "content",
+  "label": "Content",
+  "placeholder": "Enter your content here...",
+  "rows": 6
+}

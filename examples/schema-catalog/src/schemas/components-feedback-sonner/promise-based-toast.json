@@ -1,0 +1,11 @@
+{
+  "type": "button",
+  "label": "Save Changes",
+  "onClick": {
+    "action": "sonner",
+    "type": "promise",
+    "loading": "Saving changes...",
+    "success": "Changes saved!",
+    "error": "Failed to save changes"
+  }
+}

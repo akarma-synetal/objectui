@@ -25,49 +25,17 @@ Instead of using `span`, use these Shadcn alternatives:
 ### For Badges → Use `badge`
 
 <DemoGrid>
-  <ComponentDemo
-    schema={{
-      type: 'badge',
-      variant: 'default',
-      children: [{ type: 'text', content: 'Badge Style' }]
-    }}
-    title="Default Badge"
-  />
-  <ComponentDemo
-    schema={{
-      type: 'badge',
-      variant: 'secondary',
-      children: [{ type: 'text', content: 'Secondary' }]
-    }}
-    title="Secondary Badge"
-  />
+  <SchemaExample id="components-basic-span/default-badge" />
+  <SchemaExample id="components-basic-span/secondary-badge" />
 </DemoGrid>
 
 ### For Status Indicators → Use `badge` with variants
 
-<ComponentDemo
-  schema={{
-    type: 'flex',
-    gap: 2,
-    children: [
-      { type: 'badge', variant: 'default', children: [{ type: 'text', content: '● Active' }] },
-      { type: 'badge', variant: 'secondary', children: [{ type: 'text', content: '● Pending' }] },
-      { type: 'badge', variant: 'destructive', children: [{ type: 'text', content: '● Inactive' }] }
-    ]
-  }}
-  title="Status Badges"
-/>
+<SchemaExample id="components-basic-span/status-badges" />
 
 ### For Inline Text → Use `text` with className
 
-<ComponentDemo
-  schema={{
-    type: 'text',
-    content: 'The quick brown fox jumps over the lazy dog.',
-    className: 'text-base'
-  }}
-  title="Text Component"
-/>
+<SchemaExample id="components-basic-span/text-component" />
 
 ## Old Examples (Deprecated)
 

@@ -1,0 +1,22 @@
+{
+  "type": "lookup",
+  "name": "team_members",
+  "label": "Team Members",
+  "placeholder": "Select team members...",
+  "reference_to": "users",
+  "multiple": true,
+  "options": [
+    {
+      "label": "Alice Brown",
+      "value": "user_4"
+    },
+    {
+      "label": "Charlie Davis",
+      "value": "user_5"
+    },
+    {
+      "label": "Diana Wilson",
+      "value": "user_6"
+    }
+  ]
+}

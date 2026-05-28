@@ -44,56 +44,67 @@ function slugify(str) {
 
 /**
  * Given the source of a single `<InteractiveDemo ... />` block, extract:
- *   { title, description, schemaSource }
+ *   { title, description, schemaSource } for single-schema demos, OR
+ *   { title, description, examplesSource } for multi-example galleries.
  *
  * Title/description are string-literal props on the opening tag.
  * `schemaSource` is the *text* between `schema={` and the matching `}` (one
  * level of `{}` nesting, so we strip the outer one).
+ * `examplesSource` is the *text* between `examples={[` and the matching `]}`.
  */
 function parseDemoBlock(blockSrc) {
-  // title="..."
   const titleMatch = blockSrc.match(/title=["']([^"']+)["']/);
   const descMatch = blockSrc.match(/description=["']([^"']+)["']/);
 
-  const schemaIdx = blockSrc.indexOf('schema={');
-  if (schemaIdx === -1) return null;
-
-  // Walk the brace tree starting at the outer `{` after `schema=`.
-  const start = schemaIdx + 'schema='.length; // points at first `{`
-  let depth = 0;
-  let end = -1;
-  let inStr = null;
-  for (let i = start; i < blockSrc.length; i++) {
-    const c = blockSrc[i];
-    if (inStr) {
-      if (c === '\\') i++;
-      else if (c === inStr) inStr = null;
-      continue;
+  const findBalanced = (anchor, open, close) => {
+    const a = blockSrc.indexOf(anchor);
+    if (a === -1) return null;
+    // Locate the first `open` bracket at or after the end of the anchor.
+    let openIdx = -1;
+    for (let i = a + anchor.length - 1; i < blockSrc.length; i++) {
+      if (blockSrc[i] === open) { openIdx = i; break; }
     }
-    if (c === '"' || c === "'" || c === '`') {
-      inStr = c;
-      continue;
-    }
-    if (c === '{') depth++;
-    else if (c === '}') {
-      depth--;
-      if (depth === 0) {
-        end = i;
-        break;
+    if (openIdx === -1) return null;
+    let depth = 0;
+    let inStr = null;
+    for (let i = openIdx; i < blockSrc.length; i++) {
+      const c = blockSrc[i];
+      if (inStr) {
+        if (c === '\\') i++;
+        else if (c === inStr) inStr = null;
+        continue;
+      }
+      if (c === '"' || c === "'" || c === '`') { inStr = c; continue; }
+      if (c === open) depth++;
+      else if (c === close) {
+        depth--;
+        if (depth === 0) return blockSrc.slice(openIdx + 1, i).trim();
       }
     }
-  }
-  if (end === -1) return null;
-
-  // The schema= prop value is `{ <object literal> }`. Strip the outer braces
-  // to get a bare object literal; we'll add `(` `)` around it for `vm`.
-  const inner = blockSrc.slice(start + 1, end).trim();
-
-  return {
-    title: titleMatch?.[1] ?? null,
-    description: descMatch?.[1] ?? null,
-    schemaSource: inner,
+    return null;
   };
+
+  const schemaInner = findBalanced('schema={', '{', '}');
+  if (schemaInner !== null) {
+    return {
+      kind: 'single',
+      title: titleMatch?.[1] ?? null,
+      description: descMatch?.[1] ?? null,
+      schemaSource: schemaInner,
+    };
+  }
+
+  // Fall back to multi-example gallery.
+  const examplesInner = findBalanced('examples={', '[', ']');
+  if (examplesInner !== null) {
+    return {
+      kind: 'multi',
+      title: titleMatch?.[1] ?? null,
+      description: descMatch?.[1] ?? null,
+      examplesSource: examplesInner,
+    };
+  }
+  return null;
 }
 
 function evaluateObjectLiteral(src) {
@@ -103,42 +114,45 @@ function evaluateObjectLiteral(src) {
   return vm.runInNewContext(`(${src})`, {}, { timeout: 1000 });
 }
 
-function findInteractiveDemoBlocks(mdx) {
+function findInteractiveDemoBlocks(mdx, tagNames = ['InteractiveDemo', 'ComponentDemo']) {
   const blocks = [];
-  const openTag = /<InteractiveDemo\b/g;
-  let m;
-  while ((m = openTag.exec(mdx)) !== null) {
-    const start = m.index;
-    // Find the matching `/>` accounting for `{}` nesting (schemas contain `>`!)
-    let depth = 0;
-    let inStr = null;
-    let i = start + openTag.lastIndex - openTag.lastIndex + '<InteractiveDemo'.length;
-    let end = -1;
-    for (; i < mdx.length; i++) {
-      const c = mdx[i];
-      if (inStr) {
-        if (c === '\\') i++;
-        else if (c === inStr) inStr = null;
+  for (const tagName of tagNames) {
+    const openTag = new RegExp(`<${tagName}\\b`, 'g');
+    let m;
+    while ((m = openTag.exec(mdx)) !== null) {
+      const start = m.index;
+      let depth = 0;
+      let inStr = null;
+      let i = start + `<${tagName}`.length;
+      let end = -1;
+      for (; i < mdx.length; i++) {
+        const c = mdx[i];
+        if (inStr) {
+          if (c === '\\') i++;
+          else if (c === inStr) inStr = null;
+          continue;
+        }
+        if (c === '"' || c === "'" || c === '`') {
+          inStr = c;
+          continue;
+        }
+        if (c === '{') depth++;
+        else if (c === '}') depth--;
+        else if (depth === 0 && c === '/' && mdx[i + 1] === '>') {
+          end = i + 2;
+          break;
+        }
+      }
+      if (end === -1) {
+        console.warn(`[skip] couldn't find /> for <${tagName} at offset ${start}`);
         continue;
       }
-      if (c === '"' || c === "'" || c === '`') {
-        inStr = c;
-        continue;
-      }
-      if (c === '{') depth++;
-      else if (c === '}') depth--;
-      else if (depth === 0 && c === '/' && mdx[i + 1] === '>') {
-        end = i + 2;
-        break;
-      }
+      blocks.push({ start, end, src: mdx.slice(start, end), tagName });
+      openTag.lastIndex = end;
     }
-    if (end === -1) {
-      console.warn(`[skip] couldn't find /> for <InteractiveDemo at offset ${start}`);
-      continue;
-    }
-    blocks.push({ start, end, src: mdx.slice(start, end) });
-    openTag.lastIndex = end;
   }
+  // Sort by document order so replacement offsets stay monotonic.
+  blocks.sort((a, b) => a.start - b.start);
   return blocks;
 }
 
@@ -171,30 +185,71 @@ function main() {
       console.warn(`[skip] block #${i}: couldn't parse`);
       continue;
     }
-    const { title, description, schemaSource } = parsed;
-    let schema;
-    try {
-      schema = evaluateObjectLiteral(schemaSource);
-    } catch (err) {
-      console.error(`[fail] block #${i} ("${title ?? '?'}"): ${err.message}`);
-      continue;
+    const { title, description, kind } = parsed;
+    const baseTitleSlug = title ? slugify(title) : `demo-${i + 1}`;
+
+    if (kind === 'single') {
+      let schema;
+      try {
+        schema = evaluateObjectLiteral(parsed.schemaSource);
+      } catch (err) {
+        console.error(`[fail] block #${i} ("${title ?? '?'}"): ${err.message}`);
+        continue;
+      }
+      let slug = baseTitleSlug;
+      let n = 2;
+      while (usedSlugs.has(slug)) slug = `${baseTitleSlug}-${n++}`;
+      usedSlugs.add(slug);
+      const id = `${category}/${slug}`;
+      fs.writeFileSync(
+        path.join(outDir, `${slug}.json`),
+        JSON.stringify(schema, null, 2) + '\n',
+      );
+      entries.push({ id, slug, title, description, multi: false });
+
+      newMdx += mdx.slice(cursor, b.start);
+      newMdx += `<SchemaExample id="${id}" />`;
+      cursor = b.end;
+    } else {
+      // kind === 'multi'
+      let examplesArr;
+      try {
+        examplesArr = evaluateObjectLiteral(`[${parsed.examplesSource}]`);
+      } catch (err) {
+        console.error(`[fail] block #${i} ("${title ?? '?'}") multi: ${err.message}`);
+        continue;
+      }
+      const childIds = [];
+      for (const child of examplesArr) {
+        const childTitle = child.label ?? child.title ?? `${title} item`;
+        let slug = slugify(`${baseTitleSlug}-${childTitle}`);
+        let n = 2;
+        const base = slug;
+        while (usedSlugs.has(slug)) slug = `${base}-${n++}`;
+        usedSlugs.add(slug);
+        const id = `${category}/${slug}`;
+        fs.writeFileSync(
+          path.join(outDir, `${slug}.json`),
+          JSON.stringify(child.schema, null, 2) + '\n',
+        );
+        entries.push({
+          id,
+          slug,
+          title: childTitle,
+          description: child.description ?? '',
+          multi: true,
+        });
+        childIds.push(id);
+      }
+      // Replace the whole <InteractiveDemo examples={...} /> block with a
+      // gallery: heading + one <SchemaExample/> per child.
+      const gallery = childIds
+        .map((cid) => `<SchemaExample id="${cid}" />`)
+        .join('\n\n');
+      newMdx += mdx.slice(cursor, b.start);
+      newMdx += gallery;
+      cursor = b.end;
     }
-    let slug = title ? slugify(title) : `demo-${i + 1}`;
-    let n = 2;
-    const baseSlug = slug;
-    while (usedSlugs.has(slug)) slug = `${baseSlug}-${n++}`;
-    usedSlugs.add(slug);
-
-    const id = `${category}/${slug}`;
-    const jsonPath = path.join(outDir, `${slug}.json`);
-    fs.writeFileSync(jsonPath, JSON.stringify(schema, null, 2) + '\n');
-
-    entries.push({ id, slug, title, description });
-
-    // Build replacement in the new MDX.
-    newMdx += mdx.slice(cursor, b.start);
-    newMdx += `<SchemaExample id="${id}" />`;
-    cursor = b.end;
   }
   newMdx += mdx.slice(cursor);
 

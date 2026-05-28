@@ -1,0 +1,8 @@
+{
+  "type": "textarea",
+  "name": "comments",
+  "label": "Comments",
+  "placeholder": "Please provide your feedback",
+  "rows": 4,
+  "required": true
+}

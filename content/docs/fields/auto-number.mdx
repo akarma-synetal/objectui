@@ -9,44 +9,15 @@ The AutoNumber Field component displays auto-generated sequence numbers. This is
 
 ## Basic Usage
 
-<ComponentDemo
-  schema={{
-    type: 'auto_number',
-    name: 'order_number',
-    label: 'Order Number',
-    readonly: true,
-    value: 'ORD-0001'
-  }}
-  title="Basic AutoNumber"
-/>
+<SchemaExample id="fields-auto-number/basic-autonumber" />
 
 ## Custom Format
 
-<ComponentDemo
-  schema={{
-    type: 'auto_number',
-    name: 'invoice_id',
-    label: 'Invoice ID',
-    format: 'INV-{0000}',
-    readonly: true,
-    value: 'INV-1234'
-  }}
-  title="Invoice Number Format"
-/>
+<SchemaExample id="fields-auto-number/invoice-number-format" />
 
 ## Date-Based Format
 
-<ComponentDemo
-  schema={{
-    type: 'auto_number',
-    name: 'ticket_id',
-    label: 'Ticket ID',
-    format: 'TKT-{YYYY}{MM}-{0000}',
-    readonly: true,
-    value: 'TKT-202403-0567'
-  }}
-  title="Date-Based Ticket ID"
-/>
+<SchemaExample id="fields-auto-number/date-based-ticket-id" />
 
 ## Field Schema
 

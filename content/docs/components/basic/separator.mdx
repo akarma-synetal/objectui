@@ -7,48 +7,9 @@ import { ComponentDemo, DemoGrid } from '@/app/components/ComponentDemo';
 
 ## Examples
 
-  <ComponentDemo
-    schema={{
-      type: "stack",
-      gap: 4,
-      children: [
-            {
-                  type: "text",
-                  content: "Content Above"
-            },
-            {
-                  type: "separator"
-            },
-            {
-                  type: "text",
-                  content: "Content Below"
-            }
-      ]
-}}
-    title="Horizontal"
-  />
+  <SchemaExample id="components-basic-separator/horizontal" />
 
-  <ComponentDemo
-    schema={{
-      type: "flex",
-      gap: 4,
-      children: [
-            {
-                  type: "text",
-                  content: "Left"
-            },
-            {
-                  type: "separator",
-                  orientation: "vertical"
-            },
-            {
-                  type: "text",
-                  content: "Right"
-            }
-      ]
-}}
-    title="Vertical"
-  />
+  <SchemaExample id="components-basic-separator/vertical" />
 
 ## Schema
 

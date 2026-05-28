@@ -1,0 +1,6 @@
+{
+  "type": "email",
+  "name": "email",
+  "label": "Email Address",
+  "placeholder": "you@example.com"
+}

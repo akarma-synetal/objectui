@@ -1,0 +1,7 @@
+{
+  "type": "textarea",
+  "name": "message",
+  "label": "Message",
+  "placeholder": "Type your message here...",
+  "rows": 6
+}

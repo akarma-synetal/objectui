@@ -9,57 +9,15 @@ The Select Field component provides a dropdown for selecting one or more options
 
 ## Basic Usage
 
-<ComponentDemo
-  schema={{
-    type: 'select',
-    name: 'status',
-    label: 'Status',
-    placeholder: 'Select status...',
-    options: [
-      { label: 'Draft', value: 'draft' },
-      { label: 'In Progress', value: 'in_progress' },
-      { label: 'Completed', value: 'completed' }
-    ]
-  }}
-  title="Basic Select"
-/>
+<SchemaExample id="fields-select/basic-select" />
 
 ## With Colors
 
-<ComponentDemo
-  schema={{
-    type: 'select',
-    name: 'priority',
-    label: 'Priority',
-    placeholder: 'Select priority...',
-    options: [
-      { label: 'Low', value: 'low', color: 'gray' },
-      { label: 'Medium', value: 'medium', color: 'blue' },
-      { label: 'High', value: 'high', color: 'orange' },
-      { label: 'Urgent', value: 'urgent', color: 'red' }
-    ]
-  }}
-  title="Colored Options"
-/>
+<SchemaExample id="fields-select/colored-options" />
 
 ## Multiple Selection
 
-<ComponentDemo
-  schema={{
-    type: 'select',
-    name: 'tags',
-    label: 'Tags',
-    placeholder: 'Select tags...',
-    multiple: true,
-    options: [
-      { label: 'Frontend', value: 'frontend', color: 'blue' },
-      { label: 'Backend', value: 'backend', color: 'green' },
-      { label: 'DevOps', value: 'devops', color: 'purple' },
-      { label: 'Design', value: 'design', color: 'pink' }
-    ]
-  }}
-  title="Multi-Select"
-/>
+<SchemaExample id="fields-select/multi-select" />
 
 ## Field Schema
 

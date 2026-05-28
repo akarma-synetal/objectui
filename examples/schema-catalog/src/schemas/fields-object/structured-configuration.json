@@ -1,0 +1,10 @@
+{
+  "type": "object",
+  "name": "config",
+  "label": "Configuration",
+  "schema": {
+    "api_key": "string",
+    "timeout": "number",
+    "enabled": "boolean"
+  }
+}

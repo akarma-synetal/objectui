@@ -9,42 +9,17 @@ The Input OTP component provides a secure way to enter one-time passwords or ver
 
 ## Basic Usage
 
-<ComponentDemo
-  schema={{
-    type: 'input-otp',
-    length: 6
-  }}
-  title="6-Digit OTP"
-/>
+<SchemaExample id="components-form-input-otp/6-digit-otp" />
 
 ## With Separator
 
-<ComponentDemo
-  schema={{
-    type: 'input-otp',
-    length: 6,
-    separator: true
-  }}
-  title="With Visual Separator"
-/>
+<SchemaExample id="components-form-input-otp/with-visual-separator" />
 
 ## Different Lengths
 
 <DemoGrid>
-  <ComponentDemo
-    schema={{
-      type: 'input-otp',
-      length: 4
-    }}
-    title="4-Digit"
-  />
-  <ComponentDemo
-    schema={{
-      type: 'input-otp',
-      length: 8
-    }}
-    title="8-Digit"
-  />
+  <SchemaExample id="components-form-input-otp/4-digit" />
+  <SchemaExample id="components-form-input-otp/8-digit" />
 </DemoGrid>
 
 ## Schema
@@ -72,27 +47,4 @@ interface InputOTPSchema {
 
 ### In a Form
 
-<ComponentDemo
-  schema={{
-    type: 'flex',
-    direction: 'column',
-    gap: 4,
-    children: [
-      {
-        type: 'label',
-        text: 'Enter verification code'
-      },
-      {
-        type: 'input-otp',
-        length: 6,
-        separator: true
-      },
-      {
-        type: 'text',
-        value: 'We sent a code to your email',
-        className: 'text-sm text-muted-foreground'
-      }
-    ]
-  }}
-  title="Verification Form"
-/>
+<SchemaExample id="components-form-input-otp/verification-form" />

@@ -1,0 +1,6 @@
+{
+  "type": "user",
+  "name": "team_members",
+  "label": "Team Members",
+  "multiple": true
+}

@@ -1,0 +1,6 @@
+{
+  "type": "boolean",
+  "name": "notifications",
+  "label": "Email Notifications",
+  "description": "Receive email updates about your account"
+}

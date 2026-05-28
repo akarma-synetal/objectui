@@ -9,72 +9,11 @@ The Form component provides a complete form solution with validation and submiss
 
 ## Basic Usage
 
-<ComponentDemo
-  schema={{
-    type: 'form',
-    fields: [
-      {
-        name: 'email',
-        label: 'Email',
-        type: 'input',
-        inputType: 'email',
-        placeholder: 'Enter your email',
-        required: true
-      },
-      {
-        name: 'password',
-        label: 'Password',
-        type: 'input',
-        inputType: 'password',
-        placeholder: 'Enter your password',
-        required: true
-      }
-    ],
-    submitButton: {
-      label: 'Sign In'
-    }
-  }}
-  title="Login Form"
-/>
+<SchemaExample id="components-form-form/login-form" />
 
 ## With Validation
 
-<ComponentDemo
-  schema={{
-    type: 'form',
-    fields: [
-      {
-        name: 'username',
-        label: 'Username',
-        type: 'input',
-        placeholder: 'Choose a username',
-        required: true,
-        minLength: 3,
-        maxLength: 20
-      },
-      {
-        name: 'email',
-        label: 'Email',
-        type: 'input',
-        inputType: 'email',
-        required: true,
-        pattern: '^[^@]+@[^@]+\\.[^@]+$'
-      },
-      {
-        name: 'age',
-        label: 'Age',
-        type: 'input',
-        inputType: 'number',
-        min: 18,
-        max: 120
-      }
-    ],
-    submitButton: {
-      label: 'Register'
-    }
-  }}
-  title="Registration Form"
-/>
+<SchemaExample id="components-form-form/registration-form" />
 
 ## Schema
 
@@ -124,20 +63,4 @@ interface FormSchema {
 
 ### Multi-column Form
 
-<ComponentDemo
-  schema={{
-    type: 'form',
-    columns: 2,
-    fields: [
-      { name: 'firstName', label: 'First Name', type: 'input', required: true },
-      { name: 'lastName', label: 'Last Name', type: 'input', required: true },
-      { name: 'email', label: 'Email', type: 'input', inputType: 'email', required: true },
-      { name: 'phone', label: 'Phone', type: 'input', inputType: 'tel' },
-      { name: 'address', label: 'Address', type: 'textarea', columnSpan: 2 }
-    ],
-    submitButton: {
-      label: 'Submit'
-    }
-  }}
-  title="Contact Form"
-/>
+<SchemaExample id="components-form-form/contact-form" />

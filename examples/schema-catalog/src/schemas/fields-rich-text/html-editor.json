@@ -1,0 +1,7 @@
+{
+  "type": "html",
+  "name": "description",
+  "label": "Description",
+  "placeholder": "Enter HTML content...",
+  "rows": 8
+}

@@ -1,0 +1,6 @@
+{
+  "type": "button",
+  "label": "Full Width Button",
+  "fullWidth": true,
+  "variant": "default"
+}

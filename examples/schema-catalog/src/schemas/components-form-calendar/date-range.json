@@ -1,0 +1,5 @@
+{
+  "type": "calendar",
+  "mode": "range",
+  "className": "rounded-md border"
+}

@@ -1,0 +1,6 @@
+{
+  "type": "datetime",
+  "name": "scheduled_at",
+  "label": "Scheduled At",
+  "value": "2024-03-15T14:30"
+}

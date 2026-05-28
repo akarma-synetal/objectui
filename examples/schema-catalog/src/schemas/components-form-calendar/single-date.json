@@ -1,0 +1,5 @@
+{
+  "type": "calendar",
+  "mode": "single",
+  "className": "rounded-md border"
+}

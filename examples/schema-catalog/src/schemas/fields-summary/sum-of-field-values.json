@@ -1,0 +1,10 @@
+{
+  "type": "summary",
+  "name": "total_revenue",
+  "label": "Total Revenue",
+  "summary_object": "orders",
+  "summary_field": "amount",
+  "summary_type": "sum",
+  "readonly": true,
+  "value": 15750.5
+}

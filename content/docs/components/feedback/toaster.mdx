@@ -11,32 +11,15 @@ The Toaster component provides a container for toast notifications. It should be
 
 The Toaster component is typically added to your app's layout and doesn't require configuration:
 
-<ComponentDemo
-  schema={{
-    type: 'toaster'
-  }}
-  title="Default Toaster"
-/>
+<SchemaExample id="components-feedback-toaster/default-toaster" />
 
 ## Providers
 
 ObjectUI supports two toast providers:
 
 <DemoGrid>
-  <ComponentDemo
-    schema={{
-      type: 'toaster',
-      provider: 'default'
-    }}
-    title="Default Provider"
-  />
-  <ComponentDemo
-    schema={{
-      type: 'toaster',
-      provider: 'sonner'
-    }}
-    title="Sonner Provider"
-  />
+  <SchemaExample id="components-feedback-toaster/default-provider" />
+  <SchemaExample id="components-feedback-toaster/sonner-provider" />
 </DemoGrid>
 
 ## Schema
@@ -83,38 +66,11 @@ interface ToasterSchema {
 
 The Toaster component works in conjunction with Toast components to display notifications. Once the Toaster is mounted, you can trigger toasts programmatically or via Toast components:
 
-<ComponentDemo
-  schema={{
-    type: 'div',
-    className: 'space-y-4',
-    children: [
-      {
-        type: 'button',
-        label: 'Show Toast',
-        onClick: 'toast("Hello from ObjectUI!")'
-      },
-      { type: 'toaster', provider: 'sonner' }
-    ]
-  }}
-  title="With Toast Trigger"
-/>
+<SchemaExample id="components-feedback-toaster/with-toast-trigger" />
 
 ### Configuration
 
-<ComponentDemo
-  schema={{
-    type: 'div',
-    children: [
-      {
-        type: 'toaster',
-        provider: 'sonner',
-        position: 'top-right',
-        limit: 3
-      }
-    ]
-  }}
-  title="Custom Position & Limit"
-/>
+<SchemaExample id="components-feedback-toaster/custom-position-limit" />
 
 ## Notes
 

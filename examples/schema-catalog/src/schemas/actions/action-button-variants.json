@@ -1,0 +1,35 @@
+{
+  "type": "stack",
+  "spacing": 4,
+  "children": [
+    {
+      "type": "flex",
+      "className": "gap-2 flex-wrap",
+      "children": [
+        {
+          "type": "button",
+          "label": "Submit",
+          "variant": "default",
+          "icon": "send"
+        },
+        {
+          "type": "button",
+          "label": "Save Draft",
+          "variant": "outline",
+          "icon": "save"
+        },
+        {
+          "type": "button",
+          "label": "Delete",
+          "variant": "destructive",
+          "icon": "trash-2"
+        },
+        {
+          "type": "button",
+          "label": "Cancel",
+          "variant": "ghost"
+        }
+      ]
+    }
+  ]
+}

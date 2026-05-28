@@ -1,0 +1,9 @@
+{
+  "type": "button",
+  "label": "Show Toast",
+  "onClick": {
+    "action": "toast",
+    "title": "Success",
+    "description": "Your changes have been saved."
+  }
+}

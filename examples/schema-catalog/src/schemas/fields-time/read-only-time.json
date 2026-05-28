@@ -1,0 +1,7 @@
+{
+  "type": "time",
+  "name": "closing_time",
+  "label": "Closing Time",
+  "value": "18:00",
+  "readonly": true
+}

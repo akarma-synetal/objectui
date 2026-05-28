@@ -1,0 +1,26 @@
+{
+  "type": "dropdown-menu",
+  "trigger": {
+    "type": "button",
+    "label": "Actions",
+    "icon": "more-horizontal"
+  },
+  "items": [
+    {
+      "label": "Edit",
+      "value": "edit",
+      "icon": "edit"
+    },
+    {
+      "label": "Copy",
+      "value": "copy",
+      "icon": "copy"
+    },
+    {
+      "label": "Delete",
+      "value": "delete",
+      "icon": "trash",
+      "variant": "destructive"
+    }
+  ]
+}

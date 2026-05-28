@@ -1,0 +1,35 @@
+{
+  "type": "grid",
+  "name": "transaction_history",
+  "label": "Transaction History",
+  "columns": [
+    {
+      "name": "date",
+      "label": "Date",
+      "type": "date"
+    },
+    {
+      "name": "description",
+      "label": "Description",
+      "type": "text"
+    },
+    {
+      "name": "amount",
+      "label": "Amount",
+      "type": "currency"
+    }
+  ],
+  "readonly": true,
+  "value": [
+    {
+      "date": "2024-03-15",
+      "description": "Payment received",
+      "amount": 100
+    },
+    {
+      "date": "2024-03-14",
+      "description": "Service charge",
+      "amount": -5
+    }
+  ]
+}

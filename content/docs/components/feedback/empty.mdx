@@ -9,43 +9,15 @@ The Empty component displays a placeholder when there's no content to show.
 
 ## Basic Usage
 
-<ComponentDemo
-  schema={{
-    type: 'empty',
-    title: 'No results found',
-    description: 'Try adjusting your search or filters'
-  }}
-  title="Basic Empty State"
-/>
+<SchemaExample id="components-feedback-empty/basic-empty-state" />
 
 ## With Icon
 
-<ComponentDemo
-  schema={{
-    type: 'empty',
-    icon: 'inbox',
-    title: 'No messages',
-    description: 'Your inbox is empty'
-  }}
-  title="With Icon"
-/>
+<SchemaExample id="components-feedback-empty/with-icon" />
 
 ## With Action
 
-<ComponentDemo
-  schema={{
-    type: 'empty',
-    icon: 'folder-plus',
-    title: 'No projects yet',
-    description: 'Get started by creating your first project',
-    action: {
-      type: 'button',
-      label: 'Create Project',
-      variant: 'default'
-    }
-  }}
-  title="With Action Button"
-/>
+<SchemaExample id="components-feedback-empty/with-action-button" />
 
 ## Schema
 
@@ -64,35 +36,8 @@ interface EmptySchema {
 
 ### Search Results
 
-<ComponentDemo
-  schema={{
-    type: 'empty',
-    icon: 'search',
-    title: 'No results for "example"',
-    description: 'Try searching with different keywords',
-    action: {
-      type: 'button',
-      label: 'Clear Search',
-      variant: 'outline'
-    }
-  }}
-  title="Empty Search Results"
-/>
+<SchemaExample id="components-feedback-empty/empty-search-results" />
 
 ### Empty List
 
-<ComponentDemo
-  schema={{
-    type: 'empty',
-    icon: 'users',
-    title: 'No team members',
-    description: 'Invite people to join your team',
-    action: {
-      type: 'button',
-      label: 'Invite Team Members',
-      variant: 'default',
-      icon: 'user-plus'
-    }
-  }}
-  title="Empty Team List"
-/>
+<SchemaExample id="components-feedback-empty/empty-team-list" />

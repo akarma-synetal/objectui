@@ -9,38 +9,14 @@ The Kbd component displays keyboard shortcuts in a styled format.
 
 ## Basic Usage
 
-<ComponentDemo
-  schema={{
-    type: 'kbd',
-    keys: ['Ctrl', 'C']
-  }}
-  title="Copy Shortcut"
-/>
+<SchemaExample id="components-data-display-kbd/copy-shortcut" />
 
 ## Multiple Key Combinations
 
 <DemoGrid>
-  <ComponentDemo
-    schema={{
-      type: 'kbd',
-      keys: ['Ctrl', 'Shift', 'P']
-    }}
-    title="Command Palette"
-  />
-  <ComponentDemo
-    schema={{
-      type: 'kbd',
-      keys: ['Cmd', 'K']
-    }}
-    title="Search"
-  />
-  <ComponentDemo
-    schema={{
-      type: 'kbd',
-      keys: ['Alt', 'Enter']
-    }}
-    title="Submit"
-  />
+  <SchemaExample id="components-data-display-kbd/command-palette" />
+  <SchemaExample id="components-data-display-kbd/search" />
+  <SchemaExample id="components-data-display-kbd/submit" />
 </DemoGrid>
 
 ## Schema
@@ -57,16 +33,4 @@ interface KbdSchema {
 
 ### In Documentation
 
-<ComponentDemo
-  schema={{
-    type: 'flex',
-    align: 'center',
-    gap: 2,
-    children: [
-      { type: 'text', value: 'Press' },
-      { type: 'kbd', keys: ['Ctrl', 'S'] },
-      { type: 'text', value: 'to save' }
-    ]
-  }}
-  title="Inline Usage"
-/>
+<SchemaExample id="components-data-display-kbd/inline-usage" />

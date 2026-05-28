@@ -1,0 +1,8 @@
+{
+  "type": "formula",
+  "name": "due_date",
+  "label": "Due Date",
+  "formula": "created_at + 30 days",
+  "return_type": "date",
+  "readonly": true
+}

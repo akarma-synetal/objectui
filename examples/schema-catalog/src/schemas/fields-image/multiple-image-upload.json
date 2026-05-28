@@ -1,0 +1,6 @@
+{
+  "type": "image",
+  "name": "gallery",
+  "label": "Photo Gallery",
+  "multiple": true
+}

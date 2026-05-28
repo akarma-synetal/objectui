@@ -9,31 +9,11 @@ The Vector Field component displays vector embeddings used in AI/ML applications
 
 ## Basic Usage
 
-<ComponentDemo
-  schema={{
-    type: 'vector',
-    name: 'embedding',
-    label: 'Text Embedding',
-    dimensions: 768,
-    readonly: true,
-    value: [0.1234, -0.5678, 0.9012, 0.3456, -0.7890]
-  }}
-  title="Basic Vector Display"
-/>
+<SchemaExample id="fields-vector/basic-vector-display" />
 
 ## Different Dimensions
 
-<ComponentDemo
-  schema={{
-    type: 'vector',
-    name: 'image_embedding',
-    label: 'Image Embedding',
-    dimensions: 1536,
-    readonly: true,
-    value: Array(1536).fill(0).map(() => Math.random() * 2 - 1)
-  }}
-  title="High-Dimensional Vector"
-/>
+<SchemaExample id="fields-vector/high-dimensional-vector" />
 
 ## Field Schema
 

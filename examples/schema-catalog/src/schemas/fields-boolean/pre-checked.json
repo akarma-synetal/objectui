@@ -1,0 +1,6 @@
+{
+  "type": "boolean",
+  "name": "terms",
+  "label": "I agree to the terms and conditions",
+  "value": true
+}

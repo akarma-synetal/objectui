@@ -9,90 +9,20 @@ The Sonner component provides beautiful toast notifications with a rich API.
 
 ## Basic Usage
 
-<ComponentDemo
-  schema={{
-    type: 'button',
-    label: 'Show Sonner Toast',
-    onClick: {
-      action: 'sonner',
-      message: 'Event has been created'
-    }
-  }}
-  title="Basic Sonner Toast"
-/>
+<SchemaExample id="components-feedback-sonner/basic-sonner-toast" />
 
 ## Toast Types
 
 <DemoGrid>
-  <ComponentDemo
-    schema={{
-      type: 'button',
-      label: 'Success',
-      onClick: {
-        action: 'sonner',
-        type: 'success',
-        message: 'Operation completed successfully'
-      }
-    }}
-    title="Success"
-  />
-  <ComponentDemo
-    schema={{
-      type: 'button',
-      label: 'Error',
-      variant: 'destructive',
-      onClick: {
-        action: 'sonner',
-        type: 'error',
-        message: 'Something went wrong'
-      }
-    }}
-    title="Error"
-  />
-  <ComponentDemo
-    schema={{
-      type: 'button',
-      label: 'Warning',
-      onClick: {
-        action: 'sonner',
-        type: 'warning',
-        message: 'Please review your input'
-      }
-    }}
-    title="Warning"
-  />
-  <ComponentDemo
-    schema={{
-      type: 'button',
-      label: 'Info',
-      onClick: {
-        action: 'sonner',
-        type: 'info',
-        message: 'New update available'
-      }
-    }}
-    title="Info"
-  />
+  <SchemaExample id="components-feedback-sonner/success" />
+  <SchemaExample id="components-feedback-sonner/error" />
+  <SchemaExample id="components-feedback-sonner/warning" />
+  <SchemaExample id="components-feedback-sonner/info" />
 </DemoGrid>
 
 ## With Action
 
-<ComponentDemo
-  schema={{
-    type: 'button',
-    label: 'Show with Action',
-    onClick: {
-      action: 'sonner',
-      message: 'File uploaded',
-      description: 'Your file has been uploaded successfully',
-      action: {
-        label: 'View',
-        onClick: 'viewFile'
-      }
-    }
-  }}
-  title="Toast with Action"
-/>
+<SchemaExample id="components-feedback-sonner/toast-with-action" />
 
 ## Schema
 
@@ -116,17 +46,4 @@ interface SonnerSchema {
 
 ### Promise Toast
 
-<ComponentDemo
-  schema={{
-    type: 'button',
-    label: 'Save Changes',
-    onClick: {
-      action: 'sonner',
-      type: 'promise',
-      loading: 'Saving changes...',
-      success: 'Changes saved!',
-      error: 'Failed to save changes'
-    }
-  }}
-  title="Promise-based Toast"
-/>
+<SchemaExample id="components-feedback-sonner/promise-based-toast" />

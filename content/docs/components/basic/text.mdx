@@ -9,82 +9,19 @@ The Text component displays text content with predefined typography variants.
 
 ## Basic Usage
 
-<ComponentDemo
-  schema={{
-    type: 'text',
-    content: 'Hello, World!'
-  }}
-  title="Simple Text"
-  description="Basic text without any styling"
-/>
+<SchemaExample id="components-basic-text/simple-text" />
 
 ## Variants
 
 <DemoGrid>
-  <ComponentDemo
-    schema={{
-      type: 'text',
-      content: 'Heading 1',
-      variant: 'h1'
-    }}
-    title="Heading 1"
-  />
-  <ComponentDemo
-    schema={{
-      type: 'text',
-      content: 'Heading 2',
-      variant: 'h2'
-    }}
-    title="Heading 2"
-  />
-  <ComponentDemo
-    schema={{
-      type: 'text',
-      content: 'Heading 3',
-      variant: 'h3'
-    }}
-    title="Heading 3"
-  />
-  <ComponentDemo
-    schema={{
-      type: 'text',
-      content: 'Paragraph text',
-      variant: 'p'
-    }}
-    title="Paragraph"
-  />
-  <ComponentDemo
-    schema={{
-      type: 'text',
-      content: 'Lead text for introductions',
-      variant: 'lead'
-    }}
-    title="Lead"
-  />
-  <ComponentDemo
-    schema={{
-      type: 'text',
-      content: 'Large text',
-      variant: 'large'
-    }}
-    title="Large"
-  />
-  <ComponentDemo
-    schema={{
-      type: 'text',
-      content: 'Small text',
-      variant: 'small'
-    }}
-    title="Small"
-  />
-  <ComponentDemo
-    schema={{
-      type: 'text',
-      content: 'Muted text',
-      variant: 'muted'
-    }}
-    title="Muted"
-  />
+  <SchemaExample id="components-basic-text/heading-1" />
+  <SchemaExample id="components-basic-text/heading-2" />
+  <SchemaExample id="components-basic-text/heading-3" />
+  <SchemaExample id="components-basic-text/paragraph" />
+  <SchemaExample id="components-basic-text/lead" />
+  <SchemaExample id="components-basic-text/large" />
+  <SchemaExample id="components-basic-text/small" />
+  <SchemaExample id="components-basic-text/muted" />
 </DemoGrid>
 
 ## Schema
@@ -105,30 +42,8 @@ interface TextSchema {
 
 ### Colored Text
 
-<ComponentDemo
-  schema={{
-    type: 'flex',
-    gap: 4,
-    children: [
-      { type: 'text', content: 'Primary Text', color: 'text-primary' },
-      { type: 'text', content: 'Destructive Text', color: 'text-destructive' },
-      { type: 'text', content: 'Muted Text', color: 'text-muted-foreground' }
-    ]
-  }}
-  title="Text with Colors"
-/>
+<SchemaExample id="components-basic-text/text-with-colors" />
 
 ### Text Alignment
 
-<ComponentDemo
-  schema={{
-    type: 'stack',
-    gap: 4,
-    children: [
-      { type: 'text', content: 'Left aligned text', align: 'left' },
-      { type: 'text', content: 'Center aligned text', align: 'center' },
-      { type: 'text', content: 'Right aligned text', align: 'right' }
-    ]
-  }}
-  title="Text Alignment"
-/>
+<SchemaExample id="components-basic-text/text-alignment" />

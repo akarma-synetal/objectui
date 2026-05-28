@@ -1,0 +1,6 @@
+{
+  "type": "number",
+  "name": "quantity",
+  "label": "Quantity",
+  "placeholder": "0"
+}

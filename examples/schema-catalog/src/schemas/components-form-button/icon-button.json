@@ -1,0 +1,12 @@
+{
+  "type": "flex",
+  "gap": 2,
+  "align": "center",
+  "children": [
+    {
+      "type": "button",
+      "label": "🎯",
+      "size": "icon"
+    }
+  ]
+}

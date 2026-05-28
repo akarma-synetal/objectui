@@ -1,0 +1,15 @@
+{
+  "type": "object",
+  "name": "settings",
+  "label": "Settings",
+  "value": {
+    "theme": "dark",
+    "notifications": {
+      "email": true,
+      "push": false
+    },
+    "privacy": {
+      "public": false
+    }
+  }
+}

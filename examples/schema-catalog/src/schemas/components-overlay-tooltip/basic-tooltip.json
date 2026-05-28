@@ -1,0 +1,10 @@
+{
+  "type": "tooltip",
+  "content": "Helpful information",
+  "children": [
+    {
+      "type": "button",
+      "label": "Hover me"
+    }
+  ]
+}

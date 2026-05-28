@@ -7,35 +7,9 @@ import { ComponentDemo, DemoGrid } from '@/app/components/ComponentDemo';
 
 ## Examples
 
-  <ComponentDemo
-    schema={{
-      type: "switch",
-      label: "Enable notifications"
-}}
-    title="Basic Switch"
-  />
+  <SchemaExample id="components-form-switch/basic-switch" />
 
-  <ComponentDemo
-    schema={{
-      type: "stack",
-      gap: 3,
-      children: [
-            {
-                  type: "switch",
-                  label: "Email notifications"
-            },
-            {
-                  type: "switch",
-                  label: "Push notifications"
-            },
-            {
-                  type: "switch",
-                  label: "SMS notifications"
-            }
-      ]
-}}
-    title="Multiple Switches"
-  />
+  <SchemaExample id="components-form-switch/multiple-switches" />
 
 ## Schema
 

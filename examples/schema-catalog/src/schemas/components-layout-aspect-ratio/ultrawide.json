@@ -1,0 +1,8 @@
+{
+  "type": "aspect-ratio",
+  "ratio": 2.3333333333333335,
+  "content": {
+    "type": "card",
+    "content": "21:9 Ratio"
+  }
+}

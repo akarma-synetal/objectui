@@ -1,0 +1,11 @@
+{
+  "type": "button",
+  "label": "Submit",
+  "variant": "destructive",
+  "onClick": {
+    "action": "toast",
+    "variant": "destructive",
+    "title": "Submission Failed",
+    "description": "Please check your input and try again."
+  }
+}

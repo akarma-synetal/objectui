@@ -1,0 +1,9 @@
+{
+  "type": "button",
+  "label": "Warning",
+  "onClick": {
+    "action": "sonner",
+    "type": "warning",
+    "message": "Please review your input"
+  }
+}

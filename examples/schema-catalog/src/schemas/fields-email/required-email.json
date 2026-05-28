@@ -1,0 +1,7 @@
+{
+  "type": "email",
+  "name": "contact_email",
+  "label": "Contact Email",
+  "placeholder": "contact@company.com",
+  "required": true
+}

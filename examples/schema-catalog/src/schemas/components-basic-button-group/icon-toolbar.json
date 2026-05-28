@@ -1,0 +1,19 @@
+{
+  "type": "button-group",
+  "variant": "outline",
+  "size": "sm",
+  "buttons": [
+    {
+      "icon": "copy",
+      "value": "copy"
+    },
+    {
+      "icon": "scissors",
+      "value": "cut"
+    },
+    {
+      "icon": "clipboard",
+      "value": "paste"
+    }
+  ]
+}

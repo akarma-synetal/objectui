@@ -1,0 +1,6 @@
+{
+  "type": "location",
+  "name": "office_location",
+  "label": "Office Location",
+  "placeholder": "latitude, longitude"
+}

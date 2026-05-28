@@ -1,0 +1,7 @@
+{
+  "type": "currency",
+  "name": "price_eur",
+  "label": "Price (EUR)",
+  "placeholder": "€0.00",
+  "currency": "EUR"
+}

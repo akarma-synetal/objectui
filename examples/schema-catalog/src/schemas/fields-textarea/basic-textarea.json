@@ -1,0 +1,7 @@
+{
+  "type": "textarea",
+  "name": "description",
+  "label": "Description",
+  "placeholder": "Enter a description...",
+  "rows": 4
+}

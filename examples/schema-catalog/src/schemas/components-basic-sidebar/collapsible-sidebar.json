@@ -1,0 +1,86 @@
+{
+  "type": "sidebar-provider",
+  "body": [
+    {
+      "type": "sidebar",
+      "collapsible": "icon",
+      "body": [
+        {
+          "type": "sidebar-content",
+          "body": [
+            {
+              "type": "sidebar-group",
+              "body": [
+                {
+                  "type": "sidebar-menu",
+                  "body": [
+                    {
+                      "type": "sidebar-menu-item",
+                      "body": [
+                        {
+                          "type": "sidebar-menu-button",
+                          "body": [
+                            {
+                              "type": "text",
+                              "content": "Home"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "sidebar-menu-item",
+                      "body": [
+                        {
+                          "type": "sidebar-menu-button",
+                          "body": [
+                            {
+                              "type": "text",
+                              "content": "Files"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "sidebar-menu-item",
+                      "body": [
+                        {
+                          "type": "sidebar-menu-button",
+                          "body": [
+                            {
+                              "type": "text",
+                              "content": "Settings"
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "sidebar-inset",
+      "body": [
+        {
+          "type": "div",
+          "className": "p-4",
+          "body": [
+            {
+              "type": "sidebar-trigger"
+            },
+            {
+              "type": "text",
+              "content": "Main content area"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

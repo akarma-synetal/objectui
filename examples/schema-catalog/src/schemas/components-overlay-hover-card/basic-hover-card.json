@@ -1,0 +1,11 @@
+{
+  "type": "hover-card",
+  "trigger": {
+    "type": "text",
+    "value": "Hover over me"
+  },
+  "content": {
+    "type": "text",
+    "value": "This is the hover card content"
+  }
+}

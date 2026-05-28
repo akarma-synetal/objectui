@@ -7,31 +7,9 @@ import { ComponentDemo, DemoGrid } from '@/app/components/ComponentDemo';
 
 ## Examples
 
-  <ComponentDemo
-    schema={{
-      type: "loading"
-}}
-    title="Basic Loading"
-  />
+  <SchemaExample id="components-feedback-loading/basic-loading" />
 
-  <ComponentDemo
-    schema={{
-      type: "stack",
-      gap: 2,
-      align: "center",
-      children: [
-            {
-                  type: "loading"
-            },
-            {
-                  type: "text",
-                  content: "Loading...",
-                  variant: "muted"
-            }
-      ]
-}}
-    title="With Text"
-  />
+  <SchemaExample id="components-feedback-loading/with-text" />
 
 ## Schema
 

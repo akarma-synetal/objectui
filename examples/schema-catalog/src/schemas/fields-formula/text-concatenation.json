@@ -1,0 +1,9 @@
+{
+  "type": "formula",
+  "name": "full_name",
+  "label": "Full Name",
+  "formula": "first_name + \" \" + last_name",
+  "return_type": "text",
+  "readonly": true,
+  "value": "John Doe"
+}

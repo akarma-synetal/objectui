@@ -1,0 +1,7 @@
+{
+  "type": "phone",
+  "name": "contact_phone",
+  "label": "Contact Phone",
+  "placeholder": "Enter phone number",
+  "required": true
+}

@@ -24,48 +24,15 @@ Instead of using `div`, use these Shadcn alternatives:
 
 ### For Card-like Containers → Use `card`
 
-<ComponentDemo
-  schema={{
-    type: 'card',
-    children: [
-      { type: 'text', content: 'Card Title', className: 'text-2xl font-semibold' },
-      { type: 'text', content: 'Card content with proper semantic structure.', className: 'text-sm text-muted-foreground mt-2' }
-    ]
-  }}
-  title="Use Card Instead"
-/>
+<SchemaExample id="components-basic-div/use-card-instead" />
 
 ### For Flex Layouts → Use `flex`
 
-<ComponentDemo
-  schema={{
-    type: 'flex',
-    gap: 4,
-    children: [
-      { type: 'card', className: 'w-20 h-20 bg-blue-500' },
-      { type: 'card', className: 'w-20 h-20 bg-green-500' },
-      { type: 'card', className: 'w-20 h-20 bg-purple-500' }
-    ]
-  }}
-  title="Flex Layout"
-/>
+<SchemaExample id="components-basic-div/flex-layout" />
 
 ### For Grid Layouts → Use `grid`
 
-<ComponentDemo
-  schema={{
-    type: 'grid',
-    cols: 2,
-    gap: 4,
-    children: [
-      { type: 'card', className: 'h-20 bg-red-500' },
-      { type: 'card', className: 'h-20 bg-yellow-500' },
-      { type: 'card', className: 'h-20 bg-pink-500' },
-      { type: 'card', className: 'h-20 bg-indigo-500' }
-    ]
-  }}
-  title="Grid Layout"
-/>
+<SchemaExample id="components-basic-div/grid-layout" />
 
 ## Old Examples (Deprecated)
 
@@ -96,45 +63,8 @@ interface DivSchema {
 
 ### Old Card Layout Example
 
-<ComponentDemo
-  schema={{
-    type: 'div',
-    className: 'max-w-sm rounded-lg border bg-card text-card-foreground shadow-sm',
-    children: [
-      {
-        type: 'div',
-        className: 'p-6 space-y-2',
-        children: [
-          { type: 'text', content: 'Card Title', className: 'text-2xl font-semibold' },
-          { type: 'text', content: 'Card description goes here. This is a basic card layout using div containers.', className: 'text-sm text-muted-foreground' }
-        ]
-      }
-    ]
-  }}
-  title="Custom Card"
-/>
+<SchemaExample id="components-basic-div/custom-card" />
 
 ### Nested Containers
 
-<ComponentDemo
-  schema={{
-    type: 'div',
-    className: 'p-6 border-2 border-dashed border-blue-300 rounded-lg',
-    children: [
-      {
-        type: 'div',
-        className: 'p-4 border-2 border-dashed border-green-300 rounded',
-        children: [
-          {
-            type: 'div',
-            className: 'p-3 border-2 border-dashed border-purple-300 rounded text-center',
-            children: [
-              { type: 'text', content: 'Nested Content', className: 'font-mono text-sm' }
-            ]
-          }
-        ]
-      }
-    ]
-  }}
-  title="Nested Divs"
-/>
+<SchemaExample id="components-basic-div/nested-divs" />

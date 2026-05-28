@@ -1,0 +1,17 @@
+{
+  "type": "flex",
+  "direction": "column",
+  "gap": 2,
+  "children": [
+    {
+      "type": "label",
+      "text": "Password",
+      "required": true,
+      "htmlFor": "password"
+    },
+    {
+      "type": "password",
+      "id": "password"
+    }
+  ]
+}

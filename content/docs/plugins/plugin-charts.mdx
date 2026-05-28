@@ -17,75 +17,11 @@ npm install @object-ui/plugin-charts
 
 ## Interactive Examples
 
-<InteractiveDemo
-  schema={{
-    type: "bar-chart",
-    data: [
-      { name: "Jan", value: 400 },
-      { name: "Feb", value: 300 },
-      { name: "Mar", value: 600 },
-      { name: "Apr", value: 800 },
-      { name: "May", value: 500 },
-      { name: "Jun", value: 700 }
-    ],
-    dataKey: "value",
-    xAxisKey: "name",
-    height: 300,
-    color: "#8884d8"
-  }}
-  title="Simple Bar Chart"
-  description="Simple bar chart with basic API - type: 'bar-chart'"
-/>
+<SchemaExample id="plugin-charts/simple-bar-chart" />
 
-<InteractiveDemo
-  schema={{
-    type: "chart",
-    chartType: "line",
-    data: [
-      { month: "Jan", revenue: 4000, expenses: 2400 },
-      { month: "Feb", revenue: 3000, expenses: 1398 },
-      { month: "Mar", revenue: 6000, expenses: 3800 },
-      { month: "Apr", revenue: 8000, expenses: 3908 },
-      { month: "May", revenue: 5000, expenses: 4800 },
-      { month: "Jun", revenue: 7000, expenses: 3800 }
-    ],
-    xAxisKey: "month",
-    series: [
-      { dataKey: "revenue" },
-      { dataKey: "expenses" }
-    ],
-    config: {
-      revenue: { label: "Revenue", color: "#8884d8" },
-      expenses: { label: "Expenses", color: "#82ca9d" }
-    }
-  }}
-  title="Advanced Line Chart"
-  description="Advanced chart with multiple series - type: 'chart', chartType: 'line'"
-/>
+<SchemaExample id="plugin-charts/advanced-line-chart" />
 
-<InteractiveDemo
-  schema={{
-    type: "chart",
-    chartType: "area",
-    data: [
-      { month: "Jan", users: 1200 },
-      { month: "Feb", users: 1450 },
-      { month: "Mar", users: 1680 },
-      { month: "Apr", users: 1920 },
-      { month: "May", users: 2100 },
-      { month: "Jun", users: 2350 }
-    ],
-    xAxisKey: "month",
-    series: [
-      { dataKey: "users" }
-    ],
-    config: {
-      users: { label: "Users", color: "#8884d8" }
-    }
-  }}
-  title="Area Chart"
-  description="Show data trends with filled areas"
-/>
+<SchemaExample id="plugin-charts/area-chart" />
 
 ## Usage
 

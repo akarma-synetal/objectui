@@ -1,0 +1,21 @@
+{
+  "type": "lookup",
+  "name": "assigned_to",
+  "label": "Assigned To",
+  "placeholder": "Select user...",
+  "reference_to": "users",
+  "options": [
+    {
+      "label": "John Doe",
+      "value": "user_1"
+    },
+    {
+      "label": "Jane Smith",
+      "value": "user_2"
+    },
+    {
+      "label": "Bob Johnson",
+      "value": "user_3"
+    }
+  ]
+}

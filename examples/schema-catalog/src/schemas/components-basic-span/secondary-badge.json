@@ -1,0 +1,10 @@
+{
+  "type": "badge",
+  "variant": "secondary",
+  "children": [
+    {
+      "type": "text",
+      "content": "Secondary"
+    }
+  ]
+}

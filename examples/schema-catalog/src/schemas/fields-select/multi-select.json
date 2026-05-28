@@ -1,0 +1,29 @@
+{
+  "type": "select",
+  "name": "tags",
+  "label": "Tags",
+  "placeholder": "Select tags...",
+  "multiple": true,
+  "options": [
+    {
+      "label": "Frontend",
+      "value": "frontend",
+      "color": "blue"
+    },
+    {
+      "label": "Backend",
+      "value": "backend",
+      "color": "green"
+    },
+    {
+      "label": "DevOps",
+      "value": "devops",
+      "color": "purple"
+    },
+    {
+      "label": "Design",
+      "value": "design",
+      "color": "pink"
+    }
+  ]
+}

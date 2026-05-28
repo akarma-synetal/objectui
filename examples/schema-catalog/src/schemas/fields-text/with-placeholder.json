@@ -1,0 +1,6 @@
+{
+  "type": "text",
+  "name": "title",
+  "label": "Title",
+  "placeholder": "Enter a title for your post"
+}

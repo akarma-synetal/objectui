@@ -1,0 +1,29 @@
+{
+  "type": "page",
+  "title": "Analytics Overview",
+  "description": "Track your key metrics and performance indicators",
+  "body": [
+    {
+      "type": "grid",
+      "cols": 3,
+      "gap": 4,
+      "children": [
+        {
+          "type": "statistic",
+          "label": "Total Users",
+          "value": "12,543"
+        },
+        {
+          "type": "statistic",
+          "label": "Revenue",
+          "value": "$45,231"
+        },
+        {
+          "type": "statistic",
+          "label": "Growth",
+          "value": "+12.5%"
+        }
+      ]
+    }
+  ]
+}

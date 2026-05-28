@@ -1,0 +1,7 @@
+{
+  "type": "text",
+  "name": "readonly_field",
+  "label": "Read-Only",
+  "value": "This value cannot be changed",
+  "readonly": true
+}

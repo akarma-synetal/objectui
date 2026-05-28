@@ -1,0 +1,22 @@
+{
+  "type": "grid",
+  "name": "line_items",
+  "label": "Line Items",
+  "columns": [
+    {
+      "name": "product",
+      "label": "Product",
+      "type": "text"
+    },
+    {
+      "name": "quantity",
+      "label": "Quantity",
+      "type": "number"
+    },
+    {
+      "name": "price",
+      "label": "Price",
+      "type": "currency"
+    }
+  ]
+}

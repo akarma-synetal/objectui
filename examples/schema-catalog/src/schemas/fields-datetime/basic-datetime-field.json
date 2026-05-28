@@ -1,0 +1,6 @@
+{
+  "type": "datetime",
+  "name": "meeting_time",
+  "label": "Meeting Time",
+  "placeholder": "Select date and time..."
+}

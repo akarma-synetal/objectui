@@ -9,68 +9,19 @@ The Object Field component provides a JSON editor for storing and editing struct
 
 ## Basic Usage
 
-<ComponentDemo
-  schema={{
-    type: 'object',
-    name: 'metadata',
-    label: 'Metadata',
-    placeholder: '{\n  "key": "value"\n}'
-  }}
-  title="Basic Object Editor"
-/>
+<SchemaExample id="fields-object/basic-object-editor" />
 
 ## With Schema
 
-<ComponentDemo
-  schema={{
-    type: 'object',
-    name: 'config',
-    label: 'Configuration',
-    schema: {
-      api_key: 'string',
-      timeout: 'number',
-      enabled: 'boolean'
-    }
-  }}
-  title="Structured Configuration"
-/>
+<SchemaExample id="fields-object/structured-configuration" />
 
 ## Nested Data
 
-<ComponentDemo
-  schema={{
-    type: 'object',
-    name: 'settings',
-    label: 'Settings',
-    value: {
-      theme: 'dark',
-      notifications: {
-        email: true,
-        push: false
-      },
-      privacy: {
-        public: false
-      }
-    }
-  }}
-  title="Nested Object Data"
-/>
+<SchemaExample id="fields-object/nested-object-data" />
 
 ## Read-Only
 
-<ComponentDemo
-  schema={{
-    type: 'object',
-    name: 'response',
-    label: 'API Response',
-    value: {
-      status: 200,
-      data: { id: 123, name: 'Test' }
-    },
-    readonly: true
-  }}
-  title="Read-Only JSON Display"
-/>
+<SchemaExample id="fields-object/read-only-json-display" />
 
 ## Field Schema
 

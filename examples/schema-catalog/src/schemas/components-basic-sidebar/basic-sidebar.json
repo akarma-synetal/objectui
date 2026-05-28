@@ -1,0 +1,97 @@
+{
+  "type": "sidebar-provider",
+  "body": [
+    {
+      "type": "sidebar",
+      "body": [
+        {
+          "type": "sidebar-content",
+          "body": [
+            {
+              "type": "sidebar-group",
+              "label": "Menu",
+              "body": [
+                {
+                  "type": "sidebar-menu",
+                  "body": [
+                    {
+                      "type": "sidebar-menu-item",
+                      "body": [
+                        {
+                          "type": "sidebar-menu-button",
+                          "body": [
+                            {
+                              "type": "text",
+                              "content": "Dashboard"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "sidebar-menu-item",
+                      "body": [
+                        {
+                          "type": "sidebar-menu-button",
+                          "body": [
+                            {
+                              "type": "text",
+                              "content": "Projects"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "sidebar-menu-item",
+                      "body": [
+                        {
+                          "type": "sidebar-menu-button",
+                          "body": [
+                            {
+                              "type": "text",
+                              "content": "Team"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "sidebar-menu-item",
+                      "body": [
+                        {
+                          "type": "sidebar-menu-button",
+                          "body": [
+                            {
+                              "type": "text",
+                              "content": "Settings"
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "sidebar-inset",
+      "body": [
+        {
+          "type": "div",
+          "className": "p-4",
+          "body": [
+            {
+              "type": "text",
+              "content": "Main content area"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

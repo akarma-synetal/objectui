@@ -7,51 +7,11 @@ import { ComponentDemo, DemoGrid } from '@/app/components/ComponentDemo';
 
 ## Examples
 
-  <ComponentDemo
-    schema={{
-      type: "input",
-      placeholder: "Enter text..."
-}}
-    title="Basic Input"
-  />
+  <SchemaExample id="components-form-input/basic-input" />
 
-  <ComponentDemo
-    schema={{
-      type: "input",
-      name: "email",
-      label: "Email",
-      placeholder: "you@example.com"
-}}
-    title="With Label"
-  />
+  <SchemaExample id="components-form-input/with-label" />
 
-  <ComponentDemo
-    schema={{
-      type: "stack",
-      gap: 3,
-      children: [
-            {
-                  type: "input",
-                  label: "Email",
-                  inputType: "email",
-                  placeholder: "email@example.com"
-            },
-            {
-                  type: "input",
-                  label: "Password",
-                  inputType: "password",
-                  placeholder: "••••••••"
-            },
-            {
-                  type: "input",
-                  label: "Number",
-                  inputType: "number",
-                  placeholder: "123"
-            }
-      ]
-}}
-    title="Input Types"
-  />
+  <SchemaExample id="components-form-input/input-types" />
 
 ## Schema
 

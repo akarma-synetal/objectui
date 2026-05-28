@@ -9,50 +9,11 @@ The Label component renders accessible labels for form fields.
 
 ## Basic Usage
 
-<ComponentDemo
-  schema={{
-    type: 'flex',
-    direction: 'column',
-    gap: 2,
-    children: [
-      {
-        type: 'label',
-        text: 'Email',
-        htmlFor: 'email'
-      },
-      {
-        type: 'input',
-        id: 'email',
-        placeholder: 'Enter your email'
-      }
-    ]
-  }}
-  title="Form Label"
-/>
+<SchemaExample id="components-form-label/form-label" />
 
 ## Required Field
 
-<ComponentDemo
-  schema={{
-    type: 'flex',
-    direction: 'column',
-    gap: 2,
-    children: [
-      {
-        type: 'label',
-        text: 'Password',
-        required: true,
-        htmlFor: 'password'
-      },
-      {
-        type: 'input',
-        id: 'password',
-        type: 'password'
-      }
-    ]
-  }}
-  title="Required Label"
-/>
+<SchemaExample id="components-form-label/required-label" />
 
 ## Schema
 

@@ -1,0 +1,7 @@
+{
+  "type": "datetime",
+  "name": "created_at",
+  "label": "Created At",
+  "value": "2024-03-15T10:30",
+  "readonly": true
+}

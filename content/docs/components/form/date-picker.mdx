@@ -9,44 +9,17 @@ The Date Picker component allows users to select a date from a calendar interfac
 
 ## Basic Usage
 
-<ComponentDemo
-  schema={{
-    type: 'date-picker',
-    placeholder: 'Pick a date'
-  }}
-  title="Basic Date Picker"
-/>
+<SchemaExample id="components-form-date-picker/basic-date-picker" />
 
 ## With Default Date
 
-<ComponentDemo
-  schema={{
-    type: 'date-picker',
-    placeholder: 'Pick a date',
-    value: '2024-01-15'
-  }}
-  title="With Default Value"
-/>
+<SchemaExample id="components-form-date-picker/with-default-value" />
 
 ## States
 
 <DemoGrid>
-  <ComponentDemo
-    schema={{
-      type: 'date-picker',
-      placeholder: 'Pick a date',
-      disabled: true
-    }}
-    title="Disabled"
-  />
-  <ComponentDemo
-    schema={{
-      type: 'date-picker',
-      placeholder: 'Pick a date',
-      className: 'w-full'
-    }}
-    title="Full Width"
-  />
+  <SchemaExample id="components-form-date-picker/disabled" />
+  <SchemaExample id="components-form-date-picker/full-width" />
 </DemoGrid>
 
 ## Schema
@@ -72,48 +45,8 @@ interface DatePickerSchema {
 
 ### In a Form
 
-<ComponentDemo
-  schema={{
-    type: 'flex',
-    direction: 'column',
-    gap: 4,
-    children: [
-      {
-        type: 'label',
-        text: 'Birth Date',
-        htmlFor: 'birthdate'
-      },
-      {
-        type: 'date-picker',
-        id: 'birthdate',
-        placeholder: 'Select your birth date'
-      }
-    ]
-  }}
-  title="Form Field"
-/>
+<SchemaExample id="components-form-date-picker/form-field" />
 
 ### Date Range
 
-<ComponentDemo
-  schema={{
-    type: 'flex',
-    gap: 2,
-    align: 'center',
-    children: [
-      {
-        type: 'date-picker',
-        placeholder: 'Start date'
-      },
-      {
-        type: 'text',
-        value: 'to'
-      },
-      {
-        type: 'date-picker',
-        placeholder: 'End date'
-      }
-    ]
-  }}
-  title="Date Range Selector"
-/>
+<SchemaExample id="components-form-date-picker/date-range-selector" />

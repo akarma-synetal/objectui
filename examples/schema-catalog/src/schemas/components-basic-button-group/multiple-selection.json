@@ -1,0 +1,25 @@
+{
+  "type": "button-group",
+  "selectionMode": "multiple",
+  "value": [
+    "bold",
+    "italic"
+  ],
+  "buttons": [
+    {
+      "label": "Bold",
+      "value": "bold",
+      "icon": "bold"
+    },
+    {
+      "label": "Italic",
+      "value": "italic",
+      "icon": "italic"
+    },
+    {
+      "label": "Underline",
+      "value": "underline",
+      "icon": "underline"
+    }
+  ]
+}

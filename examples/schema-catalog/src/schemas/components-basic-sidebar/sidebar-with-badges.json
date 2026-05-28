@@ -1,0 +1,106 @@
+{
+  "type": "sidebar-provider",
+  "body": [
+    {
+      "type": "sidebar",
+      "body": [
+        {
+          "type": "sidebar-content",
+          "body": [
+            {
+              "type": "sidebar-group",
+              "body": [
+                {
+                  "type": "sidebar-menu",
+                  "body": [
+                    {
+                      "type": "sidebar-menu-item",
+                      "body": [
+                        {
+                          "type": "sidebar-menu-button",
+                          "body": [
+                            {
+                              "type": "text",
+                              "content": "Inbox"
+                            },
+                            {
+                              "type": "badge",
+                              "content": "12",
+                              "className": "ml-auto"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "sidebar-menu-item",
+                      "body": [
+                        {
+                          "type": "sidebar-menu-button",
+                          "body": [
+                            {
+                              "type": "text",
+                              "content": "Drafts"
+                            },
+                            {
+                              "type": "badge",
+                              "content": "3",
+                              "className": "ml-auto"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "sidebar-menu-item",
+                      "body": [
+                        {
+                          "type": "sidebar-menu-button",
+                          "body": [
+                            {
+                              "type": "text",
+                              "content": "Sent"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "sidebar-menu-item",
+                      "body": [
+                        {
+                          "type": "sidebar-menu-button",
+                          "body": [
+                            {
+                              "type": "text",
+                              "content": "Trash"
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "sidebar-inset",
+      "body": [
+        {
+          "type": "div",
+          "className": "p-4",
+          "body": [
+            {
+              "type": "text",
+              "content": "Main content area"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

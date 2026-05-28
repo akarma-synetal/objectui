@@ -1,0 +1,9 @@
+{
+  "type": "button",
+  "label": "Info",
+  "onClick": {
+    "action": "sonner",
+    "type": "info",
+    "message": "New update available"
+  }
+}

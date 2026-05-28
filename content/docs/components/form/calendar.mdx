@@ -9,46 +9,18 @@ The Calendar component allows users to select dates in various modes including s
 
 ## Basic Usage
 
-<ComponentDemo
-  schema={{
-    type: 'calendar',
-    mode: 'single',
-    className: 'rounded-md border'
-  }}
-  title="Simple Calendar"
-/>
+<SchemaExample id="components-form-calendar/simple-calendar" />
 
 ## Selection Modes
 
 <DemoGrid>
-  <ComponentDemo
-    schema={{
-      type: 'calendar',
-      mode: 'single',
-      className: 'rounded-md border'
-    }}
-    title="Single Date"
-  />
-  <ComponentDemo
-    schema={{
-      type: 'calendar',
-      mode: 'range',
-      className: 'rounded-md border'
-    }}
-    title="Date Range"
-  />
+  <SchemaExample id="components-form-calendar/single-date" />
+  <SchemaExample id="components-form-calendar/date-range" />
 </DemoGrid>
 
 ## Multiple Selection
 
-<ComponentDemo
-  schema={{
-    type: 'calendar',
-    mode: 'multiple',
-    className: 'rounded-md border shadow-sm'
-  }}
-  title="Multiple Dates"
-/>
+<SchemaExample id="components-form-calendar/multiple-dates" />
 
 ## Schema
 
@@ -83,25 +55,8 @@ interface CalendarSchema {
 
 ### In a Form
 
-<ComponentDemo
-  schema={{
-    type: 'div',
-    className: 'max-w-sm space-y-4 p-4 border rounded-lg',
-    children: [
-      { type: 'label', label: 'Select a date', className: 'text-sm font-medium' },
-      { type: 'calendar', mode: 'single', className: 'rounded-md border' }
-    ]
-  }}
-  title="Form Integration"
-/>
+<SchemaExample id="components-form-calendar/form-integration" />
 
 ### With Custom Styling
 
-<ComponentDemo
-  schema={{
-    type: 'calendar',
-    mode: 'single',
-    className: 'rounded-xl border-2 shadow-lg'
-  }}
-  title="Custom Style"
-/>
+<SchemaExample id="components-form-calendar/custom-style" />

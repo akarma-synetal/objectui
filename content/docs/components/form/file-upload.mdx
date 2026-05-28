@@ -9,54 +9,18 @@ The File Upload component provides a futuristic interface for uploading files wi
 
 ## Basic Usage
 
-<ComponentDemo
-  schema={{
-    type: 'file-upload',
-    id: 'basic-upload',
-    label: 'Upload files',
-    buttonText: 'Choose files'
-  }}
-  title="Simple Upload"
-/>
+<SchemaExample id="components-form-file-upload/simple-upload" />
 
 ## Single vs Multiple
 
 <DemoGrid>
-  <ComponentDemo
-    schema={{
-      type: 'file-upload',
-      id: 'single-upload',
-      label: 'Single file',
-      multiple: false,
-      buttonText: 'Select one file'
-    }}
-    title="Single File"
-  />
-  <ComponentDemo
-    schema={{
-      type: 'file-upload',
-      id: 'multi-upload',
-      label: 'Multiple files',
-      multiple: true,
-      buttonText: 'Select multiple files'
-    }}
-    title="Multiple Files"
-  />
+  <SchemaExample id="components-form-file-upload/single-file" />
+  <SchemaExample id="components-form-file-upload/multiple-files" />
 </DemoGrid>
 
 ## File Type Restrictions
 
-<ComponentDemo
-  schema={{
-    type: 'file-upload',
-    id: 'image-upload',
-    label: 'Upload images',
-    accept: 'image/*',
-    multiple: true,
-    buttonText: 'Choose images'
-  }}
-  title="Images Only"
-/>
+<SchemaExample id="components-form-file-upload/images-only" />
 
 ## Schema
 
@@ -99,50 +63,12 @@ interface FileUploadSchema {
 
 ### Document Upload
 
-<ComponentDemo
-  schema={{
-    type: 'file-upload',
-    id: 'doc-upload',
-    label: 'Upload documents',
-    accept: '.pdf,.doc,.docx,.txt',
-    multiple: true,
-    buttonText: 'Select documents',
-    description: 'Accepted formats: PDF, DOC, DOCX, TXT'
-  }}
-  title="Document Upload"
-/>
+<SchemaExample id="components-form-file-upload/document-upload" />
 
 ### Profile Picture
 
-<ComponentDemo
-  schema={{
-    type: 'file-upload',
-    id: 'avatar-upload',
-    label: 'Profile Picture',
-    accept: 'image/png,image/jpeg',
-    multiple: false,
-    buttonText: 'Upload photo'
-  }}
-  title="Avatar Upload"
-/>
+<SchemaExample id="components-form-file-upload/avatar-upload" />
 
 ### Full Example
 
-<ComponentDemo
-  schema={{
-    type: 'div',
-    className: 'max-w-md space-y-6 p-6 border rounded-lg',
-    children: [
-      { type: 'text', content: 'Project Files', className: 'text-xl font-semibold' },
-      {
-        type: 'file-upload',
-        id: 'project-files',
-        label: 'Upload project files',
-        accept: '*',
-        multiple: true,
-        buttonText: 'Drop files here or click to upload'
-      }
-    ]
-  }}
-  title="Form Example"
-/>
+<SchemaExample id="components-form-file-upload/form-example" />

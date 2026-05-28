@@ -25,55 +25,13 @@ import { SchemaRenderer } from '@object-ui/react';
 
 ## Basic Example
 
-<ComponentDemo
-  schema={{
-    type: 'card',
-    title: 'Dynamic Card',
-    children: [
-      {
-        type: 'text',
-        content: 'This entire UI is defined in JSON and rendered by SchemaRenderer',
-        className: 'text-sm text-muted-foreground'
-      }
-    ]
-  }}
-  title="SchemaRenderer in Action"
-/>
+<SchemaExample id="core-schema-renderer/schemarenderer-in-action" />
 
 ## Nested Schemas
 
 The SchemaRenderer automatically handles nested schemas:
 
-<ComponentDemo
-  schema={{
-    type: 'stack',
-    gap: 4,
-    children: [
-      {
-        type: 'card',
-        title: 'Parent Component',
-        children: [
-          {
-            type: 'flex',
-            gap: 2,
-            children: [
-              { type: 'badge', children: 'Nested' },
-              { type: 'badge', children: 'Components', variant: 'outline' }
-            ]
-          }
-        ]
-      },
-      {
-        type: 'card',
-        title: 'Sibling Component',
-        children: [
-          { type: 'text', content: 'All rendered from a single schema tree' }
-        ]
-      }
-    ]
-  }}
-  title="Nested Schema Example"
-/>
+<SchemaExample id="core-schema-renderer/nested-schema-example" />
 
 ## Schema Structure
 
@@ -92,13 +50,7 @@ interface SchemaNode {
 
 When an unknown component type is encountered, SchemaRenderer displays a helpful error message:
 
-<ComponentDemo
-  schema={{
-    type: 'unknown-component',
-    someData: 'test'
-  }}
-  title="Unknown Component Type"
-/>
+<SchemaExample id="core-schema-renderer/unknown-component-type" />
 
 ## Component Registry
 

@@ -1,0 +1,6 @@
+{
+  "type": "phone",
+  "name": "phone",
+  "label": "Phone Number",
+  "placeholder": "+1 (555) 123-4567"
+}

@@ -1,0 +1,6 @@
+{
+  "type": "file",
+  "name": "documents",
+  "label": "Documents",
+  "multiple": true
+}

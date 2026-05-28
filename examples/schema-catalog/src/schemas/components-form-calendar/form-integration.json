@@ -1,0 +1,16 @@
+{
+  "type": "div",
+  "className": "max-w-sm space-y-4 p-4 border rounded-lg",
+  "children": [
+    {
+      "type": "label",
+      "label": "Select a date",
+      "className": "text-sm font-medium"
+    },
+    {
+      "type": "calendar",
+      "mode": "single",
+      "className": "rounded-md border"
+    }
+  ]
+}

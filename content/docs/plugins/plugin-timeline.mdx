@@ -19,144 +19,15 @@ npm install @object-ui/plugin-timeline
 
 ### Vertical Timeline
 
-<InteractiveDemo
-  schema={{
-    type: "timeline",
-    variant: "vertical",
-    dateFormat: "long",
-    items: [
-      {
-        time: "2024-01-15",
-        title: "Project Started",
-        description: "Kickoff meeting and initial planning",
-        variant: "success",
-        icon: "🚀"
-      },
-      {
-        time: "2024-02-01",
-        title: "First Milestone",
-        description: "Completed initial design phase",
-        variant: "info",
-        icon: "🎨"
-      },
-      {
-        time: "2024-03-15",
-        title: "Beta Release",
-        description: "Released beta version to testers",
-        variant: "warning",
-        icon: "⚡"
-      },
-      {
-        time: "2024-04-01",
-        title: "Launch",
-        description: "Official product launch",
-        variant: "success",
-        icon: "🎉"
-      }
-    ]
-  }}
-  title="Vertical Timeline"
-  description="Display events in chronological order with markers and descriptions"
-/>
+<SchemaExample id="plugin-timeline/vertical-timeline" />
 
 ### Horizontal Timeline
 
-<InteractiveDemo
-  schema={{
-    type: "timeline",
-    variant: "horizontal",
-    dateFormat: "short",
-    items: [
-      {
-        time: "2024-01-01",
-        title: "Q1",
-        description: "First quarter",
-        variant: "default"
-      },
-      {
-        time: "2024-04-01",
-        title: "Q2",
-        description: "Second quarter",
-        variant: "info"
-      },
-      {
-        time: "2024-07-01",
-        title: "Q3",
-        description: "Third quarter",
-        variant: "warning"
-      },
-      {
-        time: "2024-10-01",
-        title: "Q4",
-        description: "Fourth quarter",
-        variant: "success"
-      }
-    ]
-  }}
-  title="Horizontal Timeline"
-  description="Horizontal layout ideal for quarterly or milestone views"
-/>
+<SchemaExample id="plugin-timeline/horizontal-timeline" />
 
 ### Gantt-Style Timeline
 
-<InteractiveDemo
-  schema={{
-    type: "timeline",
-    variant: "gantt",
-    dateFormat: "short",
-    timeScale: "month",
-    rowLabel: "Projects",
-    items: [
-      {
-        label: "Backend Development",
-        items: [
-          {
-            title: "API Design",
-            startDate: "2024-01-01",
-            endDate: "2024-01-31",
-            variant: "success"
-          },
-          {
-            title: "Implementation",
-            startDate: "2024-02-01",
-            endDate: "2024-03-31",
-            variant: "info"
-          }
-        ]
-      },
-      {
-        label: "Frontend Development",
-        items: [
-          {
-            title: "UI Design",
-            startDate: "2024-01-15",
-            endDate: "2024-02-15",
-            variant: "warning"
-          },
-          {
-            title: "Component Dev",
-            startDate: "2024-02-15",
-            endDate: "2024-04-15",
-            variant: "default"
-          }
-        ]
-      },
-      {
-        label: "Testing",
-        items: [
-          {
-            title: "QA Phase",
-            startDate: "2024-03-01",
-            endDate: "2024-04-30",
-            variant: "danger"
-          }
-        ]
-      }
-    ]
-  }}
-  title="Gantt-Style Timeline"
-  description="Project timeline with task dependencies and duration bars"
-/>
+<SchemaExample id="plugin-timeline/gantt-style-timeline" />
 
 ## Usage
 

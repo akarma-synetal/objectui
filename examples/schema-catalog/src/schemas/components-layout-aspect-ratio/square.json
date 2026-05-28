@@ -1,0 +1,8 @@
+{
+  "type": "aspect-ratio",
+  "ratio": 1,
+  "content": {
+    "type": "card",
+    "content": "Square (1:1)"
+  }
+}

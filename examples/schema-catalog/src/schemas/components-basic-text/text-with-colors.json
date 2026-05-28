@@ -1,0 +1,21 @@
+{
+  "type": "flex",
+  "gap": 4,
+  "children": [
+    {
+      "type": "text",
+      "content": "Primary Text",
+      "color": "text-primary"
+    },
+    {
+      "type": "text",
+      "content": "Destructive Text",
+      "color": "text-destructive"
+    },
+    {
+      "type": "text",
+      "content": "Muted Text",
+      "color": "text-muted-foreground"
+    }
+  ]
+}

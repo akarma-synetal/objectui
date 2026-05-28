@@ -1,0 +1,41 @@
+{
+  "type": "card",
+  "className": "max-w-md mx-auto",
+  "header": [
+    {
+      "type": "stack",
+      "spacing": 2,
+      "children": [
+        {
+          "type": "text",
+          "content": "Confirm Deletion",
+          "className": "text-lg font-semibold"
+        },
+        {
+          "type": "text",
+          "content": "Are you sure you want to delete this record? This action cannot be undone.",
+          "className": "text-sm text-muted-foreground"
+        }
+      ]
+    }
+  ],
+  "children": [
+    {
+      "type": "flex",
+      "className": "justify-end gap-2 pt-4",
+      "children": [
+        {
+          "type": "button",
+          "label": "Cancel",
+          "variant": "outline"
+        },
+        {
+          "type": "button",
+          "label": "Yes, Delete",
+          "variant": "destructive",
+          "icon": "trash-2"
+        }
+      ]
+    }
+  ]
+}

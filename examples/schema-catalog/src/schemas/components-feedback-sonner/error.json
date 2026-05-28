@@ -1,0 +1,10 @@
+{
+  "type": "button",
+  "label": "Error",
+  "variant": "destructive",
+  "onClick": {
+    "action": "sonner",
+    "type": "error",
+    "message": "Something went wrong"
+  }
+}

@@ -9,67 +9,17 @@ The Combobox component combines a text input with a dropdown list, allowing user
 
 ## Basic Usage
 
-<ComponentDemo
-  schema={{
-    type: 'combobox',
-    placeholder: 'Select framework...',
-    options: [
-      { value: 'next', label: 'Next.js' },
-      { value: 'react', label: 'React' },
-      { value: 'vue', label: 'Vue' },
-      { value: 'angular', label: 'Angular' }
-    ]
-  }}
-  title="Basic Combobox"
-/>
+<SchemaExample id="components-form-combobox/basic-combobox" />
 
 ## With Search
 
-<ComponentDemo
-  schema={{
-    type: 'combobox',
-    placeholder: 'Select language...',
-    searchPlaceholder: 'Search languages...',
-    emptyText: 'No language found.',
-    options: [
-      { value: 'js', label: 'JavaScript' },
-      { value: 'ts', label: 'TypeScript' },
-      { value: 'py', label: 'Python' },
-      { value: 'go', label: 'Go' },
-      { value: 'rust', label: 'Rust' },
-      { value: 'java', label: 'Java' }
-    ]
-  }}
-  title="Searchable Combobox"
-/>
+<SchemaExample id="components-form-combobox/searchable-combobox" />
 
 ## States
 
 <DemoGrid>
-  <ComponentDemo
-    schema={{
-      type: 'combobox',
-      placeholder: 'Disabled combobox',
-      disabled: true,
-      options: [
-        { value: '1', label: 'Option 1' }
-      ]
-    }}
-    title="Disabled"
-  />
-  <ComponentDemo
-    schema={{
-      type: 'combobox',
-      placeholder: 'Select option...',
-      value: '2',
-      options: [
-        { value: '1', label: 'Option 1' },
-        { value: '2', label: 'Option 2' },
-        { value: '3', label: 'Option 3' }
-      ]
-    }}
-    title="With Value"
-  />
+  <SchemaExample id="components-form-combobox/disabled" />
+  <SchemaExample id="components-form-combobox/with-value" />
 </DemoGrid>
 
 ## Schema
@@ -105,19 +55,4 @@ interface ComboboxSchema {
 
 ### Dynamic Options
 
-<ComponentDemo
-  schema={{
-    type: 'combobox',
-    placeholder: 'Select country...',
-    searchPlaceholder: 'Search countries...',
-    options: [
-      { value: 'us', label: 'United States' },
-      { value: 'uk', label: 'United Kingdom' },
-      { value: 'ca', label: 'Canada' },
-      { value: 'au', label: 'Australia' },
-      { value: 'de', label: 'Germany' },
-      { value: 'fr', label: 'France' }
-    ]
-  }}
-  title="Country Selector"
-/>
+<SchemaExample id="components-form-combobox/country-selector" />

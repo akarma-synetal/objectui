@@ -9,51 +9,15 @@ The Summary Field component displays aggregated values from related records. Thi
 
 ## Count Summary
 
-<ComponentDemo
-  schema={{
-    type: 'summary',
-    name: 'order_count',
-    label: 'Total Orders',
-    summary_object: 'orders',
-    summary_field: 'id',
-    summary_type: 'count',
-    readonly: true,
-    value: 42
-  }}
-  title="Count of Related Records"
-/>
+<SchemaExample id="fields-summary/count-of-related-records" />
 
 ## Sum Summary
 
-<ComponentDemo
-  schema={{
-    type: 'summary',
-    name: 'total_revenue',
-    label: 'Total Revenue',
-    summary_object: 'orders',
-    summary_field: 'amount',
-    summary_type: 'sum',
-    readonly: true,
-    value: 15750.50
-  }}
-  title="Sum of Field Values"
-/>
+<SchemaExample id="fields-summary/sum-of-field-values" />
 
 ## Average Summary
 
-<ComponentDemo
-  schema={{
-    type: 'summary',
-    name: 'avg_rating',
-    label: 'Average Rating',
-    summary_object: 'reviews',
-    summary_field: 'rating',
-    summary_type: 'avg',
-    readonly: true,
-    value: 4.52
-  }}
-  title="Average of Field Values"
-/>
+<SchemaExample id="fields-summary/average-of-field-values" />
 
 ## Field Schema
 

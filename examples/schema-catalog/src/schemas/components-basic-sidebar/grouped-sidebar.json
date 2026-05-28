@@ -1,0 +1,108 @@
+{
+  "type": "sidebar-provider",
+  "body": [
+    {
+      "type": "sidebar",
+      "body": [
+        {
+          "type": "sidebar-content",
+          "body": [
+            {
+              "type": "sidebar-group",
+              "label": "Main",
+              "body": [
+                {
+                  "type": "sidebar-menu",
+                  "body": [
+                    {
+                      "type": "sidebar-menu-item",
+                      "body": [
+                        {
+                          "type": "sidebar-menu-button",
+                          "body": [
+                            {
+                              "type": "text",
+                              "content": "Dashboard"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "sidebar-menu-item",
+                      "body": [
+                        {
+                          "type": "sidebar-menu-button",
+                          "body": [
+                            {
+                              "type": "text",
+                              "content": "Analytics"
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "sidebar-group",
+              "label": "Management",
+              "body": [
+                {
+                  "type": "sidebar-menu",
+                  "body": [
+                    {
+                      "type": "sidebar-menu-item",
+                      "body": [
+                        {
+                          "type": "sidebar-menu-button",
+                          "body": [
+                            {
+                              "type": "text",
+                              "content": "Projects"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "sidebar-menu-item",
+                      "body": [
+                        {
+                          "type": "sidebar-menu-button",
+                          "body": [
+                            {
+                              "type": "text",
+                              "content": "Team"
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "sidebar-inset",
+      "body": [
+        {
+          "type": "div",
+          "className": "p-4",
+          "body": [
+            {
+              "type": "text",
+              "content": "Main content area"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

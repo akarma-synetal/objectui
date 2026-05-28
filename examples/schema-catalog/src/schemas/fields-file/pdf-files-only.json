@@ -1,0 +1,9 @@
+{
+  "type": "file",
+  "name": "pdf_upload",
+  "label": "PDF Documents",
+  "accept": [
+    "application/pdf"
+  ],
+  "multiple": true
+}

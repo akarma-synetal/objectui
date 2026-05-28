@@ -9,65 +9,18 @@ The Toast component displays brief notifications to users that appear temporaril
 
 ## Basic Usage
 
-<ComponentDemo
-  schema={{
-    type: 'button',
-    label: 'Show Toast',
-    onClick: {
-      action: 'toast',
-      title: 'Success',
-      description: 'Your changes have been saved.'
-    }
-  }}
-  title="Basic Toast"
-/>
+<SchemaExample id="components-feedback-toast/basic-toast" />
 
 ## Variants
 
 <DemoGrid>
-  <ComponentDemo
-    schema={{
-      type: 'button',
-      label: 'Default Toast',
-      onClick: {
-        action: 'toast',
-        title: 'Notification',
-        description: 'This is a default toast message.'
-      }
-    }}
-    title="Default"
-  />
-  <ComponentDemo
-    schema={{
-      type: 'button',
-      label: 'Destructive Toast',
-      variant: 'destructive',
-      onClick: {
-        action: 'toast',
-        variant: 'destructive',
-        title: 'Error',
-        description: 'Something went wrong.'
-      }
-    }}
-    title="Destructive"
-  />
+  <SchemaExample id="components-feedback-toast/default" />
+  <SchemaExample id="components-feedback-toast/destructive" />
 </DemoGrid>
 
 ## With Action
 
-<ComponentDemo
-  schema={{
-    type: 'button',
-    label: 'Show Toast with Action',
-    onClick: {
-      action: 'toast',
-      title: 'Update Available',
-      description: 'A new version is available.',
-      actionLabel: 'Update Now'
-    }
-  }}
-  title="Toast with Action"
-/>
+<SchemaExample id="components-feedback-toast/toast-with-action" />
 
 ## Schema
 
@@ -91,49 +44,12 @@ interface ToastSchema {
 
 ### Success Message
 
-<ComponentDemo
-  schema={{
-    type: 'button',
-    label: 'Save',
-    onClick: {
-      action: 'toast',
-      title: 'Saved Successfully',
-      description: 'Your changes have been saved.',
-      duration: 3000
-    }
-  }}
-  title="Success Toast"
-/>
+<SchemaExample id="components-feedback-toast/success-toast" />
 
 ### Error Message
 
-<ComponentDemo
-  schema={{
-    type: 'button',
-    label: 'Submit',
-    variant: 'destructive',
-    onClick: {
-      action: 'toast',
-      variant: 'destructive',
-      title: 'Submission Failed',
-      description: 'Please check your input and try again.'
-    }
-  }}
-  title="Error Toast"
-/>
+<SchemaExample id="components-feedback-toast/error-toast" />
 
 ### With Undo Action
 
-<ComponentDemo
-  schema={{
-    type: 'button',
-    label: 'Delete Item',
-    onClick: {
-      action: 'toast',
-      title: 'Item Deleted',
-      description: 'The item has been removed.',
-      actionLabel: 'Undo'
-    }
-  }}
-  title="Toast with Undo"
-/>
+<SchemaExample id="components-feedback-toast/toast-with-undo" />

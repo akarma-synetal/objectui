@@ -1,0 +1,14 @@
+{
+  "type": "vector",
+  "name": "embedding",
+  "label": "Text Embedding",
+  "dimensions": 768,
+  "readonly": true,
+  "value": [
+    0.1234,
+    -0.5678,
+    0.9012,
+    0.3456,
+    -0.789
+  ]
+}

@@ -1,0 +1,69 @@
+{
+  "type": "flex",
+  "className": "items-center justify-between p-3 border rounded-lg bg-background",
+  "children": [
+    {
+      "type": "flex",
+      "className": "items-center gap-3",
+      "children": [
+        {
+          "type": "icon",
+          "name": "box",
+          "className": "h-6 w-6 text-primary"
+        },
+        {
+          "type": "text",
+          "content": "Acme CRM",
+          "className": "font-semibold text-lg"
+        }
+      ]
+    },
+    {
+      "type": "flex",
+      "className": "items-center gap-2",
+      "children": [
+        {
+          "type": "button",
+          "label": "Quick Actions",
+          "variant": "outline",
+          "size": "sm",
+          "icon": "zap"
+        },
+        {
+          "type": "button",
+          "label": "Notifications",
+          "variant": "ghost",
+          "size": "sm",
+          "icon": "bell"
+        },
+        {
+          "type": "flex",
+          "className": "items-center gap-2 ml-2 pl-2 border-l",
+          "children": [
+            {
+              "type": "avatar",
+              "fallback": "JD",
+              "className": "h-8 w-8"
+            },
+            {
+              "type": "stack",
+              "spacing": 0,
+              "children": [
+                {
+                  "type": "text",
+                  "content": "John Doe",
+                  "className": "text-sm font-medium leading-none"
+                },
+                {
+                  "type": "text",
+                  "content": "john@acme.com",
+                  "className": "text-xs text-muted-foreground"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
