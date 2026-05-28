@@ -30,7 +30,76 @@ export default function HomePage() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
                 </svg>
               </Link>
+              <a
+                href="https://github.com/objectstack-ai/objectui"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center justify-center rounded-lg border border-fd-border bg-fd-card px-8 py-3.5 text-base font-semibold text-fd-foreground shadow-sm transition-all hover:bg-fd-accent hover:shadow-md"
+              >
+                <svg className="mr-2 h-5 w-5" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M12 0C5.37 0 0 5.373 0 12c0 5.303 3.438 9.8 8.205 11.387.6.111.82-.261.82-.577 0-.286-.011-1.244-.017-2.257-3.338.726-4.042-1.416-4.042-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.085 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.418-1.305.762-1.605-2.665-.305-5.467-1.334-5.467-5.93 0-1.31.469-2.382 1.236-3.222-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.398 3.003-.403 1.02.005 2.047.137 3.006.403 2.29-1.553 3.297-1.23 3.297-1.23.653 1.652.242 2.873.118 3.176.77.84 1.235 1.911 1.235 3.222 0 4.61-2.807 5.62-5.479 5.92.43.371.815 1.103.815 2.222 0 1.606-.014 2.898-.014 3.293 0 .319.218.694.825.576C20.565 21.797 24 17.298 24 12c0-6.627-5.373-12-12-12z" />
+                </svg>
+                Star on GitHub
+              </a>
             </div>
+
+            {/* Trust strip — version, downloads, license, etc. via shields.io */}
+            <ul
+              aria-label="Project stats"
+              className="mt-8 flex flex-wrap items-center justify-center gap-x-3 gap-y-2 text-sm"
+            >
+              {[
+                {
+                  href: 'https://www.npmjs.com/package/@object-ui/react',
+                  src: 'https://img.shields.io/npm/v/@object-ui/react?label=npm&color=cb3837',
+                  alt: 'Latest npm version',
+                },
+                {
+                  href: 'https://www.npmjs.com/package/@object-ui/react',
+                  src: 'https://img.shields.io/npm/dm/@object-ui/react?label=downloads&color=4c1',
+                  alt: 'Monthly npm downloads',
+                },
+                {
+                  href: 'https://github.com/objectstack-ai/objectui/stargazers',
+                  src: 'https://img.shields.io/github/stars/objectstack-ai/objectui?style=flat&color=fbca04',
+                  alt: 'GitHub stars',
+                },
+                {
+                  href: 'https://github.com/objectstack-ai/objectui/graphs/contributors',
+                  src: 'https://img.shields.io/github/contributors/objectstack-ai/objectui?color=informational',
+                  alt: 'Contributors',
+                },
+                {
+                  href: 'https://github.com/objectstack-ai/objectui/actions/workflows/ci.yml?query=branch%3Amain',
+                  src: 'https://img.shields.io/github/actions/workflow/status/objectstack-ai/objectui/ci.yml?branch=main&label=CI',
+                  alt: 'CI status',
+                },
+                {
+                  href: 'https://github.com/objectstack-ai/objectui/blob/main/LICENSE',
+                  src: 'https://img.shields.io/github/license/objectstack-ai/objectui?color=informational',
+                  alt: 'MIT licensed',
+                },
+              ].map((b) => (
+                <li key={b.alt}>
+                  <a
+                    href={b.href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-block transition hover:opacity-80"
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={b.src}
+                      alt={b.alt}
+                      loading="lazy"
+                      decoding="async"
+                      height={20}
+                      className="h-5"
+                    />
+                  </a>
+                </li>
+              ))}
+            </ul>
           </div>
 
           {/* Live Split View — JSON in, UI out */}
