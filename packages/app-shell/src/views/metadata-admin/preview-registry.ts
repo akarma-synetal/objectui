@@ -33,6 +33,20 @@ export interface MetadataPreviewProps {
    * as immutable and untrusted (validation may be in progress).
    */
   draft: Record<string, unknown>;
+  /**
+   * Optional: apply a shallow patch to the draft. When omitted, the
+   * preview surface is read-only (legacy behavior). When provided, the
+   * preview may offer in-place edits (Airtable-style column management,
+   * inline rename, etc.) — implementations should respect `editing`
+   * before exposing mutating affordances.
+   */
+  onPatch?: (patch: Record<string, unknown>) => void;
+  /**
+   * Optional: whether the host is in edit mode. Previews that ship
+   * editing affordances (e.g. ObjectPreview's FieldsTable) should
+   * render them in a disabled/hidden state when `editing === false`.
+   */
+  editing?: boolean;
 }
 
 export type MetadataPreview = ComponentType<MetadataPreviewProps>;

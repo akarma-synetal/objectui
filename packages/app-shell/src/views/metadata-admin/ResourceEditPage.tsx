@@ -749,7 +749,15 @@ export function MetadataResourceEditPage({
                 >
                   <ResizablePanel defaultSize={inspectorCollapsed ? 100 : 62} minSize={30}>
                     <div className="h-full overflow-auto p-4 bg-[radial-gradient(circle_at_1px_1px,theme(colors.border)_1px,transparent_0)] [background-size:16px_16px] bg-muted/30">
-                      <PreviewComponent type={type} name={name} draft={draft} />
+                      <PreviewComponent
+                        type={type}
+                        name={name}
+                        draft={draft}
+                        editing={editing}
+                        onPatch={(patch) =>
+                          setDraft((d) => ({ ...(d as Record<string, unknown>), ...patch }))
+                        }
+                      />
                     </div>
                   </ResizablePanel>
                   <ResizableHandle
