@@ -865,7 +865,7 @@ export function MetadataResourceEditPage({
               value="layers"
               className={PreviewComponent ? 'mt-2 px-6 pb-6 overflow-auto' : 'mt-4'}
             >
-              <LayeredDiff layered={layered} />
+              <LayeredDiff layered={layered} locale={locale} />
             </TabsContent>
           )}
 
