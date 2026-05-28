@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { LiveSplitDemo } from '@/app/components/LiveSplitDemo';
+import { ReactVsObjectUI } from '@/app/components/ReactVsObjectUI';
 
 
 export default function HomePage() {
@@ -108,6 +109,9 @@ export default function HomePage() {
           </div>
         </div>
       </section>
+
+      {/* React vs ObjectUI — line-count contrast */}
+      <ReactVsObjectUI />
 
       {/* Features Section */}
       <section className="py-24 sm:py-32 bg-fd-muted/30">
