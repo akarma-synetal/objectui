@@ -147,6 +147,7 @@ export interface BuildPageOptions {
   slots?: {
     header?: any | any[];
     actions?: any | any[];
+    alerts?: any | any[];
     highlights?: any | any[];
     details?: any | any[];
     tabs?: any | any[];
@@ -463,6 +464,15 @@ export function buildDefaultPageSchema(
   //    are merged into the header above.
   if ('actions' in slots && slots.actions !== undefined) {
     components.push(...toNodeArray(slots.actions));
+  }
+
+  // 2.5) Alerts slot — rendered between the header/actions row and the
+  //      highlights strip. No default emission; only renders when the
+  //      page explicitly provides alerts (e.g. unverified-email banner,
+  //      "record is locked" notice). The `record:alert` renderer handles
+  //      its own visibility predicate and dismiss persistence.
+  if ('alerts' in slots && slots.alerts !== undefined) {
+    components.push(...toNodeArray(slots.alerts));
   }
 
   // 3) Highlight strip (chips + chevron path).

@@ -20,6 +20,7 @@ import { RecordPathRenderer } from './renderers/record-path';
 import { RecordQuickActionsRenderer } from './renderers/record-quick-actions';
 import { RecordHistoryRenderer } from './renderers/record-history';
 import { RecordReferenceRailRenderer } from './renderers/record-reference-rail';
+import { RecordAlertRenderer } from './renderers/record-alert';
 import type { DetailViewSchema } from '@object-ui/types';
 
 export { DetailView, DetailSection, DetailTabs, RelatedList };
@@ -33,6 +34,7 @@ export {
   RecordQuickActionsRenderer,
   RecordHistoryRenderer,
   RecordReferenceRailRenderer,
+  RecordAlertRenderer,
 };
 export { RecordDetailDrawer, deriveRecordPageHref } from './RecordDetailDrawer';
 export type { RecordDetailDrawerProps } from './RecordDetailDrawer';
@@ -284,4 +286,11 @@ ComponentRegistry.register('record:reference_rail', RecordReferenceRailRenderer,
   category: 'record',
   label: 'Reference Rail',
   icon: 'PanelRight',
+});
+
+ComponentRegistry.register('record:alert', RecordAlertRenderer, {
+  namespace: 'record',
+  category: 'record',
+  label: 'Alert Banner',
+  icon: 'AlertTriangle',
 });
