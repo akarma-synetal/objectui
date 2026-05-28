@@ -33,7 +33,7 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
 } from '@object-ui/components';
-import { ArrowLeft, ExternalLink, Download, AlertCircle, Package, Trash2, MoreHorizontal, CheckCircle2 } from 'lucide-react';
+import { ArrowLeft, ExternalLink, Download, AlertCircle, Package, Trash2, MoreHorizontal, CheckCircle2, Database, Loader2 } from 'lucide-react';
 import { useIsWorkspaceAdmin } from '@object-ui/auth';
 import { useObjectTranslation } from '@object-ui/i18n';
 import { PackageIcon } from './PackageIcon';
@@ -49,10 +49,13 @@ import {
   listCloudEnvironments,
   listInstallableOrgIds,
   cloudInstallDeepLink,
-  getCloudInstalledVersion,
+  getCloudInstallationInfo,
+  reseedSampleData,
+  purgeSampleData,
   type MarketplaceDetailResponse,
   type CloudEnvironment,
   type LocalInstallEntry,
+  type CloudInstallationInfo,
 } from './marketplaceApi';
 import { getRuntimeConfig } from '../../runtime-config';
 import { useMetadata } from '../../providers/MetadataProvider';
@@ -84,6 +87,9 @@ export function MarketplacePackagePage() {
   // install response (which echoes the installation row) and from a
   // boot-time fetch of sys_package_installation for the current env.
   const [cloudInstalledVersion, setCloudInstalledVersion] = useState<string | null>(null);
+  const [cloudInstall, setCloudInstall] = useState<CloudInstallationInfo | null>(null);
+  const [sampleDataBusy, setSampleDataBusy] = useState<'reseed' | 'purge' | null>(null);
+  const [sampleDataMsg, setSampleDataMsg] = useState<{ ok: boolean; text: string } | null>(null);
 
   // Local-install state (this runtime's own kernel — separate flow from cloud).
   const [localInstalls, setLocalInstalls] = useState<LocalInstallEntry[]>([]);
@@ -110,8 +116,10 @@ export function MarketplacePackagePage() {
     if (!currentEnvId) return;
     let cancelled = false;
     (async () => {
-      const version = await getCloudInstalledVersion(packageId, currentEnvId);
-      if (!cancelled && version) setCloudInstalledVersion(version);
+      const info = await getCloudInstallationInfo(packageId, currentEnvId);
+      if (cancelled || !info) return;
+      setCloudInstall(info);
+      setCloudInstalledVersion(info.version);
     })();
     return () => { cancelled = true; };
   }, [packageId]);
@@ -198,6 +206,16 @@ export function MarketplacePackagePage() {
         ?? data?.versions?.[0]?.version
         ?? '';
       setCloudInstalledVersion(installedVersion || 'installed');
+      // Refresh the installation handle so reseed/purge can target it
+      // without the user having to reload the page.
+      try {
+        const currentEnvId = getRuntimeConfig().defaultEnvironmentId;
+        const envId = currentEnvId || selectedEnv;
+        if (envId) {
+          const info = await getCloudInstallationInfo(packageId, envId);
+          if (info) setCloudInstall(info);
+        }
+      } catch { /* non-fatal */ }
       // Invalidate the metadata cache so the newly-installed app's
       // objects/views/menus are fetched fresh on next access. Without
       // this the user sees the new app in the switcher (the `app` list
@@ -302,6 +320,67 @@ export function MarketplacePackagePage() {
       setLocalResult({ ok: false, message: e?.message ?? String(e) });
     } finally {
       setInstallingLocal(false);
+    }
+  };
+
+  /**
+   * Re-seed sample data into the cloud environment for this install.
+   * Used when the user forgot to tick "Include sample data" during the
+   * original install. SeedLoaderService upserts by id, so calling this
+   * multiple times is safe.
+   */
+  const doReseedSampleData = async () => {
+    if (!cloudInstall) return;
+    setSampleDataBusy('reseed');
+    setSampleDataMsg(null);
+    try {
+      const r = await reseedSampleData(cloudInstall.installationId);
+      if (r.ok) {
+        setCloudInstall({ ...cloudInstall, withSampleData: true });
+        setSampleDataMsg({
+          ok: true,
+          text: t('marketplace.detail.reseedQueued') || 'Sample data will be re-seeded on next environment access.',
+        });
+      } else {
+        setSampleDataMsg({ ok: false, text: r.error || 'Re-seed failed' });
+      }
+    } finally {
+      setSampleDataBusy(null);
+    }
+  };
+
+  /**
+   * Delete the sample data this package seeded. Use before going live
+   * with a clean production environment. Only records declared in the
+   * package's seed datasets are removed; user-added rows are untouched.
+   */
+  const doPurgeSampleData = async () => {
+    if (!cloudInstall) return;
+    if (!confirm(
+      t('marketplace.detail.purgeConfirm')
+      || 'Delete all sample records seeded by this package? User-added records will NOT be touched.',
+    )) {
+      return;
+    }
+    setSampleDataBusy('purge');
+    setSampleDataMsg(null);
+    try {
+      const r = await purgeSampleData(cloudInstall.installationId);
+      if (r.ok) {
+        setCloudInstall({ ...cloudInstall, withSampleData: false });
+        const removed = r.deleted ?? 0;
+        setSampleDataMsg({
+          ok: true,
+          text: removed > 0
+            ? (t('marketplace.detail.purgeSuccess', { count: removed })
+                || `Removed ${removed} sample record(s).`)
+            : (t('marketplace.detail.purgeNoData') || 'No sample records found to purge.'),
+        });
+      } else {
+        setSampleDataMsg({ ok: false, text: r.error || 'Purge failed' });
+      }
+    } finally {
+      setSampleDataBusy(null);
     }
   };
 
@@ -440,8 +519,54 @@ export function MarketplacePackagePage() {
               </DropdownMenuContent>
             </DropdownMenu>
           )}
+          {!localInstall && cloudInstall && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="lg" className="px-2.5" aria-label={t('marketplace.detail.moreOptions') || 'More options'}>
+                  <MoreHorizontal className="h-4 w-4" aria-hidden="true" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
+                <DropdownMenuItem onSelect={doReseedSampleData} disabled={sampleDataBusy !== null}>
+                  {sampleDataBusy === 'reseed'
+                    ? <Loader2 className="h-4 w-4 mr-2 animate-spin" aria-hidden="true" />
+                    : <Database className="h-4 w-4 mr-2" aria-hidden="true" />}
+                  {cloudInstall.withSampleData
+                    ? (t('marketplace.detail.reseedAgain') || 'Re-seed sample data')
+                    : (t('marketplace.detail.addSampleData') || 'Add sample data')}
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onSelect={doPurgeSampleData}
+                  disabled={sampleDataBusy !== null || !cloudInstall.withSampleData}
+                  className="text-destructive focus:text-destructive"
+                >
+                  {sampleDataBusy === 'purge'
+                    ? <Loader2 className="h-4 w-4 mr-2 animate-spin" aria-hidden="true" />
+                    : <Trash2 className="h-4 w-4 mr-2" aria-hidden="true" />}
+                  {t('marketplace.detail.purgeSampleData') || 'Purge sample data'}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
         </div>
       </div>
+
+      {sampleDataMsg && (
+        <div
+          role="status"
+          className={`flex items-start gap-2 rounded-md border p-3 text-sm ${sampleDataMsg.ok ? 'border-green-500/30 bg-green-500/5 text-green-700 dark:text-green-400' : 'border-destructive/30 bg-destructive/5 text-destructive'}`}
+        >
+          {sampleDataMsg.ok ? <CheckCircle2 className="h-4 w-4 mt-0.5 shrink-0" aria-hidden="true" /> : <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" aria-hidden="true" />}
+          <div className="flex-1">{sampleDataMsg.text}</div>
+          <button
+            type="button"
+            className="text-xs underline opacity-60 hover:opacity-100"
+            onClick={() => setSampleDataMsg(null)}
+          >
+            {t('marketplace.action.dismiss')}
+          </button>
+        </div>
+      )}
 
       {localResult && (
         <div

@@ -275,10 +275,29 @@ export function cloudInstallDeepLink(packageId: string): string {
  * installed and the install call surfaces a confusing "already exists"
  * error.
  */
+export interface CloudInstallationInfo {
+  installationId: string;
+  version: string;
+  withSampleData: boolean;
+}
+
 export async function getCloudInstalledVersion(
   packageId: string,
   environmentId: string,
 ): Promise<string | null> {
+  const info = await getCloudInstallationInfo(packageId, environmentId);
+  return info ? info.version : null;
+}
+
+/**
+ * Richer companion to {@link getCloudInstalledVersion}. Returns the
+ * full installation handle (id, version, sample-data flag) so the
+ * Marketplace UI can render reseed / purge actions.
+ */
+export async function getCloudInstallationInfo(
+  packageId: string,
+  environmentId: string,
+): Promise<CloudInstallationInfo | null> {
   if (!packageId || !environmentId) return null;
   const base = getCloudBase() || SERVER_URL;
   const filter = JSON.stringify([
@@ -299,9 +318,58 @@ export async function getCloudInstalledVersion(
     const row = rows[0];
     const enabled = row?.enabled;
     if (enabled === false || enabled === 0 || enabled === '0') return null;
-    return String(row?.version ?? row?.installed_version ?? 'installed');
+    return {
+      installationId: String(row?.id ?? ''),
+      version: String(row?.version ?? row?.installed_version ?? 'installed'),
+      withSampleData: row?.with_sample_data === true
+        || row?.with_sample_data === 1
+        || row?.with_sample_data === '1'
+        || row?.with_sample_data === 'true',
+    };
   } catch {
     return null;
+  }
+}
+
+/** POST /api/v1/cloud/installations/:id/reseed-sample-data */
+export async function reseedSampleData(installationId: string): Promise<{ ok: boolean; error?: string }> {
+  if (!installationId) return { ok: false, error: 'installation id required' };
+  const base = getCloudBase() || SERVER_URL;
+  try {
+    const res = await fetch(`${base}/api/v1/cloud/installations/${encodeURIComponent(installationId)}/reseed-sample-data`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
+      body: '{}',
+    });
+    const payload: any = await res.json().catch(() => ({}));
+    if (!res.ok || payload?.success === false) {
+      return { ok: false, error: payload?.error || `HTTP ${res.status}` };
+    }
+    return { ok: true };
+  } catch (err: any) {
+    return { ok: false, error: err?.message || 'Network error' };
+  }
+}
+
+/** POST /api/v1/cloud/installations/:id/purge-sample-data */
+export async function purgeSampleData(installationId: string): Promise<{ ok: boolean; deleted?: number; error?: string }> {
+  if (!installationId) return { ok: false, error: 'installation id required' };
+  const base = getCloudBase() || SERVER_URL;
+  try {
+    const res = await fetch(`${base}/api/v1/cloud/installations/${encodeURIComponent(installationId)}/purge-sample-data`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
+      body: '{}',
+    });
+    const payload: any = await res.json().catch(() => ({}));
+    if (!res.ok || payload?.success === false) {
+      return { ok: false, error: payload?.error || `HTTP ${res.status}` };
+    }
+    return { ok: true, deleted: Number(payload?.data?.deleted ?? 0) };
+  } catch (err: any) {
+    return { ok: false, error: err?.message || 'Network error' };
   }
 }
 
