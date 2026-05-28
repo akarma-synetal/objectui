@@ -264,6 +264,47 @@ export function cloudInstallDeepLink(packageId: string): string {
   return `${base}/apps/cloud-control/sys_package/${encodeURIComponent(packageId)}`;
 }
 
+/**
+ * Look up whether a package is already installed in the given environment.
+ * Returns the installed version string when an `enabled=true` row exists,
+ * or `null` when no install row is found.
+ *
+ * Used by `MarketplacePackagePage` to flip the primary CTA from
+ * "Install to Cloud" → "Installed" on initial render — without it, the
+ * button keeps inviting users to install a package that's already
+ * installed and the install call surfaces a confusing "already exists"
+ * error.
+ */
+export async function getCloudInstalledVersion(
+  packageId: string,
+  environmentId: string,
+): Promise<string | null> {
+  if (!packageId || !environmentId) return null;
+  const base = getCloudBase() || SERVER_URL;
+  const filter = JSON.stringify([
+    'and',
+    ['package_id', '=', packageId],
+    ['environment_id', '=', environmentId],
+  ]);
+  const url = `${base}/api/v1/data/sys_package_installation?top=1&filter=${encodeURIComponent(filter)}`;
+  try {
+    const res = await fetch(url, {
+      credentials: 'include',
+      headers: { 'Accept': 'application/json' },
+    });
+    if (!res.ok) return null;
+    const payload: any = await res.json().catch(() => ({}));
+    const rows: any[] = payload?.records ?? payload?.data ?? payload?.items ?? [];
+    if (!Array.isArray(rows) || rows.length === 0) return null;
+    const row = rows[0];
+    const enabled = row?.enabled;
+    if (enabled === false || enabled === 0 || enabled === '0') return null;
+    return String(row?.version ?? row?.installed_version ?? 'installed');
+  } catch {
+    return null;
+  }
+}
+
 // ────────────────────────────────────────────────────────────────────
 // Local install (this runtime's kernel — not a cloud environment)
 // ────────────────────────────────────────────────────────────────────

@@ -49,6 +49,7 @@ import {
   listCloudEnvironments,
   listInstallableOrgIds,
   cloudInstallDeepLink,
+  getCloudInstalledVersion,
   type MarketplaceDetailResponse,
   type CloudEnvironment,
   type LocalInstallEntry,
@@ -76,6 +77,13 @@ export function MarketplacePackagePage() {
   const [seedSampleData, setSeedSampleData] = useState(false);
   const [installing, setInstalling] = useState(false);
   const [installResult, setInstallResult] = useState<{ ok: boolean; message: string } | null>(null);
+  // Tracks whether the package has been installed into the current
+  // environment via the cloud install path. Used to flip the primary
+  // CTA from "Install to Cloud" → "Installed" so the user gets
+  // immediate feedback after a successful install. Seeded from the
+  // install response (which echoes the installation row) and from a
+  // boot-time fetch of sys_package_installation for the current env.
+  const [cloudInstalledVersion, setCloudInstalledVersion] = useState<string | null>(null);
 
   // Local-install state (this runtime's own kernel — separate flow from cloud).
   const [localInstalls, setLocalInstalls] = useState<LocalInstallEntry[]>([]);
@@ -91,6 +99,22 @@ export function MarketplacePackagePage() {
     })();
     return () => { cancelled = true; };
   }, [packageId, localResult]);
+
+  // Seed cloud-install state: when the runtime advertises a default
+  // environment (per-subdomain ObjectOS), check whether this package is
+  // already installed in that env so the primary CTA renders as
+  // "Installed" on first paint instead of inviting another install.
+  useEffect(() => {
+    if (!packageId) return;
+    const currentEnvId = getRuntimeConfig().defaultEnvironmentId;
+    if (!currentEnvId) return;
+    let cancelled = false;
+    (async () => {
+      const version = await getCloudInstalledVersion(packageId, currentEnvId);
+      if (!cancelled && version) setCloudInstalledVersion(version);
+    })();
+    return () => { cancelled = true; };
+  }, [packageId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -164,7 +188,16 @@ export function MarketplacePackagePage() {
     setInstalling(true);
     setInstallResult(null);
     try {
-      await installPackage({ packageId, environmentId: selectedEnv, seedSampleData });
+      const installResp = await installPackage({ packageId, environmentId: selectedEnv, seedSampleData });
+      // Flip the primary CTA to "Installed" so the user sees the state
+      // change without a page refresh. Response includes the install
+      // row when the cloud handler echoes it; fall back to the package's
+      // latest version when it doesn't.
+      const installedVersion = installResp?.installation?.version
+        ?? data?.package?.latest_version?.version
+        ?? data?.versions?.[0]?.version
+        ?? '';
+      setCloudInstalledVersion(installedVersion || 'installed');
       // Invalidate the metadata cache so the newly-installed app's
       // objects/views/menus are fetched fresh on next access. Without
       // this the user sees the new app in the switcher (the `app` list
@@ -306,7 +339,7 @@ export function MarketplacePackagePage() {
   const localInstall = localInstalls.find((i) => i.manifestId === pkg.manifest_id) ?? null;
 
   const supportsLocal = getRuntimeConfig().features.installLocal;
-  const primaryDisabled = !latestVersion || installingLocal || installing;
+  const primaryDisabled = !latestVersion || installingLocal || installing || (!supportsLocal && !!cloudInstalledVersion);
   const primaryAction = supportsLocal
     ? {
       label: installingLocal
@@ -317,7 +350,11 @@ export function MarketplacePackagePage() {
       onClick: doInstallLocal,
     }
     : {
-      label: installing ? t('marketplace.action.installing') : t('marketplace.action.installToCloud'),
+      label: installing
+        ? t('marketplace.action.installing')
+        : cloudInstalledVersion
+          ? t('marketplace.action.installed', { defaultValue: 'Installed' })
+          : t('marketplace.action.installToCloud'),
       onClick: openInstall,
     };
 
@@ -370,6 +407,12 @@ export function MarketplacePackagePage() {
               <Badge variant="default" className="bg-green-600 hover:bg-green-600 gap-1">
                 <CheckCircle2 className="h-3 w-3" aria-hidden="true" />
                 {t('marketplace.detail.installedV', { version: localInstall.version })}
+              </Badge>
+            )}
+            {!localInstall && cloudInstalledVersion && (
+              <Badge variant="default" className="bg-green-600 hover:bg-green-600 gap-1">
+                <CheckCircle2 className="h-3 w-3" aria-hidden="true" />
+                {t('marketplace.detail.installedV', { version: cloudInstalledVersion })}
               </Badge>
             )}
           </div>
