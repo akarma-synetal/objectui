@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { LiveSplitDemo } from '@/app/components/LiveSplitDemo';
 
 
 export default function HomePage() {
@@ -32,42 +33,9 @@ export default function HomePage() {
             </div>
           </div>
 
-          {/* Code Preview */}
-          <div className="mx-auto mt-16 max-w-4xl">
-            <div className="relative rounded-2xl bg-fd-card p-8 shadow-2xl ring-1 ring-fd-border">
-              <div className="flex items-center gap-2 mb-4">
-                <div className="h-3 w-3 rounded-full bg-red-500"></div>
-                <div className="h-3 w-3 rounded-full bg-yellow-500"></div>
-                <div className="h-3 w-3 rounded-full bg-green-500"></div>
-              </div>
-              <pre className="overflow-x-auto text-sm text-fd-muted-foreground">
-                <code>{`{
-  "type": "page",
-  "title": "Dashboard",
-  "body": {
-    "type": "grid",
-    "columns": 3,
-    "items": [
-      {
-        "type": "card",
-        "title": "Total Users",
-        "value": "\${stats.users}"
-      },
-      {
-        "type": "card",
-        "title": "Revenue",
-        "value": "\${stats.revenue}"
-      },
-      {
-        "type": "card",
-        "title": "Orders",
-        "value": "\${stats.orders}"
-      }
-    ]
-  }
-}`}</code>
-              </pre>
-            </div>
+          {/* Live Split View — JSON in, UI out */}
+          <div className="mx-auto mt-16 max-w-6xl">
+            <LiveSplitDemo />
           </div>
         </div>
       </section>
