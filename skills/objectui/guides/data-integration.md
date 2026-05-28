@@ -289,12 +289,12 @@ async function bootstrap() {
 bootstrap();
 ```
 
-### Storybook DataSource helper
+### Test DataSource helper
 
 ```typescript
 import { ObjectStackAdapter } from '@object-ui/data-objectstack';
 
-export function createStorybookDataSource() {
+export function createTestDataSource() {
   return new ObjectStackAdapter({ baseUrl: '/' });
 }
 ```

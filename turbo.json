@@ -4,7 +4,7 @@
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
-      "outputs": ["dist/**", ".next/**", "build/**", "storybook-static/**"],
+      "outputs": ["dist/**", ".next/**", "build/**"],
       "env": ["NODE_ENV", "VITE_BASE_PATH"]
     },
     "test": {
@@ -21,10 +21,7 @@
         "package.json",
         "$TURBO_DEFAULT$",
         "!**/*.md",
-        "!**/CHANGELOG.md",
-        "!storybook-static/**",
-        "!.storybook/**",
-        "!**/*.stories.*"
+        "!**/CHANGELOG.md"
       ]
     },
     "test:watch": {
@@ -46,14 +43,6 @@
     "dev": {
       "cache": false,
       "persistent": true
-    },
-    "storybook": {
-      "cache": false,
-      "persistent": true
-    },
-    "storybook:build": {
-      "dependsOn": ["^build"],
-      "outputs": ["storybook-static/**"]
     }
   }
 }

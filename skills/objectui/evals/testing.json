@@ -9,8 +9,8 @@
     },
     {
       "id": 2,
-      "prompt": "Create Storybook stories for an Object UI form plugin that has create, edit, and view modes.",
-      "expected_output": "Provides .stories.tsx with Meta definition, SchemaRendererProvider decorator, and story variants for each form mode with appropriate args.",
+      "prompt": "Write RTL component tests for an Object UI form plugin that has create, edit, and view modes.",
+      "expected_output": "Provides Vitest + React Testing Library tests with SchemaRendererProvider wrapping, mock dataSource, and a test case per form mode (create / edit / view) asserting fields render and submit behavior matches the mode.",
       "files": []
     },
     {

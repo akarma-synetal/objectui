@@ -11,7 +11,7 @@ import { useObjectTranslation } from '@object-ui/react';
 /**
  * Default English translations for ObjectTimeline. Mirrors the
  * createSafeTranslationHook pattern used by plugin-detail / plugin-list so
- * the timeline keeps working when rendered standalone (Storybook, tests,
+ * the timeline keeps working when rendered standalone (unit tests,
  * embed) without an I18nProvider on the React tree.
  */
 export const TIMELINE_DEFAULT_TRANSLATIONS: Record<string, string> = {

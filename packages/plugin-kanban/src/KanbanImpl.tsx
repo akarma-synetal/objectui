@@ -34,7 +34,7 @@ import { Plus } from "lucide-react"
 const cn = (...classes: Array<string | false | null | undefined>) => classes.filter(Boolean).join(' ')
 
 // Safe translation hook — falls back to English defaults when no I18nProvider
-// is mounted (e.g. plugin-kanban consumed in a standalone Storybook).
+// is mounted (e.g. plugin-kanban consumed standalone or in unit tests).
 const useKanbanT = createSafeTranslation(
   {
     'kanban.addCard': 'Add card',

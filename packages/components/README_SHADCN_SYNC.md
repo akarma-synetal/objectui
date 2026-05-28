@@ -238,9 +238,6 @@ pnpm --filter @object-ui/components build
 # Run tests
 pnpm --filter @object-ui/components test
 
-# Visual regression (if available)
-pnpm --filter @object-ui/components storybook
-
 # Integration test
 pnpm test
 ```

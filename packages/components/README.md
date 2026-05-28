@@ -10,20 +10,7 @@ Standard UI component library for Object UI, built with Shadcn UI + Tailwind CSS
 - ♿ **Accessible** - WCAG compliant components
 - 🎯 **Type-Safe** - Full TypeScript support
 - 🔌 **Extensible** - Easy to customize and extend
-- � **Storybook** - Interactive component showcase and development environment
 - 🔄 **Sync Tools** - Scripts to keep components updated with latest Shadcn
-
-## Development
-
-We use Storybook for component development and testing.
-
-```bash
-# Start Storybook
-pnpm storybook
-
-# Build Storybook
-pnpm build-storybook
-```
 
 ## Keeping Components Updated
 

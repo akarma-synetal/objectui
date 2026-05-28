@@ -13,11 +13,10 @@ pnpm typecheck            # Run tsc --noEmit across the workspace
 pnpm lint                 # Run eslint across the workspace
 ```
 
-### Run Docs & Storybook
+### Run Docs
 
 ```bash
 pnpm --filter @object-ui/site dev        # Docs site at http://localhost:3000
-pnpm storybook                           # Component playground at http://localhost:6006
 ```
 
 ### Test

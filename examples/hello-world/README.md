@@ -23,13 +23,11 @@ examples/hello-world/
 # From the monorepo root
 pnpm install
 
-# Use App.tsx inside your own Vite/Next.js app,
-# or explore the schema.json in Storybook:
-pnpm --filter @object-ui/components storybook
+# Use App.tsx inside your own Vite/Next.js app.
 ```
 
 ## Learn more
 
 - [CRM Example](../crm/) — full-featured reference app
 - [Todo Example](../todo/) — ObjectStack protocol basics
-- [Component Stories](../../packages/components/src/stories-json/) — all renderers in action
+- [Schema Catalog](../schema-catalog/) — canonical JSON schemas used across docs & tests

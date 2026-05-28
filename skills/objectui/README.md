@@ -18,7 +18,7 @@ skills/objectui/
 │   ├── schema-expressions.md        # Expression syntax & debugging
 │   ├── data-integration.md          # DataSource & API integration
 │   ├── project-setup.md             # CLI, Vite, Tailwind, runner & integration packages
-│   ├── testing.md                   # Testing patterns (Vitest, Storybook, Playwright)
+│   ├── testing.md                   # Testing patterns (Vitest, Playwright)
 │   ├── i18n.md                      # Internationalization & localization
 │   ├── mobile.md                    # Mobile responsiveness & PWA
 │   ├── auth-permissions.md          # Authentication, RBAC & multi-tenancy

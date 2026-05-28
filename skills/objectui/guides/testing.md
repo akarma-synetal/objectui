@@ -1,18 +1,17 @@
 ---
 name: objectui-testing
-description: Write and run tests for Object UI components, plugins, schemas, and pages. Use this skill when the user asks to test ObjectUI components, write unit tests with Vitest, create Storybook stories, write Playwright E2E tests, test schema rendering, test expression evaluation, test component registration, test data binding, debug test failures, or set up test infrastructure. Also applies when the user mentions test coverage, snapshot testing, visual regression, or asks "how do I test this component/plugin/page".
+description: Write and run tests for Object UI components, plugins, schemas, and pages. Use this skill when the user asks to test ObjectUI components, write unit tests with Vitest, write Playwright E2E tests, test schema rendering, test expression evaluation, test component registration, test data binding, debug test failures, or set up test infrastructure. Also applies when the user mentions test coverage, snapshot testing, or asks "how do I test this component/plugin/page".
 ---
 
 # ObjectUI Testing
 
-Use this skill to write tests across all layers of the Object UI framework: unit tests (Vitest + React Testing Library), component stories (Storybook), and end-to-end tests (Playwright).
+Use this skill to write tests across all layers of the Object UI framework: unit tests (Vitest + React Testing Library) and end-to-end tests (Playwright).
 
 ## Test infrastructure overview
 
 | Layer | Tool | Config | What it tests |
 |-------|------|--------|---------------|
 | Unit / Integration | Vitest + happy-dom | `vitest.config.mts` | Logic, hooks, components, schemas |
-| Component isolation | Storybook + React Vite | `.storybook/main.ts` | Visual states, interactions |
 | End-to-end | Playwright | `playwright.config.ts` | Full app flows, routing, rendering |
 
 ### Running tests
@@ -23,7 +22,6 @@ pnpm test:watch        # Watch mode
 pnpm test:ui           # Vitest browser UI
 pnpm test:coverage     # With coverage report
 pnpm test:e2e          # Playwright E2E tests
-pnpm storybook         # Launch Storybook dev server
 ```
 
 ### Coverage thresholds
@@ -272,95 +270,6 @@ describe('ObjectStackAdapter', () => {
 });
 ```
 
-## Storybook patterns
-
-### Story file location
-
-Place `.stories.tsx` files next to the component they test:
-```
-packages/plugin-my-widget/src/
-├── MyWidget.tsx
-├── MyWidget.stories.tsx    # ← here
-└── MyWidget.test.tsx
-```
-
-### Basic story
-
-```typescript
-import type { Meta, StoryObj } from '@storybook/react';
-import { MyWidget } from './MyWidget';
-
-const meta = {
-  title: 'Plugins/MyWidget',
-  component: MyWidget,
-  parameters: { layout: 'padded' },
-  tags: ['autodocs'],
-} satisfies Meta<typeof MyWidget>;
-
-export default meta;
-type Story = StoryObj<typeof meta>;
-
-export const Default: Story = {
-  args: { title: 'Demo', items: [] },
-};
-
-export const WithData: Story = {
-  args: {
-    title: 'Products',
-    items: [
-      { id: 1, name: 'Widget A', price: 29.99 },
-      { id: 2, name: 'Widget B', price: 49.99 },
-    ],
-  },
-};
-```
-
-### Schema-driven story (with SchemaRendererProvider)
-
-```typescript
-import { SchemaRenderer, SchemaRendererProvider } from '@object-ui/react';
-import { createStorybookDataSource } from '@storybook-config/datasource';
-
-const dataSource = createStorybookDataSource();
-
-const meta = {
-  title: 'Plugins/ObjectGrid',
-  component: SchemaRenderer,
-  tags: ['autodocs'],
-  decorators: [
-    (Story) => (
-      <SchemaRendererProvider dataSource={dataSource}>
-        <Story />
-      </SchemaRendererProvider>
-    ),
-  ],
-} satisfies Meta<any>;
-```
-
-### Field widget story
-
-```typescript
-import { useState } from 'react';
-
-function FieldWrapper({ Component, field, initialValue, readonly = false }) {
-  const [value, setValue] = useState(initialValue);
-  return (
-    <Component
-      value={value}
-      onChange={setValue}
-      field={{ name: 'demo', label: 'Demo Field', type: 'text', ...field }}
-      readonly={readonly}
-    />
-  );
-}
-
-export const Default: Story = {
-  render: () => (
-    <FieldWrapper Component={ColorField} field={{ type: 'color' }} initialValue="#3b82f6" />
-  ),
-};
-```
-
 ## Playwright E2E patterns
 
 ### Smoke test
@@ -424,11 +333,10 @@ test('all assets load without 404', async ({ page }) => {
 | `*.test.ts` | Pure logic tests (evaluators, validators, adapters) |
 | `*.test.tsx` | Component/hook tests needing React rendering |
 | `*.spec.ts` | Playwright E2E tests (in `e2e/` directory) |
-| `*.stories.tsx` | Storybook stories (excluded from tsconfig `dist`) |
 
 ## Mocking strategies
 
-### MSW for API mocking in stories and integration tests
+### MSW for API mocking in integration tests
 
 ```typescript
 import { http, HttpResponse } from 'msw';

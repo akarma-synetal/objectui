@@ -127,7 +127,6 @@ ObjectUI renders JSON metadata from the `@objectstack/spec` protocol into pixel-
 - **UI Primitives:** Shadcn UI (Radix UI) + Lucide Icons
 - **State Management:** Zustand (for global store), React Context (for scoped data)
 - **Testing:** Vitest + React Testing Library
-- **Docs:** Storybook (Component isolation)
 
 ## Architecture & Monorepo Topology
 
@@ -333,7 +332,6 @@ export const SchemaRenderer = ({ schema }: { schema: UIComponent }) => {
 
 1. **JSON First:** Always show the JSON configuration first.
 2. **Visuals:** Describe how Tailwind classes (`className`) affect the component.
-3. **Storybook:** Suggest creating a `.stories.tsx` file for every new component.
 
 ## Debugging & Browser Simulation Strategy
 

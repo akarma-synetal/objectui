@@ -376,52 +376,6 @@ Run tests:
 pnpm vitest run packages/plugin-board
 ```
 
-## Adding Storybook Stories
-
-Create a story for visual testing and documentation:
-
-```tsx
-// src/BoardImpl.stories.tsx
-import type { Meta, StoryObj } from '@storybook/react';
-import BoardImpl from './BoardImpl';
-
-const meta: Meta<typeof BoardImpl> = {
-  title: 'Plugins/Board',
-  component: BoardImpl,
-};
-
-export default meta;
-type Story = StoryObj<typeof BoardImpl>;
-
-export const Default: Story = {
-  args: {
-    schema: {
-      type: 'board',
-      columns: [
-        { id: 'backlog', title: 'Backlog' },
-        { id: 'in-progress', title: 'In Progress' },
-        { id: 'done', title: 'Done' },
-      ],
-      items: [
-        { id: '1', columnId: 'backlog', title: 'Research', description: 'Investigate options' },
-        { id: '2', columnId: 'in-progress', title: 'Prototype' },
-        { id: '3', columnId: 'done', title: 'Setup repo' },
-      ],
-    },
-  },
-};
-
-export const Empty: Story = {
-  args: {
-    schema: {
-      type: 'board',
-      columns: [{ id: 'todo', title: 'To Do' }],
-      items: [],
-    },
-  },
-};
-```
-
 ## Publishing Guidelines
 
 ### Package Checklist

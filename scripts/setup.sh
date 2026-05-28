@@ -80,7 +80,6 @@ echo -e "  ${GREEN}pnpm dev${NC}              - Start development server"
 echo -e "  ${GREEN}pnpm build${NC}            - Build all packages (with Turbo)"
 echo -e "  ${GREEN}pnpm test${NC}             - Run all tests"
 echo -e "  ${GREEN}pnpm lint${NC}             - Lint all packages"
-echo -e "  ${GREEN}pnpm storybook${NC}        - Start Storybook"
 echo -e "  ${GREEN}pnpm create-plugin${NC}    - Create a new plugin\n"
 
 echo -e "${BLUE}Next steps:${NC}"

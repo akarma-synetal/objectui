@@ -1,6 +1,6 @@
 ---
 name: objectui-plugin-development
-description: Create, register, and publish custom Object UI plugins. Use this skill when the user wants to build a new plugin for Object UI, register custom components in ComponentRegistry, implement field widgets with FieldWidgetProps, create Storybook stories for plugins, scaffold a plugin package with create-plugin, or extend the Object UI renderer with custom component types. Also applies when the user asks about component registration, plugin architecture, namespace conflicts, or how to package heavy third-party dependencies (maps, charts, editors) as Object UI plugins.
+description: Create, register, and publish custom Object UI plugins. Use this skill when the user wants to build a new plugin for Object UI, register custom components in ComponentRegistry, implement field widgets with FieldWidgetProps, scaffold a plugin package with create-plugin, or extend the Object UI renderer with custom component types. Also applies when the user asks about component registration, plugin architecture, namespace conflicts, or how to package heavy third-party dependencies (maps, charts, editors) as Object UI plugins.
 ---
 
 # ObjectUI Plugin Development
@@ -35,7 +35,6 @@ packages/plugin-my-widget/
 │   ├── index.tsx                 # Entry: exports + ComponentRegistry registration
 │   ├── MyWidgetImpl.tsx          # Component implementation
 │   ├── MyWidgetImpl.test.tsx     # Vitest tests
-│   ├── MyWidget.stories.tsx      # Storybook stories
 │   └── types.ts                  # Schema type definitions
 ├── package.json                  # Dependencies, exports config
 ├── tsconfig.json                 # TypeScript configuration
@@ -264,63 +263,6 @@ type FieldWidgetProps<T = any> = {
 };
 ```
 
-## Storybook stories
-
-### Basic story pattern
-
-```typescript
-import type { Meta, StoryObj } from '@storybook/react';
-import { MyWidget } from './MyWidgetImpl';
-
-const meta = {
-  title: 'Plugins/MyWidget',
-  component: MyWidget,
-  parameters: { layout: 'padded' },
-  tags: ['autodocs'],
-} satisfies Meta<typeof MyWidget>;
-
-export default meta;
-type Story = StoryObj<typeof meta>;
-
-export const Default: Story = {
-  args: {
-    title: 'My Widget',
-    columns: [{ name: 'id', label: 'ID' }],
-  },
-};
-```
-
-### Schema-driven story pattern (for plugins that render via SchemaRenderer)
-
-```typescript
-import type { Meta, StoryObj } from '@storybook/react';
-import { SchemaRenderer, SchemaRendererProvider } from '@object-ui/react';
-import { createStorybookDataSource } from '@storybook-config/datasource';
-
-const meta = {
-  title: 'Plugins/MyWidget',
-  component: SchemaRenderer,
-  tags: ['autodocs'],
-} satisfies Meta<any>;
-
-export default meta;
-type Story = StoryObj<typeof meta>;
-
-const dataSource = createStorybookDataSource();
-
-export const Default: Story = {
-  render: (args) => (
-    <SchemaRendererProvider dataSource={dataSource}>
-      <SchemaRenderer schema={args as any} />
-    </SchemaRendererProvider>
-  ),
-  args: {
-    type: 'my-widget',
-    props: { title: 'Demo Widget' },
-  },
-};
-```
-
 ## Package configuration
 
 ### package.json essentials
@@ -368,7 +310,7 @@ export const Default: Story = {
     "rootDir": "src"
   },
   "include": ["src"],
-  "exclude": ["node_modules", "dist", "**/*.test.ts", "**/*.test.tsx", "**/*.stories.tsx"]
+  "exclude": ["node_modules", "dist", "**/*.test.ts", "**/*.test.tsx"]
 }
 ```
 

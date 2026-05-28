@@ -14,7 +14,7 @@ import { Upload, FileSpreadsheet, CheckCircle2, AlertCircle, X, ArrowRight, Arro
 import { useObjectTranslation } from '@object-ui/react';
 
 /** Default English fallback strings used when no I18nProvider is mounted
- *  (standalone / Storybook usage). Mirrors the keys under `grid.import.*`. */
+ *  (standalone / unit-test usage). Mirrors the keys under `grid.import.*`. */
 const IMPORT_DEFAULT_TRANSLATIONS: Record<string, string> = {
   'grid.import.title': 'Import {{object}}',
   'grid.import.stepUpload': 'Upload',
@@ -73,7 +73,7 @@ function interpolate(template: string, vars?: Record<string, unknown>): string {
 
 /** Translation hook with safe English fallback for standalone usage.
  *  Mirrors the pattern in ObjectGrid.tsx — when no I18nProvider is mounted
- *  (e.g. Storybook / unit tests) the hook still resolves `grid.import.*`
+ *  (e.g. unit tests) the hook still resolves `grid.import.*`
  *  keys via the embedded defaults so the wizard stays usable. */
 function useImportTranslation(): { t: (key: string, vars?: Record<string, unknown>) => string } {
   const fallback = (key: string, vars?: Record<string, unknown>) =>

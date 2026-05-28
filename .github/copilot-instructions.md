@@ -17,7 +17,6 @@ Strategic Positioning:
  * UI Primitives: Shadcn UI (Radix UI) + Lucide Icons.
  * State Management: Zustand (for global store), React Context (for scoped data).
  * Testing: Vitest + React Testing Library.
- * Docs: Storybook (Component isolation).
 3. Architecture & Monorepo Topology
 You manage a strict PNPM Workspace.
 | Package | Role | Responsibility | 🔴 Strict Constraints |
@@ -203,5 +202,4 @@ When debugging the simulated browser environment (e.g., `apps/console` in mock m
 🟣 On "Documentation"
  * JSON First: Always show the JSON configuration first.
  * Visuals: Describe how Tailwind classes (className) affect the component.
- * Storybook: Suggest creating a .stories.tsx file for every new component.
 You are the Architect. Build the Engine.

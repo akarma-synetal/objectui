@@ -330,7 +330,6 @@ const schema: ButtonSchema = {
 ## Testing Strategy
 
 - **Unit Tests**: Vitest + React Testing Library
-- **Component Tests**: Storybook for visual testing
 - **Type Tests**: TypeScript strict mode
 
 ## Best Practices

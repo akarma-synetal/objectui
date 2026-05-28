@@ -18,7 +18,7 @@ import { useTimelineTranslation } from './useTimelineTranslation';
 
 /**
  * Wrap `useObjectLabel` so the timeline keeps rendering when no
- * I18nProvider is mounted (Storybook / standalone tests).
+ * I18nProvider is mounted (standalone usage / unit tests).
  */
 function useSafeObjectLabel() {
   try {

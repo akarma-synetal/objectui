@@ -5,7 +5,7 @@ description: Overview of the ObjectUI continuous integration and deployment work
 
 # CI/CD Pipeline
 
-ObjectUI uses **13 GitHub Actions workflows** to automate testing, quality checks, security scanning, releases, and repository maintenance. All workflow files live in `.github/workflows/`.
+ObjectUI uses **11 GitHub Actions workflows** to automate testing, quality checks, security scanning, releases, and repository maintenance. All workflow files live in `.github/workflows/`.
 
 ## Workflow Overview
 
@@ -14,17 +14,17 @@ ObjectUI uses **13 GitHub Actions workflows** to automate testing, quality check
 │                     Push / PR to main/develop                   │
 ├─────────────────────────────────────────────────────────────────┤
 │                                                                 │
-│  ┌──────────┐  ┌────────────┐  ┌──────────────┐               │
-│  │  ci.yml   │  │ storybook- │  │ size-check   │               │
-│  │ (test,    │  │ tests.yml  │  │   .yml       │               │
-│  │  lint,    │  │            │  │              │               │
-│  │  build)   │  │            │  │              │               │
-│  └──────────┘  └────────────┘  └──────────────┘               │
+│  ┌──────────┐  ┌──────────────┐  ┌──────────────┐             │
+│  │  ci.yml   │  │ size-check   │  │ performance- │             │
+│  │ (test,    │  │   .yml       │  │ budget.yml   │             │
+│  │  lint,    │  │              │  │              │             │
+│  │  build)   │  │              │  │              │             │
+│  └──────────┘  └──────────────┘  └──────────────┘             │
 │                                                                 │
-│  ┌──────────────┐  ┌───────────────────┐  ┌──────────────┐    │
-│  │ performance- │  │ visual-regression │  │  labeler.yml │    │
-│  │ budget.yml   │  │      .yml         │  │              │    │
-│  └──────────────┘  └───────────────────┘  └──────────────┘    │
+│  ┌──────────────┐                                              │
+│  │  labeler.yml │                                              │
+│  │              │                                              │
+│  └──────────────┘                                              │
 │                                                                 │
 ├─────────────────────────────────────────────────────────────────┤
 │                        Push to main                             │
@@ -71,25 +71,6 @@ Runs five parallel jobs:
 | **Build Docs** | Builds the documentation site (`apps/site`). |
 
 Uses: Node 20, pnpm (via `corepack`), Turbo remote caching.
-
-## Storybook Tests (`storybook-tests.yml`)
-
-**Triggers:** Push and PR to `main` and `develop`.
-
-Two-stage pipeline:
-
-1. **Build Storybook** — Compiles the Storybook static site.
-2. **Test Storybook** — Runs the Storybook test runner with Playwright. Depends on the build step.
-
-Tests component behavior in isolation using story-level interaction tests.
-
-## Visual Regression (`visual-regression.yml`)
-
-**Triggers:** PRs that modify `packages/components/`, `packages/fields/`, `packages/layout/`, or `.storybook/`.
-
-- Captures Storybook snapshots via Playwright.
-- Compares against baseline images.
-- Fails the PR if visual differences exceed thresholds.
 
 ## Performance Budget (`performance-budget.yml`)
 

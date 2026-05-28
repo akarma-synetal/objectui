@@ -11,7 +11,7 @@ import { useObjectTranslation } from '@object-ui/react';
 /**
  * Default English translations for ObjectGantt. Mirrors the
  * createSafeTranslationHook pattern used by plugin-detail / plugin-timeline so
- * the Gantt keeps working when rendered standalone (Storybook, tests, embed)
+ * the Gantt keeps working when rendered standalone (unit tests, embed)
  * without an I18nProvider on the React tree.
  */
 export const GANTT_DEFAULT_TRANSLATIONS: Record<string, string> = {

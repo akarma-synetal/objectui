@@ -18,7 +18,6 @@ It is consumed by:
 
 Previously, schema examples were duplicated across:
 
-- `packages/components/src/stories-json/*.stories.tsx` (Storybook)
 - `content/docs/**/*.mdx` (inline JSX object literals — easy to corrupt, no validation)
 - `apps/console/src/schemas/*.ts` (real app usage)
 

@@ -461,7 +461,7 @@ RFC is marked Accepted.
 | `parseClipboard` | Vitest | 100% branch — covers TSV, CSV, mixed newlines, BOM, quoted with `""`, quoted with embedded newlines, single-cell, all-empty |
 | `coerceCell` | Vitest | 100% per supported type — locale-sensitive numbers, currency, percent, ISO date, Excel serial, boolean dictionary |
 | `usePasteToGrid` | RTL + Vitest | Selection-aware mode decision, header detection, mapping override, error rollup |
-| `PastePreviewDialog` | RTL + Storybook | Empty preview, all-valid, mixed valid/invalid, all-invalid, skipped columns, max_rows clamp |
+| `PastePreviewDialog` | RTL + Vitest | Empty preview, all-valid, mixed valid/invalid, all-invalid, skipped columns, max_rows clamp |
 | `ObjectGrid` integration | RTL + Playwright e2e | Paste flow end-to-end, staged toolbar, feature flag off path |
 | Cross-browser clipboard | Playwright | Chromium + WebKit (Safari has known clipboard quirks) |
 
@@ -482,10 +482,6 @@ Per Rule #2 (Documentation Driven Development):
    * `@object-ui/fields` — new `usePasteToGrid` hook
    * `@object-ui/plugin-grid` — new `features.clipboardPaste` prop on
      `ObjectGrid`
-4. **Storybook stories**:
-   * `clipboard/Parser.stories.tsx` (interactive parser playground)
-   * `clipboard/PastePreviewDialog.stories.tsx` (all error states)
-   * `grid/ObjectGrid.paste.stories.tsx` (full integration with 100-row demo)
 
 
 ## 11. Rollout Plan
@@ -502,15 +498,14 @@ Per Rule #2 (Documentation Driven Development):
 
 * `usePasteToGrid` hook
 * `PastePreviewDialog` component
-* Storybook stories for the dialog in isolation
 
-**Exit criteria**: dialog usable in Storybook with mock data.
+**Exit criteria**: dialog usable in isolation (e.g. RTL harness) with mock data.
 
 ### Phase C — ObjectGrid integration (1 week, behind flag)
 
 * Add `features.clipboardPaste` prop to `ObjectGrid`
 * Staged-rows toolbar component
-* Storybook integration story with 100-row Excel paste demo
+* Integration test with 100-row Excel paste fixture
 * User guide written
 
 **Exit criteria**: feature works end-to-end with flag `'preview'`; flag

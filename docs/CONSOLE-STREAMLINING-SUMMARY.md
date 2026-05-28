@@ -208,8 +208,7 @@ Third-Party App
 4. **Plugin Registration**: Need to document how to register view plugins
 5. **Type Safety**: Some `any` types need to be replaced with proper interfaces
 6. **Bundle Analysis**: Actual bundle sizes need to be measured
-7. **Storybook**: Add stories for new components
-8. **API Documentation**: Generate TypeDoc for new packages
+7. **API Documentation**: Generate TypeDoc for new packages
 
 ## Impact
 
