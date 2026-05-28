@@ -163,6 +163,10 @@ const ENGINE_STRINGS_EN: Record<string, string> = {
   'engine.edit.preview': 'Preview',
   'engine.edit.designer': 'Designer',
   'engine.edit.related': 'Related',
+  'engine.edit.hideInspector': 'Hide inspector',
+  'engine.edit.showInspector': 'Show inspector',
+  'engine.edit.noChanges': 'No changes to save',
+  'engine.edit.inspector': 'Inspector',
   'engine.edit.overlay': 'overlay',
   'engine.edit.readOnlyBanner': 'Viewing in read-only mode. Click {edit} to make changes.',
   'engine.edit.readOnlyTypeBanner':
@@ -273,6 +277,10 @@ const ENGINE_STRINGS_ZH: Record<string, string> = {
   'engine.edit.preview': '预览',
   'engine.edit.designer': '可视化编辑器',
   'engine.edit.related': '关联',
+  'engine.edit.hideInspector': '隐藏属性面板',
+  'engine.edit.showInspector': '显示属性面板',
+  'engine.edit.noChanges': '没有需要保存的更改',
+  'engine.edit.inspector': '属性',
   'engine.edit.overlay': '覆盖',
   'engine.edit.readOnlyBanner': '当前为只读模式。点击 {edit} 进行修改。',
   'engine.edit.readOnlyTypeBanner':

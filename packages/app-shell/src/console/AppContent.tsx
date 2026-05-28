@@ -370,7 +370,7 @@ export function AppContent({ extraRoutes, extraRoutesNoApp }: AppContentProps = 
         <OnboardingWalkthrough />
           <ErrorBoundary>
             <Suspense fallback={<LoadingScreen />}>
-              <RouteFader>
+              <RouteFader className="h-full">
                 <Routes>
                 <Route path="/" element={<Navigate to={resolveLandingRoute(activeApp, { currentUserId: user?.id ?? null })} replace />} />
                 {/* Metadata admin routes — declared BEFORE the generic

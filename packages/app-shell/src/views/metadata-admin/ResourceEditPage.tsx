@@ -33,6 +33,8 @@ import {
   Eye,
   Pencil,
   X,
+  PanelRightClose,
+  PanelRightOpen,
 } from 'lucide-react';
 import { Button } from '@object-ui/components';
 import { Badge } from '@object-ui/components';
@@ -41,6 +43,11 @@ import {
   TabsContent,
   TabsList,
   TabsTrigger,
+} from '@object-ui/components';
+import {
+  ResizableHandle,
+  ResizablePanel,
+  ResizablePanelGroup,
 } from '@object-ui/components';
 import {
   Dialog,
@@ -72,6 +79,11 @@ import { RelatedPanel, type RelatedTarget } from './RelatedPanel';
 import { MetadataDetailDrawer } from './MetadataDetailDrawer';
 import { getMetadataPreview } from './preview-registry';
 import { detectLocale, t, tFormat } from './i18n';
+
+// react-resizable-panels' `direction` prop type does not always narrow
+// cleanly in our TS config; cast at the boundary (precedent:
+// packages/components/src/custom/navigation-overlay.tsx).
+const PanelGroup = ResizablePanelGroup as React.FC<any>;
 
 export interface MetadataResourceEditPageProps {
   type?: string;
@@ -228,6 +240,52 @@ export function MetadataResourceEditPage({
   // the parent payload to materialise) so we only restore metadata
   // targets here.
   const initialTabRef = React.useRef<string | null>(null);
+
+  // Designer-style split-panel state. The inspector (right form panel)
+  // can collapse to give the preview the full canvas. The collapsed
+  // state is persisted in localStorage so the user's preference sticks
+  // across navigations.
+  const inspectorStorageKey = 'metadata-edit:inspector-collapsed';
+  const [inspectorCollapsed, setInspectorCollapsed] = React.useState<boolean>(() => {
+    if (typeof window === 'undefined') return false;
+    return window.localStorage.getItem(inspectorStorageKey) === '1';
+  });
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const inspectorPanelRef = React.useRef<any>(null);
+  const toggleInspector = React.useCallback(() => {
+    const handle = inspectorPanelRef.current;
+    setInspectorCollapsed((prev) => {
+      const next = !prev;
+      if (handle) {
+        if (next) handle.collapse();
+        else handle.expand();
+      }
+      if (typeof window !== 'undefined') {
+        window.localStorage.setItem(inspectorStorageKey, next ? '1' : '0');
+      }
+      return next;
+    });
+  }, []);
+
+  // Keyboard shortcut: Cmd/Ctrl+\ toggles the inspector. This is the
+  // designer convention shared by Figma, VS Code (Cmd+B), Sketch — `\`
+  // sits next to Return so it's reachable one-handed.
+  React.useEffect(() => {
+    if (typeof window === 'undefined' || embedded) return;
+    function onKey(e: KeyboardEvent) {
+      const mod = e.metaKey || e.ctrlKey;
+      if (!mod || e.shiftKey || e.altKey) return;
+      if (e.key !== '\\') return;
+      // Ignore when typing in an editor (textarea / contenteditable).
+      const t = e.target as HTMLElement | null;
+      if (t && (t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
+      e.preventDefault();
+      toggleInspector();
+    }
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [embedded, toggleInspector]);
+
   React.useEffect(() => {
     if (typeof window === 'undefined' || embedded) return;
     const sp = new URLSearchParams(window.location.search);
@@ -348,6 +406,21 @@ export function MetadataResourceEditPage({
     }
   }
 
+  // Dirty detection: cheap structural comparison via JSON. The draft is
+  // small (a single metadata record) so this is fine on each render.
+  // Used to surface an "unsaved" indicator next to the Save button.
+  // Must be declared BEFORE any early returns to preserve hook order.
+  const isDirty = React.useMemo(() => {
+    if (createMode) return Object.keys(draft).length > 0;
+    const snap = draftSnapshotRef.current;
+    if (!snap) return false;
+    try {
+      return JSON.stringify(draft) !== JSON.stringify(snap);
+    } catch {
+      return false;
+    }
+  }, [draft, createMode]);
+
   if (loading) {
     return (
       <PageShell entry={entry} itemName={name}>
@@ -385,12 +458,13 @@ export function MetadataResourceEditPage({
   const formReadOnly = readOnly || (!editing && !createMode);
 
   // Default tab priority:
-  //   1. URL ?tab= (explicit user nav / deep link)
-  //   2. Preview  (live preview present — most informative landing)
-  //   3. Form
+  //   1. URL ?tab= (explicit user nav / deep link). Legacy 'preview' is
+  //      remapped to 'form' since preview now renders alongside the form
+  //      in a split-panel layout.
+  //   2. Form (the split-panel view, which also contains the live preview)
+  const requestedTab = initialTabRef.current;
   const defaultTab =
-    initialTabRef.current ??
-    (PreviewComponent ? 'preview' : 'form');
+    requestedTab === 'preview' ? 'form' : (requestedTab ?? 'form');
 
   return (
     <PageShell
@@ -399,6 +473,27 @@ export function MetadataResourceEditPage({
       subtitle={createMode ? t('engine.edit.createNew', locale) : t('engine.edit.editOverlay', locale)}
       actions={
         <>
+          {PreviewComponent && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={toggleInspector}
+              title={
+                (inspectorCollapsed
+                  ? t('engine.edit.showInspector', locale)
+                  : t('engine.edit.hideInspector', locale)) + ' (⌘\\)'
+              }
+            >
+              {inspectorCollapsed ? (
+                <PanelRightOpen className="h-4 w-4 mr-1" />
+              ) : (
+                <PanelRightClose className="h-4 w-4 mr-1" />
+              )}
+              {inspectorCollapsed
+                ? t('engine.edit.showInspector', locale)
+                : t('engine.edit.hideInspector', locale)}
+            </Button>
+          )}
           {!createMode && entry?.allowOrgOverride && (
             <Button variant="ghost" size="sm" onClick={doReset} disabled={saving}>
               <RotateCcw className="h-4 w-4 mr-1" />
@@ -435,36 +530,71 @@ export function MetadataResourceEditPage({
             </Button>
           )}
           {entry?.allowOrgOverride && (editing || createMode) && (
-            <Button size="sm" onClick={() => doSave(false)} disabled={saving}>
+            <Button
+              size="sm"
+              onClick={() => doSave(false)}
+              disabled={saving || (!createMode && !isDirty)}
+              title={
+                !createMode && !isDirty
+                  ? t('engine.edit.noChanges', locale)
+                  : undefined
+              }
+            >
               {saving ? (
                 <Loader2 className="h-4 w-4 mr-1 animate-spin" />
               ) : (
                 <Save className="h-4 w-4 mr-1" />
               )}
               {t('engine.edit.save', locale)}
+              {isDirty && !saving && (
+                <span
+                  aria-hidden
+                  className="ml-1.5 inline-block h-1.5 w-1.5 rounded-full bg-amber-300"
+                />
+              )}
             </Button>
           )}
         </>
       }
     >
-      <div className="p-6 space-y-6 max-w-7xl">
-        {error && (
-          <div className="text-sm text-destructive border border-destructive/30 rounded p-3 bg-destructive/5">
-            {error}
-          </div>
-        )}
-        {readOnly && (
-          <div className="text-xs text-amber-800 border border-amber-300 bg-amber-50 rounded p-3">
-            This type is read-only. To enable runtime editing, set{' '}
-            <code className="font-mono">OBJECTSTACK_METADATA_WRITABLE</code> to
-            include <code className="font-mono">{type}</code>, or flip{' '}
-            <code className="font-mono">allowOrgOverride</code> in the registry.
+      <div
+        className={
+          PreviewComponent
+            ? 'flex h-full min-h-0 flex-col'
+            : 'p-6 space-y-6 max-w-7xl'
+        }
+      >
+        {(error || readOnly) && (
+          <div
+            className={
+              PreviewComponent
+                ? 'px-6 pt-4 space-y-3'
+                : 'space-y-3'
+            }
+          >
+            {error && (
+              <div className="text-sm text-destructive border border-destructive/30 rounded p-3 bg-destructive/5">
+                {error}
+              </div>
+            )}
+            {readOnly && (
+              <div className="text-xs text-amber-800 border border-amber-300 bg-amber-50 rounded p-3">
+                This type is read-only. To enable runtime editing, set{' '}
+                <code className="font-mono">OBJECTSTACK_METADATA_WRITABLE</code> to
+                include <code className="font-mono">{type}</code>, or flip{' '}
+                <code className="font-mono">allowOrgOverride</code> in the registry.
+              </div>
+            )}
           </div>
         )}
 
         <Tabs
           defaultValue={defaultTab}
-          className="w-full"
+          className={
+            PreviewComponent
+              ? 'flex w-full flex-1 min-h-0 flex-col'
+              : 'w-full'
+          }
           onValueChange={(v) => {
             if (typeof window === 'undefined' || embedded) return;
             const url = new URL(window.location.href);
@@ -472,14 +602,11 @@ export function MetadataResourceEditPage({
             window.history.replaceState({}, '', url.toString());
           }}
         >
-          <TabsList>
-            {PreviewComponent && (
-              <TabsTrigger value="preview">
-                <Eye className="h-3.5 w-3.5 mr-1" />
-                {t('engine.edit.preview', locale)}
-              </TabsTrigger>
-            )}
-            <TabsTrigger value="form">{t('engine.edit.detail', locale)}</TabsTrigger>
+          <TabsList className={PreviewComponent ? 'mx-6 mt-3 self-start' : ''}>
+            <TabsTrigger value="form">
+              {PreviewComponent && <Eye className="h-3.5 w-3.5 mr-1" />}
+              {t('engine.edit.detail', locale)}
+            </TabsTrigger>
             {!createMode && (
               <TabsTrigger value="layers">
                 {t('engine.edit.layers', locale)}
@@ -512,8 +639,19 @@ export function MetadataResourceEditPage({
             )}
           </TabsList>
 
-          <TabsContent value="form" className="mt-4 space-y-3">
-            {formReadOnly && !readOnly && entry?.allowOrgOverride && !createMode && (
+          <TabsContent
+            value="form"
+            className={
+              PreviewComponent
+                ? 'mt-2 flex-1 min-h-0 flex flex-col px-6 pb-4 data-[state=inactive]:hidden'
+                : 'mt-4 space-y-3'
+            }
+          >
+            {/* Read-only banner. In split mode we suppress it — the
+                "可写" badge in the header plus the Edit button in the
+                action bar already convey both signal and call-to-action,
+                and saving every vertical pixel for the canvas matters. */}
+            {!PreviewComponent && formReadOnly && !readOnly && entry?.allowOrgOverride && !createMode && (
               <div className="flex items-center justify-between gap-3 text-xs text-muted-foreground border rounded p-2.5 bg-muted/30">
                 <span>
                   {t('engine.edit.readOnlyBanner', locale).split(/\{edit\}/).map((part, i, arr) => (
@@ -529,40 +667,149 @@ export function MetadataResourceEditPage({
                 </Button>
               </div>
             )}
-            <SchemaForm
-              schema={schema}
-              form={entry?.form as any}
-              value={draft}
-              onChange={setDraft}
-              issues={issues}
-              hiddenFields={config.hiddenFields}
-              fieldOrder={config.fieldOrder}
-              readOnly={formReadOnly}
-              createMode={createMode}
-              widgetContext={widgetContext}
-            />
+            {PreviewComponent ? (
+              <div className="relative flex-1 min-h-0 flex">
+                <PanelGroup
+                  direction="horizontal"
+                  className="flex-1 min-h-0 rounded-md border bg-background overflow-hidden"
+                  autoSaveId={`metadata-edit:${type}`}
+                >
+                  <ResizablePanel defaultSize={inspectorCollapsed ? 100 : 62} minSize={30}>
+                    <div className="h-full overflow-auto p-4 bg-[radial-gradient(circle_at_1px_1px,theme(colors.border)_1px,transparent_0)] [background-size:16px_16px] bg-muted/30">
+                      <PreviewComponent type={type} name={name} draft={draft} />
+                    </div>
+                  </ResizablePanel>
+                  <ResizableHandle
+                    withHandle
+                    className={
+                      inspectorCollapsed
+                        ? 'hidden'
+                        : 'w-1.5 bg-border/40 hover:bg-primary/40 active:bg-primary/60 transition-colors'
+                    }
+                  />
+                  <ResizablePanel
+                    panelRef={inspectorPanelRef}
+                    defaultSize={inspectorCollapsed ? 0 : 38}
+                    minSize={22}
+                    collapsible
+                    collapsedSize={0}
+                    onResize={(size) => {
+                      const collapsed = size.asPercentage <= 0.5;
+                      setInspectorCollapsed((prev) => {
+                        if (prev === collapsed) return prev;
+                        if (typeof window !== 'undefined') {
+                          window.localStorage.setItem(
+                            inspectorStorageKey,
+                            collapsed ? '1' : '0',
+                          );
+                        }
+                        return collapsed;
+                      });
+                    }}
+                  >
+                    <div className="h-full overflow-auto">
+                      {/* Inspector header — anchors the user to "this is
+                          where the metadata for the selected item lives"
+                          and frees the page-shell action bar for global
+                          actions only (Save/History/etc.). */}
+                      <div className="sticky top-0 z-10 flex items-center justify-between gap-2 border-b bg-background/95 backdrop-blur px-4 py-2.5">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <span className="text-[11px] uppercase tracking-wider text-muted-foreground">
+                            {t('engine.edit.inspector', locale)}
+                          </span>
+                          {isDirty && (
+                            <Badge variant="outline" className="text-[10px] border-amber-400/60 text-amber-600 dark:text-amber-300">
+                              <span className="mr-1 inline-block h-1.5 w-1.5 rounded-full bg-amber-400" />
+                              {t('engine.edit.unsaved', locale)}
+                            </Badge>
+                          )}
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 w-7 p-0"
+                          onClick={toggleInspector}
+                          title={t('engine.edit.hideInspector', locale) + ' (⌘\\)'}
+                        >
+                          <PanelRightClose className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                      <div className="p-4">
+                        <SchemaForm
+                          schema={schema}
+                          form={entry?.form as any}
+                          value={draft}
+                          onChange={setDraft}
+                          issues={issues}
+                          hiddenFields={config.hiddenFields}
+                          fieldOrder={config.fieldOrder}
+                          readOnly={formReadOnly}
+                          createMode={createMode}
+                          widgetContext={widgetContext}
+                        />
+                      </div>
+                    </div>
+                  </ResizablePanel>
+                </PanelGroup>
+                {/* Floating reopen pill — anchored to the right edge of
+                    the canvas when the inspector is collapsed. Saves a
+                    trip to the top action bar for the most common
+                    designer action. */}
+                {inspectorCollapsed && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={toggleInspector}
+                    title={t('engine.edit.showInspector', locale) + ' (⌘\\)'}
+                    className="absolute right-2 top-2 h-8 gap-1 shadow-md bg-background/95 backdrop-blur"
+                  >
+                    <PanelRightOpen className="h-3.5 w-3.5" />
+                    <span className="text-xs">
+                      {t('engine.edit.inspector', locale)}
+                    </span>
+                  </Button>
+                )}
+              </div>
+            ) : (
+              <SchemaForm
+                schema={schema}
+                form={entry?.form as any}
+                value={draft}
+                onChange={setDraft}
+                issues={issues}
+                hiddenFields={config.hiddenFields}
+                fieldOrder={config.fieldOrder}
+                readOnly={formReadOnly}
+                createMode={createMode}
+                widgetContext={widgetContext}
+              />
+            )}
           </TabsContent>
 
-          {PreviewComponent && (
-            <TabsContent value="preview" className="mt-4">
-              <PreviewComponent type={type} name={name} draft={draft} />
-            </TabsContent>
-          )}
-
           {!createMode && (
-            <TabsContent value="layers" className="mt-4">
+            <TabsContent
+              value="layers"
+              className={PreviewComponent ? 'mt-2 px-6 pb-6 overflow-auto' : 'mt-4'}
+            >
               <LayeredDiff layered={layered} />
             </TabsContent>
           )}
 
           {!createMode && (
-            <TabsContent value="references" className="mt-4">
+            <TabsContent
+              value="references"
+              className={PreviewComponent ? 'mt-2 px-6 pb-6 overflow-auto' : 'mt-4'}
+            >
               <ReferencesPanel refs={refs} loading={refsLoading} />
             </TabsContent>
           )}
 
           {hasAnchors && (
-            <TabsContent value="related" className="mt-4">
+            <TabsContent
+              value="related"
+              className={PreviewComponent ? 'mt-2 px-6 pb-6 overflow-auto' : 'mt-4'}
+            >
               <RelatedPanel
                 type={type}
                 name={name}
