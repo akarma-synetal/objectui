@@ -1,0 +1,267 @@
+{
+  "type": "card",
+  "className": "w-full max-w-2xl mx-auto",
+  "children": [
+    {
+      "type": "stack",
+      "spacing": 6,
+      "children": [
+        {
+          "type": "flex",
+          "className": "items-center justify-between",
+          "children": [
+            {
+              "type": "text",
+              "content": "Shopping Cart",
+              "className": "text-2xl font-bold"
+            },
+            {
+              "type": "badge",
+              "label": "3 items",
+              "variant": "secondary"
+            }
+          ]
+        },
+        {
+          "type": "separator"
+        },
+        {
+          "type": "stack",
+          "spacing": 4,
+          "children": [
+            {
+              "type": "flex",
+              "className": "gap-4",
+              "children": [
+                {
+                  "type": "div",
+                  "className": "h-24 w-24 rounded-lg bg-muted flex items-center justify-center flex-shrink-0",
+                  "children": [
+                    {
+                      "type": "icon",
+                      "name": "smartphone",
+                      "className": "h-8 w-8 text-muted-foreground"
+                    }
+                  ]
+                },
+                {
+                  "type": "stack",
+                  "spacing": 1,
+                  "children": [
+                    {
+                      "type": "text",
+                      "content": "Smartphone Pro",
+                      "className": "font-semibold"
+                    },
+                    {
+                      "type": "text",
+                      "content": "Color: Black, Storage: 256GB",
+                      "className": "text-sm text-muted-foreground"
+                    },
+                    {
+                      "type": "flex",
+                      "className": "items-center gap-2 mt-2",
+                      "children": [
+                        {
+                          "type": "button",
+                          "label": "-",
+                          "variant": "outline",
+                          "size": "sm",
+                          "className": "h-8 w-8 p-0"
+                        },
+                        {
+                          "type": "text",
+                          "content": "1",
+                          "className": "w-8 text-center"
+                        },
+                        {
+                          "type": "button",
+                          "label": "+",
+                          "variant": "outline",
+                          "size": "sm",
+                          "className": "h-8 w-8 p-0"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "stack",
+                  "spacing": 2,
+                  "children": [
+                    {
+                      "type": "text",
+                      "content": "$899.00",
+                      "className": "font-bold"
+                    },
+                    {
+                      "type": "button",
+                      "label": "Remove",
+                      "variant": "ghost",
+                      "size": "sm",
+                      "className": "text-destructive"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "separator"
+            },
+            {
+              "type": "flex",
+              "className": "gap-4",
+              "children": [
+                {
+                  "type": "div",
+                  "className": "h-24 w-24 rounded-lg bg-muted flex items-center justify-center flex-shrink-0",
+                  "children": [
+                    {
+                      "type": "icon",
+                      "name": "headphones",
+                      "className": "h-8 w-8 text-muted-foreground"
+                    }
+                  ]
+                },
+                {
+                  "type": "stack",
+                  "spacing": 1,
+                  "children": [
+                    {
+                      "type": "text",
+                      "content": "Wireless Headphones",
+                      "className": "font-semibold"
+                    },
+                    {
+                      "type": "text",
+                      "content": "Color: Silver",
+                      "className": "text-sm text-muted-foreground"
+                    },
+                    {
+                      "type": "flex",
+                      "className": "items-center gap-2 mt-2",
+                      "children": [
+                        {
+                          "type": "button",
+                          "label": "-",
+                          "variant": "outline",
+                          "size": "sm",
+                          "className": "h-8 w-8 p-0"
+                        },
+                        {
+                          "type": "text",
+                          "content": "2",
+                          "className": "w-8 text-center"
+                        },
+                        {
+                          "type": "button",
+                          "label": "+",
+                          "variant": "outline",
+                          "size": "sm",
+                          "className": "h-8 w-8 p-0"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "stack",
+                  "spacing": 2,
+                  "children": [
+                    {
+                      "type": "text",
+                      "content": "$598.00",
+                      "className": "font-bold"
+                    },
+                    {
+                      "type": "button",
+                      "label": "Remove",
+                      "variant": "ghost",
+                      "size": "sm",
+                      "className": "text-destructive"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "separator"
+        },
+        {
+          "type": "stack",
+          "spacing": 2,
+          "children": [
+            {
+              "type": "flex",
+              "className": "justify-between text-sm",
+              "children": [
+                {
+                  "type": "text",
+                  "content": "Subtotal"
+                },
+                {
+                  "type": "text",
+                  "content": "$1,497.00"
+                }
+              ]
+            },
+            {
+              "type": "flex",
+              "className": "justify-between text-sm",
+              "children": [
+                {
+                  "type": "text",
+                  "content": "Shipping"
+                },
+                {
+                  "type": "text",
+                  "content": "$15.00"
+                }
+              ]
+            },
+            {
+              "type": "flex",
+              "className": "justify-between text-sm",
+              "children": [
+                {
+                  "type": "text",
+                  "content": "Tax"
+                },
+                {
+                  "type": "text",
+                  "content": "$149.70"
+                }
+              ]
+            },
+            {
+              "type": "separator"
+            },
+            {
+              "type": "flex",
+              "className": "justify-between text-lg font-bold",
+              "children": [
+                {
+                  "type": "text",
+                  "content": "Total"
+                },
+                {
+                  "type": "text",
+                  "content": "$1,661.70"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "button",
+          "label": "Proceed to Checkout",
+          "variant": "default",
+          "className": "w-full",
+          "size": "lg"
+        }
+      ]
+    }
+  ]
+}

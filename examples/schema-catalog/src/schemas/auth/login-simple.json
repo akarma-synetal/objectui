@@ -1,0 +1,83 @@
+{
+  "type": "card",
+  "className": "w-full max-w-md mx-auto",
+  "header": [
+    {
+      "type": "stack",
+      "spacing": 2,
+      "className": "text-center",
+      "children": [
+        { "type": "text", "content": "Welcome Back", "className": "text-2xl font-bold tracking-tight" },
+        { "type": "text", "content": "Enter your credentials to sign in", "className": "text-sm text-muted-foreground" }
+      ]
+    }
+  ],
+  "children": [
+    {
+      "type": "stack",
+      "spacing": 4,
+      "children": [
+        {
+          "type": "stack",
+          "spacing": 2,
+          "children": [
+            { "type": "label", "htmlFor": "email", "label": "Email" },
+            {
+              "type": "input",
+              "id": "email",
+              "name": "email",
+              "inputType": "email",
+              "placeholder": "name@example.com",
+              "required": true
+            }
+          ]
+        },
+        {
+          "type": "stack",
+          "spacing": 2,
+          "children": [
+            { "type": "label", "htmlFor": "password", "label": "Password" },
+            {
+              "type": "input",
+              "id": "password",
+              "name": "password",
+              "inputType": "password",
+              "placeholder": "Enter your password",
+              "required": true
+            }
+          ]
+        },
+        {
+          "type": "flex",
+          "className": "items-center justify-between",
+          "children": [
+            {
+              "type": "flex",
+              "className": "items-center space-x-2",
+              "children": [
+                { "type": "checkbox", "id": "remember", "name": "remember" },
+                { "type": "label", "htmlFor": "remember", "label": "Remember me", "className": "text-sm font-normal" }
+              ]
+            },
+            {
+              "type": "text",
+              "content": "Forgot password?",
+              "className": "text-sm text-primary hover:underline cursor-pointer"
+            }
+          ]
+        },
+        { "type": "button", "label": "Sign In", "variant": "default", "className": "w-full" },
+        { "type": "separator", "className": "my-2" },
+        { "type": "button", "label": "Continue with Google", "variant": "outline", "className": "w-full" }
+      ]
+    },
+    {
+      "type": "div",
+      "className": "text-center text-sm pt-2",
+      "children": [
+        { "type": "text", "content": "Don't have an account? ", "className": "text-muted-foreground" },
+        { "type": "text", "content": "Sign up", "className": "text-primary hover:underline cursor-pointer font-medium" }
+      ]
+    }
+  ]
+}

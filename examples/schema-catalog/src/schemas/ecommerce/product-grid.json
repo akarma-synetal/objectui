@@ -1,0 +1,188 @@
+{
+  "type": "div",
+  "className": "w-full max-w-6xl mx-auto",
+  "children": [
+    {
+      "type": "flex",
+      "className": "items-center justify-between mb-6",
+      "children": [
+        {
+          "type": "text",
+          "content": "Featured Products",
+          "className": "text-2xl font-bold"
+        },
+        {
+          "type": "button",
+          "label": "View All",
+          "variant": "outline"
+        }
+      ]
+    },
+    {
+      "type": "div",
+      "className": "grid sm:grid-cols-2 lg:grid-cols-4 gap-6",
+      "children": [
+        {
+          "type": "card",
+          "className": "overflow-hidden",
+          "children": [
+            {
+              "type": "div",
+              "className": "aspect-square bg-muted flex items-center justify-center",
+              "children": [
+                {
+                  "type": "icon",
+                  "name": "smartphone",
+                  "className": "h-16 w-16 text-muted-foreground"
+                }
+              ]
+            },
+            {
+              "type": "stack",
+              "spacing": 2,
+              "children": [
+                {
+                  "type": "text",
+                  "content": "Smartphone Pro",
+                  "className": "font-semibold"
+                },
+                {
+                  "type": "text",
+                  "content": "$899",
+                  "className": "text-xl font-bold"
+                },
+                {
+                  "type": "button",
+                  "label": "Add to Cart",
+                  "variant": "outline",
+                  "size": "sm",
+                  "className": "w-full"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "card",
+          "className": "overflow-hidden",
+          "children": [
+            {
+              "type": "div",
+              "className": "aspect-square bg-muted flex items-center justify-center",
+              "children": [
+                {
+                  "type": "icon",
+                  "name": "watch",
+                  "className": "h-16 w-16 text-muted-foreground"
+                }
+              ]
+            },
+            {
+              "type": "stack",
+              "spacing": 2,
+              "children": [
+                {
+                  "type": "text",
+                  "content": "Smart Watch",
+                  "className": "font-semibold"
+                },
+                {
+                  "type": "text",
+                  "content": "$399",
+                  "className": "text-xl font-bold"
+                },
+                {
+                  "type": "button",
+                  "label": "Add to Cart",
+                  "variant": "outline",
+                  "size": "sm",
+                  "className": "w-full"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "card",
+          "className": "overflow-hidden",
+          "children": [
+            {
+              "type": "div",
+              "className": "aspect-square bg-muted flex items-center justify-center",
+              "children": [
+                {
+                  "type": "icon",
+                  "name": "laptop",
+                  "className": "h-16 w-16 text-muted-foreground"
+                }
+              ]
+            },
+            {
+              "type": "stack",
+              "spacing": 2,
+              "children": [
+                {
+                  "type": "text",
+                  "content": "Laptop Ultra",
+                  "className": "font-semibold"
+                },
+                {
+                  "type": "text",
+                  "content": "$1,299",
+                  "className": "text-xl font-bold"
+                },
+                {
+                  "type": "button",
+                  "label": "Add to Cart",
+                  "variant": "outline",
+                  "size": "sm",
+                  "className": "w-full"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "card",
+          "className": "overflow-hidden",
+          "children": [
+            {
+              "type": "div",
+              "className": "aspect-square bg-muted flex items-center justify-center",
+              "children": [
+                {
+                  "type": "icon",
+                  "name": "headphones",
+                  "className": "h-16 w-16 text-muted-foreground"
+                }
+              ]
+            },
+            {
+              "type": "stack",
+              "spacing": 2,
+              "children": [
+                {
+                  "type": "text",
+                  "content": "Headphones",
+                  "className": "font-semibold"
+                },
+                {
+                  "type": "text",
+                  "content": "$299",
+                  "className": "text-xl font-bold"
+                },
+                {
+                  "type": "button",
+                  "label": "Add to Cart",
+                  "variant": "outline",
+                  "size": "sm",
+                  "className": "w-full"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

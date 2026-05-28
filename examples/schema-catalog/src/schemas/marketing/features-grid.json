@@ -1,0 +1,220 @@
+{
+  "type": "div",
+  "className": "w-full max-w-6xl mx-auto",
+  "children": [
+    {
+      "type": "div",
+      "className": "text-center mb-12",
+      "children": [
+        {
+          "type": "text",
+          "content": "Everything you need to succeed",
+          "className": "text-3xl font-bold mb-2"
+        },
+        {
+          "type": "text",
+          "content": "Powerful features to help you grow your business",
+          "className": "text-muted-foreground"
+        }
+      ]
+    },
+    {
+      "type": "div",
+      "className": "grid md:grid-cols-3 gap-8",
+      "children": [
+        {
+          "type": "card",
+          "children": [
+            {
+              "type": "stack",
+              "spacing": 3,
+              "children": [
+                {
+                  "type": "div",
+                  "className": "h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center",
+                  "children": [
+                    {
+                      "type": "icon",
+                      "name": "zap",
+                      "className": "h-6 w-6 text-primary"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "content": "Lightning Fast",
+                  "className": "text-xl font-semibold"
+                },
+                {
+                  "type": "text",
+                  "content": "Optimized for speed and performance. Your users will love the experience.",
+                  "className": "text-sm text-muted-foreground"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "card",
+          "children": [
+            {
+              "type": "stack",
+              "spacing": 3,
+              "children": [
+                {
+                  "type": "div",
+                  "className": "h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center",
+                  "children": [
+                    {
+                      "type": "icon",
+                      "name": "shield",
+                      "className": "h-6 w-6 text-primary"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "content": "Secure by Default",
+                  "className": "text-xl font-semibold"
+                },
+                {
+                  "type": "text",
+                  "content": "Enterprise-grade security to protect your data and your users.",
+                  "className": "text-sm text-muted-foreground"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "card",
+          "children": [
+            {
+              "type": "stack",
+              "spacing": 3,
+              "children": [
+                {
+                  "type": "div",
+                  "className": "h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center",
+                  "children": [
+                    {
+                      "type": "icon",
+                      "name": "smartphone",
+                      "className": "h-6 w-6 text-primary"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "content": "Mobile First",
+                  "className": "text-xl font-semibold"
+                },
+                {
+                  "type": "text",
+                  "content": "Responsive design that works perfectly on any device, anywhere.",
+                  "className": "text-sm text-muted-foreground"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "card",
+          "children": [
+            {
+              "type": "stack",
+              "spacing": 3,
+              "children": [
+                {
+                  "type": "div",
+                  "className": "h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center",
+                  "children": [
+                    {
+                      "type": "icon",
+                      "name": "palette",
+                      "className": "h-6 w-6 text-primary"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "content": "Beautiful Design",
+                  "className": "text-xl font-semibold"
+                },
+                {
+                  "type": "text",
+                  "content": "Crafted with attention to detail using modern design principles.",
+                  "className": "text-sm text-muted-foreground"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "card",
+          "children": [
+            {
+              "type": "stack",
+              "spacing": 3,
+              "children": [
+                {
+                  "type": "div",
+                  "className": "h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center",
+                  "children": [
+                    {
+                      "type": "icon",
+                      "name": "settings",
+                      "className": "h-6 w-6 text-primary"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "content": "Fully Customizable",
+                  "className": "text-xl font-semibold"
+                },
+                {
+                  "type": "text",
+                  "content": "Customize every aspect to match your brand and requirements.",
+                  "className": "text-sm text-muted-foreground"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "card",
+          "children": [
+            {
+              "type": "stack",
+              "spacing": 3,
+              "children": [
+                {
+                  "type": "div",
+                  "className": "h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center",
+                  "children": [
+                    {
+                      "type": "icon",
+                      "name": "headphones",
+                      "className": "h-6 w-6 text-primary"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "content": "24/7 Support",
+                  "className": "text-xl font-semibold"
+                },
+                {
+                  "type": "text",
+                  "content": "Our team is always here to help you succeed, day or night.",
+                  "className": "text-sm text-muted-foreground"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

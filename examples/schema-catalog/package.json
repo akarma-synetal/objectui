@@ -1,0 +1,35 @@
+{
+  "name": "@object-ui/example-schema-catalog",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Canonical JSON schema catalog for ObjectUI. Single source of truth for example schemas consumed by the docs site, smoke tests, and AI few-shot retrieval.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./schemas/*": "./src/schemas/*"
+  },
+  "files": [
+    "dist",
+    "src/schemas"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "clean": "rm -rf dist",
+    "test": "vitest run",
+    "type-check": "tsc --noEmit",
+    "lint": "eslint ."
+  },
+  "dependencies": {
+    "@object-ui/types": "workspace:*"
+  },
+  "devDependencies": {
+    "@object-ui/core": "workspace:*",
+    "@object-ui/react": "workspace:*",
+    "typescript": "^6.0.3"
+  }
+}
