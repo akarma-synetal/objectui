@@ -8,62 +8,312 @@
  * LICENSE file in the root directory of this source tree.
  */
 
-import React, { useMemo, useState } from 'react';
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+} from 'react';
 import {
   allExamples,
   type Example,
 } from '@object-ui/example-schema-catalog';
+import type { SchemaNode } from '@object-ui/core';
+import { SchemaThumbnail } from './SchemaThumbnail';
+import { InteractiveDemo } from './InteractiveDemo';
 
-/**
- * Browseable index of every schema in `@object-ui/example-schema-catalog`.
- * Grouped by category, with a search box and copy-id buttons. The page is
- * fully client-side and renders ~415 entries; we keep DOM cheap by
- * rendering a flat list (no per-entry preview).
- */
-export function SchemaCatalogIndex() {
-  const [query, setQuery] = useState('');
-  const [copiedId, setCopiedId] = useState<string | null>(null);
+/** Top-level taxonomy bucket derived from the category slug. */
+interface Group {
+  /** Slug, e.g. `components`, `auth`. */
+  key: string;
+  /** Display label. */
+  label: string;
+  entries: Example[];
+}
 
-  const grouped = useMemo(() => {
-    const all = allExamples();
-    const q = query.trim().toLowerCase();
-    const filtered = q
-      ? all.filter((e) =>
-          (
-            e.id +
-            ' ' +
-            e.meta.title +
-            ' ' +
-            e.meta.description +
-            ' ' +
-            (e.meta.tags?.join(' ') ?? '')
-          )
-            .toLowerCase()
-            .includes(q),
-        )
-      : all;
+const GROUP_LABELS: Record<string, string> = {
+  actions: 'Actions',
+  app: 'App Shell',
+  auth: 'Auth',
+  block: 'Block Schema',
+  blocks: 'Blocks Gallery',
+  components: 'Components',
+  core: 'Core',
+  dashboard: 'Dashboard',
+  ecommerce: 'E-commerce',
+  fields: 'Fields',
+  layout: 'Layout',
+  plugins: 'Plugins',
+  utilities: 'Utilities',
+};
 
-    const map = new Map<string, Example[]>();
-    for (const e of filtered) {
-      const arr = map.get(e.meta.category) ?? [];
-      arr.push(e);
-      map.set(e.meta.category, arr);
-    }
-    return Array.from(map.entries()).sort(([a], [b]) => a.localeCompare(b));
-  }, [query]);
+/** Best-effort label for an unknown group key. */
+function fallbackLabel(key: string): string {
+  return key
+    .split('-')
+    .map((s) => (s.length === 0 ? s : s[0].toUpperCase() + s.slice(1)))
+    .join(' ');
+}
 
-  const totalFiltered = grouped.reduce((acc, [, list]) => acc + list.length, 0);
-  const totalAll = allExamples().length;
+/** "components-basic-button-group" → "components". */
+function groupKey(category: string): string {
+  return category.split('-')[0] || category;
+}
 
-  const copyId = async (id: string) => {
+/** "components-basic-button-group" → "basic / button-group". */
+function subLabel(category: string): string {
+  const parts = category.split('-');
+  if (parts.length <= 1) return '';
+  return parts.slice(1).join(' / ');
+}
+
+function buildGroups(entries: Example[]): Group[] {
+  const map = new Map<string, Example[]>();
+  for (const e of entries) {
+    const k = groupKey(e.meta.category);
+    const list = map.get(k) ?? [];
+    list.push(e);
+    map.set(k, list);
+  }
+  return Array.from(map.entries())
+    .map(([key, list]) => ({
+      key,
+      label: GROUP_LABELS[key] ?? fallbackLabel(key),
+      entries: list,
+    }))
+    .sort((a, b) => a.label.localeCompare(b.label));
+}
+
+function matches(e: Example, q: string): boolean {
+  if (!q) return true;
+  const haystack = (
+    e.id +
+    ' ' +
+    e.meta.title +
+    ' ' +
+    (e.meta.description ?? '') +
+    ' ' +
+    (e.meta.tags?.join(' ') ?? '')
+  ).toLowerCase();
+  return haystack.includes(q);
+}
+
+interface CardProps {
+  entry: Example;
+  onOpen: (e: Example) => void;
+}
+
+const GalleryCard = React.memo(function GalleryCard({
+  entry,
+  onOpen,
+}: CardProps) {
+  return (
+    <button
+      type="button"
+      onClick={() => onOpen(entry)}
+      className="group flex flex-col gap-2 rounded-lg border border-fd-border bg-fd-card p-3 text-left transition hover:border-fd-primary hover:shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-fd-ring"
+    >
+      <SchemaThumbnail schema={entry.schema as SchemaNode} />
+      <div className="flex flex-col gap-0.5">
+        <div className="line-clamp-1 text-sm font-medium text-fd-foreground">
+          {entry.meta.title}
+        </div>
+        <code className="line-clamp-1 break-all text-[11px] text-fd-muted-foreground">
+          {entry.id}
+        </code>
+      </div>
+    </button>
+  );
+});
+
+interface DetailDialogProps {
+  entry: Example;
+  onClose: () => void;
+}
+
+function DetailDialog({ entry, onClose }: DetailDialogProps) {
+  const [copied, setCopied] = useState<'id' | 'snippet' | null>(null);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', onKey);
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      document.body.style.overflow = prevOverflow;
+    };
+  }, [onClose]);
+
+  const snippet = `<SchemaExample id="${entry.id}" />`;
+
+  const copy = async (text: string, kind: 'id' | 'snippet') => {
     try {
-      await navigator.clipboard.writeText(id);
-      setCopiedId(id);
-      setTimeout(() => setCopiedId((c) => (c === id ? null : c)), 1200);
+      await navigator.clipboard.writeText(text);
+      setCopied(kind);
+      setTimeout(() => setCopied((c) => (c === kind ? null : c)), 1200);
     } catch {
-      // Clipboard permission denied — best-effort only.
+      // best-effort
     }
   };
+
+  return (
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-label={entry.meta.title}
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-8"
+    >
+      <div
+        className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+        onClick={onClose}
+      />
+      <div className="not-prose relative z-10 flex max-h-[90vh] w-full max-w-5xl flex-col overflow-hidden rounded-xl border border-fd-border bg-fd-background shadow-xl">
+        <header className="flex items-start justify-between gap-4 border-b border-fd-border px-5 py-3">
+          <div className="min-w-0 flex-1">
+            <h3 className="truncate text-base font-semibold text-fd-foreground">
+              {entry.meta.title}
+            </h3>
+            <code className="block truncate text-xs text-fd-muted-foreground">
+              {entry.id}
+            </code>
+          </div>
+          <div className="flex shrink-0 items-center gap-2">
+            <button
+              type="button"
+              onClick={() => copy(entry.id, 'id')}
+              className="rounded border border-fd-border px-2 py-1 font-mono text-xs text-fd-muted-foreground hover:bg-fd-accent hover:text-fd-accent-foreground"
+              title="Copy catalog id"
+            >
+              {copied === 'id' ? '✓ id' : 'copy id'}
+            </button>
+            <button
+              type="button"
+              onClick={() => copy(snippet, 'snippet')}
+              className="rounded border border-fd-border px-2 py-1 font-mono text-xs text-fd-muted-foreground hover:bg-fd-accent hover:text-fd-accent-foreground"
+              title="Copy MDX snippet"
+            >
+              {copied === 'snippet' ? '✓ snippet' : 'copy <SchemaExample>'}
+            </button>
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded border border-fd-border px-2 py-1 text-xs text-fd-muted-foreground hover:bg-fd-accent hover:text-fd-accent-foreground"
+              aria-label="Close"
+            >
+              ✕
+            </button>
+          </div>
+        </header>
+        <div className="min-h-0 flex-1 overflow-auto p-5">
+          <InteractiveDemo
+            schema={entry.schema as SchemaNode}
+            description={entry.meta.description}
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+interface SidebarProps {
+  groups: Group[];
+  activeKey: string | null;
+  onSelect: (key: string | null) => void;
+  totalAll: number;
+  totalFiltered: number;
+  isFiltered: boolean;
+}
+
+function CategorySidebar({
+  groups,
+  activeKey,
+  onSelect,
+  totalAll,
+  totalFiltered,
+  isFiltered,
+}: SidebarProps) {
+  return (
+    <nav
+      aria-label="Schema categories"
+      className="flex flex-col gap-1 text-sm"
+    >
+      <button
+        type="button"
+        onClick={() => onSelect(null)}
+        className={
+          'flex items-center justify-between rounded-md px-2 py-1.5 text-left transition ' +
+          (activeKey === null
+            ? 'bg-fd-accent text-fd-accent-foreground'
+            : 'hover:bg-fd-accent/60')
+        }
+      >
+        <span className="font-medium">All</span>
+        <span className="text-xs text-fd-muted-foreground">
+          {isFiltered ? `${totalFiltered}/${totalAll}` : totalAll}
+        </span>
+      </button>
+      {groups.map((g) => (
+        <button
+          key={g.key}
+          type="button"
+          onClick={() => onSelect(g.key)}
+          className={
+            'flex items-center justify-between rounded-md px-2 py-1.5 text-left transition ' +
+            (activeKey === g.key
+              ? 'bg-fd-accent text-fd-accent-foreground'
+              : 'hover:bg-fd-accent/60')
+          }
+        >
+          <span>{g.label}</span>
+          <span className="text-xs text-fd-muted-foreground">
+            {g.entries.length}
+          </span>
+        </button>
+      ))}
+    </nav>
+  );
+}
+
+/**
+ * Visual gallery of every schema in `@object-ui/example-schema-catalog`.
+ *
+ * - Sticky category sidebar (top-level taxonomy).
+ * - Searchable across id / title / description / tags.
+ * - Lazy-mounted scaled thumbnails so 400+ previews stay performant.
+ * - Click any card → modal with full-size interactive preview, JSON tab,
+ *   and a one-click copy of the `<SchemaExample id="…">` snippet.
+ */
+export function SchemaCatalogIndex() {
+  const all = useMemo(() => allExamples(), []);
+  const [query, setQuery] = useState('');
+  const [activeGroup, setActiveGroup] = useState<string | null>(null);
+  const [openEntry, setOpenEntry] = useState<Example | null>(null);
+
+  const q = query.trim().toLowerCase();
+
+  const filtered = useMemo(
+    () => (q ? all.filter((e) => matches(e, q)) : all),
+    [all, q],
+  );
+
+  const allGroups = useMemo(() => buildGroups(all), [all]);
+  const filteredGroups = useMemo(() => buildGroups(filtered), [filtered]);
+
+  const visibleGroups = useMemo(() => {
+    if (activeGroup === null) return filteredGroups;
+    return filteredGroups.filter((g) => g.key === activeGroup);
+  }, [filteredGroups, activeGroup]);
+
+  const handleOpen = useCallback((e: Example) => setOpenEntry(e), []);
+  const handleClose = useCallback(() => setOpenEntry(null), []);
+
+  const totalVisible = visibleGroups.reduce(
+    (acc, g) => acc + g.entries.length,
+    0,
+  );
 
   return (
     <div className="not-prose flex flex-col gap-4">
@@ -77,73 +327,96 @@ export function SchemaCatalogIndex() {
           aria-label="Filter schema catalog"
         />
         <span className="text-xs text-fd-muted-foreground">
-          {query
-            ? `${totalFiltered} / ${totalAll} examples`
-            : `${totalAll} examples across ${grouped.length} categories`}
+          {q
+            ? `${totalVisible} match${totalVisible === 1 ? '' : 'es'}`
+            : `${all.length} examples · ${allGroups.length} groups`}
         </span>
       </div>
 
-      {grouped.length === 0 && (
-        <div className="rounded-md border border-dashed border-fd-border p-6 text-center text-sm text-fd-muted-foreground">
-          No examples match <code className="font-mono">{query}</code>.
-        </div>
-      )}
+      <div className="grid gap-4 md:grid-cols-[200px_1fr]">
+        <aside className="md:sticky md:top-20 md:self-start">
+          <CategorySidebar
+            groups={allGroups}
+            activeKey={activeGroup}
+            onSelect={setActiveGroup}
+            totalAll={all.length}
+            totalFiltered={filtered.length}
+            isFiltered={q.length > 0}
+          />
+        </aside>
 
-      {grouped.map(([category, items]) => (
-        <section key={category} className="flex flex-col gap-2">
-          <h3
-            id={`cat-${category}`}
-            className="text-sm font-semibold uppercase tracking-wide text-fd-muted-foreground"
-          >
-            {category}{' '}
-            <span className="font-normal text-fd-muted-foreground">
-              ({items.length})
-            </span>
-          </h3>
-          <ul className="grid grid-cols-1 gap-2 md:grid-cols-2">
-            {items.map((e) => (
-              <li
-                key={e.id}
-                className="flex flex-col gap-1 rounded-md border border-fd-border bg-fd-card p-3 text-sm"
-              >
-                <div className="flex items-start justify-between gap-2">
-                  <div className="font-medium text-fd-foreground">
-                    {e.meta.title}
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => copyId(e.id)}
-                    className="shrink-0 rounded border border-fd-border px-2 py-0.5 font-mono text-xs text-fd-muted-foreground hover:bg-fd-accent hover:text-fd-accent-foreground"
-                    title="Copy catalog id"
-                  >
-                    {copiedId === e.id ? '✓ copied' : 'copy id'}
-                  </button>
-                </div>
-                <code className="break-all text-xs text-fd-muted-foreground">
-                  {e.id}
-                </code>
-                {e.meta.description && (
-                  <p className="text-xs text-fd-muted-foreground">
-                    {e.meta.description}
-                  </p>
-                )}
-                {e.meta.tags && e.meta.tags.length > 0 && (
-                  <div className="flex flex-wrap gap-1">
-                    {e.meta.tags.map((t) => (
-                      <span
-                        key={t}
-                        className="rounded bg-fd-muted px-1.5 py-0.5 font-mono text-[10px] text-fd-muted-foreground"
-                      >
-                        {t}
-                      </span>
-                    ))}
-                  </div>
-                )}
-              </li>
-            ))}
-          </ul>
-        </section>
-      ))}
+        <div className="flex flex-col gap-6">
+          {visibleGroups.length === 0 && (
+            <div className="rounded-md border border-dashed border-fd-border p-6 text-center text-sm text-fd-muted-foreground">
+              No examples match <code className="font-mono">{query}</code>.
+            </div>
+          )}
+          {visibleGroups.map((g) => (
+            <section
+              key={g.key}
+              id={`group-${g.key}`}
+              className="flex flex-col gap-3"
+            >
+              <header className="flex items-baseline justify-between border-b border-fd-border pb-1">
+                <h3 className="text-sm font-semibold text-fd-foreground">
+                  {g.label}
+                </h3>
+                <span className="text-xs text-fd-muted-foreground">
+                  {g.entries.length}
+                </span>
+              </header>
+              <GroupGrid entries={g.entries} onOpen={handleOpen} />
+            </section>
+          ))}
+        </div>
+      </div>
+
+      {openEntry && (
+        <DetailDialog entry={openEntry} onClose={handleClose} />
+      )}
+    </div>
+  );
+}
+
+interface GroupGridProps {
+  entries: Example[];
+  onOpen: (e: Example) => void;
+}
+
+/**
+ * Sub-grouping: cards inside a top-level group are visually sub-grouped by
+ * their full category slug so neighbours stay together.
+ */
+function GroupGrid({ entries, onOpen }: GroupGridProps) {
+  const byCategory = useMemo(() => {
+    const map = new Map<string, Example[]>();
+    for (const e of entries) {
+      const list = map.get(e.meta.category) ?? [];
+      list.push(e);
+      map.set(e.meta.category, list);
+    }
+    return Array.from(map.entries()).sort(([a], [b]) => a.localeCompare(b));
+  }, [entries]);
+
+  return (
+    <div className="flex flex-col gap-5">
+      {byCategory.map(([category, items]) => {
+        const sub = subLabel(category);
+        return (
+          <div key={category} className="flex flex-col gap-2">
+            {sub && (
+              <div className="text-xs font-medium uppercase tracking-wide text-fd-muted-foreground">
+                {sub}
+              </div>
+            )}
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {items.map((e) => (
+                <GalleryCard key={e.id} entry={e} onOpen={onOpen} />
+              ))}
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 }
