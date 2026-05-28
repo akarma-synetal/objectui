@@ -20,6 +20,7 @@
   "scripts": {
     "build": "tsc",
     "clean": "rm -rf dist",
+    "regenerate": "python3 ../../scripts/regenerate-catalog-index.py",
     "test": "vitest run",
     "type-check": "tsc --noEmit",
     "lint": "eslint ."

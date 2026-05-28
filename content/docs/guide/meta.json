@@ -7,6 +7,7 @@
     "schema-rendering",
     "schema-overview",
     "schema-playground",
+    "schema-catalog",
     "layout",
     "expressions",
     "data-source",
