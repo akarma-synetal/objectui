@@ -15,6 +15,7 @@
 
 import { useCallback, useMemo } from 'react';
 import type { NavigationItem } from '@object-ui/types';
+import { resolveHref } from '@object-ui/layout';
 import { useFavorites } from '../context/FavoritesProvider';
 
 const MAX_PINS = 20;
@@ -22,30 +23,22 @@ const MAX_PINS = 20;
 /**
  * Synthesize the `href` for a NavigationItem in isolation from a sidebar.
  *
- * This duplicates a small portion of `NavigationRenderer.resolveHref` to keep
- * the favorite record self-describing — useful if a future iteration surfaces
- * nav-pins outside the sidebar (e.g. command palette / quick-jump). Returns
- * an empty string for non-routable item types; consumers should treat empty
- * href as "fall back to live nav tree".
+ * Delegates to `@object-ui/layout`'s `resolveHref` so all routing
+ * semantics (recordId templates, componentRef, viewName, …) stay
+ * consistent with what the sidebar renders.
+ *
+ * Returns an empty string for non-routable item types or unresolved
+ * `#` placeholders; consumers should treat empty href as "fall back
+ * to live nav tree". Template variables on `recordId` are NOT resolved
+ * here (no auth context at pin-storage time) — the pinned href will
+ * gracefully degrade to the list view in that case, matching what
+ * `resolveHref` does when its templateContext is missing.
  */
 function deriveHref(item: NavigationItem, basePath = ''): string {
-  switch (item.type) {
-    case 'object':
-      if (!item.objectName) return '';
-      return item.viewName
-        ? `${basePath}/${item.objectName}/view/${item.viewName}`
-        : `${basePath}/${item.objectName}`;
-    case 'dashboard':
-      return item.dashboardName ? `${basePath}/dashboard/${item.dashboardName}` : '';
-    case 'page':
-      return item.pageName ? `${basePath}/page/${item.pageName}` : '';
-    case 'report':
-      return item.reportName ? `${basePath}/report/${item.reportName}` : '';
-    case 'url':
-      return item.url ?? '';
-    default:
-      return '';
-  }
+  const { href, external } = resolveHref(item, basePath);
+  if (external) return href;
+  if (!href || href === '#') return '';
+  return href;
 }
 
 function favoriteIdFor(navId: string): string {

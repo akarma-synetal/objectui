@@ -207,6 +207,17 @@ export interface NavigationRendererProps {
    * through i18next; otherwise falls back to `defaultValue`.
    */
   t?: (key: string, options?: any) => string;
+
+  /**
+   * Optional template-variable context for resolving `recordId` on
+   * `object`-type nav items that target a specific record. The shell
+   * passes the signed-in user id / active org id; authors write
+   * `{current_user_id}` / `{current_org_id}` in `recordId`.
+   *
+   * When omitted (or a referenced variable is missing), affected items
+   * fall back to opening the list view so the link is still functional.
+   */
+  templateContext?: NavTemplateContext;
 }
 
 // ---------------------------------------------------------------------------
@@ -309,10 +320,72 @@ const defaultCapability: CapabilityChecker = () => true;
 // Internal helper: resolve href from NavigationItem
 // ---------------------------------------------------------------------------
 
-function resolveHref(item: NavigationItem, basePath: string): { href: string; external: boolean } {
+/**
+ * Lightweight template-variable context for nav items that target a
+ * specific record / org. The shell injects the signed-in user id and
+ * active org id; the schema author writes `{current_user_id}` /
+ * `{current_org_id}` in `recordId` and the renderer substitutes.
+ *
+ * Kept intentionally small — anything beyond this should be a Page or
+ * a `component`-type nav, not encoded in metadata strings.
+ */
+export interface NavTemplateContext {
+  currentUserId?: string | null;
+  currentOrgId?: string | null;
+}
+
+const TEMPLATE_VAR_RE = /\{(current_user_id|current_org_id)\}/g;
+
+function applyNavTemplate(
+  raw: string,
+  ctx: NavTemplateContext | undefined,
+): string | null {
+  if (!raw.includes('{')) return raw;
+  let missing = false;
+  const out = raw.replace(TEMPLATE_VAR_RE, (_, name: string) => {
+    const v = name === 'current_user_id' ? ctx?.currentUserId : ctx?.currentOrgId;
+    if (!v) {
+      missing = true;
+      return '';
+    }
+    return v;
+  });
+  return missing ? null : out;
+}
+
+/**
+ * Resolve a NavigationItem to an absolute href (relative to `basePath`).
+ *
+ * Single source of truth for nav → URL mapping across the shell. Other
+ * surfaces that need to navigate to a nav item (command palette,
+ * pinned rail, search results, recent items, etc.) MUST use this helper
+ * instead of constructing URLs ad-hoc — otherwise features like
+ * `recordId` / `recordMode` / `componentRef` will silently regress.
+ */
+export function resolveHref(
+  item: NavigationItem,
+  basePath: string,
+  templateContext?: NavTemplateContext,
+): { href: string; external: boolean } {
   switch (item.type) {
     case 'object': {
       const objectPath = `${basePath}/${item.objectName ?? ''}`;
+      // `recordId` (optionally templated) takes precedence over `viewName`:
+      // when set, jump straight to the record detail page instead of the
+      // list view. Used by self-service nav entries like "My Profile"
+      // (`recordId: '{current_user_id}'`).
+      const rawRecordId = (item as any).recordId as string | undefined;
+      if (rawRecordId) {
+        const resolved = applyNavTemplate(rawRecordId, templateContext);
+        if (resolved) {
+          const recordHref = `${objectPath}/record/${encodeURIComponent(resolved)}`;
+          const mode = (item as any).recordMode as 'view' | 'edit' | undefined;
+          return { href: mode === 'edit' ? `${recordHref}/edit` : recordHref, external: false };
+        }
+        // Template variable couldn't be resolved (e.g. logged-out
+        // pre-render). Fall through to the list view so the link is
+        // still well-formed rather than a dead `#`.
+      }
       return { href: item.viewName ? `${objectPath}/view/${item.viewName}` : objectPath, external: false };
     }
     case 'dashboard':
@@ -486,6 +559,7 @@ function SortableNavigationItem({
   resolveViewLabel,
   resolveItemLabel,
   t: tProp,
+  templateContext,
 }: {
   item: NavigationItem;
   basePath: string;
@@ -502,6 +576,7 @@ function SortableNavigationItem({
   resolveViewLabel?: (objectName: string, viewName: string, fallbackLabel: string) => string;
   resolveItemLabel?: (itemId: string, fallbackLabel: string) => string;
   t?: (key: string, options?: any) => string;
+  templateContext?: NavTemplateContext;
 }) {
   const {
     attributes,
@@ -537,6 +612,7 @@ function SortableNavigationItem({
         resolveViewLabel={resolveViewLabel}
         resolveItemLabel={resolveItemLabel}
         t={tProp}
+        templateContext={templateContext}
       />
     </div>
   );
@@ -562,6 +638,7 @@ function NavigationItemRenderer({
   resolveViewLabel,
   resolveItemLabel,
   t: tProp,
+  templateContext,
 }: {
   item: NavigationItem;
   basePath: string;
@@ -578,6 +655,7 @@ function NavigationItemRenderer({
   resolveViewLabel?: (objectName: string, viewName: string, fallbackLabel: string) => string;
   resolveItemLabel?: (itemId: string, fallbackLabel: string) => string;
   t?: (key: string, options?: any) => string;
+  templateContext?: NavTemplateContext;
 }) {
   const location = useLocation();
   // Resolve the initial open state with platform-aware defaults:
@@ -611,7 +689,7 @@ function NavigationItemRenderer({
           if (visit(node.children)) return true;
           continue;
         }
-        const { href } = resolveHref(node, basePath);
+        const { href } = resolveHref(node, basePath, templateContext);
         if (computeIsActive(node, href, location.pathname)) return true;
       }
       return false;
@@ -682,6 +760,7 @@ function NavigationItemRenderer({
                     resolveViewLabel={resolveViewLabel}
                     resolveItemLabel={resolveItemLabel}
                     t={tProp}
+                    templateContext={templateContext}
                   />
                 ))}
               </SidebarMenu>
@@ -745,7 +824,7 @@ function NavigationItemRenderer({
 
   // --- Leaf items (object / dashboard / page / report / url) ---
   const Icon = resolveIcon(item.icon);
-  const { href, external } = resolveHref(item, basePath);
+  const { href, external } = resolveHref(item, basePath, templateContext);
   const isActive = computeIsActive(item, href, location.pathname);
   const itemLabel = resolveNavItemLabel(item, resolveObjectLabel, tProp, resolveDashboardLabel, resolveGroupLabel, resolveViewLabel, resolveItemLabel);
 
@@ -858,6 +937,7 @@ export function NavigationRenderer({
   resolveViewLabel,
   resolveItemLabel,
   t: tProp,
+  templateContext,
 }: NavigationRendererProps) {
   // --- Search filtering ---
   const filteredItems = useMemo(
@@ -910,6 +990,7 @@ export function NavigationRenderer({
     resolveViewLabel,
     resolveItemLabel,
     t: tProp,
+    templateContext,
   };
 
   const hasGroups = sorted.some((i) => i.type === 'group');

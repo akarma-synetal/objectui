@@ -44,6 +44,7 @@ import type { NavigationItem } from '@object-ui/types';
 import { useMetadata } from '../providers/MetadataProvider';
 import { useExpressionContext, evaluateVisibility } from '../providers/ExpressionProvider';
 import { usePermissions } from '@object-ui/permissions';
+import { useAuth } from '@object-ui/auth';
 import { useRecentItems } from '../hooks/useRecentItems';
 import { useFavorites } from '../hooks/useFavorites';
 import { useNavPins } from '../hooks/useNavPins';
@@ -133,6 +134,7 @@ export function UnifiedSidebar({ activeAppName }: UnifiedSidebarProps) {
   const { t } = useObjectTranslation();
   const { objectLabel: resolveNavObjectLabel, dashboardLabel: resolveNavDashboardLabel, navGroupLabel: resolveNavGroupLabel, viewLabel: resolveNavViewLabel } = useObjectLabel();
   const { context, currentAppName } = useNavigationContext();
+  const { user } = useAuth();
 
   // Swipe-from-left-edge gesture to open sidebar on mobile
   React.useEffect(() => {
@@ -319,6 +321,7 @@ export function UnifiedSidebar({ activeAppName }: UnifiedSidebarProps) {
              resolveItemLabel={activeApp ? (itemId, fallback) => resolveNavGroupLabel(activeApp.name, itemId, fallback) : undefined}
              resolveViewLabel={(objectName, viewName, fallback) => resolveNavViewLabel(objectName, viewName, fallback)}
              t={t}
+             templateContext={{ currentUserId: user?.id ?? null }}
            />
 
            {/* Recent Items */}

@@ -36,6 +36,8 @@ import { useObjectTranslation } from '@object-ui/i18n';
 import { resolveI18nLabel, getRecordDisplayName } from '../utils';
 import { getIcon } from '../utils/getIcon';
 import { useRecentItems } from '../context/RecentItemsProvider';
+import { resolveHref } from '@object-ui/layout';
+import { useAuth } from '@object-ui/auth';
 
 interface CommandPaletteProps {
   apps: any[];
@@ -76,6 +78,8 @@ export function CommandPalette({ apps, activeApp, objects, onAppChange, dataSour
   }, [open]);
 
   const baseUrl = `/apps/${appName || activeApp?.name}`;
+  const { user } = useAuth();
+  const templateContext = useMemo(() => ({ currentUserId: user?.id ?? null }), [user?.id]);
 
   const runCommand = useCallback((command: () => void) => {
     setOpen(false);
@@ -204,7 +208,7 @@ export function CommandPalette({ apps, activeApp, objects, onAppChange, dataSour
                   <CommandItem
                     key={item.id}
                     value={`object ${resolveI18nLabel(item.label, t)} ${item.objectName}`}
-                    onSelect={() => runCommand(() => navigate(`${baseUrl}/${item.objectName}`))}
+                    onSelect={() => runCommand(() => navigate(resolveHref(item, baseUrl, templateContext).href))}
                   >
                     <Icon className="mr-2 h-4 w-4" />
                     <span>{resolveI18nLabel(item.label, t)}</span>
@@ -223,7 +227,7 @@ export function CommandPalette({ apps, activeApp, objects, onAppChange, dataSour
                 <CommandItem
                   key={item.id}
                   value={`dashboard ${resolveI18nLabel(item.label, t)} ${item.dashboardName}`}
-                  onSelect={() => runCommand(() => navigate(`${baseUrl}/dashboard/${item.dashboardName}`))}
+                  onSelect={() => runCommand(() => navigate(resolveHref(item, baseUrl, templateContext).href))}
                 >
                   <LayoutDashboard className="mr-2 h-4 w-4" />
                   <span>{resolveI18nLabel(item.label, t)}</span>
@@ -241,7 +245,7 @@ export function CommandPalette({ apps, activeApp, objects, onAppChange, dataSour
                 <CommandItem
                   key={item.id}
                   value={`page ${resolveI18nLabel(item.label, t)} ${item.pageName}`}
-                  onSelect={() => runCommand(() => navigate(`${baseUrl}/page/${item.pageName}`))}
+                  onSelect={() => runCommand(() => navigate(resolveHref(item, baseUrl, templateContext).href))}
                 >
                   <FileText className="mr-2 h-4 w-4" />
                   <span>{resolveI18nLabel(item.label, t)}</span>
@@ -259,7 +263,7 @@ export function CommandPalette({ apps, activeApp, objects, onAppChange, dataSour
                 <CommandItem
                   key={item.id}
                   value={`report ${resolveI18nLabel(item.label, t)} ${item.reportName}`}
-                  onSelect={() => runCommand(() => navigate(`${baseUrl}/report/${item.reportName}`))}
+                  onSelect={() => runCommand(() => navigate(resolveHref(item, baseUrl, templateContext).href))}
                 >
                   <BarChart3 className="mr-2 h-4 w-4" />
                   <span>{resolveI18nLabel(item.label, t)}</span>

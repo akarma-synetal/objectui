@@ -25,6 +25,8 @@ import {
 } from 'lucide-react';
 import { useObjectTranslation } from '@object-ui/i18n';
 import { useMetadata } from '../providers/MetadataProvider';
+import { resolveHref } from '@object-ui/layout';
+import { useAuth } from '@object-ui/auth';
 
 interface SearchResult {
   id: string;
@@ -72,24 +74,15 @@ export function SearchResultsPage() {
   const apps = metadataApps || [];
   const activeApp = apps.find((a: any) => a.name === appName) || apps[0];
   const baseUrl = `/apps/${appName}`;
+  const { user } = useAuth();
 
   // Build searchable items from navigation
   const allItems = useMemo((): SearchResult[] => {
     if (!activeApp) return [];
     const navItems = flattenNavigation(activeApp.navigation || []);
+    const templateContext = { currentUserId: user?.id ?? null };
     return navItems.map((item: any) => {
-      let href = '#';
-      if (item.type === 'object') {
-        href = `${baseUrl}/${item.objectName}`;
-        if (item.viewName) href += `/view/${item.viewName}`;
-      }
-      else if (item.type === 'dashboard') href = `${baseUrl}/dashboard/${item.dashboardName}`;
-      else if (item.type === 'page') href = `${baseUrl}/page/${item.pageName}`;
-      else if (item.type === 'report') href = `${baseUrl}/report/${item.reportName}`;
-      else if (item.type === 'component' && item.componentRef) {
-        const segs = String(item.componentRef).split(':').filter(Boolean);
-        href = `${baseUrl}/component/${segs.join('/')}`;
-      }
+      const { href } = resolveHref(item, baseUrl, templateContext);
 
       return {
         id: item.id,
@@ -99,7 +92,7 @@ export function SearchResultsPage() {
         description: item.description,
       };
     }).filter((item: SearchResult) => item.href !== '#');
-  }, [activeApp, baseUrl]);
+  }, [activeApp, baseUrl, user?.id]);
 
   // Filter results
   const results = useMemo(() => {

@@ -69,6 +69,27 @@ export interface NavigationItem {
   /** Target view name (for type: 'object') — opens a specific named list view e.g. 'calendar', 'pipeline' */
   viewName?: string;
 
+  /**
+   * Target record id (for type: 'object') — when set, the nav item
+   * opens a single record's detail page instead of a list view.
+   *
+   * Supports template variables resolved at render time by the shell:
+   *   - `{current_user_id}` → currently signed-in user's id
+   *   - `{current_org_id}`  → currently active organization's id
+   *
+   * If the template can't be resolved (e.g. signed-out pre-render),
+   * the item falls back to opening the list view.
+   *
+   * When both `recordId` and `viewName` are set, `recordId` wins.
+   */
+  recordId?: string;
+
+  /**
+   * Record opening mode when `recordId` is set. Defaults to `'view'`.
+   * Use `'edit'` to land directly on the edit form (e.g. "Edit my profile").
+   */
+  recordMode?: 'view' | 'edit';
+
   /** Target dashboard name (for type: 'dashboard') */
   dashboardName?: string;
 

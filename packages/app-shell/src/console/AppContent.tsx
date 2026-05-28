@@ -22,6 +22,7 @@ import { useAdapter } from '../providers/AdapterProvider';
 import { ExpressionProvider, evaluateVisibility } from '../providers/ExpressionProvider';
 import { useTrackRouteAsRecent } from '../hooks/useTrackRouteAsRecent';
 import { resolveRecordFormTarget, resolveNavigateCreateUrl, resolveNavigateEditUrl } from '../utils/recordFormNavigation';
+import { resolveHref, type NavTemplateContext } from '@object-ui/layout';
 import { ExpressionEvaluator } from '@object-ui/core';
 
 // Components (eagerly loaded — always needed)
@@ -371,7 +372,7 @@ export function AppContent({ extraRoutes, extraRoutesNoApp }: AppContentProps = 
             <Suspense fallback={<LoadingScreen />}>
               <RouteFader>
                 <Routes>
-                <Route path="/" element={<Navigate to={resolveLandingRoute(activeApp)} replace />} />
+                <Route path="/" element={<Navigate to={resolveLandingRoute(activeApp, { currentUserId: user?.id ?? null })} replace />} />
                 {/* Metadata admin routes — declared BEFORE the generic
                     `:objectName/...` routes so the static `metadata` prefix
                     wins React Router's score tiebreaker (both
@@ -480,15 +481,17 @@ export function AppContent({ extraRoutes, extraRoutesNoApp }: AppContentProps = 
   );
 }
 
-function findFirstRoute(items: any[]): string {
+function findFirstRoute(items: any[], ctx?: NavTemplateContext): string {
   if (!items || items.length === 0) return '';
   for (const item of items) {
-    if (item.type === 'object') return item.viewName ? `${item.objectName}/view/${item.viewName}` : `${item.objectName}`;
-    if (item.type === 'page') return item.pageName ? `page/${item.pageName}` : '';
-    if (item.type === 'dashboard') return item.dashboardName ? `dashboard/${item.dashboardName}` : '';
+    if (item.type === 'object' || item.type === 'page' || item.type === 'dashboard' || item.type === 'report') {
+      const route = buildItemRoute(item, ctx);
+      if (route) return route;
+      continue;
+    }
     if (item.type === 'url') continue;
     if (item.type === 'group' && item.children) {
-      const childRoute = findFirstRoute(item.children);
+      const childRoute = findFirstRoute(item.children, ctx);
       if (childRoute !== '') return childRoute;
     }
   }
@@ -497,14 +500,18 @@ function findFirstRoute(items: any[]): string {
 
 // Build the per-item route segment without recursing through groups —
 // used when `homePageId` resolved to an exact match and we just need to
-// know how to address it.
-function buildItemRoute(item: any): string {
+// know how to address it. Delegates to the layout package's resolveHref()
+// so `recordId`/`recordMode`/`componentRef` semantics stay consistent
+// with the sidebar.
+function buildItemRoute(item: any, ctx?: NavTemplateContext): string {
   if (!item) return '';
-  if (item.type === 'object') return item.viewName ? `${item.objectName}/view/${item.viewName}` : `${item.objectName}`;
-  if (item.type === 'page') return item.pageName ? `page/${item.pageName}` : '';
-  if (item.type === 'dashboard') return item.dashboardName ? `dashboard/${item.dashboardName}` : '';
-  if (item.type === 'report') return item.reportName ? `report/${item.reportName}` : '';
-  return '';
+  if (item.type === 'url' || item.type === 'action' || item.type === 'separator' || item.type === 'group') return '';
+  const { href, external } = resolveHref(item, '', ctx);
+  if (external || !href || href === '#') return '';
+  // resolveHref returns leading-slash paths (`/sys_user/...`); the
+  // Navigate target inside <Routes basename="/apps/:appName"> wants a
+  // *relative* path so it composes with the app base.
+  return href.replace(/^\//, '');
 }
 
 function findNavItemById(items: any[], id: string): any | undefined {
@@ -527,15 +534,15 @@ function findNavItemById(items: any[], id: string): any | undefined {
  * at something that doesn't yield a route. This is what lets the CRM
  * example open on the Sales Dashboard instead of the Lead list.
  */
-function resolveLandingRoute(activeApp: any): string {
+function resolveLandingRoute(activeApp: any, ctx?: NavTemplateContext): string {
   const homePageId: string | undefined = activeApp?.homePageId;
   const navigation = activeApp?.navigation || [];
   if (homePageId) {
     const item = findNavItemById(navigation, homePageId);
-    const route = buildItemRoute(item);
+    const route = buildItemRoute(item, ctx);
     if (route) return route;
   }
-  return findFirstRoute(navigation);
+  return findFirstRoute(navigation, ctx);
 }
 
 /**
