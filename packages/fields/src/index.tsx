@@ -1719,6 +1719,18 @@ const fieldWidgetMap: Record<string, () => Promise<{ default: React.ComponentTyp
  * // Register only the text field
  * registerField('text');
  */
+// Field types whose short name collides with a display widget in
+// @object-ui/components. These remain accessible via the namespaced
+// `field:<type>` key, but should not overwrite the bare `<type>` fallback
+// (which the display widget owns and which most schemas expect).
+const FIELD_TYPES_SKIP_FALLBACK = new Set([
+  'text',
+  'html',
+  'image',
+  'avatar',
+  'grid',
+]);
+
 export function registerField(fieldType: string): void {
   const loader = fieldWidgetMap[fieldType];
   if (!loader) {
@@ -1730,7 +1742,10 @@ export function registerField(fieldType: string): void {
   const LazyFieldWidget = React.lazy(loader);
   
   // Register with field namespace - NO WRAPPER to allow form renderer to control label/layout
-  ComponentRegistry.register(fieldType, LazyFieldWidget, { namespace: 'field' });
+  ComponentRegistry.register(fieldType, LazyFieldWidget, {
+    namespace: 'field',
+    skipFallback: FIELD_TYPES_SKIP_FALLBACK.has(fieldType),
+  });
 }
 
 /**
@@ -1755,7 +1770,12 @@ export function registerAllFields(): void {
  */
 export function registerFields() {
   // Basic fields - wrapped for documentation compatibility
-  ComponentRegistry.register('text', createFieldRenderer(TextField), { namespace: 'field' });
+  // `text` collides with the display text widget in @object-ui/components.
+  // Display semantics ({ type: 'text', content: '...' }) are the dominant
+  // usage across the docs/blocks catalog, so we keep this renderer accessible
+  // only via the namespaced `field:text` key and let the display widget win
+  // the bare `text` lookup.
+  ComponentRegistry.register('text', createFieldRenderer(TextField), { namespace: 'field', skipFallback: true });
   ComponentRegistry.register('textarea', createFieldRenderer(TextAreaField), { namespace: 'field' });
   ComponentRegistry.register('number', createFieldRenderer(NumberField), { namespace: 'field' });
   ComponentRegistry.register('boolean', createFieldRenderer(BooleanField), { namespace: 'field' });
@@ -1774,7 +1794,10 @@ export function registerFields() {
   ComponentRegistry.register('percent', createFieldRenderer(PercentField), { namespace: 'field' });
   ComponentRegistry.register('password', createFieldRenderer(PasswordField), { namespace: 'field' });
   ComponentRegistry.register('markdown', createFieldRenderer(RichTextField), { namespace: 'field' });
-  ComponentRegistry.register('html', createFieldRenderer(RichTextField), { namespace: 'field' });
+  // `html` collides with the HTML-rendering display widget. Keep the
+  // markdown field, but expose the HTML field only via `field:html` so the
+  // display widget remains the default for { type: 'html', content }.
+  ComponentRegistry.register('html', createFieldRenderer(RichTextField), { namespace: 'field', skipFallback: true });
   ComponentRegistry.register('lookup', createFieldRenderer(LookupField), { namespace: 'field' });
   // master_detail = child-side FK lookup (single value, typically required). See
   // fieldWidgetMap above for rationale.
@@ -1782,7 +1805,8 @@ export function registerFields() {
   
   // File fields
   ComponentRegistry.register('file', createFieldRenderer(FileField), { namespace: 'field' });
-  ComponentRegistry.register('image', createFieldRenderer(ImageField), { namespace: 'field' });
+  // `image` collides with the display image widget; namespaced-only.
+  ComponentRegistry.register('image', createFieldRenderer(ImageField), { namespace: 'field', skipFallback: true });
   
   // Location field
   ComponentRegistry.register('location', createFieldRenderer(LocationField), { namespace: 'field' });
@@ -1799,14 +1823,16 @@ export function registerFields() {
   // Complex data types
   ComponentRegistry.register('object', createFieldRenderer(ObjectField), { namespace: 'field' });
   ComponentRegistry.register('vector', createFieldRenderer(VectorField), { namespace: 'field' });
-  ComponentRegistry.register('grid', createFieldRenderer(GridField), { namespace: 'field' });
+  // `grid` collides with the layout grid component; namespaced-only.
+  ComponentRegistry.register('grid', createFieldRenderer(GridField), { namespace: 'field', skipFallback: true });
   
   // NEW: Additional field types from @objectstack/spec
   ComponentRegistry.register('color', createFieldRenderer(ColorField), { namespace: 'field' });
   ComponentRegistry.register('slider', createFieldRenderer(SliderField), { namespace: 'field' });
   ComponentRegistry.register('rating', createFieldRenderer(RatingField), { namespace: 'field' });
   ComponentRegistry.register('code', createFieldRenderer(CodeField), { namespace: 'field' });
-  ComponentRegistry.register('avatar', createFieldRenderer(AvatarField), { namespace: 'field' });
+  // `avatar` collides with the display avatar widget; namespaced-only.
+  ComponentRegistry.register('avatar', createFieldRenderer(AvatarField), { namespace: 'field', skipFallback: true });
   ComponentRegistry.register('address', createFieldRenderer(AddressField), { namespace: 'field' });
   ComponentRegistry.register('geolocation', createFieldRenderer(GeolocationField), { namespace: 'field' });
   ComponentRegistry.register('signature', createFieldRenderer(SignatureField), { namespace: 'field' });

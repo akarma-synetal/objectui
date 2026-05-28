@@ -61,6 +61,8 @@ import { useObjectTranslation, useObjectLabel } from '@object-ui/i18n';
 import type { BreadcrumbItem as BreadcrumbItemType } from '@object-ui/types';
 import { useAuth, getUserInitials } from '@object-ui/auth';
 import { useMetadata } from '../providers/MetadataProvider';
+import { resolveI18nLabel } from '../utils';
+import { getIcon } from '../utils/getIcon';
 import { useMobileViewSwitcher } from './MobileViewSwitcherContext';
 import { useNavigationContext } from '../context/NavigationContext';
 
@@ -122,7 +124,7 @@ export function AppHeader({
   } = useAuth();
   const dataSource = useAdapter();
   const { t } = useObjectTranslation();
-  const { objectLabel, dashboardLabel, pageLabel, reportLabel, viewLabel } = useObjectLabel();
+  const { objectLabel, dashboardLabel, pageLabel, reportLabel, viewLabel, appLabel } = useObjectLabel();
   const { apps: metadataApps, dashboards: metadataDashboards, pages: metadataPages, reports: metadataReports } = useMetadata();
   const { currentAppName, recordTitle } = useNavigationContext();
   const mobileSwitcher = useMobileViewSwitcher();
@@ -726,6 +728,29 @@ export function AppHeader({
                 <Settings className="mr-2 h-4 w-4" />
                 {t('sidebar.settings', { defaultValue: 'Settings' })}
               </DropdownMenuItem>
+              {/*
+               * Hidden apps (App.hidden === true) surface here instead
+               * of in the App Switcher. This is the standard pattern for
+               * personal-settings-style apps that would feel out of place
+               * next to business apps — Account, Personal Settings, etc.
+               * See `App.hidden` in @objectstack/spec/ui.
+               */}
+              {(metadataApps || [])
+                .filter((a: any) => a.active !== false && a.hidden === true)
+                .map((app: any) => {
+                  const AppIcon = getIcon(app.icon);
+                  const label = appLabel({ name: app.name, label: resolveI18nLabel(app.label, t) });
+                  return (
+                    <DropdownMenuItem
+                      key={`hidden_app_${app.name}`}
+                      onClick={() => navigate(`/apps/${app.name}`)}
+                      className="cursor-pointer"
+                    >
+                      <AppIcon className="mr-2 h-4 w-4" />
+                      {label}
+                    </DropdownMenuItem>
+                  );
+                })}
             </DropdownMenuGroup>
 
             {/*

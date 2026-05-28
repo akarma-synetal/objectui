@@ -32,7 +32,10 @@ export function AppSwitcher({ activeAppName, onAppChange }: AppSwitcherProps) {
   const { appLabel } = useObjectLabel();
 
   const apps = metadataApps || [];
-  const activeApps = apps.filter((a: any) => a.active !== false);
+  // Hidden apps (App.hidden === true) live in the avatar dropdown
+  // (personal-settings-style surfaces like the Account app), not the
+  // top-level App Switcher.
+  const activeApps = apps.filter((a: any) => a.active !== false && a.hidden !== true);
   const activeApp = activeApps.find((a: any) => a.name === activeAppName) || activeApps[0];
 
   if (!activeApp) return null;

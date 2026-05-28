@@ -654,9 +654,14 @@ interface RenderFieldProps {
 }
 
 function renderFieldComponent(type: string, props: RenderFieldProps) {
-  // 1. Try to resolve specialized field widget from registry first
-  // We prioritize registry components (e.g., 'field.currency', 'field.date')
-  const RegisteredComponent = ComponentRegistry.get(type);
+  // 1. Try to resolve specialized field widget from registry first.
+  //    Form fields should always prefer the `field:<type>` namespace when
+  //    available (e.g. so { type: 'text' } in a form schema resolves to the
+  //    text input field, not the display text widget that shares the same
+  //    short name in the global registry).
+  const RegisteredComponent =
+    (!type.includes(':') && ComponentRegistry.get(`field:${type}`)) ||
+    ComponentRegistry.get(type);
 
   if (RegisteredComponent) {
     // For specialized fields (e.g. fields package), they expect 'field' prop.
