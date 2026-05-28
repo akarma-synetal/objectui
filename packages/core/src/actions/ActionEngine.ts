@@ -26,9 +26,9 @@ import { ActionRunner, type ActionDef, type ActionContext, type ActionResult } f
  * `framework/packages/spec/src/ui/action.zod.ts` and they propagate here
  * automatically.
  */
-export type { ActionLocation } from '@objectstack/spec/ui';
-export { ACTION_LOCATIONS } from '@objectstack/spec/ui';
-import type { ActionLocation } from '@objectstack/spec/ui';
+export type { ActionLocation } from '@object-ui/types';
+export { ACTION_LOCATIONS } from '@object-ui/types';
+import type { ActionLocation } from '@object-ui/types';
 
 /** Registered action with metadata */
 export interface RegisteredAction {

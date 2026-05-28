@@ -18,6 +18,7 @@
  * @module ui-action
  * @packageDocumentation
  */
+import { z } from 'zod';
 
 // ============================================================================
 // Spec-Canonical Action Sub-types — imported from @objectstack/spec/ui
@@ -33,9 +34,26 @@
  * `packages/spec/src/ui/action.zod.ts` — every layer (spec, core, types,
  * Studio designer dropdowns) picks up the new value automatically.
  */
-export type { ActionLocation } from '@objectstack/spec/ui';
-export { ACTION_LOCATIONS, ActionLocationSchema } from '@objectstack/spec/ui';
-import type { ActionLocation } from '@objectstack/spec/ui';
+export type ActionLocation =
+  | 'list_toolbar'
+  | 'list_item'
+  | 'record_header'
+  | 'record_more'
+  | 'record_related'
+  | 'record_section'
+  | 'global_nav';
+
+export const ACTION_LOCATIONS = [
+  'list_toolbar',
+  'list_item',
+  'record_header',
+  'record_more',
+  'record_related',
+  'record_section',
+  'global_nav',
+] as const satisfies readonly ActionLocation[];
+
+export const ActionLocationSchema = z.enum(ACTION_LOCATIONS);
 
 /**
  * Visual component type for actions
