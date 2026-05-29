@@ -67,6 +67,70 @@ const KNOWN_PASSTHROUGH_WIDGETS = new Set<string>([
 ]);
 
 /**
+ * Pick the best-matching branch of a JSON Schema `oneOf` / `anyOf`
+ * union for the given value. Scores each branch by how many of its
+ * `required` keys are present in the value (and same `type`); falls
+ * back to the first branch when nothing matches (so create-mode forms
+ * with empty values still render *something* structured).
+ *
+ * Returns the original schema unchanged when there's no union to
+ * resolve. Used by the recursive renderer so View `data` (provider
+ * discriminator), `columns`, `sort`, etc. produce real labelled
+ * inputs instead of a raw JSON blob.
+ */
+function resolveUnionBranch(
+  schema: JsonSchema | undefined,
+  value: unknown,
+): JsonSchema | undefined {
+  if (!schema) return schema;
+  const branches = (schema.oneOf ?? schema.anyOf) as JsonSchema[] | undefined;
+  if (!Array.isArray(branches) || branches.length === 0) return schema;
+
+  const isPlainObj = value != null && typeof value === 'object' && !Array.isArray(value);
+  const isArray = Array.isArray(value);
+  const valKeys = isPlainObj ? new Set(Object.keys(value as Record<string, unknown>)) : null;
+
+  let best: { branch: JsonSchema; score: number } | null = null;
+  const firstItem = isArray && (value as unknown[]).length ? (value as unknown[])[0] : undefined;
+  const firstItemIsObj = firstItem != null && typeof firstItem === 'object' && !Array.isArray(firstItem);
+  for (const b of branches) {
+    let score = 0;
+    if (b.type === 'array' && isArray) {
+      score += 5;
+      // Tiebreaker for `anyOf [array<string>, array<object>]` etc — match the
+      // branch's items.type against the actual element type.
+      const itemType = (b.items as JsonSchema | undefined)?.type;
+      if (itemType === 'object' && firstItemIsObj) score += 3;
+      else if (
+        (itemType === 'string' && typeof firstItem === 'string') ||
+        (itemType === 'number' && typeof firstItem === 'number') ||
+        (itemType === 'integer' && typeof firstItem === 'number')
+      ) score += 3;
+    }
+    if (b.type === 'object' && isPlainObj) score += 5;
+    if (b.type === 'string' && typeof value === 'string') score += 5;
+    if (b.type === 'number' && typeof value === 'number') score += 5;
+    if (b.type === 'boolean' && typeof value === 'boolean') score += 5;
+    if (valKeys && Array.isArray(b.required)) {
+      for (const r of b.required as string[]) {
+        if (valKeys.has(r)) score += 1;
+      }
+    }
+    if (!best || score > best.score) best = { branch: b, score };
+  }
+  // Merge the branch's shape on top of any parent metadata (title /
+  // description) so the recursive renderer still sees the field's
+  // documentation.
+  const picked = best?.branch ?? branches[0];
+  return {
+    ...schema,
+    ...picked,
+    oneOf: undefined,
+    anyOf: undefined,
+  } as JsonSchema;
+}
+
+/**
  * Infer widget name from FormFieldSpec.type (Data.FieldType) and schema.
  * Priority: explicit widget > type-based inference > schema-based inference > default.
  */
@@ -761,6 +825,12 @@ function FieldControl({
         />
       );
     }
+    // Resolve discriminated unions (oneOf / anyOf) against the current
+    // value so the recursive renderer below works on a concrete branch.
+    // Without this, every union field (View `data`, `columns`, `sort`,
+    // ...) falls through to a raw JSON editor.
+    const effective = resolveUnionBranch(schema, value);
+
     // Nested object schema with a `properties` map: recurse into a
     // nested SchemaForm so the user gets real labelled inputs instead
     // of raw JSON. Covers the auto-inferred `object-fields` widget that
@@ -768,14 +838,14 @@ function FieldControl({
     // widget name that wasn't registered but still describes structured
     // data.
     if (
-      schema?.type === 'object' &&
-      schema.properties &&
-      typeof schema.properties === 'object'
+      effective?.type === 'object' &&
+      effective.properties &&
+      typeof effective.properties === 'object'
     ) {
       return (
         <div className="rounded-md border border-border/40 bg-card/30 p-3">
           <SchemaForm
-            schema={schema}
+            schema={effective}
             value={(value as Record<string, unknown>) ?? {}}
             onChange={(v) => onChange(v)}
             readOnly={readOnly}
@@ -783,6 +853,36 @@ function FieldControl({
           />
         </div>
       );
+    }
+    // Array-of-object schemas: route through RepeaterField so the user
+    // gets per-row inputs rather than a JSON blob. Derive sub-field
+    // names from items.properties (after union resolution).
+    if (
+      effective?.type === 'array' &&
+      effective.items &&
+      typeof effective.items === 'object'
+    ) {
+      const itemSchema = resolveUnionBranch(
+        effective.items as JsonSchema,
+        Array.isArray(value) && value.length ? value[0] : undefined,
+      );
+      if (
+        itemSchema?.type === 'object' &&
+        itemSchema.properties &&
+        typeof itemSchema.properties === 'object'
+      ) {
+        return (
+          <RepeaterField
+            value={value}
+            fields={derivePropertyNames(itemSchema)}
+            schema={{ ...effective, items: itemSchema }}
+            readOnly={readOnly}
+            widgetContext={widgetContext}
+            widget={fieldSpec?.widget}
+            onChange={onChange}
+          />
+        );
+      }
     }
     if (!KNOWN_PASSTHROUGH_WIDGETS.has(widget)) {
       return (
@@ -800,9 +900,17 @@ function FieldControl({
       );
     }
   }
+  // For schemas authored as `anyOf` / `oneOf` (e.g. `width: anyOf[string,
+  // number]`, `sort: anyOf[string, array<obj>]`), the outer schema's
+  // `type` / `enum` are undefined and every primitive branch below would
+  // miss, dropping us straight to RawJsonEditor. Resolve the union against
+  // the current value once and use the resolved branch for type/enum
+  // checks so primitive unions render as real inputs.
+  const effective = resolveUnionBranch(schema, value) ?? schema;
+  const effectiveType = effective?.type as string | undefined;
   // Enum / Select — fieldSpec.options takes precedence over schema.enum.
   const options = fieldSpec?.options;
-  const enumValues = (schema?.enum as unknown[] | undefined) ?? undefined;
+  const enumValues = (effective?.enum as unknown[] | undefined) ?? undefined;
   
   if (Array.isArray(options) && options.length > 0) {
     // Render from fieldSpec.options (Data.SelectOption[])
@@ -865,7 +973,7 @@ function FieldControl({
   // the sub-field as boolean. Without this, capability toggles inside the
   // Object editor's "Capabilities" section fell through to RawJsonEditor
   // and rendered as empty textareas.
-  if (schema?.type === 'boolean' || widget === 'switch' || fieldSpec?.type === 'boolean' || fieldSpec?.type === 'toggle') {
+  if (effectiveType === 'boolean' || widget === 'switch' || fieldSpec?.type === 'boolean' || fieldSpec?.type === 'toggle') {
     return (
       <Switch
         id={id}
@@ -877,7 +985,7 @@ function FieldControl({
   }
 
   // Number / integer → numeric input with min/max from fieldSpec.
-  if (schema?.type === 'number' || schema?.type === 'integer') {
+  if (effectiveType === 'number' || effectiveType === 'integer') {
     const min = fieldSpec?.min;
     const max = fieldSpec?.max;
     return (
@@ -890,7 +998,7 @@ function FieldControl({
         onChange={(e) => {
           const raw = e.target.value;
           if (raw === '') return onChange(undefined);
-          const n = schema.type === 'integer' ? parseInt(raw, 10) : Number(raw);
+          const n = effectiveType === 'integer' ? parseInt(raw, 10) : Number(raw);
           onChange(Number.isFinite(n) ? n : undefined);
         }}
         readOnly={readOnly}
@@ -899,11 +1007,11 @@ function FieldControl({
   }
 
   // String → Input (or Textarea if it looks long), with maxLength from fieldSpec.
-  if (schema?.type === 'string') {
+  if (effectiveType === 'string') {
     const maxLength = fieldSpec?.maxLength;
     const long =
-      schema?.format === 'multiline' ||
-      schema?.contentMediaType === 'text/markdown' ||
+      effective?.format === 'multiline' ||
+      effective?.contentMediaType === 'text/markdown' ||
       (typeof value === 'string' && value.length > 80);
     if (long) {
       return (
@@ -929,8 +1037,8 @@ function FieldControl({
   }
 
   // Array of primitives → comma-separated tag editor (MVP).
-  if (schema?.type === 'array') {
-    const itemsSchema = (schema?.items as JsonSchema | undefined) ?? {};
+  if (effectiveType === 'array') {
+    const itemsSchema = (effective?.items as JsonSchema | undefined) ?? {};
     const isPrimitive =
       itemsSchema.type === 'string' ||
       itemsSchema.type === 'number' ||
@@ -957,6 +1065,60 @@ function FieldControl({
           readOnly={readOnly}
         />
       );
+    }
+  }
+
+  // Structured fallback — try to recurse into a real nested form before
+  // dropping to a raw JSON editor. Order matters:
+  //   1. Resolve oneOf / anyOf against the value (discriminated unions
+  //      like View `data.provider` or anyOf [array<string>, array<obj>]).
+  //   2. type:'object' with properties → nested SchemaForm.
+  //   3. type:'array' of objects → RepeaterField with per-row inputs.
+  //   4. Last resort → JSON editor.
+  {
+    if (
+      effective?.type === 'object' &&
+      effective.properties &&
+      typeof effective.properties === 'object'
+    ) {
+      return (
+        <div className="rounded-md border border-border/40 bg-card/30 p-3">
+          <SchemaForm
+            schema={effective}
+            value={(value as Record<string, unknown>) ?? {}}
+            onChange={(v) => onChange(v)}
+            readOnly={readOnly}
+            widgetContext={widgetContext}
+          />
+        </div>
+      );
+    }
+    if (
+      effective?.type === 'array' &&
+      effective.items &&
+      typeof effective.items === 'object'
+    ) {
+      const itemSchema = resolveUnionBranch(
+        effective.items as JsonSchema,
+        Array.isArray(value) && value.length ? value[0] : undefined,
+      );
+      if (
+        itemSchema?.type === 'object' &&
+        itemSchema.properties &&
+        typeof itemSchema.properties === 'object'
+      ) {
+        return (
+          <RepeaterField
+            value={value}
+            fields={derivePropertyNames(itemSchema)}
+            schema={{ ...effective, items: itemSchema }}
+            readOnly={readOnly}
+            widgetContext={widgetContext}
+            widget={fieldSpec?.widget}
+            onChange={onChange}
+          />
+        );
+      }
     }
   }
 
