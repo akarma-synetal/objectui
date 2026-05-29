@@ -95,6 +95,11 @@ export function registerBuiltinAnchors(): void {
       groupLabel: 'Hooks',
       order: 20,
     }],
+    createFields: ['label', 'name', 'object', 'description'],
+    createDerive: [
+      { from: 'label', to: 'name', transform: 'slugify', untilUserEdits: true },
+    ],
+    createDefaults: { events: [] },
   });
 
   // approval.object → object (approval processes targeting this object)
@@ -117,6 +122,11 @@ export function registerBuiltinAnchors(): void {
       groupLabel: 'Pages',
       order: 40,
     }],
+    createFields: ['label', 'name', 'description', 'icon'],
+    createDerive: [
+      { from: 'label', to: 'name', transform: 'slugify', untilUserEdits: true },
+    ],
+    createDefaults: { regions: [] },
   });
 
   // view binds to an object via data.object (list view / form view variants)
@@ -144,6 +154,11 @@ export function registerBuiltinAnchors(): void {
       groupLabel: 'Flows',
       order: 50,
     }],
+    createFields: ['label', 'name', 'type', 'description'],
+    createDerive: [
+      { from: 'label', to: 'name', transform: 'slugify', untilUserEdits: true },
+    ],
+    createDefaults: { nodes: [], edges: [] },
   });
   registerMetadataResource({
     type: 'workflow',
@@ -153,6 +168,7 @@ export function registerBuiltinAnchors(): void {
       groupLabel: 'Workflow Rules',
       order: 51,
     }],
+    createFields: ['name', 'objectName', 'triggerType', 'description'],
   });
 
   // trigger.object → object (low-level DB-style triggers)
@@ -164,6 +180,10 @@ export function registerBuiltinAnchors(): void {
       groupLabel: 'Triggers',
       order: 52,
     }],
+    createFields: ['label', 'name', 'object'],
+    createDerive: [
+      { from: 'label', to: 'name', transform: 'slugify', untilUserEdits: true },
+    ],
   });
 
   // validation: usually embedded in the object, but standalone variants
@@ -207,6 +227,10 @@ export function registerBuiltinAnchors(): void {
       groupLabel: 'Actions',
       order: 55,
     }],
+    createFields: ['label', 'name', 'objectName', 'icon'],
+    createDerive: [
+      { from: 'label', to: 'name', transform: 'slugify', untilUserEdits: true },
+    ],
   });
 
   // dashboard / report — surface ones bound to a specific object.
@@ -219,6 +243,11 @@ export function registerBuiltinAnchors(): void {
       groupLabel: 'Dashboards',
       order: 80,
     }],
+    createFields: ['label', 'name', 'description'],
+    createDerive: [
+      { from: 'label', to: 'name', transform: 'slugify', untilUserEdits: true },
+    ],
+    createDefaults: { widgets: [] },
   });
   registerMetadataResource({
     type: 'report',
@@ -228,6 +257,11 @@ export function registerBuiltinAnchors(): void {
       groupLabel: 'Reports',
       order: 81,
     }],
+    createFields: ['label', 'name', 'objectName', 'description'],
+    createDerive: [
+      { from: 'label', to: 'name', transform: 'slugify', untilUserEdits: true },
+    ],
+    createDefaults: { columns: [] },
   });
 
   // Cosmetic defaults for the `object` type list page — gives Object the
