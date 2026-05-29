@@ -1,0 +1,255 @@
+// Copyright (c) 2025 ObjectStack. Licensed under the Apache-2.0 license.
+
+/**
+ * AppContextSelectors — renders the app-level "scope" dropdowns declared
+ * in `App.contextSelectors` (e.g. the Studio package filter) and exposes
+ * their current values so the sidebar can feed them into
+ * `NavigationRenderer`'s `templateContext.contextValues`.
+ *
+ * Each selector's value is published under its `id` and referenced by
+ * nav items as `{<id>}` (e.g. `{active_package}`), exactly like the
+ * built-in `{current_user_id}` / `{current_org_id}` template vars.
+ * Selecting an option therefore transparently scopes every child nav
+ * item — no per-item wiring required.
+ *
+ * @module
+ */
+
+import * as React from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@object-ui/components';
+import { getIcon } from '../utils/getIcon';
+import { resolveI18nLabel } from '../utils';
+
+export interface ContextSelectorFilter {
+  key: string;
+  op?: 'eq' | 'ne' | 'in' | 'nin';
+  value: string | string[];
+}
+
+export interface ContextSelectorDef {
+  id: string;
+  label?: unknown;
+  icon?: string;
+  optionsSource: { endpoint: string; valueKey?: string; labelKey?: string; filter?: ContextSelectorFilter[] };
+  includeAll?: boolean;
+  allValue?: string;
+  persist?: 'query' | 'session' | 'none';
+  placement?: 'sidebar_header' | 'topbar';
+}
+
+interface Option { value: string; label: string }
+
+const ALL_SENTINEL = '__all__';
+
+/** Read a (possibly dotted) property path off a row, e.g. `manifest.id`. */
+function getByPath(row: any, key: string): unknown {
+  if (!key) return undefined;
+  return key.split('.').reduce((o: any, k) => (o == null ? o : o[k]), row);
+}
+
+/** Tolerate the common REST envelope shapes used across the platform. */
+function extractRows(json: any): any[] {
+  if (Array.isArray(json)) return json;
+  const d = json?.data ?? json;
+  if (Array.isArray(d)) return d;
+  if (Array.isArray(d?.packages)) return d.packages;
+  if (Array.isArray(d?.items)) return d.items;
+  if (Array.isArray(json?.items)) return json.items;
+  return [];
+}
+
+/** Apply a selector's `filter` predicates (AND) to a fetched row. */
+function rowPasses(row: any, filters: ContextSelectorFilter[] | undefined): boolean {
+  if (!filters || filters.length === 0) return true;
+  for (const f of filters) {
+    const actual = getByPath(row, f.key);
+    const op = f.op ?? 'eq';
+    const list = Array.isArray(f.value) ? f.value : [f.value];
+    switch (op) {
+      case 'eq': if (actual !== f.value) return false; break;
+      case 'ne': if (actual === f.value) return false; break;
+      // `in`/`nin` treat a missing value as "not in the set", which keeps
+      // untagged rows visible under `nin` (e.g. a package whose manifest
+      // omits `scope` defaults to project and should remain selectable).
+      case 'in': if (!list.includes(actual as string)) return false; break;
+      case 'nin': if (list.includes(actual as string)) return false; break;
+    }
+  }
+  return true;
+}
+
+function useSelectorOptions(def: ContextSelectorDef): Option[] {
+  const [options, setOptions] = React.useState<Option[]>([]);
+  const endpoint = def.optionsSource.endpoint;
+  const valueKey = def.optionsSource.valueKey || 'id';
+  const labelKey = def.optionsSource.labelKey || 'name';
+  const filters = def.optionsSource.filter;
+  const filterKey = JSON.stringify(filters ?? []);
+
+  React.useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(endpoint, {
+          credentials: 'include',
+          headers: { Accept: 'application/json' },
+        });
+        if (!res.ok) return;
+        const json = await res.json();
+        if (cancelled) return;
+        const rows = extractRows(json);
+        const opts: Option[] = [];
+        const seen = new Set<string>();
+        for (const row of rows) {
+          if (!rowPasses(row, filters)) continue;
+          const value = getByPath(row, valueKey);
+          if (value == null || typeof value !== 'string' || seen.has(value)) continue;
+          seen.add(value);
+          const labelRaw = getByPath(row, labelKey);
+          opts.push({ value, label: typeof labelRaw === 'string' && labelRaw ? labelRaw : value });
+        }
+        opts.sort((a, b) => a.label.localeCompare(b.label));
+        setOptions(opts);
+      } catch {
+        /* offline / unauthorized — render with no options */
+      }
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [endpoint, valueKey, labelKey, filterKey]);
+
+  return options;
+}
+
+/**
+ * Hook: resolves the active values for an app's context selectors and
+ * returns a ready-to-render UI element plus the `contextValues` map for
+ * `NavigationRenderer`.
+ */
+export function useAppContextSelectors(
+  appName: string,
+  selectors: ContextSelectorDef[] | undefined,
+  t?: (key: string, options?: any) => string,
+): { contextValues: Record<string, string>; element: React.ReactNode } {
+  const list = Array.isArray(selectors) ? selectors : [];
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  // The URL query string is the single source of truth for the active
+  // scope. Deriving the selected value from it (rather than a parallel
+  // useState) keeps the sidebar control in lock-step with the page — no
+  // more "sidebar says A while the list shows B" drift.
+  const params = new URLSearchParams(location.search);
+
+  // Re-apply a remembered scope once, on first mount, so a selection
+  // survives a full page reload (when the URL comes back without the
+  // query param). Subsequent navigation is driven purely by the URL.
+  const seededRef = React.useRef(false);
+  React.useEffect(() => {
+    if (seededRef.current) return;
+    seededRef.current = true;
+    const p = new URLSearchParams(location.search);
+    let changed = false;
+    for (const sel of list) {
+      if (sel.persist === 'none') continue;
+      if (p.get('package')) continue;
+      try {
+        const saved = sessionStorage.getItem(`objectui-ctx-${appName}-${sel.id}`);
+        if (saved) { p.set('package', saved); changed = true; }
+      } catch { /* storage disabled */ }
+    }
+    if (changed) {
+      navigate({ pathname: location.pathname, search: p.toString() }, { replace: true });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const setValue = React.useCallback((sel: ContextSelectorDef, raw: string) => {
+    const value = raw === ALL_SENTINEL ? (sel.allValue ?? '') : raw;
+    try {
+      const key = `objectui-ctx-${appName}-${sel.id}`;
+      if (value) sessionStorage.setItem(key, value);
+      else sessionStorage.removeItem(key);
+    } catch { /* storage disabled */ }
+
+    // Reflect the scope onto the current page immediately. Metadata
+    // surfaces read the `package` query param as the conventional filter
+    // key; nav links pick it up via the `{active_package}` template var.
+    const next = new URLSearchParams(location.search);
+    if (value) next.set('package', value);
+    else next.delete('package');
+    navigate({ pathname: location.pathname, search: next.toString() }, { replace: true });
+  }, [appName, location.pathname, location.search, navigate]);
+
+  const contextValues: Record<string, string> = {};
+  for (const sel of list) {
+    contextValues[sel.id] = params.get('package') ?? (sel.allValue ?? '');
+  }
+
+  const element = list.length === 0 ? null : (
+    <div className="flex flex-col gap-1.5">
+      {list.map((sel) => (
+        <SelectorControl
+          key={sel.id}
+          def={sel}
+          value={contextValues[sel.id]}
+          onChange={(raw) => setValue(sel, raw)}
+          t={t}
+        />
+      ))}
+    </div>
+  );
+
+  return { contextValues, element };
+}
+
+function SelectorControl({
+  def,
+  value,
+  onChange,
+  t,
+}: {
+  def: ContextSelectorDef;
+  value: string;
+  onChange: (raw: string) => void;
+  t?: (key: string, options?: any) => string;
+}) {
+  const options = useSelectorOptions(def);
+  const Icon = getIcon(def.icon);
+  const label = resolveI18nLabel(def.label as any, t) || def.id;
+  const includeAll = def.includeAll !== false;
+  // Map the empty/all value back to the sentinel so the Select shows the
+  // "All" row as selected (Radix Select can't use an empty string value).
+  const current = value && value !== (def.allValue ?? '') ? value : ALL_SENTINEL;
+
+  return (
+    <Select value={current} onValueChange={onChange}>
+      <SelectTrigger
+        aria-label={label}
+        className="h-8 w-full gap-1.5 rounded-md border-sidebar-border/60 bg-sidebar-accent/40 px-2 text-xs font-medium text-sidebar-foreground shadow-none hover:bg-sidebar-accent focus:ring-1 focus:ring-sidebar-ring data-[state=open]:bg-sidebar-accent"
+      >
+        <span className="flex min-w-0 items-center gap-1.5 truncate">
+          <Icon className="h-3.5 w-3.5 shrink-0 opacity-60" />
+          <SelectValue placeholder={`All ${label}`} />
+        </span>
+      </SelectTrigger>
+      <SelectContent>
+        {includeAll && (
+          <SelectItem value={ALL_SENTINEL}>{`All ${label}`}</SelectItem>
+        )}
+        {options.map((opt) => (
+          <SelectItem key={opt.value} value={opt.value}>
+            {opt.label}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
+}

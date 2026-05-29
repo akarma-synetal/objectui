@@ -44,7 +44,7 @@ export interface RecentItem {
   id: string;
   label: string;
   href: string;
-  type: 'object' | 'dashboard' | 'page' | 'report' | 'record';
+  type: 'object' | 'dashboard' | 'page' | 'report' | 'record' | 'metadata';
   /** ISO timestamp of last visit */
   visitedAt: string;
 }

@@ -97,6 +97,7 @@ const RECENT_ICONS: Record<RecentItem['type'], React.ComponentType<{ className?:
   page: FileText,
   report: BarChart3,
   record: Box,
+  metadata: Layers,
 };
 
 function greetingKey(): string {

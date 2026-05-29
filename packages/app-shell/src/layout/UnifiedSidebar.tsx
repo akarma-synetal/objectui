@@ -38,6 +38,7 @@ import {
   ChevronRight,
   Home,
   Layers,
+  Package,
 } from 'lucide-react';
 import { NavigationRenderer } from '@object-ui/layout';
 import type { NavigationItem } from '@object-ui/types';
@@ -54,6 +55,7 @@ import { useObjectTranslation, useObjectLabel } from '@object-ui/i18n';
 // i18n lookup — `{ns}.apps.{name}.label` resolves to the translated label
 // loaded from /api/v1/i18n/translations/:locale.
 import { useNavigationContext } from '../context/NavigationContext';
+import { useAppContextSelectors } from './ContextSelectors';
 
 // ---------------------------------------------------------------------------
 // useNavOrder – localStorage-persisted drag-and-drop reorder for nav items
@@ -190,6 +192,15 @@ export function UnifiedSidebar({ activeAppName }: UnifiedSidebarProps) {
   const activeArea = areas.find((a: any) => a.id === activeAreaId);
   const appNavigation: NavigationItem[] = activeArea?.navigation || activeApp?.navigation || [];
 
+  // App-level context selectors (e.g. Studio's package scope). Their
+  // values are injected into nav items as `{<id>}` template vars so a
+  // single dropdown transparently scopes every secondary menu.
+  const { contextValues, element: contextSelectorsUI } = useAppContextSelectors(
+    activeApp?.name || 'home',
+    activeApp?.contextSelectors,
+    t,
+  );
+
   // Home navigation items
   const homeNavigation: NavigationItem[] = React.useMemo(() => [
     { id: 'home-dashboard', label: t('home.nav', { defaultValue: 'Home' }), type: 'url' as const, url: '/home', icon: 'home' },
@@ -274,7 +285,20 @@ export function UnifiedSidebar({ activeAppName }: UnifiedSidebarProps) {
         <div className="transition-opacity duration-200 ease-in-out">
           {context === 'app' && activeApp ? (
            <>
-           {/* Area Switcher */}
+          {/* App-level context selectors (e.g. package scope) */}
+          {contextSelectorsUI && (
+            <SidebarGroup className="group-data-[state=collapsed]:hidden">
+              <SidebarGroupLabel className="flex items-center gap-1.5">
+                <Package className="h-3.5 w-3.5" />
+                {t('sidebar.scope', { defaultValue: '范围' })}
+              </SidebarGroupLabel>
+              <SidebarGroupContent>
+                {contextSelectorsUI}
+              </SidebarGroupContent>
+            </SidebarGroup>
+          )}
+
+          {/* Area Switcher */}
            {areas.length > 1 && (
              <SidebarGroup>
                <SidebarGroupLabel className="flex items-center gap-1.5">
@@ -321,7 +345,7 @@ export function UnifiedSidebar({ activeAppName }: UnifiedSidebarProps) {
              resolveItemLabel={activeApp ? (itemId, fallback) => resolveNavGroupLabel(activeApp.name, itemId, fallback) : undefined}
              resolveViewLabel={(objectName, viewName, fallback) => resolveNavViewLabel(objectName, viewName, fallback)}
              t={t}
-             templateContext={{ currentUserId: user?.id ?? null }}
+             templateContext={{ currentUserId: user?.id ?? null, contextValues }}
            />
 
            {/* Recent Items */}

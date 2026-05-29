@@ -121,6 +121,31 @@ export const AppActionSchema = z.object({
 // ============================================================================
 
 /**
+ * App Context Selector Schema — sidebar/topbar scope dropdown whose
+ * selected value is injected into nav items as a `{<id>}` template var.
+ * Mirrors `@objectstack/spec` `AppContextSelectorSchema`.
+ */
+export const AppContextSelectorSchema = z.object({
+  id: z.string().describe('Selector id; value exposed as nav template var {<id>}'),
+  label: z.union([z.string(), z.record(z.string(), z.any())]).describe('Dropdown label'),
+  icon: z.string().optional().describe('Icon name (Lucide)'),
+  optionsSource: z.object({
+    endpoint: z.string().describe('REST endpoint returning option rows'),
+    valueKey: z.string().optional().default('id'),
+    labelKey: z.string().optional().default('name'),
+    filter: z.array(z.object({
+      key: z.string(),
+      op: z.enum(['eq', 'ne', 'in', 'nin']).optional().default('eq'),
+      value: z.union([z.string(), z.array(z.string())]),
+    })).optional().describe('Predicates (AND) each option row must satisfy'),
+  }).describe('Option data source'),
+  includeAll: z.boolean().optional().default(true),
+  allValue: z.string().optional().default(''),
+  persist: z.enum(['query', 'session', 'none']).optional().default('query'),
+  placement: z.enum(['sidebar_header', 'topbar']).optional().default('sidebar_header'),
+});
+
+/**
  * App Schema - Top-level application configuration
  */
 export const AppSchema = BaseSchema.extend({
@@ -134,6 +159,7 @@ export const AppSchema = BaseSchema.extend({
   menu: z.array(MenuItemSchema).optional().describe('Legacy navigation menu (deprecated, use navigation)'),
   navigation: z.array(NavigationItemSchema).optional().describe('Unified navigation tree'),
   areas: z.array(NavigationAreaSchema).optional().describe('Navigation areas (business-domain partitions)'),
+  contextSelectors: z.array(AppContextSelectorSchema).optional().describe('App-level scope dropdowns injected into nav items as {<id>} vars'),
   actions: z.array(AppActionSchema).optional().describe('Global actions (user profile, settings, etc.)'),
 });
 

@@ -88,6 +88,51 @@ describe('useTrackRouteAsRecent', () => {
     expect(result.current[0]).toMatchObject({ id: 'report:q3-results', type: 'report' });
   });
 
+  it('records a Studio metadata item route', () => {
+    const { result } = renderHook(
+      () => useHarness('/apps/studio/metadata/object/sys_user', 'studio'),
+      { wrapper },
+    );
+    expect(result.current[0]).toMatchObject({
+      id: 'metadata:object:sys_user',
+      label: 'sys_user',
+      href: '/apps/studio/metadata/object/sys_user',
+      type: 'metadata',
+    });
+  });
+
+  it('records the metadata item when on its history sub-route', () => {
+    const { result } = renderHook(
+      () => useHarness('/apps/studio/metadata/view/account_grid/history', 'studio'),
+      { wrapper },
+    );
+    expect(result.current[0]).toMatchObject({
+      id: 'metadata:view:account_grid',
+      href: '/apps/studio/metadata/view/account_grid',
+      type: 'metadata',
+    });
+  });
+
+  it('skips metadata list, directory and create routes', () => {
+    const { result: list } = renderHook(
+      () => useHarness('/apps/studio/metadata/object', 'studio'),
+      { wrapper },
+    );
+    expect(list.current).toEqual([]);
+
+    const { result: dir } = renderHook(
+      () => useHarness('/apps/studio/metadata', 'studio'),
+      { wrapper },
+    );
+    expect(dir.current).toEqual([]);
+
+    const { result: create } = renderHook(
+      () => useHarness('/apps/studio/metadata/object/new', 'studio'),
+      { wrapper },
+    );
+    expect(create.current).toEqual([]);
+  });
+
   it('skips when objectName resolves to a route prefix (e.g. "design")', () => {
     const { result } = renderHook(() => useHarness('/apps/sales/design', 'sales'), {
       wrapper,

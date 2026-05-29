@@ -332,9 +332,16 @@ const defaultCapability: CapabilityChecker = () => true;
 export interface NavTemplateContext {
   currentUserId?: string | null;
   currentOrgId?: string | null;
+  /**
+   * Active values for app-level context selectors (e.g. the Studio
+   * package scope). Keyed by the selector's `id`; referenced in nav
+   * items as `{<id>}` (e.g. `{active_package}`). Empty/absent values
+   * are treated as "no scope" and dropped from the resolved URL.
+   */
+  contextValues?: Record<string, string | null | undefined>;
 }
 
-const TEMPLATE_VAR_RE = /\{(current_user_id|current_org_id)\}/g;
+const TEMPLATE_VAR_RE = /\{(current_user_id|current_org_id|[a-z][a-z0-9_]*)\}/g;
 
 function applyNavTemplate(
   raw: string,
@@ -343,7 +350,10 @@ function applyNavTemplate(
   if (!raw.includes('{')) return raw;
   let missing = false;
   const out = raw.replace(TEMPLATE_VAR_RE, (_, name: string) => {
-    const v = name === 'current_user_id' ? ctx?.currentUserId : ctx?.currentOrgId;
+    let v: string | null | undefined;
+    if (name === 'current_user_id') v = ctx?.currentUserId;
+    else if (name === 'current_org_id') v = ctx?.currentOrgId;
+    else v = ctx?.contextValues?.[name];
     if (!v) {
       missing = true;
       return '';
@@ -440,16 +450,37 @@ export function resolveHref(
         const kind = segs[1];
         const type = navParams && typeof navParams.type === 'string' ? navParams.type : undefined;
         const name = navParams && typeof navParams.name === 'string' ? navParams.name : undefined;
+        // Forward any extra params (e.g. `package: '{active_package}'`) as
+        // querystring so an app-level context selector transparently scopes
+        // every metadata surface. `type`/`name` are encoded in the path, so
+        // they're excluded here. Template vars that don't resolve (no active
+        // scope) are dropped, leaving a clean unscoped URL.
+        let metaQs = '';
+        if (navParams && typeof navParams === 'object') {
+          const usp = new URLSearchParams();
+          for (const [k, v] of Object.entries(navParams)) {
+            if (k === 'type' || k === 'name') continue;
+            if (v === undefined || v === null) continue;
+            if (typeof v === 'string') {
+              const resolved = applyNavTemplate(v, templateContext);
+              if (resolved) usp.set(k, resolved);
+            } else {
+              usp.set(k, JSON.stringify(v));
+            }
+          }
+          const qs = usp.toString();
+          if (qs) metaQs = `?${qs}`;
+        }
         if (kind === 'directory' || !kind) {
-          return { href: `${basePath}/metadata`, external: false };
+          return { href: `${basePath}/metadata${metaQs}`, external: false };
         }
         if (kind === 'resource' && type) {
           const tail = name
             ? `/${encodeURIComponent(type)}/${encodeURIComponent(name)}`
             : `/${encodeURIComponent(type)}`;
-          return { href: `${basePath}/metadata${tail}`, external: false };
+          return { href: `${basePath}/metadata${tail}${metaQs}`, external: false };
         }
-        return { href: `${basePath}/metadata`, external: false };
+        return { href: `${basePath}/metadata${metaQs}`, external: false };
       }
       let url = `${basePath}/component/${segs.join('/')}`;
       if (navParams && typeof navParams === 'object') {

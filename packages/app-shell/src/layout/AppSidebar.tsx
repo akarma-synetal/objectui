@@ -63,6 +63,7 @@ import { useFavorites } from '../hooks/useFavorites';
 import { useNavPins } from '../hooks/useNavPins';
 import { resolveI18nLabel } from '../utils';
 import { useObjectTranslation, useObjectLabel } from '@object-ui/i18n';
+import { useAppContextSelectors } from './ContextSelectors';
 
 // ---------------------------------------------------------------------------
 // useNavOrder – localStorage-persisted drag-and-drop reorder for nav items
@@ -204,6 +205,14 @@ export function AppSidebar({ activeAppName, onAppChange }: { activeAppName: stri
   // Resolve navigation items: area navigation > flat navigation > empty
   const activeArea = areas.find((a: any) => a.id === activeAreaId);
   const resolvedNavigation: NavigationItem[] = activeArea?.navigation || activeApp?.navigation || [];
+
+  // App-level context selectors (e.g. Studio's package scope). Their
+  // values are injected into nav items as `{<id>}` template vars.
+  const { contextValues, element: contextSelectorsUI } = useAppContextSelectors(
+    activeAppName,
+    activeApp?.contextSelectors,
+    t,
+  );
 
   // Apply saved order and pin state to navigation items
   const processedNavigation = React.useMemo(() => {
@@ -420,6 +429,15 @@ export function AppSidebar({ activeAppName, onAppChange }: { activeAppName: stri
              </SidebarGroup>
            )}
 
+           {/* App-level context selectors (e.g. package scope) */}
+           {contextSelectorsUI && (
+             <SidebarGroup className="py-1">
+               <SidebarGroupContent>
+                 {contextSelectorsUI}
+               </SidebarGroupContent>
+             </SidebarGroup>
+           )}
+
            {/* Navigation Search */}
            <SidebarGroup className="py-0">
              <SidebarGroupContent className="relative">
@@ -448,7 +466,7 @@ export function AppSidebar({ activeAppName, onAppChange }: { activeAppName: stri
              resolveObjectLabel={(objectName, fallback) => resolveNavObjectLabel({ name: objectName, label: fallback })}
              resolveViewLabel={(objectName, viewName, fallback) => resolveNavViewLabel(objectName, viewName, fallback)}
              t={t}
-             templateContext={{ currentUserId: user?.id ?? null }}
+             templateContext={{ currentUserId: user?.id ?? null, contextValues }}
            />
 
            {/* Recent Items (elevated position for quick access) */}

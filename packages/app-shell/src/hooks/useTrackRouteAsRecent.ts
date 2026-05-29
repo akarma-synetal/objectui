@@ -13,6 +13,12 @@
  *   /apps/:appName/page/:id
  *   /apps/:appName/report/:id
  *
+ * It also understands the Studio metadata-admin item routes so that browsing
+ * metadata records "recently viewed" entries:
+ *
+ *   /apps/:appName/metadata/:type/:name
+ *   /apps/:appName/metadata/:type/:name/history
+ *
  * Pass `objects` (the list available in the current app) so we can resolve
  * a human-readable label for object routes.
  *
@@ -46,6 +52,15 @@ function titleize(slug: string): string {
   return slug.replace(/[-_]/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
 }
 
+/** Decode a URL path segment, falling back to the raw value on malformed input. */
+function safeDecode(value: string): string {
+  try {
+    return decodeURIComponent(value);
+  } catch {
+    return value;
+  }
+}
+
 export function useTrackRouteAsRecent({
   pathname,
   appName,
@@ -71,6 +86,27 @@ export function useTrackRouteAsRecent({
     const seg2 = parts[2];
     const seg3 = parts[3];
     const basePath = `/${basePathSegment}/${appName}`;
+
+    // Studio metadata-admin item routes:
+    //   /apps/:app/metadata/:type/:name        (view / edit a metadata item)
+    //   /apps/:app/metadata/:type/:name/history
+    // Record the specific item as recently-viewed. The bare list route
+    // (/metadata/:type) and the create route (/metadata/:type/new) are skipped
+    // to keep the list focused on concrete resources. Placed before the
+    // object-name branch since `metadata` is a route prefix, not an object.
+    if (seg2 === 'metadata') {
+      const metaType = parts[3];
+      const metaName = parts[4];
+      if (metaType && metaName && metaName !== 'new') {
+        addRecentItem({
+          id: `metadata:${metaType}:${safeDecode(metaName)}`,
+          label: safeDecode(metaName),
+          href: `${basePath}/metadata/${metaType}/${metaName}`,
+          type: 'metadata',
+        });
+      }
+      return;
+    }
 
     if (seg2 && !ROUTE_PREFIXES.has(seg2)) {
       const obj = objectsRef.current.find(o => o.name === seg2);
