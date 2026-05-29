@@ -31,6 +31,7 @@ import {
   Loader2,
   AlertTriangle,
   Layers3,
+  Boxes,
   Eye,
   Pencil,
   X,
@@ -43,10 +44,11 @@ import {
 import { Button } from '@object-ui/components';
 import { Badge } from '@object-ui/components';
 import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetDescription,
 } from '@object-ui/components';
 import {
   ResizableHandle,
@@ -224,7 +226,7 @@ export function MetadataResourceEditPage({
     };
   }, [client, type, name, createMode]);
 
-  // Lazy-load references when the tab is opened.
+  // Lazy-load references the first time the References sheet opens.
   const [refsLoading, setRefsLoading] = React.useState(false);
   async function loadReferences() {
     if (refs != null || refsLoading) return;
@@ -256,6 +258,24 @@ export function MetadataResourceEditPage({
   // the parent payload to materialise) so we only restore metadata
   // targets here.
   const initialTabRef = React.useRef<string | null>(null);
+
+  const [openSheet, setOpenSheet] =
+    React.useState<'layers' | 'references' | 'related' | null>(null);
+
+  // When the References sheet opens, lazy-load the data (idempotent).
+  // Also keep the URL `?tab=` query in sync so deep-links round-trip.
+  React.useEffect(() => {
+    if (openSheet === 'references') {
+      void loadReferences();
+    }
+    if (typeof window !== 'undefined' && !embedded) {
+      const url = new URL(window.location.href);
+      if (openSheet) url.searchParams.set('tab', openSheet);
+      else url.searchParams.delete('tab');
+      window.history.replaceState({}, '', url.toString());
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openSheet, embedded]);
 
   // Designer-style split-panel state. The inspector (right form panel)
   // can collapse to give the preview the full canvas. The collapsed
@@ -386,7 +406,10 @@ export function MetadataResourceEditPage({
     if (typeof window === 'undefined' || embedded) return;
     const sp = new URLSearchParams(window.location.search);
     const tab = sp.get('tab');
-    if (tab) initialTabRef.current = tab;
+    if (tab === 'layers' || tab === 'references' || tab === 'related') {
+      setOpenSheet(tab);
+    }
+    initialTabRef.current = tab;
     const open = sp.get('open');
     if (open && open.includes(':')) {
       const [t, n] = open.split(':', 2);
@@ -597,14 +620,9 @@ export function MetadataResourceEditPage({
   // (no allowOrgOverride) ignore the editing toggle entirely.
   const formReadOnly = readOnly || (!editing && !createMode);
 
-  // Default tab priority:
-  //   1. URL ?tab= (explicit user nav / deep link). Legacy 'preview' is
-  //      remapped to 'form' since preview now renders alongside the form
-  //      in a split-panel layout.
-  //   2. Form (the split-panel view, which also contains the live preview)
-  const requestedTab = initialTabRef.current;
-  const defaultTab =
-    requestedTab === 'preview' ? 'form' : (requestedTab ?? 'form');
+  // Note: URL `?tab=` deep-links were repurposed to open side-panel
+  // sheets (Layers / References / Related). Anything else is ignored —
+  // the main work area is always the form+preview.
 
   return (
     <PageShell
@@ -613,6 +631,55 @@ export function MetadataResourceEditPage({
       subtitle={createMode ? t('engine.edit.createNew', locale) : t('engine.edit.editOverlay', locale)}
       actions={
         <>
+          {!createMode && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setOpenSheet('layers')}
+              title={t('engine.edit.layers', locale)}
+            >
+              <Layers3 className="h-4 w-4 mr-1" />
+              {t('engine.edit.layers', locale)}
+              {layered?.overlay && (() => {
+                const n = countOverlaidFields(layered.code, layered.effective);
+                return n > 0 ? (
+                  <Badge
+                    className="ml-1.5 text-[10px] bg-emerald-600 text-emerald-50"
+                    title={t('engine.layers.diff', locale)}
+                  >
+                    +{n}
+                  </Badge>
+                ) : null;
+              })()}
+            </Button>
+          )}
+          {!createMode && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setOpenSheet('references')}
+              title={t('engine.edit.references', locale)}
+            >
+              <Link2 className="h-4 w-4 mr-1" />
+              {t('engine.edit.references', locale)}
+              {refs && refs.length > 0 && (
+                <Badge variant="outline" className="ml-1.5 text-[10px]">
+                  {refs.length}
+                </Badge>
+              )}
+            </Button>
+          )}
+          {hasAnchors && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setOpenSheet('related')}
+              title={t('engine.edit.related', locale)}
+            >
+              <Boxes className="h-4 w-4 mr-1" />
+              {t('engine.edit.related', locale)}
+            </Button>
+          )}
           {PreviewComponent && (
             <Button
               variant="ghost"
@@ -770,70 +837,17 @@ export function MetadataResourceEditPage({
           </div>
         )}
 
-        <Tabs
-          defaultValue={defaultTab}
+        <div
           className={
             PreviewComponent
               ? 'flex w-full flex-1 min-h-0 flex-col'
               : 'w-full'
           }
-          onValueChange={(v) => {
-            if (typeof window === 'undefined' || embedded) return;
-            const url = new URL(window.location.href);
-            url.searchParams.set('tab', v);
-            window.history.replaceState({}, '', url.toString());
-          }}
         >
-          <TabsList className={PreviewComponent ? 'mx-6 mt-3 self-start' : ''}>
-            <TabsTrigger value="form">
-              {PreviewComponent && <Eye className="h-3.5 w-3.5 mr-1" />}
-              {t('engine.edit.detail', locale)}
-            </TabsTrigger>
-            {!createMode && (
-              <TabsTrigger value="layers">
-                {t('engine.edit.layers', locale)}
-                {layered?.overlay && (() => {
-                  const n = countOverlaidFields(layered.code, layered.effective);
-                  return (
-                    <Badge
-                      className="ml-1.5 text-[10px] bg-emerald-600 text-emerald-50"
-                      title={t('engine.layers.diff', locale)}
-                    >
-                      {n > 0
-                        ? tFormat('engine.edit.overlaidCount', locale, { count: n })
-                        : t('engine.edit.overlay', locale)}
-                    </Badge>
-                  );
-                })()}
-              </TabsTrigger>
-            )}
-            {!createMode && (
-              <TabsTrigger
-                value="references"
-                onClick={loadReferences}
-              >
-                <Link2 className="h-3.5 w-3.5 mr-1" />
-                {t('engine.edit.references', locale)}
-                {refs && (
-                  <Badge variant="outline" className="ml-1.5 text-[10px]">
-                    {refs.length}
-                  </Badge>
-                )}
-              </TabsTrigger>
-            )}
-            {hasAnchors && (
-              <TabsTrigger value="related">
-                <Layers3 className="h-3.5 w-3.5 mr-1" />
-                {t('engine.edit.related', locale)}
-              </TabsTrigger>
-            )}
-          </TabsList>
-
-          <TabsContent
-            value="form"
+          <div
             className={
               PreviewComponent
-                ? 'mt-2 flex-1 min-h-0 flex flex-col px-6 pb-4 data-[state=inactive]:hidden'
+                ? 'mt-2 flex-1 min-h-0 flex flex-col px-6 pb-4'
                 : 'mt-4 space-y-3'
             }
           >
@@ -1134,41 +1148,77 @@ export function MetadataResourceEditPage({
                 widgetContext={widgetContext}
               />
             )}
-          </TabsContent>
+          </div>
+        </div>
+      </div>
 
-          {!createMode && (
-            <TabsContent
-              value="layers"
-              className={PreviewComponent ? 'mt-2 px-6 pb-6 overflow-auto' : 'mt-4'}
-            >
-              <LayeredDiff layered={layered} locale={locale} />
-            </TabsContent>
-          )}
+      {/* Layers / References / Related are right-side sheets, opened from
+          the page-shell header. They used to live in tabs above the form,
+          which stole vertical space from the primary work area. */}
+      <Sheet
+        open={openSheet === 'layers'}
+        onOpenChange={(o) => !o && setOpenSheet(null)}
+      >
+        <SheetContent side="right" className="w-[92vw] sm:max-w-[720px] p-0 flex flex-col gap-0">
+          <SheetHeader className="px-4 py-3 border-b">
+            <SheetTitle className="text-base">{t('engine.edit.layers', locale)}</SheetTitle>
+            <SheetDescription className="text-xs">
+              {type} / {name}
+            </SheetDescription>
+          </SheetHeader>
+          <div className="flex-1 min-h-0 overflow-auto p-4">
+            <LayeredDiff layered={layered} locale={locale} />
+          </div>
+        </SheetContent>
+      </Sheet>
 
-          {!createMode && (
-            <TabsContent
-              value="references"
-              className={PreviewComponent ? 'mt-2 px-6 pb-6 overflow-auto' : 'mt-4'}
-            >
-              <ReferencesPanel refs={refs} loading={refsLoading} />
-            </TabsContent>
-          )}
+      <Sheet
+        open={openSheet === 'references'}
+        onOpenChange={(o) => !o && setOpenSheet(null)}
+      >
+        <SheetContent side="right" className="w-[92vw] sm:max-w-[720px] p-0 flex flex-col gap-0">
+          <SheetHeader className="px-4 py-3 border-b">
+            <SheetTitle className="text-base">
+              {t('engine.edit.references', locale)}
+              {refs && (
+                <Badge variant="outline" className="ml-2 text-[10px]">
+                  {refs.length}
+                </Badge>
+              )}
+            </SheetTitle>
+            <SheetDescription className="text-xs">
+              {type} / {name}
+            </SheetDescription>
+          </SheetHeader>
+          <div className="flex-1 min-h-0 overflow-auto p-4">
+            <ReferencesPanel refs={refs} loading={refsLoading} />
+          </div>
+        </SheetContent>
+      </Sheet>
 
-          {hasAnchors && (
-            <TabsContent
-              value="related"
-              className={PreviewComponent ? 'mt-2 px-6 pb-6 overflow-auto' : 'mt-4'}
-            >
+      {hasAnchors && (
+        <Sheet
+          open={openSheet === 'related'}
+          onOpenChange={(o) => !o && setOpenSheet(null)}
+        >
+          <SheetContent side="right" className="w-[92vw] sm:max-w-[860px] p-0 flex flex-col gap-0">
+            <SheetHeader className="px-4 py-3 border-b">
+              <SheetTitle className="text-base">{t('engine.edit.related', locale)}</SheetTitle>
+              <SheetDescription className="text-xs">
+                {type} / {name}
+              </SheetDescription>
+            </SheetHeader>
+            <div className="flex-1 min-h-0 overflow-auto p-4">
               <RelatedPanel
                 type={type}
                 name={name}
                 parentItem={draft}
                 onOpen={(t) => setRelatedTarget(t)}
               />
-            </TabsContent>
-          )}
-        </Tabs>
-      </div>
+            </div>
+          </SheetContent>
+        </Sheet>
+      )}
 
       <MetadataDetailDrawer
         target={relatedTarget}
