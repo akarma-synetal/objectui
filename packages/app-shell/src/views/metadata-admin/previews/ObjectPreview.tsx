@@ -1,27 +1,39 @@
 // Copyright (c) 2025 ObjectStack. Licensed under the Apache-2.0 license.
 
 /**
- * ObjectPreview — runtime-fidelity preview of an Object metadata draft.
+ * ObjectPreview — split-mode preview for an Object metadata draft.
  *
- * Mounts the same `<ObjectGrid>` component that production runs in
- * `@object-ui/plugin-grid`, with the draft's `name` and derived columns.
- * This guarantees the preview pane shows EXACTLY what users will see in
- * the deployed app — no parallel renderer, no synthetic placeholders.
+ *   • Data mode (default) — runs the production `<ObjectGrid>` against
+ *     the draft's columns. Shows EXACTLY what users see in the deployed
+ *     app (no parallel renderer, no synthetic placeholders).
  *
- * Schema editing (rename / retype / reorder / add field) is handled in
- * the Form panel by the `record` field type (SchemaForm `RecordField`),
- * NOT inside the preview. See ADR-0014 §"Why not Airtable mode" for the
- * rationale: ObjectStack's Field protocol has ~30 properties (validation,
- * options with color/icon, formula, RLS, …) which a column-header popover
- * cannot honestly expose. We follow the Salesforce/ServiceNow split of
- * Data view ≠ Schema editor instead of the Airtable hybrid.
+ *   • Designer mode — mounts `<FieldDesigner>` from
+ *     `@object-ui/plugin-designer` so the operator can add / rename /
+ *     reorder fields visually without leaving the preview pane. Edits
+ *     flow back through the host's `onPatch` callback. Field types the
+ *     designer can't represent (master_detail, tree, multiselect, …)
+ *     are preserved verbatim via `object-fields-bridge` so the round-
+ *     trip is non-destructive.
+ *
+ * Schema editing of the rich per-field properties (validation rules,
+ * formula expressions, RLS, …) is still owned by the Form panel —
+ * the designer covers the high-volume operations (drag-add a field,
+ * rename, retype, drop) and defers the long tail to the form.
  */
 
 import * as React from 'react';
 import { ObjectGrid } from '@object-ui/plugin-grid';
-import type { ObjectGridSchema, ListColumn } from '@object-ui/types';
+import { FieldDesigner } from '@object-ui/plugin-designer';
+import type {
+  ObjectGridSchema,
+  ListColumn,
+  DesignerFieldDefinition,
+} from '@object-ui/types';
 import type { MetadataPreviewProps } from '../preview-registry';
 import { PreviewShell, PreviewMessage, PreviewErrorBoundary } from './PreviewShell';
+import { Button, Badge } from '@object-ui/components';
+import { Database, Pencil } from 'lucide-react';
+import { bridgeFromDraft, commitToDraft } from './object-fields-bridge';
 
 interface FieldDef {
   name?: string;
@@ -52,11 +64,29 @@ function deriveColumns(fieldsInput: unknown): ListColumn[] {
   }));
 }
 
-export function ObjectPreview({ name, draft }: MetadataPreviewProps) {
+type Mode = 'data' | 'designer';
+
+export function ObjectPreview({
+  name,
+  draft,
+  onPatch,
+  editing,
+}: MetadataPreviewProps) {
   const objectName = String((draft as any).name ?? name ?? '');
   const columns = React.useMemo(() => deriveColumns((draft as any).fields), [draft]);
   const label = String((draft as any).label ?? objectName);
   const pluralLabel = String((draft as any).pluralLabel ?? `${label}s`);
+
+  // Default to Designer when editing + writable; otherwise Data view
+  // keeps the run-time fidelity for read-only browsing.
+  const canDesign = !!onPatch && editing !== false;
+  const [mode, setMode] = React.useState<Mode>(canDesign ? 'designer' : 'data');
+
+  // If editing toggles to read-only, snap back to Data view to avoid
+  // showing an inert designer surface.
+  React.useEffect(() => {
+    if (!canDesign && mode === 'designer') setMode('data');
+  }, [canDesign, mode]);
 
   if (!objectName) {
     return (
@@ -68,9 +98,45 @@ export function ObjectPreview({ name, draft }: MetadataPreviewProps) {
     );
   }
 
+  const modeSwitcher = (
+    <div
+      role="tablist"
+      aria-label="Preview mode"
+      className="inline-flex items-center rounded-md border bg-background p-0.5"
+    >
+      <ModeButton
+        active={mode === 'designer'}
+        onClick={() => setMode('designer')}
+        disabled={!canDesign}
+        icon={<Pencil className="h-3 w-3" />}
+        label="Designer"
+      />
+      <ModeButton
+        active={mode === 'data'}
+        onClick={() => setMode('data')}
+        icon={<Database className="h-3 w-3" />}
+        label="Data"
+      />
+    </div>
+  );
+
+  if (mode === 'designer') {
+    return (
+      <PreviewShell hint={`object · designer`} toolbar={modeSwitcher}>
+        <PreviewErrorBoundary fallbackHint="The field designer couldn't be rendered. Switch to Data mode or check the Form tab.">
+          <DesignerMode
+            objectName={objectName}
+            draft={draft}
+            onPatch={onPatch}
+          />
+        </PreviewErrorBoundary>
+      </PreviewShell>
+    );
+  }
+
   if (columns.length === 0) {
     return (
-      <PreviewShell hint="object · 0 fields">
+      <PreviewShell hint="object · 0 fields" toolbar={modeSwitcher}>
         <PreviewMessage>
           Add at least one field in the Form tab to enable the preview.
         </PreviewMessage>
@@ -89,12 +155,106 @@ export function ObjectPreview({ name, draft }: MetadataPreviewProps) {
   };
 
   return (
-    <PreviewShell hint={`object · ${columns.length} field${columns.length === 1 ? '' : 's'}`}>
+    <PreviewShell
+      hint={`object · ${columns.length} field${columns.length === 1 ? '' : 's'}`}
+      toolbar={modeSwitcher}
+    >
       <PreviewErrorBoundary fallbackHint="The object metadata couldn't be rendered. Save the draft and reload to retry.">
         <div className="h-full overflow-auto">
           <ObjectGrid schema={schema} />
         </div>
       </PreviewErrorBoundary>
     </PreviewShell>
+  );
+}
+
+function ModeButton({
+  active,
+  onClick,
+  disabled,
+  icon,
+  label,
+}: {
+  active: boolean;
+  onClick: () => void;
+  disabled?: boolean;
+  icon: React.ReactNode;
+  label: string;
+}) {
+  return (
+    <button
+      type="button"
+      role="tab"
+      aria-selected={active}
+      disabled={disabled}
+      onClick={onClick}
+      className={[
+        'inline-flex items-center gap-1 px-2 py-0.5 text-[11px] rounded-sm transition-colors',
+        active
+          ? 'bg-primary text-primary-foreground'
+          : 'text-muted-foreground hover:text-foreground',
+        disabled ? 'opacity-50 cursor-not-allowed' : '',
+      ].join(' ')}
+    >
+      {icon}
+      {label}
+    </button>
+  );
+}
+
+/**
+ * DesignerMode — encapsulates the bridge so the parent doesn't re-run
+ * `bridgeFromDraft` on every render. We re-derive only when the draft
+ * `fields` reference actually changes (e.g. after a Save reload or a
+ * Form-tab edit).
+ */
+function DesignerMode({
+  objectName,
+  draft,
+  onPatch,
+}: {
+  objectName: string;
+  draft: Record<string, unknown>;
+  onPatch?: (patch: Record<string, unknown>) => void;
+}) {
+  const fieldsInput = (draft as any).fields;
+  const bridge = React.useMemo(() => bridgeFromDraft(fieldsInput), [fieldsInput]);
+  const preservedCount = bridge.preserved.size;
+
+  const handleFieldsChange = React.useCallback(
+    (next: DesignerFieldDefinition[]) => {
+      if (!onPatch) return;
+      const merged = commitToDraft(next, bridge);
+      onPatch({ fields: merged });
+    },
+    [onPatch, bridge],
+  );
+
+  return (
+    <div className="h-full flex flex-col">
+      {preservedCount > 0 && (
+        <div className="flex items-center gap-2 px-3 py-1.5 text-[11px] border-b bg-amber-50 dark:bg-amber-950/30 text-amber-900 dark:text-amber-200">
+          <Badge variant="outline" className="text-[10px] border-amber-400/60">
+            {preservedCount}
+          </Badge>
+          <span>
+            field{preservedCount === 1 ? '' : 's'} use type
+            {preservedCount === 1 ? '' : 's'} the designer can't edit (e.g.
+            <code className="mx-1">master_detail</code>,
+            <code className="mx-1">tree</code>,
+            <code className="mx-1">multiselect</code>). Edit them in the
+            Form tab — they're preserved here.
+          </span>
+        </div>
+      )}
+      <div className="flex-1 min-h-0 overflow-auto">
+        <FieldDesigner
+          objectName={objectName}
+          fields={bridge.designerFields}
+          onFieldsChange={handleFieldsChange}
+          readOnly={!onPatch}
+        />
+      </div>
+    </div>
   );
 }

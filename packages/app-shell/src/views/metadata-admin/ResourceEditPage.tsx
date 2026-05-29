@@ -94,6 +94,7 @@ import { HistoryPanel } from './ResourceHistoryPage';
 import { getMetadataPreview, type MetadataSelection } from './preview-registry';
 import { getMetadataInspector } from './inspector-registry';
 import { detectLocale, t, tFormat } from './i18n';
+import { JsonSourceEditor } from './JsonSourceEditor';
 
 // react-resizable-panels' `direction` prop type does not always narrow
 // cleanly in our TS config; cast at the boundary (precedent:
@@ -1569,10 +1570,14 @@ export function MetadataResourceEditPage({
                       </div>
                       <div className="p-4">
                         {inspectorTab === 'source' ? (
-                          <SourceEditor
+                          <JsonSourceEditor
                             value={draft}
                             onChange={handleDraftChange}
                             readOnly={formReadOnly}
+                            issues={issues.map((i) => ({
+                              path: i.path ?? '',
+                              message: i.message,
+                            }))}
                           />
                         ) : selection && InspectorComponent ? (
                           <InspectorComponent
@@ -1840,87 +1845,6 @@ function ReferencesPanel({
           ))}
         </tbody>
       </table>
-    </div>
-  );
-}
-
-/**
- * SourceEditor — raw JSON editor for the inspector's "Source" tab.
- *
- * Lets power users edit fields the JSONSchema form doesn't expose
- * (nested arrays, custom keys, etc.). Maintains a local string buffer
- * so the user can type freely; only commits to the parent `draft`
- * when the buffer is valid JSON. Parse errors surface inline without
- * blocking the form — switching back to the Properties tab discards
- * any unparseable scratch text.
- */
-function SourceEditor({
-  value,
-  onChange,
-  readOnly,
-}: {
-  value: unknown;
-  onChange: (next: Record<string, unknown>) => void;
-  readOnly?: boolean;
-}) {
-  const stringify = React.useCallback(
-    (v: unknown) => {
-      try {
-        return JSON.stringify(v ?? {}, null, 2);
-      } catch {
-        return '{}';
-      }
-    },
-    [],
-  );
-  const [text, setText] = React.useState<string>(() => stringify(value));
-  const [parseError, setParseError] = React.useState<string | null>(null);
-  const lastCommittedRef = React.useRef<string>(text);
-
-  // Resync the buffer when the parent draft changes externally (e.g.
-  // a Save/Reset or a selection-driven inspector patch). We only sync
-  // when the upstream value differs from what we last committed — so
-  // the user's in-flight edits aren't clobbered.
-  React.useEffect(() => {
-    const next = stringify(value);
-    if (next !== lastCommittedRef.current) {
-      setText(next);
-      lastCommittedRef.current = next;
-      setParseError(null);
-    }
-  }, [value, stringify]);
-
-  const handleChange = (next: string) => {
-    setText(next);
-    try {
-      const parsed = JSON.parse(next);
-      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
-        setParseError(null);
-        lastCommittedRef.current = next;
-        onChange(parsed as Record<string, unknown>);
-      } else {
-        setParseError('Root must be a JSON object');
-      }
-    } catch (err: any) {
-      setParseError(err?.message ?? 'Invalid JSON');
-    }
-  };
-
-  return (
-    <div className="flex flex-col gap-2">
-      <textarea
-        value={text}
-        onChange={(e) => handleChange(e.target.value)}
-        readOnly={readOnly}
-        spellCheck={false}
-        className="w-full min-h-[60vh] font-mono text-xs bg-muted/30 border rounded p-3 outline-none focus:ring-2 focus:ring-ring resize-y"
-      />
-      {parseError && (
-        <div className="text-xs text-destructive flex items-start gap-1.5">
-          <span aria-hidden>⚠</span>
-          <span>{parseError}</span>
-        </div>
-      )}
     </div>
   );
 }
