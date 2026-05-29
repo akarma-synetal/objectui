@@ -64,7 +64,7 @@ import type {
   MetadataReference,
 } from '@object-ui/data-objectstack';
 import { PageShell } from './PageShell';
-import { LayeredDiff } from './LayeredDiff';
+import { LayeredDiff, countOverlaidFields } from './LayeredDiff';
 import { SchemaForm, type SchemaFormIssue } from './SchemaForm';
 import {
   useMetadataClient,
@@ -683,11 +683,19 @@ export function MetadataResourceEditPage({
             {!createMode && (
               <TabsTrigger value="layers">
                 {t('engine.edit.layers', locale)}
-                {layered?.overlay && (
-                  <Badge className="ml-1.5 text-[10px] bg-emerald-600 text-emerald-50">
-                    {t('engine.edit.overlay', locale)}
-                  </Badge>
-                )}
+                {layered?.overlay && (() => {
+                  const n = countOverlaidFields(layered.code, layered.effective);
+                  return (
+                    <Badge
+                      className="ml-1.5 text-[10px] bg-emerald-600 text-emerald-50"
+                      title={t('engine.layers.diff', locale)}
+                    >
+                      {n > 0
+                        ? tFormat('engine.edit.overlaidCount', locale, { count: n })
+                        : t('engine.edit.overlay', locale)}
+                    </Badge>
+                  );
+                })()}
               </TabsTrigger>
             )}
             {!createMode && (

@@ -37,9 +37,9 @@ export interface LayeredDiffProps {
   locale?: SupportedLocale | string;
 }
 
-type DiffStatus = 'unchanged' | 'modified' | 'added' | 'removed';
+export type DiffStatus = 'unchanged' | 'modified' | 'added' | 'removed';
 
-interface DiffRow {
+export interface DiffRow {
   key: string;
   status: DiffStatus;
   codeValue: unknown;
@@ -65,7 +65,7 @@ const STATUS_STYLE: Record<DiffStatus, { badge: string; row: string }> = {
   },
 };
 
-function computeDiffRows(
+export function computeDiffRows(
   code: unknown,
   effective: unknown,
 ): DiffRow[] {
@@ -137,6 +137,26 @@ function formatCell(v: unknown): string {
   } catch {
     return String(v);
   }
+}
+
+/**
+ * Count of top-level fields where the overlay actually changes the
+ * effective value vs the artifact baseline. Used by the editor's
+ * Layers tab trigger to show e.g. "3 overlaid" next to the label.
+ *
+ * Returns 0 when there is no baseline (pure-runtime item) or the two
+ * payloads are identical.
+ */
+export function countOverlaidFields(
+  code: unknown,
+  effective: unknown,
+): number {
+  if (code == null) return 0;
+  let n = 0;
+  for (const row of computeDiffRows(code, effective)) {
+    if (row.status !== 'unchanged') n += 1;
+  }
+  return n;
 }
 
 export function LayeredDiff({ layered, loading, locale }: LayeredDiffProps) {
