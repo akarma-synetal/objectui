@@ -13,7 +13,7 @@
  *    here mid-SSO so the IdP can continue the flow post-signup.
  */
 
-import { useEffect, useState } from 'react';
+import { useEffect, useLayoutEffect, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth, RegisterForm } from '@object-ui/auth';
 import { useObjectTranslation } from '@object-ui/i18n';
@@ -57,6 +57,15 @@ export function RegisterPage() {
 
   const [signUpDisabled, setSignUpDisabled] = useState<boolean | null>(null);
   const [autoSelectingOrg, setAutoSelectingOrg] = useState(false);
+
+  // See LoginPage: `isLoading` is overloaded (initial session check + every
+  // in-flight signUp). Latch once the first check resolves so a failed
+  // registration does not unmount <RegisterForm> and discard the error banner
+  // it holds in local state.
+  const [hasBootstrapped, setHasBootstrapped] = useState(false);
+  useLayoutEffect(() => {
+    if (!isLoading) setHasBootstrapped(true);
+  }, [isLoading]);
 
   // Probe public auth config — bounce to /login if sign-up is gated off.
   useEffect(() => {
@@ -120,7 +129,7 @@ export function RegisterPage() {
     switchOrganization,
   ]);
 
-  if (signUpDisabled === null || isLoading || user) {
+  if (signUpDisabled === null || (isLoading && !hasBootstrapped) || user) {
     return (
       <AuthLayout>
         <div className="flex flex-col items-center gap-3 py-10 text-sm text-muted-foreground">

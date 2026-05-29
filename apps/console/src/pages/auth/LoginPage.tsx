@@ -16,7 +16,7 @@
  *    `emailPassword.disableSignUp === true`.
  */
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth, LoginForm } from '@object-ui/auth';
 import { useObjectTranslation } from '@object-ui/i18n';
@@ -67,6 +67,18 @@ export function LoginPage() {
 
   const [signUpDisabled, setSignUpDisabled] = useState(false);
   const [autoSelectingOrg, setAutoSelectingOrg] = useState(false);
+
+  // `isLoading` from useAuth() is overloaded: it is true both during the
+  // initial session check AND during every in-flight signIn. The full-page
+  // spinner below should only cover the initial bootstrap (and post-login
+  // orchestration when `user` is set) — never an in-flight signIn. Latch once
+  // the first session check resolves so a failed login does not unmount
+  // <LoginForm>, which would otherwise discard the error banner it holds in
+  // local state and silently reset the fields.
+  const [hasBootstrapped, setHasBootstrapped] = useState(false);
+  useLayoutEffect(() => {
+    if (!isLoading) setHasBootstrapped(true);
+  }, [isLoading]);
 
   // Detect SSO hand-off so we can surface the relying-party host.
   const ssoTarget = useMemo(() => {
@@ -146,7 +158,7 @@ export function LoginPage() {
     switchOrganization,
   ]);
 
-  if (isLoading || user) {
+  if ((isLoading && !hasBootstrapped) || user) {
     return (
       <AuthLayout>
         <div className="flex flex-col items-center gap-3 py-10 text-sm text-muted-foreground">

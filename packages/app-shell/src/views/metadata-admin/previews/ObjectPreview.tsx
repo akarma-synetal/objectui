@@ -1,68 +1,22 @@
 // Copyright (c) 2025 ObjectStack. Licensed under the Apache-2.0 license.
 
 /**
- * ObjectPreview — split-mode preview for an Object metadata draft.
+ * ObjectPreview — form-designer canvas for an Object metadata draft.
  *
- *   • Data mode (default) — runs the production `<ObjectGrid>` against
- *     the draft's columns. Shows EXACTLY what users see in the deployed
- *     app (no parallel renderer, no synthetic placeholders).
+ * Each field renders as the labeled input control it will become at
+ * runtime. Clicking a field selects it and the host swaps the right
+ * panel to {@link ObjectFieldInspector}. Trailing "+ Add field"
+ * button opens a categorized type picker.
  *
- *   • Designer mode — mounts `<FieldDesigner>` from
- *     `@object-ui/plugin-designer` so the operator can add / rename /
- *     reorder fields visually without leaving the preview pane. Edits
- *     flow back through the host's `onPatch` callback. Field types the
- *     designer can't represent (master_detail, tree, multiselect, …)
- *     are preserved verbatim via `object-fields-bridge` so the round-
- *     trip is non-destructive.
- *
- * Schema editing of the rich per-field properties (validation rules,
- * formula expressions, RLS, …) is still owned by the Form panel —
- * the designer covers the high-volume operations (drag-add a field,
- * rename, retype, drop) and defers the long tail to the form.
+ * Read/write of `draft.fields` is non-destructive: the original shape
+ * (array vs record) and any unknown properties on each field are
+ * preserved via `object-fields-io`.
  */
 
 import * as React from 'react';
-import { ObjectGrid } from '@object-ui/plugin-grid';
-import type {
-  ObjectGridSchema,
-  ListColumn,
-} from '@object-ui/types';
 import type { MetadataPreviewProps } from '../preview-registry';
 import { PreviewShell, PreviewMessage, PreviewErrorBoundary } from './PreviewShell';
-import { Button } from '@object-ui/components';
-import { Database, Pencil } from 'lucide-react';
 import { ObjectFormCanvas } from './ObjectFormCanvas';
-
-interface FieldDef {
-  name?: string;
-  label?: string;
-  type?: string;
-  [k: string]: unknown;
-}
-
-/** Derive grid columns from the draft's `fields` record/array. */
-function deriveColumns(fieldsInput: unknown): ListColumn[] {
-  if (!fieldsInput) return [];
-  const entries: Array<{ name: string; def: FieldDef }> = Array.isArray(fieldsInput)
-    ? (fieldsInput as FieldDef[])
-        .map((def, i) => ({
-          name: String(def?.name ?? `field_${i + 1}`),
-          def,
-        }))
-        .filter((x) => !!x.name)
-    : Object.entries(fieldsInput as Record<string, FieldDef>).map(([name, def]) => ({
-        name,
-        def,
-      }));
-
-  return entries.map(({ name, def }) => ({
-    field: name,
-    label: String(def?.label ?? name),
-    type: def?.type as ListColumn['type'],
-  }));
-}
-
-type Mode = 'data' | 'designer';
 
 export function ObjectPreview({
   name,
@@ -72,14 +26,6 @@ export function ObjectPreview({
   onSelectionChange,
 }: MetadataPreviewProps) {
   const objectName = String((draft as any).name ?? name ?? '');
-  const columns = React.useMemo(() => deriveColumns((draft as any).fields), [draft]);
-  const label = String((draft as any).label ?? objectName);
-  const pluralLabel = String((draft as any).pluralLabel ?? `${label}s`);
-
-  // Default to Designer: even in read-only tiers, browsing the field
-  // definitions is more useful than an empty Data grid. FieldDesigner
-  // gracefully degrades via its `readOnly` prop when onPatch is absent.
-  const [mode, setMode] = React.useState<Mode>('designer');
 
   if (!objectName) {
     return (
@@ -91,107 +37,17 @@ export function ObjectPreview({
     );
   }
 
-  const modeSwitcher = (
-    <div
-      role="tablist"
-      aria-label="Preview mode"
-      className="inline-flex items-center rounded-md border bg-background p-0.5"
-    >
-      <ModeButton
-        active={mode === 'designer'}
-        onClick={() => setMode('designer')}
-        icon={<Pencil className="h-3 w-3" />}
-        label="Designer"
-      />
-      <ModeButton
-        active={mode === 'data'}
-        onClick={() => setMode('data')}
-        icon={<Database className="h-3 w-3" />}
-        label="Data"
-      />
-    </div>
-  );
-
-  if (mode === 'designer') {
-    return (
-      <PreviewShell hint={`object · designer`} toolbar={modeSwitcher}>
-        <PreviewErrorBoundary fallbackHint="The form designer couldn't be rendered. Switch to Data mode or check the Form tab.">
-          <ObjectFormCanvas
-            objectName={objectName}
-            draft={draft}
-            onPatch={onPatch}
-            selection={selection}
-            onSelectionChange={onSelectionChange}
-          />
-        </PreviewErrorBoundary>
-      </PreviewShell>
-    );
-  }
-
-  if (columns.length === 0) {
-    return (
-      <PreviewShell hint="object · 0 fields" toolbar={modeSwitcher}>
-        <PreviewMessage>
-          Add at least one field in the Form tab to enable the preview.
-        </PreviewMessage>
-      </PreviewShell>
-    );
-  }
-
-  // Build a minimal ObjectGridSchema. When `data` is omitted ObjectGrid
-  // defaults to `{ provider: 'object', object: objectName }` and fetches
-  // real rows from the REST API — exactly what production does.
-  const schema: ObjectGridSchema = {
-    type: 'object-grid',
-    objectName,
-    label: pluralLabel,
-    columns,
-  };
-
   return (
-    <PreviewShell
-      hint={`object · ${columns.length} field${columns.length === 1 ? '' : 's'}`}
-      toolbar={modeSwitcher}
-    >
-      <PreviewErrorBoundary fallbackHint="The object metadata couldn't be rendered. Save the draft and reload to retry.">
-        <div className="h-full overflow-auto">
-          <ObjectGrid schema={schema} />
-        </div>
+    <PreviewShell hint="object · designer">
+      <PreviewErrorBoundary fallbackHint="The form designer couldn't be rendered. Check the Form tab.">
+        <ObjectFormCanvas
+          objectName={objectName}
+          draft={draft}
+          onPatch={onPatch}
+          selection={selection}
+          onSelectionChange={onSelectionChange}
+        />
       </PreviewErrorBoundary>
     </PreviewShell>
-  );
-}
-
-function ModeButton({
-  active,
-  onClick,
-  disabled,
-  icon,
-  label,
-}: {
-  active: boolean;
-  onClick: () => void;
-  disabled?: boolean;
-  icon: React.ReactNode;
-  label: string;
-}) {
-  return (
-    <button
-      type="button"
-      role="tab"
-      aria-selected={active}
-      disabled={disabled}
-      onClick={onClick}
-      className={[
-        'inline-flex items-center gap-1 px-2 py-0.5 text-[11px] rounded-sm transition-colors',
-        active
-          ? 'bg-primary text-primary-foreground'
-          : 'text-muted-foreground hover:text-foreground',
-        disabled ? 'opacity-50 cursor-not-allowed' : '',
-      ].join(' ')}
-    >
-      {icon}
-      {label}
-    </button>
   );
 }
