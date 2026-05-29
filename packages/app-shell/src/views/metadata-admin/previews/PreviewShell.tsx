@@ -7,32 +7,37 @@
  */
 
 import * as React from 'react';
-import { AlertCircle, Eye } from 'lucide-react';
+import { AlertCircle } from 'lucide-react';
 
 export interface PreviewShellProps {
-  /** Right-hand badge/label, e.g. the resolved view type or row count. */
+  /**
+   * Right-hand badge/label, e.g. the resolved view type or row count.
+   * Kept in the type signature for backward-compat with existing call
+   * sites, but no longer rendered — the breadcrumb + canvas toolbar
+   * already identify the resource, and the design/preview toggle says
+   * which mode we're in. Showing it again here was just chrome.
+   */
   hint?: React.ReactNode;
-  /** Optional title override. Defaults to `Preview`. */
+  /** Optional title override. No longer rendered (see `hint`). */
   title?: React.ReactNode;
-  /** Optional toolbar rendered on the right of the header. */
+  /**
+   * Optional toolbar rendered on the right of a slim 32px header. When
+   * omitted the header is fully suppressed so the preview body extends
+   * edge-to-edge inside the canvas border.
+   */
   toolbar?: React.ReactNode;
   children: React.ReactNode;
 }
 
-export function PreviewShell({ hint, title = 'Preview', toolbar, children }: PreviewShellProps) {
+export function PreviewShell({ toolbar, children }: PreviewShellProps) {
   return (
-    <div className="rounded-lg border bg-background overflow-hidden">
-      <div className="flex items-center justify-between border-b bg-muted/30 px-3 py-2">
-        <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
-          <Eye className="h-3.5 w-3.5" />
-          <span>{title}</span>
-          {hint != null && (
-            <span className="ml-1 text-[10px] uppercase tracking-wider opacity-70">{hint}</span>
-          )}
+    <div className="rounded-lg border bg-background overflow-hidden flex flex-col h-full">
+      {toolbar != null && (
+        <div className="flex items-center justify-end border-b bg-muted/20 px-2 py-1 min-h-[32px]">
+          {toolbar}
         </div>
-        {toolbar}
-      </div>
-      <div className="bg-background">{children}</div>
+      )}
+      <div className="bg-background flex-1 min-h-0 overflow-auto">{children}</div>
     </div>
   );
 }
