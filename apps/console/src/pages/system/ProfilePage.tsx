@@ -64,6 +64,16 @@ export function ProfilePage() {
   const passwordCardRef = useRef<HTMLDivElement>(null);
   const { recoveryNeeded, clear: clearRecoveryFlag } = useRecoveryNeededFlag();
 
+  // Sync local `name` state when the user object arrives or changes.
+  // useState's initial value is only evaluated on first render, so when
+  // this component mounts under <Suspense> (e.g. via the Account App's
+  // `account:profile_card` registry entry) before AuthProvider has
+  // resolved, `user` is null and `name` stays empty until we sync it.
+  useEffect(() => {
+    console.log('[PROFILE_PAGE_SYNC_v2]', user?.name);
+    setName(user?.name ?? '');
+  }, [user?.name]);
+
   // When the SSO-handoff dropped us here, jump straight to the password
   // section so the operator can finish the recovery flow in one motion.
   useEffect(() => {

@@ -197,12 +197,24 @@ const SCHEMAS: Record<string, Record<string, unknown>> = {
   email_template: {
     type: 'object',
     title: 'Email Template',
-    required: ['name'],
+    required: ['name', 'label', 'subject', 'bodyHtml'],
     properties: {
       ...headerProps,
-      subject: { type: 'string', title: 'Subject' },
-      body: { type: 'string', title: 'Body (HTML / text)', format: 'multiline' },
-      from: { type: 'string', title: 'From address' },
+      category: {
+        type: 'string',
+        title: 'Category',
+        enum: ['auth', 'notification', 'workflow', 'marketing', 'custom'],
+        default: 'custom',
+      },
+      locale: { type: 'string', title: 'Locale', default: 'en-US', description: 'BCP-47 tag (en-US, zh-CN, …)' },
+      subject: { type: 'string', title: 'Subject', description: 'Supports {{var.path}} interpolation' },
+      bodyHtml: { type: 'string', title: 'HTML Body', format: 'multiline' },
+      bodyText: { type: 'string', title: 'Plain-Text Body', format: 'multiline' },
+      variables: { type: 'array', title: 'Variables', items: { type: 'object' } },
+      fromOverride: { type: 'object', title: 'From Override' },
+      replyTo: { type: 'string', title: 'Reply-To' },
+      active: { type: 'boolean', title: 'Active', default: true },
+      isSystem: { type: 'boolean', title: 'System Template', default: false },
     },
   },
 };

@@ -139,6 +139,9 @@ import './components/schema/registerObjectDetailWidgets';
 // Register `developer:*` component refs.
 import './registerDeveloperComponents';
 
+// Register `account:*` component refs (My Profile, etc.).
+import './registerAccountComponents';
+
 // Register per-type overrides for the metadata-admin engine
 // (e.g. the rich ObjectManager designer for type=object).
 import './registerMetadataResources';
