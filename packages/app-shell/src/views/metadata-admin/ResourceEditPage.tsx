@@ -732,7 +732,23 @@ function MetadataResourceEditPageImpl({
       // last published version until the operator clicks Publish. The
       // backend defaults to publish mode for backward-compatibility, so
       // Studio must opt into draft explicitly.
-      await client.save<any>(type, savedName, itemToSave, { force, mode: 'draft' });
+      // Bind to the active software package (sys_metadata.package_id) when a
+      // real package scope is carried in the URL (`?package=`). The backend
+      // stamps it on create and preserves an existing binding on update, so
+      // env-local overlays (no `?package=`) are unaffected.
+      const activePackage = (() => {
+        try {
+          const p = new URLSearchParams(window.location.search).get('package');
+          return p && p !== 'all' ? p : undefined;
+        } catch {
+          return undefined;
+        }
+      })();
+      await client.save<any>(type, savedName, itemToSave, {
+        force,
+        mode: 'draft',
+        ...(activePackage ? { packageId: activePackage } : {}),
+      });
       // Refresh layered + draft state after save.
       const [lay, draftResp] = await Promise.all([
         client.layered<any>(type, savedName),

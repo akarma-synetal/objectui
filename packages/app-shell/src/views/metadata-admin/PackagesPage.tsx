@@ -24,6 +24,8 @@ import {
   RefreshCw,
   Search,
   Upload,
+  Download,
+  FileUp,
   Undo2,
   Power,
   PowerOff,
@@ -347,6 +349,26 @@ function PackageDetailSheet({
       enabled ? 'Package disabled.' : 'Package enabled.',
     );
 
+  const exportPkg = () =>
+    run(
+      'export',
+      async () => {
+        const manifest = await apiJson<any>(`${API}/${encodeURIComponent(id)}/export`);
+        const blob = new Blob([JSON.stringify(manifest, null, 2)], {
+          type: 'application/json',
+        });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${id}.package.json`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+      },
+      'Package exported.',
+    );
+
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent className="w-full sm:max-w-md overflow-y-auto">
@@ -411,6 +433,10 @@ function PackageDetailSheet({
                 )}
                 {enabled ? 'Disable' : 'Enable'}
               </Button>
+              <Button size="sm" variant="outline" onClick={exportPkg} disabled={!!busy}>
+                <Download className="mr-1.5 h-3.5 w-3.5" />
+                {busy === 'export' ? 'Exporting…' : 'Export'}
+              </Button>
             </div>
           </div>
         )}
@@ -452,6 +478,11 @@ export function PackagesPage() {
   const [createOpen, setCreateOpen] = React.useState(false);
   const [selected, setSelected] = React.useState<InstalledPackage | null>(null);
   const [detailOpen, setDetailOpen] = React.useState(false);
+  const fileRef = React.useRef<HTMLInputElement>(null);
+  const [importing, setImporting] = React.useState(false);
+  const [importMsg, setImportMsg] = React.useState<{ kind: 'ok' | 'err'; text: string } | null>(
+    null,
+  );
 
   const load = React.useCallback(async () => {
     setLoading(true);
@@ -503,6 +534,40 @@ export function PackagesPage() {
     setDetailOpen(true);
   };
 
+  const onImportFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = ''; // allow re-selecting the same file
+    if (!file) return;
+    setImporting(true);
+    setImportMsg(null);
+    try {
+      const text = await file.text();
+      let manifest: any;
+      try {
+        manifest = JSON.parse(text);
+      } catch {
+        throw new Error('Selected file is not valid JSON.');
+      }
+      if (!manifest || typeof manifest !== 'object' || (!manifest.id && !manifest.name)) {
+        throw new Error('Invalid package file: missing "id" or "name".');
+      }
+      const res = await apiJson<any>('/api/v1/marketplace/install-local', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ manifest }),
+      });
+      setImportMsg({
+        kind: 'ok',
+        text: `Imported "${res?.manifestId ?? manifest.id}". Refresh the app switcher to use it.`,
+      });
+      await load();
+    } catch (err: any) {
+      setImportMsg({ kind: 'err', text: err?.message ?? 'Import failed' });
+    } finally {
+      setImporting(false);
+    }
+  };
+
   const kernelCount = packages.filter(
     (p) => p.manifest.scope === 'system' || p.manifest.scope === 'cloud',
   ).length;
@@ -527,12 +592,40 @@ export function PackagesPage() {
             <RefreshCw className={`mr-1.5 h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} />
             Refresh
           </Button>
+          <input
+            ref={fileRef}
+            type="file"
+            accept="application/json,.json"
+            className="hidden"
+            onChange={onImportFile}
+          />
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => fileRef.current?.click()}
+            disabled={importing}
+          >
+            <FileUp className="mr-1.5 h-3.5 w-3.5" />
+            {importing ? 'Importing…' : 'Import'}
+          </Button>
           <Button size="sm" onClick={() => setCreateOpen(true)}>
             <Plus className="mr-1.5 h-3.5 w-3.5" />
             New Package
           </Button>
         </div>
       </div>
+
+      {importMsg && (
+        <div
+          className={`mt-4 rounded-md border p-2 text-sm ${
+            importMsg.kind === 'ok'
+              ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400'
+              : 'border-destructive/40 bg-destructive/10 text-destructive'
+          }`}
+        >
+          {importMsg.text}
+        </div>
+      )}
 
       {/* Toolbar */}
       <div className="mt-5 flex flex-wrap items-center justify-between gap-3">

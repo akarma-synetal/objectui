@@ -76,6 +76,12 @@ export interface MetadataSaveOptions {
    * "save = live" behaviour.
    */
   mode?: 'draft' | 'publish';
+  /**
+   * Software-package id to bind the saved row to (sent as the `package`
+   * query param → `sys_metadata.package_id`). Set when authoring inside a
+   * Studio package workspace. Omit for an env-local overlay.
+   */
+  packageId?: string;
 }
 
 export interface MetadataGetOptions {
@@ -406,6 +412,7 @@ export class MetadataClient {
     const params: string[] = [];
     if (options.force) params.push('force=true');
     if (options.mode === 'draft') params.push('mode=draft');
+    if (options.packageId) params.push(`package=${encodeURIComponent(options.packageId)}`);
     const qs = params.length ? `?${params.join('&')}` : '';
     const url = `${this.base}/${encodeURIComponent(type)}/${encodeURIComponent(name)}${qs}`;
     const headers: Record<string, string> = {

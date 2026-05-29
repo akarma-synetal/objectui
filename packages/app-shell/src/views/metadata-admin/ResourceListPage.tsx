@@ -117,6 +117,13 @@ function DefaultMetadataList({ type }: { type: string }) {
   );
   const [refreshKey, setRefreshKey] = React.useState(0);
 
+  // When a real package scope is active, carry it into create/edit
+  // navigation as `?package=` so the editor can bind newly-saved rows to
+  // that software package (sys_metadata.package_id). 'all' = no scope.
+  const pkgSuffix = packageFilter && packageFilter !== 'all'
+    ? `?package=${encodeURIComponent(packageFilter)}`
+    : '';
+
   // Keep URL `?package=` in sync so directory-page deep-links survive
   // refresh and back-navigation.
   React.useEffect(() => {
@@ -287,7 +294,7 @@ function DefaultMetadataList({ type }: { type: string }) {
             <Button
               size="sm"
               variant={config.createFields ? 'default' : 'outline'}
-              onClick={() => navigate(`./new`)}
+              onClick={() => navigate(`./new${pkgSuffix}`)}
               title={
                 config.createFields
                   ? tFormat('engine.list.createHint', locale, { type: typeLabel })
@@ -368,7 +375,7 @@ function DefaultMetadataList({ type }: { type: string }) {
             </EmptyDescription>
             {items.length === 0 && (entry?.allowOrgOverride || entry?.allowRuntimeCreate) && (
               <div className="mt-4">
-                <Button onClick={() => navigate(`./new`)}>
+                <Button onClick={() => navigate(`./new${pkgSuffix}`)}>
                   <Plus className="h-4 w-4 mr-1" />
                   {t('engine.list.create', locale)}
                 </Button>
@@ -452,7 +459,7 @@ function DefaultMetadataList({ type }: { type: string }) {
                                   </span>
                                 )}
                                 <Link
-                                  to={`./${encodeURIComponent(name)}`}
+                                  to={`./${encodeURIComponent(name)}${pkgSuffix}`}
                                   className="text-primary hover:underline font-mono"
                                 >
                                   {cell}
