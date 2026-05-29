@@ -136,6 +136,41 @@ export interface MetadataLayered<T = unknown> {
 }
 
 /**
+ * One row in the metadata protection-audit trail
+ * (ADR-0010 §3.6 / Phase 4.1). Mirrors `sys_metadata_audit` columns
+ * the API exposes.
+ */
+export interface MetadataAuditEntry {
+  /** Stable audit-row id (uuid). */
+  id: unknown;
+  /** ISO timestamp when the attempt happened. */
+  occurredAt: string;
+  /** Who attempted the operation (`x-actor` header or `'system'`). */
+  actor: string;
+  /** Code path that recorded the row (e.g. `protocol.saveMetaItem`). */
+  source: string | null;
+  /** Which lifecycle op was attempted. */
+  operation: 'save' | 'publish' | 'rollback' | 'delete' | 'reset';
+  /** Decision: allowed / denied / forced (admin override). */
+  outcome: 'allowed' | 'denied' | 'forced';
+  /** Machine-readable reason code (`item_locked`, `ok`, …). */
+  code: string;
+  /** Effective lock at the moment of the attempt. */
+  lockState: 'none' | 'no-overlay' | 'no-delete' | 'full' | null;
+  /** True when admin forced the write through despite the lock. */
+  lockOverridden: boolean;
+  /** Request-id for trace correlation (if propagated). */
+  requestId: string | null;
+  /** Free-text note (often the lock reason). */
+  note: string | null;
+}
+
+/** Response shape for `MetadataClient.audit()`. */
+export interface MetadataAuditResponse {
+  events: MetadataAuditEntry[];
+}
+
+/**
  * Load-time validation envelope attached to metadata items by the
  * framework. Mirrors `MetadataValidationResult` in the kernel spec.
  */
@@ -599,5 +634,26 @@ export class MetadataClient {
     const res = await this.fetchImpl(url, { method: 'GET', headers: this.headers, cache: 'no-store' });
     if (!res.ok) throw await parseError(res);
     return (await res.json()) as T;
+  }
+
+  /**
+   * Fetch the protection-audit trail for one metadata item
+   * (ADR-0010 §3.6 / Phase 4.1). Shows every save/publish/rollback/
+   * delete/reset attempt — allowed, denied, or forced — so the
+   * Studio "审计日志 / Audit log" tab can render who tried what
+   * and whether a lock blocked it.
+   */
+  async audit(
+    type: string,
+    name: string,
+    options: { limit?: number } = {},
+  ): Promise<MetadataAuditResponse> {
+    const params = new URLSearchParams();
+    if (options.limit !== undefined) params.set('limit', String(options.limit));
+    const qs = params.toString();
+    const url = `${this.base}/${encodeURIComponent(type)}/${encodeURIComponent(name)}/audit${qs ? `?${qs}` : ''}`;
+    const res = await this.fetchImpl(url, { method: 'GET', headers: this.headers, cache: 'no-store' });
+    if (!res.ok) throw await parseError(res);
+    return (await res.json()) as MetadataAuditResponse;
   }
 }

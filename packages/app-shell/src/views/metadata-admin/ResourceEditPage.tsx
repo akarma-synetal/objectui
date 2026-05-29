@@ -47,6 +47,7 @@ import {
   Send,
   Undo2,
   Lock,
+  ShieldCheck,
 } from 'lucide-react';
 import { Button } from '@object-ui/components';
 import { Badge } from '@object-ui/components';
@@ -91,6 +92,7 @@ import {
 import { RelatedPanel, type RelatedTarget } from './RelatedPanel';
 import { MetadataDetailDrawer } from './MetadataDetailDrawer';
 import { HistoryPanel } from './ResourceHistoryPage';
+import { AuditPanel } from './AuditPanel';
 import { getMetadataPreview, type MetadataSelection } from './preview-registry';
 import { getMetadataInspector } from './inspector-registry';
 import { detectLocale, t, tFormat } from './i18n';
@@ -389,7 +391,7 @@ export function MetadataResourceEditPage({
   const initialTabRef = React.useRef<string | null>(null);
 
   const [openSheet, setOpenSheet] =
-    React.useState<'layers' | 'references' | 'related' | 'history' | null>(null);
+    React.useState<'layers' | 'references' | 'related' | 'history' | 'audit' | null>(null);
 
   // Inspector tabs: properties form vs raw JSON source view. Source view
   // is for power users who need to edit fields the form doesn't expose
@@ -542,7 +544,7 @@ export function MetadataResourceEditPage({
     if (typeof window === 'undefined' || embedded) return;
     const sp = new URLSearchParams(window.location.search);
     const tab = sp.get('tab');
-    if (tab === 'layers' || tab === 'references' || tab === 'related') {
+    if (tab === 'layers' || tab === 'references' || tab === 'related' || tab === 'audit') {
       setOpenSheet(tab);
     }
     initialTabRef.current = tab;
@@ -987,6 +989,17 @@ export function MetadataResourceEditPage({
               className="h-7 w-7 p-0"
             >
               <History className="h-3.5 w-3.5" />
+            </Button>
+          )}
+          {!createMode && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setOpenSheet('audit')}
+              title={t('engine.edit.auditTab', locale)}
+              className="h-7 w-7 p-0"
+            >
+              <ShieldCheck className="h-3.5 w-3.5" />
             </Button>
           )}
         </div>
@@ -1730,6 +1743,30 @@ export function MetadataResourceEditPage({
                     String(version),
                   )
                 }
+              />
+            </div>
+          </SheetContent>
+        </Sheet>
+      )}
+
+      {!createMode && (
+        <Sheet
+          open={openSheet === 'audit'}
+          onOpenChange={(o) => !o && setOpenSheet(null)}
+        >
+          <SheetContent side="right" className="w-[92vw] sm:max-w-[860px] p-0 flex flex-col gap-0">
+            <SheetHeader className="px-4 py-3 border-b">
+              <SheetTitle className="text-base">{t('engine.edit.auditTab', locale)}</SheetTitle>
+              <SheetDescription className="text-xs">
+                {type} / {name}
+              </SheetDescription>
+            </SheetHeader>
+            <div className="flex-1 min-h-0 overflow-hidden p-3">
+              <AuditPanel
+                type={type}
+                name={name}
+                client={client}
+                locale={locale}
               />
             </div>
           </SheetContent>

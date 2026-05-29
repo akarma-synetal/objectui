@@ -2087,6 +2087,8 @@ export type {
   MetadataDiagnosticsOptions,
   MetadataDiagnosticsEntry,
   MetadataDiagnosticsSummary,
+  MetadataAuditEntry,
+  MetadataAuditResponse,
 } from './metadata-client';
 
 export { SecurityManager } from './security';
