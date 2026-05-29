@@ -42,6 +42,8 @@ import {
   MousePointer2,
   SlidersHorizontal,
   FileCode2,
+  Zap,
+  ZapOff,
 } from 'lucide-react';
 import { Button } from '@object-ui/components';
 import { Badge } from '@object-ui/components';
@@ -169,6 +171,33 @@ export function MetadataResourceEditPage({
   // Snapshot of the last saved draft. Used by Cancel to revert in-flight
   // edits, and as the source-of-truth when entering edit mode.
   const draftSnapshotRef = React.useRef<Record<string, unknown> | null>(null);
+
+  // Last successful save timestamp — surfaced as "Saved HH:MM" indicator
+  // next to the icon-only Save button.
+  const [lastSavedAt, setLastSavedAt] = React.useState<Date | null>(null);
+
+  // Auto-save toggle, persisted per-browser. Defaults to on for an
+  // "it just works" experience; users can disable it from the toolbar.
+  const [autoSaveEnabled, setAutoSaveEnabled] = React.useState<boolean>(() => {
+    if (typeof window === 'undefined') return true;
+    try {
+      const v = window.localStorage.getItem('metadata-admin:autosave');
+      return v === null ? true : v === '1';
+    } catch {
+      return true;
+    }
+  });
+  React.useEffect(() => {
+    try {
+      window.localStorage.setItem('metadata-admin:autosave', autoSaveEnabled ? '1' : '0');
+    } catch {
+      /* ignore */
+    }
+  }, [autoSaveEnabled]);
+  // Tracks the last draft snapshot we attempted to auto-save, so a
+  // validation failure does not loop on the same payload — auto-save
+  // only retries once the user mutates the draft again.
+  const lastAutoSaveSnapshotRef = React.useRef<string | null>(null);
 
   // Prefetch object name list once — fuels the `ref:object` widget.
   // We don't block render on it; the widget shows a "Loading…" state.
@@ -463,6 +492,8 @@ export function MetadataResourceEditPage({
       const fresh = (lay.effective ?? itemToSave) as Record<string, unknown>;
       setDraft(fresh);
       draftSnapshotRef.current = fresh;
+      setLastSavedAt(new Date());
+      lastAutoSaveSnapshotRef.current = JSON.stringify(fresh);
       setDestructiveIssues(null);
       setPendingItem(null);
       // Stay in design mode after save for designer-capable types so the
@@ -572,6 +603,109 @@ export function MetadataResourceEditPage({
     }
   }, [draft, createMode]);
 
+  // Two-tier authorization (PR-10d.7) — hoisted above the early `loading`
+  // return so the auto-save / keyboard / blocker effects below can read
+  // them. Recomputed cheaply on every render.
+  //   - artifact-backed items (layered.code != null) need allowOrgOverride
+  //   - DB-only items (no artifact) need allowOrgOverride OR allowRuntimeCreate
+  //   - createMode is always writable (the server will gate on intent)
+  const isArtifactItem = !createMode && layered?.code != null;
+  const canWrite = createMode
+    ? !!(entry?.allowOrgOverride || entry?.allowRuntimeCreate)
+    : isArtifactItem
+      ? !!entry?.allowOrgOverride
+      : !!(entry?.allowOrgOverride || entry?.allowRuntimeCreate);
+  const readOnly = !canWrite && !createMode;
+
+  // Auto-save: debounce edits and persist silently once the user pauses
+  // for AUTOSAVE_DEBOUNCE_MS. Skipped for create mode (need an explicit
+  // name first), read-only forms, and while a save is already in flight.
+  // We track the last attempted snapshot so a validation failure doesn't
+  // loop on the same payload — the user has to mutate the draft again.
+  const AUTOSAVE_DEBOUNCE_MS = 1500;
+  // Keep doSave fresh inside the effect without re-arming the timer on
+  // every render.
+  const doSaveRef = React.useRef(doSave);
+  React.useEffect(() => {
+    doSaveRef.current = doSave;
+  });
+  React.useEffect(() => {
+    if (!autoSaveEnabled) return;
+    if (createMode || readOnly || !editing || !isDirty || saving) return;
+    let snap: string;
+    try {
+      snap = JSON.stringify(draft);
+    } catch {
+      return;
+    }
+    if (snap === lastAutoSaveSnapshotRef.current) return;
+    const handle = window.setTimeout(() => {
+      lastAutoSaveSnapshotRef.current = snap;
+      doSaveRef.current(false);
+    }, AUTOSAVE_DEBOUNCE_MS);
+    return () => window.clearTimeout(handle);
+  }, [draft, isDirty, editing, saving, createMode, readOnly, autoSaveEnabled]);
+
+  // Keyboard shortcut — ⌘S / Ctrl+S triggers save when dirty.
+  React.useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 's') {
+        if (!canWrite || readOnly) return;
+        if (!editing && !createMode) return;
+        e.preventDefault();
+        if (!saving && (createMode || isDirty)) {
+          doSaveRef.current(false);
+        }
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [canWrite, readOnly, editing, createMode, saving, isDirty]);
+
+  // Beforeunload guard — browser-native "leave site?" prompt when the
+  // user closes the tab / reloads with unsaved changes.
+  React.useEffect(() => {
+    if (!isDirty) return;
+    const handler = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      // Required for Chrome to actually show the prompt.
+      e.returnValue = '';
+    };
+    window.addEventListener('beforeunload', handler);
+    return () => window.removeEventListener('beforeunload', handler);
+  }, [isDirty]);
+
+  // In-app navigation guard — intercept anchor / link clicks before the
+  // router consumes them. Cheaper and more compatible than useBlocker,
+  // which requires a data router (the host app uses BrowserRouter).
+  React.useEffect(() => {
+    if (!isDirty) return;
+    const handler = (e: MouseEvent) => {
+      if (e.defaultPrevented) return;
+      if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+      const target = e.target as HTMLElement | null;
+      const anchor = target?.closest?.('a[href]') as HTMLAnchorElement | null;
+      if (!anchor) return;
+      // Allow new-tab / download / external links — they don't replace
+      // the current page.
+      if (anchor.target && anchor.target !== '_self') return;
+      if (anchor.hasAttribute('download')) return;
+      try {
+        const url = new URL(anchor.href, window.location.href);
+        if (url.origin !== window.location.origin) return;
+        if (url.pathname === window.location.pathname) return;
+      } catch {
+        return;
+      }
+      if (!confirm(t('engine.edit.unsavedLeaveConfirm', locale))) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
+    };
+    document.addEventListener('click', handler, true);
+    return () => document.removeEventListener('click', handler, true);
+  }, [isDirty, locale]);
+
   if (loading) {
     return (
       <PageShell entry={entry} itemName={name}>
@@ -586,17 +720,6 @@ export function MetadataResourceEditPage({
     (entry?.schema as Record<string, unknown> | undefined) ??
     (config.defaultSchema as Record<string, unknown> | undefined);
 
-  // Two-tier authorization (PR-10d.7):
-  //   - artifact-backed items (layered.code != null) need allowOrgOverride
-  //   - DB-only items (no artifact) need allowOrgOverride OR allowRuntimeCreate
-  //   - createMode is always writable (the server will gate on intent)
-  const isArtifactItem = !createMode && layered?.code != null;
-  const canWrite = createMode
-    ? !!(entry?.allowOrgOverride || entry?.allowRuntimeCreate)
-    : isArtifactItem
-      ? !!entry?.allowOrgOverride
-      : !!(entry?.allowOrgOverride || entry?.allowRuntimeCreate);
-  const readOnly = !canWrite && !createMode;
   // Banner variant: when type ships with allowRuntimeCreate but this
   // specific item is locked because it comes from a code package, we
   // show a different message inviting the user to create their own.
@@ -729,7 +852,7 @@ export function MetadataResourceEditPage({
       )}
       {/* Edit-mode toggle. Three states:
           - View (default, !editing & !createMode): show "Edit".
-          - Editing: show Cancel + Save.
+          - Editing: show autosave status + toggle + Cancel + Save (icons).
           - createMode: always editing, show Save only (Cancel would
             discard the whole create flow which is awkward; users can
             navigate away to cancel).
@@ -740,10 +863,45 @@ export function MetadataResourceEditPage({
           {t('engine.edit.edit', locale)}
         </Button>
       )}
+      {canWrite && (editing || createMode) && (
+        <SaveStatusIndicator
+          saving={saving}
+          isDirty={isDirty}
+          autoSaveEnabled={autoSaveEnabled}
+          lastSavedAt={lastSavedAt}
+          createMode={!!createMode}
+          locale={locale}
+        />
+      )}
+      {canWrite && (editing || createMode) && !createMode && (
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => setAutoSaveEnabled((v) => !v)}
+          className="h-7 w-7 p-0 text-muted-foreground"
+          title={
+            autoSaveEnabled
+              ? t('engine.edit.autoSaveOn', locale)
+              : t('engine.edit.autoSaveOff', locale)
+          }
+        >
+          {autoSaveEnabled ? (
+            <Zap className="h-3.5 w-3.5 text-emerald-600" />
+          ) : (
+            <ZapOff className="h-3.5 w-3.5" />
+          )}
+        </Button>
+      )}
       {canWrite && !createMode && editing && (
-        <Button variant="ghost" size="sm" onClick={doCancelEdit} disabled={saving} className="h-7">
-          <X className="h-3.5 w-3.5 mr-1" />
-          {t('engine.cancel', locale)}
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={doCancelEdit}
+          disabled={saving}
+          className="h-7 w-7 p-0"
+          title={t('engine.cancel', locale)}
+        >
+          <X className="h-3.5 w-3.5" />
         </Button>
       )}
       {canWrite && (editing || createMode) && (
@@ -751,23 +909,24 @@ export function MetadataResourceEditPage({
           size="sm"
           onClick={() => doSave(false)}
           disabled={saving || (!createMode && !isDirty)}
-          className="h-7"
+          className="h-7 w-7 p-0 relative"
           title={
-            !createMode && !isDirty
-              ? t('engine.edit.noChanges', locale)
-              : undefined
+            saving
+              ? t('engine.edit.saving', locale)
+              : !createMode && !isDirty
+                ? t('engine.edit.noChanges', locale)
+                : `${t('engine.edit.save', locale)} (⌘S)`
           }
         >
           {saving ? (
-            <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />
+            <Loader2 className="h-3.5 w-3.5 animate-spin" />
           ) : (
-            <Save className="h-3.5 w-3.5 mr-1" />
+            <Save className="h-3.5 w-3.5" />
           )}
-          {t('engine.edit.save', locale)}
           {isDirty && !saving && (
             <span
               aria-hidden
-              className="ml-1.5 inline-block h-1.5 w-1.5 rounded-full bg-amber-300"
+              className="absolute -top-0.5 -right-0.5 inline-block h-2 w-2 rounded-full bg-amber-300 ring-2 ring-background"
             />
           )}
         </Button>
@@ -1438,4 +1597,69 @@ function SourceEditor({
       )}
     </div>
   );
+}
+
+/**
+ * SaveStatusIndicator — small inline label next to the Save icon that
+ * communicates auto-save state so the icon-only button is not a black
+ * box. Five states:
+ *   - saving      → "Saving…" with spinner
+ *   - dirty + on  → "Auto-saving in 1.5s" (subtle, amber)
+ *   - dirty + off → "Unsaved" (amber)
+ *   - clean + ts  → "Saved 14:32" (muted)
+ *   - createMode  → hidden until first save
+ */
+function SaveStatusIndicator({
+  saving,
+  isDirty,
+  autoSaveEnabled,
+  lastSavedAt,
+  createMode,
+  locale,
+}: {
+  saving: boolean;
+  isDirty: boolean;
+  autoSaveEnabled: boolean;
+  lastSavedAt: Date | null;
+  createMode: boolean;
+  locale: 'en-US' | 'zh-CN' | string;
+}) {
+  // Re-render every 30s so "Saved 14:32" stays accurate without
+  // requiring the caller to manage a ticker.
+  const [, force] = React.useReducer((n: number) => n + 1, 0);
+  React.useEffect(() => {
+    if (!lastSavedAt) return;
+    const id = window.setInterval(force, 30_000);
+    return () => window.clearInterval(id);
+  }, [lastSavedAt]);
+
+  if (saving) {
+    return (
+      <span className="text-xs text-muted-foreground hidden md:inline-flex items-center gap-1">
+        <Loader2 className="h-3 w-3 animate-spin" />
+        {t('engine.edit.saving', locale)}
+      </span>
+    );
+  }
+  if (isDirty) {
+    if (createMode) return null;
+    return (
+      <span className="text-xs text-amber-600 dark:text-amber-300 hidden md:inline-flex items-center gap-1">
+        <span className="inline-block h-1.5 w-1.5 rounded-full bg-amber-400" />
+        {autoSaveEnabled
+          ? t('engine.edit.autoSavingShortly', locale)
+          : t('engine.edit.unsaved', locale)}
+      </span>
+    );
+  }
+  if (lastSavedAt) {
+    const hh = String(lastSavedAt.getHours()).padStart(2, '0');
+    const mm = String(lastSavedAt.getMinutes()).padStart(2, '0');
+    return (
+      <span className="text-xs text-muted-foreground hidden md:inline-flex items-center gap-1">
+        {tFormat('engine.edit.savedAt', locale, { time: `${hh}:${mm}` })}
+      </span>
+    );
+  }
+  return null;
 }
