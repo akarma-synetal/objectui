@@ -56,9 +56,31 @@ export interface PageBlockCanvasProps {
   onSelectionChange?: (next: MetadataSelection | null) => void;
 }
 
-function readRegions(draft: Record<string, unknown>): Region[] {
+function readRegions(
+  draft: Record<string, unknown>,
+): { regions: Region[]; shape: 'regions' | 'children' } {
   const raw = (draft as any).regions;
-  return Array.isArray(raw) ? (raw as Region[]) : [];
+  if (Array.isArray(raw)) return { regions: raw as Region[], shape: 'regions' };
+  const kids = (draft as any).children;
+  if (Array.isArray(kids)) {
+    // Virtualise children[] as a single anonymous region.
+    return { regions: [{ name: 'children', components: kids as Block[] }], shape: 'children' };
+  }
+  return { regions: [], shape: 'regions' };
+}
+
+/** Build a selection ID matching PageBlockInspector's parsePath regex.
+ *  - regions shape:  regions[i].components[j]
+ *  - children shape: children[j]  (flat, no nesting)
+ */
+function selectionId(
+  shape: 'regions' | 'children',
+  regionIdx: number,
+  compIdx: number,
+): string {
+  return shape === 'children'
+    ? `children[${compIdx}]`
+    : `regions[${regionIdx}].components[${compIdx}]`;
 }
 
 function blockLabel(b: Block): string {
@@ -79,15 +101,20 @@ export function PageBlockCanvas({
   onSelectionChange,
 }: PageBlockCanvasProps) {
   const readOnly = !onPatch;
-  const regions = React.useMemo(() => readRegions(draft), [draft]);
+  const { regions, shape } = React.useMemo(() => readRegions(draft), [draft]);
 
   const selectedId = selection?.kind === 'block' ? String(selection.id) : null;
 
   const writeRegions = React.useCallback(
     (next: Region[]) => {
-      onPatch?.({ regions: next });
+      if (shape === 'children') {
+        const comps = next.flatMap((r) => (Array.isArray(r.components) ? r.components : []));
+        onPatch?.({ children: comps });
+      } else {
+        onPatch?.({ regions: next });
+      }
     },
-    [onPatch],
+    [onPatch, shape],
   );
 
   /** Move a block from src path → dst region (append) or before/after target block. */
@@ -214,6 +241,7 @@ export function PageBlockCanvas({
             key={regionIdx}
             region={region}
             regionIdx={regionIdx}
+            shape={shape}
             selectedId={selectedId}
             readOnly={readOnly}
             onSelectBlock={(compIdx, blk) =>
@@ -228,7 +256,7 @@ export function PageBlockCanvas({
             onRenameLabel={renameLabel}
           />
         ))}
-        {!readOnly && (
+        {!readOnly && shape === 'regions' && (
           <div className="pt-1">
             <Button variant="ghost" size="sm" className="gap-1.5 text-muted-foreground" onClick={addRegion}>
               <Plus className="h-3.5 w-3.5" />
@@ -246,6 +274,7 @@ export function PageBlockCanvas({
 function RegionSection({
   region,
   regionIdx,
+  shape,
   selectedId,
   readOnly,
   onSelectBlock,
@@ -255,6 +284,7 @@ function RegionSection({
 }: {
   region: Region;
   regionIdx: number;
+  shape: 'regions' | 'children';
   selectedId: string | null;
   readOnly: boolean;
   onSelectBlock: (compIdx: number, blk: Block) => void;
@@ -319,7 +349,7 @@ function RegionSection({
           </div>
         ) : (
           comps.map((blk, compIdx) => {
-            const id = `regions[${regionIdx}].components[${compIdx}]`;
+            const id = selectionId(shape, regionIdx, compIdx);
             return (
               <BlockRow
                 key={`${regionIdx}:${compIdx}`}

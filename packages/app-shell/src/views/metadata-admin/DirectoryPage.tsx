@@ -17,7 +17,7 @@
 
 import * as React from 'react';
 import { Link } from 'react-router-dom';
-import { Search, Database, Layers, Workflow, Sparkles, Settings, ShieldCheck, Box, AlertTriangle, Package as PackageIcon } from 'lucide-react';
+import { Search, Database, Layers, Workflow, Sparkles, Settings, ShieldCheck, Box, AlertTriangle, Lock, Package as PackageIcon } from 'lucide-react';
 import { Input } from '@object-ui/components';
 import { Button } from '@object-ui/components';
 import { Badge } from '@object-ui/components';
@@ -85,6 +85,7 @@ export function MetadataDirectoryPage() {
     warnByType,
     summary: diagSummary,
     countsByType,
+    lockedByType,
     packagesByType,
     allPackages,
   } = useGlobalDiagnostics(client, 'warning');
@@ -274,6 +275,7 @@ export function MetadataDirectoryPage() {
                       locale={locale}
                       invalidCount={invalidByType[e.type] ?? 0}
                       warnCount={warnByType[e.type] ?? 0}
+                      lockedCount={lockedByType[e.type] ?? 0}
                       itemCount={totalCount}
                       packageFilter={showFiltered ? packageFilter : undefined}
                     />
@@ -328,6 +330,7 @@ function TypeTile({
   invalidCount = 0,
   warnCount = 0,
   itemCount = 0,
+  lockedCount = 0,
   packageFilter,
 }: {
   entry: RichMetadataTypeEntry;
@@ -335,6 +338,8 @@ function TypeTile({
   invalidCount?: number;
   warnCount?: number;
   itemCount?: number;
+  /** How many items of this type carry a lock (`_lock` ≠ `none`). */
+  lockedCount?: number;
   /** When set, navigate into the list page pre-filtered to this package. */
   packageFilter?: string;
 }) {
@@ -394,6 +399,17 @@ function TypeTile({
               title={tFormat('engine.directory.warnTooltip', locale ?? 'en', { count: warnCount })}
             >
               {warnCount}
+            </Badge>
+          )}
+          {lockedCount > 0 && (
+            <Badge
+              variant="outline"
+              className="text-[10px] border-amber-500/40 text-amber-700 dark:text-amber-300 bg-amber-500/[0.06] inline-flex items-center gap-0.5 px-1.5"
+              title={`${lockedCount} locked item${lockedCount === 1 ? '' : 's'} — see ADR-0010`}
+              aria-label={`${lockedCount} locked items`}
+            >
+              <Lock className="h-2.5 w-2.5" />
+              {lockedCount}
             </Badge>
           )}
           {entry.allowOrgOverride ? (

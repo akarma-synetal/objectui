@@ -221,7 +221,7 @@ export interface MetadataDiagnosticsSummary {
    * versions that do not yet emit it; clients should fall back to
    * an empty record.
    */
-  stats?: Record<string, { count: number; packages: string[] }>;
+  stats?: Record<string, { count: number; locked?: number; packages: string[] }>;
 }
 
 /** Reference back-pointer — Phase 3a `/references`. */

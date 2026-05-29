@@ -307,15 +307,17 @@ function VariantSection({
               onMove(drag, { variant: variant.key, index: 0 });
               onDragChange(null);
             }}
-            className={`rounded border border-dashed px-3 py-6 text-center text-[11px] text-muted-foreground ${
-              over ? 'border-primary text-primary' : ''
+            className={`rounded border-2 border-dashed px-3 py-6 text-center text-[11px] transition ${
+              over
+                ? 'border-primary bg-primary/10 text-primary'
+                : 'border-border text-muted-foreground'
             }`}
           >
-            {canEdit
-              ? over
-                ? 'Drop here to add to this variant'
-                : 'Empty — drop a column here or click Add column'
-              : 'No columns yet'}
+            {over
+              ? 'Drop to add to this variant'
+              : canEdit
+              ? 'Empty — drop a column here or use Add column'
+              : 'no columns yet'}
           </div>
         ) : (
           variant.columns.map((c, i) => (
