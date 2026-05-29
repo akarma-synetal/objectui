@@ -23,17 +23,15 @@
 
 import * as React from 'react';
 import { ObjectGrid } from '@object-ui/plugin-grid';
-import { FieldDesigner } from '@object-ui/plugin-designer';
 import type {
   ObjectGridSchema,
   ListColumn,
-  DesignerFieldDefinition,
 } from '@object-ui/types';
 import type { MetadataPreviewProps } from '../preview-registry';
 import { PreviewShell, PreviewMessage, PreviewErrorBoundary } from './PreviewShell';
-import { Button, Badge } from '@object-ui/components';
+import { Button } from '@object-ui/components';
 import { Database, Pencil } from 'lucide-react';
-import { bridgeFromDraft, commitToDraft } from './object-fields-bridge';
+import { ObjectFormCanvas } from './ObjectFormCanvas';
 
 interface FieldDef {
   name?: string;
@@ -70,6 +68,8 @@ export function ObjectPreview({
   name,
   draft,
   onPatch,
+  selection,
+  onSelectionChange,
 }: MetadataPreviewProps) {
   const objectName = String((draft as any).name ?? name ?? '');
   const columns = React.useMemo(() => deriveColumns((draft as any).fields), [draft]);
@@ -115,11 +115,13 @@ export function ObjectPreview({
   if (mode === 'designer') {
     return (
       <PreviewShell hint={`object · designer`} toolbar={modeSwitcher}>
-        <PreviewErrorBoundary fallbackHint="The field designer couldn't be rendered. Switch to Data mode or check the Form tab.">
-          <DesignerMode
+        <PreviewErrorBoundary fallbackHint="The form designer couldn't be rendered. Switch to Data mode or check the Form tab.">
+          <ObjectFormCanvas
             objectName={objectName}
             draft={draft}
             onPatch={onPatch}
+            selection={selection}
+            onSelectionChange={onSelectionChange}
           />
         </PreviewErrorBoundary>
       </PreviewShell>
@@ -191,62 +193,5 @@ function ModeButton({
       {icon}
       {label}
     </button>
-  );
-}
-
-/**
- * DesignerMode — encapsulates the bridge so the parent doesn't re-run
- * `bridgeFromDraft` on every render. We re-derive only when the draft
- * `fields` reference actually changes (e.g. after a Save reload or a
- * Form-tab edit).
- */
-function DesignerMode({
-  objectName,
-  draft,
-  onPatch,
-}: {
-  objectName: string;
-  draft: Record<string, unknown>;
-  onPatch?: (patch: Record<string, unknown>) => void;
-}) {
-  const fieldsInput = (draft as any).fields;
-  const bridge = React.useMemo(() => bridgeFromDraft(fieldsInput), [fieldsInput]);
-  const preservedCount = bridge.preserved.size;
-
-  const handleFieldsChange = React.useCallback(
-    (next: DesignerFieldDefinition[]) => {
-      if (!onPatch) return;
-      const merged = commitToDraft(next, bridge);
-      onPatch({ fields: merged });
-    },
-    [onPatch, bridge],
-  );
-
-  return (
-    <div className="h-full flex flex-col">
-      {preservedCount > 0 && (
-        <div className="flex items-center gap-2 px-3 py-1.5 text-[11px] border-b bg-amber-50 dark:bg-amber-950/30 text-amber-900 dark:text-amber-200">
-          <Badge variant="outline" className="text-[10px] border-amber-400/60">
-            {preservedCount}
-          </Badge>
-          <span>
-            field{preservedCount === 1 ? '' : 's'} use type
-            {preservedCount === 1 ? '' : 's'} the designer can't edit (e.g.
-            <code className="mx-1">master_detail</code>,
-            <code className="mx-1">tree</code>,
-            <code className="mx-1">multiselect</code>). Edit them in the
-            Form tab — they're preserved here.
-          </span>
-        </div>
-      )}
-      <div className="flex-1 min-h-0 overflow-auto">
-        <FieldDesigner
-          objectName={objectName}
-          fields={bridge.designerFields}
-          onFieldsChange={handleFieldsChange}
-          readOnly={!onPatch}
-        />
-      </div>
-    </div>
   );
 }

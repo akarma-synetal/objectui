@@ -37,7 +37,6 @@ import { AppContent } from './AppContent';
 import { CloudAwareRootRedirect } from './components/CloudAwareRootRedirect';
 import { FormPage } from './components/FormPage';
 import { MetadataHmrReloader } from './components/MetadataHmrReloader';
-import { SignOutOverlay } from './components/SignOutOverlay';
 import SharedRecordPage from './pages/SharedRecordPage';
 import { LoginPage } from './pages/auth/LoginPage';
 import { RegisterPage } from './pages/auth/RegisterPage';
@@ -126,7 +125,6 @@ export function App() {
     <AuthProvider authUrl={AUTH_URL}>
       <ConsoleToaster position="bottom-right" />
       <MetadataHmrReloader />
-      <SignOutOverlay />
       <BrowserRouter basename={BASENAME}>
         <ConsoleShell>
           <Routes>

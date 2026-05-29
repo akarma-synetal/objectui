@@ -14,6 +14,7 @@ import { AppNavInspector } from './AppNavInspector';
 import { ViewColumnInspector } from './ViewColumnInspector';
 import { PageBlockInspector } from './PageBlockInspector';
 import { ReportColumnInspector } from './ReportColumnInspector';
+import { ObjectFieldInspector } from './ObjectFieldInspector';
 
 export function registerBuiltinInspectors(): void {
   registerMetadataInspector('dashboard', DashboardWidgetInspector);
@@ -24,4 +25,5 @@ export function registerBuiltinInspectors(): void {
   registerMetadataInspector('view', ViewColumnInspector);
   registerMetadataInspector('page', PageBlockInspector);
   registerMetadataInspector('report', ReportColumnInspector);
+  registerMetadataInspector('object', ObjectFieldInspector);
 }
