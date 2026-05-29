@@ -261,8 +261,13 @@ export function createAuthClient(config: AuthClientConfig): AuthClient {
     },
 
     async forgotPassword(email: string) {
-      // better-auth uses "forgetPassword" (without the "o"); the method
-      // exists at runtime but is not present in the default TS types.
+      // better-auth 1.6+ renamed the endpoint from `/forget-password` to
+      // `/request-password-reset` (client method `requestPasswordReset`).
+      // Older builds only exposed `forgetPassword` → `/forget-password`, which
+      // 404s on newer servers. Prefer the current method and fall back to the
+      // legacy one so we stay compatible across better-auth versions. Neither
+      // method is present in the default client TS types, so cast through
+      // unknown.
       //
       // The `redirectTo` here is appended to the email link as
       // `?callbackURL=<redirectTo>`. When the user clicks the email,
@@ -270,10 +275,17 @@ export function createAuthClient(config: AuthClientConfig): AuthClient {
       // `<redirectTo>?token=…`. We resolve the basename from the
       // `<base href>` tag at runtime so the SPA mounted at e.g.
       // `/_console/` lands on `/_console/reset-password?token=…`.
-      type ForgetPasswordFn = (opts: { email: string; redirectTo: string }) =>
+      type RequestPasswordResetFn = (opts: { email: string; redirectTo: string }) =>
         Promise<{ error: { message?: string; status: number } | null }>;
-      const forgetPw = (betterAuth as unknown as { forgetPassword: ForgetPasswordFn }).forgetPassword;
-      const { error } = await forgetPw({
+      const ba = betterAuth as unknown as {
+        requestPasswordReset?: RequestPasswordResetFn;
+        forgetPassword?: RequestPasswordResetFn;
+      };
+      const requestReset = ba.requestPasswordReset ?? ba.forgetPassword;
+      if (typeof requestReset !== 'function') {
+        throw new Error('password reset is not available on this auth backend');
+      }
+      const { error } = await requestReset({
         email,
         redirectTo: resolveResetPasswordRedirect(),
       });
