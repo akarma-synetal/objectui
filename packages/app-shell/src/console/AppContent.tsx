@@ -52,6 +52,7 @@ const MetadataDirectoryPage = lazy(() => import('../views/metadata-admin').then(
 const MetadataResourceListPage = lazy(() => import('../views/metadata-admin').then(m => ({ default: m.MetadataResourceListPage })));
 const MetadataResourceEditPage = lazy(() => import('../views/metadata-admin').then(m => ({ default: m.MetadataResourceEditPage })));
 const MetadataResourceHistoryPage = lazy(() => import('../views/metadata-admin').then(m => ({ default: m.MetadataResourceHistoryPage })));
+const MetadataDiagnosticsPage = lazy(() => import('../views/metadata-admin').then(m => ({ default: m.MetadataDiagnosticsPage })));
 
 // App authoring + dashboard editor pages — sourced from
 // @object-ui/plugin-designer so third-party hosts can opt out by not
@@ -380,6 +381,7 @@ export function AppContent({ extraRoutes, extraRoutesNoApp }: AppContentProps = 
                     score 16; declaration order breaks the tie). */}
                 <Route path="metadata">
                   <Route index element={<MetadataDirectoryPage />} />
+                  <Route path="_diagnostics" element={<MetadataDiagnosticsPage />} />
                   <Route path=":type" element={<MetadataResourceListPage />} />
                   <Route path=":type/new" element={<MetadataResourceEditPage createMode />} />
                   <Route path=":type/:name" element={<MetadataResourceEditPage />} />

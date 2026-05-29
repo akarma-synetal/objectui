@@ -21,6 +21,7 @@ export { MetadataResourceEditPage } from './ResourceEditPage';
 export { RelatedPanel } from './RelatedPanel';
 export { MetadataDetailDrawer } from './MetadataDetailDrawer';
 export { MetadataResourceHistoryPage } from './ResourceHistoryPage';
+export { MetadataDiagnosticsPage } from './DiagnosticsPage';
 export { MetadataQuickFind } from './QuickFind';
 export { PageShell as MetadataPageShell } from './PageShell';
 export { SchemaForm } from './SchemaForm';
@@ -96,6 +97,11 @@ export {
   useMetadataClient,
   useMetadataTypes,
   useTypesIndex,
+  useGlobalDiagnostics,
   matchesQuery,
 } from './useMetadata';
-export type { RichMetadataTypeEntry } from './useMetadata';
+export type {
+  RichMetadataTypeEntry,
+  MetadataDiagnosticsEntry,
+  MetadataDiagnosticsSummary,
+} from './useMetadata';

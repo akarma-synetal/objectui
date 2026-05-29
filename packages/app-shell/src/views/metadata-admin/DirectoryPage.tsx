@@ -17,7 +17,7 @@
 
 import * as React from 'react';
 import { Link } from 'react-router-dom';
-import { Search, Database, Layers, Workflow, Sparkles, Settings, ShieldCheck, Box } from 'lucide-react';
+import { Search, Database, Layers, Workflow, Sparkles, Settings, ShieldCheck, Box, AlertTriangle } from 'lucide-react';
 import { Input } from '@object-ui/components';
 import { Button } from '@object-ui/components';
 import { Badge } from '@object-ui/components';
@@ -26,6 +26,7 @@ import { Empty, EmptyTitle, EmptyDescription } from '@object-ui/components';
 import {
   useMetadataClient,
   useMetadataTypes,
+  useGlobalDiagnostics,
   type RichMetadataTypeEntry,
 } from './useMetadata';
 import { MetadataQuickFind } from './QuickFind';
@@ -72,6 +73,7 @@ const HIDDEN_TYPES = new Set(['field']);
 export function MetadataDirectoryPage() {
   const client = useMetadataClient();
   const { loading, error, entries } = useMetadataTypes(client);
+  const { byType: invalidByType, summary: diagSummary } = useGlobalDiagnostics(client);
   const locale = React.useMemo(() => detectLocale(), []);
 
   const [query, setQuery] = React.useState('');
@@ -161,6 +163,19 @@ export function MetadataDirectoryPage() {
           >
             {t('engine.directory.writableOnly', locale)} ({writableCount})
           </Button>
+          {diagSummary.total > 0 && (
+            <Button
+              asChild
+              variant="outline"
+              size="sm"
+              className="border-destructive/40 text-destructive hover:bg-destructive/10 hover:text-destructive"
+            >
+              <Link to="./_diagnostics">
+                <AlertTriangle className="h-3.5 w-3.5 mr-1" />
+                {tFormat('engine.directory.diagnosticsLink', locale, { count: diagSummary.total })}
+              </Link>
+            </Button>
+          )}
           <div className="text-xs text-muted-foreground flex items-center gap-1.5">
             {t('engine.directory.quickFind', locale)} <Kbd>⌘</Kbd><Kbd>⇧</Kbd><Kbd>M</Kbd>
           </div>
@@ -208,7 +223,12 @@ export function MetadataDirectoryPage() {
               </h2>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                 {group.map((e) => (
-                  <TypeTile key={e.type} entry={e} locale={locale} />
+                  <TypeTile
+                    key={e.type}
+                    entry={e}
+                    locale={locale}
+                    invalidCount={invalidByType[e.type] ?? 0}
+                  />
                 ))}
               </div>
             </section>
@@ -253,49 +273,83 @@ function DomainChip({
   );
 }
 
-function TypeTile({ entry, locale }: { entry: RichMetadataTypeEntry; locale?: string }) {
+function TypeTile({
+  entry,
+  locale,
+  invalidCount = 0,
+}: {
+  entry: RichMetadataTypeEntry;
+  locale?: string;
+  invalidCount?: number;
+}) {
   // Prefer the locale-table translation; fall back to server's `label` (typically English).
   const label = translateMetadataType(entry.type, locale, entry.label);
   return (
     <Link
       to={`./${encodeURIComponent(entry.type)}`}
-      className="block p-4 border rounded-lg hover:border-primary hover:bg-accent transition-colors"
+      className={
+        'block p-4 border rounded-lg hover:bg-accent transition-colors ' +
+        (invalidCount > 0
+          ? 'border-destructive/40 hover:border-destructive'
+          : 'hover:border-primary')
+      }
     >
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0 flex-1">
-          <div className="font-medium truncate">{label}</div>
+          <div className="font-medium truncate flex items-center gap-1.5">
+            {invalidCount > 0 && (
+              <span
+                title={tFormat('engine.directory.invalidTooltip', locale ?? 'en', { count: invalidCount })}
+                aria-label={tFormat('engine.directory.invalidTooltip', locale ?? 'en', { count: invalidCount })}
+              >
+                <AlertTriangle className="h-3.5 w-3.5 text-destructive shrink-0" />
+              </span>
+            )}
+            {label}
+          </div>
           <code className="text-xs text-muted-foreground font-mono">
             {entry.type}
           </code>
         </div>
-        {entry.allowOrgOverride ? (
-          <Badge
-            className={
-              'text-[10px] shrink-0 ' +
-              (entry.overrideSource === 'env'
-                ? 'bg-amber-100 text-amber-800 hover:bg-amber-100'
-                : 'bg-emerald-100 text-emerald-800 hover:bg-emerald-100')
-            }
-            title={
-              entry.overrideSource === 'env'
-                ? 'Writable via OBJECTSTACK_METADATA_WRITABLE env var'
-                : 'Writable per ADR-0005 overlay opt-in'
-            }
-          >
-            {t('engine.badge.writable', locale)}
-          </Badge>
-        ) : entry.allowRuntimeCreate ? (
-          <Badge
-            className="text-[10px] shrink-0 bg-sky-100 text-sky-800 hover:bg-sky-100"
-            title="Code-shipped items are locked; new items can be created at runtime"
-          >
-            {t('engine.badge.createOnly', locale)}
-          </Badge>
-        ) : (
-          <Badge variant="outline" className="text-[10px] shrink-0 text-muted-foreground">
-            {t('engine.badge.readOnly', locale)}
-          </Badge>
-        )}
+        <div className="flex items-center gap-1 shrink-0">
+          {invalidCount > 0 && (
+            <Badge
+              variant="outline"
+              className="text-[10px] border-destructive/40 text-destructive bg-destructive/[0.06]"
+              title={tFormat('engine.directory.invalidTooltip', locale ?? 'en', { count: invalidCount })}
+            >
+              {invalidCount}
+            </Badge>
+          )}
+          {entry.allowOrgOverride ? (
+            <Badge
+              className={
+                'text-[10px] ' +
+                (entry.overrideSource === 'env'
+                  ? 'bg-amber-100 text-amber-800 hover:bg-amber-100'
+                  : 'bg-emerald-100 text-emerald-800 hover:bg-emerald-100')
+              }
+              title={
+                entry.overrideSource === 'env'
+                  ? 'Writable via OBJECTSTACK_METADATA_WRITABLE env var'
+                  : 'Writable per ADR-0005 overlay opt-in'
+              }
+            >
+              {t('engine.badge.writable', locale)}
+            </Badge>
+          ) : entry.allowRuntimeCreate ? (
+            <Badge
+              className="text-[10px] bg-sky-100 text-sky-800 hover:bg-sky-100"
+              title="Code-shipped items are locked; new items can be created at runtime"
+            >
+              {t('engine.badge.createOnly', locale)}
+            </Badge>
+          ) : (
+            <Badge variant="outline" className="text-[10px] text-muted-foreground">
+              {t('engine.badge.readOnly', locale)}
+            </Badge>
+          )}
+        </div>
       </div>
       {entry.description && (
         <div className="text-xs text-muted-foreground mt-2 line-clamp-2">

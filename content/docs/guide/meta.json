@@ -23,6 +23,7 @@
     "slotted-pages",
     "console",
     "console-architecture",
+    "metadata-diagnostics",
     "user-state-persistence",
     "objectos-integration",
     "troubleshooting",

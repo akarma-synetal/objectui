@@ -2084,6 +2084,9 @@ export type {
   MetadataLayered,
   MetadataReference,
   MetadataDiagnostics,
+  MetadataDiagnosticsOptions,
+  MetadataDiagnosticsEntry,
+  MetadataDiagnosticsSummary,
 } from './metadata-client';
 
 export { SecurityManager } from './security';

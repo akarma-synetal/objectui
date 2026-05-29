@@ -145,6 +145,37 @@ export interface MetadataDiagnostics {
   warnings?: Array<{ path: string; message: string }>;
 }
 
+/** Options for the cross-type `/meta/diagnostics` sweep call. */
+export interface MetadataDiagnosticsOptions {
+  /** Restrict the sweep to a single metadata type (e.g. `'view'`). */
+  type?: string;
+  /**
+   * `'error'` (default) returns only items that fail validation.
+   * `'warning'` also includes items whose only diagnostics are warnings.
+   */
+  severity?: 'error' | 'warning';
+  /** Restrict to items owned by this package id. */
+  packageId?: string;
+}
+
+/** One row in the `/meta/diagnostics` response. */
+export interface MetadataDiagnosticsEntry {
+  type: string;
+  name: string;
+  diagnostics: MetadataDiagnostics;
+}
+
+/** Top-level envelope returned by `/meta/diagnostics`. */
+export interface MetadataDiagnosticsSummary {
+  entries: MetadataDiagnosticsEntry[];
+  /** Number of `entries` returned (post-filter). */
+  total: number;
+  /** How many metadata types the sweep visited. */
+  scannedTypes: number;
+  /** How many individual items were validated. */
+  scannedItems: number;
+}
+
 /** Reference back-pointer — Phase 3a `/references`. */
 export interface MetadataReference {
   /** Referencing item's metadata type. */
@@ -373,6 +404,40 @@ export class MetadataClient {
       overlayScope: body.overlayScope ?? null,
       effective: body.effective ?? null,
       ...(body._diagnostics ? { _diagnostics: body._diagnostics as MetadataDiagnostics } : {}),
+    };
+  }
+
+  /**
+   * Cross-type sweep of load-time validation results — calls
+   * `GET /meta/diagnostics`. Returns every entry the framework
+   * considers invalid (or, when `severity: 'warning'`, also entries
+   * with only warnings).
+   *
+   * Used by the Studio's governance overview page and by the
+   * directory page to show "N invalid" badges per metadata type.
+   */
+  async diagnostics(
+    options: MetadataDiagnosticsOptions = {},
+  ): Promise<MetadataDiagnosticsSummary> {
+    const params: string[] = [];
+    if (options.type) params.push(`type=${encodeURIComponent(options.type)}`);
+    if (options.severity) params.push(`severity=${encodeURIComponent(options.severity)}`);
+    if (options.packageId) params.push(`package=${encodeURIComponent(options.packageId)}`);
+    const qs = params.length ? `?${params.join('&')}` : '';
+    const url = `${this.base}/diagnostics${qs}`;
+    const res = await this.fetchImpl(url, { method: 'GET', headers: this.headers, cache: 'no-store' });
+    if (res.status === 404) {
+      // Older server without the sweep endpoint — caller should treat
+      // as "no diagnostics available", not as an error.
+      return { entries: [], total: 0, scannedTypes: 0, scannedItems: 0 };
+    }
+    if (!res.ok) throw await parseError(res);
+    const data = (await res.json()) as Partial<MetadataDiagnosticsSummary>;
+    return {
+      entries: Array.isArray(data.entries) ? data.entries : [],
+      total: typeof data.total === 'number' ? data.total : 0,
+      scannedTypes: typeof data.scannedTypes === 'number' ? data.scannedTypes : 0,
+      scannedItems: typeof data.scannedItems === 'number' ? data.scannedItems : 0,
     };
   }
 

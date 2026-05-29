@@ -16,7 +16,7 @@
  */
 
 import { useEffect, useMemo, useState } from 'react';
-import { MetadataClient } from '@object-ui/data-objectstack';
+import { MetadataClient, type MetadataDiagnosticsSummary, type MetadataDiagnosticsEntry } from '@object-ui/data-objectstack';
 
 export interface RichMetadataTypeEntry {
   type: string;
@@ -131,3 +131,72 @@ export function matchesQuery(
   }
   return false;
 }
+
+/**
+ * Fetch the cross-type `/meta/diagnostics` sweep once and expose
+ * both the raw entry list and a per-type aggregate (used by the
+ * directory page tiles + the governance overview page).
+ *
+ * `severity` defaults to `'error'` — pass `'warning'` to include
+ * warning-only entries in the count.
+ */
+export function useGlobalDiagnostics(
+  client: MetadataClient,
+  severity: 'error' | 'warning' = 'error',
+): {
+  loading: boolean;
+  error: string | null;
+  summary: MetadataDiagnosticsSummary;
+  byType: Record<string, number>;
+  reload: () => void;
+} {
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [summary, setSummary] = useState<MetadataDiagnosticsSummary>({
+    entries: [],
+    total: 0,
+    scannedTypes: 0,
+    scannedItems: 0,
+  });
+  const [tick, setTick] = useState(0);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    setError(null);
+    (async () => {
+      try {
+        const res = await client.diagnostics({ severity });
+        if (cancelled) return;
+        setSummary(res);
+        setLoading(false);
+      } catch (err: any) {
+        if (cancelled) return;
+        // Older servers without /meta/diagnostics: surface as empty,
+        // not as a fatal error — the directory page should still load.
+        setError(err?.message ?? String(err));
+        setSummary({ entries: [], total: 0, scannedTypes: 0, scannedItems: 0 });
+        setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [client, severity, tick]);
+
+  const byType = useMemo(() => {
+    const c: Record<string, number> = {};
+    for (const e of summary.entries) {
+      c[e.type] = (c[e.type] ?? 0) + 1;
+    }
+    return c;
+  }, [summary]);
+
+  return { loading, error, summary, byType, reload: () => setTick((n) => n + 1) };
+}
+
+/**
+ * Re-export so consumers can type their callbacks without reaching
+ * into the data-objectstack package directly.
+ */
+export type { MetadataDiagnosticsEntry, MetadataDiagnosticsSummary };

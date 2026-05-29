@@ -294,19 +294,31 @@ function DefaultMetadataList({ type }: { type: string }) {
                   const name = String(row.item[pk] ?? `(unnamed-${i})`);
                   const invalid = row.diagnostics?.valid === false;
                   const errorList = row.diagnostics?.errors ?? [];
+                  const warnList = (row.diagnostics as any)?.warnings ?? [];
+                  const warnOnly = !invalid && warnList.length > 0;
                   const errorTitle = invalid
                     ? errorList
                         .slice(0, 3)
                         .map((e) => `${e.path || '(root)'}: ${e.message}`)
                         .join('\n') +
                       (errorList.length > 3 ? `\n+${errorList.length - 3} more` : '')
-                    : '';
+                    : warnOnly
+                      ? warnList
+                          .slice(0, 3)
+                          .map((w: any) => `${w.path || '(root)'}: ${w.message}`)
+                          .join('\n') +
+                        (warnList.length > 3 ? `\n+${warnList.length - 3} more` : '')
+                      : '';
                   return (
                     <tr
                       key={name + i}
                       className={
                         'hover:bg-accent/50 ' +
-                        (invalid ? 'bg-destructive/[0.04]' : '')
+                        (invalid
+                          ? 'bg-destructive/[0.04]'
+                          : warnOnly
+                            ? 'bg-amber-500/[0.05]'
+                            : '')
                       }
                     >
                       {columns.map((c, ci) => {
@@ -323,6 +335,15 @@ function DefaultMetadataList({ type }: { type: string }) {
                                     title={`${tFormat('engine.list.invalidCount', locale, { count: errorList.length })}\n${errorTitle}`}
                                   >
                                     <AlertTriangle className="w-3.5 h-3.5 text-destructive shrink-0" />
+                                  </span>
+                                )}
+                                {warnOnly && (
+                                  <span
+                                    className="inline-flex"
+                                    aria-label={t('engine.list.warnTitle', locale)}
+                                    title={`${tFormat('engine.list.warnCount', locale, { count: warnList.length })}\n${errorTitle}`}
+                                  >
+                                    <AlertTriangle className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400 shrink-0" />
                                   </span>
                                 )}
                                 <Link

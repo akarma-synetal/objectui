@@ -174,6 +174,35 @@ export function MetadataResourceEditPage({
   const [saving, setSaving] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const [issues, setIssues] = React.useState<SchemaFormIssue[]>([]);
+
+  // Wrap setDraft so that editing a field clears any *server-side*
+  // diagnostic issues whose path begins with that field. The user
+  // gets immediate visual feedback — the red ring disappears as
+  // they type — and the form re-validates on save. We diff at the
+  // top-level segment, which matches how Zod's `issue.path[0]`
+  // identifies the offending field.
+  const handleDraftChange = React.useCallback(
+    (next: Record<string, unknown> | ((prev: Record<string, unknown>) => Record<string, unknown>)) => {
+      setDraft((prev) => {
+        const resolved = typeof next === 'function' ? next(prev) : next;
+        const changed = new Set<string>();
+        const keys = new Set([...Object.keys(prev ?? {}), ...Object.keys(resolved ?? {})]);
+        for (const k of keys) {
+          if (!Object.is(prev?.[k], resolved?.[k])) changed.add(k);
+        }
+        if (changed.size > 0) {
+          setIssues((prevIssues) =>
+            prevIssues.filter((i) => {
+              const head = (i.path ?? '').split('.')[0];
+              return !changed.has(head);
+            }),
+          );
+        }
+        return resolved;
+      });
+    },
+    [],
+  );
   const [destructiveIssues, setDestructiveIssues] = React.useState<
     null | Array<{ kind?: string; path?: string; message?: string }>
   >(null);
@@ -1265,32 +1294,62 @@ export function MetadataResourceEditPage({
               // errors are also threaded into SchemaForm as `issues`
               // and rendered inline next to each broken field.
               const diag = (layered as any)?._diagnostics as
-                | { valid: boolean; errors?: Array<{ path: string; message: string }> }
+                | {
+                    valid: boolean;
+                    errors?: Array<{ path: string; message: string }>;
+                    warnings?: Array<{ path: string; message: string }>;
+                  }
                 | undefined;
-              if (!diag || diag.valid !== false) return null;
+              if (!diag) return null;
               const errs = diag.errors ?? [];
-              const head = errs.slice(0, 3);
-              const rest = Math.max(0, errs.length - head.length);
-              return (
-                <div className="flex items-start gap-2 text-xs border rounded p-2.5 border-destructive/40 bg-destructive/[0.06] text-destructive">
-                  <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
-                  <div className="min-w-0 flex-1">
-                    <div className="font-medium">
-                      {tFormat('engine.edit.diagnostics.title', locale, { count: errs.length })}
+              const warns = diag.warnings ?? [];
+              const hasErrs = diag.valid === false && errs.length > 0;
+              const hasWarns = warns.length > 0;
+              if (!hasErrs && !hasWarns) return null;
+              const renderBlock = (
+                kind: 'error' | 'warning',
+                items: Array<{ path: string; message: string }>,
+              ) => {
+                const head = items.slice(0, 3);
+                const rest = Math.max(0, items.length - head.length);
+                const cls =
+                  kind === 'error'
+                    ? 'border-destructive/40 bg-destructive/[0.06] text-destructive'
+                    : 'border-amber-500/40 bg-amber-500/[0.08] text-amber-800 dark:text-amber-200';
+                const titleKey =
+                  kind === 'error'
+                    ? 'engine.edit.diagnostics.title'
+                    : 'engine.edit.diagnostics.warnTitle';
+                return (
+                  <div
+                    key={kind}
+                    className={`flex items-start gap-2 text-xs border rounded p-2.5 ${cls}`}
+                  >
+                    <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
+                    <div className="min-w-0 flex-1">
+                      <div className="font-medium">
+                        {tFormat(titleKey, locale, { count: items.length })}
+                      </div>
+                      <ul className="mt-1 space-y-0.5 font-mono text-[11px]">
+                        {head.map((e, i) => (
+                          <li key={i} className="truncate">
+                            <span className="opacity-70">{e.path || '(root)'}</span>: {e.message}
+                          </li>
+                        ))}
+                        {rest > 0 && (
+                          <li className="opacity-70">
+                            {tFormat('engine.edit.diagnostics.more', locale, { count: rest })}
+                          </li>
+                        )}
+                      </ul>
                     </div>
-                    <ul className="mt-1 space-y-0.5 font-mono text-[11px]">
-                      {head.map((e, i) => (
-                        <li key={i} className="truncate">
-                          <span className="opacity-70">{e.path || '(root)'}</span>: {e.message}
-                        </li>
-                      ))}
-                      {rest > 0 && (
-                        <li className="opacity-70">
-                          {tFormat('engine.edit.diagnostics.more', locale, { count: rest })}
-                        </li>
-                      )}
-                    </ul>
                   </div>
+                );
+              };
+              return (
+                <div className="space-y-2">
+                  {hasErrs && renderBlock('error', errs)}
+                  {hasWarns && renderBlock('warning', warns)}
                 </div>
               );
             })()}
@@ -1412,7 +1471,7 @@ export function MetadataResourceEditPage({
                           onSelectionChange={setSelection}
                           locale={locale}
                           onPatch={(patch) =>
-                            setDraft((d) => ({ ...(d as Record<string, unknown>), ...patch }))
+                            handleDraftChange((d) => ({ ...(d as Record<string, unknown>), ...patch }))
                           }
                         />
                       </div>
@@ -1512,7 +1571,7 @@ export function MetadataResourceEditPage({
                         {inspectorTab === 'source' ? (
                           <SourceEditor
                             value={draft}
-                            onChange={setDraft}
+                            onChange={handleDraftChange}
                             readOnly={formReadOnly}
                           />
                         ) : selection && InspectorComponent ? (
@@ -1522,7 +1581,7 @@ export function MetadataResourceEditPage({
                             draft={draft}
                             selection={selection}
                             onPatch={(patch) =>
-                              setDraft((d) => ({
+                              handleDraftChange((d) => ({
                                 ...(d as Record<string, unknown>),
                                 ...patch,
                               }))
@@ -1537,7 +1596,7 @@ export function MetadataResourceEditPage({
                             schema={schema}
                             form={entry?.form as any}
                             value={draft}
-                            onChange={setDraft}
+                            onChange={handleDraftChange}
                             issues={issues}
                             hiddenFields={config.hiddenFields}
                             fieldOrder={config.fieldOrder}
@@ -1560,7 +1619,7 @@ export function MetadataResourceEditPage({
                 schema={schema}
                 form={entry?.form as any}
                 value={draft}
-                onChange={setDraft}
+                onChange={handleDraftChange}
                 issues={issues}
                 hiddenFields={config.hiddenFields}
                 fieldOrder={config.fieldOrder}

@@ -183,6 +183,7 @@ export {
   MetadataResourceListPage,
   MetadataResourceEditPage,
   MetadataResourceHistoryPage,
+  MetadataDiagnosticsPage,
   MetadataQuickFind,
   MetadataPageShell,
   SchemaForm,
@@ -194,6 +195,7 @@ export {
   useMetadataClient,
   useMetadataTypes,
   useTypesIndex,
+  useGlobalDiagnostics,
   matchesQuery,
 } from './views/metadata-admin';
 export type {
