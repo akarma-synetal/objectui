@@ -148,17 +148,18 @@ export function MetadataResourceEditPage({
   createMode = false,
   embedded = false,
 }: MetadataResourceEditPageProps) {
+  // Tiny dispatcher: a registered Custom EditPage / CreatePage is a
+  // different component type than MetadataResourceEditPageImpl, so React
+  // will unmount/remount when the registry-driven branch wins or loses
+  // (e.g. navigating from `/object/new` → `/object/sales_order`). Doing
+  // the dispatch INSIDE the impl below would leak hooks between
+  // branches and trigger "Rendered more hooks than during the previous
+  // render". We therefore keep this outer dispatcher hook-free apart
+  // from `useParams`, which is unconditional.
   const params = useParams<{ type?: string; name?: string }>();
   const type = typeProp ?? params.type ?? '';
   const name = nameProp ?? params.name ?? '';
-  const navigate = useNavigate();
-  const client = useMetadataClient();
-  const { entries } = useMetadataTypes(client);
-  const entry: RichMetadataTypeEntry | undefined = entries.find((t) => t.type === type);
-  const config = resolveResourceConfig(type, entry);
-  const locale = React.useMemo(() => detectLocale(), []);
 
-  // Custom editor takes over.
   const customConfig = getMetadataResource(type);
   if (customConfig?.EditPage && !createMode) {
     const Custom = customConfig.EditPage;
@@ -168,6 +169,36 @@ export function MetadataResourceEditPage({
     const Custom = customConfig.CreatePage;
     return <Custom type={type} />;
   }
+
+  return (
+    <MetadataResourceEditPageImpl
+      type={type}
+      name={name}
+      createMode={createMode}
+      embedded={embedded}
+    />
+  );
+}
+
+interface MetadataResourceEditPageImplProps {
+  type: string;
+  name: string;
+  createMode: boolean;
+  embedded: boolean;
+}
+
+function MetadataResourceEditPageImpl({
+  type,
+  name,
+  createMode,
+  embedded,
+}: MetadataResourceEditPageImplProps) {
+  const navigate = useNavigate();
+  const client = useMetadataClient();
+  const { entries } = useMetadataTypes(client);
+  const entry: RichMetadataTypeEntry | undefined = entries.find((t) => t.type === type);
+  const config = resolveResourceConfig(type, entry);
+  const locale = React.useMemo(() => detectLocale(), []);
 
   const [layered, setLayered] = React.useState<MetadataLayered<any> | null>(null);
   const [draft, setDraft] = React.useState<Record<string, unknown>>(

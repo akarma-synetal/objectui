@@ -20,6 +20,7 @@
  */
 
 import { registerMetadataResource, anchorByField } from './registry';
+import { ObjectCreatePage } from './previews/ObjectCreatePage';
 
 export function registerBuiltinAnchors(): void {
   // ── EMBEDDED: items stored inside the object body itself ──────────
@@ -236,6 +237,7 @@ export function registerBuiltinAnchors(): void {
     type: 'object',
     iconName: 'database',
     domain: 'data',
+    CreatePage: ObjectCreatePage,
     searchableFields: ['name', 'label', 'pluralLabel', 'description'],
     listColumns: [
       { key: 'name', label: 'Name', width: '24%' },
