@@ -761,6 +761,29 @@ function FieldControl({
         />
       );
     }
+    // Nested object schema with a `properties` map: recurse into a
+    // nested SchemaForm so the user gets real labelled inputs instead
+    // of raw JSON. Covers the auto-inferred `object-fields` widget that
+    // SchemaForm picks for every `type: 'object'` schema, and any custom
+    // widget name that wasn't registered but still describes structured
+    // data.
+    if (
+      schema?.type === 'object' &&
+      schema.properties &&
+      typeof schema.properties === 'object'
+    ) {
+      return (
+        <div className="rounded-md border border-border/40 bg-card/30 p-3">
+          <SchemaForm
+            schema={schema}
+            value={(value as Record<string, unknown>) ?? {}}
+            onChange={(v) => onChange(v)}
+            readOnly={readOnly}
+            widgetContext={widgetContext}
+          />
+        </div>
+      );
+    }
     if (!KNOWN_PASSTHROUGH_WIDGETS.has(widget)) {
       return (
         <div className="space-y-1">
