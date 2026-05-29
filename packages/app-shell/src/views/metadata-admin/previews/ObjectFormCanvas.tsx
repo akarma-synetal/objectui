@@ -25,7 +25,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@object-ui/components';
-import { Plus } from 'lucide-react';
+import { GripVertical, Plus } from 'lucide-react';
 import type { MetadataSelection } from '../preview-registry';
 import {
   readFields,
@@ -103,6 +103,28 @@ export function ObjectFormCanvas({
     [onPatch, onSelectionChange, view],
   );
 
+  // Reorder fields by moving `fromName` to the position of `toName`.
+  // Uses native HTML5 DnD — no library, no animations, just a working
+  // reorder for the most common designer interaction.
+  const reorderField = React.useCallback(
+    (fromName: string, toName: string, position: 'before' | 'after') => {
+      if (!onPatch) return;
+      if (fromName === toName) return;
+      const entries = view.entries.slice();
+      const fromIdx = entries.findIndex((e) => e.name === fromName);
+      if (fromIdx < 0) return;
+      const [moved] = entries.splice(fromIdx, 1);
+      const toIdx = entries.findIndex((e) => e.name === toName);
+      if (toIdx < 0) {
+        entries.push(moved);
+      } else {
+        entries.splice(position === 'before' ? toIdx : toIdx + 1, 0, moved);
+      }
+      onPatch({ fields: writeFields({ shape: view.shape, entries }) });
+    },
+    [onPatch, view],
+  );
+
   // Click anywhere on the empty canvas background to clear selection.
   const handleBgClick = React.useCallback(
     (e: React.MouseEvent) => {
@@ -134,6 +156,7 @@ export function ObjectFormCanvas({
                   selected={entry.name === selectedName}
                   readOnly={readOnly}
                   onClick={() => selectField(entry)}
+                  onReorder={readOnly ? undefined : reorderField}
                 />
               ))}
             </GroupSection>
@@ -178,11 +201,13 @@ function FieldRow({
   selected,
   readOnly,
   onClick,
+  onReorder,
 }: {
   entry: FieldEntry;
   selected: boolean;
   readOnly: boolean;
   onClick: () => void;
+  onReorder?: (fromName: string, toName: string, position: 'before' | 'after') => void;
 }) {
   const def = entry.def;
   const typeStr = typeof def.type === 'string' ? (def.type as string) : 'text';
@@ -201,41 +226,91 @@ function FieldRow({
   const formula = typeof def.formula === 'string' ? (def.formula as string) : undefined;
   const placeholder = typeof def.placeholder === 'string' ? (def.placeholder as string) : undefined;
 
+  const [dropZone, setDropZone] = React.useState<'before' | 'after' | null>(null);
+  const draggable = !!onReorder;
+
+  const handleDragStart = (e: React.DragEvent) => {
+    e.dataTransfer.setData('text/x-objectui-field', entry.name);
+    e.dataTransfer.effectAllowed = 'move';
+  };
+  const handleDragOver = (e: React.DragEvent) => {
+    if (!draggable) return;
+    const types = e.dataTransfer.types;
+    if (!types || !Array.from(types).includes('text/x-objectui-field')) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    const rect = e.currentTarget.getBoundingClientRect();
+    const pos = e.clientY - rect.top < rect.height / 2 ? 'before' : 'after';
+    setDropZone(pos);
+  };
+  const handleDragLeave = () => setDropZone(null);
+  const handleDrop = (e: React.DragEvent) => {
+    if (!onReorder) return;
+    e.preventDefault();
+    const from = e.dataTransfer.getData('text/x-objectui-field');
+    setDropZone(null);
+    if (from && from !== entry.name) {
+      onReorder(from, entry.name, dropZone ?? 'before');
+    }
+  };
+
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={cn(
-        'group w-full text-left rounded-md border bg-card px-3.5 py-2.5 transition-colors',
-        'hover:border-primary/40 hover:bg-card',
-        selected ? 'border-primary ring-2 ring-primary/30 shadow-sm' : 'border-border',
-        readOnly && 'cursor-default',
-      )}
-      aria-pressed={selected}
+    <div
+      className={cn('relative', dropZone === 'before' && 'pt-1.5')}
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
     >
-      <div className="flex items-center justify-between gap-2 mb-1.5">
-        <div className="flex items-center gap-1.5 min-w-0">
-          {Icon && <Icon className="h-3.5 w-3.5 text-muted-foreground shrink-0" />}
-          <span className="text-sm font-medium truncate">{label}</span>
-          {required && <span className="text-destructive text-sm">*</span>}
-          <code className="text-[10px] text-muted-foreground/70 font-mono truncate">{entry.name}</code>
-        </div>
-        <Badge variant="outline" className="text-[10px] shrink-0">
-          {meta?.label ?? typeStr}
-        </Badge>
-      </div>
-      {description && (
-        <div className="text-[11px] text-muted-foreground mb-1.5 line-clamp-1">{description}</div>
+      {dropZone === 'before' && (
+        <div className="absolute left-0 right-0 -top-0.5 h-0.5 bg-primary rounded-full" />
       )}
-      <FieldStub
-        type={typeStr}
-        label={label}
-        placeholder={placeholder}
-        options={options}
-        referenceTo={referenceTo}
-        formula={formula}
-      />
-    </button>
+      <button
+        type="button"
+        onClick={onClick}
+        draggable={draggable}
+        onDragStart={handleDragStart}
+        className={cn(
+          'group w-full text-left rounded-md border bg-card px-3.5 py-2.5 transition-colors',
+          'hover:border-primary/40 hover:bg-card',
+          selected ? 'border-primary ring-2 ring-primary/30 shadow-sm' : 'border-border',
+          readOnly && 'cursor-default',
+          draggable && 'cursor-grab active:cursor-grabbing',
+        )}
+        aria-pressed={selected}
+      >
+        <div className="flex items-center justify-between gap-2 mb-1.5">
+          <div className="flex items-center gap-1.5 min-w-0">
+            {draggable && (
+              <GripVertical
+                className="h-3.5 w-3.5 text-muted-foreground/40 shrink-0 group-hover:text-muted-foreground/80"
+                aria-hidden="true"
+              />
+            )}
+            {Icon && <Icon className="h-3.5 w-3.5 text-muted-foreground shrink-0" />}
+            <span className="text-sm font-medium truncate">{label}</span>
+            {required && <span className="text-destructive text-sm">*</span>}
+            <code className="text-[10px] text-muted-foreground/70 font-mono truncate">{entry.name}</code>
+          </div>
+          <Badge variant="outline" className="text-[10px] shrink-0">
+            {meta?.label ?? typeStr}
+          </Badge>
+        </div>
+        {description && (
+          <div className="text-[11px] text-muted-foreground mb-1.5 line-clamp-1">{description}</div>
+        )}
+        <FieldStub
+          type={typeStr}
+          label={label}
+          placeholder={placeholder}
+          options={options}
+          referenceTo={referenceTo}
+          formula={formula}
+        />
+      </button>
+      {dropZone === 'after' && (
+        <div className="absolute left-0 right-0 -bottom-1 h-0.5 bg-primary rounded-full" />
+      )}
+    </div>
   );
 }
 
