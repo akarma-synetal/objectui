@@ -78,7 +78,7 @@ const LOADERS: Record<string, SchemaLoader> = {
   job: async () => (await import('@objectstack/spec/system')).JobSchema as unknown as ZodLikeSchema,
 
   // security
-  // NOTE: use PermissionSetSchema from /security, NOT PermissionSchema from /kernel —
+  // NOTE: use PermissionSetSchema from /security, NOT PluginPermissionSchema from /kernel —
   // the kernel one is the plugin-sandbox permission ({id,resource,actions}), not the
   // metadata permission set ({name,isProfile,objects,fields}). See
   // packages/spec/src/kernel/metadata-type-schemas.ts for the canonical mapping.
