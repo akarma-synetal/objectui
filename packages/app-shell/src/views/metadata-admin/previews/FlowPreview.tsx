@@ -26,6 +26,7 @@ import {
   Diamond,
   GitBranch,
   Play,
+  Plus,
   Settings2,
   TimerReset,
   Variable,
@@ -34,6 +35,8 @@ import {
 } from 'lucide-react';
 import type { MetadataPreviewProps } from '../preview-registry';
 import { PreviewShell, PreviewMessage, PreviewErrorBoundary } from './PreviewShell';
+import { uniqueId, appendArray } from '../inspectors/_shared';
+import { t as tr } from '../i18n';
 
 interface FlowNode {
   id: string;
@@ -124,15 +127,25 @@ function orderNodes(nodes: FlowNode[], edges: FlowEdge[]): FlowNode[] {
   return out;
 }
 
-export function FlowPreview({ draft, editing, selection, onSelectionChange }: MetadataPreviewProps) {
+export function FlowPreview({ draft, editing, selection, onSelectionChange, onPatch, locale }: MetadataPreviewProps) {
   const d = draft as Record<string, unknown>;
   const nodes: FlowNode[] = Array.isArray(d.nodes) ? (d.nodes as FlowNode[]) : [];
   const edges: FlowEdge[] = Array.isArray(d.edges) ? (d.edges as FlowEdge[]) : [];
   const variables: FlowVariable[] = Array.isArray(d.variables) ? (d.variables as FlowVariable[]) : [];
 
   const designMode = !!(editing && onSelectionChange);
+  const canEdit = designMode && !!onPatch;
   const selectedId = selection && selection.kind === 'node' ? selection.id : null;
   const selectNode = (n: FlowNode) => onSelectionChange?.({ kind: 'node', id: n.id, label: n.label || n.id });
+
+  const handleAddNode = React.useCallback(() => {
+    if (!canEdit) return;
+    const existingIds = nodes.map((n) => n.id).filter(Boolean);
+    const newNode: FlowNode = { id: uniqueId('node', existingIds), type: 'task', label: 'New node' };
+    const next = appendArray(nodes, newNode);
+    onPatch!({ nodes: next });
+    onSelectionChange?.({ kind: 'node', id: newNode.id, label: newNode.label || newNode.id });
+  }, [canEdit, nodes, onPatch, onSelectionChange]);
 
   const ordered = React.useMemo(() => orderNodes(nodes, edges), [nodes, edges]);
   const outgoingByNode = React.useMemo(() => {
@@ -153,8 +166,21 @@ export function FlowPreview({ draft, editing, selection, onSelectionChange }: Me
 
   if (nodes.length === 0) {
     return (
-      <PreviewShell hint="flow">
-        <PreviewMessage>Add nodes in the Form tab to see the flow preview.</PreviewMessage>
+      <PreviewShell hint={`flow${designMode ? ' · design' : ''}`}>
+        {canEdit ? (
+          <div className="p-3">
+            <button
+              type="button"
+              className="inline-flex items-center gap-1 rounded border border-dashed px-3 py-2 text-xs text-muted-foreground hover:bg-muted/30 hover:text-foreground"
+              onClick={handleAddNode}
+            >
+              <Plus className="h-3 w-3" />
+              {tr('engine.inspector.add.node', locale)}
+            </button>
+          </div>
+        ) : (
+          <PreviewMessage>Add nodes in the Form tab to see the flow preview.</PreviewMessage>
+        )}
       </PreviewShell>
     );
   }
@@ -236,6 +262,16 @@ export function FlowPreview({ draft, editing, selection, onSelectionChange }: Me
                 );
               })}
             </ol>
+            {canEdit && (
+              <button
+                type="button"
+                className="inline-flex items-center gap-1 rounded border border-dashed px-3 py-1.5 text-xs text-muted-foreground hover:bg-muted/30 hover:text-foreground"
+                onClick={handleAddNode}
+              >
+                <Plus className="h-3 w-3" />
+                {tr('engine.inspector.add.node', locale)}
+              </button>
+            )}
           </div>
 
           {/* Variables side panel */}

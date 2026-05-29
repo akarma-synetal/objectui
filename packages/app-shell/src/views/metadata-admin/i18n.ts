@@ -264,6 +264,17 @@ const ENGINE_STRINGS_EN: Record<string, string> = {
   'engine.inspector.reportColumn.aggregate': 'Aggregate',
   'engine.inspector.reportColumn.remove': 'Remove column',
   'engine.inspector.reportColumn.outlineLabel': 'Columns',
+  // Add affordances (used by OutlineStrip + custom previews)
+  'engine.inspector.add.widget': 'Add widget',
+  'engine.inspector.add.column': 'Add column',
+  'engine.inspector.add.block': 'Add block',
+  'engine.inspector.add.node': 'Add node',
+  'engine.inspector.add.step': 'Add step',
+  'engine.inspector.add.action': 'Add action',
+  'engine.inspector.add.nav': 'Add nav item',
+  // Reorder buttons (used in InspectorShell header)
+  'engine.inspector.reorder.up': 'Move up',
+  'engine.inspector.reorder.down': 'Move down',
   'engine.edit.overlay': 'overlay',
   'engine.edit.readOnlyBanner': 'Viewing in read-only mode. Click {edit} to make changes.',
   'engine.edit.readOnlyTypeBanner':
@@ -478,6 +489,17 @@ const ENGINE_STRINGS_ZH: Record<string, string> = {
   'engine.inspector.reportColumn.aggregate': '聚合方式',
   'engine.inspector.reportColumn.remove': '删除列',
   'engine.inspector.reportColumn.outlineLabel': '列',
+  // Add affordances
+  'engine.inspector.add.widget': '添加组件',
+  'engine.inspector.add.column': '添加列',
+  'engine.inspector.add.block': '添加区块',
+  'engine.inspector.add.node': '添加节点',
+  'engine.inspector.add.step': '添加步骤',
+  'engine.inspector.add.action': '添加动作',
+  'engine.inspector.add.nav': '添加导航项',
+  // Reorder buttons
+  'engine.inspector.reorder.up': '上移',
+  'engine.inspector.reorder.down': '下移',
   'engine.edit.overlay': '覆盖',
   'engine.edit.readOnlyBanner': '当前为只读模式。点击 {edit} 进行修改。',
   'engine.edit.readOnlyTypeBanner':

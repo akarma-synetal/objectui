@@ -192,3 +192,54 @@ export function spliceArray<T>(arr: T[] | undefined, index: number, replacement:
   else a[index] = replacement;
   return a;
 }
+
+/**
+ * Insert `item` at `index` immutably. Index out of range clamps to
+ * [0, length]. Returns a new array; never mutates input.
+ */
+export function insertArray<T>(arr: T[] | undefined, index: number, item: T): T[] {
+  const a = Array.isArray(arr) ? [...arr] : [];
+  const i = Math.max(0, Math.min(a.length, index));
+  a.splice(i, 0, item);
+  return a;
+}
+
+/**
+ * Append `item` to the end immutably. Convenience wrapper over
+ * insertArray for the common "+ Add at end" case.
+ */
+export function appendArray<T>(arr: T[] | undefined, item: T): T[] {
+  const a = Array.isArray(arr) ? [...arr] : [];
+  a.push(item);
+  return a;
+}
+
+/**
+ * Move an item from `from` to `to` immutably. Out-of-range or no-op
+ * moves return a new copy unchanged. Useful for ↑/↓ reorder buttons.
+ */
+export function moveArray<T>(arr: T[] | undefined, from: number, to: number): T[] {
+  const a = Array.isArray(arr) ? [...arr] : [];
+  if (from < 0 || from >= a.length) return a;
+  const clampedTo = Math.max(0, Math.min(a.length - 1, to));
+  if (clampedTo === from) return a;
+  const [item] = a.splice(from, 1);
+  a.splice(clampedTo, 0, item);
+  return a;
+}
+
+/**
+ * Generate a snake_case id that doesn't collide with `existing`. Used
+ * by Add helpers that need a stable identifier (Flow nodes, App nav,
+ * Dashboard widgets) before the user fills in a meaningful name.
+ *
+ *   uniqueId('node', ['node_1', 'node_3']) -> 'node_2'
+ */
+export function uniqueId(prefix: string, existing: ReadonlyArray<string | undefined | null>): string {
+  const taken = new Set(existing.filter((x): x is string => typeof x === 'string'));
+  for (let i = 1; i < 10_000; i++) {
+    const candidate = `${prefix}_${i}`;
+    if (!taken.has(candidate)) return candidate;
+  }
+  return `${prefix}_${Date.now()}`;
+}

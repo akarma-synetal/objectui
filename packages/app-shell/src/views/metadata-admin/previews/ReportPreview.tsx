@@ -20,7 +20,7 @@ const ReportRenderer = React.lazy(() =>
   import('@object-ui/plugin-report').then((m) => ({ default: m.ReportRenderer })),
 );
 
-export function ReportPreview({ draft, editing, selection, onSelectionChange, locale }: MetadataPreviewProps) {
+export function ReportPreview({ draft, editing, selection, onSelectionChange, onPatch, locale }: MetadataPreviewProps) {
   const adapter = useAdapter();
   // Different fixture sets use different keys for the source object:
   //   • new schema: `object`
@@ -31,11 +31,21 @@ export function ReportPreview({ draft, editing, selection, onSelectionChange, lo
   const visualization = (draft as any).visualization?.type ?? (draft as any).type;
 
   const designMode = !!(editing && onSelectionChange);
+  const canEdit = designMode && !!onPatch;
   const selectedId = selection && selection.kind === 'column' ? selection.id : null;
   const columnEntries = React.useMemo(() => {
     const cols = Array.isArray((draft as any).columns) ? (draft as any).columns as Array<Record<string, unknown>> : [];
     return cols.map((c, i) => ({ id: `columns[${i}]`, label: String(c.label ?? c.field ?? `col ${i + 1}`) }));
   }, [draft]);
+
+  const handleAdd = React.useCallback(() => {
+    if (!canEdit) return;
+    const cols = Array.isArray((draft as any).columns) ? (draft as any).columns as Array<Record<string, unknown>> : [];
+    const newCol = { field: '', label: 'New column' };
+    const next = [...cols, newCol];
+    onPatch!({ columns: next });
+    onSelectionChange?.({ kind: 'column', id: `columns[${next.length - 1}]`, label: newCol.label });
+  }, [canEdit, draft, onPatch, onSelectionChange]);
 
   if (!objectName) {
     return (
@@ -56,6 +66,8 @@ export function ReportPreview({ draft, editing, selection, onSelectionChange, lo
             entries={columnEntries}
             selectedId={selectedId}
             onSelect={(e) => onSelectionChange?.({ kind: 'column', id: e.id, label: e.label })}
+            onAdd={canEdit ? handleAdd : undefined}
+            addLabel={tr('engine.inspector.add.column', locale)}
           />
         )}
         <React.Suspense

@@ -16,11 +16,13 @@
  */
 
 import * as React from 'react';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Plus } from 'lucide-react';
 import type { DashboardWidgetSchema } from '@object-ui/types';
 import { useAdapter } from '../../../providers/AdapterProvider';
 import type { MetadataPreviewProps } from '../preview-registry';
 import { PreviewShell, PreviewErrorBoundary, PreviewMessage } from './PreviewShell';
+import { uniqueId, appendArray } from '../inspectors/_shared';
+import { t as tr } from '../i18n';
 
 const DashboardRenderer = React.lazy(() =>
   import('@object-ui/plugin-dashboard').then((m) => ({ default: m.DashboardRenderer })),
@@ -32,6 +34,7 @@ export function DashboardPreview({
   onPatch,
   selection,
   onSelectionChange,
+  locale,
 }: MetadataPreviewProps) {
   const adapter = useAdapter();
   const widgets: DashboardWidgetSchema[] = Array.isArray((draft as any).widgets)
@@ -42,6 +45,7 @@ export function DashboardPreview({
   // host supplied a selection channel. In read-only / drawer-preview
   // contexts we render the runtime presentation untouched.
   const designMode = !!(editing && onSelectionChange);
+  const canEdit = designMode && !!onPatch;
   const selectedWidgetId =
     selection && selection.kind === 'widget' ? selection.id : null;
 
@@ -70,9 +74,32 @@ export function DashboardPreview({
     [onPatch],
   );
 
+  const handleAddWidget = React.useCallback(() => {
+    if (!canEdit) return;
+    const existingIds = widgets.map((w) => w?.id).filter(Boolean) as string[];
+    const id = uniqueId('widget', existingIds);
+    // `metric` is the simplest widget type — renders without requiring
+    // an object/field selection so the canvas doesn't error out on add.
+    const newWidget = { id, type: 'metric', title: 'New widget' } as unknown as DashboardWidgetSchema;
+    const next = appendArray(widgets, newWidget);
+    onPatch!({ widgets: next });
+    onSelectionChange?.({ kind: 'widget', id, label: 'New widget' });
+  }, [canEdit, widgets, onPatch, onSelectionChange]);
+
+  const addButton = canEdit ? (
+    <button
+      type="button"
+      className="inline-flex items-center gap-1 rounded border border-dashed px-3 py-1.5 text-xs text-muted-foreground hover:bg-muted/30 hover:text-foreground"
+      onClick={handleAddWidget}
+    >
+      <Plus className="h-3 w-3" />
+      {tr('engine.inspector.add.widget', locale)}
+    </button>
+  ) : null;
+
   if (widgets.length === 0) {
     return (
-      <PreviewShell hint="dashboard">
+      <PreviewShell hint={`dashboard${designMode ? ' · design' : ''}`} toolbar={addButton}>
         <PreviewMessage>Add at least one widget to see a preview.</PreviewMessage>
       </PreviewShell>
     );
@@ -83,6 +110,7 @@ export function DashboardPreview({
       hint={`dashboard · ${widgets.length} widget${widgets.length === 1 ? '' : 's'}${
         designMode ? ' · design' : ''
       }`}
+      toolbar={addButton}
     >
       <PreviewErrorBoundary fallbackHint="A widget references an object or field that doesn't resolve.">
         <React.Suspense

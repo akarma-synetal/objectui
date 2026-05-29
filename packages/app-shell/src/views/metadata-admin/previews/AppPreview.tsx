@@ -16,9 +16,11 @@
  */
 
 import * as React from 'react';
-import { Compass, ExternalLink, LayoutDashboard, FileText, Database, BarChart3 } from 'lucide-react';
+import { Compass, ExternalLink, LayoutDashboard, FileText, Database, BarChart3, Plus } from 'lucide-react';
 import type { MetadataPreviewProps } from '../preview-registry';
 import { PreviewShell, PreviewMessage, PreviewErrorBoundary } from './PreviewShell';
+import { appendArray } from '../inspectors/_shared';
+import { t as tr } from '../i18n';
 
 interface NavItem {
   label: string;
@@ -64,7 +66,7 @@ function kindIcon(kind?: NavItem['kind']) {
   }
 }
 
-export function AppPreview({ name, draft, editing, selection, onSelectionChange }: MetadataPreviewProps) {
+export function AppPreview({ name, draft, editing, selection, onSelectionChange, onPatch, locale }: MetadataPreviewProps) {
   const appName = String((draft as any).name ?? name ?? '');
   const label = (draft as any).label ?? appName;
   const landing = (draft as any).landingRoute ?? (draft as any).landing ?? (draft as any).defaultRoute ?? '/';
@@ -82,11 +84,25 @@ export function AppPreview({ name, draft, editing, selection, onSelectionChange 
     return { rootKey: null, navItems: [] };
   }, [draft]);
 
-  const designMode = !!(editing && onSelectionChange && rootKey);
+  // For Add we need a root key even when empty — default to "nav".
+  const addRootKey = rootKey ?? 'nav';
+
+  const designModeAny = !!(editing && onSelectionChange);
+  const designMode = designModeAny && !!rootKey;
+  const canEdit = designModeAny && !!onPatch;
   const selectedId = selection && selection.kind === 'nav' ? selection.id : null;
   const onSelect = designMode
     ? (path: string, item: NavItem) => onSelectionChange!({ kind: 'nav', id: path, label: item.label })
     : undefined;
+
+  const handleAddNav = React.useCallback(() => {
+    if (!canEdit) return;
+    const current = ((draft as any)[addRootKey] as Array<Record<string, unknown>> | undefined) ?? [];
+    const newItem = { label: 'New item', path: '' };
+    const next = appendArray(current, newItem);
+    onPatch!({ [addRootKey]: next });
+    onSelectionChange?.({ kind: 'nav', id: `${addRootKey}[${next.length - 1}]`, label: newItem.label });
+  }, [canEdit, addRootKey, draft, onPatch, onSelectionChange]);
 
   const baseRuntimeUrl = appName ? `/apps/${encodeURIComponent(appName)}/` : null;
 
@@ -118,23 +134,47 @@ export function AppPreview({ name, draft, editing, selection, onSelectionChange 
           </div>
 
           {navItems.length === 0 ? (
-            <PreviewMessage>
-              No top-level nav items. Add <code>nav</code> / <code>tabs</code> entries in the Form tab to populate the app's navigation.
-            </PreviewMessage>
+            <>
+              <PreviewMessage>
+                No top-level nav items. Add <code>nav</code> / <code>tabs</code> entries in the Form tab to populate the app's navigation.
+              </PreviewMessage>
+              {canEdit && (
+                <button
+                  type="button"
+                  className="inline-flex items-center gap-1 rounded border border-dashed px-3 py-1.5 text-xs text-muted-foreground hover:bg-muted/30 hover:text-foreground"
+                  onClick={handleAddNav}
+                >
+                  <Plus className="h-3 w-3" />
+                  {tr('engine.inspector.add.nav', locale)}
+                </button>
+              )}
+            </>
           ) : (
-            <div className="border rounded divide-y">
-              {navItems.map((item, i) => (
-                <NavRow
-                  key={i}
-                  item={item}
-                  appName={appName}
-                  depth={0}
-                  path={`${rootKey}[${i}]`}
-                  onSelect={onSelect}
-                  selectedId={selectedId}
-                />
-              ))}
-            </div>
+            <>
+              <div className="border rounded divide-y">
+                {navItems.map((item, i) => (
+                  <NavRow
+                    key={i}
+                    item={item}
+                    appName={appName}
+                    depth={0}
+                    path={`${rootKey}[${i}]`}
+                    onSelect={onSelect}
+                    selectedId={selectedId}
+                  />
+                ))}
+              </div>
+              {canEdit && (
+                <button
+                  type="button"
+                  className="inline-flex items-center gap-1 rounded border border-dashed px-3 py-1.5 text-xs text-muted-foreground hover:bg-muted/30 hover:text-foreground"
+                  onClick={handleAddNav}
+                >
+                  <Plus className="h-3 w-3" />
+                  {tr('engine.inspector.add.nav', locale)}
+                </button>
+              )}
+            </>
           )}
         </div>
       </PreviewErrorBoundary>

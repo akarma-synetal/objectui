@@ -27,12 +27,15 @@ import {
   Mail,
   Pencil,
   Plug,
+  Plus,
   PlayCircle,
   Power,
   Workflow as WorkflowIcon,
 } from 'lucide-react';
 import type { MetadataPreviewProps } from '../preview-registry';
 import { PreviewShell, PreviewMessage, PreviewErrorBoundary } from './PreviewShell';
+import { appendArray } from '../inspectors/_shared';
+import { t as tr } from '../i18n';
 
 interface WorkflowAction {
   type: string;
@@ -110,7 +113,7 @@ function formatRecipients(a: WorkflowAction): string {
   return '—';
 }
 
-export function WorkflowPreview({ draft, editing, selection, onSelectionChange }: MetadataPreviewProps) {
+export function WorkflowPreview({ draft, editing, selection, onSelectionChange, onPatch, locale }: MetadataPreviewProps) {
   const d = draft as Record<string, unknown>;
   const objectName = String(d.objectName ?? d.object ?? '');
   const triggerType = String(d.triggerType ?? d.trigger ?? '—');
@@ -128,13 +131,36 @@ export function WorkflowPreview({ draft, editing, selection, onSelectionChange }
   const order = d.executionOrder as number | undefined;
 
   const designMode = !!(editing && onSelectionChange);
+  const canEdit = designMode && !!onPatch;
   const selectedId = selection && selection.kind === 'action' ? selection.id : null;
   const selectAction = (a: WorkflowAction, id: string) => onSelectionChange?.({ kind: 'action', id, label: (a as any).name || a.type || id });
 
+  const handleAddAction = React.useCallback(() => {
+    if (!canEdit) return;
+    const newAction: WorkflowAction = { type: 'field_update', name: '' };
+    const next = appendArray(actions, newAction);
+    onPatch!({ actions: next });
+    const id = `actions[${next.length - 1}]`;
+    onSelectionChange?.({ kind: 'action', id, label: newAction.type });
+  }, [canEdit, actions, onPatch, onSelectionChange]);
+
   if (!objectName && actions.length === 0 && timeTriggers.length === 0) {
     return (
-      <PreviewShell hint="workflow">
-        <PreviewMessage>Set the target object and at least one action to see the workflow preview.</PreviewMessage>
+      <PreviewShell hint={`workflow${designMode ? ' · design' : ''}`}>
+        {canEdit ? (
+          <div className="p-3">
+            <button
+              type="button"
+              className="inline-flex items-center gap-1 rounded border border-dashed px-3 py-2 text-xs text-muted-foreground hover:bg-muted/30 hover:text-foreground"
+              onClick={handleAddAction}
+            >
+              <Plus className="h-3 w-3" />
+              {tr('engine.inspector.add.action', locale)}
+            </button>
+          </div>
+        ) : (
+          <PreviewMessage>Set the target object and at least one action to see the workflow preview.</PreviewMessage>
+        )}
       </PreviewShell>
     );
   }
@@ -171,6 +197,16 @@ export function WorkflowPreview({ draft, editing, selection, onSelectionChange }
                   return <ActionRow key={i} action={a} onClick={designMode ? () => selectAction(a, id) : undefined} selected={selectedId === id} />;
                 })}
               </ul>
+            )}
+            {canEdit && (
+              <button
+                type="button"
+                className="inline-flex items-center gap-1 rounded border border-dashed px-3 py-1.5 text-xs text-muted-foreground hover:bg-muted/30 hover:text-foreground"
+                onClick={handleAddAction}
+              >
+                <Plus className="h-3 w-3" />
+                {tr('engine.inspector.add.action', locale)}
+              </button>
             )}
           </Section>
 

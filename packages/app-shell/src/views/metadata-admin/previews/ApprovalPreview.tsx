@@ -32,6 +32,7 @@ import {
   Filter,
   Lock,
   PlayCircle,
+  Plus,
   Power,
   RotateCcw,
   ShieldAlert,
@@ -42,6 +43,8 @@ import {
 } from 'lucide-react';
 import type { MetadataPreviewProps } from '../preview-registry';
 import { PreviewShell, PreviewMessage, PreviewErrorBoundary } from './PreviewShell';
+import { uniqueId, appendArray } from '../inspectors/_shared';
+import { t as tr } from '../i18n';
 
 interface Approver {
   type?: string;
@@ -81,7 +84,7 @@ function celText(c: unknown): string | undefined {
   return undefined;
 }
 
-export function ApprovalPreview({ draft, editing, selection, onSelectionChange }: MetadataPreviewProps) {
+export function ApprovalPreview({ draft, editing, selection, onSelectionChange, onPatch, locale }: MetadataPreviewProps) {
   const d = draft as Record<string, unknown>;
   const object = String(d.object ?? '');
   const active = !!d.active;
@@ -98,16 +101,40 @@ export function ApprovalPreview({ draft, editing, selection, onSelectionChange }
   };
 
   const designMode = !!(editing && onSelectionChange);
+  const canEdit = designMode && !!onPatch;
   const selectedId = selection && selection.kind === 'step' ? selection.id : null;
   const selectStep = (s: ApprovalStep, i: number) => {
     const id = s.name || `steps[${i}]`;
     onSelectionChange?.({ kind: 'step', id, label: s.label || s.name || `Step ${i + 1}` });
   };
 
+  const handleAddStep = React.useCallback(() => {
+    if (!canEdit) return;
+    const existingNames = steps.map((s) => s.name).filter(Boolean) as string[];
+    const name = uniqueId('step', existingNames);
+    const newStep: ApprovalStep = { name, label: 'New step', approvers: [] };
+    const next = appendArray(steps, newStep);
+    onPatch!({ steps: next });
+    onSelectionChange?.({ kind: 'step', id: name, label: newStep.label || name });
+  }, [canEdit, steps, onPatch, onSelectionChange]);
+
   if (steps.length === 0 && !object) {
     return (
-      <PreviewShell hint="approval">
-        <PreviewMessage>Set the target object and at least one step to see the approval chain.</PreviewMessage>
+      <PreviewShell hint={`approval${designMode ? ' · design' : ''}`}>
+        {canEdit ? (
+          <div className="p-3">
+            <button
+              type="button"
+              className="inline-flex items-center gap-1 rounded border border-dashed px-3 py-2 text-xs text-muted-foreground hover:bg-muted/30 hover:text-foreground"
+              onClick={handleAddStep}
+            >
+              <Plus className="h-3 w-3" />
+              {tr('engine.inspector.add.step', locale)}
+            </button>
+          </div>
+        ) : (
+          <PreviewMessage>Set the target object and at least one step to see the approval chain.</PreviewMessage>
+        )}
       </PreviewShell>
     );
   }
@@ -169,6 +196,16 @@ export function ApprovalPreview({ draft, editing, selection, onSelectionChange }
                 </React.Fragment>
               ))}
             </ol>
+          )}
+          {canEdit && (
+            <button
+              type="button"
+              className="inline-flex items-center gap-1 rounded border border-dashed px-3 py-1.5 text-xs text-muted-foreground hover:bg-muted/30 hover:text-foreground"
+              onClick={handleAddStep}
+            >
+              <Plus className="h-3 w-3" />
+              {tr('engine.inspector.add.step', locale)}
+            </button>
           )}
 
           {/* Global hooks */}

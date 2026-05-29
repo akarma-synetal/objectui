@@ -13,6 +13,7 @@
  */
 
 import * as React from 'react';
+import { Plus } from 'lucide-react';
 import { cn } from '@object-ui/components';
 
 export interface OutlineEntry {
@@ -27,13 +28,23 @@ export function OutlineStrip({
   entries,
   selectedId,
   onSelect,
+  onAdd,
+  addLabel,
 }: {
   title: string;
   entries: OutlineEntry[];
   selectedId: string | null;
   onSelect: (entry: OutlineEntry) => void;
+  /**
+   * Optional: render a `+` chip at the end. Clicking it should append
+   * a new item to the underlying array, set selection to the new item,
+   * and let the inspector open immediately.
+   */
+  onAdd?: () => void;
+  /** Tooltip / aria-label for the Add chip. Defaults to "Add". */
+  addLabel?: string;
 }) {
-  if (entries.length === 0) return null;
+  if (entries.length === 0 && !onAdd) return null;
   return (
     <div className="border-b bg-muted/30 px-3 py-2">
       <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1.5">{title}</div>
@@ -51,6 +62,18 @@ export function OutlineStrip({
             {e.label}
           </button>
         ))}
+        {onAdd && (
+          <button
+            type="button"
+            onClick={(ev) => { ev.stopPropagation(); onAdd(); }}
+            className="rounded border border-dashed bg-background px-2 py-0.5 text-xs text-muted-foreground hover:border-primary hover:text-primary cursor-pointer inline-flex items-center gap-1"
+            aria-label={addLabel ?? 'Add'}
+            title={addLabel ?? 'Add'}
+          >
+            <Plus className="h-3 w-3" />
+            <span>{addLabel ?? 'Add'}</span>
+          </button>
+        )}
       </div>
     </div>
   );

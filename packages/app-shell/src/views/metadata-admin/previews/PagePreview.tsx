@@ -18,7 +18,7 @@ import { t as tr } from '../i18n';
 
 interface Block { type?: string; id?: string; children?: Block[]; [k: string]: unknown }
 
-export function PagePreview({ draft, editing, selection, onSelectionChange, locale }: MetadataPreviewProps) {
+export function PagePreview({ draft, editing, selection, onSelectionChange, onPatch, locale }: MetadataPreviewProps) {
   const schema = React.useMemo(() => {
     // SchemaRenderer needs a `type` discriminator. Page schemas may
     // omit it (Page is the implicit type at this metadata level), so
@@ -28,6 +28,7 @@ export function PagePreview({ draft, editing, selection, onSelectionChange, loca
   }, [draft]);
 
   const designMode = !!(editing && onSelectionChange);
+  const canEdit = designMode && !!onPatch;
   const selectedId = selection && selection.kind === 'block' ? selection.id : null;
 
   const blockEntries = React.useMemo(() => {
@@ -35,9 +36,33 @@ export function PagePreview({ draft, editing, selection, onSelectionChange, loca
     return children.map((b, i) => ({ id: `children[${i}]`, label: b.id || b.type || `block ${i + 1}` }));
   }, [draft]);
 
+  const handleAddBlock = React.useCallback(() => {
+    if (!canEdit) return;
+    const children = Array.isArray((draft as any).children) ? (draft as any).children as Block[] : [];
+    // `container` is a safe default that renders an empty box and
+    // accepts further nested children — the user picks the real type
+    // from the inspector immediately after.
+    const newBlock: Block = { type: 'container' };
+    const next = [...children, newBlock];
+    onPatch!({ children: next });
+    onSelectionChange?.({ kind: 'block', id: `children[${next.length - 1}]`, label: newBlock.type });
+  }, [canEdit, draft, onPatch, onSelectionChange]);
+
+  // Empty draft → no preview; but if we're in design mode show an Add
+  // shell so users can author from scratch.
   if (!schema || Object.keys(schema).length <= 1) {
     return (
-      <PreviewShell hint="page">
+      <PreviewShell hint={`page${designMode ? ' · design' : ''}`}>
+        {designMode && (
+          <OutlineStrip
+            title={tr('engine.inspector.pageBlock.outlineLabel', locale)}
+            entries={blockEntries}
+            selectedId={selectedId}
+            onSelect={(e) => onSelectionChange?.({ kind: 'block', id: e.id, label: e.label })}
+            onAdd={canEdit ? handleAddBlock : undefined}
+            addLabel={tr('engine.inspector.add.block', locale)}
+          />
+        )}
         <PreviewMessage>Add components to the page to see a preview.</PreviewMessage>
       </PreviewShell>
     );
@@ -52,6 +77,8 @@ export function PagePreview({ draft, editing, selection, onSelectionChange, loca
             entries={blockEntries}
             selectedId={selectedId}
             onSelect={(e) => onSelectionChange?.({ kind: 'block', id: e.id, label: e.label })}
+            onAdd={canEdit ? handleAddBlock : undefined}
+            addLabel={tr('engine.inspector.add.block', locale)}
           />
         )}
         <div className="min-h-[200px] max-h-[70vh] overflow-auto p-4">

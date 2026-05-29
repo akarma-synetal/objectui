@@ -61,7 +61,7 @@ function resolveObjectName(draft: Record<string, unknown>, variantSchema?: Recor
   return undefined;
 }
 
-export function ViewPreview({ name, draft, editing, selection, onSelectionChange, locale }: MetadataPreviewProps) {
+export function ViewPreview({ name, draft, editing, selection, onSelectionChange, onPatch, locale }: MetadataPreviewProps) {
   const variants = React.useMemo(() => detectVariants(draft), [draft]);
   const objectName = React.useMemo(
     () => resolveObjectName(draft, variants[0]?.schema),
@@ -69,26 +69,49 @@ export function ViewPreview({ name, draft, editing, selection, onSelectionChange
   );
 
   const designMode = !!(editing && onSelectionChange);
+  const canEdit = designMode && !!onPatch;
   const selectedId = selection && selection.kind === 'column' ? selection.id : null;
-  // Enumerate columns across all variants — chip label includes variant prefix.
-  const columnEntries = React.useMemo(() => {
-    const out: Array<{ id: string; label: string }> = [];
-    for (const v of variants) {
-      const cols = Array.isArray((v.schema as any).columns) ? (v.schema as any).columns as Array<Record<string, unknown>> : [];
-      cols.forEach((c, i) => {
-        const lbl = String(c.header ?? c.accessorKey ?? `col ${i + 1}`);
-        out.push({ id: `${v.key}.columns[${i}]`, label: variants.length > 1 ? `${v.key}.${lbl}` : lbl });
-      });
-    }
-    return out;
-  }, [variants]);
-  const outlineNode = designMode && columnEntries.length > 0 ? (
-    <OutlineStrip
-      title={tr('engine.inspector.viewColumn.outlineLabel', locale)}
-      entries={columnEntries}
-      selectedId={selectedId}
-      onSelect={(e) => onSelectionChange?.({ kind: 'column', id: e.id, label: e.label })}
-    />
+
+  const handleAddColumn = React.useCallback(
+    (variantKey: string) => {
+      if (!canEdit) return;
+      const variant = (draft as any)[variantKey] as Record<string, unknown> | undefined;
+      if (!variant) return;
+      const cols = Array.isArray((variant as any).columns) ? (variant as any).columns as Array<Record<string, unknown>> : [];
+      const newCol = { header: 'New column', accessorKey: '' };
+      const next = [...cols, newCol];
+      onPatch!({ [variantKey]: { ...variant, columns: next } });
+      onSelectionChange?.({ kind: 'column', id: `${variantKey}.columns[${next.length - 1}]`, label: newCol.header });
+    },
+    [canEdit, draft, onPatch, onSelectionChange],
+  );
+
+  // Render one OutlineStrip per variant — each gets its own Add button
+  // so users know exactly which variant they are appending to.
+  const outlineNode = designMode ? (
+    <>
+      {variants.map((v) => {
+        const cols = Array.isArray((v.schema as any).columns) ? (v.schema as any).columns as Array<Record<string, unknown>> : [];
+        const entries = cols.map((c, i) => {
+          const lbl = String(c.header ?? c.accessorKey ?? `col ${i + 1}`);
+          return { id: `${v.key}.columns[${i}]`, label: variants.length > 1 ? `${v.key}.${lbl}` : lbl };
+        });
+        if (entries.length === 0 && !canEdit) return null;
+        return (
+          <OutlineStrip
+            key={v.key}
+            title={variants.length > 1
+              ? `${v.key} · ${tr('engine.inspector.viewColumn.outlineLabel', locale)}`
+              : tr('engine.inspector.viewColumn.outlineLabel', locale)}
+            entries={entries}
+            selectedId={selectedId}
+            onSelect={(e) => onSelectionChange?.({ kind: 'column', id: e.id, label: e.label })}
+            onAdd={canEdit ? () => handleAddColumn(v.key) : undefined}
+            addLabel={tr('engine.inspector.add.column', locale)}
+          />
+        );
+      })}
+    </>
   ) : null;
 
   // Compose the listViews map: the draft IS the "default" — surface it as a
