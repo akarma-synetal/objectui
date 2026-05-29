@@ -151,6 +151,14 @@ export function RegisterPage() {
         })}
         loginUrl={loginUrl}
         linkComponent={RouterLink}
+        errorMessages={{
+          USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL: t('auth.register.errors.userExists', {
+            defaultValue: 'An account with this email already exists. Try signing in instead.',
+          }),
+          USER_ALREADY_EXISTS: t('auth.register.errors.userExists', {
+            defaultValue: 'An account with this email already exists. Try signing in instead.',
+          }),
+        }}
         onVerificationRequired={(email) => {
           const sp = new URLSearchParams();
           sp.set('email', email);

@@ -1175,6 +1175,10 @@ const zh = {
       submittingButton: '登录中...',
       noAccountText: '还没有账户？',
       signUpText: '注册',
+      errors: {
+        invalidCredentials: '邮箱或密码错误，请重试。',
+        emailNotVerified: '请先验证您的邮箱后再登录。',
+      },
     },
     register: {
       title: '创建账户',
@@ -1193,6 +1197,9 @@ const zh = {
       submittingButton: '创建中...',
       hasAccountText: '已有账户？',
       signInText: '登录',
+      errors: {
+        userExists: '该邮箱已被注册，请直接登录或更换邮箱。',
+      },
       verifyInbox: {
         title: '请检查您的邮箱',
         description: '我们已向 {{email}} 发送了一封验证邮件，请点击邮件中的链接激活账户。',

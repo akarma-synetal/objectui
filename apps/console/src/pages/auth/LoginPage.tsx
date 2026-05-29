@@ -252,6 +252,14 @@ function LoginFormCard({
       registerUrl={registerUrl}
       forgotPasswordUrl="/forgot-password"
       linkComponent={RouterLink}
+      errorMessages={{
+        INVALID_EMAIL_OR_PASSWORD: t('auth.login.errors.invalidCredentials', {
+          defaultValue: 'Invalid email or password',
+        }),
+        EMAIL_NOT_VERIFIED: t('auth.login.errors.emailNotVerified', {
+          defaultValue: 'Please verify your email address before signing in.',
+        }),
+      }}
       labels={{
         emailLabel: t('auth.login.emailLabel', { defaultValue: 'Email' }),
         emailPlaceholder: t('auth.login.emailPlaceholder', { defaultValue: 'name@example.com' }),

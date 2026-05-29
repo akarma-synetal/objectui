@@ -1175,6 +1175,10 @@ const en = {
       submittingButton: 'Signing in...',
       noAccountText: "Don't have an account?",
       signUpText: 'Sign up',
+      errors: {
+        invalidCredentials: 'Invalid email or password. Please try again.',
+        emailNotVerified: 'Please verify your email address before signing in.',
+      },
     },
     register: {
       title: 'Create an account',
@@ -1193,6 +1197,9 @@ const en = {
       submittingButton: 'Creating account...',
       hasAccountText: 'Already have an account?',
       signInText: 'Sign in',
+      errors: {
+        userExists: 'An account with this email already exists. Try signing in instead.',
+      },
       verifyInbox: {
         title: 'Check your inbox',
         description: "We've sent a verification link to {{email}}. Click the link to activate your account.",

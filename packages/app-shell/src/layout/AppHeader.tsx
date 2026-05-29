@@ -7,7 +7,8 @@
  * Variants:
  *   - `app`  (default when `appName` is present): sidebar trigger + AppSwitcher
  *              + breadcrumb path. Used by `ConsoleLayout` inside `/apps/:appName/*`.
- *   - `home` : no breadcrumb; displays the "ObjectStack" wordmark next to the
+ *   - `home` : no breadcrumb; displays the product wordmark (from
+ *              `getProductName()`, default "ObjectOS") next to the brand
  *              logo. Used by `/home`.
  *   - `orgs` : no breadcrumb; logo + "Organizations" title. Used by the
  *              `/organizations` landing page.
@@ -41,6 +42,7 @@ import {
   Lock,
   LogOut,
   Boxes,
+  Layers,
   Bot,
 } from 'lucide-react';
 
@@ -63,6 +65,7 @@ import { resolveI18nLabel } from '../utils';
 import { getIcon } from '../utils/getIcon';
 import { useMobileViewSwitcher } from './MobileViewSwitcherContext';
 import { useNavigationContext } from '../context/NavigationContext';
+import { getProductName } from '../runtime-config';
 
 function humanizeSlug(slug: string): string {
   return slug.replace(/[-_]/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
@@ -449,14 +452,14 @@ export function AppHeader({
             "flex items-center justify-center h-7 w-7 shrink-0 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-colors",
             isApp && "hidden sm:flex"
           )}
-          title="ObjectStack"
+          title={getProductName()}
         >
-          <Boxes className="h-4 w-4" />
+          <Layers className="h-4 w-4" />
         </Link>
 
         {resolvedVariant === 'home' && (
           <span className="hidden sm:inline ml-2 text-sm font-semibold tracking-tight">
-            ObjectStack
+            {getProductName()}
           </span>
         )}
 

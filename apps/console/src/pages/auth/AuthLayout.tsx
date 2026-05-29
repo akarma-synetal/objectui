@@ -67,7 +67,7 @@ function BrandMark() {
   const productName = getProductName();
   return (
     <div className="flex items-center justify-center gap-2.5 select-none">
-      <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 text-white shadow-sm shadow-violet-500/30">
+      <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 to-indigo-600 text-white shadow-sm shadow-indigo-500/30">
         <svg
           viewBox="0 0 24 24"
           width="18"
@@ -118,7 +118,7 @@ export function AuthLayout({ children, formWidth = 'sm' }: AuthLayoutProps) {
             backgroundSize: '22px 22px',
           }}
         />
-        <div className="absolute left-1/2 top-1/2 h-[34rem] w-[34rem] -translate-x-1/2 -translate-y-1/2 rounded-full bg-gradient-to-br from-indigo-500/10 to-violet-500/10 blur-3xl dark:from-indigo-500/10 dark:to-violet-600/10" />
+        <div className="absolute left-1/2 top-1/2 h-[34rem] w-[34rem] -translate-x-1/2 -translate-y-1/2 rounded-full bg-gradient-to-br from-indigo-500/10 to-indigo-600/10 blur-3xl dark:from-indigo-500/10 dark:to-indigo-600/10" />
       </div>
 
       <div className={cn('flex w-full flex-col gap-5', widthCls)}>
