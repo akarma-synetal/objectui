@@ -23,8 +23,9 @@ import {
 
 interface ReportColumn { field?: string; label?: string; aggregate?: string; [k: string]: unknown }
 
+const NONE = '__none__';
 const AGGREGATES = [
-  { value: '', label: '(none)' },
+  { value: NONE, label: '(none)' },
   { value: 'count', label: 'count' },
   { value: 'sum', label: 'sum' },
   { value: 'avg', label: 'avg' },
@@ -63,7 +64,7 @@ export function ReportColumnInspector({ selection, draft, onPatch, onClearSelect
     >
       <InspectorTextField label={t('engine.inspector.reportColumn.field', locale)} value={col.field ?? ''} onCommit={(v) => patch({ field: v })} disabled={readOnly} mono />
       <InspectorTextField label={t('engine.inspector.reportColumn.label', locale)} value={col.label ?? ''} onCommit={(v) => patch({ label: v })} disabled={readOnly} />
-      <InspectorSelectField label={t('engine.inspector.reportColumn.aggregate', locale)} value={col.aggregate ?? ''} options={AGGREGATES} onCommit={(v) => patch({ aggregate: v || undefined })} disabled={readOnly} />
+      <InspectorSelectField label={t('engine.inspector.reportColumn.aggregate', locale)} value={col.aggregate ?? NONE} options={AGGREGATES} onCommit={(v) => patch({ aggregate: v === NONE ? undefined : v })} disabled={readOnly} />
     </InspectorShell>
   );
 }
