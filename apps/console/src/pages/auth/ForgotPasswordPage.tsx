@@ -9,6 +9,7 @@
 import { Link } from 'react-router-dom';
 import { ForgotPasswordForm } from '@object-ui/auth';
 import { useObjectTranslation } from '@object-ui/i18n';
+import { Card } from '@object-ui/components';
 import { AuthLayout } from './AuthLayout';
 
 function RouterLink(props: { href: string; className?: string; children: React.ReactNode }) {
@@ -23,7 +24,8 @@ export function ForgotPasswordPage() {
   const { t } = useObjectTranslation();
 
   return (
-    <AuthLayout>
+    <AuthLayout formWidth="md">
+      <Card className="border-border/60 px-4 py-8 shadow-sm shadow-primary/5 backdrop-blur supports-[backdrop-filter]:bg-card/95">
       <ForgotPasswordForm
         loginUrl="/login"
         linkComponent={RouterLink}
@@ -32,27 +34,28 @@ export function ForgotPasswordPage() {
           defaultValue: "Enter your email and we'll send you a reset link.",
         })}
         labels={{
-          emailLabel: t('auth.emailLabel', { defaultValue: 'Email' }),
-          emailPlaceholder: t('auth.emailPlaceholder', { defaultValue: 'name@example.com' }),
-          submitButton: t('auth.forgotPassword.submit', { defaultValue: 'Send reset link' }),
-          submittingButton: t('auth.forgotPassword.submitting', {
+          emailLabel: t('auth.forgotPassword.emailLabel', { defaultValue: 'Email' }),
+          emailPlaceholder: t('auth.forgotPassword.emailPlaceholder', { defaultValue: 'name@example.com' }),
+          submitButton: t('auth.forgotPassword.submitButton', { defaultValue: 'Send reset link' }),
+          submittingButton: t('auth.forgotPassword.submittingButton', {
             defaultValue: 'Sending…',
           }),
-          successTitle: t('auth.forgotPassword.checkEmailTitle', {
+          successTitle: t('auth.forgotPassword.successTitle', {
             defaultValue: 'Check your email',
           }),
-          successDescription: t('auth.forgotPassword.checkEmailDescription', {
+          successDescription: t('auth.forgotPassword.successDescription', {
             defaultValue: 'If an account exists, a reset link has been sent.',
           }),
-          backToSignInText: t('auth.forgotPassword.backToSignIn', {
+          backToSignInText: t('auth.forgotPassword.backToSignInText', {
             defaultValue: 'Back to sign in',
           }),
-          rememberPasswordText: t('auth.forgotPassword.rememberPassword', {
+          rememberPasswordText: t('auth.forgotPassword.rememberPasswordText', {
             defaultValue: 'Remember your password?',
           }),
-          signInText: t('auth.forgotPassword.signIn', { defaultValue: 'Sign in' }),
+          signInText: t('auth.forgotPassword.signInText', { defaultValue: 'Sign in' }),
         }}
       />
+      </Card>
     </AuthLayout>
   );
 }

@@ -20,11 +20,27 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth, LoginForm } from '@object-ui/auth';
 import { useObjectTranslation } from '@object-ui/i18n';
+import { Card } from '@object-ui/components';
 import { AuthLayout } from './AuthLayout';
 
 /** Restrict the post-login redirect to same-origin paths. */
 function isSafeRedirect(target: string | null): target is string {
   return !!target && target.startsWith('/') && !target.startsWith('//');
+}
+
+/**
+ * Prefix a router-relative path with the Console basename for full-page
+ * navigations. `window.location.assign` bypasses React Router's `basename`,
+ * so a path produced by the router (e.g. `?redirect=/settings` — already
+ * basename-stripped) or a literal like `/organizations` would resolve to
+ * `http://host/settings`, missing the `/_console` mount and 404-ing.
+ * Paths already targeting another absolute SPA mount (`/_studio`,
+ * `/_account`, …) pass through untouched.
+ */
+function withConsoleBase(path: string): string {
+  if (path.startsWith('/_')) return path;
+  const base = (import.meta.env.BASE_URL || '/').replace(/\/$/, '');
+  return base + (path.startsWith('/') ? path : `/${path}`);
 }
 
 function RouterLink(props: { href: string; className?: string; children: React.ReactNode }) {
@@ -109,17 +125,17 @@ export function LoginPage() {
       if (organizations.length === 0) {
         // No org yet — let the Console pick (CreateWorkspaceDialog or the
         // org list, depending on `multiOrgEnabled`). Send to root.
-        window.location.assign(isSafeRedirect(redirect) ? redirect : '/');
+        window.location.assign(withConsoleBase(isSafeRedirect(redirect) ? redirect : '/'));
         return;
       }
       // Multiple orgs, no active selection — surface the picker.
-      window.location.assign('/organizations');
+      window.location.assign(withConsoleBase('/organizations'));
       return;
     }
 
     if (autoSelectingOrg) return;
 
-    window.location.assign(isSafeRedirect(redirect) ? redirect : '/');
+    window.location.assign(withConsoleBase(isSafeRedirect(redirect) ? redirect : '/'));
   }, [
     user,
     activeOrganization,
@@ -148,7 +164,7 @@ export function LoginPage() {
     : '/register';
 
   return (
-    <AuthLayout>
+    <AuthLayout formWidth="md">
       <div className="flex flex-col gap-6">
         {ssoTarget ? (
           <div
@@ -164,10 +180,12 @@ export function LoginPage() {
             </span>
           </div>
         ) : null}
-        <LoginFormCard
-          registerUrl={signUpDisabled ? undefined : registerUrl}
-          redirect={redirect}
-        />
+        <Card className="border-border/60 px-4 py-8 shadow-sm shadow-primary/5 backdrop-blur supports-[backdrop-filter]:bg-card/95">
+          <LoginFormCard
+            registerUrl={signUpDisabled ? undefined : registerUrl}
+            redirect={redirect}
+          />
+        </Card>
       </div>
     </AuthLayout>
   );
@@ -220,14 +238,15 @@ function LoginFormCard({
       forgotPasswordUrl="/forgot-password"
       linkComponent={RouterLink}
       labels={{
-        emailLabel: t('auth.emailLabel', { defaultValue: 'Email' }),
-        emailPlaceholder: t('auth.emailPlaceholder', { defaultValue: 'name@example.com' }),
-        passwordLabel: t('auth.passwordLabel', { defaultValue: 'Password' }),
-        forgotPasswordText: t('auth.login.forgotPassword', { defaultValue: 'Forgot password?' }),
-        submitButton: t('auth.login.submit', { defaultValue: 'Sign In' }),
-        submittingButton: t('auth.login.submitting', { defaultValue: 'Signing in…' }),
-        noAccountText: t('auth.login.noAccount', { defaultValue: "Don't have an account?" }),
-        signUpText: t('auth.login.signUp', { defaultValue: 'Sign up' }),
+        emailLabel: t('auth.login.emailLabel', { defaultValue: 'Email' }),
+        emailPlaceholder: t('auth.login.emailPlaceholder', { defaultValue: 'name@example.com' }),
+        passwordLabel: t('auth.login.passwordLabel', { defaultValue: 'Password' }),
+        passwordPlaceholder: t('auth.login.passwordPlaceholder', { defaultValue: 'Enter your password' }),
+        forgotPasswordText: t('auth.login.forgotPasswordText', { defaultValue: 'Forgot password?' }),
+        submitButton: t('auth.login.submitButton', { defaultValue: 'Sign In' }),
+        submittingButton: t('auth.login.submittingButton', { defaultValue: 'Signing in…' }),
+        noAccountText: t('auth.login.noAccountText', { defaultValue: "Don't have an account?" }),
+        signUpText: t('auth.login.signUpText', { defaultValue: 'Sign up' }),
       }}
     />
   );

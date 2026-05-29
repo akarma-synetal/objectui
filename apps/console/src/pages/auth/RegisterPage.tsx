@@ -17,10 +17,19 @@ import { useEffect, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth, RegisterForm } from '@object-ui/auth';
 import { useObjectTranslation } from '@object-ui/i18n';
+import { Card } from '@object-ui/components';
 import { AuthLayout } from './AuthLayout';
 
 function isSafeRedirect(target: string | null): target is string {
   return !!target && target.startsWith('/') && !target.startsWith('//');
+}
+
+/** Prefix a router-relative path with the Console basename for full-page
+ * navigations (see LoginPage for the detailed rationale). */
+function withConsoleBase(path: string): string {
+  if (path.startsWith('/_')) return path;
+  const base = (import.meta.env.BASE_URL || '/').replace(/\/$/, '');
+  return base + (path.startsWith('/') ? path : `/${path}`);
 }
 
 function RouterLink(props: { href: string; className?: string; children: React.ReactNode }) {
@@ -92,15 +101,15 @@ export function RegisterPage() {
         return;
       }
       if (organizations.length === 0) {
-        window.location.assign(isSafeRedirect(redirect) ? redirect : '/');
+        window.location.assign(withConsoleBase(isSafeRedirect(redirect) ? redirect : '/'));
         return;
       }
-      window.location.assign('/organizations');
+      window.location.assign(withConsoleBase('/organizations'));
       return;
     }
 
     if (autoSelectingOrg) return;
-    window.location.assign(isSafeRedirect(redirect) ? redirect : '/');
+    window.location.assign(withConsoleBase(isSafeRedirect(redirect) ? redirect : '/'));
   }, [
     user,
     activeOrganization,
@@ -124,7 +133,8 @@ export function RegisterPage() {
   const loginUrl = redirect ? `/login?redirect=${encodeURIComponent(redirect)}` : '/login';
 
   return (
-    <AuthLayout>
+    <AuthLayout formWidth="md">
+      <Card className="border-border/60 px-4 py-8 shadow-sm shadow-primary/5 backdrop-blur supports-[backdrop-filter]:bg-card/95">
       <RegisterForm
         title={t('auth.register.title', { defaultValue: 'Create your account' })}
         description={t('auth.register.description', {
@@ -140,18 +150,32 @@ export function RegisterPage() {
         }}
         labels={{
           nameLabel: t('auth.register.nameLabel', { defaultValue: 'Name' }),
-          emailLabel: t('auth.emailLabel', { defaultValue: 'Email' }),
-          emailPlaceholder: t('auth.emailPlaceholder', { defaultValue: 'name@example.com' }),
-          passwordLabel: t('auth.passwordLabel', { defaultValue: 'Password' }),
-          confirmPasswordLabel: t('auth.register.confirmPassword', {
+          namePlaceholder: t('auth.register.namePlaceholder', { defaultValue: 'John Doe' }),
+          emailLabel: t('auth.register.emailLabel', { defaultValue: 'Email' }),
+          emailPlaceholder: t('auth.register.emailPlaceholder', { defaultValue: 'name@example.com' }),
+          passwordLabel: t('auth.register.passwordLabel', { defaultValue: 'Password' }),
+          passwordPlaceholder: t('auth.register.passwordPlaceholder', {
+            defaultValue: 'Create a password (min. 8 characters)',
+          }),
+          confirmPasswordLabel: t('auth.register.confirmPasswordLabel', {
             defaultValue: 'Confirm password',
           }),
-          submitButton: t('auth.register.submit', { defaultValue: 'Create account' }),
-          submittingButton: t('auth.register.submitting', { defaultValue: 'Creating account…' }),
-          hasAccountText: t('auth.register.hasAccount', { defaultValue: 'Already have an account?' }),
-          signInText: t('auth.register.signIn', { defaultValue: 'Sign in' }),
+          confirmPasswordPlaceholder: t('auth.register.confirmPasswordPlaceholder', {
+            defaultValue: 'Confirm your password',
+          }),
+          passwordMismatchError: t('auth.register.passwordMismatchError', {
+            defaultValue: 'Passwords do not match',
+          }),
+          passwordTooShortError: t('auth.register.passwordTooShortError', {
+            defaultValue: 'Password must be at least 8 characters',
+          }),
+          submitButton: t('auth.register.submitButton', { defaultValue: 'Create account' }),
+          submittingButton: t('auth.register.submittingButton', { defaultValue: 'Creating account…' }),
+          hasAccountText: t('auth.register.hasAccountText', { defaultValue: 'Already have an account?' }),
+          signInText: t('auth.register.signInText', { defaultValue: 'Sign in' }),
         }}
       />
+      </Card>
     </AuthLayout>
   );
 }
