@@ -1,18 +1,19 @@
 /**
  * ObjectStack Console — fork-ready runtime console template.
  *
- * Auth UI lives in the Account SPA at `/_account/*`. This file owns the
- * console routing tree only — sign-in / sign-up / forgot-password URLs are
- * shimmed to hard-redirect to Account, and the AuthGuard fallback bounces
- * unauthenticated visitors there too (preserving `?redirect=...`).
+ * Owns the full route tree including unauthenticated auth surfaces
+ * (login, register, forgot/reset password, verify-email, setup,
+ * oauth/consent, auth/device, accept-invitation). The legacy Account
+ * SPA at `/_account/*` is being retired — these routes now live here
+ * in the Console SPA so a single bundle covers the whole experience.
  *
- * Console-specific extras (system / settings / legacy metadata editor) are
- * injected via {@link AppContent}, which wraps `DefaultAppContent` with
- * extra `<Route>` children.
+ * Console-specific extras (system / settings / legacy metadata editor)
+ * are injected via {@link AppContent}, which wraps `DefaultAppContent`
+ * with extra `<Route>` children.
  */
 
-import { useEffect, type ReactNode } from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { type ReactNode } from 'react';
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider, AuthGuard, useAuth } from '@object-ui/auth';
 import {
   ConsoleShell,
@@ -29,17 +30,21 @@ import {
 } from '@object-ui/app-shell';
 
 import { AppContent } from './AppContent';
-import { AccountLoginRedirect } from './components/AccountLoginRedirect';
 import { CloudAwareRootRedirect } from './components/CloudAwareRootRedirect';
 import { FormPage } from './components/FormPage';
 import { MetadataHmrReloader } from './components/MetadataHmrReloader';
 import { SignOutOverlay } from './components/SignOutOverlay';
 import SharedRecordPage from './pages/SharedRecordPage';
-import {
-  gotoAccountLogin,
-  gotoAccountRegister,
-  gotoAccountForgotPassword,
-} from './lib/auth-redirect';
+import { LoginPage } from './pages/auth/LoginPage';
+import { RegisterPage } from './pages/auth/RegisterPage';
+import { ForgotPasswordPage } from './pages/auth/ForgotPasswordPage';
+import { ResetPasswordPage } from './pages/auth/ResetPasswordPage';
+import { VerifyEmailPage } from './pages/auth/VerifyEmailPage';
+import { VerifyEmailPromptPage } from './pages/auth/VerifyEmailPromptPage';
+import { SetupPage } from './pages/auth/SetupPage';
+import { OAuthConsentPage } from './pages/auth/OAuthConsentPage';
+import { DeviceAuthPage } from './pages/auth/DeviceAuthPage';
+import { AcceptInvitationPage } from './pages/auth/AcceptInvitationPage';
 
 const AUTH_URL = `${import.meta.env.VITE_SERVER_URL || ''}/api/v1/auth`;
 
@@ -75,9 +80,17 @@ const BASENAME = resolveBasename();
 
 /**
  * ProtectedRoute — replaces app-shell's AuthenticatedRoute. Same composition
- * (AuthGuard + ConnectedShell + optional RequireOrganization) but with an
- * external-redirect fallback instead of `<Navigate to="/login" />`.
+ * (AuthGuard + ConnectedShell + optional RequireOrganization) but redirects
+ * unauthenticated visitors to the Console-hosted /login (preserving the
+ * original Console path as `?redirect=…`).
  */
+function LoginRedirect() {
+  const location = useLocation();
+  const redirect = location.pathname + location.search;
+  const search = redirect && redirect !== '/' ? `?redirect=${encodeURIComponent(redirect)}` : '';
+  return <Navigate to={`/login${search}`} replace />;
+}
+
 function ProtectedRoute({
   children,
   requireOrganization = true,
@@ -86,36 +99,12 @@ function ProtectedRoute({
   requireOrganization?: boolean;
 }) {
   return (
-    <AuthGuard fallback={<AccountLoginRedirect />} loadingFallback={<LoadingFallback />}>
+    <AuthGuard fallback={<LoginRedirect />} loadingFallback={<LoadingFallback />}>
       <ConnectedShell>
         {requireOrganization ? <RequireOrganization>{children}</RequireOrganization> : children}
       </ConnectedShell>
     </AuthGuard>
   );
-}
-
-/** Redirect-only route shim: `/login` → Account, preserving any `?redirect=`. */
-function LoginRedirect() {
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    gotoAccountLogin(params.get('redirect') ?? undefined);
-  }, []);
-  return <LoadingFallback />;
-}
-
-function RegisterRedirect() {
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    gotoAccountRegister(params.get('redirect') ?? undefined);
-  }, []);
-  return <LoadingFallback />;
-}
-
-function ForgotPasswordRedirect() {
-  useEffect(() => {
-    gotoAccountForgotPassword();
-  }, []);
-  return <LoadingFallback />;
 }
 
 /** Wraps `DefaultHomeLayout` so the FAB gets the signed-in user id. */
@@ -137,9 +126,24 @@ export function App() {
       <BrowserRouter basename={BASENAME}>
         <ConsoleShell>
           <Routes>
-            <Route path="/login" element={<LoginRedirect />} />
-            <Route path="/register" element={<RegisterRedirect />} />
-            <Route path="/forgot-password" element={<ForgotPasswordRedirect />} />
+            {/*
+              * Public auth surfaces — render OUTSIDE ProtectedRoute so
+              * unauthenticated visitors can reach them. Each page handles
+              * its own redirect-once-authenticated logic.
+              */}
+            <Route path="/login" element={<LoginPage />} />
+            <Route path="/register" element={<RegisterPage />} />
+            <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+            <Route path="/reset-password" element={<ResetPasswordPage />} />
+            <Route path="/verify-email" element={<VerifyEmailPage />} />
+            <Route path="/verify-email-prompt" element={<VerifyEmailPromptPage />} />
+            <Route path="/setup" element={<SetupPage />} />
+            <Route path="/oauth/consent" element={<OAuthConsentPage />} />
+            <Route path="/auth/device" element={<DeviceAuthPage />} />
+            <Route
+              path="/accept-invitation/:invitationId"
+              element={<AcceptInvitationPage />}
+            />
             {/*
               * Public anonymous form — rendered OUTSIDE ProtectedRoute so
               * unauthenticated visitors can submit. The slug maps 1:1 to a

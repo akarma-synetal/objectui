@@ -1,0 +1,264 @@
+/**
+ * DeviceAuthPage — /auth/device input + approval surface.
+ *
+ * Ported from `framework/apps/account/src/routes/auth.device.tsx`.
+ * Renders the user-code entry box (when missing from the URL) or the
+ * approve/deny prompt once the user is signed in. Talks to better-auth's
+ * device-authorization endpoints directly via fetch.
+ */
+
+import { useState } from 'react';
+import { Navigate, useNavigate, useSearchParams } from 'react-router-dom';
+import { CheckCircle2, GalleryVerticalEnd } from 'lucide-react';
+import { toast } from 'sonner';
+import { useAuth } from '@object-ui/auth';
+import { useObjectTranslation } from '@object-ui/i18n';
+import {
+  Button,
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@object-ui/components';
+
+const AUTH_BASE = `${import.meta.env.VITE_SERVER_URL || ''}/api/v1/auth`;
+
+function PageShell({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="flex min-h-svh w-full flex-col items-center justify-center gap-6 bg-muted p-6 md:p-10">
+      <div className="flex w-full max-w-sm flex-col gap-6">
+        <a href="#" className="flex items-center gap-2 self-center font-medium">
+          <div className="flex size-6 items-center justify-center rounded-md bg-primary text-primary-foreground">
+            <GalleryVerticalEnd className="size-4" />
+          </div>
+          ObjectStack
+        </a>
+        <div className="flex flex-col gap-6">{children}</div>
+      </div>
+    </div>
+  );
+}
+
+export function DeviceAuthPage() {
+  const { t } = useObjectTranslation();
+  const [params] = useSearchParams();
+  const code = params.get('user_code') ?? params.get('code') ?? '';
+  const { user, isLoading } = useAuth();
+  const navigate = useNavigate();
+
+  const [submitting, setSubmitting] = useState(false);
+  const [denying, setDenying] = useState(false);
+  const [approved, setApproved] = useState(false);
+  const [denied, setDenied] = useState(false);
+  const [error, setError] = useState('');
+
+  if (!code) {
+    return (
+      <PageShell>
+        <Card>
+          <CardHeader className="text-center">
+            <CardTitle>
+              {t('auth.device.invalidTitle', { defaultValue: 'Invalid device link' })}
+            </CardTitle>
+            <CardDescription>
+              {t('auth.device.invalidDescription', {
+                defaultValue: 'No device code was provided in the URL.',
+              })}
+            </CardDescription>
+          </CardHeader>
+        </Card>
+      </PageShell>
+    );
+  }
+
+  if (isLoading) {
+    return (
+      <PageShell>
+        <Card>
+          <CardHeader className="text-center">
+            <CardDescription>
+              {t('auth.device.loading', { defaultValue: 'Loading…' })}
+            </CardDescription>
+          </CardHeader>
+        </Card>
+      </PageShell>
+    );
+  }
+
+  if (!user) {
+    return (
+      <Navigate
+        to={`/login?redirect=${encodeURIComponent(
+          `/auth/device?user_code=${encodeURIComponent(code)}`,
+        )}`}
+        replace
+      />
+    );
+  }
+
+  if (approved) {
+    return (
+      <PageShell>
+        <Card>
+          <CardHeader className="text-center">
+            <CheckCircle2 className="mx-auto mb-2 h-10 w-10 text-green-500" />
+            <CardTitle>
+              {t('auth.device.approvedTitle', { defaultValue: 'Device authorized' })}
+            </CardTitle>
+            <CardDescription>
+              {t('auth.device.approvedDescription', {
+                defaultValue: 'You can return to the device — it should sign in shortly.',
+              })}
+            </CardDescription>
+          </CardHeader>
+        </Card>
+      </PageShell>
+    );
+  }
+
+  if (denied) {
+    return (
+      <PageShell>
+        <Card>
+          <CardHeader className="text-center">
+            <CardTitle>
+              {t('auth.device.deniedTitle', { defaultValue: 'Access denied' })}
+            </CardTitle>
+            <CardDescription>
+              {t('auth.device.deniedDescription', {
+                defaultValue: 'The device will not be granted access.',
+              })}
+            </CardDescription>
+          </CardHeader>
+        </Card>
+      </PageShell>
+    );
+  }
+
+  const handleApprove = async () => {
+    setError('');
+    setSubmitting(true);
+    try {
+      const res = await fetch(`${AUTH_BASE}/device/approve`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ userCode: code }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(
+          (data as { message?: string; error?: { message?: string } })?.message ??
+            (data as { error?: { message?: string } })?.error?.message ??
+            t('auth.device.approveFailed', {
+              defaultValue: 'Approval failed',
+            }),
+        );
+      }
+      setApproved(true);
+      toast.success(
+        t('auth.device.approveSuccess', { defaultValue: 'Device authorized' }),
+        {
+          description: t('auth.device.approveSuccessDescription', {
+            defaultValue: 'You can close this window.',
+          }),
+        },
+      );
+    } catch (err) {
+      setError(
+        (err as Error)?.message ??
+          t('auth.device.approveFailed', { defaultValue: 'Approval failed' }),
+      );
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleDeny = async () => {
+    setError('');
+    setDenying(true);
+    try {
+      await fetch(`${AUTH_BASE}/device/deny`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ userCode: code }),
+      });
+      setDenied(true);
+    } catch (err) {
+      setError(
+        (err as Error)?.message ??
+          t('auth.device.denyFailed', { defaultValue: 'Failed to deny request' }),
+      );
+    } finally {
+      setDenying(false);
+    }
+  };
+
+  return (
+    <PageShell>
+      <Card>
+        <CardHeader className="text-center">
+          <CardTitle>
+            {t('auth.device.title', { defaultValue: 'Authorize new device' })}
+          </CardTitle>
+          <CardDescription>
+            {t('auth.device.subtitle', {
+              email: user.email,
+              defaultValue: `Approve this device to sign in as ${user.email}.`,
+            })}
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="rounded-md border bg-background px-4 py-3 text-center">
+            <p className="mb-1 text-xs text-muted-foreground">
+              {t('auth.device.userCodeLabel', { defaultValue: 'Device code' })}
+            </p>
+            <p className="font-mono text-lg font-semibold tracking-widest">{code}</p>
+          </div>
+
+          <div className="space-y-4">
+            <p className="text-center text-sm text-muted-foreground">
+              {t('auth.device.loggedInAs', {
+                email: user.email,
+                defaultValue: `Signed in as ${user.email}`,
+              })}
+            </p>
+            {error && <p className="text-center text-sm text-destructive">{error}</p>}
+            <Button
+              onClick={handleApprove}
+              className="w-full"
+              disabled={submitting || denying}
+            >
+              {submitting
+                ? t('auth.device.approving', { defaultValue: 'Approving…' })
+                : t('auth.device.approve', { defaultValue: 'Approve device' })}
+            </Button>
+            <Button
+              onClick={handleDeny}
+              variant="outline"
+              className="w-full"
+              disabled={submitting || denying}
+            >
+              {denying
+                ? t('auth.device.denying', { defaultValue: 'Denying…' })
+                : t('auth.device.deny', { defaultValue: 'Deny request' })}
+            </Button>
+            <div className="text-center">
+              <button
+                type="button"
+                className="text-sm text-muted-foreground underline-offset-4 hover:underline"
+                onClick={() => navigate('/')}
+              >
+                {t('auth.device.cancel', { defaultValue: 'Cancel' })}
+              </button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    </PageShell>
+  );
+}
+
+export default DeviceAuthPage;
