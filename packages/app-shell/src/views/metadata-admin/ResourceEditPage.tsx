@@ -40,6 +40,8 @@ import {
   Maximize2,
   Minimize2,
   MousePointer2,
+  SlidersHorizontal,
+  FileCode2,
 } from 'lucide-react';
 import { Button } from '@object-ui/components';
 import { Badge } from '@object-ui/components';
@@ -262,6 +264,13 @@ export function MetadataResourceEditPage({
 
   const [openSheet, setOpenSheet] =
     React.useState<'layers' | 'references' | 'related' | 'history' | null>(null);
+
+  // Inspector tabs: properties form vs raw JSON source view. Source view
+  // is for power users who need to edit fields the form doesn't expose
+  // (e.g. nested arrays). Tracked locally — not persisted between
+  // navigations since most users live in the form 99% of the time.
+  const [inspectorTab, setInspectorTab] =
+    React.useState<'properties' | 'source'>('properties');
 
   // When the References sheet opens, lazy-load the data (idempotent).
   // Also keep the URL `?tab=` query in sync so deep-links round-trip.
@@ -625,146 +634,153 @@ export function MetadataResourceEditPage({
   // sheets (Layers / References / Related). Anything else is ignored —
   // the main work area is always the form+preview.
 
+  // Action group rendered identically in either the PageShell header
+  // (form-only types) or the canvas toolbar (types with a PreviewComponent).
+  // Centralising it lets us merge the two top bars into one when a
+  // designer is present, saving a full row of vertical chrome.
+  const actionsNode = (
+    <>
+      {/* Info sheets — icon-only group, mirrors the canvas
+          toolbar style (small ghost icons + tooltip). Keeps
+          the primary edit / save actions visually dominant. */}
+      {(!createMode || hasAnchors) && (
+        <div className="flex items-center rounded-md border bg-background p-0.5">
+          {!createMode && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setOpenSheet('layers')}
+              title={t('engine.edit.layers', locale)}
+              className="h-7 w-7 p-0 relative"
+            >
+              <Layers3 className="h-3.5 w-3.5" />
+              {layered?.overlay && (() => {
+                const n = countOverlaidFields(layered.code, layered.effective);
+                return n > 0 ? (
+                  <span
+                    className="absolute -top-1 -right-1 min-w-[14px] h-[14px] px-1 rounded-full bg-emerald-600 text-emerald-50 text-[9px] leading-[14px] text-center font-medium"
+                    title={t('engine.layers.diff', locale)}
+                  >
+                    {n}
+                  </span>
+                ) : null;
+              })()}
+            </Button>
+          )}
+          {!createMode && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setOpenSheet('references')}
+              title={t('engine.edit.references', locale)}
+              className="h-7 w-7 p-0 relative"
+            >
+              <Link2 className="h-3.5 w-3.5" />
+              {refs && refs.length > 0 && (
+                <span className="absolute -top-1 -right-1 min-w-[14px] h-[14px] px-1 rounded-full bg-muted text-foreground text-[9px] leading-[14px] text-center font-medium border">
+                  {refs.length}
+                </span>
+              )}
+            </Button>
+          )}
+          {hasAnchors && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setOpenSheet('related')}
+              title={t('engine.edit.related', locale)}
+              className="h-7 w-7 p-0"
+            >
+              <Boxes className="h-3.5 w-3.5" />
+            </Button>
+          )}
+          {!createMode && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setOpenSheet('history')}
+              title={t('engine.edit.history', locale)}
+              className="h-7 w-7 p-0"
+            >
+              <History className="h-3.5 w-3.5" />
+            </Button>
+          )}
+        </div>
+      )}
+      {!createMode && canWrite && layered?.overlay && (
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={doReset}
+          disabled={saving}
+          title={
+            isArtifactItem
+              ? t('engine.edit.reset', locale)
+              : t('engine.edit.delete', locale)
+          }
+          className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive"
+        >
+          {isArtifactItem ? (
+            <RotateCcw className="h-3.5 w-3.5" />
+          ) : (
+            <Trash2 className="h-3.5 w-3.5" />
+          )}
+        </Button>
+      )}
+      {/* Edit-mode toggle. Three states:
+          - View (default, !editing & !createMode): show "Edit".
+          - Editing: show Cancel + Save.
+          - createMode: always editing, show Save only (Cancel would
+            discard the whole create flow which is awkward; users can
+            navigate away to cancel).
+          Truly read-only types (no allowOrgOverride) skip all of this. */}
+      {canWrite && !createMode && !editing && (
+        <Button size="sm" onClick={() => setEditing(true)} className="h-7">
+          <Pencil className="h-3.5 w-3.5 mr-1" />
+          {t('engine.edit.edit', locale)}
+        </Button>
+      )}
+      {canWrite && !createMode && editing && (
+        <Button variant="ghost" size="sm" onClick={doCancelEdit} disabled={saving} className="h-7">
+          <X className="h-3.5 w-3.5 mr-1" />
+          {t('engine.cancel', locale)}
+        </Button>
+      )}
+      {canWrite && (editing || createMode) && (
+        <Button
+          size="sm"
+          onClick={() => doSave(false)}
+          disabled={saving || (!createMode && !isDirty)}
+          className="h-7"
+          title={
+            !createMode && !isDirty
+              ? t('engine.edit.noChanges', locale)
+              : undefined
+          }
+        >
+          {saving ? (
+            <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />
+          ) : (
+            <Save className="h-3.5 w-3.5 mr-1" />
+          )}
+          {t('engine.edit.save', locale)}
+          {isDirty && !saving && (
+            <span
+              aria-hidden
+              className="ml-1.5 inline-block h-1.5 w-1.5 rounded-full bg-amber-300"
+            />
+          )}
+        </Button>
+      )}
+    </>
+  );
+
   return (
     <PageShell
       entry={entry ?? { type, label: type }}
       itemName={createMode ? '(new)' : name}
       subtitle={createMode ? t('engine.edit.createNew', locale) : undefined}
-      actions={
-        <>
-          {/* Info sheets — icon-only group, mirrors the canvas
-              toolbar style (small ghost icons + tooltip). Keeps
-              the primary edit / save actions visually dominant. */}
-          {(!createMode || hasAnchors) && (
-            <div className="flex items-center rounded-md border bg-background p-0.5">
-              {!createMode && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setOpenSheet('layers')}
-                  title={t('engine.edit.layers', locale)}
-                  className="h-7 w-7 p-0 relative"
-                >
-                  <Layers3 className="h-3.5 w-3.5" />
-                  {layered?.overlay && (() => {
-                    const n = countOverlaidFields(layered.code, layered.effective);
-                    return n > 0 ? (
-                      <span
-                        className="absolute -top-1 -right-1 min-w-[14px] h-[14px] px-1 rounded-full bg-emerald-600 text-emerald-50 text-[9px] leading-[14px] text-center font-medium"
-                        title={t('engine.layers.diff', locale)}
-                      >
-                        {n}
-                      </span>
-                    ) : null;
-                  })()}
-                </Button>
-              )}
-              {!createMode && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setOpenSheet('references')}
-                  title={t('engine.edit.references', locale)}
-                  className="h-7 w-7 p-0 relative"
-                >
-                  <Link2 className="h-3.5 w-3.5" />
-                  {refs && refs.length > 0 && (
-                    <span className="absolute -top-1 -right-1 min-w-[14px] h-[14px] px-1 rounded-full bg-muted text-foreground text-[9px] leading-[14px] text-center font-medium border">
-                      {refs.length}
-                    </span>
-                  )}
-                </Button>
-              )}
-              {hasAnchors && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setOpenSheet('related')}
-                  title={t('engine.edit.related', locale)}
-                  className="h-7 w-7 p-0"
-                >
-                  <Boxes className="h-3.5 w-3.5" />
-                </Button>
-              )}
-              {!createMode && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setOpenSheet('history')}
-                  title={t('engine.edit.history', locale)}
-                  className="h-7 w-7 p-0"
-                >
-                  <History className="h-3.5 w-3.5" />
-                </Button>
-              )}
-            </div>
-          )}
-          {!createMode && canWrite && layered?.overlay && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={doReset}
-              disabled={saving}
-              title={
-                isArtifactItem
-                  ? t('engine.edit.reset', locale)
-                  : t('engine.edit.delete', locale)
-              }
-              className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive"
-            >
-              {isArtifactItem ? (
-                <RotateCcw className="h-3.5 w-3.5" />
-              ) : (
-                <Trash2 className="h-3.5 w-3.5" />
-              )}
-            </Button>
-          )}
-          {/* Edit-mode toggle. Three states:
-              - View (default, !editing & !createMode): show "Edit".
-              - Editing: show Cancel + Save.
-              - createMode: always editing, show Save only (Cancel would
-                discard the whole create flow which is awkward; users can
-                navigate away to cancel).
-              Truly read-only types (no allowOrgOverride) skip all of this. */}
-          {canWrite && !createMode && !editing && (
-            <Button size="sm" onClick={() => setEditing(true)}>
-              <Pencil className="h-4 w-4 mr-1" />
-              {t('engine.edit.edit', locale)}
-            </Button>
-          )}
-          {canWrite && !createMode && editing && (
-            <Button variant="ghost" size="sm" onClick={doCancelEdit} disabled={saving}>
-              <X className="h-4 w-4 mr-1" />
-              {t('engine.cancel', locale)}
-            </Button>
-          )}
-          {canWrite && (editing || createMode) && (
-            <Button
-              size="sm"
-              onClick={() => doSave(false)}
-              disabled={saving || (!createMode && !isDirty)}
-              title={
-                !createMode && !isDirty
-                  ? t('engine.edit.noChanges', locale)
-                  : undefined
-              }
-            >
-              {saving ? (
-                <Loader2 className="h-4 w-4 mr-1 animate-spin" />
-              ) : (
-                <Save className="h-4 w-4 mr-1" />
-              )}
-              {t('engine.edit.save', locale)}
-              {isDirty && !saving && (
-                <span
-                  aria-hidden
-                  className="ml-1.5 inline-block h-1.5 w-1.5 rounded-full bg-amber-300"
-                />
-              )}
-            </Button>
-          )}
-        </>
-      }
+      actions={PreviewComponent ? null : actionsNode}
     >
       <div
         className={
@@ -929,6 +945,11 @@ export function MetadataResourceEditPage({
                           )}
                         </div>
                         <div className="flex items-center gap-1">
+                          {/* All page-level actions live here when the
+                              designer is present — merged from the
+                              PageShell header to reclaim a full row. */}
+                          {actionsNode}
+                          <span className="mx-1 h-5 w-px bg-border" aria-hidden />
                           {PreviewComponent && (
                             <Button
                               variant="ghost"
@@ -947,29 +968,6 @@ export function MetadataResourceEditPage({
                                 <PanelRightClose className="h-3.5 w-3.5" />
                               )}
                             </Button>
-                          )}
-                          {isFullscreen && canWrite && (editing || createMode) && (
-                            <>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={doCancelEdit}
-                                disabled={saving || !isDirty}
-                                className="h-7"
-                              >
-                                <X className="h-3.5 w-3.5 mr-1" />
-                                {t('engine.cancel', locale)}
-                              </Button>
-                              <Button
-                                size="sm"
-                                onClick={() => doSave(false)}
-                                disabled={saving || (!createMode && !isDirty)}
-                                className="h-7"
-                              >
-                                <Save className="h-3.5 w-3.5 mr-1" />
-                                {t('engine.edit.save', locale)}
-                              </Button>
-                            </>
                           )}
                           <Button
                             variant="ghost"
@@ -1051,10 +1049,44 @@ export function MetadataResourceEditPage({
                           toolbar (left of Fullscreen) so it stays
                           reachable when the panel is closed; we
                           deliberately do not duplicate it here. */}
-                      <div className="sticky top-0 z-10 flex items-center gap-2 border-b bg-background/95 backdrop-blur px-4 py-2.5">
-                        <span className="text-[11px] uppercase tracking-wider text-muted-foreground">
-                          {t('engine.edit.inspector', locale)}
-                        </span>
+                      <div className="sticky top-0 z-10 flex items-center gap-2 border-b bg-background/95 backdrop-blur px-3 py-2">
+                        <div
+                          role="tablist"
+                          className="inline-flex items-center rounded-md border bg-muted/40 p-0.5"
+                        >
+                          <button
+                            type="button"
+                            role="tab"
+                            aria-selected={inspectorTab === 'properties'}
+                            onClick={() => setInspectorTab('properties')}
+                            className={
+                              'inline-flex items-center gap-1 rounded px-2 py-1 text-xs transition-colors ' +
+                              (inspectorTab === 'properties'
+                                ? 'bg-background shadow-sm text-foreground'
+                                : 'text-muted-foreground hover:text-foreground')
+                            }
+                            title={t('engine.edit.inspector.properties', locale)}
+                          >
+                            <SlidersHorizontal className="h-3.5 w-3.5" />
+                            {t('engine.edit.inspector.properties', locale)}
+                          </button>
+                          <button
+                            type="button"
+                            role="tab"
+                            aria-selected={inspectorTab === 'source'}
+                            onClick={() => setInspectorTab('source')}
+                            className={
+                              'inline-flex items-center gap-1 rounded px-2 py-1 text-xs transition-colors ' +
+                              (inspectorTab === 'source'
+                                ? 'bg-background shadow-sm text-foreground'
+                                : 'text-muted-foreground hover:text-foreground')
+                            }
+                            title={t('engine.edit.inspector.source', locale)}
+                          >
+                            <FileCode2 className="h-3.5 w-3.5" />
+                            {t('engine.edit.inspector.source', locale)}
+                          </button>
+                        </div>
                         {isDirty && (
                           <Badge variant="outline" className="text-[10px] border-amber-400/60 text-amber-600 dark:text-amber-300">
                             <span className="mr-1 inline-block h-1.5 w-1.5 rounded-full bg-amber-400" />
@@ -1063,7 +1095,13 @@ export function MetadataResourceEditPage({
                         )}
                       </div>
                       <div className="p-4">
-                        {selection && InspectorComponent ? (
+                        {inspectorTab === 'source' ? (
+                          <SourceEditor
+                            value={draft}
+                            onChange={setDraft}
+                            readOnly={formReadOnly}
+                          />
+                        ) : selection && InspectorComponent ? (
                           <InspectorComponent
                             type={type}
                             name={name}
@@ -1317,6 +1355,87 @@ function ReferencesPanel({
           ))}
         </tbody>
       </table>
+    </div>
+  );
+}
+
+/**
+ * SourceEditor — raw JSON editor for the inspector's "Source" tab.
+ *
+ * Lets power users edit fields the JSONSchema form doesn't expose
+ * (nested arrays, custom keys, etc.). Maintains a local string buffer
+ * so the user can type freely; only commits to the parent `draft`
+ * when the buffer is valid JSON. Parse errors surface inline without
+ * blocking the form — switching back to the Properties tab discards
+ * any unparseable scratch text.
+ */
+function SourceEditor({
+  value,
+  onChange,
+  readOnly,
+}: {
+  value: unknown;
+  onChange: (next: Record<string, unknown>) => void;
+  readOnly?: boolean;
+}) {
+  const stringify = React.useCallback(
+    (v: unknown) => {
+      try {
+        return JSON.stringify(v ?? {}, null, 2);
+      } catch {
+        return '{}';
+      }
+    },
+    [],
+  );
+  const [text, setText] = React.useState<string>(() => stringify(value));
+  const [parseError, setParseError] = React.useState<string | null>(null);
+  const lastCommittedRef = React.useRef<string>(text);
+
+  // Resync the buffer when the parent draft changes externally (e.g.
+  // a Save/Reset or a selection-driven inspector patch). We only sync
+  // when the upstream value differs from what we last committed — so
+  // the user's in-flight edits aren't clobbered.
+  React.useEffect(() => {
+    const next = stringify(value);
+    if (next !== lastCommittedRef.current) {
+      setText(next);
+      lastCommittedRef.current = next;
+      setParseError(null);
+    }
+  }, [value, stringify]);
+
+  const handleChange = (next: string) => {
+    setText(next);
+    try {
+      const parsed = JSON.parse(next);
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+        setParseError(null);
+        lastCommittedRef.current = next;
+        onChange(parsed as Record<string, unknown>);
+      } else {
+        setParseError('Root must be a JSON object');
+      }
+    } catch (err: any) {
+      setParseError(err?.message ?? 'Invalid JSON');
+    }
+  };
+
+  return (
+    <div className="flex flex-col gap-2">
+      <textarea
+        value={text}
+        onChange={(e) => handleChange(e.target.value)}
+        readOnly={readOnly}
+        spellCheck={false}
+        className="w-full min-h-[60vh] font-mono text-xs bg-muted/30 border rounded p-3 outline-none focus:ring-2 focus:ring-ring resize-y"
+      />
+      {parseError && (
+        <div className="text-xs text-destructive flex items-start gap-1.5">
+          <span aria-hidden>⚠</span>
+          <span>{parseError}</span>
+        </div>
+      )}
     </div>
   );
 }
