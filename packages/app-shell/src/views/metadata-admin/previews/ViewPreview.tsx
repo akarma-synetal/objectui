@@ -77,11 +77,15 @@ export function ViewPreview({ name, draft, editing, selection, onSelectionChange
       if (!canEdit) return;
       const variant = (draft as any)[variantKey] as Record<string, unknown> | undefined;
       if (!variant) return;
-      const cols = Array.isArray((variant as any).columns) ? (variant as any).columns as Array<Record<string, unknown>> : [];
-      const newCol = { header: 'New column', accessorKey: '' };
+      const cols = Array.isArray((variant as any).columns) ? (variant as any).columns as Array<unknown> : [];
+      // Use ObjectStack canonical column shape `{ field, label }`. If the
+      // existing array is all-strings (kanban style), append a string so
+      // the column stays serializable in the same shape.
+      const allStrings = cols.length > 0 && cols.every((c) => typeof c === 'string');
+      const newCol: unknown = allStrings ? '' : { field: '', label: 'New column' };
       const next = [...cols, newCol];
       onPatch!({ [variantKey]: { ...variant, columns: next } });
-      onSelectionChange?.({ kind: 'column', id: `${variantKey}.columns[${next.length - 1}]`, label: newCol.header });
+      onSelectionChange?.({ kind: 'column', id: `${variantKey}.columns[${next.length - 1}]`, label: 'New column' });
     },
     [canEdit, draft, onPatch, onSelectionChange],
   );
@@ -91,9 +95,16 @@ export function ViewPreview({ name, draft, editing, selection, onSelectionChange
   const outlineNode = designMode ? (
     <>
       {variants.map((v) => {
-        const cols = Array.isArray((v.schema as any).columns) ? (v.schema as any).columns as Array<Record<string, unknown>> : [];
+        const cols = Array.isArray((v.schema as any).columns) ? (v.schema as any).columns as Array<unknown> : [];
         const entries = cols.map((c, i) => {
-          const lbl = String(c.header ?? c.accessorKey ?? `col ${i + 1}`);
+          // Columns may be `{ field, label }`, `{ accessorKey, header }`,
+          // or raw string field-names (kanban). Resolve a friendly label.
+          let lbl: string;
+          if (typeof c === 'string') lbl = c;
+          else if (c && typeof c === 'object') {
+            const o = c as Record<string, unknown>;
+            lbl = String(o.label ?? o.header ?? o.field ?? o.accessorKey ?? `col ${i + 1}`);
+          } else lbl = `col ${i + 1}`;
           return { id: `${v.key}.columns[${i}]`, label: variants.length > 1 ? `${v.key}.${lbl}` : lbl };
         });
         if (entries.length === 0 && !canEdit) return null;

@@ -70,7 +70,6 @@ export function ProfilePage() {
   // `account:profile_card` registry entry) before AuthProvider has
   // resolved, `user` is null and `name` stays empty until we sync it.
   useEffect(() => {
-    console.log('[PROFILE_PAGE_SYNC_v2]', user?.name);
     setName(user?.name ?? '');
   }, [user?.name]);
 

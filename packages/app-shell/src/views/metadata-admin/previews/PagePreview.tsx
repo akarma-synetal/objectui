@@ -31,22 +31,62 @@ export function PagePreview({ draft, editing, selection, onSelectionChange, onPa
   const canEdit = designMode && !!onPatch;
   const selectedId = selection && selection.kind === 'block' ? selection.id : null;
 
+  // Pages may use either of two canonical shapes:
+  //   1. `regions: [{ name, components: [...] }]`  (ObjectStack spec, used by seeded pages)
+  //   2. `children: [...]`                         (raw SDUI tree shape)
+  // Detect which one is in use and surface chips/IDs accordingly.
+  const shape: 'regions' | 'children' = React.useMemo(() => {
+    if (Array.isArray((draft as any).regions)) return 'regions';
+    return 'children';
+  }, [draft]);
+
   const blockEntries = React.useMemo(() => {
+    if (shape === 'regions') {
+      const regions = (draft as any).regions as Array<{ name?: string; components?: Block[] }>;
+      const out: { id: string; label: string }[] = [];
+      regions.forEach((r, i) => {
+        const comps = Array.isArray(r.components) ? r.components : [];
+        comps.forEach((c, j) => {
+          out.push({
+            id: `regions[${i}].components[${j}]`,
+            label: c.id || c.type || `${r.name ?? `region ${i + 1}`} · ${j + 1}`,
+          });
+        });
+      });
+      return out;
+    }
     const children = Array.isArray((draft as any).children) ? (draft as any).children as Block[] : [];
     return children.map((b, i) => ({ id: `children[${i}]`, label: b.id || b.type || `block ${i + 1}` }));
-  }, [draft]);
+  }, [draft, shape]);
 
   const handleAddBlock = React.useCallback(() => {
     if (!canEdit) return;
-    const children = Array.isArray((draft as any).children) ? (draft as any).children as Block[] : [];
     // `container` is a safe default that renders an empty box and
     // accepts further nested children — the user picks the real type
     // from the inspector immediately after.
     const newBlock: Block = { type: 'container' };
+    if (shape === 'regions') {
+      const regions = Array.isArray((draft as any).regions) ? [...((draft as any).regions as Array<{ name?: string; components?: Block[] }>)] : [];
+      // Append to the last region; create a default region if none exist.
+      let targetIdx = regions.length - 1;
+      if (targetIdx < 0) {
+        regions.push({ name: 'main', components: [] });
+        targetIdx = 0;
+      }
+      const region = { ...regions[targetIdx] };
+      const comps = Array.isArray(region.components) ? [...region.components] : [];
+      comps.push(newBlock);
+      region.components = comps;
+      regions[targetIdx] = region;
+      onPatch!({ regions });
+      onSelectionChange?.({ kind: 'block', id: `regions[${targetIdx}].components[${comps.length - 1}]`, label: newBlock.type });
+      return;
+    }
+    const children = Array.isArray((draft as any).children) ? (draft as any).children as Block[] : [];
     const next = [...children, newBlock];
     onPatch!({ children: next });
     onSelectionChange?.({ kind: 'block', id: `children[${next.length - 1}]`, label: newBlock.type });
-  }, [canEdit, draft, onPatch, onSelectionChange]);
+  }, [canEdit, draft, onPatch, onSelectionChange, shape]);
 
   // Empty draft → no preview; but if we're in design mode show an Add
   // shell so users can author from scratch.
