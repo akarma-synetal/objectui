@@ -148,6 +148,11 @@ export function useGlobalDiagnostics(
   error: string | null;
   summary: MetadataDiagnosticsSummary;
   byType: Record<string, number>;
+  /**
+   * Per-type warning-only count. Only populated when `severity` is
+   * `'warning'` (server omits warnings when severity is `'error'`).
+   */
+  warnByType: Record<string, number>;
   /** Per-type item count (from server-side sweep). Empty on older servers. */
   countsByType: Record<string, number>;
   /** Per-type list of contributing packages. Empty on older servers. */
@@ -194,7 +199,28 @@ export function useGlobalDiagnostics(
   const byType = useMemo(() => {
     const c: Record<string, number> = {};
     for (const e of summary.entries) {
-      c[e.type] = (c[e.type] ?? 0) + 1;
+      // Only count entries that actually have errors — when severity is
+      // 'warning' the server returns BOTH error and warning-only rows
+      // in the same list, and we want a strict error count here so
+      // headline numbers stay consistent across severity modes.
+      if ((e.diagnostics?.errors?.length ?? 0) > 0) {
+        c[e.type] = (c[e.type] ?? 0) + 1;
+      }
+    }
+    return c;
+  }, [summary]);
+
+  const warnByType = useMemo(() => {
+    const c: Record<string, number> = {};
+    for (const e of summary.entries) {
+      const errs = e.diagnostics?.errors?.length ?? 0;
+      const warns = e.diagnostics?.warnings?.length ?? 0;
+      // "Warn-only" = no errors, ≥1 warning. Items with errors are
+      // already counted in `byType` and the louder tier dominates the
+      // UI badge — surfacing them under both would be noisy.
+      if (errs === 0 && warns > 0) {
+        c[e.type] = (c[e.type] ?? 0) + 1;
+      }
     }
     return c;
   }, [summary]);
@@ -224,6 +250,7 @@ export function useGlobalDiagnostics(
     error,
     summary,
     byType,
+    warnByType,
     countsByType,
     packagesByType,
     allPackages,

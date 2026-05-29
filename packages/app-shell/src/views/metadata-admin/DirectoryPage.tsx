@@ -82,11 +82,12 @@ export function MetadataDirectoryPage() {
   const { loading, error, entries } = useMetadataTypes(client);
   const {
     byType: invalidByType,
+    warnByType,
     summary: diagSummary,
     countsByType,
     packagesByType,
     allPackages,
-  } = useGlobalDiagnostics(client);
+  } = useGlobalDiagnostics(client, 'warning');
   const locale = React.useMemo(() => detectLocale(), []);
 
   const [query, setQuery] = React.useState('');
@@ -271,6 +272,7 @@ export function MetadataDirectoryPage() {
                       entry={e}
                       locale={locale}
                       invalidCount={invalidByType[e.type] ?? 0}
+                      warnCount={warnByType[e.type] ?? 0}
                       itemCount={totalCount}
                       packageFilter={showFiltered ? packageFilter : undefined}
                     />
@@ -323,12 +325,14 @@ function TypeTile({
   entry,
   locale,
   invalidCount = 0,
+  warnCount = 0,
   itemCount = 0,
   packageFilter,
 }: {
   entry: RichMetadataTypeEntry;
   locale?: string;
   invalidCount?: number;
+  warnCount?: number;
   itemCount?: number;
   /** When set, navigate into the list page pre-filtered to this package. */
   packageFilter?: string;
@@ -380,6 +384,15 @@ function TypeTile({
               title={tFormat('engine.directory.invalidTooltip', locale ?? 'en', { count: invalidCount })}
             >
               {invalidCount}
+            </Badge>
+          )}
+          {warnCount > 0 && (
+            <Badge
+              variant="outline"
+              className="text-[10px] border-amber-500/40 text-amber-700 dark:text-amber-300 bg-amber-500/[0.06]"
+              title={tFormat('engine.directory.warnTooltip', locale ?? 'en', { count: warnCount })}
+            >
+              {warnCount}
             </Badge>
           )}
           {entry.allowOrgOverride ? (

@@ -71,6 +71,14 @@ interface MetadataDiagnosticsSummary {
   total: number;          // entries.length
   scannedTypes: number;   // how many metadata types were checked
   scannedItems: number;   // how many items were checked in total
+  /**
+   * Per-type aggregate stats — count of items and the list of
+   * packages contributing to each type. Computed in the same sweep so
+   * directory tiles render counts and a package filter without
+   * additional round-trips. Empty `{}` on framework versions older
+   * than the 7.x line.
+   */
+  stats: Record<string, { count: number; packages: string[] }>;
 }
 ```
 
@@ -80,16 +88,29 @@ Use this as a CI gate too — `total === 0` is the green-build condition.
 
 ### 1. Directory page badges
 
-`/apps/studio/metadata` — each type tile shows a red ⚠ + count when any
-items of that type fail validation. The "View all issues (N)" link in
-the filter row jumps straight to the governance page.
+`/apps/studio/metadata` — each type tile shows:
+
+* A neutral count badge with the total items of that type.
+* A red ⚠ + count when any items fail validation (errors).
+* An amber ⚠ + count when items have warnings but no errors.
+
+The filter row also offers a **package filter** dropdown — sourced from
+`summary.stats[*].packages` — so a single click narrows both the tile
+grid and (via `?package=` deep-link) the downstream list page.
+
+The "View all issues (N)" link in the filter row jumps straight to the
+governance page.
 
 ### 2. Resource list rows
 
 `/apps/studio/metadata/<type>` — invalid rows get a red ⚠ icon next to
 the name and a destructive-tinted background; warning-only rows get an
-amber ⚠ and amber tint. The list header shows an aggregate "Invalid N"
-chip. Hover the ⚠ for the first three messages.
+amber ⚠ and amber tint. The list header shows aggregate "Invalid N" and
+"Warnings N" chips. Hover the ⚠ for the first three messages.
+
+A parallel **package filter** dropdown sits next to the source filter and
+reads/writes the `?package=` URL parameter so deep-links from the
+directory page survive refresh and back-navigation.
 
 ### 3. Resource edit banners
 
@@ -144,9 +165,19 @@ The hook used by the Studio surfaces:
 import { useGlobalDiagnostics, useMetadataClient } from '@object-ui/app-shell';
 
 const client = useMetadataClient();
-const { loading, error, summary, byType, reload } =
-  useGlobalDiagnostics(client, 'error');
+const {
+  loading,
+  error,
+  summary,
+  byType,         // Record<type, invalid-item-count>
+  warnByType,     // Record<type, warn-only-item-count> (severity='warning' only)
+  countsByType,   // Record<type, total-item-count>
+  packagesByType, // Record<type, packageId[]>
+  allPackages,    // packageId[] — deduped union for filter dropdowns
+  reload,
+} = useGlobalDiagnostics(client, 'warning');
 ```
 
-`byType` is `Record<typeId, number>` — the per-type invalid count used
-by the directory tile badge.
+Pass `severity: 'warning'` when you need `warnByType` populated — the
+server omits warning-only entries when the default `'error'` severity
+is in effect.

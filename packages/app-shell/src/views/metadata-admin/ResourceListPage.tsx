@@ -206,6 +206,19 @@ function DefaultMetadataList({ type }: { type: string }) {
     [items],
   );
 
+  // Items with warnings but no errors — softer, advisory tier. We
+  // count rows (not warning instances) for consistency with `invalid`.
+  const warnOnlyCount = React.useMemo(
+    () =>
+      items.filter(
+        (r) =>
+          r.diagnostics &&
+          r.diagnostics.valid !== false &&
+          (r.diagnostics.warnings?.length ?? 0) > 0,
+      ).length,
+    [items],
+  );
+
   const columns = config.listColumns ?? defaultColumns(config.primaryKey ?? 'name');
   const locale = detectLocale();
   const typeLabel = translateMetadataType(type, locale, entry?.label ?? type);
@@ -232,6 +245,19 @@ function DefaultMetadataList({ type }: { type: string }) {
                   <span className="inline-flex items-center gap-1 text-destructive">
                     <AlertTriangle className="w-3.5 h-3.5" />
                     {invalidCount}
+                  </span>
+                ),
+              },
+            ]
+          : []),
+        ...(warnOnlyCount > 0
+          ? [
+              {
+                label: t('engine.list.warnings', locale),
+                value: (
+                  <span className="inline-flex items-center gap-1 text-amber-600 dark:text-amber-400">
+                    <AlertTriangle className="w-3.5 h-3.5" />
+                    {warnOnlyCount}
                   </span>
                 ),
               },
