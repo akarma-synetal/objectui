@@ -157,10 +157,15 @@ export function matchesQuery(
  *
  * `severity` defaults to `'error'` — pass `'warning'` to include
  * warning-only entries in the count.
+ *
+ * `packageId` (optional) scopes the whole sweep to a single software
+ * package: the server then reports per-package counts/packages, so tile
+ * numbers match the scoped list pages. Omit for a global sweep.
  */
 export function useGlobalDiagnostics(
   client: MetadataClient,
   severity: 'error' | 'warning' = 'error',
+  packageId?: string,
 ): {
   loading: boolean;
   error: string | null;
@@ -198,7 +203,9 @@ export function useGlobalDiagnostics(
     setError(null);
     (async () => {
       try {
-        const res = await client.diagnostics({ severity });
+        const res = await client.diagnostics(
+          packageId ? { severity, packageId } : { severity },
+        );
         if (cancelled) return;
         setSummary(res);
         setLoading(false);
@@ -214,7 +221,7 @@ export function useGlobalDiagnostics(
     return () => {
       cancelled = true;
     };
-  }, [client, severity, tick]);
+  }, [client, severity, packageId, tick]);
 
   const byType = useMemo(() => {
     const c: Record<string, number> = {};

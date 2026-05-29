@@ -41,6 +41,7 @@ import {
   Sparkles,
   Square,
   Workflow,
+  icons as lucideIcons,
 } from 'lucide-react';
 import type { MetadataPreviewProps } from '../preview-registry';
 import { PreviewShell, PreviewMessage, PreviewErrorBoundary } from './PreviewShell';
@@ -103,8 +104,12 @@ function typeIcon(type: string) {
 function variantClasses(variant?: string): string {
   switch (variant) {
     case 'primary':
+    case 'default':
+    case undefined:
+      // Shadcn-native default button is a solid primary, not an outline.
       return 'bg-primary text-primary-foreground hover:opacity-90';
     case 'danger':
+    case 'destructive':
       return 'bg-red-600 text-white hover:bg-red-700';
     case 'secondary':
       return 'bg-secondary text-secondary-foreground hover:opacity-90';
@@ -113,6 +118,7 @@ function variantClasses(variant?: string): string {
     case 'link':
       return 'bg-transparent text-primary underline-offset-2 hover:underline px-0';
     default:
+      // 'outline' and any unrecognized variant fall back to a bordered button.
       return 'border bg-background text-foreground hover:bg-accent';
   }
 }
@@ -289,12 +295,23 @@ function FauxButton({
 }
 
 /**
- * Render a tiny placeholder for the requested Lucide icon name without
- * a static import of the entire library. We show the name in a chip so
- * the author knows the icon binding is in place even if we don't have
- * the visual.
+ * Render the action's bound Lucide icon by name (kebab- or PascalCase).
+ * Falls back to a compact name chip when the icon can't be resolved, so
+ * the author still sees that an icon binding is in place.
  */
 function IconHint({ name }: { name: string }) {
+  const pascal = name
+    .split(/[-_\s]+/)
+    .filter(Boolean)
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join('');
+  const resolved = pascal === 'Home' ? 'House' : pascal;
+  const Glyph = (lucideIcons as Record<string, React.ComponentType<{ className?: string }>>)[resolved];
+
+  if (Glyph) {
+    return <Glyph className="h-4 w-4" aria-hidden />;
+  }
+
   return (
     <span className="inline-flex h-4 min-w-4 items-center justify-center rounded bg-white/30 px-1 text-[9px] uppercase font-mono">
       {name.slice(0, 3)}

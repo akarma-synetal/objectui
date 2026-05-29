@@ -224,10 +224,28 @@ function SelectorControl({
   const options = useSelectorOptions(def);
   const Icon = getIcon(def.icon);
   const label = resolveI18nLabel(def.label as any, t) || def.id;
-  const includeAll = def.includeAll !== false;
-  // Map the empty/all value back to the sentinel so the Select shows the
-  // "All" row as selected (Radix Select can't use an empty string value).
-  const current = value && value !== (def.allValue ?? '') ? value : ALL_SENTINEL;
+
+  // Context selectors are *mandatory scope* selectors: a concrete option must
+  // always be active. Allowing an "All" choice would unscope the surface and,
+  // for Studio's package filter, leak system metadata. We therefore ignore
+  // `includeAll`, never render an "All" row, and auto-select the first option
+  // as soon as the list resolves when nothing concrete is selected yet.
+  const hasConcrete = !!value && value !== (def.allValue ?? '');
+  const seededRef = React.useRef(false);
+  React.useEffect(() => {
+    if (seededRef.current) return;
+    if (hasConcrete) {
+      seededRef.current = true;
+      return;
+    }
+    if (options.length > 0) {
+      seededRef.current = true;
+      onChange(options[0].value);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [options, hasConcrete]);
+
+  const current = hasConcrete ? value : '';
 
   return (
     <Select value={current} onValueChange={onChange}>
@@ -237,13 +255,10 @@ function SelectorControl({
       >
         <span className="flex min-w-0 items-center gap-1.5 truncate">
           <Icon className="h-3.5 w-3.5 shrink-0 opacity-60" />
-          <SelectValue placeholder={`All ${label}`} />
+          <SelectValue placeholder={`Select ${label}…`} />
         </span>
       </SelectTrigger>
       <SelectContent>
-        {includeAll && (
-          <SelectItem value={ALL_SENTINEL}>{`All ${label}`}</SelectItem>
-        )}
         {options.map((opt) => (
           <SelectItem key={opt.value} value={opt.value}>
             {opt.label}

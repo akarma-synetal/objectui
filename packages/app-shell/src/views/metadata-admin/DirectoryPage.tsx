@@ -16,20 +16,13 @@
  */
 
 import * as React from 'react';
-import { Link } from 'react-router-dom';
-import { Search, Database, Layers, Workflow, Sparkles, Settings, ShieldCheck, Box, AlertTriangle, Lock, Package as PackageIcon } from 'lucide-react';
+import { Link, useSearchParams } from 'react-router-dom';
+import { Search, Database, Layers, Workflow, Sparkles, Settings, ShieldCheck, Box, AlertTriangle, Lock } from 'lucide-react';
 import { Input } from '@object-ui/components';
 import { Button } from '@object-ui/components';
 import { Badge } from '@object-ui/components';
 import { Kbd } from '@object-ui/components';
 import { Empty, EmptyTitle, EmptyDescription } from '@object-ui/components';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@object-ui/components';
 import {
   useMetadataClient,
   useMetadataTypes,
@@ -80,6 +73,76 @@ const HIDDEN_TYPES = new Set(['field']);
 export function MetadataDirectoryPage() {
   const client = useMetadataClient();
   const { loading, error, entries } = useMetadataTypes(client);
+  const locale = React.useMemo(() => detectLocale(), []);
+
+  const [query, setQuery] = React.useState('');
+  const [domainFilter, setDomainFilter] = React.useState<string>('all');
+  const [writableOnly, setWritableOnly] = React.useState(false);
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  // Studio is scoped to a single *project* package at a time (the sidebar
+  // `active_package` selector owns the scope via `?package=`). Load the
+  // installed packages and keep only project-scoped ones — anything not
+  // tagged `system`/`cloud` (a missing scope counts as project). System
+  // metadata therefore never appears on the directory landing.
+  const [projectPackages, setProjectPackages] = React.useState<
+    { id: string; name: string }[] | null
+  >(null);
+  React.useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const list = await client.list<any>('package');
+        if (cancelled) return;
+        const SYSTEM_SCOPES = new Set(['system', 'cloud']);
+        const rows = (list ?? [])
+          .map((raw) => {
+            const item =
+              raw && typeof raw === 'object' && 'item' in raw ? raw.item : raw;
+            const m = ((item as any)?.manifest ?? item ?? {}) as Record<string, unknown>;
+            return {
+              id: m.id as string,
+              scope: m.scope as string,
+              name: (m.name as string) || (m.id as string),
+            };
+          })
+          .filter((p) => p.id && !SYSTEM_SCOPES.has(p.scope));
+        rows.sort((a, b) => a.name.localeCompare(b.name));
+        setProjectPackages(rows.map((p) => ({ id: p.id, name: p.name })));
+      } catch {
+        if (!cancelled) setProjectPackages([]);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [client]);
+
+  // Resolve the active package from the URL, validated against the project
+  // package set. `null` while packages are still loading (fail closed).
+  const urlPackage = searchParams.get('package');
+  const activePackage = React.useMemo(() => {
+    if (!projectPackages) return null;
+    if (urlPackage && projectPackages.some((p) => p.id === urlPackage)) return urlPackage;
+    return projectPackages[0]?.id ?? null;
+  }, [projectPackages, urlPackage]);
+
+  // Repair `?package=` so the sidebar selector and deep-links agree on the
+  // active scope. Runs once packages resolve and the URL holds no valid
+  // project package.
+  React.useEffect(() => {
+    if (!projectPackages || projectPackages.length === 0) return;
+    if (urlPackage && projectPackages.some((p) => p.id === urlPackage)) return;
+    const next = new URLSearchParams(searchParams);
+    next.set('package', projectPackages[0].id);
+    setSearchParams(next, { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [projectPackages, urlPackage]);
+
+  // Scope the diagnostics sweep to the active project package so tile
+  // counts (and locked/invalid badges) reflect *that package only* and
+  // match what the scoped list pages show. `undefined` while packages are
+  // still resolving keeps the page in its loading state below.
   const {
     byType: invalidByType,
     warnByType,
@@ -87,38 +150,39 @@ export function MetadataDirectoryPage() {
     countsByType,
     lockedByType,
     packagesByType,
-    allPackages,
-  } = useGlobalDiagnostics(client, 'warning');
-  const locale = React.useMemo(() => detectLocale(), []);
+    loading: diagLoading,
+  } = useGlobalDiagnostics(client, 'warning', activePackage ?? undefined);
 
-  const [query, setQuery] = React.useState('');
-  const [domainFilter, setDomainFilter] = React.useState<string>('all');
-  const [writableOnly, setWritableOnly] = React.useState(false);
-  const [packageFilter, setPackageFilter] = React.useState<string>('all');
+  // Base set: visible (non-hidden) metadata types contributed by the active
+  // project package. Fail closed — show nothing until a concrete project
+  // package is active, so system-only types never surface.
+  const scopedEntries = React.useMemo(
+    () =>
+      entries.filter((e) => {
+        if (HIDDEN_TYPES.has(e.type)) return false;
+        if (!activePackage) return false;
+        return (packagesByType[e.type] ?? []).includes(activePackage);
+      }),
+    [entries, activePackage, packagesByType],
+  );
 
   // Counts per domain for the filter chip bar.
   const domainCounts = React.useMemo(() => {
-    const visible = entries.filter((e) => !HIDDEN_TYPES.has(e.type));
-    const c: Record<string, number> = { all: visible.length };
-    for (const e of visible) {
+    const c: Record<string, number> = { all: scopedEntries.length };
+    for (const e of scopedEntries) {
       const d = e.domain ?? 'other';
       c[d] = (c[d] ?? 0) + 1;
     }
     return c;
-  }, [entries]);
+  }, [scopedEntries]);
 
-  const writableCount = entries.filter(
-    (e) => !HIDDEN_TYPES.has(e.type) && (e.allowOrgOverride || e.allowRuntimeCreate),
+  const writableCount = scopedEntries.filter(
+    (e) => e.allowOrgOverride || e.allowRuntimeCreate,
   ).length;
 
-  const filtered = entries.filter((e) => {
-    if (HIDDEN_TYPES.has(e.type)) return false;
+  const filtered = scopedEntries.filter((e) => {
     if (writableOnly && !(e.allowOrgOverride || e.allowRuntimeCreate)) return false;
     if (domainFilter !== 'all' && (e.domain ?? 'other') !== domainFilter) return false;
-    if (packageFilter !== 'all') {
-      const pkgs = packagesByType[e.type] ?? [];
-      if (!pkgs.includes(packageFilter)) return false;
-    }
     if (query) {
       const q = query.toLowerCase();
       const hit =
@@ -142,7 +206,7 @@ export function MetadataDirectoryPage() {
     });
   }, [filtered]);
 
-  if (loading) {
+  if (loading || projectPackages === null || (activePackage && diagLoading)) {
     return <div className="p-6 text-sm text-muted-foreground">{t('engine.directory.loading', locale)}</div>;
   }
   if (error) {
@@ -160,7 +224,7 @@ export function MetadataDirectoryPage() {
           className="text-sm text-muted-foreground mt-1 max-w-3xl"
           dangerouslySetInnerHTML={{
             __html: tFormat('engine.directory.description', locale, {
-              count: `<strong class="text-foreground">${entries.filter((e) => !HIDDEN_TYPES.has(e.type)).length}</strong>`,
+              count: `<strong class="text-foreground">${scopedEntries.length}</strong>`,
               writable: writableCount,
             }),
           }}
@@ -184,24 +248,6 @@ export function MetadataDirectoryPage() {
           >
             {t('engine.directory.writableOnly', locale)} ({writableCount})
           </Button>
-          {allPackages.length > 0 && (
-            <Select value={packageFilter} onValueChange={setPackageFilter}>
-              <SelectTrigger className="h-8 w-[220px] text-xs">
-                <PackageIcon className="h-3.5 w-3.5 mr-1 text-muted-foreground" />
-                <SelectValue placeholder={t('engine.directory.allPackages', locale)} />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">
-                  {t('engine.directory.allPackages', locale)} ({allPackages.length})
-                </SelectItem>
-                {allPackages.map((p) => (
-                  <SelectItem key={p} value={p}>
-                    <span className="font-mono text-xs">{p}</span>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          )}
           {diagSummary.total > 0 && (
             <Button
               asChild
@@ -244,7 +290,16 @@ export function MetadataDirectoryPage() {
 
       {/* Body */}
       <div className="flex-1 overflow-auto p-6 space-y-6">
-        {filtered.length === 0 && (
+        {projectPackages.length === 0 && (
+          <Empty>
+            <EmptyTitle>No project packages installed</EmptyTitle>
+            <EmptyDescription>
+              Studio only shows metadata that belongs to a project software package.
+              Install or create a project package to manage its metadata here.
+            </EmptyDescription>
+          </Empty>
+        )}
+        {projectPackages.length > 0 && filtered.length === 0 && (
           <Empty>
             <EmptyTitle>{t('engine.directory.noMatches', locale)}</EmptyTitle>
             <EmptyDescription>
@@ -262,12 +317,9 @@ export function MetadataDirectoryPage() {
               </h2>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                 {group.map((e) => {
-                  // When a package filter is active, show the count
-                  // *constrained to that package* so the tile number
-                  // matches what the user will see after clicking
-                  // into the list page.
+                  // Carry the active project package into the list-page
+                  // deep-link so scope survives navigation.
                   const totalCount = countsByType[e.type] ?? 0;
-                  const showFiltered = packageFilter !== 'all';
                   return (
                     <TypeTile
                       key={e.type}
@@ -277,7 +329,7 @@ export function MetadataDirectoryPage() {
                       warnCount={warnByType[e.type] ?? 0}
                       lockedCount={lockedByType[e.type] ?? 0}
                       itemCount={totalCount}
-                      packageFilter={showFiltered ? packageFilter : undefined}
+                      packageFilter={activePackage ?? undefined}
                     />
                   );
                 })}

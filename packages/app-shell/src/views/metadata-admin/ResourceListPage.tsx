@@ -14,7 +14,7 @@
 
 import * as React from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { Plus, Search, RefreshCw, AlertTriangle, Lock, Package as PackageIcon } from 'lucide-react';
+import { Plus, Search, RefreshCw, AlertTriangle, Lock } from 'lucide-react';
 import { Button } from '@object-ui/components';
 import { Input } from '@object-ui/components';
 import { Badge } from '@object-ui/components';
@@ -112,38 +112,72 @@ function DefaultMetadataList({ type }: { type: string }) {
   const [query, setQuery] = React.useState('');
   const [sourceFilter, setSourceFilter] = React.useState<string>('all');
   const [searchParams, setSearchParams] = useSearchParams();
-  const [packageFilter, setPackageFilter] = React.useState<string>(
-    searchParams.get('package') ?? 'all',
-  );
   const [refreshKey, setRefreshKey] = React.useState(0);
 
-  // When a real package scope is active, carry it into create/edit
-  // navigation as `?package=` so the editor can bind newly-saved rows to
-  // that software package (sys_metadata.package_id). 'all' = no scope.
-  const pkgSuffix = packageFilter && packageFilter !== 'all'
-    ? `?package=${encodeURIComponent(packageFilter)}`
+  // Studio is scoped to a single *project* package at a time. Load the
+  // installed packages and keep only project-scoped ones — anything not
+  // tagged `system`/`cloud` (a missing scope counts as project). System
+  // metadata therefore never leaks: the scope selector never offers a
+  // system package and an unscoped view is not allowed.
+  const [projectPackages, setProjectPackages] = React.useState<
+    { id: string; name: string }[] | null
+  >(null);
+  React.useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const list = await client.list<any>('package');
+        if (cancelled) return;
+        const SYSTEM_SCOPES = new Set(['system', 'cloud']);
+        const rows = (list ?? [])
+          .map((raw) => {
+            const item =
+              raw && typeof raw === 'object' && 'item' in raw ? raw.item : raw;
+            const m = ((item as any)?.manifest ?? item ?? {}) as Record<string, unknown>;
+            return {
+              id: m.id as string,
+              scope: m.scope as string,
+              name: (m.name as string) || (m.id as string),
+            };
+          })
+          .filter((p) => p.id && !SYSTEM_SCOPES.has(p.scope));
+        rows.sort((a, b) => a.name.localeCompare(b.name));
+        setProjectPackages(rows.map((p) => ({ id: p.id, name: p.name })));
+      } catch {
+        if (!cancelled) setProjectPackages([]);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [client]);
+
+  // Resolve the active package from the URL, validated against the project
+  // package set. `null` while packages are still loading (fail closed).
+  const urlPackage = searchParams.get('package');
+  const activePackage = React.useMemo(() => {
+    if (!projectPackages) return null;
+    if (urlPackage && projectPackages.some((p) => p.id === urlPackage)) return urlPackage;
+    return projectPackages[0]?.id ?? null;
+  }, [projectPackages, urlPackage]);
+
+  // Repair `?package=` so the sidebar selector, deep-links and create/edit
+  // navigation all agree on the active scope. Runs once packages resolve
+  // and the URL holds no valid project package.
+  React.useEffect(() => {
+    if (!projectPackages || projectPackages.length === 0) return;
+    if (urlPackage && projectPackages.some((p) => p.id === urlPackage)) return;
+    const next = new URLSearchParams(searchParams);
+    next.set('package', projectPackages[0].id);
+    setSearchParams(next, { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [projectPackages, urlPackage]);
+
+  // Carry the active package into create/edit navigation as `?package=` so
+  // the editor binds newly-saved rows to that software package.
+  const pkgSuffix = activePackage
+    ? `?package=${encodeURIComponent(activePackage)}`
     : '';
-
-  // Keep URL `?package=` in sync so directory-page deep-links survive
-  // refresh and back-navigation.
-  React.useEffect(() => {
-    const current = searchParams.get('package') ?? 'all';
-    if (current !== packageFilter) {
-      const next = new URLSearchParams(searchParams);
-      if (packageFilter === 'all') next.delete('package');
-      else next.set('package', packageFilter);
-      setSearchParams(next, { replace: true });
-    }
-  }, [packageFilter]);
-
-  // Honor external `?package=` changes (e.g. the app-level package
-  // selector in the sidebar) by mirroring them back into local state.
-  React.useEffect(() => {
-    const current = searchParams.get('package') ?? 'all';
-    if (current !== packageFilter) {
-      setPackageFilter(current);
-    }
-  }, [searchParams]);
 
   React.useEffect(() => {
     let cancelled = false;
@@ -184,29 +218,15 @@ function DefaultMetadataList({ type }: { type: string }) {
   const filtered = items.filter((row) => {
     if (!matchesQuery(row.item, query, searchableFields)) return false;
     if (sourceFilter !== 'all' && row.source !== sourceFilter) return false;
-    if (packageFilter !== 'all') {
-      const pkg = (row.item as any)?._packageId;
-      // 'sys_metadata' sentinel represents runtime-authored items; treat
-      // any falsy/sentinel pkg as not-matching any concrete package.
-      const effectivePkg = !pkg || pkg === 'sys_metadata' ? null : pkg;
-      if (effectivePkg !== packageFilter) return false;
-    }
+    // Mandatory project-package scope: show nothing until a concrete project
+    // package is active, then only rows tagged with it. The 'sys_metadata'
+    // sentinel and untagged rows never match a concrete package.
+    if (!activePackage) return false;
+    const pkg = (row.item as any)?._packageId;
+    const effectivePkg = !pkg || pkg === 'sys_metadata' ? null : pkg;
+    if (effectivePkg !== activePackage) return false;
     return true;
   });
-
-  // Package options derived from currently loaded items (ignore source
-  // filter so the dropdown stays stable while users tweak filters).
-  const packageOptions = React.useMemo(() => {
-    const counts = new Map<string, number>();
-    for (const r of items) {
-      const pkg = (r.item as any)?._packageId;
-      if (!pkg || pkg === 'sys_metadata') continue;
-      counts.set(pkg, (counts.get(pkg) ?? 0) + 1);
-    }
-    return Array.from(counts.entries())
-      .sort(([a], [b]) => a.localeCompare(b))
-      .map(([id, count]) => ({ id, count }));
-  }, [items]);
 
   // Compute source + invalid counts for filter / header stats.
   const sourceCounts = React.useMemo(() => {
@@ -330,29 +350,10 @@ function DefaultMetadataList({ type }: { type: string }) {
               <SelectItem value="runtime">{t('engine.list.source.runtime', locale)} ({sourceCounts.runtime})</SelectItem>
             </SelectContent>
           </Select>
-          {packageOptions.length > 0 && (
-            <Select value={packageFilter} onValueChange={setPackageFilter}>
-              <SelectTrigger className="w-[240px]">
-                <PackageIcon className="h-3.5 w-3.5 mr-1 text-muted-foreground shrink-0" />
-                <SelectValue placeholder={t('engine.list.allPackages', locale)} />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">
-                  {t('engine.list.allPackages', locale)} ({packageOptions.length})
-                </SelectItem>
-                {packageOptions.map((p) => (
-                  <SelectItem key={p.id} value={p.id}>
-                    <span className="font-mono text-xs">{p.id}</span>
-                    <span className="text-muted-foreground ml-2">({p.count})</span>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          )}
         </div>
 
         {/* Body */}
-        {loading && (
+        {(loading || projectPackages === null) && (
           <div className="text-sm text-muted-foreground">{t('engine.edit.loading', locale)} {type}…</div>
         )}
         {error && (
@@ -360,7 +361,16 @@ function DefaultMetadataList({ type }: { type: string }) {
             {error}
           </div>
         )}
-        {!loading && !error && filtered.length === 0 && (
+        {!loading && !error && projectPackages !== null && projectPackages.length === 0 && (
+          <Empty>
+            <EmptyTitle>No project packages installed</EmptyTitle>
+            <EmptyDescription>
+              Studio only shows metadata that belongs to a project software package.
+              Install or create a project package to manage its metadata here.
+            </EmptyDescription>
+          </Empty>
+        )}
+        {!loading && !error && projectPackages !== null && projectPackages.length > 0 && filtered.length === 0 && (
           <Empty>
             <EmptyTitle>
               {items.length === 0

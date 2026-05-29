@@ -88,15 +88,22 @@ Use this as a CI gate too — `total === 0` is the green-build condition.
 
 ### 1. Directory page badges
 
-`/apps/studio/metadata` — each type tile shows:
+`/apps/studio/metadata` — the directory is **scoped to the active project
+software package** (the sidebar `active_package` selector, published as
+`?package=`). Only metadata types that the selected project package
+contributes are listed — system/cloud types never appear, and there is no
+in-page "All packages" dropdown. If the URL holds no valid project
+package the page repairs it to the first available one. Each visible type
+tile shows:
 
-* A neutral count badge with the total items of that type.
+* A neutral count badge with the total items of that type. (Note: this
+  total spans all packages — the per-type *list* page it links to is
+  strictly scoped to the active project package.)
 * A red ⚠ + count when any items fail validation (errors).
 * An amber ⚠ + count when items have warnings but no errors.
 
-The filter row also offers a **package filter** dropdown — sourced from
-`summary.stats[*].packages` — so a single click narrows both the tile
-grid and (via `?package=` deep-link) the downstream list page.
+Tiles deep-link into the list page carrying the active `?package=`, so the
+scope survives navigation.
 
 The "View all issues (N)" link in the filter row jumps straight to the
 governance page.
@@ -108,9 +115,16 @@ the name and a destructive-tinted background; warning-only rows get an
 amber ⚠ and amber tint. The list header shows aggregate "Invalid N" and
 "Warnings N" chips. Hover the ⚠ for the first three messages.
 
-A parallel **package filter** dropdown sits next to the source filter and
-reads/writes the `?package=` URL parameter so deep-links from the
-directory page survive refresh and back-navigation.
+The list page is **always scoped to a single project software package**.
+Studio's sidebar exposes a mandatory **Package** scope selector (the app's
+`active_package` context selector) whose options are the installed
+*project* packages — system/cloud packages are never offered and there is
+no "All" choice. The selection is published as the `?package=` URL
+parameter, which every metadata list reads to filter rows by their
+`_packageId`. If the URL holds no valid project package the list repairs
+it to the first available one, so system metadata never leaks into the
+view. (The page no longer renders its own per-type package dropdown —
+scope is owned solely by the sidebar selector.)
 
 ### 3. Resource edit banners
 
