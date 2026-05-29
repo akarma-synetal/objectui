@@ -97,6 +97,7 @@ import { getMetadataPreview, type MetadataSelection } from './preview-registry';
 import { getMetadataInspector } from './inspector-registry';
 import { detectLocale, t, tFormat } from './i18n';
 import { JsonSourceEditor } from './JsonSourceEditor';
+import { validateMetadataDraft, hasClientValidator } from './clientValidation';
 
 // react-resizable-panels' `direction` prop type does not always narrow
 // cleanly in our TS config; cast at the boundary (precedent:
@@ -210,6 +211,27 @@ export function MetadataResourceEditPage({
     null | Array<{ kind?: string; path?: string; message?: string }>
   >(null);
   const [pendingItem, setPendingItem] = React.useState<unknown>(null);
+  // Live client-side Zod validation. Debounced 200ms so we don't run
+  // on every keystroke through a complex AutoForm tree. When a client
+  // schema exists for `type` (spec 7.x exports per-type schemas under
+  // /data, /ui, /automation, /ai, /system, /kernel), we replace the
+  // `issues` state with Zod's output — same schemas the server runs,
+  // so behavior matches the post-save diagnostics but appears live.
+  // Types without a client schema keep the existing server-only flow.
+  React.useEffect(() => {
+    if (!hasClientValidator(type)) return;
+    let cancelled = false;
+    const handle = window.setTimeout(() => {
+      void validateMetadataDraft(type, draft).then((res) => {
+        if (cancelled) return;
+        setIssues(res.issues);
+      });
+    }, 200);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(handle);
+    };
+  }, [type, draft]);
   // Per-item draft pending publish (mode=draft saves land here).
   // When non-null, the editor is "viewing the draft" and we surface
   // Publish / Discard-draft actions.
@@ -1314,10 +1336,21 @@ export function MetadataResourceEditPage({
                     warnings?: Array<{ path: string; message: string }>;
                   }
                 | undefined;
-              if (!diag) return null;
-              const errs = diag.errors ?? [];
-              const warns = diag.warnings ?? [];
-              const hasErrs = diag.valid === false && errs.length > 0;
+              // When client-side Zod validation is available for this
+              // type, drive the error portion of the banner from the
+              // live `issues` state instead of the stale load-time
+              // diagnostics, so it stays in sync with every keystroke.
+              // Warnings remain server-sourced (Zod doesn't model them).
+              const liveErrors = hasClientValidator(type)
+                ? issues.map((i) => ({ path: i.path, message: i.message }))
+                : (diag?.errors ?? []);
+              const liveValid = hasClientValidator(type)
+                ? liveErrors.length === 0
+                : diag?.valid !== false;
+              if (!diag && !hasClientValidator(type)) return null;
+              const errs = liveErrors;
+              const warns = diag?.warnings ?? [];
+              const hasErrs = !liveValid && errs.length > 0;
               const hasWarns = warns.length > 0;
               if (!hasErrs && !hasWarns) return null;
               const renderBlock = (
