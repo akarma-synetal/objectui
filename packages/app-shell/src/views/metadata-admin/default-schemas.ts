@@ -79,13 +79,60 @@ const SCHEMAS: Record<string, Record<string, unknown>> = {
 
   permission: {
     type: 'object',
-    title: 'Permission Set',
-    required: ['name'],
+    title: 'Permission',
+    required: ['id', 'resource', 'actions', 'description'],
     properties: {
-      ...headerProps,
-      isProfile: { type: 'boolean', title: 'Is profile' },
-      objects: { type: 'object', title: 'Object Permissions' },
-      fields: { type: 'object', title: 'Field Permissions' },
+      id: {
+        type: 'string',
+        title: 'ID',
+        description: 'Stable identifier (e.g. crm.account.read).',
+      },
+      resource: {
+        type: 'string',
+        title: 'Resource',
+        description: 'What this permission applies to.',
+        enum: [
+          'data.object', 'data.record', 'data.field',
+          'ui.view', 'ui.dashboard', 'ui.report',
+          'system.config', 'system.plugin', 'system.api', 'system.service',
+          'storage.file', 'storage.database',
+          'network.http', 'network.websocket',
+          'process.spawn', 'process.env',
+        ],
+      },
+      actions: {
+        type: 'array',
+        title: 'Actions',
+        description: 'Permitted operations on the resource.',
+        items: {
+          type: 'string',
+          enum: [
+            'create', 'read', 'update', 'delete',
+            'execute', 'admin', 'manage', 'configure',
+            'import', 'export', 'share',
+          ],
+        },
+      },
+      description: {
+        type: 'string',
+        title: 'Description',
+        description: 'Why this permission exists (shown in admin UIs).',
+      },
+      scope: {
+        type: 'string',
+        title: 'Scope',
+        enum: ['tenant', 'user', 'plugin', 'global', 'resource'],
+        default: 'tenant',
+      },
+      required: {
+        type: 'boolean',
+        title: 'Required',
+        description: 'Must be present for the holder to function.',
+      },
+      justification: {
+        type: 'string',
+        title: 'Justification',
+      },
     },
   },
 

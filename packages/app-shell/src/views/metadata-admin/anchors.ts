@@ -111,6 +111,21 @@ export function registerBuiltinAnchors(): void {
       groupLabel: 'Approval Processes',
       order: 70,
     }],
+    createFields: ['label', 'name', 'object', 'description'],
+    createDerive: [
+      { from: 'label', to: 'name', transform: 'slugify', untilUserEdits: true },
+    ],
+    createDefaults: {
+      active: true,
+      lockRecord: true,
+      steps: [{
+        name: 'step_1',
+        label: 'First approval',
+        approvers: [{ type: 'manager', value: 'manager' }],
+        behavior: 'first_response',
+        rejectionBehavior: 'reject_process',
+      }],
+    },
   });
 
   // page.object → object (auto-generated record pages, etc.)
@@ -143,6 +158,44 @@ export function registerBuiltinAnchors(): void {
       groupLabel: 'Views',
       order: 30,
     }],
+    createFields: ['label', 'name', 'object', 'kind'],
+    createDerive: [
+      { from: 'label', to: 'name', transform: 'slugify', untilUserEdits: true },
+    ],
+    createSchema: {
+      type: 'object',
+      required: ['label', 'name', 'object', 'kind'],
+      properties: {
+        label: { type: 'string', title: 'Label', description: 'Human-readable view name.' },
+        name: {
+          type: 'string',
+          title: 'Name',
+          description: 'Machine name (snake_case). Used in URLs.',
+          pattern: '^[a-z_][a-z0-9_]*$',
+        },
+        object: {
+          type: 'string',
+          title: 'Object',
+          description: 'The object this view displays.',
+        },
+        kind: {
+          type: 'string',
+          title: 'View kind',
+          enum: ['grid', 'kanban', 'gallery', 'calendar', 'timeline', 'gantt', 'chart'],
+          default: 'grid',
+          description: 'Pick a starter layout. Switch later in the designer.',
+        },
+      },
+    },
+    createBuildBody: (draft) => ({
+      list: {
+        name: draft.name,
+        label: draft.label,
+        type: (draft.kind as string) || 'grid',
+        columns: [],
+        data: { provider: 'object', object: draft.object },
+      },
+    }),
   });
 
   // flow / workflow may reference an object at the root or under `on`
@@ -196,6 +249,36 @@ export function registerBuiltinAnchors(): void {
       groupLabel: 'Validations',
       order: 25,
     }],
+    createFields: ['label', 'name', 'message'],
+    createDerive: [
+      { from: 'label', to: 'name', transform: 'slugify', untilUserEdits: true },
+    ],
+    createSchema: {
+      type: 'object',
+      required: ['label', 'name', 'message'],
+      properties: {
+        label: { type: 'string', title: 'Label', description: 'Human-readable rule name.' },
+        name: {
+          type: 'string',
+          title: 'Name',
+          description: 'Machine name (snake_case). Used in URLs.',
+          pattern: '^[a-z_][a-z0-9_]*$',
+        },
+        message: {
+          type: 'string',
+          title: 'Error message',
+          description: 'Shown to the user when the rule blocks save.',
+        },
+      },
+    },
+    createDefaults: {
+      type: 'script',
+      active: true,
+      events: ['insert', 'update'],
+      priority: 10,
+      severity: 'error',
+      condition: 'false',
+    },
   });
 
   // permission has a sparse object-keyed map under `objects`. Match by
@@ -211,6 +294,11 @@ export function registerBuiltinAnchors(): void {
       groupLabel: 'Permissions',
       order: 60,
     }],
+    // NOTE: Permission's create form is blocked by a server-side
+    // mismatch — `/api/v1/meta` returns the legacy PermissionSet
+    // shape (name/isProfile/objects/fields), but the save endpoint
+    // validates with the new PermissionSchema (id/resource/actions).
+    // No client config can reconcile this; requires framework fix.
   });
 
   // action — both record-scoped and object-scoped actions live here.

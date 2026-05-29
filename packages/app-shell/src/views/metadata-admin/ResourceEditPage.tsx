@@ -205,13 +205,16 @@ function MetadataResourceEditPageImpl({
   // breaks the rules of hooks when navigating new→edit (a different
   // number of hooks runs across renders of the same instance).
   const schema =
-    (entry?.schema as Record<string, unknown> | undefined) ??
+    (createMode && config.createSchema
+      ? config.createSchema
+      : (entry?.schema as Record<string, unknown> | undefined)) ??
     (config.defaultSchema as Record<string, unknown> | undefined);
   const locale = React.useMemo(() => detectLocale(), []);
 
   const [layered, setLayered] = React.useState<MetadataLayered<any> | null>(null);
+  const identityField = config.identityField ?? 'name';
   const [draft, setDraft] = React.useState<Record<string, unknown>>(() =>
-    createMode ? { ...(config.createDefaults ?? {}), name: '' } : {},
+    createMode ? { ...(config.createDefaults ?? {}), [identityField]: '' } : {},
   );
   const [refs, setRefs] = React.useState<MetadataReference[] | null>(null);
   const [loading, setLoading] = React.useState(!createMode);
@@ -704,14 +707,22 @@ function MetadataResourceEditPageImpl({
     setError(null);
     setIssues([]);
     try {
-      // Ensure `name` is set on create, and that any `createDefaults`
-      // shape (e.g. `{ fields: {} }` for object) is present so the
-      // saved body satisfies its JSONSchema. User-supplied values
+      // Ensure identity is set on create, and that any `createDefaults`
+      // / `createBuildBody` shape (e.g. `{ fields: {} }` for object,
+      // or `{ list: { data: { object } } }` for view) is present so
+      // the saved body satisfies its JSONSchema. User-supplied values
       // always win over the defaults.
-      const itemToSave = createMode
-        ? { ...(config.createDefaults ?? {}), ...draft, name: String(draft.name ?? name) }
+      const builtBody = createMode
+        ? (config.createBuildBody
+            ? config.createBuildBody(draft)
+            : { ...(config.createDefaults ?? {}), ...draft })
         : draft;
-      const savedName = String(itemToSave.name ?? name);
+      const savedName = String(
+        (builtBody as Record<string, unknown>)[identityField] ?? draft[identityField] ?? name,
+      );
+      const itemToSave = createMode
+        ? { ...builtBody, [identityField]: savedName }
+        : builtBody;
       if (!savedName) {
         setError('A name is required.');
         setSaving(false);
@@ -1758,7 +1769,7 @@ function MetadataResourceEditPageImpl({
                         ) : (
                           <SchemaForm
                             schema={schema}
-                            form={entry?.form as any}
+                            form={createMode && config.createSchema ? undefined : (entry?.form as any)}
                             value={draft}
                             onChange={handleCreateAwareChange}
                             issues={issues}
@@ -1781,7 +1792,7 @@ function MetadataResourceEditPageImpl({
             ) : (
               <SchemaForm
                 schema={schema}
-                form={entry?.form as any}
+                form={createMode && config.createSchema ? undefined : (entry?.form as any)}
                 value={draft}
                 onChange={handleCreateAwareChange}
                 issues={issues}

@@ -167,6 +167,44 @@ export interface MetadataResourceConfig {
   createDefaults?: Record<string, unknown>;
 
   /**
+   * Optional body builder. When present, takes precedence over
+   * `createDefaults`: receives the user's `createFields` draft and
+   * returns the full body to PUT. Use this when the wire shape isn't
+   * a flat merge — e.g. `view` nests user-picked `object` inside
+   * `{ list: { data: { object } } }`, or `validation` picks the
+   * variant's required fields based on `draft.type`.
+   *
+   * Returned body should include the `identityField` (defaults to
+   * `name`) — the engine still re-injects it from the URL slug, but
+   * having it in the body keeps things explicit.
+   */
+  createBuildBody?: (draft: Record<string, unknown>) => Record<string, unknown>;
+
+  /**
+   * Optional schema override for create mode only. When present, the
+   * engine uses this schema (instead of the server's edit schema) to
+   * render the create form and validate the draft. The saved body still
+   * goes through `createBuildBody` / `createDefaults`, so this schema
+   * just describes the simplified create-time input.
+   *
+   * Use this for wrapper types like `view` whose top-level schema has
+   * no flat identity fields (only `{list,form,listViews,formViews}`):
+   * a `createSchema` lets us ask for `{name,label,object}` up front,
+   * then `createBuildBody` wraps them into the right nested shape.
+   */
+  createSchema?: Record<string, unknown>;
+
+  /**
+   * Field path used as the metadata's identity — the URL slug AND
+   * the key on the saved body. Defaults to `'name'`. Override when
+   * the spec uses a different identifier (e.g. `permission` uses `id`
+   * in 7.1+). The engine reads the identity out of the draft / body
+   * at that path and writes it back at save time, so URL routing
+   * stays stable across types.
+   */
+  identityField?: string;
+
+  /**
    * One-line copy shown above the create form. Defaults to a generic
    * "Create a new <type>". When set to the empty string, the hint row
    * is suppressed.
