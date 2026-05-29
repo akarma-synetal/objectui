@@ -129,6 +129,15 @@ function DefaultMetadataList({ type }: { type: string }) {
     }
   }, [packageFilter]);
 
+  // Honor external `?package=` changes (e.g. the app-level package
+  // selector in the sidebar) by mirroring them back into local state.
+  React.useEffect(() => {
+    const current = searchParams.get('package') ?? 'all';
+    if (current !== packageFilter) {
+      setPackageFilter(current);
+    }
+  }, [searchParams]);
+
   React.useEffect(() => {
     let cancelled = false;
     setLoading(true);
@@ -277,7 +286,13 @@ function DefaultMetadataList({ type }: { type: string }) {
           {(entry?.allowOrgOverride || entry?.allowRuntimeCreate) && (
             <Button
               size="sm"
+              variant={config.createFields ? 'default' : 'outline'}
               onClick={() => navigate(`./new`)}
+              title={
+                config.createFields
+                  ? tFormat('engine.list.createHint', locale, { type: typeLabel })
+                  : undefined
+              }
             >
               <Plus className="h-4 w-4 mr-1" />
               {t('engine.list.create', locale)}
@@ -351,6 +366,14 @@ function DefaultMetadataList({ type }: { type: string }) {
                   ? tFormat('engine.list.createHint', locale, { type: typeLabel })
                   : t('engine.list.readOnlyHint', locale))}
             </EmptyDescription>
+            {items.length === 0 && (entry?.allowOrgOverride || entry?.allowRuntimeCreate) && (
+              <div className="mt-4">
+                <Button onClick={() => navigate(`./new`)}>
+                  <Plus className="h-4 w-4 mr-1" />
+                  {t('engine.list.create', locale)}
+                </Button>
+              </div>
+            )}
           </Empty>
         )}
         {!loading && filtered.length > 0 && (
