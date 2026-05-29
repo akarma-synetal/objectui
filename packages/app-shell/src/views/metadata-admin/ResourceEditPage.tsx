@@ -83,6 +83,7 @@ import {
 } from './registry';
 import { RelatedPanel, type RelatedTarget } from './RelatedPanel';
 import { MetadataDetailDrawer } from './MetadataDetailDrawer';
+import { HistoryPanel } from './ResourceHistoryPage';
 import { getMetadataPreview, type MetadataSelection } from './preview-registry';
 import { getMetadataInspector } from './inspector-registry';
 import { detectLocale, t, tFormat } from './i18n';
@@ -260,7 +261,7 @@ export function MetadataResourceEditPage({
   const initialTabRef = React.useRef<string | null>(null);
 
   const [openSheet, setOpenSheet] =
-    React.useState<'layers' | 'references' | 'related' | null>(null);
+    React.useState<'layers' | 'references' | 'related' | 'history' | null>(null);
 
   // When the References sheet opens, lazy-load the data (idempotent).
   // Also keep the URL `?tab=` query in sync so deep-links round-trip.
@@ -680,27 +681,6 @@ export function MetadataResourceEditPage({
               {t('engine.edit.related', locale)}
             </Button>
           )}
-          {PreviewComponent && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={toggleInspector}
-              title={
-                (inspectorCollapsed
-                  ? t('engine.edit.showInspector', locale)
-                  : t('engine.edit.hideInspector', locale)) + ' (⌘\\)'
-              }
-            >
-              {inspectorCollapsed ? (
-                <PanelRightOpen className="h-4 w-4 mr-1" />
-              ) : (
-                <PanelRightClose className="h-4 w-4 mr-1" />
-              )}
-              {inspectorCollapsed
-                ? t('engine.edit.showInspector', locale)
-                : t('engine.edit.hideInspector', locale)}
-            </Button>
-          )}
           {!createMode && canWrite && layered?.overlay && (
             <Button variant="ghost" size="sm" onClick={doReset} disabled={saving}>
               {isArtifactItem ? (
@@ -720,7 +700,7 @@ export function MetadataResourceEditPage({
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => navigate(`./history`, { relative: 'path' })}
+              onClick={() => setOpenSheet('history')}
             >
               <History className="h-4 w-4 mr-1" />
               {t('engine.edit.history', locale)}
@@ -936,6 +916,25 @@ export function MetadataResourceEditPage({
                           )}
                         </div>
                         <div className="flex items-center gap-1">
+                          {PreviewComponent && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={toggleInspector}
+                              className="h-7 w-7 p-0"
+                              title={
+                                (inspectorCollapsed
+                                  ? t('engine.edit.showInspector', locale)
+                                  : t('engine.edit.hideInspector', locale)) + ' (⌘\\)'
+                              }
+                            >
+                              {inspectorCollapsed ? (
+                                <PanelRightOpen className="h-3.5 w-3.5" />
+                              ) : (
+                                <PanelRightClose className="h-3.5 w-3.5" />
+                              )}
+                            </Button>
+                          )}
                           {isFullscreen && canWrite && (editing || createMode) && (
                             <>
                               <Button
@@ -958,25 +957,6 @@ export function MetadataResourceEditPage({
                                 {t('engine.edit.save', locale)}
                               </Button>
                             </>
-                          )}
-                          {isFullscreen && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={toggleInspector}
-                              className="h-7 w-7 p-0"
-                              title={
-                                (inspectorCollapsed
-                                  ? t('engine.edit.showInspector', locale)
-                                  : t('engine.edit.hideInspector', locale)) + ' (⌘\\)'
-                              }
-                            >
-                              {inspectorCollapsed ? (
-                                <PanelRightOpen className="h-3.5 w-3.5" />
-                              ) : (
-                                <PanelRightClose className="h-3.5 w-3.5" />
-                              )}
-                            </Button>
                           )}
                           <Button
                             variant="ghost"
@@ -1114,25 +1094,10 @@ export function MetadataResourceEditPage({
                     </div>
                   </ResizablePanel>
                 </PanelGroup>
-                {/* Floating reopen pill — anchored to the right edge of
-                    the canvas when the inspector is collapsed. Saves a
-                    trip to the top action bar for the most common
-                    designer action. */}
-                {inspectorCollapsed && (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={toggleInspector}
-                    title={t('engine.edit.showInspector', locale) + ' (⌘\\)'}
-                    className="absolute right-2 top-2 h-8 gap-1 shadow-md bg-background/95 backdrop-blur"
-                  >
-                    <PanelRightOpen className="h-3.5 w-3.5" />
-                    <span className="text-xs">
-                      {t('engine.edit.inspector', locale)}
-                    </span>
-                  </Button>
-                )}
+                {/* The floating reopen pill that used to live here was
+                    removed: the canvas toolbar already hosts a permanent
+                    VSCode-style inspector toggle next to the fullscreen
+                    button, so this duplicate affordance was just noise. */}
               </div>
             ) : (
               <SchemaForm
@@ -1215,6 +1180,25 @@ export function MetadataResourceEditPage({
                 parentItem={draft}
                 onOpen={(t) => setRelatedTarget(t)}
               />
+            </div>
+          </SheetContent>
+        </Sheet>
+      )}
+
+      {!createMode && (
+        <Sheet
+          open={openSheet === 'history'}
+          onOpenChange={(o) => !o && setOpenSheet(null)}
+        >
+          <SheetContent side="right" className="w-[92vw] sm:max-w-[720px] p-0 flex flex-col gap-0">
+            <SheetHeader className="px-4 py-3 border-b">
+              <SheetTitle className="text-base">{t('engine.edit.history', locale)}</SheetTitle>
+              <SheetDescription className="text-xs">
+                {type} / {name}
+              </SheetDescription>
+            </SheetHeader>
+            <div className="flex-1 min-h-0 overflow-auto p-4">
+              <HistoryPanel type={type} name={name} client={client} />
             </div>
           </SheetContent>
         </Sheet>
