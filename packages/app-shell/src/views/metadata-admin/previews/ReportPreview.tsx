@@ -47,11 +47,44 @@ export function ReportPreview({ draft, editing, selection, onSelectionChange, on
     onSelectionChange?.({ kind: 'column', id: `columns[${next.length - 1}]`, label: newCol.label });
   }, [canEdit, draft, onPatch, onSelectionChange]);
 
+  // ReportRenderer routes through `isSpecReport`, which requires `columns`
+  // to be an array. Ensure that shape unconditionally so an empty draft
+  // doesn't silently fall through to the legacy empty-Card path.
+  const normalizedDraft = React.useMemo(
+    () => ({ columns: [], ...(draft as Record<string, unknown>) }),
+    [draft],
+  );
+
   if (!objectName) {
     return (
       <PreviewShell hint="report">
         <PreviewMessage tone="warn">
           Pick an Object in the Form tab — Reports need a source object before they can render.
+        </PreviewMessage>
+      </PreviewShell>
+    );
+  }
+
+  // Without columns, the spec renderer has nothing to draw — show an
+  // actionable empty state instead of an empty card.
+  const hasColumns = Array.isArray((draft as any).columns) && (draft as any).columns.length > 0;
+  if (!hasColumns) {
+    return (
+      <PreviewShell hint={`report · ${visualization ?? 'table'}${designMode ? ' · design' : ''}`}>
+        {designMode && (
+          <OutlineStrip
+            title={tr('engine.inspector.reportColumn.outlineLabel', locale)}
+            entries={columnEntries}
+            selectedId={selectedId}
+            onSelect={(e) => onSelectionChange?.({ kind: 'column', id: e.id, label: e.label })}
+            onAdd={canEdit ? handleAdd : undefined}
+            addLabel={tr('engine.inspector.add.column', locale)}
+          />
+        )}
+        <PreviewMessage tone="info">
+          {canEdit
+            ? 'Add at least one column to preview the report. Use “Add column” above, or fill the Columns field in the Properties tab.'
+            : 'This report has no columns yet — define some in the Properties tab to see a preview.'}
         </PreviewMessage>
       </PreviewShell>
     );
@@ -78,7 +111,7 @@ export function ReportPreview({ draft, editing, selection, onSelectionChange, on
           }
         >
           <div className="p-3 min-h-[300px] max-h-[70vh] overflow-auto">
-            <ReportRenderer schema={draft as any} dataSource={adapter as any} />
+            <ReportRenderer schema={normalizedDraft as any} dataSource={adapter as any} />
           </div>
         </React.Suspense>
       </PreviewErrorBoundary>
