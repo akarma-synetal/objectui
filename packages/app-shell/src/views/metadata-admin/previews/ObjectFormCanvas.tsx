@@ -106,6 +106,8 @@ export function ObjectFormCanvas({
   // Reorder fields by moving `fromName` to the position of `toName`.
   // Uses native HTML5 DnD — no library, no animations, just a working
   // reorder for the most common designer interaction.
+  // If `toName`'s field is in a different group than the dragged field,
+  // adopt that group so cross-group drops are intuitive.
   const reorderField = React.useCallback(
     (fromName: string, toName: string, position: 'before' | 'after') => {
       if (!onPatch) return;
@@ -115,11 +117,62 @@ export function ObjectFormCanvas({
       if (fromIdx < 0) return;
       const [moved] = entries.splice(fromIdx, 1);
       const toIdx = entries.findIndex((e) => e.name === toName);
+      const targetEntry = toIdx >= 0 ? entries[toIdx] : undefined;
+      if (targetEntry) {
+        const targetGroup = typeof targetEntry.def.group === 'string' ? targetEntry.def.group : undefined;
+        const fromGroup = typeof moved.def.group === 'string' ? moved.def.group : undefined;
+        if (targetGroup !== fromGroup) {
+          moved.def = { ...moved.def, group: targetGroup };
+        }
+      }
       if (toIdx < 0) {
         entries.push(moved);
       } else {
         entries.splice(position === 'before' ? toIdx : toIdx + 1, 0, moved);
       }
+      onPatch({ fields: writeFields({ shape: view.shape, entries }) });
+    },
+    [onPatch, view],
+  );
+
+  // Drop a field into a group section's empty space (or onto its header).
+  // Reassigns Field.group and moves the entry to the end of that group's
+  // run in the source order so it visually lands where it was dropped.
+  const moveToGroup = React.useCallback(
+    (fromName: string, groupKey: string | null) => {
+      if (!onPatch) return;
+      const entries = view.entries.slice();
+      const fromIdx = entries.findIndex((e) => e.name === fromName);
+      if (fromIdx < 0) return;
+      const [moved] = entries.splice(fromIdx, 1);
+      const currentGroup = typeof moved.def.group === 'string' ? moved.def.group : null;
+      if (currentGroup === groupKey) {
+        // No group change — re-insert at original position (effectively no-op).
+        entries.splice(fromIdx, 0, moved);
+        return;
+      }
+      moved.def = { ...moved.def, group: groupKey ?? undefined };
+      // Find end of target group's run; if no members, append at end.
+      let insertAt = entries.length;
+      for (let i = entries.length - 1; i >= 0; i -= 1) {
+        const g = typeof entries[i].def.group === 'string' ? entries[i].def.group : null;
+        if (g === groupKey) { insertAt = i + 1; break; }
+      }
+      entries.splice(insertAt, 0, moved);
+      onPatch({ fields: writeFields({ shape: view.shape, entries }) });
+    },
+    [onPatch, view],
+  );
+
+  // Inline label rename — used by double-click on the field card label.
+  const renameLabel = React.useCallback(
+    (name: string, nextLabel: string) => {
+      if (!onPatch) return;
+      const entries = view.entries.map((e) =>
+        e.name === name
+          ? { name, def: { ...e.def, label: nextLabel || undefined } }
+          : e,
+      );
       onPatch({ fields: writeFields({ shape: view.shape, entries }) });
     },
     [onPatch, view],
@@ -148,7 +201,13 @@ export function ObjectFormCanvas({
           <EmptyCanvas onAdd={readOnly ? undefined : addField} />
         ) : (
           groups.map((g) => (
-            <GroupSection key={g.key ?? '__ungrouped__'} label={g.label} showHeader={groups.length > 1}>
+            <GroupSection
+              key={g.key ?? '__ungrouped__'}
+              groupKey={g.key}
+              label={g.label}
+              showHeader={groups.length > 1}
+              onDropField={readOnly ? undefined : moveToGroup}
+            >
               {g.entries.map((entry) => (
                 <FieldRow
                   key={entry.name}
@@ -157,6 +216,7 @@ export function ObjectFormCanvas({
                   readOnly={readOnly}
                   onClick={() => selectField(entry)}
                   onReorder={readOnly ? undefined : reorderField}
+                  onRenameLabel={readOnly ? undefined : renameLabel}
                 />
               ))}
             </GroupSection>
@@ -176,19 +236,54 @@ export function ObjectFormCanvas({
 /* ─────────────── Building blocks ─────────────── */
 
 function GroupSection({
+  groupKey,
   label,
   showHeader,
+  onDropField,
   children,
 }: {
+  groupKey: string | null;
   label: string;
   showHeader: boolean;
+  onDropField?: (fromName: string, groupKey: string | null) => void;
   children: React.ReactNode;
 }) {
+  const [active, setActive] = React.useState(false);
+  const handleDragOver = (e: React.DragEvent) => {
+    if (!onDropField) return;
+    const types = e.dataTransfer.types;
+    if (!types || !Array.from(types).includes('text/x-objectui-field')) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    setActive(true);
+  };
+  const handleDragLeave = (e: React.DragEvent) => {
+    // Only deactivate when leaving the section container itself, not its children.
+    if (e.currentTarget === e.target) setActive(false);
+  };
+  const handleDrop = (e: React.DragEvent) => {
+    if (!onDropField) return;
+    // Let inner FieldRow drops win — only handle if no row already consumed it.
+    if (e.defaultPrevented) { setActive(false); return; }
+    e.preventDefault();
+    const from = e.dataTransfer.getData('text/x-objectui-field');
+    setActive(false);
+    if (from) onDropField(from, groupKey);
+  };
   return (
-    <section className="space-y-2.5">
+    <section
+      className={cn(
+        'space-y-2.5 rounded-md transition-colors',
+        active && 'bg-primary/5 ring-1 ring-primary/30 -mx-1 px-1 py-1',
+      )}
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
+    >
       {showHeader && (
-        <div className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground pl-1">
+        <div className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground pl-1 flex items-center gap-1.5">
           {label}
+          {active && <span className="text-primary normal-case text-[10px]">drop to assign</span>}
         </div>
       )}
       <div className="space-y-2.5">{children}</div>
@@ -202,12 +297,14 @@ function FieldRow({
   readOnly,
   onClick,
   onReorder,
+  onRenameLabel,
 }: {
   entry: FieldEntry;
   selected: boolean;
   readOnly: boolean;
   onClick: () => void;
   onReorder?: (fromName: string, toName: string, position: 'before' | 'after') => void;
+  onRenameLabel?: (name: string, nextLabel: string) => void;
 }) {
   const def = entry.def;
   const typeStr = typeof def.type === 'string' ? (def.type as string) : 'text';
@@ -229,6 +326,27 @@ function FieldRow({
   const [dropZone, setDropZone] = React.useState<'before' | 'after' | null>(null);
   const draggable = !!onReorder;
 
+  const [editingLabel, setEditingLabel] = React.useState(false);
+  const [labelDraft, setLabelDraft] = React.useState(label);
+  React.useEffect(() => { setLabelDraft(label); }, [label]);
+  const beginEdit = (e: React.MouseEvent) => {
+    if (!onRenameLabel) return;
+    e.preventDefault();
+    e.stopPropagation();
+    setLabelDraft(label);
+    setEditingLabel(true);
+  };
+  const commitEdit = () => {
+    if (!onRenameLabel) { setEditingLabel(false); return; }
+    const next = labelDraft.trim();
+    if (next && next !== label) onRenameLabel(entry.name, next);
+    setEditingLabel(false);
+  };
+  const cancelEdit = () => {
+    setLabelDraft(label);
+    setEditingLabel(false);
+  };
+
   const handleDragStart = (e: React.DragEvent) => {
     e.dataTransfer.setData('text/x-objectui-field', entry.name);
     e.dataTransfer.effectAllowed = 'move';
@@ -247,6 +365,7 @@ function FieldRow({
   const handleDrop = (e: React.DragEvent) => {
     if (!onReorder) return;
     e.preventDefault();
+    e.stopPropagation();
     const from = e.dataTransfer.getData('text/x-objectui-field');
     setDropZone(null);
     if (from && from !== entry.name) {
@@ -287,7 +406,29 @@ function FieldRow({
               />
             )}
             {Icon && <Icon className="h-3.5 w-3.5 text-muted-foreground shrink-0" />}
-            <span className="text-sm font-medium truncate">{label}</span>
+            {editingLabel ? (
+              <input
+                autoFocus
+                value={labelDraft}
+                onChange={(e) => setLabelDraft(e.target.value)}
+                onClick={(e) => e.stopPropagation()}
+                onKeyDown={(e) => {
+                  e.stopPropagation();
+                  if (e.key === 'Enter') { e.preventDefault(); commitEdit(); }
+                  else if (e.key === 'Escape') { e.preventDefault(); cancelEdit(); }
+                }}
+                onBlur={commitEdit}
+                className="text-sm font-medium px-1 py-0.5 -mx-1 -my-0.5 rounded border border-primary bg-background outline-none min-w-0 flex-1"
+              />
+            ) : (
+              <span
+                className={cn('text-sm font-medium truncate', onRenameLabel && 'cursor-text')}
+                onDoubleClick={beginEdit}
+                title={onRenameLabel ? 'Double-click to rename' : undefined}
+              >
+                {label}
+              </span>
+            )}
             {required && <span className="text-destructive text-sm">*</span>}
             <code className="text-[10px] text-muted-foreground/70 font-mono truncate">{entry.name}</code>
           </div>
