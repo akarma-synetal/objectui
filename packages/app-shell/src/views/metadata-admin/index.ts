@@ -65,12 +65,32 @@ registerDefaultMetadataSchemas();
 import { registerBuiltinPreviews } from './previews';
 registerBuiltinPreviews();
 
+// Side-effect: register built-in scoped inspectors (dashboard widget,
+// …). Plugins can add or override entries via
+// `registerMetadataInspector()`.
+import { registerBuiltinInspectors } from './inspectors';
+registerBuiltinInspectors();
+
 export {
   registerMetadataPreview,
   getMetadataPreview,
   listMetadataPreviewTypes,
 } from './preview-registry';
-export type { MetadataPreview, MetadataPreviewProps } from './preview-registry';
+export type {
+  MetadataPreview,
+  MetadataPreviewProps,
+  MetadataSelection,
+} from './preview-registry';
+
+export {
+  registerMetadataInspector,
+  getMetadataInspector,
+  listMetadataInspectorTypes,
+} from './inspector-registry';
+export type {
+  MetadataInspector,
+  MetadataInspectorProps,
+} from './inspector-registry';
 
 export {
   useMetadataClient,

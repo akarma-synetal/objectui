@@ -78,7 +78,8 @@ import {
 } from './registry';
 import { RelatedPanel, type RelatedTarget } from './RelatedPanel';
 import { MetadataDetailDrawer } from './MetadataDetailDrawer';
-import { getMetadataPreview } from './preview-registry';
+import { getMetadataPreview, type MetadataSelection } from './preview-registry';
+import { getMetadataInspector } from './inspector-registry';
 import { detectLocale, t, tFormat } from './i18n';
 
 // react-resizable-panels' `direction` prop type does not always narrow
@@ -146,6 +147,17 @@ export function MetadataResourceEditPage({
   // doesn't exist yet). Truly read-only types (no allowOrgOverride) stay
   // read-only regardless.
   const [editing, setEditing] = React.useState<boolean>(!!createMode);
+  // Currently selected sub-element (e.g. a dashboard widget). The
+  // preview emits this; the inspector consumes it. Must live above
+  // any early returns to preserve hook order — reset on item
+  // navigation or when leaving edit mode below.
+  const [selection, setSelection] = React.useState<MetadataSelection | null>(null);
+  React.useEffect(() => {
+    setSelection(null);
+  }, [type, name]);
+  React.useEffect(() => {
+    if (!editing) setSelection(null);
+  }, [editing]);
   // Snapshot of the last saved draft. Used by Cancel to revert in-flight
   // edits, and as the source-of-truth when entering edit mode.
   const draftSnapshotRef = React.useRef<Record<string, unknown> | null>(null);
@@ -472,6 +484,12 @@ export function MetadataResourceEditPage({
   // drawer (the parent context owns the preview surface).
   const PreviewComponent = !createMode && !embedded ? getMetadataPreview(type) : undefined;
 
+  // Optional scoped inspector for the selected sub-element (e.g. a
+  // dashboard widget). Registered separately via
+  // `registerMetadataInspector()` so a type can opt in independently
+  // of having a Preview, and so plugins can swap implementations.
+  const InspectorComponent = getMetadataInspector(type);
+
   // Cancel edits: revert the draft to the last saved snapshot and exit
   // edit mode. Safe to call even with no snapshot (no-op).
   function doCancelEdit() {
@@ -762,6 +780,8 @@ export function MetadataResourceEditPage({
                         name={name}
                         draft={draft}
                         editing={editing}
+                        selection={selection}
+                        onSelectionChange={setSelection}
                         onPatch={(patch) =>
                           setDraft((d) => ({ ...(d as Record<string, unknown>), ...patch }))
                         }
@@ -824,18 +844,36 @@ export function MetadataResourceEditPage({
                         </Button>
                       </div>
                       <div className="p-4">
-                        <SchemaForm
-                          schema={schema}
-                          form={entry?.form as any}
-                          value={draft}
-                          onChange={setDraft}
-                          issues={issues}
-                          hiddenFields={config.hiddenFields}
-                          fieldOrder={config.fieldOrder}
-                          readOnly={formReadOnly}
-                          createMode={createMode}
-                          widgetContext={widgetContext}
-                        />
+                        {selection && InspectorComponent ? (
+                          <InspectorComponent
+                            type={type}
+                            name={name}
+                            draft={draft}
+                            selection={selection}
+                            onPatch={(patch) =>
+                              setDraft((d) => ({
+                                ...(d as Record<string, unknown>),
+                                ...patch,
+                              }))
+                            }
+                            onClearSelection={() => setSelection(null)}
+                            readOnly={formReadOnly}
+                            locale={locale}
+                          />
+                        ) : (
+                          <SchemaForm
+                            schema={schema}
+                            form={entry?.form as any}
+                            value={draft}
+                            onChange={setDraft}
+                            issues={issues}
+                            hiddenFields={config.hiddenFields}
+                            fieldOrder={config.fieldOrder}
+                            readOnly={formReadOnly}
+                            createMode={createMode}
+                            widgetContext={widgetContext}
+                          />
+                        )}
                       </div>
                     </div>
                   </ResizablePanel>

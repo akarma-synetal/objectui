@@ -1,11 +1,15 @@
 // Copyright (c) 2025 ObjectStack. Licensed under the Apache-2.0 license.
 
 /**
- * DashboardPreview — read-only render of a Dashboard metadata draft.
+ * DashboardPreview — interactive design surface for a Dashboard
+ * metadata draft. Clicking a widget emits a {@link MetadataSelection}
+ * so the host swaps the right-side inspector to that widget's form.
  *
  * Uses the same DashboardRenderer the runtime DashboardView uses, with
  * the adapter from app-shell's AdapterProvider so widgets can query
- * live data. `designMode` is OFF — this is preview, not edit.
+ * live data. `designMode` is ON whenever the host is editing —
+ * read-only / view mode falls back to a plain runtime preview so the
+ * canvas looks identical to what end users see.
  *
  * The plugin is loaded lazily to avoid pulling its dep graph into
  * every metadata-admin page load.
@@ -13,6 +17,7 @@
 
 import * as React from 'react';
 import { Loader2 } from 'lucide-react';
+import type { DashboardWidgetSchema } from '@object-ui/types';
 import { useAdapter } from '../../../providers/AdapterProvider';
 import type { MetadataPreviewProps } from '../preview-registry';
 import { PreviewShell, PreviewErrorBoundary, PreviewMessage } from './PreviewShell';
@@ -21,9 +26,49 @@ const DashboardRenderer = React.lazy(() =>
   import('@object-ui/plugin-dashboard').then((m) => ({ default: m.DashboardRenderer })),
 );
 
-export function DashboardPreview({ draft }: MetadataPreviewProps) {
+export function DashboardPreview({
+  draft,
+  editing,
+  onPatch,
+  selection,
+  onSelectionChange,
+}: MetadataPreviewProps) {
   const adapter = useAdapter();
-  const widgets = Array.isArray((draft as any).widgets) ? (draft as any).widgets : [];
+  const widgets: DashboardWidgetSchema[] = Array.isArray((draft as any).widgets)
+    ? (draft as any).widgets
+    : [];
+
+  // Design mode is opt-in: only active while the host edits AND the
+  // host supplied a selection channel. In read-only / drawer-preview
+  // contexts we render the runtime presentation untouched.
+  const designMode = !!(editing && onSelectionChange);
+  const selectedWidgetId =
+    selection && selection.kind === 'widget' ? selection.id : null;
+
+  const handleWidgetClick = React.useCallback(
+    (widgetId: string | null) => {
+      if (!onSelectionChange) return;
+      if (!widgetId) {
+        onSelectionChange(null);
+        return;
+      }
+      const w = widgets.find((wi) => wi?.id === widgetId);
+      onSelectionChange({
+        kind: 'widget',
+        id: widgetId,
+        label: w?.title || widgetId,
+      });
+    },
+    [onSelectionChange, widgets],
+  );
+
+  const handleReorder = React.useCallback(
+    (next: DashboardWidgetSchema[]) => {
+      if (!onPatch) return;
+      onPatch({ widgets: next });
+    },
+    [onPatch],
+  );
 
   if (widgets.length === 0) {
     return (
@@ -34,7 +79,11 @@ export function DashboardPreview({ draft }: MetadataPreviewProps) {
   }
 
   return (
-    <PreviewShell hint={`dashboard · ${widgets.length} widget${widgets.length === 1 ? '' : 's'}`}>
+    <PreviewShell
+      hint={`dashboard · ${widgets.length} widget${widgets.length === 1 ? '' : 's'}${
+        designMode ? ' · design' : ''
+      }`}
+    >
       <PreviewErrorBoundary fallbackHint="A widget references an object or field that doesn't resolve.">
         <React.Suspense
           fallback={
@@ -47,7 +96,10 @@ export function DashboardPreview({ draft }: MetadataPreviewProps) {
             <DashboardRenderer
               schema={draft as any}
               dataSource={adapter as any}
-              designMode={false}
+              designMode={designMode}
+              selectedWidgetId={selectedWidgetId}
+              onWidgetClick={designMode ? handleWidgetClick : undefined}
+              onWidgetsReorder={designMode && onPatch ? handleReorder : undefined}
               hideHeaderText
             />
           </div>
