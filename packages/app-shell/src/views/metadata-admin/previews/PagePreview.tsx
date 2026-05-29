@@ -14,6 +14,7 @@ import { SchemaRenderer } from '@object-ui/react';
 import type { MetadataPreviewProps } from '../preview-registry';
 import { PreviewShell, PreviewErrorBoundary, PreviewMessage } from './PreviewShell';
 import { OutlineStrip } from './OutlineStrip';
+import { PageBlockCanvas } from './PageBlockCanvas';
 import { t as tr } from '../i18n';
 
 interface Block { type?: string; id?: string; children?: Block[]; [k: string]: unknown }
@@ -88,12 +89,19 @@ export function PagePreview({ draft, editing, selection, onSelectionChange, onPa
     onSelectionChange?.({ kind: 'block', id: `children[${next.length - 1}]`, label: newBlock.type });
   }, [canEdit, draft, onPatch, onSelectionChange, shape]);
 
-  // Empty draft → no preview; but if we're in design mode show an Add
-  // shell so users can author from scratch.
+  // Empty draft → no preview; but if we're in design mode show the
+  // canvas so users can author from scratch.
   if (!schema || Object.keys(schema).length <= 1) {
     return (
       <PreviewShell hint={`page${designMode ? ' · design' : ''}`}>
-        {designMode && (
+        {designMode && shape === 'regions' ? (
+          <PageBlockCanvas
+            draft={draft}
+            onPatch={canEdit ? onPatch : undefined}
+            selection={selection ?? null}
+            onSelectionChange={onSelectionChange}
+          />
+        ) : designMode ? (
           <OutlineStrip
             title={tr('engine.inspector.pageBlock.outlineLabel', locale)}
             entries={blockEntries}
@@ -102,8 +110,25 @@ export function PagePreview({ draft, editing, selection, onSelectionChange, onPa
             onAdd={canEdit ? handleAddBlock : undefined}
             addLabel={tr('engine.inspector.add.block', locale)}
           />
-        )}
-        <PreviewMessage>Add components to the page to see a preview.</PreviewMessage>
+        ) : null}
+        {!designMode && <PreviewMessage>Add components to the page to see a preview.</PreviewMessage>}
+      </PreviewShell>
+    );
+  }
+
+  // Design mode with regions shape — show the form-canvas style
+  // designer instead of the runtime renderer so authors can drag,
+  // rename, and add blocks inline. The outline strip becomes
+  // redundant in this view.
+  if (designMode && shape === 'regions') {
+    return (
+      <PreviewShell hint={`page · design`}>
+        <PageBlockCanvas
+          draft={draft}
+          onPatch={canEdit ? onPatch : undefined}
+          selection={selection ?? null}
+          onSelectionChange={onSelectionChange}
+        />
       </PreviewShell>
     );
   }
