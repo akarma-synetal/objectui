@@ -13,8 +13,8 @@
  */
 
 import * as React from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
-import { Plus, Search, RefreshCw, AlertTriangle, Lock } from 'lucide-react';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { Plus, Search, RefreshCw, AlertTriangle, Lock, Package as PackageIcon } from 'lucide-react';
 import { Button } from '@object-ui/components';
 import { Input } from '@object-ui/components';
 import { Badge } from '@object-ui/components';
@@ -111,7 +111,23 @@ function DefaultMetadataList({ type }: { type: string }) {
   const [error, setError] = React.useState<string | null>(null);
   const [query, setQuery] = React.useState('');
   const [sourceFilter, setSourceFilter] = React.useState<string>('all');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [packageFilter, setPackageFilter] = React.useState<string>(
+    searchParams.get('package') ?? 'all',
+  );
   const [refreshKey, setRefreshKey] = React.useState(0);
+
+  // Keep URL `?package=` in sync so directory-page deep-links survive
+  // refresh and back-navigation.
+  React.useEffect(() => {
+    const current = searchParams.get('package') ?? 'all';
+    if (current !== packageFilter) {
+      const next = new URLSearchParams(searchParams);
+      if (packageFilter === 'all') next.delete('package');
+      else next.set('package', packageFilter);
+      setSearchParams(next, { replace: true });
+    }
+  }, [packageFilter]);
 
   React.useEffect(() => {
     let cancelled = false;
@@ -152,8 +168,29 @@ function DefaultMetadataList({ type }: { type: string }) {
   const filtered = items.filter((row) => {
     if (!matchesQuery(row.item, query, searchableFields)) return false;
     if (sourceFilter !== 'all' && row.source !== sourceFilter) return false;
+    if (packageFilter !== 'all') {
+      const pkg = (row.item as any)?._packageId;
+      // 'sys_metadata' sentinel represents runtime-authored items; treat
+      // any falsy/sentinel pkg as not-matching any concrete package.
+      const effectivePkg = !pkg || pkg === 'sys_metadata' ? null : pkg;
+      if (effectivePkg !== packageFilter) return false;
+    }
     return true;
   });
+
+  // Package options derived from currently loaded items (ignore source
+  // filter so the dropdown stays stable while users tweak filters).
+  const packageOptions = React.useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const r of items) {
+      const pkg = (r.item as any)?._packageId;
+      if (!pkg || pkg === 'sys_metadata') continue;
+      counts.set(pkg, (counts.get(pkg) ?? 0) + 1);
+    }
+    return Array.from(counts.entries())
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([id, count]) => ({ id, count }));
+  }, [items]);
 
   // Compute source + invalid counts for filter / header stats.
   const sourceCounts = React.useMemo(() => {
@@ -245,6 +282,25 @@ function DefaultMetadataList({ type }: { type: string }) {
               <SelectItem value="runtime">{t('engine.list.source.runtime', locale)} ({sourceCounts.runtime})</SelectItem>
             </SelectContent>
           </Select>
+          {packageOptions.length > 0 && (
+            <Select value={packageFilter} onValueChange={setPackageFilter}>
+              <SelectTrigger className="w-[240px]">
+                <PackageIcon className="h-3.5 w-3.5 mr-1 text-muted-foreground shrink-0" />
+                <SelectValue placeholder={t('engine.list.allPackages', locale)} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">
+                  {t('engine.list.allPackages', locale)} ({packageOptions.length})
+                </SelectItem>
+                {packageOptions.map((p) => (
+                  <SelectItem key={p.id} value={p.id}>
+                    <span className="font-mono text-xs">{p.id}</span>
+                    <span className="text-muted-foreground ml-2">({p.count})</span>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
         </div>
 
         {/* Body */}

@@ -174,6 +174,17 @@ export interface MetadataDiagnosticsSummary {
   scannedTypes: number;
   /** How many individual items were validated. */
   scannedItems: number;
+  /**
+   * Per-type aggregate stats — count of items and the list of
+   * packages contributing to each type. Computed in the same sweep
+   * so a single call serves both the diagnostics governance page and
+   * the directory tile counts / package filter.
+   *
+   * Optional for backward compatibility with older framework
+   * versions that do not yet emit it; clients should fall back to
+   * an empty record.
+   */
+  stats?: Record<string, { count: number; packages: string[] }>;
 }
 
 /** Reference back-pointer — Phase 3a `/references`. */
@@ -429,7 +440,7 @@ export class MetadataClient {
     if (res.status === 404) {
       // Older server without the sweep endpoint — caller should treat
       // as "no diagnostics available", not as an error.
-      return { entries: [], total: 0, scannedTypes: 0, scannedItems: 0 };
+      return { entries: [], total: 0, scannedTypes: 0, scannedItems: 0, stats: {} };
     }
     if (!res.ok) throw await parseError(res);
     const data = (await res.json()) as Partial<MetadataDiagnosticsSummary>;
@@ -438,6 +449,7 @@ export class MetadataClient {
       total: typeof data.total === 'number' ? data.total : 0,
       scannedTypes: typeof data.scannedTypes === 'number' ? data.scannedTypes : 0,
       scannedItems: typeof data.scannedItems === 'number' ? data.scannedItems : 0,
+      stats: data.stats && typeof data.stats === 'object' ? data.stats : {},
     };
   }
 

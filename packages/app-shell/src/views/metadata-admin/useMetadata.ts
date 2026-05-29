@@ -148,6 +148,12 @@ export function useGlobalDiagnostics(
   error: string | null;
   summary: MetadataDiagnosticsSummary;
   byType: Record<string, number>;
+  /** Per-type item count (from server-side sweep). Empty on older servers. */
+  countsByType: Record<string, number>;
+  /** Per-type list of contributing packages. Empty on older servers. */
+  packagesByType: Record<string, string[]>;
+  /** Sorted, deduped union of all packages seen across all types. */
+  allPackages: string[];
   reload: () => void;
 } {
   const [loading, setLoading] = useState(true);
@@ -157,6 +163,7 @@ export function useGlobalDiagnostics(
     total: 0,
     scannedTypes: 0,
     scannedItems: 0,
+    stats: {},
   });
   const [tick, setTick] = useState(0);
 
@@ -175,7 +182,7 @@ export function useGlobalDiagnostics(
         // Older servers without /meta/diagnostics: surface as empty,
         // not as a fatal error — the directory page should still load.
         setError(err?.message ?? String(err));
-        setSummary({ entries: [], total: 0, scannedTypes: 0, scannedItems: 0 });
+        setSummary({ entries: [], total: 0, scannedTypes: 0, scannedItems: 0, stats: {} });
         setLoading(false);
       }
     })();
@@ -192,7 +199,36 @@ export function useGlobalDiagnostics(
     return c;
   }, [summary]);
 
-  return { loading, error, summary, byType, reload: () => setTick((n) => n + 1) };
+  const countsByType = useMemo(() => {
+    const c: Record<string, number> = {};
+    for (const [t, s] of Object.entries(summary.stats ?? {})) c[t] = s.count;
+    return c;
+  }, [summary]);
+
+  const packagesByType = useMemo(() => {
+    const c: Record<string, string[]> = {};
+    for (const [t, s] of Object.entries(summary.stats ?? {})) c[t] = s.packages ?? [];
+    return c;
+  }, [summary]);
+
+  const allPackages = useMemo(() => {
+    const set = new Set<string>();
+    for (const s of Object.values(summary.stats ?? {})) {
+      for (const p of s.packages ?? []) set.add(p);
+    }
+    return [...set].sort();
+  }, [summary]);
+
+  return {
+    loading,
+    error,
+    summary,
+    byType,
+    countsByType,
+    packagesByType,
+    allPackages,
+    reload: () => setTick((n) => n + 1),
+  };
 }
 
 /**

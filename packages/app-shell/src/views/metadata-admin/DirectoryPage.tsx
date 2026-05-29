@@ -17,12 +17,19 @@
 
 import * as React from 'react';
 import { Link } from 'react-router-dom';
-import { Search, Database, Layers, Workflow, Sparkles, Settings, ShieldCheck, Box, AlertTriangle } from 'lucide-react';
+import { Search, Database, Layers, Workflow, Sparkles, Settings, ShieldCheck, Box, AlertTriangle, Package as PackageIcon } from 'lucide-react';
 import { Input } from '@object-ui/components';
 import { Button } from '@object-ui/components';
 import { Badge } from '@object-ui/components';
 import { Kbd } from '@object-ui/components';
 import { Empty, EmptyTitle, EmptyDescription } from '@object-ui/components';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@object-ui/components';
 import {
   useMetadataClient,
   useMetadataTypes,
@@ -73,12 +80,19 @@ const HIDDEN_TYPES = new Set(['field']);
 export function MetadataDirectoryPage() {
   const client = useMetadataClient();
   const { loading, error, entries } = useMetadataTypes(client);
-  const { byType: invalidByType, summary: diagSummary } = useGlobalDiagnostics(client);
+  const {
+    byType: invalidByType,
+    summary: diagSummary,
+    countsByType,
+    packagesByType,
+    allPackages,
+  } = useGlobalDiagnostics(client);
   const locale = React.useMemo(() => detectLocale(), []);
 
   const [query, setQuery] = React.useState('');
   const [domainFilter, setDomainFilter] = React.useState<string>('all');
   const [writableOnly, setWritableOnly] = React.useState(false);
+  const [packageFilter, setPackageFilter] = React.useState<string>('all');
 
   // Counts per domain for the filter chip bar.
   const domainCounts = React.useMemo(() => {
@@ -99,6 +113,10 @@ export function MetadataDirectoryPage() {
     if (HIDDEN_TYPES.has(e.type)) return false;
     if (writableOnly && !(e.allowOrgOverride || e.allowRuntimeCreate)) return false;
     if (domainFilter !== 'all' && (e.domain ?? 'other') !== domainFilter) return false;
+    if (packageFilter !== 'all') {
+      const pkgs = packagesByType[e.type] ?? [];
+      if (!pkgs.includes(packageFilter)) return false;
+    }
     if (query) {
       const q = query.toLowerCase();
       const hit =
@@ -163,6 +181,24 @@ export function MetadataDirectoryPage() {
           >
             {t('engine.directory.writableOnly', locale)} ({writableCount})
           </Button>
+          {allPackages.length > 0 && (
+            <Select value={packageFilter} onValueChange={setPackageFilter}>
+              <SelectTrigger className="h-8 w-[220px] text-xs">
+                <PackageIcon className="h-3.5 w-3.5 mr-1 text-muted-foreground" />
+                <SelectValue placeholder={t('engine.directory.allPackages', locale)} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">
+                  {t('engine.directory.allPackages', locale)} ({allPackages.length})
+                </SelectItem>
+                {allPackages.map((p) => (
+                  <SelectItem key={p} value={p}>
+                    <span className="font-mono text-xs">{p}</span>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
           {diagSummary.total > 0 && (
             <Button
               asChild
@@ -222,14 +258,24 @@ export function MetadataDirectoryPage() {
                 {translateMetadataDomain(domain, locale)} ({group.length})
               </h2>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                {group.map((e) => (
-                  <TypeTile
-                    key={e.type}
-                    entry={e}
-                    locale={locale}
-                    invalidCount={invalidByType[e.type] ?? 0}
-                  />
-                ))}
+                {group.map((e) => {
+                  // When a package filter is active, show the count
+                  // *constrained to that package* so the tile number
+                  // matches what the user will see after clicking
+                  // into the list page.
+                  const totalCount = countsByType[e.type] ?? 0;
+                  const showFiltered = packageFilter !== 'all';
+                  return (
+                    <TypeTile
+                      key={e.type}
+                      entry={e}
+                      locale={locale}
+                      invalidCount={invalidByType[e.type] ?? 0}
+                      itemCount={totalCount}
+                      packageFilter={showFiltered ? packageFilter : undefined}
+                    />
+                  );
+                })}
               </div>
             </section>
           );
@@ -277,16 +323,24 @@ function TypeTile({
   entry,
   locale,
   invalidCount = 0,
+  itemCount = 0,
+  packageFilter,
 }: {
   entry: RichMetadataTypeEntry;
   locale?: string;
   invalidCount?: number;
+  itemCount?: number;
+  /** When set, navigate into the list page pre-filtered to this package. */
+  packageFilter?: string;
 }) {
   // Prefer the locale-table translation; fall back to server's `label` (typically English).
   const label = translateMetadataType(entry.type, locale, entry.label);
+  const href = packageFilter
+    ? `./${encodeURIComponent(entry.type)}?package=${encodeURIComponent(packageFilter)}`
+    : `./${encodeURIComponent(entry.type)}`;
   return (
     <Link
-      to={`./${encodeURIComponent(entry.type)}`}
+      to={href}
       className={
         'block p-4 border rounded-lg hover:bg-accent transition-colors ' +
         (invalidCount > 0
@@ -312,6 +366,13 @@ function TypeTile({
           </code>
         </div>
         <div className="flex items-center gap-1 shrink-0">
+          <Badge
+            variant="secondary"
+            className="text-[10px] tabular-nums"
+            title={tFormat('engine.directory.itemCountTooltip', locale ?? 'en', { count: itemCount })}
+          >
+            {itemCount}
+          </Badge>
           {invalidCount > 0 && (
             <Badge
               variant="outline"
