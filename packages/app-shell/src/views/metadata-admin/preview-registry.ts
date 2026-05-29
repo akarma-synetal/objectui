@@ -58,10 +58,15 @@ export interface MetadataPreviewProps {
   onPatch?: (patch: Record<string, unknown>) => void;
   /**
    * Optional: whether the host is in edit mode. Previews that ship
-   * editing affordances (e.g. ObjectPreview's FieldsTable) should
-   * render them in a disabled/hidden state when `editing === false`.
+   * editing affordances should render them in a disabled/hidden state
+   * when `editing === false`.
    */
   editing?: boolean;
+  /**
+   * Optional: BCP-47 locale code (e.g. 'en', 'zh-CN') for previews that
+   * render localized labels. Defaults are derived from the host locale.
+   */
+  locale?: string;
   /**
    * Optional: the currently selected sub-element (e.g. a dashboard
    * widget). Previews use this to render selection chrome (highlight

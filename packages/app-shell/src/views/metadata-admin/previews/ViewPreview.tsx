@@ -15,6 +15,8 @@ import * as React from 'react';
 import { SchemaRenderer } from '@object-ui/react';
 import type { MetadataPreviewProps } from '../preview-registry';
 import { PreviewShell, PreviewErrorBoundary, PreviewMessage } from './PreviewShell';
+import { OutlineStrip } from './OutlineStrip';
+import { t as tr } from '../i18n';
 
 const VIEW_VARIANT_KEYS = [
   'list',
@@ -59,12 +61,35 @@ function resolveObjectName(draft: Record<string, unknown>, variantSchema?: Recor
   return undefined;
 }
 
-export function ViewPreview({ name, draft }: MetadataPreviewProps) {
+export function ViewPreview({ name, draft, editing, selection, onSelectionChange, locale }: MetadataPreviewProps) {
   const variants = React.useMemo(() => detectVariants(draft), [draft]);
   const objectName = React.useMemo(
     () => resolveObjectName(draft, variants[0]?.schema),
     [draft, variants],
   );
+
+  const designMode = !!(editing && onSelectionChange);
+  const selectedId = selection && selection.kind === 'column' ? selection.id : null;
+  // Enumerate columns across all variants — chip label includes variant prefix.
+  const columnEntries = React.useMemo(() => {
+    const out: Array<{ id: string; label: string }> = [];
+    for (const v of variants) {
+      const cols = Array.isArray((v.schema as any).columns) ? (v.schema as any).columns as Array<Record<string, unknown>> : [];
+      cols.forEach((c, i) => {
+        const lbl = String(c.header ?? c.accessorKey ?? `col ${i + 1}`);
+        out.push({ id: `${v.key}.columns[${i}]`, label: variants.length > 1 ? `${v.key}.${lbl}` : lbl });
+      });
+    }
+    return out;
+  }, [variants]);
+  const outlineNode = designMode && columnEntries.length > 0 ? (
+    <OutlineStrip
+      title={tr('engine.inspector.viewColumn.outlineLabel', locale)}
+      entries={columnEntries}
+      selectedId={selectedId}
+      onSelect={(e) => onSelectionChange?.({ kind: 'column', id: e.id, label: e.label })}
+    />
+  ) : null;
 
   // Compose the listViews map: the draft IS the "default" — surface it as a
   // primary named view FIRST so the view switcher picks it as default. Then
@@ -97,8 +122,9 @@ export function ViewPreview({ name, draft }: MetadataPreviewProps) {
   if (!variants.length && (draft as any).type) {
     const schema = { ...(draft as Record<string, unknown>) };
     return (
-      <PreviewShell hint={`view · ${(schema as any).type}`}>
+      <PreviewShell hint={`view · ${(schema as any).type}${designMode ? ' · design' : ''}`}>
         <PreviewErrorBoundary fallbackHint="The view's `type` may not be registered, or required fields are missing.">
+          {outlineNode}
           <div className="min-h-[300px] max-h-[75vh] overflow-auto">
             <SchemaRenderer schema={schema as any} />
           </div>
@@ -147,8 +173,9 @@ export function ViewPreview({ name, draft }: MetadataPreviewProps) {
     .join(' · ');
 
   return (
-    <PreviewShell hint={`view · ${variantHint || 'list'}`}>
+    <PreviewShell hint={`view · ${variantHint || 'list'}${designMode ? ' · design' : ''}`}>
       <PreviewErrorBoundary fallbackHint="The view references an object or field that doesn't resolve.">
+        {outlineNode}
         <div className="min-h-[300px] max-h-[75vh] overflow-auto">
           <SchemaRenderer schema={schema as any} />
         </div>
