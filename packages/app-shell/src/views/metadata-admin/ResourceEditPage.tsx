@@ -36,6 +36,9 @@ import {
   X,
   PanelRightClose,
   PanelRightOpen,
+  Maximize2,
+  Minimize2,
+  MousePointer2,
 } from 'lucide-react';
 import { Button } from '@object-ui/components';
 import { Badge } from '@object-ui/components';
@@ -259,26 +262,106 @@ export function MetadataResourceEditPage({
   // state is persisted in localStorage so the user's preference sticks
   // across navigations.
   const inspectorStorageKey = 'metadata-edit:inspector-collapsed';
+  const inspectorSizeStorageKey = 'metadata-edit:inspector-size';
   const [inspectorCollapsed, setInspectorCollapsed] = React.useState<boolean>(() => {
     if (typeof window === 'undefined') return false;
     return window.localStorage.getItem(inspectorStorageKey) === '1';
   });
+  // Remember the user's preferred inspector size so collapsing then
+  // re-expanding restores it instead of leaving a sliver. react-resizable-
+  // panels' built-in expand() returns to the size right before collapse
+  // which is often near 0, hence the explicit memory.
+  const lastInspectorSizeRef = React.useRef<number>(38);
+  // Hydrate from localStorage on mount.
+  React.useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const v = Number(window.localStorage.getItem(inspectorSizeStorageKey));
+    if (Number.isFinite(v) && v >= 22 && v <= 80) {
+      lastInspectorSizeRef.current = v;
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const inspectorPanelRef = React.useRef<any>(null);
   const toggleInspector = React.useCallback(() => {
-    const handle = inspectorPanelRef.current;
     setInspectorCollapsed((prev) => {
       const next = !prev;
-      if (handle) {
-        if (next) handle.collapse();
-        else handle.expand();
-      }
       if (typeof window !== 'undefined') {
         window.localStorage.setItem(inspectorStorageKey, next ? '1' : '0');
       }
       return next;
     });
   }, []);
+  // Drive the imperative panel resize from a state-change effect rather
+  // than inside the setter — the latter runs before React has committed
+  // the new state and react-resizable-panels can race with its own
+  // onResize observer, producing tiny re-expanded sizes.
+  // ⚠️ resize() treats numeric values as **pixels**; pass a string to
+  // get a percentage. resize(38) → 38px (~2.7%); resize('38%') → 38%.
+  React.useEffect(() => {
+    const handle = inspectorPanelRef.current;
+    if (!handle) return;
+    if (inspectorCollapsed) {
+      handle.resize?.('0%');
+    } else {
+      const target = lastInspectorSizeRef.current || 38;
+      handle.resize?.(`${target}%`);
+    }
+  }, [inspectorCollapsed]);
+
+  // Canvas-local UX state — preview-only view (hides design chrome
+  // without dropping dirty edits) and fullscreen (canvas takes over the
+  // viewport so designers can focus). Both are session-scoped.
+  const [previewOnly, setPreviewOnly] = React.useState(false);
+  const [isFullscreen, setIsFullscreen] = React.useState(false);
+  // Lock body scroll while fullscreen so the underlying page can't peek
+  // through and the user's scroll position is preserved on exit.
+  React.useEffect(() => {
+    if (typeof document === 'undefined') return;
+    if (!isFullscreen) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [isFullscreen]);
+  // Escape exits fullscreen.
+  React.useEffect(() => {
+    if (typeof window === 'undefined' || !isFullscreen) return;
+    function onKey(e: KeyboardEvent) {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        setIsFullscreen(false);
+      }
+    }
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [isFullscreen]);
+
+  // Auto-enable design mode for designer-capable types. We do this once
+  // per (type,name) navigation so the user lands in the productive
+  // state instead of having to click "Edit". Truly read-only types
+  // (canWrite=false) keep the old behavior. The check happens inside
+  // the effect to avoid hook-order issues with the early `loading`
+  // return below.
+  const designerAutoOnRef = React.useRef<string | null>(null);
+  React.useEffect(() => {
+    designerAutoOnRef.current = null;
+  }, [type, name]);
+  React.useEffect(() => {
+    if (createMode || embedded || loading) return;
+    const key = `${type}/${name ?? ''}`;
+    if (designerAutoOnRef.current === key) return;
+    const PC = getMetadataPreview(type);
+    if (!PC) return;
+    const isArtifact = layered?.code != null;
+    const cw = isArtifact
+      ? !!entry?.allowOrgOverride
+      : !!(entry?.allowOrgOverride || entry?.allowRuntimeCreate);
+    if (!cw) return;
+    designerAutoOnRef.current = key;
+    setEditing(true);
+  }, [type, name, createMode, embedded, loading, entry, layered]);
 
   // Keyboard shortcut: Cmd/Ctrl+\ toggles the inspector. This is the
   // designer convention shared by Figma, VS Code (Cmd+B), Sketch — `\`
@@ -349,9 +432,11 @@ export function MetadataResourceEditPage({
       draftSnapshotRef.current = fresh;
       setDestructiveIssues(null);
       setPendingItem(null);
-      // Exit edit mode on successful save (unless we were creating —
-      // navigation to the new record's URL will reset state anyway).
-      if (!createMode) setEditing(false);
+      // Stay in design mode after save for designer-capable types so the
+      // user keeps their inspector context. Non-designer types fall back
+      // to the previous "exit edit on save" UX.
+      const stayInEditing = !createMode && !!getMetadataPreview(type);
+      if (!createMode && !stayInEditing) setEditing(false);
       if (createMode) {
         navigate(`../${encodeURIComponent(savedName)}`, { relative: 'path' });
       }
@@ -421,7 +506,13 @@ export function MetadataResourceEditPage({
         const fresh = (lay.effective ?? lay.code ?? {}) as Record<string, unknown>;
         setDraft(fresh);
         draftSnapshotRef.current = fresh;
-        setEditing(false);
+        // Designer-capable types stay in design mode; allow the auto-on
+        // effect to re-trigger after this reset.
+        if (getMetadataPreview(type)) {
+          designerAutoOnRef.current = null;
+        } else {
+          setEditing(false);
+        }
       } else {
         // No artifact baseline → return to the list view.
         navigate(`../`, { relative: 'path' });
@@ -767,26 +858,145 @@ export function MetadataResourceEditPage({
               </div>
             )}
             {PreviewComponent ? (
-              <div className="relative flex-1 min-h-0 flex">
+              <div
+                className={
+                  isFullscreen
+                    ? 'fixed inset-0 z-50 bg-background flex flex-col p-3'
+                    : 'relative flex-1 min-h-0 flex'
+                }
+              >
                 <PanelGroup
                   direction="horizontal"
                   className="flex-1 min-h-0 rounded-md border bg-background overflow-hidden"
                   id={`metadata-edit-${type}`}
                 >
-                  <ResizablePanel defaultSize={inspectorCollapsed ? 100 : 62} minSize={30}>
-                    <div className="h-full overflow-auto p-4 bg-[radial-gradient(circle_at_1px_1px,theme(colors.border)_1px,transparent_0)] [background-size:16px_16px] bg-muted/30">
-                      <PreviewComponent
-                        type={type}
-                        name={name}
-                        draft={draft}
-                        editing={editing}
-                        selection={selection}
-                        onSelectionChange={setSelection}
-                        locale={locale}
-                        onPatch={(patch) =>
-                          setDraft((d) => ({ ...(d as Record<string, unknown>), ...patch }))
-                        }
-                      />
+                  <ResizablePanel defaultSize={62} minSize={30}>
+                    <div className="relative h-full flex flex-col">
+                      {/* Canvas toolbar — owns the design/preview toggle
+                          and fullscreen affordance so designers can drive
+                          the canvas without round-tripping to the page
+                          header. In fullscreen we also surface Save /
+                          Cancel / Inspector controls here since the
+                          PageShell header is hidden. */}
+                      <div className="flex items-center justify-between gap-2 border-b bg-background/95 backdrop-blur px-3 py-2 sticky top-0 z-10">
+                        <div className="flex items-center gap-1">
+                          {canWrite && (
+                            <div
+                              role="tablist"
+                              aria-label={t('engine.edit.designer', locale)}
+                              className="inline-flex items-center rounded-md border bg-muted/40 p-0.5"
+                            >
+                              <button
+                                type="button"
+                                role="tab"
+                                aria-selected={!previewOnly}
+                                onClick={() => setPreviewOnly(false)}
+                                className={
+                                  'inline-flex items-center gap-1 rounded px-2 py-1 text-xs transition-colors ' +
+                                  (!previewOnly
+                                    ? 'bg-background shadow-sm text-foreground'
+                                    : 'text-muted-foreground hover:text-foreground')
+                                }
+                                title={t('engine.edit.designMode', locale)}
+                              >
+                                <MousePointer2 className="h-3.5 w-3.5" />
+                                {t('engine.edit.designMode', locale)}
+                              </button>
+                              <button
+                                type="button"
+                                role="tab"
+                                aria-selected={previewOnly}
+                                onClick={() => setPreviewOnly(true)}
+                                className={
+                                  'inline-flex items-center gap-1 rounded px-2 py-1 text-xs transition-colors ' +
+                                  (previewOnly
+                                    ? 'bg-background shadow-sm text-foreground'
+                                    : 'text-muted-foreground hover:text-foreground')
+                                }
+                                title={t('engine.edit.previewMode', locale)}
+                              >
+                                <Eye className="h-3.5 w-3.5" />
+                                {t('engine.edit.previewMode', locale)}
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-1">
+                          {isFullscreen && canWrite && (editing || createMode) && (
+                            <>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={doCancelEdit}
+                                disabled={saving || !isDirty}
+                                className="h-7"
+                              >
+                                <X className="h-3.5 w-3.5 mr-1" />
+                                {t('engine.cancel', locale)}
+                              </Button>
+                              <Button
+                                size="sm"
+                                onClick={() => doSave(false)}
+                                disabled={saving || (!createMode && !isDirty)}
+                                className="h-7"
+                              >
+                                <Save className="h-3.5 w-3.5 mr-1" />
+                                {t('engine.edit.save', locale)}
+                              </Button>
+                            </>
+                          )}
+                          {isFullscreen && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={toggleInspector}
+                              className="h-7 w-7 p-0"
+                              title={
+                                (inspectorCollapsed
+                                  ? t('engine.edit.showInspector', locale)
+                                  : t('engine.edit.hideInspector', locale)) + ' (⌘\\)'
+                              }
+                            >
+                              {inspectorCollapsed ? (
+                                <PanelRightOpen className="h-3.5 w-3.5" />
+                              ) : (
+                                <PanelRightClose className="h-3.5 w-3.5" />
+                              )}
+                            </Button>
+                          )}
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setIsFullscreen((v) => !v)}
+                            className="h-7 w-7 p-0"
+                            title={
+                              isFullscreen
+                                ? t('engine.edit.exitFullscreen', locale)
+                                : t('engine.edit.fullscreen', locale)
+                            }
+                          >
+                            {isFullscreen ? (
+                              <Minimize2 className="h-3.5 w-3.5" />
+                            ) : (
+                              <Maximize2 className="h-3.5 w-3.5" />
+                            )}
+                          </Button>
+                        </div>
+                      </div>
+                      <div className="flex-1 min-h-0 overflow-auto p-4 bg-[radial-gradient(circle_at_1px_1px,theme(colors.border)_1px,transparent_0)] [background-size:16px_16px] bg-muted/30">
+                        <PreviewComponent
+                          type={type}
+                          name={name}
+                          draft={draft}
+                          editing={editing && !previewOnly}
+                          selection={previewOnly ? null : selection}
+                          onSelectionChange={setSelection}
+                          locale={locale}
+                          onPatch={(patch) =>
+                            setDraft((d) => ({ ...(d as Record<string, unknown>), ...patch }))
+                          }
+                        />
+                      </div>
                     </div>
                   </ResizablePanel>
                   <ResizableHandle
@@ -799,12 +1009,22 @@ export function MetadataResourceEditPage({
                   />
                   <ResizablePanel
                     panelRef={inspectorPanelRef}
-                    defaultSize={inspectorCollapsed ? 0 : 38}
+                    defaultSize={lastInspectorSizeRef.current}
                     minSize={22}
                     collapsible
                     collapsedSize={0}
                     onResize={(size) => {
-                      const collapsed = size.asPercentage <= 0.5;
+                      const pct = size.asPercentage;
+                      const collapsed = pct <= 0.5;
+                      if (!collapsed) {
+                        lastInspectorSizeRef.current = pct;
+                        if (typeof window !== 'undefined') {
+                          window.localStorage.setItem(
+                            inspectorSizeStorageKey,
+                            String(Math.round(pct)),
+                          );
+                        }
+                      }
                       setInspectorCollapsed((prev) => {
                         if (prev === collapsed) return prev;
                         if (typeof window !== 'undefined') {
