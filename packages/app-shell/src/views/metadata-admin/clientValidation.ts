@@ -77,10 +77,13 @@ const LOADERS: Record<string, SchemaLoader> = {
   email_template: async () => (await import('@objectstack/spec/system')).EmailTemplateSchema as unknown as ZodLikeSchema,
   job: async () => (await import('@objectstack/spec/system')).JobSchema as unknown as ZodLikeSchema,
 
-  // kernel
-  permission: async () => (await import('@objectstack/spec/kernel')).PermissionSchema as unknown as ZodLikeSchema,
-
   // security
+  // NOTE: use PermissionSetSchema from /security, NOT PermissionSchema from /kernel —
+  // the kernel one is the plugin-sandbox permission ({id,resource,actions}), not the
+  // metadata permission set ({name,isProfile,objects,fields}). See
+  // packages/spec/src/kernel/metadata-type-schemas.ts for the canonical mapping.
+  permission: async () => (await import('@objectstack/spec/security')).PermissionSetSchema as unknown as ZodLikeSchema,
+  profile: async () => (await import('@objectstack/spec/security')).PermissionSetSchema as unknown as ZodLikeSchema,
   policy: async () => (await import('@objectstack/spec/security')).PolicySchema as unknown as ZodLikeSchema,
 
   // identity

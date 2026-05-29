@@ -294,11 +294,11 @@ export function registerBuiltinAnchors(): void {
       groupLabel: 'Permissions',
       order: 60,
     }],
-    // NOTE: Permission's create form is blocked by a server-side
-    // mismatch — `/api/v1/meta` returns the legacy PermissionSet
-    // shape (name/isProfile/objects/fields), but the save endpoint
-    // validates with the new PermissionSchema (id/resource/actions).
-    // No client config can reconcile this; requires framework fix.
+    createFields: ['label', 'name', 'isProfile'],
+    createDerive: [
+      { from: 'label', to: 'name', transform: 'slugify', untilUserEdits: true },
+    ],
+    createDefaults: { objects: {} },
   });
 
   // action — both record-scoped and object-scoped actions live here.
