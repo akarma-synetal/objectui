@@ -15,8 +15,7 @@ import * as React from 'react';
 import { SchemaRenderer } from '@object-ui/react';
 import type { MetadataPreviewProps } from '../preview-registry';
 import { PreviewShell, PreviewErrorBoundary, PreviewMessage } from './PreviewShell';
-import { OutlineStrip } from './OutlineStrip';
-import { t as tr } from '../i18n';
+import { ViewColumnCanvas } from './ViewColumnCanvas';
 
 const VIEW_VARIANT_KEYS = [
   'list',
@@ -61,7 +60,7 @@ function resolveObjectName(draft: Record<string, unknown>, variantSchema?: Recor
   return undefined;
 }
 
-export function ViewPreview({ name, draft, editing, selection, onSelectionChange, onPatch, locale }: MetadataPreviewProps) {
+export function ViewPreview({ name, draft, editing, selection, onSelectionChange, onPatch }: MetadataPreviewProps) {
   const variants = React.useMemo(() => detectVariants(draft), [draft]);
   const objectName = React.useMemo(
     () => resolveObjectName(draft, variants[0]?.schema),
@@ -70,59 +69,31 @@ export function ViewPreview({ name, draft, editing, selection, onSelectionChange
 
   const designMode = !!(editing && onSelectionChange);
   const canEdit = designMode && !!onPatch;
-  const selectedId = selection && selection.kind === 'column' ? selection.id : null;
 
-  const handleAddColumn = React.useCallback(
-    (variantKey: string) => {
-      if (!canEdit) return;
-      const variant = (draft as any)[variantKey] as Record<string, unknown> | undefined;
-      if (!variant) return;
-      const cols = Array.isArray((variant as any).columns) ? (variant as any).columns as Array<unknown> : [];
-      // Use ObjectStack canonical column shape `{ field, label }`. If the
-      // existing array is all-strings (kanban style), append a string so
-      // the column stays serializable in the same shape.
+  // Build a richer per-variant info struct the canvas can consume.
+  // We compute it from the raw variants so legacy column shapes are
+  // preserved verbatim on round-trip.
+  const canvasVariants = React.useMemo(() => {
+    return variants.map((v) => {
+      const cols = Array.isArray((v.schema as any).columns)
+        ? ((v.schema as any).columns as unknown[])
+        : [];
       const allStrings = cols.length > 0 && cols.every((c) => typeof c === 'string');
-      const newCol: unknown = allStrings ? '' : { field: '', label: 'New column' };
-      const next = [...cols, newCol];
-      onPatch!({ [variantKey]: { ...variant, columns: next } });
-      onSelectionChange?.({ kind: 'column', id: `${variantKey}.columns[${next.length - 1}]`, label: 'New column' });
-    },
-    [canEdit, draft, onPatch, onSelectionChange],
-  );
+      return { key: v.key, schema: v.schema, columns: cols, allStrings };
+    });
+  }, [variants]);
 
-  // Render one OutlineStrip per variant — each gets its own Add button
-  // so users know exactly which variant they are appending to.
-  const outlineNode = designMode ? (
-    <>
-      {variants.map((v) => {
-        const cols = Array.isArray((v.schema as any).columns) ? (v.schema as any).columns as Array<unknown> : [];
-        const entries = cols.map((c, i) => {
-          // Columns may be `{ field, label }`, `{ accessorKey, header }`,
-          // or raw string field-names (kanban). Resolve a friendly label.
-          let lbl: string;
-          if (typeof c === 'string') lbl = c;
-          else if (c && typeof c === 'object') {
-            const o = c as Record<string, unknown>;
-            lbl = String(o.label ?? o.header ?? o.field ?? o.accessorKey ?? `col ${i + 1}`);
-          } else lbl = `col ${i + 1}`;
-          return { id: `${v.key}.columns[${i}]`, label: variants.length > 1 ? `${v.key}.${lbl}` : lbl };
-        });
-        if (entries.length === 0 && !canEdit) return null;
-        return (
-          <OutlineStrip
-            key={v.key}
-            title={variants.length > 1
-              ? `${v.key} · ${tr('engine.inspector.viewColumn.outlineLabel', locale)}`
-              : tr('engine.inspector.viewColumn.outlineLabel', locale)}
-            entries={entries}
-            selectedId={selectedId}
-            onSelect={(e) => onSelectionChange?.({ kind: 'column', id: e.id, label: e.label })}
-            onAdd={canEdit ? () => handleAddColumn(v.key) : undefined}
-            addLabel={tr('engine.inspector.add.column', locale)}
-          />
-        );
-      })}
-    </>
+  // Render the form-canvas-style designer in design mode (replaces the
+  // legacy per-variant OutlineStrip). Non-design preview still uses
+  // the runtime SchemaRenderer below.
+  const canvasNode = designMode ? (
+    <ViewColumnCanvas
+      draft={draft}
+      variants={canvasVariants}
+      onPatch={canEdit ? onPatch : undefined}
+      selection={selection ?? null}
+      onSelectionChange={onSelectionChange}
+    />
   ) : null;
 
   // Compose the listViews map: the draft IS the "default" — surface it as a
@@ -158,7 +129,7 @@ export function ViewPreview({ name, draft, editing, selection, onSelectionChange
     return (
       <PreviewShell hint={`view · ${(schema as any).type}${designMode ? ' · design' : ''}`}>
         <PreviewErrorBoundary fallbackHint="The view's `type` may not be registered, or required fields are missing.">
-          {outlineNode}
+          {canvasNode}
           <div className="min-h-[300px] max-h-[75vh] overflow-auto">
             <SchemaRenderer schema={schema as any} />
           </div>
@@ -209,7 +180,7 @@ export function ViewPreview({ name, draft, editing, selection, onSelectionChange
   return (
     <PreviewShell hint={`view · ${variantHint || 'list'}${designMode ? ' · design' : ''}`}>
       <PreviewErrorBoundary fallbackHint="The view references an object or field that doesn't resolve.">
-        {outlineNode}
+        {canvasNode}
         <div className="min-h-[300px] max-h-[75vh] overflow-auto">
           <SchemaRenderer schema={schema as any} />
         </div>

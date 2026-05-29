@@ -16,13 +16,15 @@
  */
 
 import * as React from 'react';
-import { Loader2, Plus } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import type { DashboardWidgetSchema } from '@object-ui/types';
 import { useAdapter } from '../../../providers/AdapterProvider';
 import type { MetadataPreviewProps } from '../preview-registry';
 import { PreviewShell, PreviewErrorBoundary, PreviewMessage } from './PreviewShell';
 import { uniqueId, appendArray } from '../inspectors/_shared';
 import { t as tr } from '../i18n';
+import { AddWidgetPicker } from './AddWidgetPicker';
+import { WIDGET_TYPE_META } from './widget-types';
 
 const DashboardRenderer = React.lazy(() =>
   import('@object-ui/plugin-dashboard').then((m) => ({ default: m.DashboardRenderer })),
@@ -74,27 +76,23 @@ export function DashboardPreview({
     [onPatch],
   );
 
-  const handleAddWidget = React.useCallback(() => {
-    if (!canEdit) return;
-    const existingIds = widgets.map((w) => w?.id).filter(Boolean) as string[];
-    const id = uniqueId('widget', existingIds);
-    // `metric` is the simplest widget type — renders without requiring
-    // an object/field selection so the canvas doesn't error out on add.
-    const newWidget = { id, type: 'metric', title: 'New widget' } as unknown as DashboardWidgetSchema;
-    const next = appendArray(widgets, newWidget);
-    onPatch!({ widgets: next });
-    onSelectionChange?.({ kind: 'widget', id, label: 'New widget' });
-  }, [canEdit, widgets, onPatch, onSelectionChange]);
+  const handleAddWidget = React.useCallback(
+    (type: string) => {
+      if (!canEdit) return;
+      const existingIds = widgets.map((w) => w?.id).filter(Boolean) as string[];
+      const id = uniqueId('widget', existingIds);
+      const meta = WIDGET_TYPE_META[type];
+      const title = meta ? `New ${meta.label.toLowerCase()}` : 'New widget';
+      const newWidget = { id, type, title, ...(meta?.defaults ?? {}) } as unknown as DashboardWidgetSchema;
+      const next = appendArray(widgets, newWidget);
+      onPatch!({ widgets: next });
+      onSelectionChange?.({ kind: 'widget', id, label: title });
+    },
+    [canEdit, widgets, onPatch, onSelectionChange],
+  );
 
   const addButton = canEdit ? (
-    <button
-      type="button"
-      className="inline-flex items-center gap-1 rounded border border-dashed px-3 py-1.5 text-xs text-muted-foreground hover:bg-muted/30 hover:text-foreground"
-      onClick={handleAddWidget}
-    >
-      <Plus className="h-3 w-3" />
-      {tr('engine.inspector.add.widget', locale)}
-    </button>
+    <AddWidgetPicker onAdd={handleAddWidget} label={tr('engine.inspector.add.widget', locale)} />
   ) : null;
 
   if (widgets.length === 0) {
