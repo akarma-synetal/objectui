@@ -82,6 +82,36 @@ function getWindowOrigin(): string | undefined {
 }
 
 /**
+ * Resolve the redirect URL appended to password-reset emails as
+ * `?callbackURL=<value>`. better-auth sends users to `<value>?token=…`
+ * after verifying the token, so the value must point at the SPA's
+ * `/reset-password` route — including the SPA basename when mounted
+ * under a subpath (e.g. `/_console/reset-password`).
+ *
+ * Resolution order:
+ *   1. `<base href="…">` in the document head (matches how Console &
+ *      Account derive React Router's basename) — preferred since it
+ *      tracks whatever path the host SPA is served from.
+ *   2. `'/reset-password'` — sensible default for a SPA at the origin root.
+ */
+function resolveResetPasswordRedirect(): string {
+  try {
+    if (typeof document !== 'undefined') {
+      const baseEl = document.querySelector('base');
+      const href = baseEl?.getAttribute('href');
+      if (href) {
+        const url = new URL(href, getWindowOrigin() ?? 'http://localhost');
+        const path = url.pathname.replace(/\/$/, '');
+        return `${path}/reset-password`;
+      }
+    }
+  } catch {
+    // ignore — fall through to default
+  }
+  return '/reset-password';
+}
+
+/**
  * Create a fetch wrapper that injects Bearer token from localStorage
  * and captures updated tokens from the `set-auth-token` response header
  * (provided by better-auth's server-side bearer plugin).
@@ -233,10 +263,20 @@ export function createAuthClient(config: AuthClientConfig): AuthClient {
     async forgotPassword(email: string) {
       // better-auth uses "forgetPassword" (without the "o"); the method
       // exists at runtime but is not present in the default TS types.
+      //
+      // The `redirectTo` here is appended to the email link as
+      // `?callbackURL=<redirectTo>`. When the user clicks the email,
+      // better-auth verifies the token then 302s to
+      // `<redirectTo>?token=…`. We resolve the basename from the
+      // `<base href>` tag at runtime so the SPA mounted at e.g.
+      // `/_console/` lands on `/_console/reset-password?token=…`.
       type ForgetPasswordFn = (opts: { email: string; redirectTo: string }) =>
         Promise<{ error: { message?: string; status: number } | null }>;
       const forgetPw = (betterAuth as unknown as { forgetPassword: ForgetPasswordFn }).forgetPassword;
-      const { error } = await forgetPw({ email, redirectTo: '/' });
+      const { error } = await forgetPw({
+        email,
+        redirectTo: resolveResetPasswordRedirect(),
+      });
       if (error) {
         throw new Error(error.message ?? `Auth request failed with status ${error.status}`);
       }

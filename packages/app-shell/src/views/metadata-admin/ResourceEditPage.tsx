@@ -46,6 +46,7 @@ import {
   ZapOff,
   Send,
   Undo2,
+  Lock,
 } from 'lucide-react';
 import { Button } from '@object-ui/components';
 import { Badge } from '@object-ui/components';
@@ -732,11 +733,19 @@ export function MetadataResourceEditPage({
   //   - DB-only items (no artifact) need allowOrgOverride OR allowRuntimeCreate
   //   - createMode is always writable (the server will gate on intent)
   const isArtifactItem = !createMode && layered?.code != null;
-  const canWrite = createMode
+  // ADR-0010 — server-computed lock flags. undefined means "no opinion"
+  // (older server / non-lockable item) → preserve legacy behaviour.
+  const lockEditable = layered?.editable !== false;
+  const lockDeletable = layered?.deletable !== false;
+  const lockResettable = layered?.resettable !== false;
+  const lockReason = layered?.lockReason;
+  const isLocked = layered?.lock && layered.lock !== 'none';
+  const canWriteByType = createMode
     ? !!(entry?.allowOrgOverride || entry?.allowRuntimeCreate)
     : isArtifactItem
       ? !!entry?.allowOrgOverride
       : !!(entry?.allowOrgOverride || entry?.allowRuntimeCreate);
+  const canWrite = canWriteByType && (createMode || lockEditable);
   const readOnly = !canWrite && !createMode;
 
   // Auto-save: debounce edits and persist silently once the user pauses
@@ -952,7 +961,7 @@ export function MetadataResourceEditPage({
           )}
         </div>
       )}
-      {!createMode && canWrite && layered?.overlay && (
+      {!createMode && canWrite && layered?.overlay && (isArtifactItem ? lockResettable : lockDeletable) && (
         <Button
           variant="ghost"
           size="sm"
@@ -1109,7 +1118,7 @@ export function MetadataResourceEditPage({
             : 'p-6 space-y-6 max-w-7xl'
         }
       >
-        {(error || readOnly || hasDraft) && (
+        {(error || readOnly || hasDraft || isLocked) && (
           <div
             className={
               PreviewComponent
@@ -1120,6 +1129,24 @@ export function MetadataResourceEditPage({
             {error && (
               <div className="text-sm text-destructive border border-destructive/30 rounded p-3 bg-destructive/5">
                 {error}
+              </div>
+            )}
+            {isLocked && (
+              <div className="text-xs text-amber-900 border border-amber-300 bg-amber-50 rounded p-3 dark:text-amber-200 dark:border-amber-700/50 dark:bg-amber-950/30 flex items-start gap-3">
+                <Lock className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+                <div className="flex-1">
+                  <div className="font-medium">
+                    {layered?.lock === 'full' && t('engine.edit.lockFull', locale)}
+                    {layered?.lock === 'no-overlay' && t('engine.edit.lockNoOverlay', locale)}
+                    {layered?.lock === 'no-delete' && t('engine.edit.lockNoDelete', locale)}
+                  </div>
+                  {lockReason && <div className="mt-0.5 opacity-90">{lockReason}</div>}
+                  {layered?.packageId && (
+                    <div className="mt-0.5 text-amber-700 dark:text-amber-300/80">
+                      <code className="font-mono">{layered.packageId}{layered.packageVersion ? `@${layered.packageVersion}` : ''}</code>
+                    </div>
+                  )}
+                </div>
               </div>
             )}
             {hasDraft && !createMode && (

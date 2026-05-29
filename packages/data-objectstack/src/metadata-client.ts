@@ -114,6 +114,25 @@ export interface MetadataLayered<T = unknown> {
    * without having to hit Save.
    */
   _diagnostics?: MetadataDiagnostics;
+  // ── ADR-0010 Phase 1 — protection envelope ──
+  /** 4-state lock: `none` / `no-overlay` / `no-delete` / `full`. */
+  lock?: 'none' | 'no-overlay' | 'no-delete' | 'full';
+  /** Human-readable reason for the lock (tooltip text). */
+  lockReason?: string;
+  /** Which layer set the lock: artifact / package / overlay / env-forced. */
+  lockSource?: 'artifact' | 'package' | 'overlay' | 'env-forced';
+  /** Origin of the item: `package` (loader) | `org` (tenant) | `env-forced`. */
+  provenance?: 'package' | 'org' | 'env-forced';
+  /** Owning package id (denormalised from the loader tag). */
+  packageId?: string;
+  /** Owning package version. */
+  packageVersion?: string;
+  /** True when the editor should allow Save (PUT). */
+  editable?: boolean;
+  /** True when the editor should allow Delete. */
+  deletable?: boolean;
+  /** True when "Reset to package default" applies (has overlay + artifact). */
+  resettable?: boolean;
 }
 
 /**

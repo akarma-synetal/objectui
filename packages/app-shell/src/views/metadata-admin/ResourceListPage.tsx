@@ -14,7 +14,7 @@
 
 import * as React from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { Plus, Search, RefreshCw, AlertTriangle } from 'lucide-react';
+import { Plus, Search, RefreshCw, AlertTriangle, Lock } from 'lucide-react';
 import { Button } from '@object-ui/components';
 import { Input } from '@object-ui/components';
 import { Badge } from '@object-ui/components';
@@ -339,6 +339,17 @@ function DefaultMetadataList({ type }: { type: string }) {
                         );
                       })}
                       <td className="px-3 py-2 text-right align-top">
+                        {(row.item._lock as string | undefined) && row.item._lock !== 'none' && (
+                          <span
+                            className="inline-flex items-center mr-1 text-amber-600 dark:text-amber-400"
+                            title={
+                              (row.item._lockReason as string | undefined)
+                              ?? `_lock=${String(row.item._lock)}`
+                            }
+                          >
+                            <Lock className="h-3 w-3" />
+                          </span>
+                        )}
                         <Badge
                           variant="outline"
                           className={
