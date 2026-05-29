@@ -629,81 +629,94 @@ export function MetadataResourceEditPage({
     <PageShell
       entry={entry ?? { type, label: type }}
       itemName={createMode ? '(new)' : name}
-      subtitle={createMode ? t('engine.edit.createNew', locale) : t('engine.edit.editOverlay', locale)}
+      subtitle={createMode ? t('engine.edit.createNew', locale) : undefined}
       actions={
         <>
-          {!createMode && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setOpenSheet('layers')}
-              title={t('engine.edit.layers', locale)}
-            >
-              <Layers3 className="h-4 w-4 mr-1" />
-              {t('engine.edit.layers', locale)}
-              {layered?.overlay && (() => {
-                const n = countOverlaidFields(layered.code, layered.effective);
-                return n > 0 ? (
-                  <Badge
-                    className="ml-1.5 text-[10px] bg-emerald-600 text-emerald-50"
-                    title={t('engine.layers.diff', locale)}
-                  >
-                    +{n}
-                  </Badge>
-                ) : null;
-              })()}
-            </Button>
-          )}
-          {!createMode && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setOpenSheet('references')}
-              title={t('engine.edit.references', locale)}
-            >
-              <Link2 className="h-4 w-4 mr-1" />
-              {t('engine.edit.references', locale)}
-              {refs && refs.length > 0 && (
-                <Badge variant="outline" className="ml-1.5 text-[10px]">
-                  {refs.length}
-                </Badge>
+          {/* Info sheets — icon-only group, mirrors the canvas
+              toolbar style (small ghost icons + tooltip). Keeps
+              the primary edit / save actions visually dominant. */}
+          {(!createMode || hasAnchors) && (
+            <div className="flex items-center rounded-md border bg-background p-0.5">
+              {!createMode && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setOpenSheet('layers')}
+                  title={t('engine.edit.layers', locale)}
+                  className="h-7 w-7 p-0 relative"
+                >
+                  <Layers3 className="h-3.5 w-3.5" />
+                  {layered?.overlay && (() => {
+                    const n = countOverlaidFields(layered.code, layered.effective);
+                    return n > 0 ? (
+                      <span
+                        className="absolute -top-1 -right-1 min-w-[14px] h-[14px] px-1 rounded-full bg-emerald-600 text-emerald-50 text-[9px] leading-[14px] text-center font-medium"
+                        title={t('engine.layers.diff', locale)}
+                      >
+                        {n}
+                      </span>
+                    ) : null;
+                  })()}
+                </Button>
               )}
-            </Button>
-          )}
-          {hasAnchors && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setOpenSheet('related')}
-              title={t('engine.edit.related', locale)}
-            >
-              <Boxes className="h-4 w-4 mr-1" />
-              {t('engine.edit.related', locale)}
-            </Button>
+              {!createMode && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setOpenSheet('references')}
+                  title={t('engine.edit.references', locale)}
+                  className="h-7 w-7 p-0 relative"
+                >
+                  <Link2 className="h-3.5 w-3.5" />
+                  {refs && refs.length > 0 && (
+                    <span className="absolute -top-1 -right-1 min-w-[14px] h-[14px] px-1 rounded-full bg-muted text-foreground text-[9px] leading-[14px] text-center font-medium border">
+                      {refs.length}
+                    </span>
+                  )}
+                </Button>
+              )}
+              {hasAnchors && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setOpenSheet('related')}
+                  title={t('engine.edit.related', locale)}
+                  className="h-7 w-7 p-0"
+                >
+                  <Boxes className="h-3.5 w-3.5" />
+                </Button>
+              )}
+              {!createMode && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setOpenSheet('history')}
+                  title={t('engine.edit.history', locale)}
+                  className="h-7 w-7 p-0"
+                >
+                  <History className="h-3.5 w-3.5" />
+                </Button>
+              )}
+            </div>
           )}
           {!createMode && canWrite && layered?.overlay && (
-            <Button variant="ghost" size="sm" onClick={doReset} disabled={saving}>
-              {isArtifactItem ? (
-                <>
-                  <RotateCcw className="h-4 w-4 mr-1" />
-                  {t('engine.edit.reset', locale)}
-                </>
-              ) : (
-                <>
-                  <Trash2 className="h-4 w-4 mr-1" />
-                  {t('engine.edit.delete', locale)}
-                </>
-              )}
-            </Button>
-          )}
-          {!createMode && (
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => setOpenSheet('history')}
+              onClick={doReset}
+              disabled={saving}
+              title={
+                isArtifactItem
+                  ? t('engine.edit.reset', locale)
+                  : t('engine.edit.delete', locale)
+              }
+              className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive"
             >
-              <History className="h-4 w-4 mr-1" />
-              {t('engine.edit.history', locale)}
+              {isArtifactItem ? (
+                <RotateCcw className="h-3.5 w-3.5" />
+              ) : (
+                <Trash2 className="h-3.5 w-3.5" />
+              )}
             </Button>
           )}
           {/* Edit-mode toggle. Three states:
@@ -1033,30 +1046,21 @@ export function MetadataResourceEditPage({
                   >
                     <div className="h-full overflow-auto">
                       {/* Inspector header — anchors the user to "this is
-                          where the metadata for the selected item lives"
-                          and frees the page-shell action bar for global
-                          actions only (Save/History/etc.). */}
-                      <div className="sticky top-0 z-10 flex items-center justify-between gap-2 border-b bg-background/95 backdrop-blur px-4 py-2.5">
-                        <div className="flex items-center gap-2 min-w-0">
-                          <span className="text-[11px] uppercase tracking-wider text-muted-foreground">
-                            {t('engine.edit.inspector', locale)}
-                          </span>
-                          {isDirty && (
-                            <Badge variant="outline" className="text-[10px] border-amber-400/60 text-amber-600 dark:text-amber-300">
-                              <span className="mr-1 inline-block h-1.5 w-1.5 rounded-full bg-amber-400" />
-                              {t('engine.edit.unsaved', locale)}
-                            </Badge>
-                          )}
-                        </div>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-7 w-7 p-0"
-                          onClick={toggleInspector}
-                          title={t('engine.edit.hideInspector', locale) + ' (⌘\\)'}
-                        >
-                          <PanelRightClose className="h-3.5 w-3.5" />
-                        </Button>
+                          where the metadata for the selected item lives".
+                          The collapse affordance lives in the canvas
+                          toolbar (left of Fullscreen) so it stays
+                          reachable when the panel is closed; we
+                          deliberately do not duplicate it here. */}
+                      <div className="sticky top-0 z-10 flex items-center gap-2 border-b bg-background/95 backdrop-blur px-4 py-2.5">
+                        <span className="text-[11px] uppercase tracking-wider text-muted-foreground">
+                          {t('engine.edit.inspector', locale)}
+                        </span>
+                        {isDirty && (
+                          <Badge variant="outline" className="text-[10px] border-amber-400/60 text-amber-600 dark:text-amber-300">
+                            <span className="mr-1 inline-block h-1.5 w-1.5 rounded-full bg-amber-400" />
+                            {t('engine.edit.unsaved', locale)}
+                          </Badge>
+                        )}
                       </div>
                       <div className="p-4">
                         {selection && InspectorComponent ? (
