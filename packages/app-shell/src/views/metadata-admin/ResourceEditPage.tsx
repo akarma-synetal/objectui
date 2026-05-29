@@ -1330,6 +1330,16 @@ function MetadataResourceEditPageImpl({
                     {layered?.lock === 'no-delete' && t('engine.edit.lockNoDelete', locale)}
                   </div>
                   {lockReason && <div className="mt-0.5 opacity-90">{lockReason}</div>}
+                  {layered?.lockDocsUrl && (
+                    <a
+                      href={layered.lockDocsUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="mt-1 inline-flex items-center gap-1 text-amber-800 underline hover:text-amber-900 dark:text-amber-200 dark:hover:text-amber-100"
+                    >
+                      {locale === 'zh-CN' ? '查看文档' : 'View docs'} →
+                    </a>
+                  )}
                   {layered?.packageId && (
                     <div className="mt-0.5 text-amber-700 dark:text-amber-300/80">
                       <code className="font-mono">{layered.packageId}{layered.packageVersion ? `@${layered.packageVersion}` : ''}</code>

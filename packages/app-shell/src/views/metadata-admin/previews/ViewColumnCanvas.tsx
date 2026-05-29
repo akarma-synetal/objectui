@@ -286,8 +286,36 @@ function VariantSection({
       </div>
       <div className={`space-y-1.5 p-2 ${over ? 'bg-primary/5' : ''}`}>
         {variant.columns.length === 0 ? (
-          <div className="rounded border border-dashed px-3 py-4 text-center text-[11px] text-muted-foreground">
-            Empty — {canEdit ? 'drop a column here or use Add column' : 'no columns yet'}
+          <div
+            // Explicit drop target with its own handlers (the outer
+            // section's listeners would bubble too, but having a
+            // visible, clearly-targeted zone is friendlier UX and
+            // avoids relying on event-bubbling order between
+            // synthetic and native DnD).
+            onDragOver={(e) => {
+              if (!canEdit) return;
+              if (!e.dataTransfer.types.includes(DND_MIME)) return;
+              e.preventDefault();
+              e.dataTransfer.dropEffect = 'move';
+            }}
+            onDrop={(e) => {
+              if (!canEdit) return;
+              if (!e.dataTransfer.types.includes(DND_MIME)) return;
+              e.preventDefault();
+              e.stopPropagation();
+              if (!drag) return;
+              onMove(drag, { variant: variant.key, index: 0 });
+              onDragChange(null);
+            }}
+            className={`rounded border border-dashed px-3 py-6 text-center text-[11px] text-muted-foreground ${
+              over ? 'border-primary text-primary' : ''
+            }`}
+          >
+            {canEdit
+              ? over
+                ? 'Drop here to add to this variant'
+                : 'Empty — drop a column here or click Add column'
+              : 'No columns yet'}
           </div>
         ) : (
           variant.columns.map((c, i) => (

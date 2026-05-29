@@ -121,6 +121,8 @@ export interface MetadataLayered<T = unknown> {
   lockReason?: string;
   /** Which layer set the lock: artifact / package / overlay / env-forced. */
   lockSource?: 'artifact' | 'package' | 'overlay' | 'env-forced';
+  /** Optional docs URL for the lock reason (rendered as "View docs →"). */
+  lockDocsUrl?: string;
   /** Origin of the item: `package` (loader) | `org` (tenant) | `env-forced`. */
   provenance?: 'package' | 'org' | 'env-forced';
   /** Owning package id (denormalised from the loader tag). */
@@ -455,6 +457,7 @@ export class MetadataClient {
       ...(body.lock !== undefined ? { lock: body.lock as MetadataLayered['lock'] } : {}),
       ...(body.lockReason !== undefined ? { lockReason: body.lockReason as string } : {}),
       ...(body.lockSource !== undefined ? { lockSource: body.lockSource as MetadataLayered['lockSource'] } : {}),
+      ...(body.lockDocsUrl !== undefined ? { lockDocsUrl: body.lockDocsUrl as string } : {}),
       ...(body.provenance !== undefined ? { provenance: body.provenance as MetadataLayered['provenance'] } : {}),
       ...(body.packageId !== undefined ? { packageId: body.packageId as string } : {}),
       ...(body.packageVersion !== undefined ? { packageVersion: body.packageVersion as string } : {}),
