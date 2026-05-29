@@ -22,6 +22,7 @@ import {
   registerMetadataResource,
 } from '../views/metadata-admin';
 import { PermissionMatrixEditPage } from '../views/metadata-admin/PermissionMatrixEditor';
+import { PackagesPage } from '../views/metadata-admin/PackagesPage';
 
 /* -------------------------------------------------------------------------- */
 /* 1) Top-level admin pages — bound to `metadata:directory` + `metadata:resource` */
@@ -39,6 +40,13 @@ registerAppComponent({
   label: 'Metadata Resource',
   source: '@object-ui/app-shell',
   component: MetadataResourceRouter,
+});
+
+registerAppComponent({
+  ref: 'developer:packages',
+  label: 'Packages',
+  source: '@object-ui/app-shell',
+  component: PackagesPage,
 });
 
 /* -------------------------------------------------------------------------- */

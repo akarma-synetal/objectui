@@ -15,6 +15,7 @@
  */
 
 export { MetadataDirectoryPage } from './DirectoryPage';
+export { PackagesPage } from './PackagesPage';
 export { StudioHomePage } from './StudioHomePage';
 export { MetadataResourceRouter } from './ResourceRouter';
 export { MetadataResourceListPage } from './ResourceListPage';
