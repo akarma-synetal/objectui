@@ -26,6 +26,10 @@ import {
   DefaultHomePage,
   DefaultOrganizationsLayout,
   DefaultOrganizationsPage,
+  DefaultOrganizationLayout,
+  DefaultMembersPage,
+  DefaultInvitationsPage,
+  DefaultSettingsPage,
   DefaultAiChatPage,
 } from '@object-ui/app-shell';
 
@@ -173,6 +177,24 @@ export function App() {
                 <DefaultOrganizationsLayout><DefaultOrganizationsPage /></DefaultOrganizationsLayout>
               </ProtectedRoute>
             } />
+            {/*
+              * Organization management — single-org admin surface reached
+              * from the "Manage" button on the organizations list. The
+              * layout resolves the org by `:slug`, makes it active, and
+              * renders Members / Invitations / Settings tabs into its
+              * Outlet. `requireOrganization={false}` because the layout
+              * itself drives org activation from the slug.
+              */}
+            <Route path="/organizations/:slug" element={
+              <ProtectedRoute requireOrganization={false}>
+                <DefaultOrganizationLayout />
+              </ProtectedRoute>
+            }>
+              <Route index element={<Navigate to="members" replace />} />
+              <Route path="members" element={<DefaultMembersPage />} />
+              <Route path="invitations" element={<DefaultInvitationsPage />} />
+              <Route path="settings" element={<DefaultSettingsPage />} />
+            </Route>
             <Route path="/system/*" element={<SystemRedirect />} />
             <Route path="/ai" element={
               <ProtectedRoute>

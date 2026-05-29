@@ -415,6 +415,17 @@ export class MetadataClient {
       overlayScope: body.overlayScope ?? null,
       effective: body.effective ?? null,
       ...(body._diagnostics ? { _diagnostics: body._diagnostics as MetadataDiagnostics } : {}),
+      // ADR-0010 Phase 4 — pass through the metadata-protection envelope so
+      // the editor can render lock affordances without a second round trip.
+      ...(body.lock !== undefined ? { lock: body.lock as MetadataLayered['lock'] } : {}),
+      ...(body.lockReason !== undefined ? { lockReason: body.lockReason as string } : {}),
+      ...(body.lockSource !== undefined ? { lockSource: body.lockSource as MetadataLayered['lockSource'] } : {}),
+      ...(body.provenance !== undefined ? { provenance: body.provenance as MetadataLayered['provenance'] } : {}),
+      ...(body.packageId !== undefined ? { packageId: body.packageId as string } : {}),
+      ...(body.packageVersion !== undefined ? { packageVersion: body.packageVersion as string } : {}),
+      ...(body.editable !== undefined ? { editable: body.editable as boolean } : {}),
+      ...(body.deletable !== undefined ? { deletable: body.deletable as boolean } : {}),
+      ...(body.resettable !== undefined ? { resettable: body.resettable as boolean } : {}),
     };
   }
 
