@@ -89,6 +89,7 @@ import {
   resolveResourceConfig,
   listAnchorsFor,
 } from './registry';
+import { useCreateDerive, deriveDefaultCreateFields } from './createDerive';
 import { RelatedPanel, type RelatedTarget } from './RelatedPanel';
 import { MetadataDetailDrawer } from './MetadataDetailDrawer';
 import { HistoryPanel } from './ResourceHistoryPage';
@@ -198,11 +199,19 @@ function MetadataResourceEditPageImpl({
   const { entries } = useMetadataTypes(client);
   const entry: RichMetadataTypeEntry | undefined = entries.find((t) => t.type === type);
   const config = resolveResourceConfig(type, entry);
+  // Hoist `schema` to the top: it's a pure derivation of entry/config
+  // and several create-mode hooks below need it. Keeping it down here
+  // would put those hooks *after* the loading early-return, which
+  // breaks the rules of hooks when navigating new→edit (a different
+  // number of hooks runs across renders of the same instance).
+  const schema =
+    (entry?.schema as Record<string, unknown> | undefined) ??
+    (config.defaultSchema as Record<string, unknown> | undefined);
   const locale = React.useMemo(() => detectLocale(), []);
 
   const [layered, setLayered] = React.useState<MetadataLayered<any> | null>(null);
-  const [draft, setDraft] = React.useState<Record<string, unknown>>(
-    createMode ? { name: '' } : {},
+  const [draft, setDraft] = React.useState<Record<string, unknown>>(() =>
+    createMode ? { ...(config.createDefaults ?? {}), name: '' } : {},
   );
   const [refs, setRefs] = React.useState<MetadataReference[] | null>(null);
   const [loading, setLoading] = React.useState(!createMode);
@@ -242,6 +251,74 @@ function MetadataResourceEditPageImpl({
     null | Array<{ kind?: string; path?: string; message?: string }>
   >(null);
   const [pendingItem, setPendingItem] = React.useState<unknown>(null);
+
+  // ── Create-mode form harness ──────────────────────────────────────
+  //
+  // Apply the registry's `createDerive` rules live (label→name slug,
+  // singular→plural, etc.). The hook is a no-op when not in create
+  // mode or when no rules are declared, so we always mount it.
+  const onCreatePatch = React.useCallback(
+    (patch: Partial<Record<string, unknown>>) => {
+      handleDraftChange((d) => ({ ...(d as Record<string, unknown>), ...patch }));
+    },
+    [handleDraftChange],
+  );
+  const { markTouched: markCreateFieldTouched } = useCreateDerive({
+    rules: config.createDerive,
+    draft,
+    onPatch: onCreatePatch,
+    enabled: !!createMode,
+  });
+
+  // Effective hidden-fields for create mode: collapse the form to just
+  // the identity inputs declared by the type (or required-fields ∪
+  // label/name as a sensible default). Edit mode keeps the full form.
+  //
+  // The complement-set is what SchemaForm consumes (it hides paths
+  // listed in `hiddenFields`), so we invert the allowlist here.
+  const createFieldList = React.useMemo(() => {
+    if (!createMode) return undefined;
+    if (config.createFields && config.createFields.length > 0) return config.createFields;
+    const props = (schema?.properties as Record<string, unknown> | undefined) ?? undefined;
+    const required = (schema?.required as readonly string[] | undefined) ?? undefined;
+    return deriveDefaultCreateFields(props, required);
+  }, [createMode, config.createFields, schema]);
+
+  const effectiveHiddenFields = React.useMemo<string[] | undefined>(() => {
+    if (!createMode || !createFieldList) return config.hiddenFields;
+    const props = (schema?.properties as Record<string, unknown> | undefined) ?? {};
+    const allow = new Set(createFieldList);
+    const hidden = Object.keys(props).filter((k) => !allow.has(k));
+    // Preserve any registry-declared `hiddenFields` too — they remain
+    // hidden in create mode even if they appeared in `createFields`.
+    if (config.hiddenFields) {
+      for (const k of config.hiddenFields) if (!hidden.includes(k)) hidden.push(k);
+    }
+    return hidden;
+  }, [createMode, createFieldList, schema, config.hiddenFields]);
+
+  const effectiveFieldOrder = React.useMemo<string[] | undefined>(() => {
+    if (createMode && createFieldList) return createFieldList;
+    return config.fieldOrder;
+  }, [createMode, createFieldList, config.fieldOrder]);
+
+  // Mark a top-level field as user-touched so create-mode derivations
+  // (label→name slug, etc.) leave it alone going forward. Wraps the
+  // standard onChange so the rest of the form is unaffected.
+  const handleCreateAwareChange = React.useCallback(
+    (next: Record<string, unknown> | ((prev: Record<string, unknown>) => Record<string, unknown>)) => {
+      if (createMode) {
+        const before = draft;
+        const resolved = typeof next === 'function' ? next(before) : next;
+        const keys = new Set([...Object.keys(before ?? {}), ...Object.keys(resolved ?? {})]);
+        for (const k of keys) {
+          if (!Object.is(before?.[k], resolved?.[k])) markCreateFieldTouched(k);
+        }
+      }
+      handleDraftChange(next);
+    },
+    [createMode, draft, handleDraftChange, markCreateFieldTouched],
+  );
   // Live client-side Zod validation. Debounced 200ms so we don't run
   // on every keystroke through a complex AutoForm tree. When a client
   // schema exists for `type` (spec 7.x exports per-type schemas under
@@ -627,9 +704,12 @@ function MetadataResourceEditPageImpl({
     setError(null);
     setIssues([]);
     try {
-      // Ensure `name` is set on create.
+      // Ensure `name` is set on create, and that any `createDefaults`
+      // shape (e.g. `{ fields: {} }` for object) is present so the
+      // saved body satisfies its JSONSchema. User-supplied values
+      // always win over the defaults.
       const itemToSave = createMode
-        ? { ...draft, name: String(draft.name ?? name) }
+        ? { ...(config.createDefaults ?? {}), ...draft, name: String(draft.name ?? name) }
         : draft;
       const savedName = String(itemToSave.name ?? name);
       if (!savedName) {
@@ -932,9 +1012,11 @@ function MetadataResourceEditPageImpl({
     );
   }
 
-  const schema =
-    (entry?.schema as Record<string, unknown> | undefined) ??
-    (config.defaultSchema as Record<string, unknown> | undefined);
+  // `schema`, `createFieldList`, `effectiveHiddenFields`,
+  // `effectiveFieldOrder`, and `handleCreateAwareChange` are all
+  // hoisted to the top of the component (next to the rest of the
+  // create-mode harness) to avoid placing hooks *after* the loading
+  // early-return.
 
   // Banner variant: when type ships with allowRuntimeCreate but this
   // specific item is locked because it comes from a code package, we
@@ -1678,10 +1760,10 @@ function MetadataResourceEditPageImpl({
                             schema={schema}
                             form={entry?.form as any}
                             value={draft}
-                            onChange={handleDraftChange}
+                            onChange={handleCreateAwareChange}
                             issues={issues}
-                            hiddenFields={config.hiddenFields}
-                            fieldOrder={config.fieldOrder}
+                            hiddenFields={effectiveHiddenFields}
+                            fieldOrder={effectiveFieldOrder}
                             readOnly={formReadOnly}
                             createMode={createMode}
                             widgetContext={widgetContext}
@@ -1701,10 +1783,10 @@ function MetadataResourceEditPageImpl({
                 schema={schema}
                 form={entry?.form as any}
                 value={draft}
-                onChange={handleDraftChange}
+                onChange={handleCreateAwareChange}
                 issues={issues}
-                hiddenFields={config.hiddenFields}
-                fieldOrder={config.fieldOrder}
+                hiddenFields={effectiveHiddenFields}
+                fieldOrder={effectiveFieldOrder}
                 readOnly={formReadOnly}
                 createMode={createMode}
                 widgetContext={widgetContext}

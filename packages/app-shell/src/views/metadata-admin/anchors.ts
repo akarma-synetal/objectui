@@ -20,7 +20,7 @@
  */
 
 import { registerMetadataResource, anchorByField } from './registry';
-import { ObjectCreatePage } from './previews/ObjectCreatePage';
+
 
 export function registerBuiltinAnchors(): void {
   // ── EMBEDDED: items stored inside the object body itself ──────────
@@ -237,7 +237,19 @@ export function registerBuiltinAnchors(): void {
     type: 'object',
     iconName: 'database',
     domain: 'data',
-    CreatePage: ObjectCreatePage,
+    // Protocol-driven create form: ask for identity only. The rest of
+    // the object (fields, validations, indexes, hooks, …) is added
+    // through the bespoke designer that takes over on the edit page,
+    // so requiring it up-front would just front-load 30 inputs with
+    // no payoff.
+    createFields: ['label', 'pluralLabel', 'name', 'description'],
+    createDerive: [
+      { from: 'label', to: 'name', transform: 'slugify', untilUserEdits: true },
+      { from: 'label', to: 'pluralLabel', transform: 'plural-en', untilUserEdits: true },
+    ],
+    // `fields` is the only other required key on the ObjectSchema —
+    // seed it as an empty record so the saved body validates.
+    createDefaults: { fields: {} },
     searchableFields: ['name', 'label', 'pluralLabel', 'description'],
     listColumns: [
       { key: 'name', label: 'Name', width: '24%' },

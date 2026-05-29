@@ -29,6 +29,36 @@
 
 import type { ComponentType, ReactNode } from 'react';
 
+/**
+ * Live field-to-field derivation rule used by the generic create form.
+ * See {@link MetadataResourceConfig.createDerive}.
+ */
+export interface CreateDeriveRule {
+  /** Source field path (top-level key in the draft). */
+  from: string;
+  /** Target field path (top-level key in the draft). */
+  to: string;
+  /**
+   * Named transform applied to `from`'s value. Closed set on purpose:
+   *
+   *   - `slugify`     — "Sales Order" → `sales_order`. ASCII letters,
+   *                     digits, and `_`; CJK / non-Latin scripts yield
+   *                     empty (caller must enter `name` manually).
+   *   - `plural-en`   — naive English plural ("Order" → "Orders",
+   *                     "Box" → "Boxes", "Category" → "Categories").
+   *                     Non-Latin inputs returned unchanged.
+   *   - `titlecase`   — "sales_order" → "Sales Order".
+   *   - `first-token` — strip everything past the first separator.
+   */
+  transform: 'slugify' | 'plural-en' | 'titlecase' | 'first-token';
+  /**
+   * When true (default), the rule stops firing once the user manually
+   * edits the `to` field. Lets us auto-suggest a name and then get out
+   * of the way as soon as the operator takes over.
+   */
+  untilUserEdits?: boolean;
+}
+
 export type MetadataDomain =
   | 'data'
   | 'ui'
@@ -89,6 +119,59 @@ export interface MetadataResourceConfig {
   hiddenFields?: string[];
   /** Suggested form field order (top to bottom). */
   fieldOrder?: string[];
+
+  // ── Create-mode protocol (Phase A: protocol-driven create) ──────────
+  //
+  // These hints let the GENERIC ResourceEditPage render a stripped-down
+  // create form without each type having to ship a bespoke CreatePage
+  // React component. The contract is purely declarative — paths into the
+  // type's JSONSchema, plus a few well-known transforms — so adding a
+  // type is a registry edit, not a code change.
+  //
+  // Rationale: most metadata types have one or two "identity" fields
+  // (name, label, parent object) and 10–30 "content" fields (filters,
+  // permissions, steps, encryption, …). The latter only make sense in
+  // the bespoke designer that takes over on the edit page, so asking
+  // for them up front is hostile to the user and gates the real work.
+
+  /**
+   * Field paths shown in the create form. Order is preserved.
+   *
+   * - When omitted, the engine falls back to: every `required` field
+   *   from the JSONSchema, plus `name` and `label` if present.
+   * - Fields not in this list are still sent on save (after
+   *   `createDefaults` merge), they're just not asked for.
+   *
+   * Example: `['label', 'pluralLabel', 'name', 'description']`.
+   */
+  createFields?: string[];
+
+  /**
+   * Live derivation rules — typically used to auto-fill `name` from
+   * `label` (slug) and an English plural from a singular label. Each
+   * rule transforms the value at `from` and writes it to `to`. When
+   * `untilUserEdits` is true (default) the rule stops firing once the
+   * user edits the target field directly.
+   *
+   * Transforms are intentionally a small closed set so the contract
+   * stays declarative — adding "smart" behavior should mean adding a
+   * named transform here, not embedding code in registry entries.
+   */
+  createDerive?: CreateDeriveRule[];
+
+  /**
+   * Shallow-merged into the saved body before PUT. Use this for the
+   * "empty content" shape that lets the user land in the designer
+   * (e.g. `{ fields: {} }` for object, `{ sections: [] }` for page).
+   */
+  createDefaults?: Record<string, unknown>;
+
+  /**
+   * One-line copy shown above the create form. Defaults to a generic
+   * "Create a new <type>". When set to the empty string, the hint row
+   * is suppressed.
+   */
+  createHint?: string;
   /** Whether the type opts in to the history tab. Default true. */
   supportsHistory?: boolean;
   /**
