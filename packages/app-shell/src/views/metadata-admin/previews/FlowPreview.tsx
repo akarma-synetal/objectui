@@ -124,11 +124,15 @@ function orderNodes(nodes: FlowNode[], edges: FlowEdge[]): FlowNode[] {
   return out;
 }
 
-export function FlowPreview({ draft }: MetadataPreviewProps) {
+export function FlowPreview({ draft, editing, selection, onSelectionChange }: MetadataPreviewProps) {
   const d = draft as Record<string, unknown>;
   const nodes: FlowNode[] = Array.isArray(d.nodes) ? (d.nodes as FlowNode[]) : [];
   const edges: FlowEdge[] = Array.isArray(d.edges) ? (d.edges as FlowEdge[]) : [];
   const variables: FlowVariable[] = Array.isArray(d.variables) ? (d.variables as FlowVariable[]) : [];
+
+  const designMode = !!(editing && onSelectionChange);
+  const selectedId = selection && selection.kind === 'node' ? selection.id : null;
+  const selectNode = (n: FlowNode) => onSelectionChange?.({ kind: 'node', id: n.id, label: n.label || n.id });
 
   const ordered = React.useMemo(() => orderNodes(nodes, edges), [nodes, edges]);
   const outgoingByNode = React.useMemo(() => {
@@ -175,7 +179,11 @@ export function FlowPreview({ draft }: MetadataPreviewProps) {
                 const outs = outgoingByNode.get(node.id) ?? [];
                 const isBranch = node.type === 'decision' || node.type === 'branch' || node.type === 'gateway';
                 return (
-                  <li key={node.id || idx} className="rounded border bg-background">
+                  <li
+                    key={node.id || idx}
+                    className={`rounded border bg-background ${designMode ? 'cursor-pointer hover:border-primary/50' : ''} ${selectedId === node.id ? 'ring-2 ring-primary border-primary' : ''}`}
+                    onClick={designMode ? (e) => { e.stopPropagation(); selectNode(node); } : undefined}
+                  >
                     <div className="flex items-start gap-2 p-2.5">
                       <span className="mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-muted text-[10px] font-mono">
                         {idx + 1}

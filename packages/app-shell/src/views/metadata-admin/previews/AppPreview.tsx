@@ -64,24 +64,29 @@ function kindIcon(kind?: NavItem['kind']) {
   }
 }
 
-export function AppPreview({ name, draft }: MetadataPreviewProps) {
+export function AppPreview({ name, draft, editing, selection, onSelectionChange }: MetadataPreviewProps) {
   const appName = String((draft as any).name ?? name ?? '');
   const label = (draft as any).label ?? appName;
   const landing = (draft as any).landingRoute ?? (draft as any).landing ?? (draft as any).defaultRoute ?? '/';
-  const navItems = React.useMemo<NavItem[]>(() => {
-    // Accept the most common shapes used by app schemas in the wild.
-    const candidates = [
-      (draft as any).nav,
-      (draft as any).navigation,
-      (draft as any).tabs,
-      (draft as any).items,
-      (draft as any).menu,
+  const { rootKey, navItems } = React.useMemo<{ rootKey: string | null; navItems: NavItem[] }>(() => {
+    const candidates: Array<[string, unknown]> = [
+      ['nav', (draft as any).nav],
+      ['navigation', (draft as any).navigation],
+      ['tabs', (draft as any).tabs],
+      ['items', (draft as any).items],
+      ['menu', (draft as any).menu],
     ];
-    for (const c of candidates) {
-      if (Array.isArray(c) && c.length) return normalizeNav(c);
+    for (const [k, c] of candidates) {
+      if (Array.isArray(c) && c.length) return { rootKey: k, navItems: normalizeNav(c) };
     }
-    return [];
+    return { rootKey: null, navItems: [] };
   }, [draft]);
+
+  const designMode = !!(editing && onSelectionChange && rootKey);
+  const selectedId = selection && selection.kind === 'nav' ? selection.id : null;
+  const onSelect = designMode
+    ? (path: string, item: NavItem) => onSelectionChange!({ kind: 'nav', id: path, label: item.label })
+    : undefined;
 
   const baseRuntimeUrl = appName ? `/apps/${encodeURIComponent(appName)}/` : null;
 
@@ -119,7 +124,15 @@ export function AppPreview({ name, draft }: MetadataPreviewProps) {
           ) : (
             <div className="border rounded divide-y">
               {navItems.map((item, i) => (
-                <NavRow key={i} item={item} appName={appName} depth={0} />
+                <NavRow
+                  key={i}
+                  item={item}
+                  appName={appName}
+                  depth={0}
+                  path={`${rootKey}[${i}]`}
+                  onSelect={onSelect}
+                  selectedId={selectedId}
+                />
               ))}
             </div>
           )}
@@ -129,14 +142,30 @@ export function AppPreview({ name, draft }: MetadataPreviewProps) {
   );
 }
 
-function NavRow({ item, appName, depth }: { item: NavItem; appName: string; depth: number }) {
+function NavRow({
+  item,
+  appName,
+  depth,
+  path,
+  onSelect,
+  selectedId,
+}: {
+  item: NavItem;
+  appName: string;
+  depth: number;
+  path: string;
+  onSelect?: (path: string, item: NavItem) => void;
+  selectedId: string | null;
+}) {
   const Icon = kindIcon(item.kind);
   const url = buildUrl(appName, item.path);
+  const selected = selectedId === path;
   return (
     <>
       <div
-        className="flex items-center gap-2 px-3 py-2 text-xs hover:bg-accent/40"
+        className={`flex items-center gap-2 px-3 py-2 text-xs hover:bg-accent/40 ${onSelect ? 'cursor-pointer' : ''} ${selected ? 'bg-primary/5 ring-1 ring-primary' : ''}`}
         style={{ paddingLeft: `${12 + depth * 16}px` }}
+        onClick={onSelect ? (e) => { e.stopPropagation(); onSelect(path, item); } : undefined}
       >
         <Icon className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
         <span className="font-medium truncate">{item.label}</span>
@@ -148,6 +177,7 @@ function NavRow({ item, appName, depth }: { item: NavItem; appName: string; dept
             href={url}
             target="_blank"
             rel="noreferrer"
+            onClick={(e) => e.stopPropagation()}
             className="ml-auto font-mono text-[10px] text-muted-foreground hover:text-foreground inline-flex items-center gap-1"
           >
             {item.path} <ExternalLink className="h-3 w-3" />
@@ -155,7 +185,15 @@ function NavRow({ item, appName, depth }: { item: NavItem; appName: string; dept
         )}
       </div>
       {item.children?.map((c, i) => (
-        <NavRow key={i} item={c} appName={appName} depth={depth + 1} />
+        <NavRow
+          key={i}
+          item={c}
+          appName={appName}
+          depth={depth + 1}
+          path={`${path}.children[${i}]`}
+          onSelect={onSelect}
+          selectedId={selectedId}
+        />
       ))}
     </>
   );

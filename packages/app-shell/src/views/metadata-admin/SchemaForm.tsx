@@ -42,7 +42,7 @@ import {
   SelectValue,
 } from '@object-ui/components';
 import { Button } from '@object-ui/components';
-import { Plus, Trash2, ChevronDown, ChevronRight } from 'lucide-react';
+import { Plus, Trash2, ChevronDown, ChevronRight, GripVertical } from 'lucide-react';
 import {
   Tabs,
   TabsList,
@@ -1281,6 +1281,23 @@ function RecordField({
     setOpenKey(trimmed);
   };
 
+  // Drag-to-reorder. We rebuild the Record with the new key order, since
+  // insertion order = display order for `type: 'record'`.
+  const [dragKey, setDragKey] = React.useState<string | null>(null);
+  const [dropTarget, setDropTarget] = React.useState<string | null>(null);
+  const reorder = (sourceKey: string, targetKey: string) => {
+    if (sourceKey === targetKey) return;
+    const keys = entries.map(([k]) => k);
+    const from = keys.indexOf(sourceKey);
+    const to = keys.indexOf(targetKey);
+    if (from < 0 || to < 0) return;
+    keys.splice(from, 1);
+    keys.splice(to, 0, sourceKey);
+    const next: Record<string, Record<string, unknown>> = {};
+    for (const k of keys) next[k] = record[k];
+    emit(next);
+  };
+
   return (
     <div className="space-y-2">
       {entries.length === 0 && (
@@ -1293,9 +1310,44 @@ function RecordField({
         const summary = specs
           .map((s) => row?.[s.field])
           .find((v) => v != null && v !== '');
+        const isDropTarget = dropTarget === key && dragKey && dragKey !== key;
         return (
-          <div key={key} className="rounded-md border border-border/50 bg-muted/10">
+          <div
+            key={key}
+            className={`rounded-md border bg-muted/10 ${isDropTarget ? 'border-primary border-2' : 'border-border/50'}`}
+            onDragOver={(e) => {
+              if (!dragKey || readOnly) return;
+              e.preventDefault();
+              if (dropTarget !== key) setDropTarget(key);
+            }}
+            onDragLeave={() => {
+              if (dropTarget === key) setDropTarget(null);
+            }}
+            onDrop={(e) => {
+              if (!dragKey || readOnly) return;
+              e.preventDefault();
+              reorder(dragKey, key);
+              setDragKey(null);
+              setDropTarget(null);
+            }}
+          >
             <div className="flex items-center justify-between gap-2 px-2 py-1.5 border-b border-border/30">
+              {!readOnly && (
+                <span
+                  draggable
+                  onDragStart={(e) => {
+                    setDragKey(key);
+                    e.dataTransfer.effectAllowed = 'move';
+                    e.dataTransfer.setData('text/plain', key);
+                  }}
+                  onDragEnd={() => { setDragKey(null); setDropTarget(null); }}
+                  className="cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground"
+                  aria-label="Drag to reorder"
+                  title="Drag to reorder"
+                >
+                  <GripVertical className="h-3.5 w-3.5" />
+                </span>
+              )}
               <button
                 type="button"
                 onClick={() => setOpenKey(isOpen ? null : key)}
@@ -1326,6 +1378,7 @@ function RecordField({
                   onChange={(v) => renameItem(key, String(v ?? '').trim())}
                 />
                 {specs.map((s) => {
+                  if (s.visibleOn && !evaluatePredicate(s.visibleOn, { data: row })) return null;
                   const sub = pickSubSchema(schema, 'record', s.field);
                   return (
                     <FieldRow

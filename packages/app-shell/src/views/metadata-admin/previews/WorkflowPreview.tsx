@@ -110,7 +110,7 @@ function formatRecipients(a: WorkflowAction): string {
   return '—';
 }
 
-export function WorkflowPreview({ draft }: MetadataPreviewProps) {
+export function WorkflowPreview({ draft, editing, selection, onSelectionChange }: MetadataPreviewProps) {
   const d = draft as Record<string, unknown>;
   const objectName = String(d.objectName ?? d.object ?? '');
   const triggerType = String(d.triggerType ?? d.trigger ?? '—');
@@ -126,6 +126,10 @@ export function WorkflowPreview({ draft }: MetadataPreviewProps) {
   const timeTriggers: TimeTrigger[] = Array.isArray(d.timeTriggers) ? (d.timeTriggers as TimeTrigger[]) : [];
   const active = d.active !== false;
   const order = d.executionOrder as number | undefined;
+
+  const designMode = !!(editing && onSelectionChange);
+  const selectedId = selection && selection.kind === 'action' ? selection.id : null;
+  const selectAction = (a: WorkflowAction, id: string) => onSelectionChange?.({ kind: 'action', id, label: (a as any).name || a.type || id });
 
   if (!objectName && actions.length === 0 && timeTriggers.length === 0) {
     return (
@@ -162,7 +166,10 @@ export function WorkflowPreview({ draft }: MetadataPreviewProps) {
               <Empty>No immediate actions.</Empty>
             ) : (
               <ul className="divide-y rounded border bg-background">
-                {actions.map((a, i) => <ActionRow key={i} action={a} />)}
+                {actions.map((a, i) => {
+                  const id = `actions[${i}]`;
+                  return <ActionRow key={i} action={a} onClick={designMode ? () => selectAction(a, id) : undefined} selected={selectedId === id} />;
+                })}
               </ul>
             )}
           </Section>
@@ -189,7 +196,10 @@ export function WorkflowPreview({ draft }: MetadataPreviewProps) {
                       </div>
                       {Array.isArray(t.actions) && t.actions.length > 0 ? (
                         <ul className="divide-y">
-                          {t.actions.map((a, j) => <ActionRow key={j} action={a as WorkflowAction} />)}
+                          {t.actions.map((a, j) => {
+                            const id = `timeTriggers[${i}].actions[${j}]`;
+                            return <ActionRow key={j} action={a as WorkflowAction} onClick={designMode ? () => selectAction(a as WorkflowAction, id) : undefined} selected={selectedId === id} />;
+                          })}
                         </ul>
                       ) : (
                         <Empty>No actions scheduled at this offset.</Empty>
@@ -206,12 +216,15 @@ export function WorkflowPreview({ draft }: MetadataPreviewProps) {
   );
 }
 
-function ActionRow({ action }: { action: WorkflowAction }) {
+function ActionRow({ action, onClick, selected }: { action: WorkflowAction; onClick?: () => void; selected?: boolean }) {
   const Icon = actionIcon(action.type);
   const summary = summarizeAction(action);
   const aName = (action as any).name as string | undefined;
   return (
-    <li className="flex items-start gap-2 px-3 py-2 text-xs">
+    <li
+      className={`flex items-start gap-2 px-3 py-2 text-xs ${onClick ? 'cursor-pointer hover:bg-accent/40' : ''} ${selected ? 'bg-primary/5 ring-1 ring-primary' : ''}`}
+      onClick={onClick ? (e) => { e.stopPropagation(); onClick(); } : undefined}
+    >
       <Icon className="h-3.5 w-3.5 mt-0.5 text-muted-foreground shrink-0" />
       <div className="min-w-0 flex-1">
         <div className="flex items-baseline gap-2 flex-wrap">

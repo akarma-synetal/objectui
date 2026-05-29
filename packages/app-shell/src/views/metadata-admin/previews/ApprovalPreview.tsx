@@ -81,7 +81,7 @@ function celText(c: unknown): string | undefined {
   return undefined;
 }
 
-export function ApprovalPreview({ draft }: MetadataPreviewProps) {
+export function ApprovalPreview({ draft, editing, selection, onSelectionChange }: MetadataPreviewProps) {
   const d = draft as Record<string, unknown>;
   const object = String(d.object ?? '');
   const active = !!d.active;
@@ -95,6 +95,13 @@ export function ApprovalPreview({ draft }: MetadataPreviewProps) {
     onFinalApprove: Array.isArray(d.onFinalApprove) ? (d.onFinalApprove as ApprovalAction[]) : [],
     onFinalReject: Array.isArray(d.onFinalReject) ? (d.onFinalReject as ApprovalAction[]) : [],
     onRecall: Array.isArray(d.onRecall) ? (d.onRecall as ApprovalAction[]) : [],
+  };
+
+  const designMode = !!(editing && onSelectionChange);
+  const selectedId = selection && selection.kind === 'step' ? selection.id : null;
+  const selectStep = (s: ApprovalStep, i: number) => {
+    const id = s.name || `steps[${i}]`;
+    onSelectionChange?.({ kind: 'step', id, label: s.label || s.name || `Step ${i + 1}` });
   };
 
   if (steps.length === 0 && !object) {
@@ -148,7 +155,12 @@ export function ApprovalPreview({ draft }: MetadataPreviewProps) {
             <ol className="space-y-2">
               {steps.map((step, i) => (
                 <React.Fragment key={step.name || i}>
-                  <StepRow step={step} index={i} />
+                  <StepRow
+                    step={step}
+                    index={i}
+                    onClick={designMode ? () => selectStep(step, i) : undefined}
+                    selected={selectedId != null && (step.name === selectedId || `steps[${i}]` === selectedId)}
+                  />
                   {i < steps.length - 1 && (
                     <li className="flex justify-center" aria-hidden>
                       <ArrowDown className="h-3.5 w-3.5 text-muted-foreground" />
@@ -177,11 +189,14 @@ export function ApprovalPreview({ draft }: MetadataPreviewProps) {
   );
 }
 
-function StepRow({ step, index }: { step: ApprovalStep; index: number }) {
+function StepRow({ step, index, onClick, selected }: { step: ApprovalStep; index: number; onClick?: () => void; selected?: boolean }) {
   const approvers = step.approvers ?? [];
   const entry = celText(step.entryCriteria);
   return (
-    <li className="rounded border bg-background">
+    <li
+      className={`rounded border bg-background ${onClick ? 'cursor-pointer hover:border-primary/50' : ''} ${selected ? 'ring-2 ring-primary border-primary' : ''}`}
+      onClick={onClick ? (e) => { e.stopPropagation(); onClick(); } : undefined}
+    >
       <div className="flex items-start gap-2 p-2.5">
         <span className="mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-muted text-[10px] font-mono">
           {index + 1}
