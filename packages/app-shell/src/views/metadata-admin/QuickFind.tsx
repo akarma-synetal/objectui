@@ -31,7 +31,7 @@ import {
 import { Input } from '@object-ui/components';
 import { Badge } from '@object-ui/components';
 import { Kbd } from '@object-ui/components';
-import { Search, Loader2 } from 'lucide-react';
+import { Search, Loader2, Lock } from 'lucide-react';
 import {
   useMetadataClient,
   useMetadataTypes,
@@ -45,6 +45,10 @@ type ItemResult = {
   name: string;
   label?: string;
   description?: string;
+  /** Lock state from `_lock` envelope (`none` / `no-overlay` / `no-delete` / `full`). */
+  lock?: string;
+  /** Reason shown in the lock icon tooltip. */
+  lockReason?: string;
 };
 
 type TypeResult = {
@@ -109,6 +113,8 @@ export function MetadataQuickFind({ appSlug }: MetadataQuickFindProps = {}) {
                   name: String(name),
                   label: item?.label,
                   description: item?.description,
+                  lock: typeof item?._lock === 'string' ? item._lock : undefined,
+                  lockReason: typeof item?._lockReason === 'string' ? item._lockReason : undefined,
                 });
               }
             } catch {
@@ -254,7 +260,16 @@ export function MetadataQuickFind({ appSlug }: MetadataQuickFindProps = {}) {
                       </>
                     ) : (
                       <>
-                        <div className="text-sm font-mono truncate">
+                        <div className="text-sm font-mono truncate flex items-center gap-1.5">
+                          {r.lock && r.lock !== 'none' && (
+                            <span
+                              className="text-amber-600 dark:text-amber-400 shrink-0"
+                              title={r.lockReason ?? `_lock=${r.lock}`}
+                              aria-label="locked"
+                            >
+                              <Lock className="h-3 w-3" />
+                            </span>
+                          )}
                           {r.name}
                           {r.label && (
                             <span className="text-muted-foreground font-sans ml-2">

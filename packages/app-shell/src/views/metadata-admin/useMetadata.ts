@@ -173,6 +173,8 @@ export function useGlobalDiagnostics(
   warnByType: Record<string, number>;
   /** Per-type item count (from server-side sweep). Empty on older servers. */
   countsByType: Record<string, number>;
+  /** Per-type *locked* item count (where `_lock` ≠ `none`). Empty on older servers. */
+  lockedByType: Record<string, number>;
   /** Per-type list of contributing packages. Empty on older servers. */
   packagesByType: Record<string, string[]>;
   /** Sorted, deduped union of all packages seen across all types. */
@@ -249,6 +251,16 @@ export function useGlobalDiagnostics(
     return c;
   }, [summary]);
 
+  const lockedByType = useMemo(() => {
+    const c: Record<string, number> = {};
+    for (const [t, s] of Object.entries(summary.stats ?? {})) {
+      if (typeof (s as any).locked === 'number' && (s as any).locked > 0) {
+        c[t] = (s as any).locked;
+      }
+    }
+    return c;
+  }, [summary]);
+
   const packagesByType = useMemo(() => {
     const c: Record<string, string[]> = {};
     for (const [t, s] of Object.entries(summary.stats ?? {})) c[t] = s.packages ?? [];
@@ -270,6 +282,7 @@ export function useGlobalDiagnostics(
     byType,
     warnByType,
     countsByType,
+    lockedByType,
     packagesByType,
     allPackages,
     reload: () => setTick((n) => n + 1),
