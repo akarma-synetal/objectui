@@ -55,6 +55,13 @@ export interface LoginFormProps {
   linkComponent?: React.ComponentType<AuthLinkComponentProps>;
   /** Override default labels for i18n */
   labels?: LoginFormLabels;
+  /**
+   * Map of better-auth error `code` → localized message. When a sign-in error
+   * carries a known code (e.g. `INVALID_EMAIL_OR_PASSWORD`), the mapped string
+   * is shown instead of the raw English server message. Unknown codes fall
+   * back to the server message.
+   */
+  errorMessages?: Record<string, string>;
   /** Hide the icon disc above the form title. Defaults to false. */
   hideIcon?: boolean;
 }
@@ -104,6 +111,7 @@ export function LoginForm({
   hideIcon = false,
   linkComponent: LinkComp = DefaultLink,
   labels = {},
+  errorMessages,
 }: LoginFormProps) {
   const { signIn, isLoading } = useAuth();
   const [email, setEmail] = useState('');
@@ -133,7 +141,8 @@ export function LoginForm({
       onSuccess?.();
     } catch (err) {
       const authError = err instanceof Error ? err : new Error(String(err));
-      setError(authError.message);
+      const code = (authError as Error & { code?: string }).code;
+      setError((code && errorMessages?.[code]) || authError.message);
       onError?.(authError);
     }
   };

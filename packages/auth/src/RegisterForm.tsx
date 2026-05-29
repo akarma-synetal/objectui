@@ -63,6 +63,12 @@ export interface RegisterFormProps {
   linkComponent?: React.ComponentType<AuthLinkComponentProps>;
   /** Override default labels for i18n */
   labels?: RegisterFormLabels;
+  /**
+   * Map of better-auth error `code` → localized message (e.g.
+   * `USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL`). Unknown codes fall back to the
+   * raw server message.
+   */
+  errorMessages?: Record<string, string>;
   /** Hide the icon disc above the form title. Defaults to false. */
   hideIcon?: boolean;
 }
@@ -113,6 +119,7 @@ export function RegisterForm({
   hideIcon = false,
   linkComponent: LinkComp = DefaultLink,
   labels = {},
+  errorMessages,
 }: RegisterFormProps) {
   const { signUp, isLoading } = useAuth();
   const [name, setName] = useState('');
@@ -163,7 +170,8 @@ export function RegisterForm({
       onSuccess?.();
     } catch (err) {
       const authError = err instanceof Error ? err : new Error(String(err));
-      setError(authError.message);
+      const code = (authError as Error & { code?: string }).code;
+      setError((code && errorMessages?.[code]) || authError.message);
       onError?.(authError);
     }
   };

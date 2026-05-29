@@ -51,6 +51,30 @@ export const TokenStorage = {
 };
 
 /**
+ * Better-auth client error shape: a human message plus an HTTP status and an
+ * optional machine-readable `code` (e.g. `INVALID_EMAIL_OR_PASSWORD`).
+ */
+interface BetterAuthErrorLike {
+  message?: string;
+  status?: number;
+  code?: string;
+}
+
+/**
+ * Build an `Error` from a better-auth client error, preserving the machine
+ * `code` on the thrown Error so callers (LoginForm/RegisterForm) can map it to
+ * a localized message instead of surfacing the raw English server text. Falls
+ * back to the server message, then the HTTP status.
+ */
+function toAuthError(error: BetterAuthErrorLike): Error & { code?: string } {
+  const err = new Error(
+    error.message ?? `Auth request failed with status ${error.status}`,
+  ) as Error & { code?: string };
+  if (error.code) err.code = error.code;
+  return err;
+}
+
+/**
  * Resolve a baseURL (which may be relative or absolute) into the
  * `{ origin, basePath }` pair required by the better-auth client.
  *
@@ -181,7 +205,7 @@ export function createAuthClient(config: AuthClientConfig): AuthClient {
         password: credentials.password,
       });
       if (error) {
-        throw new Error(error.message ?? `Auth request failed with status ${error.status}`);
+        throw toAuthError(error);
       }
       const payload = data as unknown as { user: AuthUser; session: AuthSession };
       // Persist token for cross-origin session persistence
@@ -198,7 +222,7 @@ export function createAuthClient(config: AuthClientConfig): AuthClient {
         name: signUpData.name,
       });
       if (error) {
-        throw new Error(error.message ?? `Auth request failed with status ${error.status}`);
+        throw toAuthError(error);
       }
       // better-auth's /sign-up/email returns { token: string | null, user }.
       // - When auto sign-in is enabled and verification is not required, `token`
