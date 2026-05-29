@@ -2077,6 +2077,8 @@ export type {
   MetadataClientConfig,
   MetadataListOptions,
   MetadataSaveOptions,
+  MetadataGetOptions,
+  MetadataDeleteOptions,
   MetadataHistoryOptions,
   MetadataError,
   MetadataLayered,

@@ -69,6 +69,31 @@ export interface MetadataSaveOptions {
    * so the operator can confirm and proceed.
    */
   force?: boolean;
+  /**
+   * Save mode — `'draft'` writes a pending draft row (invisible to the
+   * runtime until `publish()` is called); `'publish'` writes directly
+   * to the active overlay. Omit (or set `'publish'`) for the legacy
+   * "save = live" behaviour.
+   */
+  mode?: 'draft' | 'publish';
+}
+
+export interface MetadataGetOptions {
+  /**
+   * Read a specific overlay state. `'draft'` returns the pending draft
+   * body (no fallback to the published overlay or the registry); omit
+   * to read the active (published) value.
+   */
+  state?: 'active' | 'draft';
+}
+
+export interface MetadataDeleteOptions extends MetadataSaveOptions {
+  /**
+   * Target state. `'draft'` discards the pending draft (keeps the
+   * published overlay intact). Omit to reset the active overlay back
+   * to the artifact default (the legacy behaviour).
+   */
+  state?: 'active' | 'draft';
 }
 
 /** Layered view of a metadata item — Phase 3a `?layers=true`. */
@@ -221,8 +246,13 @@ export class MetadataClient {
    * (matching the framework REST handler which calls `res.json(item)`).
    * Returns `null` on 404 to keep the call-site ergonomic.
    */
-  async get<T = unknown>(type: string, name: string): Promise<T | null> {
-    const url = `${this.base}/${encodeURIComponent(type)}/${encodeURIComponent(name)}`;
+  async get<T = unknown>(
+    type: string,
+    name: string,
+    options: MetadataGetOptions = {},
+  ): Promise<T | null> {
+    const qs = options.state === 'draft' ? '?state=draft' : '';
+    const url = `${this.base}/${encodeURIComponent(type)}/${encodeURIComponent(name)}${qs}`;
     const res = await this.fetchImpl(url, { method: 'GET', headers: this.headers, cache: 'no-store' });
     if (res.status === 404) return null;
     if (!res.ok) throw await parseError(res);
@@ -230,9 +260,26 @@ export class MetadataClient {
   }
 
   /**
+   * Read the pending draft body for an item (`?state=draft`). Returns
+   * `null` when there is no draft pending. Draft reads do NOT fall
+   * back to the published overlay or the artifact registry — a `null`
+   * unambiguously means "nothing to publish".
+   *
+   * Note: the framework wraps draft responses in an envelope
+   * `{ type, name, item }` (matching `getMetaItem`); callers should
+   * read `.item` to get the body. The legacy `get()` returns the
+   * unwrapped body, so this method preserves that asymmetry by
+   * returning whatever the server sent.
+   */
+  async getDraft<T = unknown>(type: string, name: string): Promise<T | null> {
+    return this.get<T>(type, name, { state: 'draft' });
+  }
+
+  /**
    * Save (PUT) a metadata item. The framework accepts both the bare
    * item payload and the `{ item: ... }` / `{ metadata: ... }`
-   * envelopes; we send bare for consistency.
+   * envelopes; we send bare for consistency. Pass `mode: 'draft'` to
+   * stage the change without publishing (Studio's "Save" button).
    */
   async save<T = unknown>(
     type: string,
@@ -240,7 +287,10 @@ export class MetadataClient {
     item: unknown,
     options: MetadataSaveOptions = {},
   ): Promise<T> {
-    const qs = options.force ? '?force=true' : '';
+    const params: string[] = [];
+    if (options.force) params.push('force=true');
+    if (options.mode === 'draft') params.push('mode=draft');
+    const qs = params.length ? `?${params.join('&')}` : '';
     const url = `${this.base}/${encodeURIComponent(type)}/${encodeURIComponent(name)}${qs}`;
     const headers: Record<string, string> = {
       ...this.headers,
@@ -305,17 +355,106 @@ export class MetadataClient {
   /**
    * Reset a metadata customization overlay back to the artifact default.
    * Idempotent: returns the result even when no overlay row existed.
+   * Pass `state: 'draft'` to discard the pending draft only (keeps the
+   * published overlay intact) — useful for a Studio "Discard draft" button.
    */
   async reset<T = unknown>(
     type: string,
     name: string,
-    options: MetadataSaveOptions = {},
+    options: MetadataDeleteOptions = {},
   ): Promise<T> {
-    const url = `${this.base}/${encodeURIComponent(type)}/${encodeURIComponent(name)}`;
+    const qs = options.state === 'draft' ? '?state=draft' : '';
+    const url = `${this.base}/${encodeURIComponent(type)}/${encodeURIComponent(name)}${qs}`;
     const headers: Record<string, string> = { ...this.headers };
     if (options.ifMatch) headers['If-Match'] = options.ifMatch;
     if (options.actor) headers['X-Actor'] = options.actor;
     const res = await this.fetchImpl(url, { method: 'DELETE', headers });
+    if (!res.ok) throw await parseError(res);
+    return (await res.json()) as T;
+  }
+
+  /**
+   * Promote the pending draft of an item to the active overlay
+   * (POST `/meta/:type/:name/publish`). Returns
+   * `{ success, version, seq, message }`. Throws a `404 no_draft` if
+   * nothing is pending and `409 metadata_conflict` if the published
+   * overlay moved while the draft was sitting.
+   */
+  async publish<T = unknown>(
+    type: string,
+    name: string,
+    options: { actor?: string; message?: string } = {},
+  ): Promise<T> {
+    const url = `${this.base}/${encodeURIComponent(type)}/${encodeURIComponent(name)}/publish`;
+    const headers: Record<string, string> = {
+      ...this.headers,
+      'Content-Type': 'application/json',
+    };
+    if (options.actor) headers['X-Actor'] = options.actor;
+    const res = await this.fetchImpl(url, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(options.message ? { message: options.message } : {}),
+    });
+    if (!res.ok) throw await parseError(res);
+    return (await res.json()) as T;
+  }
+
+  /**
+   * Restore an item to a previous version (POST `/meta/:type/:name/rollback`).
+   * The server reads the history row at `toVersion`, writes its body back
+   * as the active overlay with `operation_type='revert'`. Returns
+   * `{ success, version, seq, restoredFromVersion, message }`. Throws
+   * `404 version_not_found` for unknown versions and `409 version_not_restorable`
+   * when the target version is a delete tombstone.
+   */
+  async rollback<T = unknown>(
+    type: string,
+    name: string,
+    toVersion: number,
+    options: { actor?: string; message?: string } = {},
+  ): Promise<T> {
+    const url = `${this.base}/${encodeURIComponent(type)}/${encodeURIComponent(name)}/rollback`;
+    const headers: Record<string, string> = {
+      ...this.headers,
+      'Content-Type': 'application/json',
+    };
+    if (options.actor) headers['X-Actor'] = options.actor;
+    const res = await this.fetchImpl(url, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        toVersion,
+        ...(options.message ? { message: options.message } : {}),
+      }),
+    });
+    if (!res.ok) throw await parseError(res);
+    return (await res.json()) as T;
+  }
+
+  /**
+   * Compute a structured top-level key diff between two history versions
+   * (GET `/meta/:type/:name/diff?from=&to=`). Returns
+   * `{ added, removed, changed }` where each entry carries a `path` and
+   * the relevant value(s). Useful for "what changed in this draft?" and
+   * pre-rollback previews.
+   */
+  async diff<T = unknown>(
+    type: string,
+    name: string,
+    fromVersion?: number,
+    toVersion?: number,
+  ): Promise<T> {
+    const params = new URLSearchParams();
+    if (fromVersion !== undefined) params.set('from', String(fromVersion));
+    if (toVersion !== undefined) params.set('to', String(toVersion));
+    const qs = params.toString();
+    const url = `${this.base}/${encodeURIComponent(type)}/${encodeURIComponent(name)}/diff${qs ? `?${qs}` : ''}`;
+    const res = await this.fetchImpl(url, {
+      method: 'GET',
+      headers: this.headers,
+      cache: 'no-store',
+    });
     if (!res.ok) throw await parseError(res);
     return (await res.json()) as T;
   }

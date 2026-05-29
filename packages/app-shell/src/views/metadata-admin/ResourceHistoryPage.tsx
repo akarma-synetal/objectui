@@ -17,7 +17,7 @@
 
 import * as React from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, RefreshCw, Loader2 } from 'lucide-react';
+import { ArrowLeft, RefreshCw, Loader2, RotateCcw } from 'lucide-react';
 import { Button } from '@object-ui/components';
 import { Badge } from '@object-ui/components';
 import { Empty, EmptyTitle, EmptyDescription } from '@object-ui/components';
@@ -35,10 +35,18 @@ export interface MetadataResourceHistoryPageProps {
 
 type HistoryEvent = {
   seq?: number;
+  /** Newer framework field — `create | update | delete | publish | revert`. */
+  op?: string;
+  /** Legacy field — kept for backward compat with older servers. */
   kind?: string;
+  /** Per-(type,name) monotonic version used by rollback. */
+  version?: number;
   actor?: string | null;
   at?: string | number;
+  /** ISO timestamp on newer servers. */
+  ts?: string | number;
   payload?: unknown;
+  hash?: string;
   [k: string]: unknown;
 };
 
@@ -90,6 +98,7 @@ export function MetadataResourceHistoryPage({
           refreshKey={refreshKey}
           onCount={setEventCount}
           client={client}
+          onRollback={() => setRefreshKey((k) => k + 1)}
         />
       </div>
     </PageShell>
@@ -100,6 +109,10 @@ export function MetadataResourceHistoryPage({
  * Embeddable version of the history timeline. Re-used by both the
  * routed full page and the right-side sheet on the edit page so we
  * keep a single visual + fetching implementation.
+ *
+ * Pass `onRollback` to enable the per-event Rollback action — the
+ * embedded version inside ResourceEditPage uses it to refresh the
+ * editor's layered view after restoring a previous version.
  */
 export function HistoryPanel({
   type,
@@ -107,17 +120,28 @@ export function HistoryPanel({
   refreshKey = 0,
   onCount,
   client,
+  onRollback,
+  rollbackConfirm,
+  rollbackLabel,
 }: {
   type: string;
   name: string;
   refreshKey?: number;
   onCount?: (n: number) => void;
   client: ReturnType<typeof useMetadataClient>;
+  /** Called after a successful rollback so the parent can refresh. */
+  onRollback?: (version: number) => void;
+  /** Confirmation message — defaults to a literal English string. */
+  rollbackConfirm?: (version: number) => string;
+  /** Tooltip / button label — defaults to "Rollback". */
+  rollbackLabel?: string;
 }) {
   const [events, setEvents] = React.useState<HistoryEvent[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
   const [expanded, setExpanded] = React.useState<number | null>(null);
+  const [rollingBack, setRollingBack] = React.useState<number | null>(null);
+  const [localRefresh, setLocalRefresh] = React.useState(0);
 
   React.useEffect(() => {
     let cancelled = false;
@@ -147,7 +171,26 @@ export function HistoryPanel({
     return () => {
       cancelled = true;
     };
-  }, [client, type, name, refreshKey]);
+  }, [client, type, name, refreshKey, localRefresh]);
+
+  async function doRollback(version: number) {
+    const message = rollbackConfirm
+      ? rollbackConfirm(version)
+      : `Restore version ${version}? This writes the historical body back as the current overlay.`;
+    if (!confirm(message)) return;
+    setRollingBack(version);
+    setError(null);
+    try {
+      await (client as any).rollback(type, name, version);
+      onRollback?.(version);
+      // Refetch so the new revert event shows up at the top.
+      setLocalRefresh((k) => k + 1);
+    } catch (err: any) {
+      setError(err?.message ?? String(err));
+    } finally {
+      setRollingBack(null);
+    }
+  }
 
   return (
     <>
@@ -174,6 +217,12 @@ export function HistoryPanel({
         <ol className="space-y-2 relative pl-6 border-l">
           {events.map((ev, i) => {
             const isOpen = expanded === i;
+            const op = ev.op ?? ev.kind;
+            const ts = ev.ts ?? ev.at;
+            const canRollback = !!onRollback
+              && typeof ev.version === 'number'
+              && op !== 'delete'
+              && op !== 'tombstone';
             return (
               <li key={`${ev.seq ?? i}-${i}`} className="relative">
                 <span className="absolute -left-[27px] top-2 w-3 h-3 rounded-full bg-primary ring-4 ring-background" />
@@ -192,18 +241,27 @@ export function HistoryPanel({
                     <Badge variant="outline" className="text-[10px] font-mono">
                       seq {ev.seq ?? '–'}
                     </Badge>
-                    {ev.kind && (
+                    {typeof ev.version === 'number' && (
+                      <Badge variant="outline" className="text-[10px] font-mono">
+                        v{ev.version}
+                      </Badge>
+                    )}
+                    {op && (
                       <Badge
                         className={
                           'text-[10px] ' +
-                          (ev.kind === 'delete' || ev.kind === 'tombstone'
+                          (op === 'delete' || op === 'tombstone'
                             ? 'bg-red-100 text-red-800 hover:bg-red-100'
-                            : ev.kind === 'create'
+                            : op === 'create'
                               ? 'bg-blue-100 text-blue-800 hover:bg-blue-100'
-                              : 'bg-emerald-100 text-emerald-800 hover:bg-emerald-100')
+                              : op === 'publish'
+                                ? 'bg-emerald-100 text-emerald-800 hover:bg-emerald-100'
+                                : op === 'revert'
+                                  ? 'bg-amber-100 text-amber-900 hover:bg-amber-100'
+                                  : 'bg-emerald-100 text-emerald-800 hover:bg-emerald-100')
                         }
                       >
-                        {String(ev.kind)}
+                        {String(op)}
                       </Badge>
                     )}
                     {ev.actor && (
@@ -212,10 +270,29 @@ export function HistoryPanel({
                         <span className="font-mono">{String(ev.actor)}</span>
                       </span>
                     )}
-                    {ev.at && (
+                    {ts && (
                       <span className="text-xs text-muted-foreground ml-auto">
-                        {formatWhen(ev.at)}
+                        {formatWhen(ts)}
                       </span>
+                    )}
+                    {canRollback && (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-6 w-6 p-0"
+                        title={rollbackLabel ?? 'Rollback to this version'}
+                        disabled={rollingBack !== null}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          doRollback(ev.version!);
+                        }}
+                      >
+                        {rollingBack === ev.version ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        ) : (
+                          <RotateCcw className="h-3.5 w-3.5" />
+                        )}
+                      </Button>
                     )}
                   </div>
                   {isOpen && (

@@ -44,6 +44,8 @@ import {
   FileCode2,
   Zap,
   ZapOff,
+  Send,
+  Undo2,
 } from 'lucide-react';
 import { Button } from '@object-ui/components';
 import { Badge } from '@object-ui/components';
@@ -96,6 +98,31 @@ import { detectLocale, t, tFormat } from './i18n';
 // cleanly in our TS config; cast at the boundary (precedent:
 // packages/components/src/custom/navigation-overlay.tsx).
 const PanelGroup = ResizablePanelGroup as React.FC<any>;
+
+/**
+ * Normalize the framework's draft envelope into either the draft body or
+ * `null` (no pending draft). The envelope is:
+ *
+ *   - `{ type, name, item: {...} }` when a draft exists,
+ *   - `{ type, name, label }`       when no draft exists (HTTP 200, item absent).
+ *
+ * The presence of the `item` key is the single signal; we do NOT fall back
+ * to using the envelope itself as the body — doing so would mis-identify the
+ * "no draft" stub (which still has `type`/`name`/`label` keys) as a real
+ * pending draft and would corrupt the editor baseline.
+ */
+function extractDraftBody(
+  draftResp: unknown,
+): Record<string, unknown> | null {
+  if (!draftResp || typeof draftResp !== 'object') return null;
+  const env = draftResp as Record<string, unknown>;
+  if (!('item' in env)) return null;
+  const body = env.item;
+  if (!body || typeof body !== 'object') return null;
+  return Object.keys(body as object).length > 0
+    ? (body as Record<string, unknown>)
+    : null;
+}
 
 export interface MetadataResourceEditPageProps {
   type?: string;
@@ -150,6 +177,14 @@ export function MetadataResourceEditPage({
     null | Array<{ kind?: string; path?: string; message?: string }>
   >(null);
   const [pendingItem, setPendingItem] = React.useState<unknown>(null);
+  // Per-item draft pending publish (mode=draft saves land here).
+  // When non-null, the editor is "viewing the draft" and we surface
+  // Publish / Discard-draft actions.
+  const [hasDraft, setHasDraft] = React.useState(false);
+  const [publishing, setPublishing] = React.useState(false);
+  // Bumped by destructive operations (rollback / discard-draft) to
+  // force the load effect to refetch layered + draft state.
+  const [reloadKey, setReloadKey] = React.useState(0);
 
   // Form edit mode. The form is read-only by default — admins land in a
   // "view" state and must click Edit to mutate, mirroring the Salesforce /
@@ -238,13 +273,28 @@ export function MetadataResourceEditPage({
     setError(null);
     (async () => {
       try {
-        const lay = await client.layered<any>(type, name);
+        const [lay, draftResp] = await Promise.all([
+          client.layered<any>(type, name),
+          // Draft reads are best-effort — a 404/error must not block
+          // the page; readers without overlay-write permission still
+          // see the published item.
+          client.getDraft<any>(type, name).catch(() => null),
+        ]);
         if (cancelled) return;
         setLayered(lay);
-        // Initial draft = effective if available, otherwise code.
-        const initial = (lay.effective ?? lay.code ?? {}) as Record<string, unknown>;
+        // Draft envelope from the framework is `{ type, name, item }`;
+        // an empty/missing item means "no pending draft".
+        const draftReal = extractDraftBody(draftResp);
+        // Prefer the pending draft as the editing baseline — the
+        // operator is mid-flight on this item and should see their
+        // own in-progress state, not the last published version.
+        const initial = (draftReal
+          ?? lay.effective
+          ?? lay.code
+          ?? {}) as Record<string, unknown>;
         setDraft(initial);
         draftSnapshotRef.current = initial;
+        setHasDraft(!!draftReal);
         setLoading(false);
       } catch (err: any) {
         if (!cancelled) {
@@ -256,7 +306,7 @@ export function MetadataResourceEditPage({
     return () => {
       cancelled = true;
     };
-  }, [client, type, name, createMode]);
+  }, [client, type, name, createMode, reloadKey]);
 
   // Lazy-load references the first time the References sheet opens.
   const [refsLoading, setRefsLoading] = React.useState(false);
@@ -485,11 +535,20 @@ export function MetadataResourceEditPage({
         setSaving(false);
         return;
       }
-      const result = await client.save<any>(type, savedName, itemToSave, { force });
-      // Refresh layered after save.
-      const lay = await client.layered<any>(type, savedName);
+      // Save lands in the draft buffer — the runtime keeps serving the
+      // last published version until the operator clicks Publish. The
+      // backend defaults to publish mode for backward-compatibility, so
+      // Studio must opt into draft explicitly.
+      await client.save<any>(type, savedName, itemToSave, { force, mode: 'draft' });
+      // Refresh layered + draft state after save.
+      const [lay, draftResp] = await Promise.all([
+        client.layered<any>(type, savedName),
+        client.getDraft<any>(type, savedName).catch(() => null),
+      ]);
       setLayered(lay);
-      const fresh = (lay.effective ?? itemToSave) as Record<string, unknown>;
+      const draftReal = extractDraftBody(draftResp);
+      setHasDraft(!!draftReal);
+      const fresh = (draftReal ?? lay.effective ?? itemToSave) as Record<string, unknown>;
       setDraft(fresh);
       draftSnapshotRef.current = fresh;
       setLastSavedAt(new Date());
@@ -581,6 +640,53 @@ export function MetadataResourceEditPage({
         // No artifact baseline → return to the list view.
         navigate(`../`, { relative: 'path' });
       }
+    } catch (err: any) {
+      setError(err?.message ?? String(err));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  // Promote the pending draft to the active overlay. Mirrors `doSave`'s
+  // refresh pattern so the editor stays in sync with the new baseline.
+  async function doPublish() {
+    setPublishing(true);
+    setError(null);
+    try {
+      await client.publish<any>(type, name);
+      const [lay, draftResp] = await Promise.all([
+        client.layered<any>(type, name),
+        client.getDraft<any>(type, name).catch(() => null),
+      ]);
+      setLayered(lay);
+      const draftReal = extractDraftBody(draftResp);
+      setHasDraft(!!draftReal);
+      const fresh = (draftReal ?? lay.effective ?? draft) as Record<string, unknown>;
+      setDraft(fresh);
+      draftSnapshotRef.current = fresh;
+    } catch (err: any) {
+      setError(err?.message ?? String(err));
+    } finally {
+      setPublishing(false);
+    }
+  }
+
+  // Discard the pending draft (`DELETE ?state=draft`). The published
+  // overlay is untouched; the editor reverts to showing the live body.
+  async function doDiscardDraft() {
+    if (!confirm(tFormat('engine.edit.discardDraftConfirm', locale, { type, name: name ?? '' }))) {
+      return;
+    }
+    setSaving(true);
+    setError(null);
+    try {
+      await client.reset(type, name, { state: 'draft' });
+      const lay = await client.layered<any>(type, name);
+      setLayered(lay);
+      const fresh = (lay.effective ?? lay.code ?? {}) as Record<string, unknown>;
+      setDraft(fresh);
+      draftSnapshotRef.current = fresh;
+      setHasDraft(false);
     } catch (err: any) {
       setError(err?.message ?? String(err));
     } finally {
@@ -933,6 +1039,43 @@ export function MetadataResourceEditPage({
           )}
         </Button>
       )}
+      {/* Publish / Discard draft — only when there is a pending draft.
+          Save writes to the draft buffer; the runtime keeps serving the
+          published version until the operator clicks Publish. */}
+      {canWrite && !createMode && hasDraft && (
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={doDiscardDraft}
+          disabled={saving || publishing}
+          className="h-7 w-7 p-0 text-muted-foreground"
+          title={t('engine.edit.discardDraft', locale)}
+        >
+          <Undo2 className="h-3.5 w-3.5" />
+        </Button>
+      )}
+      {canWrite && !createMode && hasDraft && (
+        <Button
+          size="sm"
+          onClick={doPublish}
+          disabled={saving || publishing || isDirty}
+          className="h-7 px-2 relative bg-emerald-600 hover:bg-emerald-700 text-emerald-50"
+          title={
+            isDirty
+              ? t('engine.edit.publishBlockedDirty', locale)
+              : t('engine.edit.publish', locale)
+          }
+        >
+          {publishing ? (
+            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+          ) : (
+            <>
+              <Send className="h-3.5 w-3.5 mr-1" />
+              <span className="text-xs">{t('engine.edit.publish', locale)}</span>
+            </>
+          )}
+        </Button>
+      )}
     </>
   );
 
@@ -950,7 +1093,7 @@ export function MetadataResourceEditPage({
             : 'p-6 space-y-6 max-w-7xl'
         }
       >
-        {(error || readOnly) && (
+        {(error || readOnly || hasDraft) && (
           <div
             className={
               PreviewComponent
@@ -961,6 +1104,37 @@ export function MetadataResourceEditPage({
             {error && (
               <div className="text-sm text-destructive border border-destructive/30 rounded p-3 bg-destructive/5">
                 {error}
+              </div>
+            )}
+            {hasDraft && !createMode && (
+              <div className="text-xs text-emerald-900 border border-emerald-300 bg-emerald-50 rounded p-3 dark:text-emerald-200 dark:border-emerald-700/50 dark:bg-emerald-950/30 flex items-center gap-3">
+                <Send className="h-3.5 w-3.5 shrink-0" />
+                <span className="flex-1">{t('engine.edit.draftPending', locale)}</span>
+                {canWrite && (
+                  <>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={doDiscardDraft}
+                      disabled={saving || publishing}
+                      className="h-7"
+                    >
+                      {t('engine.edit.discardDraft', locale)}
+                    </Button>
+                    <Button
+                      size="sm"
+                      onClick={doPublish}
+                      disabled={saving || publishing || isDirty}
+                      className="h-7 bg-emerald-600 hover:bg-emerald-700 text-emerald-50"
+                    >
+                      {publishing ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      ) : (
+                        t('engine.edit.publish', locale)
+                      )}
+                    </Button>
+                  </>
+                )}
               </div>
             )}
             {readOnly && (
@@ -1401,7 +1575,19 @@ export function MetadataResourceEditPage({
               </SheetDescription>
             </SheetHeader>
             <div className="flex-1 min-h-0 overflow-auto p-4">
-              <HistoryPanel type={type} name={name} client={client} />
+              <HistoryPanel
+                type={type}
+                name={name}
+                client={client}
+                onRollback={() => setReloadKey((k) => k + 1)}
+                rollbackLabel={t('engine.edit.rollback', locale)}
+                rollbackConfirm={(version) =>
+                  t('engine.edit.rollbackConfirm', locale).replace(
+                    '{version}',
+                    String(version),
+                  )
+                }
+              />
             </div>
           </SheetContent>
         </Sheet>
