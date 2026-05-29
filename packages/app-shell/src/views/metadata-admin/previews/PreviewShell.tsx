@@ -7,7 +7,7 @@
  */
 
 import * as React from 'react';
-import { AlertCircle } from 'lucide-react';
+import { AlertCircle, Inbox } from 'lucide-react';
 
 export interface PreviewShellProps {
   /**
@@ -59,6 +59,44 @@ export function PreviewMessage({
     <div className={`m-4 rounded border p-3 text-sm flex items-start gap-2 ${styles}`}>
       {tone !== 'info' && <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />}
       <div className="flex-1">{children}</div>
+    </div>
+  );
+}
+
+/**
+ * Centered placeholder for empty/onboarding preview states (e.g. "no
+ * source object yet", "no columns defined"). Fills the canvas
+ * vertically so the empty-state feels intentional instead of looking
+ * like a tiny banner stranded above a vast blank canvas.
+ */
+export function PreviewEmptyState({
+  icon,
+  title,
+  description,
+  action,
+  tone = 'info',
+}: {
+  icon?: React.ReactNode;
+  title: React.ReactNode;
+  description?: React.ReactNode;
+  action?: React.ReactNode;
+  tone?: 'info' | 'warn';
+}) {
+  const toneStyles =
+    tone === 'warn'
+      ? 'text-amber-700 bg-amber-50/40 border-amber-200/60'
+      : 'text-muted-foreground border-dashed border-muted-foreground/25 bg-muted/10';
+  const iconNode = icon ?? <Inbox className="h-8 w-8 opacity-50" />;
+  return (
+    <div className="h-full w-full flex items-center justify-center p-6">
+      <div
+        className={`max-w-md w-full rounded-lg border ${toneStyles} px-6 py-10 flex flex-col items-center gap-3 text-center`}
+      >
+        <div className="text-foreground/60">{iconNode}</div>
+        <div className="text-sm font-medium text-foreground/90">{title}</div>
+        {description && <div className="text-xs leading-relaxed">{description}</div>}
+        {action && <div className="mt-1">{action}</div>}
+      </div>
     </div>
   );
 }

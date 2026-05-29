@@ -9,10 +9,10 @@
  */
 
 import * as React from 'react';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Database, Columns3, Plus } from 'lucide-react';
 import { useAdapter } from '../../../providers/AdapterProvider';
 import type { MetadataPreviewProps } from '../preview-registry';
-import { PreviewShell, PreviewErrorBoundary, PreviewMessage } from './PreviewShell';
+import { PreviewShell, PreviewErrorBoundary, PreviewEmptyState } from './PreviewShell';
 import { OutlineStrip } from './OutlineStrip';
 import { t as tr } from '../i18n';
 
@@ -57,10 +57,12 @@ export function ReportPreview({ draft, editing, selection, onSelectionChange, on
 
   if (!objectName) {
     return (
-      <PreviewShell hint="report">
-        <PreviewMessage tone="warn">
-          Pick an Object in the Form tab — Reports need a source object before they can render.
-        </PreviewMessage>
+      <PreviewShell>
+        <PreviewEmptyState
+          icon={<Database className="h-8 w-8" />}
+          title="Pick a source object to preview the report"
+          description="Reports need a source object — choose one in the Object Name field on the right panel to start designing."
+        />
       </PreviewShell>
     );
   }
@@ -70,7 +72,7 @@ export function ReportPreview({ draft, editing, selection, onSelectionChange, on
   const hasColumns = Array.isArray((draft as any).columns) && (draft as any).columns.length > 0;
   if (!hasColumns) {
     return (
-      <PreviewShell hint={`report · ${visualization ?? 'table'}${designMode ? ' · design' : ''}`}>
+      <PreviewShell>
         {designMode && (
           <OutlineStrip
             title={tr('engine.inspector.reportColumn.outlineLabel', locale)}
@@ -81,11 +83,26 @@ export function ReportPreview({ draft, editing, selection, onSelectionChange, on
             addLabel={tr('engine.inspector.add.column', locale)}
           />
         )}
-        <PreviewMessage tone="info">
-          {canEdit
-            ? 'Add at least one column to preview the report. Use “Add column” above, or fill the Columns field in the Properties tab.'
-            : 'This report has no columns yet — define some in the Properties tab to see a preview.'}
-        </PreviewMessage>
+        <PreviewEmptyState
+          icon={<Columns3 className="h-8 w-8" />}
+          title="No columns yet"
+          description={
+            canEdit
+              ? 'Add at least one column to preview the report against live data.'
+              : 'Define columns in the Properties tab to see a preview.'
+          }
+          action={
+            canEdit ? (
+              <button
+                type="button"
+                onClick={handleAdd}
+                className="inline-flex items-center gap-1.5 rounded-md border bg-background px-3 py-1.5 text-xs font-medium hover:bg-accent transition-colors"
+              >
+                <Plus className="h-3.5 w-3.5" /> Add first column
+              </button>
+            ) : undefined
+          }
+        />
       </PreviewShell>
     );
   }
