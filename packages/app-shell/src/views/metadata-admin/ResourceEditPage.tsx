@@ -782,6 +782,7 @@ export function MetadataResourceEditPage({
                         editing={editing}
                         selection={selection}
                         onSelectionChange={setSelection}
+                        locale={locale}
                         onPatch={(patch) =>
                           setDraft((d) => ({ ...(d as Record<string, unknown>), ...patch }))
                         }
