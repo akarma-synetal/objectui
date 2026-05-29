@@ -324,21 +324,48 @@ export function SchemaForm({
 
   // If the framework provided a FormView layout, render sections (tabbed
   // or simple). Otherwise fall through to the flat property list.
+  //
+  // Guard: when none of the fields declared by the layout actually exist
+  // in the JSON schema (typically because the schema was reshaped under
+  // a nested wrapper, e.g. `view` now bundles its props under
+  // `list/form/listViews/formViews`), the layout would render a wall of
+  // amber "missing from schema" warnings and nothing else. Detect that
+  // total mismatch and fall through to the flat schema-driven
+  // rendering so the user still gets a usable form.
   if (form?.sections?.length) {
-    return (
-      <SectionedSchemaForm
-        form={form}
-        props={props}
-        required={required}
-        hiddenFields={hiddenFields}
-        issuesByPath={issuesByPath}
-        value={v as Record<string, unknown>}
-        readOnly={readOnly}
-        createMode={createMode}
-        widgetContext={widgetContext}
-        onChange={setField}
-      />
-    );
+    const declaredFields: string[] = [];
+    for (const s of form.sections) {
+      for (const f of s.fields) {
+        declaredFields.push(typeof f === 'string' ? f : f.field);
+      }
+    }
+    const matched = declaredFields.filter((f) => props[f]).length;
+    const usable = declaredFields.length === 0 || matched > 0;
+    if (usable) {
+      return (
+        <SectionedSchemaForm
+          form={form}
+          props={props}
+          required={required}
+          hiddenFields={hiddenFields}
+          issuesByPath={issuesByPath}
+          value={v as Record<string, unknown>}
+          readOnly={readOnly}
+          createMode={createMode}
+          widgetContext={widgetContext}
+          onChange={setField}
+        />
+      );
+    }
+    if (typeof console !== 'undefined') {
+      console.warn(
+        '[SchemaForm] form layout declares no fields that exist in the schema; ' +
+          'falling back to flat schema-driven rendering. Declared:',
+        declaredFields,
+        'Available:',
+        Object.keys(props),
+      );
+    }
   }
 
   return (
