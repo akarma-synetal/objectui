@@ -16,11 +16,13 @@ import type { MetadataInspectorProps } from '../inspector-registry';
 import { t } from '../i18n';
 import {
   InspectorShell,
+  InspectorReorderButtons,
   InspectorTextField,
   InspectorSelectField,
   InspectorRemoveButton,
   InspectorEmptyState,
   spliceArray,
+  moveArray,
 } from './_shared';
 
 interface WorkflowAction { type?: string; name?: string; [k: string]: unknown }
@@ -45,7 +47,7 @@ function parseSelectionId(id: string): ParsedSel | null {
   return null;
 }
 
-export function WorkflowActionInspector({ selection, draft, onPatch, onClearSelection, locale, readOnly }: MetadataInspectorProps) {
+export function WorkflowActionInspector({ selection, draft, onPatch, onClearSelection, onSelectionChange, locale, readOnly }: MetadataInspectorProps) {
   const parsed = parseSelectionId(selection.id);
   const immediate = Array.isArray((draft as any).actions) ? (draft as any).actions as WorkflowAction[] : [];
   const timed = Array.isArray((draft as any).timeTriggers) ? (draft as any).timeTriggers as TimeTrigger[] : [];
@@ -108,12 +110,41 @@ export function WorkflowActionInspector({ selection, draft, onPatch, onClearSele
     }
   };
 
+  const { currentIndex, total } = (() => {
+    if (parsed.scope === 'immediate') return { currentIndex: parsed.i, total: immediate.length };
+    const trig = timed[parsed.i];
+    const arr = Array.isArray(trig?.actions) ? trig.actions : [];
+    return { currentIndex: parsed.j!, total: arr.length };
+  })();
+
+  const move = (to: number) => {
+    if (parsed.scope === 'immediate') {
+      onPatch({ actions: moveArray(immediate, parsed.i, to) });
+      onSelectionChange?.({ kind: 'action', id: `actions[${to}]`, label: action.name || action.type });
+    } else {
+      const trig = timed[parsed.i];
+      const newActions = moveArray(trig.actions ?? [], parsed.j!, to);
+      onPatch({ timeTriggers: spliceArray(timed, parsed.i, { ...trig, actions: newActions }) });
+      onSelectionChange?.({ kind: 'action', id: `timeTriggers[${parsed.i}].actions[${to}]`, label: action.name || action.type });
+    }
+  };
+
   return (
     <InspectorShell
       kindLabel={t('engine.inspector.workflowAction.kind', locale)}
       title={action.name || action.type || selection.id}
       onClose={onClearSelection}
       closeLabel={t('engine.inspector.workflowAction.close', locale)}
+      headerActions={
+        <InspectorReorderButtons
+          index={currentIndex}
+          total={total}
+          onMove={move}
+          upLabel={t('engine.inspector.reorder.up', locale)}
+          downLabel={t('engine.inspector.reorder.down', locale)}
+          disabled={readOnly}
+        />
+      }
       footer={<InspectorRemoveButton label={t('engine.inspector.workflowAction.remove', locale)} onClick={remove} disabled={readOnly} />}
     >
       <InspectorSelectField label={t('engine.inspector.workflowAction.type', locale)} value={action.type} options={ACTION_TYPES.map((v) => ({ value: v, label: v }))} onCommit={(v) => patch({ type: v })} disabled={readOnly} />

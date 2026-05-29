@@ -37,6 +37,12 @@ export interface MetadataInspectorProps {
   onPatch: (patch: Record<string, unknown>) => void;
   /** Clear the selection (returns the inspector to the top-level form). */
   onClearSelection: () => void;
+  /**
+   * Replace the current selection. Used by reorder buttons to follow
+   * the moved item to its new index, and by other inspector affordances
+   * that need to redirect the focused sub-element.
+   */
+  onSelectionChange?: (next: MetadataSelection | null) => void;
   /** Whether the host is in edit mode. False → disable inputs. */
   readOnly: boolean;
   /** Active UI locale for i18n. */

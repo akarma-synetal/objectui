@@ -18,11 +18,13 @@ import type { MetadataInspectorProps } from '../inspector-registry';
 import { t } from '../i18n';
 import {
   InspectorShell,
+  InspectorReorderButtons,
   InspectorTextField,
   InspectorSelectField,
   InspectorRemoveButton,
   InspectorEmptyState,
   spliceArray,
+  moveArray,
 } from './_shared';
 
 interface NavItem {
@@ -94,9 +96,37 @@ function writeAt(draft: Record<string, unknown>, hops: Hop[], replacement: NavIt
   return { [rootKey]: root };
 }
 
-export function AppNavInspector({ selection, draft, onPatch, onClearSelection, locale, readOnly }: MetadataInspectorProps) {
+/**
+ * Replace the sibling array of the leaf hop with `nextSiblings`.
+ * Mirrors `writeAt`'s clone-down strategy but operates on the
+ * containing array rather than a single index.
+ */
+function writeSiblings(draft: Record<string, unknown>, hops: Hop[], nextSiblings: NavItem[]): Record<string, unknown> {
+  const rootKey = hops[0].key;
+  if (hops.length === 1) {
+    return { [rootKey]: nextSiblings };
+  }
+  const root = Array.isArray((draft as any)[rootKey]) ? [...(draft as any)[rootKey] as NavItem[]] : [];
+  let arr: NavItem[] = root;
+  for (let h = 0; h < hops.length - 2; h++) {
+    const node = { ...(arr[hops[h].index] ?? {}) } as NavItem;
+    const nextKey = hops[h + 1].key;
+    const childArr = Array.isArray((node as any)[nextKey]) ? [...(node as any)[nextKey] as NavItem[]] : [];
+    (node as any)[nextKey] = childArr;
+    arr[hops[h].index] = node;
+    arr = childArr;
+  }
+  const parentHop = hops[hops.length - 2];
+  const leafKey = hops[hops.length - 1].key;
+  const parentCopy = { ...(arr[parentHop.index] ?? {}) } as NavItem;
+  (parentCopy as any)[leafKey] = nextSiblings;
+  arr[parentHop.index] = parentCopy;
+  return { [rootKey]: root };
+}
+
+export function AppNavInspector({ selection, draft, onPatch, onClearSelection, onSelectionChange, locale, readOnly }: MetadataInspectorProps) {
   const hops = parsePath(selection.id);
-  const { node } = hops ? readAt(draft, hops) : { node: null };
+  const { node, parent, index } = hops ? readAt(draft, hops) : { node: null, parent: [] as NavItem[], index: -1 };
 
   if (!hops || !node) {
     return (
@@ -118,12 +148,31 @@ export function AppNavInspector({ selection, draft, onPatch, onClearSelection, l
     onClearSelection();
   };
 
+  const move = (to: number) => {
+    const next = moveArray(parent, index, to);
+    onPatch(writeSiblings(draft, hops, next));
+    const prefix = hops.slice(0, -1).map((h) => `${h.key}[${h.index}]`).join('.');
+    const leafKey = hops[hops.length - 1].key;
+    const newId = prefix ? `${prefix}.${leafKey}[${to}]` : `${leafKey}[${to}]`;
+    onSelectionChange?.({ kind: 'nav', id: newId, label: String(labelOf) });
+  };
+
   return (
     <InspectorShell
       kindLabel={t('engine.inspector.appNav.kind', locale)}
       title={String(labelOf)}
       onClose={onClearSelection}
       closeLabel={t('engine.inspector.appNav.close', locale)}
+      headerActions={
+        <InspectorReorderButtons
+          index={index}
+          total={parent.length}
+          onMove={move}
+          upLabel={t('engine.inspector.reorder.up', locale)}
+          downLabel={t('engine.inspector.reorder.down', locale)}
+          disabled={readOnly}
+        />
+      }
       footer={<InspectorRemoveButton label={t('engine.inspector.appNav.remove', locale)} onClick={remove} disabled={readOnly} />}
     >
       <InspectorTextField label={t('engine.inspector.appNav.label', locale)} value={String(node.label ?? node.title ?? node.name ?? '')} onCommit={(v) => patch({ label: v })} disabled={readOnly} />

@@ -31,6 +31,7 @@ import {
 import type { DashboardWidgetSchema } from '@object-ui/types';
 import type { MetadataInspectorProps } from '../inspector-registry';
 import { t } from '../i18n';
+import { InspectorReorderButtons, moveArray } from './_shared';
 
 const WIDGET_TYPES = [
   { value: 'metric', label: 'KPI Metric' },
@@ -71,6 +72,7 @@ export function DashboardWidgetInspector({
   selection,
   onPatch,
   onClearSelection,
+  onSelectionChange,
   readOnly,
   locale,
 }: MetadataInspectorProps) {
@@ -96,13 +98,21 @@ export function DashboardWidgetInspector({
   }
 
   const { widget, index } = hit;
+  const widgetsAll = Array.isArray((draft as any).widgets)
+    ? ((draft as any).widgets as DashboardWidgetSchema[])
+    : [];
 
   function patchWidget(updates: Partial<DashboardWidgetSchema>) {
-    const widgets = Array.isArray((draft as any).widgets)
-      ? ([...(draft as any).widgets] as DashboardWidgetSchema[])
-      : [];
+    const widgets = [...widgetsAll];
     widgets[index] = { ...widgets[index], ...updates };
     onPatch({ widgets });
+  }
+
+  function moveWidget(to: number) {
+    onPatch({ widgets: moveArray(widgetsAll, index, to) });
+    if (widget.id) {
+      onSelectionChange?.({ kind: 'widget', id: widget.id, label: widget.title ?? undefined });
+    }
   }
 
   return (
@@ -116,17 +126,27 @@ export function DashboardWidgetInspector({
             {widget.title || selection.label || `Widget ${index + 1}`}
           </div>
         </div>
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          className="h-7 w-7 shrink-0 p-0"
-          onClick={onClearSelection}
-          title={t('engine.inspector.widget.close', locale)}
-          aria-label={t('engine.inspector.widget.close', locale)}
-        >
-          <X className="h-3.5 w-3.5" />
-        </Button>
+        <div className="flex items-center gap-1 shrink-0">
+          <InspectorReorderButtons
+            index={index}
+            total={widgetsAll.length}
+            onMove={moveWidget}
+            upLabel={t('engine.inspector.reorder.up', locale)}
+            downLabel={t('engine.inspector.reorder.down', locale)}
+            disabled={readOnly}
+          />
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="h-7 w-7 p-0"
+            onClick={onClearSelection}
+            title={t('engine.inspector.widget.close', locale)}
+            aria-label={t('engine.inspector.widget.close', locale)}
+          >
+            <X className="h-3.5 w-3.5" />
+          </Button>
+        </div>
       </div>
 
       <Field id="widget-title" label={t('engine.inspector.widget.title', locale)}>

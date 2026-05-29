@@ -12,11 +12,13 @@ import type { MetadataInspectorProps } from '../inspector-registry';
 import { t } from '../i18n';
 import {
   InspectorShell,
+  InspectorReorderButtons,
   InspectorTextField,
   InspectorSelectField,
   InspectorRemoveButton,
   InspectorEmptyState,
   spliceArray,
+  moveArray,
 } from './_shared';
 
 interface ApprovalStep {
@@ -45,7 +47,7 @@ function celOf(v: ApprovalStep['entryCriteria']): string {
   return v.source ?? '';
 }
 
-export function ApprovalStepInspector({ selection, draft, onPatch, onClearSelection, locale, readOnly }: MetadataInspectorProps) {
+export function ApprovalStepInspector({ selection, draft, onPatch, onClearSelection, onSelectionChange, locale, readOnly }: MetadataInspectorProps) {
   const steps = Array.isArray((draft as any).steps) ? (draft as any).steps as ApprovalStep[] : [];
   // Lookup by name, or by "steps[i]" pseudo-id (assigned when name is empty).
   const index = (() => {
@@ -72,12 +74,29 @@ export function ApprovalStepInspector({ selection, draft, onPatch, onClearSelect
     onClearSelection();
   };
 
+  const move = (to: number) => {
+    onPatch({ steps: moveArray(steps, index, to) });
+    // Re-select by name if available (stable across position), else by new index.
+    const id = step.name || `steps[${to}]`;
+    onSelectionChange?.({ kind: 'step', id, label: step.label || step.name || `Step ${to + 1}` });
+  };
+
   return (
     <InspectorShell
       kindLabel={t('engine.inspector.approvalStep.kind', locale)}
       title={step.label || step.name || `Step ${index + 1}`}
       onClose={onClearSelection}
       closeLabel={t('engine.inspector.approvalStep.close', locale)}
+      headerActions={
+        <InspectorReorderButtons
+          index={index}
+          total={steps.length}
+          onMove={move}
+          upLabel={t('engine.inspector.reorder.up', locale)}
+          downLabel={t('engine.inspector.reorder.down', locale)}
+          disabled={readOnly}
+        />
+      }
       footer={<InspectorRemoveButton label={t('engine.inspector.approvalStep.remove', locale)} onClick={remove} disabled={readOnly} />}
     >
       <InspectorTextField label={t('engine.inspector.approvalStep.name', locale)} value={step.name ?? ''} onCommit={(v) => patch({ name: v })} disabled={readOnly} mono />

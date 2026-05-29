@@ -14,11 +14,13 @@ import type { MetadataInspectorProps } from '../inspector-registry';
 import { t } from '../i18n';
 import {
   InspectorShell,
+  InspectorReorderButtons,
   InspectorTextField,
   InspectorSelectField,
   InspectorRemoveButton,
   InspectorEmptyState,
   spliceArray,
+  moveArray,
 } from './_shared';
 
 interface ReportColumn { field?: string; label?: string; aggregate?: string; [k: string]: unknown }
@@ -38,7 +40,7 @@ function parseId(id: string): number | null {
   return m ? Number(m[1]) : null;
 }
 
-export function ReportColumnInspector({ selection, draft, onPatch, onClearSelection, locale, readOnly }: MetadataInspectorProps) {
+export function ReportColumnInspector({ selection, draft, onPatch, onClearSelection, onSelectionChange, locale, readOnly }: MetadataInspectorProps) {
   const i = parseId(selection.id);
   const columns: ReportColumn[] = Array.isArray((draft as any).columns) ? (draft as any).columns as ReportColumn[] : [];
   const col = i != null ? columns[i] ?? null : null;
@@ -53,6 +55,10 @@ export function ReportColumnInspector({ selection, draft, onPatch, onClearSelect
 
   const patch = (updates: Partial<ReportColumn>) => onPatch({ columns: spliceArray(columns, i, { ...col, ...updates }) });
   const remove = () => { onPatch({ columns: spliceArray(columns, i, null) }); onClearSelection(); };
+  const move = (to: number) => {
+    onPatch({ columns: moveArray(columns, i, to) });
+    onSelectionChange?.({ kind: 'column', id: `columns[${to}]`, label: col.label || col.field || `columns[${to}]` });
+  };
 
   return (
     <InspectorShell
@@ -60,6 +66,16 @@ export function ReportColumnInspector({ selection, draft, onPatch, onClearSelect
       title={col.label || col.field || selection.id}
       onClose={onClearSelection}
       closeLabel={t('engine.inspector.reportColumn.close', locale)}
+      headerActions={
+        <InspectorReorderButtons
+          index={i}
+          total={columns.length}
+          onMove={move}
+          upLabel={t('engine.inspector.reorder.up', locale)}
+          downLabel={t('engine.inspector.reorder.down', locale)}
+          disabled={readOnly}
+        />
+      }
       footer={<InspectorRemoveButton label={t('engine.inspector.reportColumn.remove', locale)} onClick={remove} disabled={readOnly} />}
     >
       <InspectorTextField label={t('engine.inspector.reportColumn.field', locale)} value={col.field ?? ''} onCommit={(v) => patch({ field: v })} disabled={readOnly} mono />

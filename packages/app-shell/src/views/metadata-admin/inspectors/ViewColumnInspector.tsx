@@ -15,6 +15,7 @@ import type { MetadataInspectorProps } from '../inspector-registry';
 import { t } from '../i18n';
 import {
   InspectorShell,
+  InspectorReorderButtons,
   InspectorTextField,
   InspectorNumberField,
   InspectorSelectField,
@@ -22,6 +23,7 @@ import {
   InspectorRemoveButton,
   InspectorEmptyState,
   spliceArray,
+  moveArray,
 } from './_shared';
 
 interface ViewColumn {
@@ -46,7 +48,7 @@ function parseId(id: string): { variant: string; index: number } | null {
   return { variant: m[1], index: Number(m[2]) };
 }
 
-export function ViewColumnInspector({ selection, draft, onPatch, onClearSelection, locale, readOnly }: MetadataInspectorProps) {
+export function ViewColumnInspector({ selection, draft, onPatch, onClearSelection, onSelectionChange, locale, readOnly }: MetadataInspectorProps) {
   const parsed = parseId(selection.id);
   const variantSchema = parsed ? ((draft as any)[parsed.variant] as Record<string, unknown> | undefined) : undefined;
   const columns: ViewColumn[] = parsed && Array.isArray(variantSchema?.columns) ? (variantSchema!.columns as ViewColumn[]) : [];
@@ -69,6 +71,15 @@ export function ViewColumnInspector({ selection, draft, onPatch, onClearSelectio
     onPatch({ [parsed.variant]: { ...variantSchema, columns: newCols } });
     onClearSelection();
   };
+  const move = (to: number) => {
+    const newCols = moveArray(columns, parsed.index, to);
+    onPatch({ [parsed.variant]: { ...variantSchema, columns: newCols } });
+    onSelectionChange?.({
+      kind: 'column',
+      id: `${parsed.variant}.columns[${to}]`,
+      label: col.header || col.accessorKey || `columns[${to}]`,
+    });
+  };
 
   const widthNumber = typeof col.width === 'number' ? col.width : (typeof col.width === 'string' ? Number(col.width.replace(/[^\d.]/g, '')) || undefined : undefined);
 
@@ -78,6 +89,16 @@ export function ViewColumnInspector({ selection, draft, onPatch, onClearSelectio
       title={col.header || col.accessorKey || selection.id}
       onClose={onClearSelection}
       closeLabel={t('engine.inspector.viewColumn.close', locale)}
+      headerActions={
+        <InspectorReorderButtons
+          index={parsed.index}
+          total={columns.length}
+          onMove={move}
+          upLabel={t('engine.inspector.reorder.up', locale)}
+          downLabel={t('engine.inspector.reorder.down', locale)}
+          disabled={readOnly}
+        />
+      }
       footer={<InspectorRemoveButton label={t('engine.inspector.viewColumn.remove', locale)} onClick={remove} disabled={readOnly} />}
     >
       <InspectorTextField label={t('engine.inspector.viewColumn.header', locale)} value={col.header ?? ''} onCommit={(v) => patch({ header: v })} disabled={readOnly} />

@@ -858,6 +858,7 @@ export function MetadataResourceEditPage({
                               }))
                             }
                             onClearSelection={() => setSelection(null)}
+                            onSelectionChange={setSelection}
                             readOnly={formReadOnly}
                             locale={locale}
                           />

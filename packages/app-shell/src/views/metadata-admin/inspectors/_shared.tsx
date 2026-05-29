@@ -18,7 +18,7 @@
  */
 
 import * as React from 'react';
-import { X } from 'lucide-react';
+import { ArrowDown, ArrowUp, X } from 'lucide-react';
 import { cn } from '@object-ui/components';
 import { Badge, Button, Input, Label, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@object-ui/components';
 
@@ -31,9 +31,14 @@ export interface InspectorShellProps {
   closeLabel?: string;
   children: React.ReactNode;
   footer?: React.ReactNode;
+  /**
+   * Optional reorder controls rendered to the left of the close button.
+   * Use {@link InspectorReorderButtons} for the standard ↑/↓ pair.
+   */
+  headerActions?: React.ReactNode;
 }
 
-export function InspectorShell({ kindLabel, title, onClose, closeLabel = 'Close', children, footer }: InspectorShellProps) {
+export function InspectorShell({ kindLabel, title, onClose, closeLabel = 'Close', children, footer, headerActions }: InspectorShellProps) {
   return (
     <div className="flex h-full flex-col">
       <div className="flex items-start justify-between gap-2 border-b px-4 py-2.5">
@@ -41,13 +46,78 @@ export function InspectorShell({ kindLabel, title, onClose, closeLabel = 'Close'
           <Badge variant="secondary" className="text-[10px] uppercase tracking-wider">{kindLabel}</Badge>
           <div className="mt-1 truncate text-sm font-medium" title={title}>{title}</div>
         </div>
-        <Button variant="ghost" size="sm" onClick={onClose} aria-label={closeLabel} className="h-7 w-7 p-0">
-          <X className="h-4 w-4" />
-        </Button>
+        <div className="flex items-center gap-1 shrink-0">
+          {headerActions}
+          <Button variant="ghost" size="sm" onClick={onClose} aria-label={closeLabel} className="h-7 w-7 p-0">
+            <X className="h-4 w-4" />
+          </Button>
+        </div>
       </div>
       <div className="flex-1 overflow-auto px-4 py-3 space-y-3">{children}</div>
       {footer && <div className="border-t px-4 py-2.5">{footer}</div>}
     </div>
+  );
+}
+
+/* ─────────────── Reorder buttons ─────────────── */
+
+export interface InspectorReorderButtonsProps {
+  /** Current 0-based index of the selected item. */
+  index: number;
+  /** Total number of siblings. */
+  total: number;
+  /** Called with the new index when the user clicks ↑ or ↓. */
+  onMove: (toIndex: number) => void;
+  /** Localized aria-labels (e.g. tr('engine.inspector.reorder.up', locale)). */
+  upLabel?: string;
+  downLabel?: string;
+  /** Disable both buttons (read-only inspectors). */
+  disabled?: boolean;
+}
+
+/**
+ * Compact ↑/↓ pair sized to fit alongside the close button in the
+ * inspector header. Auto-disables boundaries (↑ at index 0, ↓ at
+ * `total - 1`) and the whole pair when `total <= 1`.
+ */
+export function InspectorReorderButtons({
+  index,
+  total,
+  onMove,
+  upLabel = 'Move up',
+  downLabel = 'Move down',
+  disabled,
+}: InspectorReorderButtonsProps) {
+  if (total <= 1 || index < 0) return null;
+  const canUp = !disabled && index > 0;
+  const canDown = !disabled && index < total - 1;
+  return (
+    <>
+      <Button
+        type="button"
+        variant="ghost"
+        size="sm"
+        className="h-7 w-7 p-0"
+        onClick={() => canUp && onMove(index - 1)}
+        disabled={!canUp}
+        aria-label={upLabel}
+        title={upLabel}
+      >
+        <ArrowUp className="h-4 w-4" />
+      </Button>
+      <Button
+        type="button"
+        variant="ghost"
+        size="sm"
+        className="h-7 w-7 p-0"
+        onClick={() => canDown && onMove(index + 1)}
+        disabled={!canDown}
+        aria-label={downLabel}
+        title={downLabel}
+      >
+        <ArrowDown className="h-4 w-4" />
+      </Button>
+    </>
   );
 }
 
