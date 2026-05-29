@@ -228,6 +228,36 @@ export function registerBuiltinAnchors(): void {
       order: 81,
     }],
   });
+
+  // Cosmetic defaults for the `object` type list page — gives Object the
+  // same look as every other metadata type while still surfacing the
+  // fields/columns developers care about most.
+  registerMetadataResource({
+    type: 'object',
+    iconName: 'database',
+    domain: 'data',
+    searchableFields: ['name', 'label', 'pluralLabel', 'description'],
+    listColumns: [
+      { key: 'name', label: 'Name', width: '24%' },
+      { key: 'label', label: 'Label', width: '22%' },
+      { key: 'pluralLabel', label: 'Plural', width: '22%' },
+      {
+        key: 'fields',
+        label: 'Fields',
+        width: '90px',
+        render: (value) => {
+          if (value == null) return '—';
+          const count = Array.isArray(value)
+            ? value.length
+            : typeof value === 'object'
+              ? Object.keys(value as Record<string, unknown>).length
+              : 0;
+          return count;
+        },
+      },
+      { key: 'description', label: 'Description' },
+    ],
+  });
 }
 
 /**

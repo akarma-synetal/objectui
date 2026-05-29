@@ -142,9 +142,10 @@ import './registerDeveloperComponents';
 // Register `account:*` component refs (My Profile, etc.).
 import './registerAccountComponents';
 
-// Register per-type overrides for the metadata-admin engine
-// (e.g. the rich ObjectManager designer for type=object).
-import './registerMetadataResources';
+// (Per-type metadata-admin override for `object` was removed: the
+// `object` type now uses the same generic ResourceListPage as every
+// other metadata type for visual consistency. The visual ObjectManager
+// designer is still available from the object's edit page preview.)
 
 // Register placeholder fallbacks for any protocol-defined component types
 // that don't yet have a real renderer (e.g. ai:chat_window). Must run AFTER
