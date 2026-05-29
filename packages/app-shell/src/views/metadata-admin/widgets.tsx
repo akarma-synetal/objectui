@@ -652,6 +652,74 @@ function StringTagsWidget({
 /* registry                                                                   */
 /* -------------------------------------------------------------------------- */
 
+/* -------------------------------------------------------------------------- */
+/* object-fields-table — Airtable-style editor for `object.fields` (Record)   */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * The canonical shape of `object.fields` is `Record<string, FieldDefinition>`
+ * (insertion order = display order), NOT an array. The generic repeater
+ * widget expects an array, so it would always render "no entries" for an
+ * object with fields — even when 10 of them are already defined.
+ *
+ * This widget delegates to the same FieldsTable component the Object preview
+ * uses, so the form-side editor and the preview pane stay perfectly in sync.
+ */
+function ObjectFieldsTableWidget({
+  value,
+  onChange,
+  readOnly,
+}: WidgetProps) {
+  // Lazy import keeps the widgets module from depending on the preview
+  // tree at module-load time, which would create a circular dependency
+  // (previews already import the registry/widgets system indirectly).
+  const FieldsTable = React.useMemo(
+    () => React.lazy(async () => {
+      const mod = await import('./previews/object/FieldsTable');
+      return { default: mod.FieldsTable };
+    }),
+    [],
+  );
+
+  // Normalise value → ordered list. Supports Record<string, FieldDef>
+  // (canonical) and Array<FieldDef> (legacy / migrated data).
+  const fields = React.useMemo(() => {
+    if (!value) return [];
+    if (Array.isArray(value)) {
+      return (value as Array<any>)
+        .map((d, i) => {
+          const name = String(d?.name ?? '').trim() || `field_${i + 1}`;
+          return { name, def: d };
+        })
+        .filter((x) => !!x.name);
+    }
+    if (typeof value === 'object') {
+      return Object.entries(value as Record<string, any>).map(([name, def]) => ({
+        name,
+        def: { ...(def ?? {}), name },
+      }));
+    }
+    return [];
+  }, [value]);
+
+  return (
+    <React.Suspense
+      fallback={
+        <div className="rounded-md border border-border/50 p-3 text-xs text-muted-foreground">
+          Loading fields editor…
+        </div>
+      }
+    >
+      <FieldsTable
+        fields={fields}
+        sampleRows={[]}
+        editing={!readOnly}
+        onFieldsChange={readOnly ? undefined : ((next) => onChange(next))}
+      />
+    </React.Suspense>
+  );
+}
+
 export const WIDGETS: Record<string, WidgetRenderer> = {
   'ref:object': RefObjectWidget,
   'object-selector': ObjectSelectorWidget,
@@ -659,6 +727,13 @@ export const WIDGETS: Record<string, WidgetRenderer> = {
   'master-detail': MasterDetailWidget,
   'string-tags': StringTagsWidget,
   'code': CodeWidget,
+  'object-fields-table': ObjectFieldsTableWidget,
+  // Generic "Airtable-style" table widget for record/repeater fields.
+  // Currently powered by the same FieldsTable used for Object.fields; this
+  // is the cross-metadata-type entry point declared by ADR-0007. As more
+  // record-typed metadata fields adopt it, the renderer can branch on
+  // `fieldSpec.fields` to produce a generic editor.
+  'airtable': ObjectFieldsTableWidget,
   // Reasonable fallbacks until dedicated builders ship:
   'filter-builder': MasterDetailWidget,
 };

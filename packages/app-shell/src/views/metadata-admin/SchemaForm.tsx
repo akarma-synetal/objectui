@@ -102,6 +102,7 @@ function inferWidget(
     // accurate; FieldControl short-circuits before widget lookup).
     if (t === 'composite') return 'composite';
     if (t === 'repeater') return 'repeater';
+    if (t === 'record') return 'record';
 
     // Relational
     if (t === 'lookup' || t === 'master_detail') return 'ref-object';
@@ -692,6 +693,28 @@ function FieldControl({
       />
     );
   }
+  if (fieldSpec?.type === 'record') {
+    // Record<string, item> — name-keyed map. Insertion order is display
+    // order. JSON Schema shape: { type:'object', additionalProperties: itemSchema }.
+    const itemSchema = (schema?.additionalProperties as JsonSchema | undefined) ?? {};
+    const fields =
+      fieldSpec.fields?.length
+        ? fieldSpec.fields
+        : derivePropertyNames(itemSchema);
+    return (
+      <RecordField
+        value={value}
+        fields={fields}
+        schema={schema}
+        readOnly={readOnly}
+        widgetContext={widgetContext}
+        widget={fieldSpec.widget}
+        keyField={(fieldSpec as any).keyField}
+        formData={formData}
+        onChange={onChange}
+      />
+    );
+  }
 
   // Widget hint takes precedence: try the registry first, then the
   // passthrough hint list, then fall back to JSON with an inline hint.
@@ -898,11 +921,17 @@ function FieldControl({
  * Looks under parent `schema.properties[subName]` (composite) or
  * `schema.items.properties[subName]` (repeater). Falls back to `{}`.
  */
-function pickSubSchema(parent: JsonSchema | undefined, kind: 'composite' | 'repeater', subName: string): JsonSchema {
+function pickSubSchema(parent: JsonSchema | undefined, kind: 'composite' | 'repeater' | 'record', subName: string): JsonSchema {
   if (!parent) return {};
-  const props = kind === 'composite'
-    ? (parent.properties as Record<string, JsonSchema> | undefined)
-    : ((parent.items as JsonSchema | undefined)?.properties as Record<string, JsonSchema> | undefined);
+  let props: Record<string, JsonSchema> | undefined;
+  if (kind === 'composite') {
+    props = parent.properties as Record<string, JsonSchema> | undefined;
+  } else if (kind === 'repeater') {
+    props = (parent.items as JsonSchema | undefined)?.properties as Record<string, JsonSchema> | undefined;
+  } else {
+    // record: items live under additionalProperties.properties
+    props = (parent.additionalProperties as JsonSchema | undefined)?.properties as Record<string, JsonSchema> | undefined;
+  }
   return (props?.[subName] as JsonSchema) ?? {};
 }
 
@@ -1112,6 +1141,231 @@ function RepeaterField({
     </div>
   );
 }
+
+/* ----- RecordField — Record<string, item> editor -------------------------- */
+
+/**
+ * Editor for `type: 'record'` form fields. The value is a name-keyed map
+ * (`Record<string, item>`) where insertion order is display order.
+ *
+ * Layout:
+ *  - If `widget` matches a renderer in WIDGETS, delegate to it (e.g.
+ *    `widget: 'airtable'` → AirtableTableWidget). The widget receives the
+ *    Record value directly and is responsible for emitting a Record back.
+ *  - Otherwise, fall back to an inline card list with a key column +
+ *    per-row sub-fields, similar to RepeaterField's card layout.
+ *
+ * The key is mirrored into the item as a property (default name: 'name')
+ * so downstream consumers can treat each item as self-describing.
+ *
+ * See ADR-0007.
+ */
+function RecordField({
+  value,
+  fields,
+  schema,
+  readOnly,
+  widgetContext,
+  widget,
+  keyField,
+  formData,
+  onChange,
+}: {
+  value: unknown;
+  fields: Array<string | FormFieldSpec>;
+  schema: JsonSchema;
+  readOnly?: boolean;
+  widgetContext?: WidgetContext;
+  widget?: string;
+  keyField?: {
+    field?: string;
+    label?: string;
+    placeholder?: string;
+    helpText?: string;
+    regex?: string;
+    immutable?: boolean;
+  };
+  formData?: Record<string, unknown>;
+  onChange: (v: unknown) => void;
+}) {
+  // Delegate to a registered widget if the form spec asked for one
+  // explicitly (e.g. `widget: 'airtable'`). The widget owns the entire UI.
+  if (widget) {
+    const Renderer = WIDGETS[widget];
+    if (Renderer) {
+      return (
+        <Renderer
+          schema={schema}
+          value={value}
+          onChange={onChange}
+          readOnly={readOnly}
+          context={widgetContext}
+          fieldSpec={{ field: '', type: 'record', fields, widget } as any}
+          formData={formData}
+        />
+      );
+    }
+  }
+
+  // Inline fallback — card list with a key column + sub-fields.
+  const keyProp = keyField?.field ?? 'name';
+  const keyLabel = keyField?.label ?? prettify(keyProp);
+  const keyRegex = keyField?.regex ? new RegExp(keyField.regex) : null;
+  const keyImmutable = keyField?.immutable !== false; // default true
+  const record =
+    value && typeof value === 'object' && !Array.isArray(value)
+      ? (value as Record<string, Record<string, unknown>>)
+      : {};
+  const entries = Object.entries(record);
+  const specs = fields.map(normaliseField).filter((s) => s.field !== keyProp);
+  const [openKey, setOpenKey] = React.useState<string | null>(null);
+  const [pendingKey, setPendingKey] = React.useState('');
+  const [keyError, setKeyError] = React.useState<string | null>(null);
+
+  const emit = (next: Record<string, Record<string, unknown>>) => onChange(next);
+
+  const updateItem = (key: string, patch: Record<string, unknown>) => {
+    const next: Record<string, Record<string, unknown>> = {};
+    for (const [k, v] of entries) {
+      next[k] = k === key ? { ...v, ...patch } : v;
+    }
+    emit(next);
+  };
+  const removeItem = (key: string) => {
+    const next: Record<string, Record<string, unknown>> = {};
+    for (const [k, v] of entries) {
+      if (k !== key) next[k] = v;
+    }
+    emit(next);
+  };
+  const renameItem = (oldKey: string, newKey: string) => {
+    if (newKey === oldKey) return;
+    if (record[newKey]) {
+      setKeyError(`Key "${newKey}" already exists`);
+      return;
+    }
+    if (keyRegex && !keyRegex.test(newKey)) {
+      setKeyError(`Key must match ${keyRegex}`);
+      return;
+    }
+    const next: Record<string, Record<string, unknown>> = {};
+    for (const [k, v] of entries) {
+      if (k === oldKey) {
+        next[newKey] = { ...v, [keyProp]: newKey };
+      } else {
+        next[k] = v;
+      }
+    }
+    setKeyError(null);
+    emit(next);
+  };
+  const addItem = () => {
+    const trimmed = pendingKey.trim();
+    if (!trimmed) {
+      setKeyError('Key is required');
+      return;
+    }
+    if (record[trimmed]) {
+      setKeyError(`Key "${trimmed}" already exists`);
+      return;
+    }
+    if (keyRegex && !keyRegex.test(trimmed)) {
+      setKeyError(`Key must match ${keyRegex}`);
+      return;
+    }
+    const blank: Record<string, unknown> = { [keyProp]: trimmed };
+    specs.forEach((s) => { blank[s.field] = undefined; });
+    emit({ ...record, [trimmed]: blank });
+    setPendingKey('');
+    setKeyError(null);
+    setOpenKey(trimmed);
+  };
+
+  return (
+    <div className="space-y-2">
+      {entries.length === 0 && (
+        <div className="rounded-md border border-dashed border-border/50 px-3 py-4 text-center text-xs text-muted-foreground">
+          {t('engine.list.empty', detectLocale())}
+        </div>
+      )}
+      {entries.map(([key, row]) => {
+        const isOpen = openKey === key;
+        const summary = specs
+          .map((s) => row?.[s.field])
+          .find((v) => v != null && v !== '');
+        return (
+          <div key={key} className="rounded-md border border-border/50 bg-muted/10">
+            <div className="flex items-center justify-between gap-2 px-2 py-1.5 border-b border-border/30">
+              <button
+                type="button"
+                onClick={() => setOpenKey(isOpen ? null : key)}
+                className="flex items-center gap-1.5 text-sm font-medium text-left flex-1 min-w-0"
+              >
+                {isOpen ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
+                <span className="font-mono text-xs px-1.5 py-0.5 rounded bg-muted/60">{key}</span>
+                {summary != null && <span className="truncate text-muted-foreground">— {String(summary)}</span>}
+              </button>
+              {!readOnly && (
+                <Button type="button" variant="ghost" size="sm" onClick={() => removeItem(key)}
+                  className="h-7 w-7 p-0" aria-label="Remove">
+                  <Trash2 className="h-3.5 w-3.5" />
+                </Button>
+              )}
+            </div>
+            {isOpen && (
+              <div className="p-3 space-y-3">
+                <FieldRow
+                  name={keyProp}
+                  schema={{ type: 'string' }}
+                  value={key}
+                  required
+                  readOnly={readOnly || keyImmutable}
+                  fieldSpec={{ field: keyProp, type: 'text', label: keyLabel, helpText: keyField?.helpText }}
+                  widgetContext={widgetContext}
+                  formData={row}
+                  onChange={(v) => renameItem(key, String(v ?? '').trim())}
+                />
+                {specs.map((s) => {
+                  const sub = pickSubSchema(schema, 'record', s.field);
+                  return (
+                    <FieldRow
+                      key={s.field}
+                      name={s.field}
+                      schema={sub}
+                      value={row?.[s.field]}
+                      required={Boolean(s.required)}
+                      readOnly={readOnly || s.readonly}
+                      fieldSpec={s}
+                      widgetContext={widgetContext}
+                      formData={row}
+                      onChange={(v) => updateItem(key, { [s.field]: v })}
+                    />
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        );
+      })}
+      {!readOnly && (
+        <div className="flex items-center gap-2">
+          <Input
+            value={pendingKey}
+            onChange={(e) => { setPendingKey(e.target.value); if (keyError) setKeyError(null); }}
+            placeholder={keyField?.placeholder ?? keyLabel}
+            className="h-8 text-xs font-mono max-w-[220px]"
+            onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addItem(); } }}
+          />
+          <Button type="button" variant="outline" size="sm" onClick={addItem}>
+            <Plus className="h-3.5 w-3.5 mr-1" /> Add
+          </Button>
+          {keyError && <span className="text-xs text-destructive">{keyError}</span>}
+        </div>
+      )}
+    </div>
+  );
+}
+
 
 /* ----- raw JSON fallback -------------------------------------------------- */
 

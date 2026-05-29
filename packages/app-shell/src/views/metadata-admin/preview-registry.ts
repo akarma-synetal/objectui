@@ -23,6 +23,21 @@
 
 import type { ComponentType } from 'react';
 
+/**
+ * Identifies a sub-element selected inside a preview surface.
+ *
+ *   { kind: 'widget', id: 'metric_revenue', label: 'Revenue (KPI)' }
+ *
+ * `kind` is preview-defined (dashboard uses 'widget'; page may use
+ * 'block'; view may use 'column'). The host (`ResourceEditPage`) is
+ * agnostic — it only forwards the value to the registered inspector.
+ */
+export interface MetadataSelection {
+  kind: string;
+  id: string;
+  label?: string;
+}
+
 export interface MetadataPreviewProps {
   /** The metadata type, e.g. 'page', 'dashboard'. */
   type: string;
@@ -47,6 +62,21 @@ export interface MetadataPreviewProps {
    * render them in a disabled/hidden state when `editing === false`.
    */
   editing?: boolean;
+  /**
+   * Optional: the currently selected sub-element (e.g. a dashboard
+   * widget). Previews use this to render selection chrome (highlight
+   * ring, keyboard focus) and the host uses it to swap the inspector
+   * to a scoped sub-form. `null` means "nothing selected → show the
+   * top-level form".
+   */
+  selection?: MetadataSelection | null;
+  /**
+   * Optional: notify the host that the user picked (or cleared) a
+   * sub-element. Pair with {@link MetadataPreviewProps.selection} and
+   * a registered inspector (`registerMetadataInspector`) to get the
+   * "click widget → edit widget in the right panel" pattern.
+   */
+  onSelectionChange?: (selection: MetadataSelection | null) => void;
 }
 
 export type MetadataPreview = ComponentType<MetadataPreviewProps>;
