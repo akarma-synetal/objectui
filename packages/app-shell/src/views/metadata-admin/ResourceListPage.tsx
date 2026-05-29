@@ -14,7 +14,7 @@
 
 import * as React from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { Plus, Search, RefreshCw } from 'lucide-react';
+import { Plus, Search, RefreshCw, AlertTriangle } from 'lucide-react';
 import { Button } from '@object-ui/components';
 import { Input } from '@object-ui/components';
 import { Badge } from '@object-ui/components';
@@ -58,6 +58,16 @@ type ItemRow = {
    * and fall back to packageId-derived inference otherwise.
    */
   source: 'artifact' | 'runtime';
+  /**
+   * Load-time Zod validation result attached by the framework
+   * (`_diagnostics` on getMetaItems items). Undefined for types
+   * without a registered schema.
+   */
+  diagnostics?: {
+    valid: boolean;
+    errors?: Array<{ path: string; message: string; code?: string }>;
+    warnings?: Array<{ path: string; message: string }>;
+  };
 };
 
 /**
@@ -113,10 +123,15 @@ function DefaultMetadataList({ type }: { type: string }) {
         if (cancelled) return;
         const rows: ItemRow[] = (list ?? []).map((raw) => {
           const item = (raw && typeof raw === 'object' && 'item' in raw ? raw.item : raw) ?? {};
+          // _diagnostics may live on the unwrapped item (default) or on the
+          // outer envelope when callers reshape rows; check both.
+          const diagnostics =
+            (item as any)?._diagnostics ?? (raw as any)?._diagnostics ?? undefined;
           return {
             raw,
             item,
             source: classifyProvenance(item, raw?.source),
+            diagnostics,
           };
         });
         setItems(rows);
@@ -140,7 +155,7 @@ function DefaultMetadataList({ type }: { type: string }) {
     return true;
   });
 
-  // Compute source counts for the filter dropdown.
+  // Compute source + invalid counts for filter / header stats.
   const sourceCounts = React.useMemo(() => {
     const c = { all: items.length, artifact: 0, runtime: 0 };
     for (const r of items) {
@@ -148,6 +163,11 @@ function DefaultMetadataList({ type }: { type: string }) {
     }
     return c;
   }, [items]);
+
+  const invalidCount = React.useMemo(
+    () => items.filter((r) => r.diagnostics && r.diagnostics.valid === false).length,
+    [items],
+  );
 
   const columns = config.listColumns ?? defaultColumns(config.primaryKey ?? 'name');
   const locale = detectLocale();
@@ -167,6 +187,19 @@ function DefaultMetadataList({ type }: { type: string }) {
       stats={[
         { label: t('engine.list.items', locale), value: items.length },
         { label: t('engine.list.filtered', locale), value: filtered.length },
+        ...(invalidCount > 0
+          ? [
+              {
+                label: t('engine.list.invalid', locale),
+                value: (
+                  <span className="inline-flex items-center gap-1 text-destructive">
+                    <AlertTriangle className="w-3.5 h-3.5" />
+                    {invalidCount}
+                  </span>
+                ),
+              },
+            ]
+          : []),
       ]}
       actions={
         <>
@@ -259,20 +292,46 @@ function DefaultMetadataList({ type }: { type: string }) {
                 {filtered.map((row, i) => {
                   const pk = config.primaryKey ?? 'name';
                   const name = String(row.item[pk] ?? `(unnamed-${i})`);
+                  const invalid = row.diagnostics?.valid === false;
+                  const errorList = row.diagnostics?.errors ?? [];
+                  const errorTitle = invalid
+                    ? errorList
+                        .slice(0, 3)
+                        .map((e) => `${e.path || '(root)'}: ${e.message}`)
+                        .join('\n') +
+                      (errorList.length > 3 ? `\n+${errorList.length - 3} more` : '')
+                    : '';
                   return (
-                    <tr key={name + i} className="hover:bg-accent/50">
+                    <tr
+                      key={name + i}
+                      className={
+                        'hover:bg-accent/50 ' +
+                        (invalid ? 'bg-destructive/[0.04]' : '')
+                      }
+                    >
                       {columns.map((c, ci) => {
                         const value = row.item[c.key];
                         const cell = c.render ? c.render(value, row.item) : defaultCell(value);
                         return (
                           <td key={c.key} className="px-3 py-2 align-top">
                             {ci === 0 ? (
-                              <Link
-                                to={`./${encodeURIComponent(name)}`}
-                                className="text-primary hover:underline font-mono"
-                              >
-                                {cell}
-                              </Link>
+                              <span className="inline-flex items-center gap-1.5">
+                                {invalid && (
+                                  <span
+                                    className="inline-flex"
+                                    aria-label={t('engine.list.invalidTitle', locale)}
+                                    title={`${tFormat('engine.list.invalidCount', locale, { count: errorList.length })}\n${errorTitle}`}
+                                  >
+                                    <AlertTriangle className="w-3.5 h-3.5 text-destructive shrink-0" />
+                                  </span>
+                                )}
+                                <Link
+                                  to={`./${encodeURIComponent(name)}`}
+                                  className="text-primary hover:underline font-mono"
+                                >
+                                  {cell}
+                                </Link>
+                              </span>
                             ) : (
                               cell
                             )}

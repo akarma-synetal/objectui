@@ -2083,6 +2083,7 @@ export type {
   MetadataError,
   MetadataLayered,
   MetadataReference,
+  MetadataDiagnostics,
 } from './metadata-client';
 
 export { SecurityManager } from './security';

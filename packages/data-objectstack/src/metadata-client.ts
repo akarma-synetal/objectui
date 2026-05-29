@@ -106,6 +106,24 @@ export interface MetadataLayered<T = unknown> {
   overlayScope: string | null;
   /** Merged effective view — what the runtime actually sees. */
   effective: T | null;
+  /**
+   * Load-time validation result for `effective` (server-computed via
+   * the same Zod registry used at save time). Undefined for types
+   * without a registered Zod schema. Surfaced by the Studio as a
+   * banner + inline field errors so operators can spot bad metadata
+   * without having to hit Save.
+   */
+  _diagnostics?: MetadataDiagnostics;
+}
+
+/**
+ * Load-time validation envelope attached to metadata items by the
+ * framework. Mirrors `MetadataValidationResult` in the kernel spec.
+ */
+export interface MetadataDiagnostics {
+  valid: boolean;
+  errors?: Array<{ path: string; message: string; code?: string }>;
+  warnings?: Array<{ path: string; message: string }>;
 }
 
 /** Reference back-pointer — Phase 3a `/references`. */
@@ -335,6 +353,7 @@ export class MetadataClient {
       overlay: body.overlay ?? null,
       overlayScope: body.overlayScope ?? null,
       effective: body.effective ?? null,
+      ...(body._diagnostics ? { _diagnostics: body._diagnostics as MetadataDiagnostics } : {}),
     };
   }
 

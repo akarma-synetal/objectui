@@ -282,6 +282,22 @@ export function MetadataResourceEditPage({
         ]);
         if (cancelled) return;
         setLayered(lay);
+        // Surface server-computed load-time validation errors as inline
+        // SchemaForm issues — operators see what's wrong with the
+        // saved metadata immediately, not just on the next Save round-trip.
+        const loadDiag = (lay as any)?._diagnostics as
+          | { valid: boolean; errors?: Array<{ path: string; message: string }> }
+          | undefined;
+        if (loadDiag && loadDiag.valid === false && Array.isArray(loadDiag.errors)) {
+          setIssues(
+            loadDiag.errors.map((e) => ({
+              path: e.path || '',
+              message: e.message,
+            })),
+          );
+        } else {
+          setIssues([]);
+        }
         // Draft envelope from the framework is `{ type, name, item }`;
         // an empty/missing item means "no pending draft".
         const draftReal = extractDraftBody(draftResp);
@@ -1215,6 +1231,42 @@ export function MetadataResourceEditPage({
                 </Button>
               </div>
             )}
+            {(() => {
+              // Server-computed load-time validation errors on the
+              // effective payload — surfaced here so operators can see
+              // a structural problem without saving first. The same
+              // errors are also threaded into SchemaForm as `issues`
+              // and rendered inline next to each broken field.
+              const diag = (layered as any)?._diagnostics as
+                | { valid: boolean; errors?: Array<{ path: string; message: string }> }
+                | undefined;
+              if (!diag || diag.valid !== false) return null;
+              const errs = diag.errors ?? [];
+              const head = errs.slice(0, 3);
+              const rest = Math.max(0, errs.length - head.length);
+              return (
+                <div className="flex items-start gap-2 text-xs border rounded p-2.5 border-destructive/40 bg-destructive/[0.06] text-destructive">
+                  <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
+                  <div className="min-w-0 flex-1">
+                    <div className="font-medium">
+                      {tFormat('engine.edit.diagnostics.title', locale, { count: errs.length })}
+                    </div>
+                    <ul className="mt-1 space-y-0.5 font-mono text-[11px]">
+                      {head.map((e, i) => (
+                        <li key={i} className="truncate">
+                          <span className="opacity-70">{e.path || '(root)'}</span>: {e.message}
+                        </li>
+                      ))}
+                      {rest > 0 && (
+                        <li className="opacity-70">
+                          {tFormat('engine.edit.diagnostics.more', locale, { count: rest })}
+                        </li>
+                      )}
+                    </ul>
+                  </div>
+                </div>
+              );
+            })()}
             {PreviewComponent ? (
               <div
                 className={

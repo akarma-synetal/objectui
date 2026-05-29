@@ -137,6 +137,9 @@ const ENGINE_STRINGS_EN: Record<string, string> = {
   'engine.list.empty': 'No items yet.',
   'engine.list.items': 'Items',
   'engine.list.filtered': 'Filtered',
+  'engine.list.invalid': 'Invalid',
+  'engine.list.invalidTitle': 'Invalid metadata',
+  'engine.list.invalidCount': '{count} validation error(s):',
   'engine.list.allSources': 'All sources',
   'engine.list.source.artifact': 'Artifact',
   'engine.list.source.runtime': 'Runtime',
@@ -305,6 +308,9 @@ const ENGINE_STRINGS_EN: Record<string, string> = {
     'Read-only — this metadata type does not allow runtime overrides. Edit the source in the package and redeploy.',
   'engine.edit.unsaved': 'Unsaved',
   'engine.edit.unsavedHint': 'You have unsaved changes.',
+  'engine.edit.diagnostics.title':
+    'This metadata does not match the spec — {count} validation error(s).',
+  'engine.edit.diagnostics.more': '+{count} more…',
   'engine.edit.unsavedLeaveConfirm':
     'You have unsaved changes. Leave this page anyway?',
   'engine.edit.saving': 'Saving…',
@@ -383,6 +389,9 @@ const ENGINE_STRINGS_ZH: Record<string, string> = {
   'engine.list.empty': '暂无数据。',
   'engine.list.items': '条目',
   'engine.list.filtered': '已筛选',
+  'engine.list.invalid': '无效',
+  'engine.list.invalidTitle': '元数据无效',
+  'engine.list.invalidCount': '{count} 个校验错误：',
   'engine.list.allSources': '全部来源',
   'engine.list.source.artifact': '代码包',
   'engine.list.source.runtime': '运行时',
@@ -549,6 +558,8 @@ const ENGINE_STRINGS_ZH: Record<string, string> = {
   'engine.edit.readOnlyHint':
     '只读 — 该元数据类型不支持运行时覆盖。请修改包内源代码并重新部署。',
   'engine.edit.unsaved': '未保存',
+  'engine.edit.diagnostics.title': '元数据不符合规范 — 共 {count} 个校验错误。',
+  'engine.edit.diagnostics.more': '还有 {count} 个…',
   'engine.edit.unsavedHint': '当前存在未保存的修改。',
   'engine.edit.unsavedLeaveConfirm': '当前存在未保存的修改，确定离开此页面吗？',
   'engine.edit.saving': '保存中…',
