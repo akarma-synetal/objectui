@@ -16,7 +16,7 @@
  */
 
 import * as React from 'react';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Pencil, X, Check } from 'lucide-react';
 import type { DashboardWidgetSchema } from '@object-ui/types';
 import { useAdapter } from '../../../providers/AdapterProvider';
 import type { MetadataPreviewProps } from '../preview-registry';
@@ -91,6 +91,23 @@ export function DashboardPreview({
     [canEdit, widgets, onPatch, onSelectionChange],
   );
 
+  const handleRenameWidget = React.useCallback(
+    (id: string, nextTitle: string) => {
+      if (!canEdit) return;
+      const trimmed = nextTitle.trim();
+      const next = widgets.map((w) =>
+        w?.id === id ? ({ ...(w as object), title: trimmed } as DashboardWidgetSchema) : w,
+      );
+      onPatch!({ widgets: next });
+      onSelectionChange?.({ kind: 'widget', id, label: trimmed || id });
+    },
+    [canEdit, widgets, onPatch, onSelectionChange],
+  );
+
+  const selectedWidget = selectedWidgetId
+    ? widgets.find((w) => w?.id === selectedWidgetId) ?? null
+    : null;
+
   const addButton = canEdit ? (
     <AddWidgetPicker onAdd={handleAddWidget} label={tr('engine.inspector.add.widget', locale)} />
   ) : null;
@@ -111,6 +128,13 @@ export function DashboardPreview({
       toolbar={addButton}
     >
       <PreviewErrorBoundary fallbackHint="A widget references an object or field that doesn't resolve.">
+        {canEdit && selectedWidget ? (
+          <SelectedWidgetStrip
+            widget={selectedWidget}
+            onRename={(nextTitle) => handleRenameWidget(selectedWidget.id!, nextTitle)}
+            onClose={() => onSelectionChange?.(null)}
+          />
+        ) : null}
         <React.Suspense
           fallback={
             <div className="p-6 text-sm text-muted-foreground flex items-center gap-2">
@@ -132,5 +156,108 @@ export function DashboardPreview({
         </React.Suspense>
       </PreviewErrorBoundary>
     </PreviewShell>
+  );
+}
+
+function SelectedWidgetStrip({
+  widget,
+  onRename,
+  onClose,
+}: {
+  widget: DashboardWidgetSchema;
+  onRename: (nextTitle: string) => void;
+  onClose: () => void;
+}) {
+  const currentTitle = (widget.title as string | undefined) ?? widget.id ?? '';
+  const [editing, setEditing] = React.useState(false);
+  const [draft, setDraft] = React.useState(currentTitle);
+  const inputRef = React.useRef<HTMLInputElement | null>(null);
+
+  // Sync local state when the externally-selected widget changes.
+  React.useEffect(() => {
+    setDraft(currentTitle);
+    setEditing(false);
+  }, [widget.id, currentTitle]);
+
+  React.useEffect(() => {
+    if (editing) inputRef.current?.select();
+  }, [editing]);
+
+  const commit = () => {
+    const v = draft.trim();
+    if (v && v !== currentTitle) onRename(v);
+    setEditing(false);
+  };
+
+  const cancel = () => {
+    setDraft(currentTitle);
+    setEditing(false);
+  };
+
+  const meta = WIDGET_TYPE_META[widget.type as string];
+  const TypeIcon = meta?.icon ?? null;
+
+  return (
+    <div className="sticky top-0 z-10 flex items-center gap-2 border-b bg-primary/5 px-3 py-1.5 text-xs">
+      {TypeIcon ? <TypeIcon className="h-3.5 w-3.5 text-primary" /> : null}
+      <span className="rounded bg-primary px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-primary-foreground">
+        Selected
+      </span>
+      {editing ? (
+        <>
+          <input
+            ref={inputRef}
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            onBlur={commit}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                commit();
+              } else if (e.key === 'Escape') {
+                e.preventDefault();
+                cancel();
+              }
+            }}
+            className="flex-1 min-w-0 rounded border bg-background px-2 py-0.5 text-xs outline-none focus:ring-1 focus:ring-primary"
+          />
+          <button
+            type="button"
+            onClick={commit}
+            className="rounded p-1 hover:bg-primary/10"
+            aria-label="Save title"
+          >
+            <Check className="h-3.5 w-3.5" />
+          </button>
+        </>
+      ) : (
+        <>
+          <button
+            type="button"
+            onClick={() => setEditing(true)}
+            className="flex-1 min-w-0 truncate text-left font-medium hover:underline"
+            title="Click to rename"
+          >
+            {currentTitle || <span className="italic text-muted-foreground">untitled</span>}
+          </button>
+          <button
+            type="button"
+            onClick={() => setEditing(true)}
+            className="rounded p-1 hover:bg-primary/10"
+            aria-label="Rename widget"
+          >
+            <Pencil className="h-3.5 w-3.5" />
+          </button>
+        </>
+      )}
+      <button
+        type="button"
+        onClick={onClose}
+        className="rounded p-1 hover:bg-primary/10"
+        aria-label="Clear selection"
+      >
+        <X className="h-3.5 w-3.5" />
+      </button>
+    </div>
   );
 }

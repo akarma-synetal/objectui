@@ -286,8 +286,18 @@ function VariantSection({
       </div>
       <div className={`space-y-1.5 p-2 ${over ? 'bg-primary/5' : ''}`}>
         {variant.columns.length === 0 ? (
-          <div className="rounded border border-dashed px-3 py-4 text-center text-[11px] text-muted-foreground">
-            Empty — {canEdit ? 'drop a column here or use Add column' : 'no columns yet'}
+          <div
+            className={`rounded border-2 border-dashed px-3 py-6 text-center text-[11px] transition ${
+              over
+                ? 'border-primary bg-primary/10 text-primary'
+                : 'border-border text-muted-foreground'
+            }`}
+          >
+            {over
+              ? 'Drop to add to this variant'
+              : canEdit
+              ? 'Empty — drop a column here or use Add column'
+              : 'no columns yet'}
           </div>
         ) : (
           variant.columns.map((c, i) => (
