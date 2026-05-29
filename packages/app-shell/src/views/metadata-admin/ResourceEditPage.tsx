@@ -850,14 +850,16 @@ export function MetadataResourceEditPage({
           )}
         </Button>
       )}
-      {/* Edit-mode toggle. Three states:
-          - View (default, !editing & !createMode): show "Edit".
-          - Editing: show autosave status + toggle + Cancel + Save (icons).
-          - createMode: always editing, show Save only (Cancel would
-            discard the whole create flow which is awkward; users can
-            navigate away to cancel).
-          Truly read-only types (no allowOrgOverride) skip all of this. */}
-      {canWrite && !createMode && !editing && (
+      {/* Edit-mode toggle.
+          - Designer types (with PreviewComponent): always editing.
+            The Design / Preview toggle in the canvas toolbar takes the
+            place of an Edit / Cancel binary — users switch to Preview
+            to see the rendered result, no "leave edit mode" needed.
+          - Form-only types: keep the Salesforce-style Edit / Cancel
+            convention (View → click Edit → mutate → Save or Cancel).
+          - createMode: always editing, Save only.
+          - Truly read-only types (no allowOrgOverride): no buttons. */}
+      {canWrite && !createMode && !editing && !PreviewComponent && (
         <Button size="sm" onClick={() => setEditing(true)} className="h-7">
           <Pencil className="h-3.5 w-3.5 mr-1" />
           {t('engine.edit.edit', locale)}
@@ -892,7 +894,7 @@ export function MetadataResourceEditPage({
           )}
         </Button>
       )}
-      {canWrite && !createMode && editing && (
+      {canWrite && !createMode && editing && !PreviewComponent && (
         <Button
           variant="ghost"
           size="sm"
