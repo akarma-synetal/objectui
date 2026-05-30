@@ -419,27 +419,38 @@ export function createAuthClient(config: AuthClientConfig): AuthClient {
 
     async signInWithProvider(providerId: string, options: SignInWithProviderOptions = {}) {
       const { type = 'social', callbackURL, errorCallbackURL } = options;
-      // better-auth handles the redirect to the provider for us.
+      // We pass `disableDefaultFetchPlugins: true` to better-auth above,
+      // which also disables better-auth's `redirectPlugin` (the one that
+      // navigates the browser to `data.url` when the server responds with
+      // `{ url, redirect: true }`). The server still returns that payload
+      // for OAuth/OIDC providers — we just have to honour it ourselves.
       if (type === 'oidc') {
         const oauth2 = (betterAuth as unknown as {
-          signIn: { oauth2?: (args: Record<string, unknown>) => Promise<{ error: { message?: string; status: number } | null }> };
+          signIn: { oauth2?: (args: Record<string, unknown>) => Promise<{ data: { url?: string; redirect?: boolean } | null; error: { message?: string; status: number } | null }> };
         }).signIn.oauth2;
         if (!oauth2) {
           throw new Error('OIDC sign-in is not supported by this auth client build');
         }
-        const { error } = await oauth2({ providerId, callbackURL, errorCallbackURL });
+        const { data, error } = await oauth2({ providerId, callbackURL, errorCallbackURL });
         if (error) {
           throw new Error(error.message ?? `Auth request failed with status ${error.status}`);
         }
+        if (data?.url && typeof window !== 'undefined') {
+          window.location.href = data.url;
+        }
         return;
       }
-      const { error } = await betterAuth.signIn.social({
+      const { data, error } = await betterAuth.signIn.social({
         provider: providerId as Parameters<typeof betterAuth.signIn.social>[0]['provider'],
         callbackURL,
         errorCallbackURL,
       });
       if (error) {
         throw new Error(error.message ?? `Auth request failed with status ${error.status}`);
+      }
+      const socialUrl = (data as { url?: string; redirect?: boolean } | null)?.url;
+      if (socialUrl && typeof window !== 'undefined') {
+        window.location.href = socialUrl;
       }
     },
 
