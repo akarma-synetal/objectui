@@ -90,6 +90,16 @@ export interface MetadataResourceConfig {
   primaryKey?: string;
   /** Fields searched by the free-text filter. Default `['name','label','description']`. */
   searchableFields?: string[];
+  /**
+   * Optional client-side list predicate — return `false` to HIDE a row
+   * from the resource list page. Runs against the unwrapped item shape
+   * after search / source / package filters. Use this to drop back-compat
+   * or synthetic rows (e.g. `view` hides the bare aggregated container the
+   * framework keeps for runtime dual-read, since its views are listed
+   * individually as expanded ViewItems). Pure function; keep it cheap.
+   */
+  listFilter?: (item: Record<string, unknown>) => boolean;
+
   /** Columns rendered in the list page. */
   listColumns?: Array<{
     key: string;
@@ -179,6 +189,27 @@ export interface MetadataResourceConfig {
    * having it in the body keeps things explicit.
    */
   createBuildBody?: (draft: Record<string, unknown>) => Record<string, unknown>;
+
+  /**
+   * Optional load-time normaliser: the wire item returned by the server
+   * (`layered.effective` / a pending draft) → the draft shape the editor
+   * (SchemaForm / inspector / preview) expects. Applied on initial load
+   * AND after every save-refresh, so the editor always sees the canonical
+   * draft shape. Must be a pure function and a no-op for shapes it does
+   * not recognise. Pair with {@link fromDraft} for the save round-trip.
+   *
+   * Example: `view` unwraps an expanded ViewItem's `config` into the
+   * `{ list | form }` family key the View inspector reads.
+   */
+  toDraft?: (item: Record<string, unknown>) => Record<string, unknown>;
+
+  /**
+   * Optional save-time serialiser — the inverse of {@link toDraft}. The
+   * editor draft → the wire shape PUT back to the server. Applied to the
+   * body just before save (edit mode). Must be a pure function and a
+   * no-op for drafts it does not recognise.
+   */
+  fromDraft?: (draft: Record<string, unknown>) => Record<string, unknown>;
 
   /**
    * Optional schema override for create mode only. When present, the

@@ -216,6 +216,9 @@ function DefaultMetadataList({ type }: { type: string }) {
 
   const searchableFields = config.searchableFields ?? ['name', 'label', 'description'];
   const filtered = items.filter((row) => {
+    // Per-type hide hook (e.g. `view` drops the bare aggregated container
+    // that the framework keeps for runtime dual-read).
+    if (config.listFilter && !config.listFilter(row.item)) return false;
     if (!matchesQuery(row.item, query, searchableFields)) return false;
     if (sourceFilter !== 'all' && row.source !== sourceFilter) return false;
     // Mandatory project-package scope: show nothing until a concrete project

@@ -471,10 +471,14 @@ function MetadataResourceEditPageImpl({
         // Prefer the pending draft as the editing baseline — the
         // operator is mid-flight on this item and should see their
         // own in-progress state, not the last published version.
-        const initial = (draftReal
+        const rawInitial = (draftReal
           ?? lay.effective
           ?? lay.code
           ?? {}) as Record<string, unknown>;
+        // Normalise the wire shape into the editor's draft shape (e.g.
+        // `view` unwraps an expanded ViewItem's `config` into a
+        // `{ list | form }` family key). No-op for types without a hook.
+        const initial = config.toDraft ? config.toDraft(rawInitial) : rawInitial;
         setDraft(initial);
         draftSnapshotRef.current = initial;
         setHasDraft(!!draftReal);
@@ -717,7 +721,10 @@ function MetadataResourceEditPageImpl({
         ? (config.createBuildBody
             ? config.createBuildBody(draft)
             : { ...(config.createDefaults ?? {}), ...draft })
-        : draft;
+        // Edit mode: serialise the editor draft back to the wire shape
+        // (inverse of `toDraft` — e.g. `view` folds the `{ list | form }`
+        // family key back into the ViewItem `config` wrapper).
+        : (config.fromDraft ? config.fromDraft(draft) : draft);
       const savedName = String(
         (builtBody as Record<string, unknown>)[identityField] ?? draft[identityField] ?? name,
       );
@@ -758,7 +765,11 @@ function MetadataResourceEditPageImpl({
       setLayered(lay);
       const draftReal = extractDraftBody(draftResp);
       setHasDraft(!!draftReal);
-      const fresh = (draftReal ?? lay.effective ?? itemToSave) as Record<string, unknown>;
+      const rawFresh = (draftReal ?? lay.effective ?? itemToSave) as Record<string, unknown>;
+      // Re-normalise the refreshed wire shape so the editor keeps showing
+      // the canonical draft shape after a save (e.g. the backend re-expands
+      // a view into the ViewItem `config` wrapper).
+      const fresh = config.toDraft ? config.toDraft(rawFresh) : rawFresh;
       setDraft(fresh);
       draftSnapshotRef.current = fresh;
       setLastSavedAt(new Date());
