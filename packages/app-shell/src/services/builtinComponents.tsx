@@ -26,6 +26,8 @@ import { PackagesPage } from '../views/metadata-admin/PackagesPage';
 import {
   viewItemToDraft,
   draftToViewItem,
+  isAggregatedViewContainer,
+  viewDisplayType,
 } from '../views/metadata-admin/view-item-normalize';
 
 /* -------------------------------------------------------------------------- */
@@ -122,7 +124,15 @@ registerMetadataResource({
   listColumns: [
     { key: 'name', label: 'Name', width: '30%' },
     { key: 'object', label: 'Object', width: '20%' },
-    { key: 'type', label: 'Type', width: '15%' },
+    {
+      key: 'type',
+      label: 'Type',
+      width: '15%',
+      // Expanded ViewItems keep their display type under `config.type`
+      // and only the list/form family at the top level — derive it so the
+      // column shows "calendar" / "grid" / "form" instead of "—".
+      render: (_v, item) => viewDisplayType(item) ?? '—',
+    },
     { key: 'label', label: 'Label' },
   ],
   // ADR-0017 — the framework expands each per-object aggregated view
@@ -131,6 +141,9 @@ registerMetadataResource({
   // the View inspector + preview read, and fold it back on save.
   toDraft: viewItemToDraft,
   fromDraft: draftToViewItem,
+  // Hide the bare aggregated container the framework keeps for runtime
+  // dual-read — its views are already listed as expanded ViewItems.
+  listFilter: (item) => !isAggregatedViewContainer(item),
 });
 
 registerMetadataResource({

@@ -5,6 +5,8 @@ import {
   isExpandedViewItem,
   viewItemToDraft,
   draftToViewItem,
+  isAggregatedViewContainer,
+  viewDisplayType,
 } from './view-item-normalize';
 
 const calendarItem = {
@@ -117,5 +119,40 @@ describe('draftToViewItem', () => {
   it('no-ops when the family object is absent', () => {
     const d = { name: 'x', viewKind: 'list' };
     expect(draftToViewItem(d)).toBe(d);
+  });
+});
+
+describe('isAggregatedViewContainer', () => {
+  it('accepts a bare container with listViews/formViews', () => {
+    expect(isAggregatedViewContainer({ name: 'crm_lead', listViews: {}, formViews: {} })).toBe(true);
+    expect(isAggregatedViewContainer({ name: 'crm_lead', list: {} })).toBe(true);
+    expect(isAggregatedViewContainer({ name: 'crm_lead', form: {} })).toBe(true);
+  });
+  it('rejects an expanded ViewItem (carries viewKind)', () => {
+    expect(isAggregatedViewContainer(calendarItem)).toBe(false);
+    expect(isAggregatedViewContainer({ name: 'x', viewKind: 'list', list: {} })).toBe(false);
+  });
+  it('rejects an item with none of the aggregate buckets', () => {
+    expect(isAggregatedViewContainer({ name: 'x' })).toBe(false);
+    expect(isAggregatedViewContainer(null)).toBe(false);
+  });
+});
+
+describe('viewDisplayType', () => {
+  it('reads config.type for an expanded list item', () => {
+    expect(viewDisplayType(calendarItem)).toBe('calendar');
+  });
+  it('reads config.type for an expanded form item', () => {
+    expect(viewDisplayType(formItem)).toBe('simple');
+  });
+  it('reads a flat legacy view`s top-level type', () => {
+    expect(viewDisplayType({ name: 'x', type: 'grid' })).toBe('grid');
+  });
+  it('falls back to the family when only viewKind is present', () => {
+    expect(viewDisplayType({ name: 'x', viewKind: 'list', config: {} })).toBe('list');
+    expect(viewDisplayType({ name: 'x', viewKind: 'form', config: {} })).toBe('form');
+  });
+  it('returns undefined for an aggregated container', () => {
+    expect(viewDisplayType({ name: 'crm_lead', listViews: {} })).toBeUndefined();
   });
 });

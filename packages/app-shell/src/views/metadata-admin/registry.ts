@@ -90,6 +90,16 @@ export interface MetadataResourceConfig {
   primaryKey?: string;
   /** Fields searched by the free-text filter. Default `['name','label','description']`. */
   searchableFields?: string[];
+  /**
+   * Optional client-side list predicate — return `false` to HIDE a row
+   * from the resource list page. Runs against the unwrapped item shape
+   * after search / source / package filters. Use this to drop back-compat
+   * or synthetic rows (e.g. `view` hides the bare aggregated container the
+   * framework keeps for runtime dual-read, since its views are listed
+   * individually as expanded ViewItems). Pure function; keep it cheap.
+   */
+  listFilter?: (item: Record<string, unknown>) => boolean;
+
   /** Columns rendered in the list page. */
   listColumns?: Array<{
     key: string;
