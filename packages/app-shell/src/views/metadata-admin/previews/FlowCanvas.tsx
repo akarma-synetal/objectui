@@ -521,6 +521,13 @@ function nodeSummary(node: FlowNode): string | undefined {
     return pick('criteria') || pick('objectName') || pick('schedule');
   }
   if (node.type === 'decision') {
+    const conds = c?.conditions;
+    if (Array.isArray(conds) && conds.length) {
+      const labels = conds
+        .map((x) => (x && typeof x === 'object' ? str((x as Record<string, unknown>).label) : undefined))
+        .filter(Boolean);
+      return labels.length ? labels.join(' / ') : `${conds.length} branches`;
+    }
     return pick('condition');
   }
   if (node.type === 'script') {

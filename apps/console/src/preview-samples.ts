@@ -118,7 +118,7 @@ export const SAMPLES: Record<string, Record<string, unknown>> = {
     nodes: [
       { id: 'start', type: 'start', label: 'Schedule (daily)', config: { objectName: 'contract', criteria: 'status == "active"', schedule: '0 9 * * *' } },
       { id: 'find', type: 'get_record', label: 'Find expiring contracts', config: { objectName: 'contract', filter: { status: 'active' }, outputVariable: 'contracts' } },
-      { id: 'check', type: 'decision', label: 'Within reminder window?', config: { condition: 'daysToExpiry <= daysBefore' } },
+      { id: 'check', type: 'decision', label: 'Within reminder window?', config: { conditions: [ { label: 'Within window', expression: 'daysToExpiry <= daysBefore' }, { label: 'Else', expression: 'true' } ] } },
       { id: 'email', type: 'connector_action', label: 'Send renewal email', connectorConfig: { connectorId: 'email', actionId: 'send', input: { to: 'owner.email', template: 'renewal_reminder' } } },
       { id: 'wait', type: 'wait', label: 'Wait 3 days', waitEventConfig: { eventType: 'timer', timerDuration: 'P3D', onTimeout: 'continue' } },
       { id: 'task', type: 'create_record', label: 'Create CSM follow-up', config: { objectName: 'task', fields: { subject: 'Renewal follow-up', priority: 'high' } } },

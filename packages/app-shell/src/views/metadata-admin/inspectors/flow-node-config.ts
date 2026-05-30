@@ -133,9 +133,17 @@ const FLOW_NODE_CONFIG: Record<string, FlowConfigField[]> = {
     cfg('outputVariable', 'Output variable', 'text', { placeholder: 'result' }),
   ],
   decision: [
-    cfg('condition', 'Condition', 'expression', {
+    cfg('conditions', 'Branches', 'objectList', {
+      help: 'Each branch has a label and a CEL expression (spec decision shape). A branch whose expression is "true" is the default/else path.',
+      columns: [
+        { key: 'label', label: 'Label', kind: 'text', placeholder: 'Has deals' },
+        { key: 'expression', label: 'Expression', kind: 'expression', placeholder: 'expiring_deals.length > 0' },
+      ],
+    }),
+    cfg('condition', 'Condition (single)', 'expression', {
       placeholder: 'amount > 10000',
-      help: 'Default branch condition (CEL). Per-branch conditions live on the outgoing edges.',
+      help: 'Legacy single-branch condition (CEL). Prefer Branches above; per-edge conditions also live on the outgoing edges.',
+      showWhen: { field: '__legacy__', equals: [] },
     }),
   ],
   assignment: [
