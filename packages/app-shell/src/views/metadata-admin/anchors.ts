@@ -144,16 +144,15 @@ export function registerBuiltinAnchors(): void {
     createDefaults: { regions: [] },
   });
 
-  // view binds to an object via data.object (list view / form view variants)
+  // A view is the canonical first-class ViewItem ({ viewKind, config }),
+  // bound to its object by the top-level `object` foreign key.
   registerMetadataResource({
     type: 'view',
     anchors: [{
       anchorType: 'object',
       match: anchorByField([
-        'data.object',
-        'list.data.object',
-        'form.data.object',
         'object',
+        'config.data.object',
       ]),
       groupLabel: 'Views',
       order: 30,
@@ -170,7 +169,7 @@ export function registerBuiltinAnchors(): void {
         name: {
           type: 'string',
           title: 'Name',
-          description: 'Machine name (snake_case). Used in URLs.',
+          description: 'View key (snake_case). Qualified to <object>.<key> on save.',
           pattern: '^[a-z_][a-z0-9_]*$',
         },
         object: {
@@ -187,15 +186,26 @@ export function registerBuiltinAnchors(): void {
         },
       },
     },
-    createBuildBody: (draft) => ({
-      list: {
-        name: draft.name,
+    // Emit a canonical ViewItem. `name` is the globally-unique qualified id
+    // `<object>.<key>`; the layout `kind` (grid/kanban/…) is all list-family,
+    // so `viewKind` is 'list' and the chosen layout lives at `config.type`.
+    createBuildBody: (draft) => {
+      const object = String(draft.object ?? '');
+      const key = String(draft.name ?? '');
+      const qualifiedName =
+        key.includes('.') || !object ? key : `${object}.${key}`;
+      return {
+        name: qualifiedName,
+        object,
+        viewKind: 'list',
         label: draft.label,
-        type: (draft.kind as string) || 'grid',
-        columns: [],
-        data: { provider: 'object', object: draft.object },
-      },
-    }),
+        config: {
+          type: (draft.kind as string) || 'grid',
+          columns: [],
+          data: { provider: 'object', object },
+        },
+      };
+    },
   });
 
   // flow / workflow may reference an object at the root or under `on`

@@ -41,18 +41,25 @@ import {
   getListVariantSchema,
   getFormVariantSchema,
 } from '../view-schema';
+import { isFormFamilyKey } from '../view-variant-model';
 
 export interface ViewVariantInspectorProps extends MetadataDefaultInspectorProps {
-  /** Which top-level variant this inspector edits (e.g. 'list'). */
+  /**
+   * Draft key the variant BODY is stored under — drives reads/writes and
+   * column selection ids. 'list' | … for the spec shape, 'config' for the
+   * effective ({viewKind,config}) shape.
+   */
   variantKey: string;
+  /**
+   * Logical family ('list' | 'form' | …). Drives form-vs-list rendering.
+   * Defaults to `variantKey` when the two coincide (spec shape).
+   */
+  familyKey?: string;
   /** When true, the close (×) button is hidden (home mode). */
   isHome: boolean;
   /** Clear the current selection (scoped mode only). */
   onClearSelection?: () => void;
 }
-
-/** Variant keys that store a FORM-family view (no columns). */
-const FORM_FAMILY = new Set(['form', 'detail']);
 
 /** Human labels for the spec `type` enum (falls back to the raw value). */
 const TYPE_LABELS: Record<string, string> = {
@@ -69,19 +76,30 @@ const TYPE_LABELS: Record<string, string> = {
 /** Keys re-pinned from the live draft after every spec-form edit. */
 const PRESERVED_KEYS = ['columns', 'data', 'name'] as const;
 
-/** Resolve the object name a variant is bound to (and where it is stored). */
-function readObjectBinding(schema: Record<string, unknown>): {
-  value: string;
-  path: 'data.object' | 'object';
-} {
-  const data = schema.data as Record<string, unknown> | undefined;
-  if (data && typeof data === 'object' && typeof data.object === 'string') {
+/**
+ * Resolve the object a view is bound to. The canonical ViewItem carries the
+ * binding at the TOP LEVEL (`draft.object`) — authoritative for every view
+ * kind. A list `config` body additionally denormalizes it into its render
+ * data source (`config.data.object`); a form `config` has no such block. We
+ * therefore prefer the body's render binding (so the preview stays accurate)
+ * but always fall back to the top-level FK, which is the one field guaranteed
+ * present across list AND form views.
+ */
+function readObjectBinding(
+  variant: Record<string, unknown>,
+  draft: Record<string, unknown>,
+): { value: string; path: 'data.object' | 'object' | 'top' } {
+  const data = variant.data as Record<string, unknown> | undefined;
+  if (data && typeof data === 'object' && typeof data.object === 'string' && data.object) {
     return { value: data.object, path: 'data.object' };
   }
-  if (typeof schema.object === 'string') {
-    return { value: schema.object, path: 'object' };
+  if (typeof variant.object === 'string' && variant.object) {
+    return { value: variant.object, path: 'object' };
   }
-  return { value: '', path: 'data.object' };
+  if (typeof draft.object === 'string' && draft.object) {
+    return { value: draft.object, path: 'top' };
+  }
+  return { value: '', path: 'top' };
 }
 
 /** Build the View-type <select> options from the spec `type` enum. */
@@ -104,6 +122,7 @@ function useTypeOptions(currentType: string) {
 export function ViewVariantInspector({
   draft,
   variantKey,
+  familyKey,
   isHome,
   onPatch,
   readOnly,
@@ -112,11 +131,18 @@ export function ViewVariantInspector({
 }: ViewVariantInspectorProps) {
   const variant = (draft[variantKey] as Record<string, unknown> | undefined) ?? {};
 
-  const isFormFamily = FORM_FAMILY.has(variantKey);
+  const isFormFamily = isFormFamilyKey(familyKey ?? variantKey);
   const viewType =
     typeof variant.type === 'string' ? (variant.type as string) : 'grid';
   const typeOptions = useTypeOptions(viewType);
-  const binding = readObjectBinding(variant);
+  const binding = readObjectBinding(variant, draft);
+
+  // Canonical label lives at the top level (`draft.label`); a list `config`
+  // mirrors it, a form `config` does not. Prefer the top-level value.
+  const labelValue =
+    (typeof draft.label === 'string' && draft.label) ||
+    (typeof variant.label === 'string' ? (variant.label as string) : '') ||
+    '';
 
   const rawColumns: unknown[] = Array.isArray(variant.columns)
     ? (variant.columns as unknown[])
@@ -157,23 +183,42 @@ export function ViewVariantInspector({
     onPatch({ [variantKey]: merged });
   };
 
+  /** Write the bound object: top-level FK is canonical; mirror the list
+   *  body's render binding so the preview keeps resolving live data. */
   const setObject = (v: string) => {
-    if (binding.path === 'object') {
-      writeVariant({ object: v });
-    } else {
-      const data = (variant.data as Record<string, unknown> | undefined) ?? {};
-      writeVariant({ data: { ...data, object: v } });
+    const patch: Record<string, unknown> = { object: v };
+    if (variant.data && typeof variant.data === 'object') {
+      patch[variantKey] = {
+        ...variant,
+        data: { ...(variant.data as Record<string, unknown>), object: v },
+      };
+    } else if (binding.path === 'object') {
+      patch[variantKey] = { ...variant, object: v };
     }
+    onPatch(patch);
+  };
+
+  /** Write the display label: top-level is canonical; mirror it onto the
+   *  body so the preview / runtime view switcher show the same text. */
+  const setLabel = (v: string) => {
+    onPatch({ label: v, [variantKey]: { ...variant, label: v } });
   };
 
   return (
     <InspectorShell
       kindLabel="View"
-      title={String(variant.label ?? variantKey)}
+      title={String(labelValue || draft.name || variantKey)}
       onClose={() => onClearSelection?.()}
       closeLabel="Close"
       hideClose={isHome}
     >
+      <InspectorTextField
+        label="Label"
+        value={labelValue}
+        onCommit={setLabel}
+        placeholder="e.g. All Leads"
+        disabled={readOnly}
+      />
       <InspectorSelectField
         label="View type"
         value={viewType}
@@ -212,7 +257,7 @@ export function ViewVariantInspector({
             schema={schema}
             form={form}
             value={variant}
-            hiddenFields={['type', 'object']}
+            hiddenFields={['type', 'object', 'label']}
             readOnly={readOnly}
             widgetContext={widgetContext}
             onChange={writeForm}
