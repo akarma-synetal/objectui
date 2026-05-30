@@ -23,6 +23,7 @@ import {
   Bug,
   CircleDot,
   GitBranch,
+  PanelRight,
   Plus,
   Settings2,
   Variable,
@@ -74,6 +75,7 @@ export function FlowPreview({ draft, editing, selection, onSelectionChange, onPa
   const selectedId = selection && selection.kind === 'node' ? selection.id : null;
 
   const [showDebug, setShowDebug] = React.useState(false);
+  const [showVars, setShowVars] = React.useState(true);
   const [runHL, setRunHL] = React.useState<{
     activeNodeId: string | null;
     visitedNodeIds: string[];
@@ -119,7 +121,10 @@ export function FlowPreview({ draft, editing, selection, onSelectionChange, onPa
   return (
     <PreviewShell hint={`flow · ${nodes.length} node${nodes.length === 1 ? '' : 's'}`}>
       <PreviewErrorBoundary fallbackHint="One of the flow nodes or edges is malformed.">
-        <div className="grid lg:grid-cols-[1fr_240px] gap-0 h-full min-h-[440px]">
+        <div className={
+          'grid gap-0 h-full min-h-[440px] ' +
+          (showDebug || showVars ? 'lg:grid-cols-[1fr_240px]' : 'grid-cols-1')
+        }>
           {/* Visual canvas */}
           <div className="flex flex-col min-w-0 min-h-0">
             <div className="rounded-none border-b bg-muted/30 px-3 py-2 text-xs flex flex-wrap items-center gap-x-4 gap-y-1">
@@ -128,18 +133,35 @@ export function FlowPreview({ draft, editing, selection, onSelectionChange, onPa
               <Pill icon={Settings2} label="Run as" value={runAs} />
               {version && <Pill label="v" value={version} />}
               {errorStrategy && <Pill icon={GitBranch} label="On error" value={errorStrategy} />}
-              <button
-                type="button"
-                onClick={() => setShowDebug((v) => !v)}
-                className={
-                  'ml-auto inline-flex items-center gap-1 rounded border px-2 py-0.5 text-[11px] font-medium transition-colors ' +
-                  (showDebug
-                    ? 'border-sky-500 bg-sky-50 text-sky-700'
-                    : 'border-border text-muted-foreground hover:bg-muted/50 hover:text-foreground')
-                }
-              >
-                <Bug className="h-3 w-3" /> Debug
-              </button>
+              <div className="ml-auto flex items-center gap-1.5">
+                {!showDebug && (
+                  <button
+                    type="button"
+                    onClick={() => setShowVars((v) => !v)}
+                    className={
+                      'inline-flex items-center gap-1 rounded border px-2 py-0.5 text-[11px] font-medium transition-colors ' +
+                      (showVars
+                        ? 'border-violet-500 bg-violet-50 text-violet-700'
+                        : 'border-border text-muted-foreground hover:bg-muted/50 hover:text-foreground')
+                    }
+                    title={showVars ? 'Hide variables panel' : 'Show variables panel'}
+                  >
+                    <PanelRight className="h-3 w-3" /> Variables
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => setShowDebug((v) => !v)}
+                  className={
+                    'inline-flex items-center gap-1 rounded border px-2 py-0.5 text-[11px] font-medium transition-colors ' +
+                    (showDebug
+                      ? 'border-sky-500 bg-sky-50 text-sky-700'
+                      : 'border-border text-muted-foreground hover:bg-muted/50 hover:text-foreground')
+                  }
+                >
+                  <Bug className="h-3 w-3" /> Debug
+                </button>
+              </div>
             </div>
             <div className="flex-1 min-h-0">
               <FlowCanvas
@@ -162,7 +184,8 @@ export function FlowPreview({ draft, editing, selection, onSelectionChange, onPa
             </div>
           </div>
 
-          {/* Right side panel: Variables (default) or the debug simulator. */}
+          {/* Right side panel: Variables (default) or the debug simulator.
+              Collapsible so the canvas can use the full width. */}
           {showDebug ? (
             <div className="border-l bg-muted/20">
               <FlowSimulatorPanel
@@ -172,7 +195,7 @@ export function FlowPreview({ draft, editing, selection, onSelectionChange, onPa
                 onRunStateChange={setRunHL}
               />
             </div>
-          ) : (
+          ) : showVars ? (
             <div className="border-l bg-muted/20 p-3 text-xs space-y-2">
             <div className="flex items-center gap-1.5 font-medium text-muted-foreground">
               <Variable className="h-3 w-3" /> Variables
@@ -211,7 +234,7 @@ export function FlowPreview({ draft, editing, selection, onSelectionChange, onPa
               </ul>
             )}
           </div>
-          )}
+          ) : null}
         </div>
       </PreviewErrorBoundary>
     </PreviewShell>
