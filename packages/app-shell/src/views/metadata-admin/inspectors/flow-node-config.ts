@@ -31,7 +31,18 @@ export type FlowConfigFieldKind =
   | 'boolean'
   | 'select'
   | 'textarea'
-  | 'keyValue';
+  | 'keyValue'
+  | 'stringList'
+  | 'objectList';
+
+/** Column descriptor for an `objectList` repeater row. */
+export interface FlowConfigColumn {
+  key: string;
+  label: string;
+  kind: 'text' | 'expression' | 'boolean' | 'select';
+  placeholder?: string;
+  options?: Array<{ value: string; label: string }>;
+}
 
 export interface FlowConfigField {
   /**
@@ -63,6 +74,8 @@ export interface FlowConfigField {
    * never hidden.
    */
   showWhen?: { field: string; equals: string[] };
+  /** Column schema for `objectList` fields (array-of-objects repeater). */
+  columns?: FlowConfigColumn[];
 }
 
 /** Convenience: a `['config', key]`-rooted field (the common case). */
@@ -90,50 +103,29 @@ function at(
 const HTTP_METHODS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'].map((m) => ({ value: m, label: m }));
 
 /**
- * Trigger vocabulary — reuses the spec `WorkflowTriggerType` enum
- * (`automation/workflow.zod.ts`) so the start node's trigger form stays
- * protocol-aligned rather than inventing values.
- */
-const TRIGGER_TYPES: Array<{ value: string; label: string }> = [
-  { value: 'on_create', label: 'On create' },
-  { value: 'on_update', label: 'On update' },
-  { value: 'on_create_or_update', label: 'On create or update' },
-  { value: 'on_delete', label: 'On delete' },
-  { value: 'schedule', label: 'Schedule (cron)' },
-];
-
-/** Record-change trigger types that require a target object. */
-const RECORD_TRIGGERS = ['on_create', 'on_update', 'on_create_or_update', 'on_delete'];
-
-/**
  * Config groups keyed by the spec `FlowNodeAction` type. CRUD/script/http
  * fields live under `config`; wait/connector/boundary use the spec's
  * top-level structured blocks.
  */
 const FLOW_NODE_CONFIG: Record<string, FlowConfigField[]> = {
   // Trigger — the start node IS the flow trigger (spec: `'start' // Trigger`).
-  // The Flow spec keeps trigger details in the node's freeform `config`; the
-  // typed vocabulary is borrowed from the spec `WorkflowTriggerType` enum so
-  // authors fill a form instead of hand-writing JSON.
+  // The trigger CATEGORY is flow-level (`flow.type`); the start node's `config`
+  // carries the trigger PARAMETERS. Keys match real production metadata:
+  // record-change starts use objectName + criteria; scheduled starts use a cron
+  // `schedule`. All optional and shown together (no category gating) so every
+  // real start node renders without falling back to JSON.
   start: [
-    cfg('triggerType', 'Trigger', 'select', {
-      options: TRIGGER_TYPES,
-      defaultValue: 'on_update',
-      help: 'What starts this flow.',
-    }),
     cfg('objectName', 'Object', 'text', {
       placeholder: 'crm_lead',
       help: 'Target object for record-change triggers.',
-      showWhen: { field: 'triggerType', equals: RECORD_TRIGGERS },
+    }),
+    cfg('criteria', 'Entry condition', 'expression', {
+      placeholder: 'status == "qualifying" && previous.status != "qualifying"',
+      help: 'CEL predicate — the flow runs only when this is true. Leave empty to run on every event.',
     }),
     cfg('schedule', 'Cron schedule', 'text', {
       placeholder: '0 9 * * MON-FRI',
       help: 'Cron expression for scheduled triggers.',
-      showWhen: { field: 'triggerType', equals: ['schedule'] },
-    }),
-    cfg('condition', 'Entry condition', 'expression', {
-      placeholder: 'status == "qualifying" && previous.status != "qualifying"',
-      help: 'CEL predicate — the flow runs only when this is true. Leave empty to run on every event.',
     }),
   ],
   end: [
@@ -141,9 +133,9 @@ const FLOW_NODE_CONFIG: Record<string, FlowConfigField[]> = {
     cfg('outputVariable', 'Output variable', 'text', { placeholder: 'result' }),
   ],
   decision: [
-    cfg('expression', 'Condition', 'expression', {
+    cfg('condition', 'Condition', 'expression', {
       placeholder: 'amount > 10000',
-      help: 'Default branch condition. Per-branch conditions live on the outgoing edges.',
+      help: 'Default branch condition (CEL). Per-branch conditions live on the outgoing edges.',
     }),
   ],
   assignment: [
@@ -152,9 +144,8 @@ const FLOW_NODE_CONFIG: Record<string, FlowConfigField[]> = {
     }),
   ],
   loop: [
-    cfg('collection', 'Collection', 'expression', { placeholder: 'contracts', help: 'Expression resolving to the items to iterate.' }),
-    cfg('iterationVariable', 'Item variable', 'text', { placeholder: 'item' }),
-    cfg('maxIterations', 'Max iterations', 'number', { placeholder: '1000' }),
+    cfg('collection', 'Collection', 'expression', { placeholder: '{leadList}', help: 'Expression resolving to the items to iterate.' }),
+    cfg('iteratorVariable', 'Item variable', 'text', { placeholder: 'currentItem' }),
   ],
   create_record: [
     cfg('objectName', 'Object', 'text', { placeholder: 'contract' }),
@@ -163,16 +154,17 @@ const FLOW_NODE_CONFIG: Record<string, FlowConfigField[]> = {
   ],
   update_record: [
     cfg('objectName', 'Object', 'text', { placeholder: 'contract' }),
-    cfg('recordId', 'Record', 'expression', { placeholder: 'record.id', help: 'Reference to the record to update.' }),
+    cfg('filter', 'Filter', 'keyValue', { help: 'Field/value pairs identifying the record(s) to update (e.g. id → {recordId}).' }),
     cfg('fields', 'Field values', 'keyValue', { help: 'Field values to write.' }),
   ],
   delete_record: [
     cfg('objectName', 'Object', 'text', { placeholder: 'contract' }),
-    cfg('recordId', 'Record', 'expression', { placeholder: 'record.id', help: 'Reference to the record to delete.' }),
+    cfg('filter', 'Filter', 'keyValue', { help: 'Field/value pairs identifying the record(s) to delete.' }),
   ],
   get_record: [
     cfg('objectName', 'Object', 'text', { placeholder: 'contract' }),
-    cfg('filters', 'Filters', 'keyValue', { help: 'Field/value pairs to match (equality).' }),
+    cfg('filter', 'Filter', 'keyValue', { help: 'Field/value pairs to match (e.g. status → active). Operator values like {"$ne": null} are preserved.' }),
+    cfg('limit', 'Limit', 'number', { placeholder: '100' }),
     cfg('outputVariable', 'Output variable', 'text', { placeholder: 'records' }),
   ],
   http_request: [
@@ -183,21 +175,56 @@ const FLOW_NODE_CONFIG: Record<string, FlowConfigField[]> = {
     cfg('outputVariable', 'Output variable', 'text', { placeholder: 'response' }),
     { id: 'timeoutMs', path: ['timeoutMs'], label: 'Timeout (ms)', kind: 'number', placeholder: '30000' },
   ],
+  // Script — overloaded in real metadata. Two observed shapes, discriminated by
+  // `actionType`: notification (actionType: email/sms/... → template/recipients/
+  // variables) and code (no actionType → script/outputVariables). The form adapts
+  // on actionType; unknown values still show the code fields so nothing is lost.
   script: [
-    cfg('language', 'Language', 'select', {
+    cfg('actionType', 'Action type', 'select', {
       options: [
-        { value: 'javascript', label: 'JavaScript' },
-        { value: 'typescript', label: 'TypeScript' },
+        { value: 'code', label: 'Code' },
+        { value: 'email', label: 'Email' },
+        { value: 'sms', label: 'SMS' },
+        { value: 'notification', label: 'Notification' },
       ],
-      defaultValue: 'javascript',
+      defaultValue: 'code',
+      help: 'How this step runs. Leave as Code for a raw script.',
     }),
-    cfg('code', 'Code', 'textarea', { placeholder: 'return { ok: true };', help: 'Custom script body.' }),
-    cfg('outputVariable', 'Output variable', 'text', { placeholder: 'result' }),
+    cfg('template', 'Template', 'text', {
+      placeholder: 'case_escalated',
+      help: 'Message template id.',
+      showWhen: { field: 'actionType', equals: ['email', 'sms', 'notification'] },
+    }),
+    cfg('recipients', 'Recipients', 'stringList', {
+      help: 'One recipient per row (user id, field ref, or address).',
+      showWhen: { field: 'actionType', equals: ['email', 'sms', 'notification'] },
+    }),
+    cfg('variables', 'Template variables', 'keyValue', {
+      help: 'Values injected into the template.',
+      showWhen: { field: 'actionType', equals: ['email', 'sms', 'notification'] },
+    }),
+    cfg('script', 'Code', 'textarea', {
+      placeholder: 'return { ok: true };',
+      help: 'Script body (JS/TS).',
+      showWhen: { field: 'actionType', equals: ['code'] },
+    }),
+    cfg('outputVariables', 'Output variables', 'stringList', {
+      help: 'Names of variables this script writes back.',
+      showWhen: { field: 'actionType', equals: ['code'] },
+    }),
     { id: 'timeoutMs', path: ['timeoutMs'], label: 'Timeout (ms)', kind: 'number', placeholder: '30000' },
   ],
   screen: [
-    cfg('screen', 'Screen', 'text', { placeholder: 'renewal_review', help: 'Screen / form reference shown to the user.' }),
-    cfg('fields', 'Fields', 'keyValue', { help: 'Field bindings or default values for the screen.' }),
+    cfg('fields', 'Fields', 'objectList', {
+      help: 'Fields presented on this screen.',
+      columns: [
+        { key: 'name', label: 'Name', kind: 'text', placeholder: 'discount' },
+        { key: 'label', label: 'Label', kind: 'text', placeholder: 'Discount %' },
+        { key: 'type', label: 'Type', kind: 'text', placeholder: 'number' },
+        { key: 'required', label: 'Required', kind: 'boolean' },
+        { key: 'visibleWhen', label: 'Visible when', kind: 'expression', placeholder: 'stage == "review"' },
+      ],
+    }),
   ],
   wait: [
     at('waitEventConfig', 'eventType', 'Wait for', 'select', {

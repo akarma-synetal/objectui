@@ -199,27 +199,38 @@ types follow the spec `FlowNodeAction` enum
 `assignment`, `loop`, `create_record`, `update_record`, `delete_record`,
 `get_record`, `http_request`, `script`, `screen`, `wait`, `subflow`,
 `connector_action`, `parallel_gateway`, `join_gateway`, `boundary_event`,
-`end`. The `start` node *is* the flow trigger, so it exposes
-Trigger / Object / Cron schedule / Entry condition — its trigger vocabulary is
-borrowed from the spec `WorkflowTriggerType` enum
-(`on_create` · `on_update` · `on_create_or_update` · `on_delete` · `schedule`).
-Spec **structured blocks** are edited through dedicated fields, not JSON: a
-`wait` node maps `waitEventConfig.*` (Wait-for / Duration / Timeout / On
-timeout), a `connector_action` maps `connectorConfig.*` (Connector / Action /
-Input), and a `boundary_event` maps `boundaryConfig.*`. CRUD/script/http fields
-live under `node.config`; spec blocks and `timeoutMs` live at the node
-top-level. Type-specific fields sit under a **Configuration** divider, and
-**conditional fields** (`showWhen`) only appear when relevant — e.g. the
-`start` node shows *Object* only for record triggers and *Cron schedule* only
-for the `schedule` trigger, and a `wait` node shows *Duration* / *Signal name*
-based on the selected *Wait for* mode. A conditional field is never hidden
-while it still holds a value, so existing config is always reachable.
+`end`. Field keys mirror the **real production vocabulary** used by installed
+apps (the spec leaves `config` freeform, so the app metadata is the de-facto
+standard): a `start` node exposes *Object* / *Entry condition* (`criteria`,
+a CEL string) / *Cron schedule* (`schedule`); the trigger **category** is a
+flow-level concern, so `start` deliberately stores **no** `triggerType`. A
+`decision` uses `condition`; `get_record`/`update_record`/`delete_record` use a
+`filter` object; `loop` uses `iteratorVariable`. Spec **structured blocks** are
+edited through dedicated fields, not JSON: a `wait` node maps `waitEventConfig.*`
+(Wait-for / Duration / Timeout / On timeout), a `connector_action` maps
+`connectorConfig.*` (Connector / Action / Input), and a `boundary_event` maps
+`boundaryConfig.*`. CRUD/script/http fields live under `node.config`; spec
+blocks and `timeoutMs` live at the node top-level. Type-specific fields sit under
+a **Configuration** divider, and **conditional fields** (`showWhen`) only appear
+when relevant — e.g. a `script` node switches between a *Code* / *Output
+variables* shape and an *email/SMS* notification shape (*Template* / *Recipients*
+/ *Template variables*) based on its *Action type* (`actionType`, defaulting to
+`code`), and a `wait` node shows *Duration* / *Signal name* based on the selected
+*Wait for* mode. A conditional field is never hidden while it still holds a
+value, so existing config is always reachable.
 
-Flat object-map config — a `create_record` node's **Field values**, a
-`connector_action`'s **Input**, a `get_record`'s **Filters** — is edited through
-an inline **key/value editor** (`keyValue` field kind), so authors never
-hand-write JSON for the common cases. Values are auto-typed on entry (`3` →
-number, `true` → boolean, otherwise string).
+Config keys come in three editable shapes so authors never hand-write JSON:
+
+- **Flat object maps** — a `create_record` node's **Field values**, a
+  `connector_action`'s **Input**, a `get_record`'s **Filter** — use an inline
+  **key/value editor** (`keyValue` kind). Scalar values are auto-typed (`3` →
+  number, `true` → boolean); object/array values such as a filter operator
+  `{"$ne": null}` round-trip losslessly.
+- **String arrays** — a script's **Recipients** / **Output variables** — use a
+  single-column **string-list editor** (`stringList` kind).
+- **Arrays of objects** — a `screen` node's **Fields** (a list of
+  `{name,label,type,required,visibleWhen}` definitions) — use a column-driven
+  **object-list repeater** (`objectList` kind).
 
 Anything still not covered by a field (nested objects, arrays, plugin-specific
 keys) lives in an **optional** Advanced (JSON) escape hatch: it is shown only

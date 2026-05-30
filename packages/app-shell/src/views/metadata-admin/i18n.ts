@@ -320,6 +320,10 @@ const ENGINE_STRINGS_EN: Record<string, string> = {
   'engine.inspector.flowNode.kv.value': 'Value',
   'engine.inspector.flowNode.kv.remove': 'Remove entry',
   'engine.inspector.flowNode.kv.empty': 'No entries yet.',
+  'engine.inspector.flowNode.list.add': 'Add item',
+  'engine.inspector.flowNode.list.item': 'Value',
+  'engine.inspector.flowNode.list.remove': 'Remove item',
+  'engine.inspector.flowNode.list.empty': 'No items yet.',
   'engine.inspector.flowNode.remove': 'Remove node',
   // Approval step inspector
   'engine.inspector.approvalStep.kind': 'Step',
@@ -647,6 +651,10 @@ const ENGINE_STRINGS_ZH: Record<string, string> = {
   'engine.inspector.flowNode.kv.value': '值',
   'engine.inspector.flowNode.kv.remove': '删除条目',
   'engine.inspector.flowNode.kv.empty': '暂无条目。',
+  'engine.inspector.flowNode.list.add': '添加项',
+  'engine.inspector.flowNode.list.item': '值',
+  'engine.inspector.flowNode.list.remove': '删除项',
+  'engine.inspector.flowNode.list.empty': '暂无项。',
   'engine.inspector.flowNode.remove': '删除节点',
   // Approval step inspector
   'engine.inspector.approvalStep.kind': '审批步骤',

@@ -494,7 +494,13 @@ function nodeSummary(node: FlowNode): string | undefined {
   };
   const pick = (k: string) => (c ? str(c[k]) : undefined);
   if (node.type === 'start') {
-    return pick('schedule') || pick('objectName') || pick('triggerType');
+    return pick('criteria') || pick('objectName') || pick('schedule');
+  }
+  if (node.type === 'decision') {
+    return pick('condition');
+  }
+  if (node.type === 'script') {
+    return pick('actionType') || pick('template') || (c && c.script ? 'code' : undefined);
   }
   return (
     pick('objectName') ||
@@ -502,6 +508,7 @@ function nodeSummary(node: FlowNode): string | undefined {
     block('waitEventConfig', 'timerDuration') ||
     block('waitEventConfig', 'eventType') ||
     block('boundaryConfig', 'eventType') ||
+    pick('condition') ||
     pick('flowName') ||
     pick('url') ||
     pick('collection') ||

@@ -231,7 +231,7 @@ export function defaultNodeLabel(type: string): string {
 export function defaultNodeExtras(type: string): Record<string, unknown> {
   switch (type) {
     case 'start':
-      return { config: { triggerType: 'on_update' } };
+      return {};
     case 'wait':
       return { waitEventConfig: { eventType: 'timer', onTimeout: 'fail' } };
     case 'connector_action':
@@ -241,7 +241,7 @@ export function defaultNodeExtras(type: string): Record<string, unknown> {
     case 'http_request':
       return { config: { method: 'GET' } };
     case 'script':
-      return { config: { language: 'javascript' } };
+      return {};
     default:
       return {};
   }

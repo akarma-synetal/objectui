@@ -48,6 +48,17 @@ function parseValue(raw: string): unknown {
   if (s === 'true') return true;
   if (s === 'false') return false;
   if (/^-?\d+(\.\d+)?$/.test(s)) return Number(s);
+  // Round-trip non-scalar values losslessly: a filter operator like
+  // `{"$ne": null}` or an array must parse back to its object/array form, not
+  // be flattened to a string. Template refs like `{leadId}` are not valid JSON
+  // and correctly fall through to a plain string.
+  if ((s.startsWith('{') && s.endsWith('}')) || (s.startsWith('[') && s.endsWith(']'))) {
+    try {
+      return JSON.parse(s);
+    } catch {
+      return raw;
+    }
+  }
   return raw;
 }
 

@@ -17,6 +17,8 @@ import {
 } from './_shared';
 import { Label } from '@object-ui/components';
 import { FlowKeyValueField } from './FlowKeyValueField';
+import { FlowStringListField } from './FlowStringListField';
+import { FlowObjectListField } from './FlowObjectListField';
 
 export interface FlowNodeConfigFieldProps {
   field: FlowConfigField;
@@ -41,6 +43,32 @@ export function FlowNodeConfigField({ field, value, onCommit, disabled, locale }
             valueLabel={t('engine.inspector.flowNode.kv.value', locale)}
             removeLabel={t('engine.inspector.flowNode.kv.remove', locale)}
             emptyLabel={t('engine.inspector.flowNode.kv.empty', locale)}
+          />
+        );
+      case 'stringList':
+        return (
+          <FlowStringListField
+            label={field.label}
+            value={value}
+            onCommit={(v) => onCommit(v)}
+            disabled={disabled}
+            addLabel={t('engine.inspector.flowNode.list.add', locale)}
+            itemLabel={t('engine.inspector.flowNode.list.item', locale)}
+            removeLabel={t('engine.inspector.flowNode.list.remove', locale)}
+            emptyLabel={t('engine.inspector.flowNode.list.empty', locale)}
+          />
+        );
+      case 'objectList':
+        return (
+          <FlowObjectListField
+            label={field.label}
+            columns={field.columns ?? []}
+            value={value}
+            onCommit={(v) => onCommit(v)}
+            disabled={disabled}
+            addLabel={t('engine.inspector.flowNode.list.add', locale)}
+            removeLabel={t('engine.inspector.flowNode.list.remove', locale)}
+            emptyLabel={t('engine.inspector.flowNode.list.empty', locale)}
           />
         );
       case 'number':
