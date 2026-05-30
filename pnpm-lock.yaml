@@ -29,8 +29,8 @@ importers:
         specifier: ^10.0.1
         version: 10.0.1(eslint@10.4.0(jiti@2.7.0))
       '@objectstack/spec':
-        specifier: ^6.7.1
-        version: 6.9.0(ai@6.0.191(zod@4.4.3))
+        specifier: ^7.2.1
+        version: 7.2.1(ai@6.0.191(zod@4.4.3))
       '@playwright/test':
         specifier: ^1.60.0
         version: 1.60.0
@@ -248,11 +248,11 @@ importers:
         specifier: workspace:*
         version: link:../../packages/types
       '@objectstack/client':
-        specifier: ^7.1.0
-        version: 7.1.0(ai@6.0.191(zod@4.4.3))
+        specifier: ^7.2.1
+        version: 7.2.1(ai@6.0.191(zod@4.4.3))
       '@objectstack/spec':
-        specifier: ^7.1.0
-        version: 7.1.0(ai@6.0.191(zod@4.4.3))
+        specifier: ^7.2.1
+        version: 7.2.1(ai@6.0.191(zod@4.4.3))
       '@tailwindcss/postcss':
         specifier: ^4.3.0
         version: 4.3.0
@@ -380,8 +380,8 @@ importers:
         specifier: workspace:*
         version: link:../../packages/types
       '@objectstack/spec':
-        specifier: ^7.1.0
-        version: 7.1.0(ai@6.0.191(zod@4.4.3))
+        specifier: ^7.2.1
+        version: 7.2.1(ai@6.0.191(zod@4.4.3))
       fumadocs-core:
         specifier: 16.9.1
         version: 16.9.1(@mdx-js/mdx@3.1.1)(@tanstack/react-router@1.170.8(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(@types/estree-jsx@1.0.5)(@types/hast@3.0.4)(@types/mdast@4.0.4)(@types/react@19.2.15)(lucide-react@1.16.0(react@19.2.6))(next@16.2.6(@babel/core@7.29.0)(@opentelemetry/api@1.9.1)(@playwright/test@1.60.0)(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(react-dom@19.2.6(react@19.2.6))(react-router@7.15.1(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(react@19.2.6)(zod@4.4.3)
@@ -1025,8 +1025,8 @@ importers:
         specifier: workspace:*
         version: link:../types
       '@objectstack/spec':
-        specifier: ^7.1.0
-        version: 7.1.0(ai@6.0.191(zod@4.4.3))
+        specifier: ^7.2.1
+        version: 7.2.1(ai@6.0.191(zod@4.4.3))
       lodash:
         specifier: ^4.18.1
         version: 4.18.1
@@ -1084,8 +1084,8 @@ importers:
         specifier: workspace:*
         version: link:../types
       '@objectstack/client':
-        specifier: ^7.1.0
-        version: 7.1.0(ai@6.0.191(zod@4.4.3))
+        specifier: ^7.2.1
+        version: 7.2.1(ai@6.0.191(zod@4.4.3))
     devDependencies:
       tsup:
         specifier: ^8.5.1
@@ -1819,8 +1819,8 @@ importers:
         specifier: workspace:*
         version: link:../types
       '@objectstack/spec':
-        specifier: ^7.1.0
-        version: 7.1.0(ai@6.0.191(zod@4.4.3))
+        specifier: ^7.2.1
+        version: 7.2.1(ai@6.0.191(zod@4.4.3))
       lucide-react:
         specifier: ^1.16.0
         version: 1.16.0(react@19.2.6)
@@ -2042,8 +2042,8 @@ importers:
         specifier: workspace:*
         version: link:../types
       '@objectstack/spec':
-        specifier: ^7.1.0
-        version: 7.1.0(ai@6.0.191(zod@4.4.3))
+        specifier: ^7.2.1
+        version: 7.2.1(ai@6.0.191(zod@4.4.3))
       lucide-react:
         specifier: ^1.16.0
         version: 1.16.0(react@19.2.6)
@@ -2213,8 +2213,8 @@ importers:
         specifier: workspace:*
         version: link:../types
       '@objectstack/spec':
-        specifier: ^7.1.0
-        version: 7.1.0(ai@6.0.191(zod@4.4.3))
+        specifier: ^7.2.1
+        version: 7.2.1(ai@6.0.191(zod@4.4.3))
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1
@@ -2394,8 +2394,8 @@ importers:
         specifier: workspace:*
         version: link:../types
       '@objectstack/spec':
-        specifier: ^7.1.0
-        version: 7.1.0(ai@6.0.191(zod@4.4.3))
+        specifier: ^7.2.1
+        version: 7.2.1(ai@6.0.191(zod@4.4.3))
       react:
         specifier: 19.2.6
         version: 19.2.6
@@ -2508,8 +2508,8 @@ importers:
   packages/types:
     dependencies:
       '@objectstack/spec':
-        specifier: ^7.1.0
-        version: 7.1.0(ai@6.0.191(zod@4.4.3))
+        specifier: ^7.2.1
+        version: 7.2.1(ai@6.0.191(zod@4.4.3))
       zod:
         specifier: ^4.4.3
         version: 4.4.3
@@ -3859,25 +3859,16 @@ packages:
     resolution: {integrity: sha512-oGB+UxlgWcgQkgwo8GcEGwemoTFt3FIO9ababBmaGwXIoBKZ+GTy0pP185beGg7Llih/NSHSV2XAs1lnznocSg==}
     engines: {node: '>= 8'}
 
-  '@objectstack/client@7.1.0':
-    resolution: {integrity: sha512-BeQKMcP06o00lr5TwlQ4oeNCuAerot5hL7R5Vhj9OMKhctnEow9Qbebz3oDqET8hCA6aPppnnZJmyyrTsKIGUQ==}
+  '@objectstack/client@7.2.1':
+    resolution: {integrity: sha512-jIS6SlWnktnI1KUV84zn/ZLK2K5wygDfHlNB+ZOs40guUZQiFjAProdvmbHxG/VclHG8ojvL3wfXV0xi10hLlA==}
     engines: {node: '>=18.0.0'}
 
-  '@objectstack/core@7.1.0':
-    resolution: {integrity: sha512-g78wz31D9HvIbuJWti/NrNcvcdzfcJaLziUjAGjiSLj6YHJ5Y7FS4xSIXi883ddNY930e3Ma+SfuHePwL7zEiw==}
+  '@objectstack/core@7.2.1':
+    resolution: {integrity: sha512-0Bui17abWJaZe5RIBGj8ysAJH9UtzzmwrLjinyjuEveBimRSCZ7iECyLruOJHfwTql6bUZ+KnlHwTpontWe2jg==}
     engines: {node: '>=18.0.0'}
 
-  '@objectstack/spec@6.9.0':
-    resolution: {integrity: sha512-KskN2GtcTreSzHt6P3bO09jRaMlRhc4x3Y5snhedjNxbSUcKhVPru39yRJ8BdibrQTMXEiQdYAf88a9Unp1JNg==}
-    engines: {node: '>=18.0.0'}
-    peerDependencies:
-      ai: ^6.0.0
-    peerDependenciesMeta:
-      ai:
-        optional: true
-
-  '@objectstack/spec@7.1.0':
-    resolution: {integrity: sha512-ISehmL1Sl6Ejq6WcI1nZ1NGQiykusscYQw1/wx2caeViZms5Xzy3+fHRedycNMgUp+jpiLhhu6JCBrZjfEhADQ==}
+  '@objectstack/spec@7.2.1':
+    resolution: {integrity: sha512-W7j4OdzSxPcwNw3eOLsEfyCn51EHAy9KMvAD/nglFjxj/TdqaOFHJWeIdY33RAqpLZQ4vJiu8knSmQMDtR9Xvg==}
     engines: {node: '>=18.0.0'}
     peerDependencies:
       ai: ^6.0.0
@@ -11760,27 +11751,21 @@ snapshots:
       '@nodelib/fs.scandir': 2.1.5
       fastq: 1.20.1
 
-  '@objectstack/client@7.1.0(ai@6.0.191(zod@4.4.3))':
+  '@objectstack/client@7.2.1(ai@6.0.191(zod@4.4.3))':
     dependencies:
-      '@objectstack/core': 7.1.0(ai@6.0.191(zod@4.4.3))
-      '@objectstack/spec': 7.1.0(ai@6.0.191(zod@4.4.3))
+      '@objectstack/core': 7.2.1(ai@6.0.191(zod@4.4.3))
+      '@objectstack/spec': 7.2.1(ai@6.0.191(zod@4.4.3))
     transitivePeerDependencies:
       - ai
 
-  '@objectstack/core@7.1.0(ai@6.0.191(zod@4.4.3))':
+  '@objectstack/core@7.2.1(ai@6.0.191(zod@4.4.3))':
     dependencies:
-      '@objectstack/spec': 7.1.0(ai@6.0.191(zod@4.4.3))
+      '@objectstack/spec': 7.2.1(ai@6.0.191(zod@4.4.3))
       zod: 4.4.3
     transitivePeerDependencies:
       - ai
 
-  '@objectstack/spec@6.9.0(ai@6.0.191(zod@4.4.3))':
-    dependencies:
-      zod: 4.4.3
-    optionalDependencies:
-      ai: 6.0.191(zod@4.4.3)
-
-  '@objectstack/spec@7.1.0(ai@6.0.191(zod@4.4.3))':
+  '@objectstack/spec@7.2.1(ai@6.0.191(zod@4.4.3))':
     dependencies:
       zod: 4.4.3
     optionalDependencies:
