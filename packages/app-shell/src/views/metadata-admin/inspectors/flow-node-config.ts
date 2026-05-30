@@ -31,6 +31,12 @@ export interface FlowConfigField {
   options?: Array<{ value: string; label: string }>;
   /** One-line helper hint shown under the control. */
   help?: string;
+  /**
+   * Conditional visibility: only render this field when the controlling field's
+   * current value is one of `equals`. A field is always shown if it already has
+   * a stored value, so existing config is never hidden.
+   */
+  showWhen?: { field: string; equals: string[] };
 }
 
 /** Canonical config groups keyed by a normalized node "kind". */
@@ -49,8 +55,10 @@ const FLOW_NODE_CONFIG: Record<string, FlowConfigField[]> = {
         { value: 'webhook', label: 'Webhook' },
       ],
     },
-    { key: 'schedule', label: 'Schedule', kind: 'text', placeholder: '0 9 * * *', help: 'Cron or interval (e.g. 0 9 * * *, every 1h).' },
-    { key: 'objectName', label: 'Object', kind: 'text', placeholder: 'contract' },
+    { key: 'schedule', label: 'Schedule', kind: 'text', placeholder: '0 9 * * *', help: 'Cron or interval (e.g. 0 9 * * *, every 1h).', showWhen: { field: 'triggerType', equals: ['scheduled'] } },
+    { key: 'objectName', label: 'Object', kind: 'text', placeholder: 'contract', showWhen: { field: 'triggerType', equals: ['record_create', 'record_update'] } },
+    { key: 'eventName', label: 'Event', kind: 'text', placeholder: 'contract.signed', showWhen: { field: 'triggerType', equals: ['event'] } },
+    { key: 'webhookPath', label: 'Webhook path', kind: 'text', placeholder: '/hooks/renewal', showWhen: { field: 'triggerType', equals: ['webhook'] } },
   ],
   action: [
     { key: 'action', label: 'Action', kind: 'text', placeholder: 'sendEmail · createTask · update · query' },
@@ -72,9 +80,10 @@ const FLOW_NODE_CONFIG: Record<string, FlowConfigField[]> = {
         { value: 'signal', label: 'Signal' },
       ],
     },
-    { key: 'duration', label: 'Duration', kind: 'text', placeholder: '3d · PT1H', help: 'ISO 8601 or shorthand (e.g. 3d, 2h, 30m).' },
-    { key: 'until', label: 'Until', kind: 'text', placeholder: 'contract.endDate' },
-    { key: 'condition', label: 'Condition', kind: 'expression', placeholder: 'record.status == "ready"' },
+    { key: 'duration', label: 'Duration', kind: 'text', placeholder: '3d · PT1H', help: 'ISO 8601 or shorthand (e.g. 3d, 2h, 30m).', showWhen: { field: 'waitType', equals: ['duration'] } },
+    { key: 'until', label: 'Until', kind: 'text', placeholder: 'contract.endDate', showWhen: { field: 'waitType', equals: ['until'] } },
+    { key: 'condition', label: 'Condition', kind: 'expression', placeholder: 'record.status == "ready"', showWhen: { field: 'waitType', equals: ['condition'] } },
+    { key: 'signalName', label: 'Signal name', kind: 'text', placeholder: 'contract.renewed', showWhen: { field: 'waitType', equals: ['signal'] } },
   ],
   subflow: [
     { key: 'flowName', label: 'Flow', kind: 'text', placeholder: 'escalation_flow' },
@@ -94,6 +103,9 @@ const FLOW_NODE_CONFIG: Record<string, FlowConfigField[]> = {
         { value: 'condition', label: 'Condition' },
       ],
     },
+    { key: 'timer', label: 'Timer', kind: 'text', placeholder: 'PT1H · 0 9 * * *', help: 'ISO 8601 duration or cron expression.', showWhen: { field: 'eventType', equals: ['timer'] } },
+    { key: 'webhookPath', label: 'Webhook path', kind: 'text', placeholder: '/hooks/contract', showWhen: { field: 'eventType', equals: ['webhook'] } },
+    { key: 'condition', label: 'Condition', kind: 'expression', placeholder: 'record.status == "active"', showWhen: { field: 'eventType', equals: ['condition'] } },
   ],
   loop: [
     { key: 'collection', label: 'Collection', kind: 'expression', placeholder: 'contracts', help: 'Expression resolving to the items to iterate.' },
@@ -133,6 +145,19 @@ export function fieldsForNodeType(type?: string): FlowConfigField[] {
   if (!type) return [];
   const canonical = TYPE_ALIASES[type] ?? type;
   return FLOW_NODE_CONFIG[canonical] ?? [];
+}
+
+/**
+ * Whether a field should render for the given config. Conditional fields are
+ * shown when their controlling value matches, OR when the field already holds a
+ * value (so existing config is never hidden).
+ */
+export function isFieldVisible(field: FlowConfigField, config: Record<string, unknown>): boolean {
+  if (!field.showWhen) return true;
+  const current = config[field.key];
+  if (current !== undefined && current !== null && current !== '') return true;
+  const controller = config[field.showWhen.field];
+  return typeof controller === 'string' && field.showWhen.equals.includes(controller);
 }
 
 /** Node types offered in the inspector's type picker. */

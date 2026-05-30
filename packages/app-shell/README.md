@@ -197,9 +197,15 @@ per node type** (see `flow-node-config.ts`) rather than a raw JSON blob — e.g.
 an `action` node exposes Action / Object / Output variable, a `wait` node
 exposes Wait-for / Duration / Until / Condition, a `start` node exposes
 Trigger / Schedule / Object. Each field edits a scalar key on `node.config`.
-Any config keys not covered by a field (objects, arrays, bespoke flags) remain
-editable in a collapsible **Advanced (JSON)** block, and the `ui` layout hint is
-kept out of that block and preserved across edits.
+Type-specific fields sit under a **Configuration** divider, and **conditional
+fields** (`showWhen`) only appear when relevant — e.g. a `start` node shows
+*Schedule* only when its trigger is *Scheduled*, and a `wait` node shows
+*Duration* / *Until* / *Condition* / *Signal name* based on the selected
+*Wait for* mode. A conditional field is never hidden while it still holds a
+value, so existing config is always reachable. Any config keys not covered by a
+field (objects, arrays, bespoke flags) remain editable in a collapsible
+**Advanced (JSON)** block, and the `ui` layout hint is kept out of that block
+and preserved across edits.
 
 ## Architecture
 

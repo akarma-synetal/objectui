@@ -23,7 +23,7 @@ import {
   InspectorEmptyState,
   spliceArray,
 } from './_shared';
-import { fieldsForNodeType, FLOW_NODE_TYPE_OPTIONS } from './flow-node-config';
+import { fieldsForNodeType, isFieldVisible, FLOW_NODE_TYPE_OPTIONS } from './flow-node-config';
 import { FlowNodeConfigField } from './FlowNodeConfigField';
 
 interface FlowNode {
@@ -47,6 +47,7 @@ export function FlowNodeInspector({ selection, draft, onPatch, onClearSelection,
 
   const fields = fieldsForNodeType(node?.type);
   const config = asConfig(node);
+  const visibleFields = fields.filter((f) => isFieldVisible(f, config));
   const knownKeys = React.useMemo(() => new Set(fields.map((f) => f.key)), [fields]);
 
   const extraJson = React.useMemo(() => {
@@ -142,7 +143,16 @@ export function FlowNodeInspector({ selection, draft, onPatch, onClearSelection,
         disabled={readOnly}
       />
 
-      {fields.map((field) => (
+      {visibleFields.length > 0 && (
+        <div className="flex items-center gap-2 pt-1">
+          <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+            {t('engine.inspector.flowNode.configuration', locale)}
+          </span>
+          <span className="h-px flex-1 bg-border" aria-hidden />
+        </div>
+      )}
+
+      {visibleFields.map((field) => (
         <FlowNodeConfigField
           key={field.key}
           field={field}
