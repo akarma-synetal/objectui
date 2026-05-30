@@ -116,7 +116,7 @@ export const SAMPLES: Record<string, Record<string, unknown>> = {
       { name: 'reminded', type: 'boolean', isOutput: true },
     ],
     nodes: [
-      { id: 'start', type: 'start', label: 'Schedule (daily)', config: { objectName: 'contract', criteria: 'status == "active"', schedule: '0 9 * * *' } },
+      { id: 'start', type: 'start', label: 'Schedule (daily)', config: { triggerType: 'schedule', objectName: 'contract', condition: 'status == "active"', cron: '0 9 * * *' } },
       { id: 'find', type: 'get_record', label: 'Find expiring contracts', config: { objectName: 'contract', filter: { status: 'active' }, outputVariable: 'contracts' } },
       { id: 'check', type: 'decision', label: 'Within reminder window?', config: { conditions: [ { label: 'Within window', expression: 'daysToExpiry <= daysBefore' }, { label: 'Else', expression: 'true' } ] } },
       { id: 'email', type: 'connector_action', label: 'Send renewal email', connectorConfig: { connectorId: 'email', actionId: 'send', input: { to: 'owner.email', template: 'renewal_reminder' } } },

@@ -115,17 +115,44 @@ const FLOW_NODE_CONFIG: Record<string, FlowConfigField[]> = {
   // `schedule`. All optional and shown together (no category gating) so every
   // real start node renders without falling back to JSON.
   start: [
+    cfg('triggerType', 'Trigger', 'select', {
+      help: 'When this flow starts. Record triggers fire on data changes; schedule triggers fire on a cron.',
+      options: [
+        { value: 'record-after-create', label: 'Record created' },
+        { value: 'record-after-update', label: 'Record updated' },
+        { value: 'record-before-update', label: 'Record before update' },
+        { value: 'record-after-delete', label: 'Record deleted' },
+        { value: 'record-change', label: 'Record changed (any)' },
+        { value: 'schedule', label: 'Schedule (cron)' },
+        { value: 'manual', label: 'Manual / autolaunched' },
+        { value: 'webhook', label: 'Webhook / API' },
+        { value: 'event', label: 'Platform event' },
+      ],
+    }),
     cfg('objectName', 'Object', 'text', {
       placeholder: 'crm_lead',
-      help: 'Target object for record-change triggers.',
+      help: 'Target object for record / scheduled-scan triggers.',
     }),
-    cfg('criteria', 'Entry condition', 'expression', {
+    cfg('condition', 'Entry condition', 'expression', {
       placeholder: 'status == "qualifying" && previous.status != "qualifying"',
       help: 'CEL predicate — the flow runs only when this is true. Leave empty to run on every event.',
     }),
-    cfg('schedule', 'Cron schedule', 'text', {
-      placeholder: '0 9 * * MON-FRI',
+    cfg('cron', 'Cron schedule', 'text', {
+      placeholder: '0 7 * * *',
       help: 'Cron expression for scheduled triggers.',
+      showWhen: { field: 'triggerType', equals: ['schedule'] },
+    }),
+    // Legacy keys — rendered only when present so older metadata never falls
+    // back to raw JSON. Prefer `condition` / `cron` above for new flows.
+    cfg('criteria', 'Entry condition (legacy)', 'expression', {
+      placeholder: 'status == "active"',
+      help: 'Legacy key — prefer "Entry condition" (condition).',
+      showWhen: { field: '__legacy__', equals: [] },
+    }),
+    cfg('schedule', 'Cron schedule (legacy)', 'text', {
+      placeholder: '0 9 * * *',
+      help: 'Legacy key — prefer "Cron schedule" (cron).',
+      showWhen: { field: '__legacy__', equals: [] },
     }),
   ],
   end: [

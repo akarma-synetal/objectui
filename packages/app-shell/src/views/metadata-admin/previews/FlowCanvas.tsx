@@ -518,7 +518,7 @@ function nodeSummary(node: FlowNode): string | undefined {
   };
   const pick = (k: string) => (c ? str(c[k]) : undefined);
   if (node.type === 'start') {
-    return pick('criteria') || pick('objectName') || pick('schedule');
+    return pick('condition') || pick('criteria') || pick('objectName') || pick('cron') || pick('schedule') || pick('triggerType');
   }
   if (node.type === 'decision') {
     const conds = c?.conditions;
