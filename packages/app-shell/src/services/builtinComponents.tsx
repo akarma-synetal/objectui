@@ -24,8 +24,6 @@ import {
 import { PermissionMatrixEditPage } from '../views/metadata-admin/PermissionMatrixEditor';
 import { PackagesPage } from '../views/metadata-admin/PackagesPage';
 import {
-  viewItemToDraft,
-  draftToViewItem,
   isAggregatedViewContainer,
   viewDisplayType,
 } from '../views/metadata-admin/view-item-normalize';
@@ -135,12 +133,10 @@ registerMetadataResource({
     },
     { key: 'label', label: 'Label' },
   ],
-  // ADR-0017 — the framework expands each per-object aggregated view
-  // container into independent ViewItems whose real single-view spec is
-  // nested under `config`. Unwrap it into the `{ list | form }` family key
-  // the View inspector + preview read, and fold it back on save.
-  toDraft: viewItemToDraft,
-  fromDraft: draftToViewItem,
+  // ADR-0017 — the framework exposes each view as a canonical first-class
+  // ViewItem ({ name, object, viewKind, label, config }). The inspector and
+  // preview read that shape directly (`draft.config`), so NO toDraft/fromDraft
+  // adapter is wired here — the canonical shape round-trips untouched.
   // Hide the bare aggregated container the framework keeps for runtime
   // dual-read — its views are already listed as expanded ViewItems.
   listFilter: (item) => !isAggregatedViewContainer(item),
