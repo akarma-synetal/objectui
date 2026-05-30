@@ -6,8 +6,9 @@
  * LICENSE file in the root directory of this source tree.
  */
 
-import React from 'react';
+import React, { useContext } from 'react';
 import { ComponentRegistry } from '@object-ui/core';
+import { SchemaRendererContext } from '@object-ui/react';
 import { ObjectForm } from './ObjectForm';
 
 export { ObjectForm };
@@ -42,7 +43,13 @@ export type { FormAnalyticsProps, FormSubmissionMetric } from './FormAnalytics';
 
 // Register object-form component
 const ObjectFormRenderer: React.FC<{ schema: any }> = ({ schema }) => {
-  return <ObjectForm schema={schema} />;
+  // Resolve dataSource from the SchemaRendererProvider context (same as
+  // object-view): ObjectForm needs a dataSource to fetch the object schema and
+  // auto-generate its fields. Without this, an `object-form` rendered straight
+  // through SchemaRenderer (e.g. the Studio view preview) has no fields.
+  const ctx = useContext(SchemaRendererContext as React.Context<any>);
+  const dataSource = ctx?.dataSource ?? undefined;
+  return <ObjectForm schema={schema} dataSource={dataSource} />;
 };
 
 ComponentRegistry.register('object-form', ObjectFormRenderer, {
