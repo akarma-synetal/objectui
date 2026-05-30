@@ -8,23 +8,40 @@
 
 import * as React from 'react';
 import type { FlowConfigField } from './flow-node-config';
+import { t } from '../i18n';
 import {
   InspectorTextField,
   InspectorNumberField,
   InspectorSelectField,
   InspectorCheckboxField,
 } from './_shared';
+import { FlowKeyValueField } from './FlowKeyValueField';
 
 export interface FlowNodeConfigFieldProps {
   field: FlowConfigField;
   value: unknown;
   onCommit: (value: unknown) => void;
   disabled?: boolean;
+  locale?: string;
 }
 
-export function FlowNodeConfigField({ field, value, onCommit, disabled }: FlowNodeConfigFieldProps) {
+export function FlowNodeConfigField({ field, value, onCommit, disabled, locale }: FlowNodeConfigFieldProps) {
   const control = (() => {
     switch (field.kind) {
+      case 'keyValue':
+        return (
+          <FlowKeyValueField
+            label={field.label}
+            value={value}
+            onCommit={(v) => onCommit(v)}
+            disabled={disabled}
+            addLabel={t('engine.inspector.flowNode.kv.add', locale)}
+            keyLabel={t('engine.inspector.flowNode.kv.key', locale)}
+            valueLabel={t('engine.inspector.flowNode.kv.value', locale)}
+            removeLabel={t('engine.inspector.flowNode.kv.remove', locale)}
+            emptyLabel={t('engine.inspector.flowNode.kv.empty', locale)}
+          />
+        );
       case 'number':
         return (
           <InspectorNumberField

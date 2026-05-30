@@ -119,7 +119,7 @@ export const SAMPLES: Record<string, Record<string, unknown>> = {
       { id: 'start', type: 'start', label: 'Schedule (daily)' },
       { id: 'find', type: 'action', label: 'Find expiring contracts', config: { objectName: 'contract' } },
       { id: 'check', type: 'decision', label: 'Within reminder window?' },
-      { id: 'email', type: 'action', label: 'Send renewal email', config: { action: 'sendEmail' } },
+      { id: 'email', type: 'action', label: 'Send renewal email', config: { action: 'sendEmail', params: { to: 'owner.email', template: 'renewal_reminder' } } },
       { id: 'wait', type: 'wait', label: 'Wait 3 days', config: { duration: '3d' } },
       { id: 'task', type: 'action', label: 'Create CSM follow-up', config: { action: 'createTask' } },
       { id: 'skip', type: 'action', label: 'Mark as not due', config: { action: 'update' } },

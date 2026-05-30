@@ -1,0 +1,203 @@
+// Copyright (c) 2025 ObjectStack. Licensed under the Apache-2.0 license.
+
+/**
+ * FlowKeyValueField — a small repeatable key/value editor for object-map
+ * config (e.g. an action's `params`, a subflow's `input`, request `headers`).
+ *
+ * Design notes (why local draft state instead of commit-on-keystroke):
+ *  - The host inspector owns the draft and re-renders from the top on every
+ *    `onPatch`. Committing each keystroke would rehydrate rows mid-edit and
+ *    drop focus / collapse half-typed keys. So rows live in LOCAL state and
+ *    only flush to `onCommit` on blur, Enter, add, or remove.
+ *  - Rows carry a STABLE `id` (not the editable key) so renaming a key never
+ *    remounts the row — caret and focus are preserved.
+ *  - Values are smart-parsed on commit (number / boolean / else string) so an
+ *    author can type `3` or `true` without writing JSON. Empty and duplicate
+ *    keys are skipped when flushing (last non-empty wins is avoided — earlier
+ *    rows take precedence).
+ */
+
+import * as React from 'react';
+import { Plus, X } from 'lucide-react';
+import { Button, Input, Label } from '@object-ui/components';
+import { uniqueId } from './_shared';
+
+interface Row {
+  id: string;
+  key: string;
+  /** Display string for the value cell. */
+  raw: string;
+}
+
+function isPlainObject(v: unknown): v is Record<string, unknown> {
+  return typeof v === 'object' && v !== null && !Array.isArray(v);
+}
+
+/** Render a stored value as an editable string. */
+function toRaw(v: unknown): string {
+  if (v == null) return '';
+  if (typeof v === 'string') return v;
+  if (typeof v === 'number' || typeof v === 'boolean') return String(v);
+  return JSON.stringify(v);
+}
+
+/** Smart-parse an edited value string back to a scalar (no hand-written JSON). */
+function parseValue(raw: string): unknown {
+  const s = raw.trim();
+  if (s === '') return '';
+  if (s === 'true') return true;
+  if (s === 'false') return false;
+  if (/^-?\d+(\.\d+)?$/.test(s)) return Number(s);
+  return raw;
+}
+
+function toRows(obj: Record<string, unknown>, existingIds: string[]): Row[] {
+  const ids = [...existingIds];
+  return Object.entries(obj).map(([key, value]) => {
+    const id = uniqueId('kv', ids);
+    ids.push(id);
+    return { id, key, raw: toRaw(value) };
+  });
+}
+
+/** Flush rows to an object, skipping empty/duplicate keys (first wins). */
+function rowsToObject(rows: Row[]): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  for (const r of rows) {
+    const k = r.key.trim();
+    if (!k || k in out) continue;
+    out[k] = parseValue(r.raw);
+  }
+  return out;
+}
+
+function serialize(obj: Record<string, unknown>): string {
+  const sorted = Object.keys(obj).sort().reduce<Record<string, unknown>>((acc, k) => {
+    acc[k] = obj[k];
+    return acc;
+  }, {});
+  return JSON.stringify(sorted);
+}
+
+export interface FlowKeyValueFieldProps {
+  label: string;
+  value: unknown;
+  onCommit: (value: Record<string, unknown> | undefined) => void;
+  disabled?: boolean;
+  help?: string;
+  addLabel: string;
+  keyLabel: string;
+  valueLabel: string;
+  removeLabel: string;
+  emptyLabel: string;
+}
+
+export function FlowKeyValueField({
+  label,
+  value,
+  onCommit,
+  disabled,
+  help,
+  addLabel,
+  keyLabel,
+  valueLabel,
+  removeLabel,
+  emptyLabel,
+}: FlowKeyValueFieldProps) {
+  const external = isPlainObject(value) ? value : {};
+  const [rows, setRows] = React.useState<Row[]>(() => toRows(external, []));
+  // Track the last value we committed so an external change (node switch) can
+  // resync rows without clobbering an in-progress edit of the same node.
+  const lastCommitted = React.useRef(serialize(external));
+
+  React.useEffect(() => {
+    const next = serialize(external);
+    if (next !== lastCommitted.current) {
+      setRows(toRows(external, []));
+      lastCommitted.current = next;
+    }
+  }, [external]);
+
+  const flush = (nextRows: Row[]) => {
+    const obj = rowsToObject(nextRows);
+    lastCommitted.current = serialize(obj);
+    onCommit(Object.keys(obj).length ? obj : undefined);
+  };
+
+  const setRowField = (id: string, patch: Partial<Row>) => {
+    setRows((rs) => rs.map((r) => (r.id === id ? { ...r, ...patch } : r)));
+  };
+
+  const addRow = () => {
+    setRows((rs) => [...rs, { id: uniqueId('kv', rs.map((r) => r.id)), key: '', raw: '' }]);
+  };
+
+  const removeRow = (id: string) => {
+    setRows((rs) => {
+      const next = rs.filter((r) => r.id !== id);
+      flush(next);
+      return next;
+    });
+  };
+
+  return (
+    <div className="space-y-1.5">
+      <Label className="text-xs text-muted-foreground">{label}</Label>
+      <div className="space-y-1.5">
+        {rows.length === 0 && (
+          <p className="text-[11px] italic text-muted-foreground">{emptyLabel}</p>
+        )}
+        {rows.map((row) => (
+          <div key={row.id} className="flex items-center gap-1.5">
+            <Input
+              value={row.key}
+              onChange={(e) => setRowField(row.id, { key: e.target.value })}
+              onBlur={() => flush(rows)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
+              }}
+              placeholder={keyLabel}
+              disabled={disabled}
+              className="h-8 flex-1 font-mono text-xs"
+            />
+            <Input
+              value={row.raw}
+              onChange={(e) => setRowField(row.id, { raw: e.target.value })}
+              onBlur={() => flush(rows)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
+              }}
+              placeholder={valueLabel}
+              disabled={disabled}
+              className="h-8 flex-1 text-xs"
+            />
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="h-8 w-8 shrink-0 p-0 text-muted-foreground"
+              onClick={() => removeRow(row.id)}
+              disabled={disabled}
+              aria-label={removeLabel}
+              title={removeLabel}
+            >
+              <X className="h-3.5 w-3.5" />
+            </Button>
+          </div>
+        ))}
+      </div>
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        className="h-7 w-full text-xs"
+        onClick={addRow}
+        disabled={disabled}
+      >
+        <Plus className="mr-1 h-3.5 w-3.5" />
+        {addLabel}
+      </Button>
+      {help && <p className="text-[11px] leading-snug text-muted-foreground">{help}</p>}
+    </div>
+  );
+}

@@ -9,8 +9,9 @@
  * covered by a descriptor are surfaced in the inspector's "Advanced (JSON)"
  * section so authors are never locked out of bespoke configuration.
  *
- * Keep descriptors scalar-only (text / expression / number / boolean /
- * select). Structured values (objects, arrays) belong in Advanced JSON.
+ * Field kinds: scalar (text / expression / number / boolean / select) plus
+ * `keyValue` for flat object maps (e.g. action params, subflow input). Deeply
+ * nested / array values still fall back to the optional Advanced JSON block.
  */
 
 export type FlowConfigFieldKind =
@@ -18,7 +19,8 @@ export type FlowConfigFieldKind =
   | 'expression'
   | 'number'
   | 'boolean'
-  | 'select';
+  | 'select'
+  | 'keyValue';
 
 export interface FlowConfigField {
   /** Key written under `node.config`. */
@@ -63,6 +65,9 @@ const FLOW_NODE_CONFIG: Record<string, FlowConfigField[]> = {
   action: [
     { key: 'action', label: 'Action', kind: 'text', placeholder: 'sendEmail · createTask · update · query' },
     { key: 'objectName', label: 'Object', kind: 'text', placeholder: 'contract' },
+    { key: 'recordId', label: 'Record', kind: 'expression', placeholder: 'record.id', help: 'Record reference for update / delete / get actions.' },
+    { key: 'params', label: 'Parameters', kind: 'keyValue', help: 'Action inputs (e.g. to, template). Values auto-typed: 3 → number, true → boolean.' },
+    { key: 'fields', label: 'Field values', kind: 'keyValue', help: 'Field values to write for create / update actions.' },
     { key: 'outputVariable', label: 'Output variable', kind: 'text', placeholder: 'result' },
   ],
   decision: [
@@ -87,6 +92,7 @@ const FLOW_NODE_CONFIG: Record<string, FlowConfigField[]> = {
   ],
   subflow: [
     { key: 'flowName', label: 'Flow', kind: 'text', placeholder: 'escalation_flow' },
+    { key: 'input', label: 'Input mapping', kind: 'keyValue', help: 'Values passed to the subflow\u2019s input variables.' },
     { key: 'outputVariable', label: 'Output variable', kind: 'text', placeholder: 'subResult' },
   ],
   signal: [
@@ -110,6 +116,7 @@ const FLOW_NODE_CONFIG: Record<string, FlowConfigField[]> = {
   loop: [
     { key: 'collection', label: 'Collection', kind: 'expression', placeholder: 'contracts', help: 'Expression resolving to the items to iterate.' },
     { key: 'itemVariable', label: 'Item variable', kind: 'text', placeholder: 'item' },
+    { key: 'maxIterations', label: 'Max iterations', kind: 'number', placeholder: '1000' },
   ],
   parallel: [],
   end: [

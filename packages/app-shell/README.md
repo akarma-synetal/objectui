@@ -202,10 +202,22 @@ fields** (`showWhen`) only appear when relevant — e.g. a `start` node shows
 *Schedule* only when its trigger is *Scheduled*, and a `wait` node shows
 *Duration* / *Until* / *Condition* / *Signal name* based on the selected
 *Wait for* mode. A conditional field is never hidden while it still holds a
-value, so existing config is always reachable. Any config keys not covered by a
-field (objects, arrays, bespoke flags) remain editable in a collapsible
-**Advanced (JSON)** block, and the `ui` layout hint is kept out of that block
-and preserved across edits.
+value, so existing config is always reachable.
+
+Flat object-map config — an `action` node's **Parameters** / **Field values**,
+a `subflow`'s **Input mapping** — is edited through an inline **key/value
+editor** (`keyValue` field kind), so authors never hand-write JSON for the
+common cases. Values are auto-typed on entry (`3` → number, `true` → boolean,
+otherwise string).
+
+Anything still not covered by a field (nested objects, arrays, plugin-specific
+keys) lives in an **optional** Advanced (JSON) escape hatch: it is shown only
+when such keys already exist, and is otherwise reachable through a low-emphasis
+"Advanced (JSON)" button — it never alarms authors into thinking the form is
+incomplete, and it can never overwrite a key a form field already owns. Node
+types with no configuration (e.g. `parallel`) show a plain "No configuration
+needed" note instead of an empty JSON box. The `ui` layout hint is always kept
+out of the config entirely and preserved across edits.
 
 ## Architecture
 
