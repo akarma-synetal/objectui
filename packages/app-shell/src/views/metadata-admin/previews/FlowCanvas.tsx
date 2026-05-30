@@ -69,6 +69,12 @@ export interface FlowCanvasProps {
   designMode: boolean;
   selectedId: string | null;
   locale?: string;
+  /** Simulation overlay: currently-executing node. */
+  activeNodeId?: string | null;
+  /** Simulation overlay: nodes already executed. */
+  visitedNodeIds?: string[];
+  /** Simulation overlay: ids of edges that were traversed. */
+  traversedEdgeIds?: string[];
   onSelect: (node: FlowNode | null) => void;
   onPatch?: (partial: Record<string, unknown>) => void;
 }
@@ -80,6 +86,9 @@ export function FlowCanvas({
   designMode,
   selectedId,
   locale,
+  activeNodeId,
+  visitedNodeIds,
+  traversedEdgeIds,
   onSelect,
   onPatch,
 }: FlowCanvasProps) {
@@ -96,6 +105,11 @@ export function FlowCanvas({
 
   const layout = React.useMemo(() => computeLayout(nodes, edges), [nodes, edges]);
   const size = React.useMemo(() => diagramSize(layout), [layout]);
+
+  // Simulation overlay sets (display-only; never drives engine behavior).
+  const visitedSet = React.useMemo(() => new Set(visitedNodeIds ?? []), [visitedNodeIds]);
+  const traversedSet = React.useMemo(() => new Set(traversedEdgeIds ?? []), [traversedEdgeIds]);
+  const simRunning = (visitedNodeIds?.length ?? 0) > 0 || !!activeNodeId;
 
   const positionOf = React.useCallback(
     (id: string): Point => {
@@ -417,12 +431,17 @@ export function FlowCanvas({
               const mid = edgeMidpoint(from, to);
               const cond = conditionText(edge.condition);
               const branchLabel = edge.isDefault ? 'else' : cond ? `if ${cond}` : edge.label;
+              const eid = edge.id || `${edge.source}->${edge.target}#${i}`;
+              const traversed = traversedSet.has(eid);
               return (
                 <g key={edge.id || `${edge.source}-${edge.target}-${i}`}>
                   <path
                     d={edgePath(from, to)}
-                    className="fill-none stroke-muted-foreground/50"
-                    strokeWidth={1.5}
+                    className={cn(
+                      'fill-none',
+                      traversed ? 'stroke-sky-500' : simRunning ? 'stroke-muted-foreground/25' : 'stroke-muted-foreground/50',
+                    )}
+                    strokeWidth={traversed ? 2.5 : 1.5}
                     markerEnd="url(#flow-arrow)"
                   />
                   {branchLabel && (
@@ -463,21 +482,26 @@ export function FlowCanvas({
           </svg>
 
           {/* Node layer */}
-          {nodes.map((node) => (
-            <NodeCard
-              key={node.id}
-              id={node.id}
-              type={node.type}
-              label={node.label || node.id}
-              summary={nodeSummary(node)}
-              position={positionOf(node.id)}
-              selected={selectedId === node.id}
-              editable={editable}
-              onPointerDown={onNodePointerDown(node.id)}
-              onSelect={() => designMode && onSelect(node)}
-              onAppend={() => addNode('create_record', { from: node.id })}
-            />
-          ))}
+          {nodes.map((node) => {
+            const runState = activeNodeId === node.id ? 'active' : visitedSet.has(node.id) ? 'visited' : undefined;
+            return (
+              <NodeCard
+                key={node.id}
+                id={node.id}
+                type={node.type}
+                label={node.label || node.id}
+                summary={nodeSummary(node)}
+                position={positionOf(node.id)}
+                selected={selectedId === node.id}
+                editable={editable}
+                runState={runState}
+                dimmed={simRunning && !runState}
+                onPointerDown={onNodePointerDown(node.id)}
+                onSelect={() => designMode && onSelect(node)}
+                onAppend={() => addNode('create_record', { from: node.id })}
+              />
+            );
+          })}
         </div>
       </div>
     </div>

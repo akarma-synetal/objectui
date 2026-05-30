@@ -20,6 +20,7 @@
 
 import * as React from 'react';
 import {
+  Bug,
   CircleDot,
   GitBranch,
   Plus,
@@ -32,6 +33,7 @@ import { PreviewShell, PreviewMessage, PreviewErrorBoundary } from './PreviewShe
 import { uniqueId, appendArray } from '../inspectors/_shared';
 import { t as tr } from '../i18n';
 import { FlowCanvas } from './FlowCanvas';
+import { FlowSimulatorPanel } from './FlowSimulatorPanel';
 
 interface FlowNode {
   id: string;
@@ -70,6 +72,13 @@ export function FlowPreview({ draft, editing, selection, onSelectionChange, onPa
   const designMode = !!(editing && onSelectionChange);
   const canEdit = designMode && !!onPatch;
   const selectedId = selection && selection.kind === 'node' ? selection.id : null;
+
+  const [showDebug, setShowDebug] = React.useState(false);
+  const [runHL, setRunHL] = React.useState<{
+    activeNodeId: string | null;
+    visitedNodeIds: string[];
+    traversedEdgeIds: string[];
+  } | null>(null);
 
   const handleAddNode = React.useCallback(() => {
     if (!canEdit) return;
@@ -119,6 +128,18 @@ export function FlowPreview({ draft, editing, selection, onSelectionChange, onPa
               <Pill icon={Settings2} label="Run as" value={runAs} />
               {version && <Pill label="v" value={version} />}
               {errorStrategy && <Pill icon={GitBranch} label="On error" value={errorStrategy} />}
+              <button
+                type="button"
+                onClick={() => setShowDebug((v) => !v)}
+                className={
+                  'ml-auto inline-flex items-center gap-1 rounded border px-2 py-0.5 text-[11px] font-medium transition-colors ' +
+                  (showDebug
+                    ? 'border-sky-500 bg-sky-50 text-sky-700'
+                    : 'border-border text-muted-foreground hover:bg-muted/50 hover:text-foreground')
+                }
+              >
+                <Bug className="h-3 w-3" /> Debug
+              </button>
             </div>
             <div className="flex-1 min-h-0">
               <FlowCanvas
@@ -128,6 +149,9 @@ export function FlowPreview({ draft, editing, selection, onSelectionChange, onPa
                 designMode={designMode}
                 selectedId={selectedId}
                 locale={locale}
+                activeNodeId={runHL?.activeNodeId ?? null}
+                visitedNodeIds={runHL?.visitedNodeIds}
+                traversedEdgeIds={runHL?.traversedEdgeIds}
                 onSelect={(n) =>
                   n
                     ? onSelectionChange?.({ kind: 'node', id: n.id, label: n.label || n.id })
@@ -138,8 +162,18 @@ export function FlowPreview({ draft, editing, selection, onSelectionChange, onPa
             </div>
           </div>
 
-          {/* Variables side panel */}
-          <div className="border-l bg-muted/20 p-3 text-xs space-y-2">
+          {/* Right side panel: Variables (default) or the debug simulator. */}
+          {showDebug ? (
+            <div className="border-l bg-muted/20">
+              <FlowSimulatorPanel
+                nodes={nodes}
+                edges={edges}
+                variables={variables}
+                onRunStateChange={setRunHL}
+              />
+            </div>
+          ) : (
+            <div className="border-l bg-muted/20 p-3 text-xs space-y-2">
             <div className="flex items-center gap-1.5 font-medium text-muted-foreground">
               <Variable className="h-3 w-3" /> Variables
             </div>
@@ -177,6 +211,7 @@ export function FlowPreview({ draft, editing, selection, onSelectionChange, onPa
               </ul>
             )}
           </div>
+          )}
         </div>
       </PreviewErrorBoundary>
     </PreviewShell>

@@ -255,6 +255,10 @@ export interface NodeCardProps {
   position: Point;
   selected: boolean;
   editable: boolean;
+  /** Simulation overlay: the currently-executing or already-visited node. */
+  runState?: 'active' | 'visited';
+  /** Dim nodes not yet reached while a simulation is in progress. */
+  dimmed?: boolean;
   onPointerDown?: (e: React.PointerEvent) => void;
   onSelect?: () => void;
   onAppend?: () => void;
@@ -272,6 +276,8 @@ export function NodeCard({
   position,
   selected,
   editable,
+  runState,
+  dimmed,
   onPointerDown,
   onSelect,
   onAppend,
@@ -279,8 +285,8 @@ export function NodeCard({
   const tone = nodeTone(type);
   return (
     <div
-      className="absolute"
-      style={{ left: position.x, top: position.y, width: NODE_W, height: NODE_H }}
+      className="absolute transition-opacity"
+      style={{ left: position.x, top: position.y, width: NODE_W, height: NODE_H, opacity: dimmed ? 0.4 : 1 }}
     >
       <div
         role="button"
@@ -302,7 +308,13 @@ export function NodeCard({
           'hover:shadow-md focus-visible:ring-2 focus-visible:ring-primary/40',
           tone.accent,
           editable ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer',
-          selected ? 'border-primary ring-2 ring-primary/30' : 'border-border',
+          runState === 'active'
+            ? 'border-sky-500 ring-2 ring-sky-400/60 animate-pulse'
+            : runState === 'visited'
+              ? 'border-emerald-500/70 ring-1 ring-emerald-400/40'
+              : selected
+                ? 'border-primary ring-2 ring-primary/30'
+                : 'border-border',
         )}
       >
         <NodeTypeIcon type={type} className={cn('h-4 w-4 shrink-0', tone.icon)} />

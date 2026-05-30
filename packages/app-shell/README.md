@@ -241,6 +241,44 @@ types with no configuration (e.g. `parallel`) show a plain "No configuration
 needed" note instead of an empty JSON box. The `ui` layout hint is always kept
 out of the config entirely and preserved across edits.
 
+### Flow simulator (designer-time debug runner)
+
+The canvas toolbar has a **Debug** toggle that opens an in-designer **flow
+simulator** (`FlowSimulatorPanel` → `simulator/flow-simulator.ts`). It lets a
+low-code author *test a flow draft without a backend* — answering "how do I
+mock-run and step through this flow?".
+
+It is a **pure, client-side interpreter**. It **never** calls a `dataSource`:
+every side-effecting node (CRUD / `get_record` / `http_request` /
+`connector_action` / `script`) is **MOCKED**, so a simulation can never write or
+delete real data and never needs a live environment. Its guiding rule is *never
+silently simulate semantics that differ from the runtime* — anything that cannot
+be faithfully modelled is surfaced loudly instead of faked.
+
+- **Preflight validation** — before a run, `validateFlowDraft` blocks on
+  structural errors (no resolvable entry, duplicate ids, edges to missing nodes,
+  multiple decision defaults) and warns on soft issues (unreachable nodes, a
+  decision with no default). Errors disable **Run** so problems surface up front.
+- **Controls** — **Run** (to completion), **Step** (one node), **Reset**, and
+  **Continue** (after a pause). Flow `variables` marked `isInput` become a seed
+  form; values are auto-typed (`30` → number, `true` → boolean, `{…}` → JSON).
+- **Semantics** — `start`/`assignment` pass through; a `decision` routes
+  **edge-first** (first truthy outgoing `condition`, else the `isDefault` edge,
+  else a surfaced dead-end), evaluating CEL via `@object-ui/core`'s
+  `ExpressionEvaluator` and **surfacing eval errors** (not swallowing them);
+  side-effect nodes write their mock to `outputVariable` / `outputVariables[]`;
+  `wait` and `screen` **pause** for manual continue; `join_gateway`, `subflow`,
+  and `boundary_event` are marked **unsupported** (token sync / nested runs are
+  not modelled) rather than faked.
+- **Live feedback** — the panel shows a **variable watch**, a **step timeline**
+  (status badges `OK` / `MOCKED` / `PAUSED` / `SKIPPED` / `ERROR`, per-decision
+  edge diagnostics, and write summaries), while the canvas highlights the
+  **active** node (pulsing sky ring), **visited** nodes (emerald), and
+  **traversed** edges (sky), dimming nodes not yet reached.
+
+The engine is covered by unit tests in
+`previews/simulator/__tests__/flow-simulator.test.ts`.
+
 ## Architecture
 
 This package sits between the low-level `@object-ui/react` (SchemaRenderer) and the high-level `apps/console` (full application):
