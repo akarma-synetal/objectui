@@ -40,7 +40,7 @@ import {
   type FlowEdge,
   type Point,
 } from './flow-canvas-layout';
-import { NodeCard, NodePalette } from './flow-canvas-parts';
+import { NodeCard, NodePalette, defaultNodeLabel, defaultNodeExtras } from './flow-canvas-parts';
 
 const MIN_ZOOM = 0.4;
 const MAX_ZOOM = 1.6;
@@ -124,8 +124,7 @@ export function FlowCanvas({
       if (!onPatch) return;
       const existing = nodes.map((n) => n.id).filter(Boolean) as string[];
       const id = uniqueId('node', existing);
-      const label =
-        type === 'end' ? 'End' : `${type.charAt(0).toUpperCase()}${type.slice(1)} node`;
+      const label = type === 'end' ? 'End' : defaultNodeLabel(type);
       const at =
         opts?.at ??
         (opts?.from
@@ -134,7 +133,7 @@ export function FlowCanvas({
               return { x: p.x, y: p.y + NODE_H + V_GAP };
             })()
           : undefined);
-      const newNode: FlowNode = { id, type, label, ...(at ? { ui: { x: at.x, y: at.y } } : {}) };
+      const newNode: FlowNode = { id, type, label, ...defaultNodeExtras(type), ...(at ? { ui: { x: at.x, y: at.y } } : {}) };
       const nextNodes = appendArray(nodes, newNode);
       const patch: Record<string, unknown> = { nodes: nextNodes };
       if (opts?.from) {
@@ -154,7 +153,7 @@ export function FlowCanvas({
 
   /** Split edge A→B by inserting a new node N: A→N (keeps guard) + N→B. */
   const insertOnEdge = React.useCallback(
-    (edge: FlowEdge, type = 'action') => {
+    (edge: FlowEdge, type = 'create_record') => {
       if (!onPatch) return;
       const edgeIdx = edges.findIndex((e) => e === edge);
       if (edgeIdx < 0) return;
@@ -166,7 +165,8 @@ export function FlowCanvas({
       const newNode: FlowNode = {
         id,
         type,
-        label: `${type.charAt(0).toUpperCase()}${type.slice(1)} node`,
+        label: defaultNodeLabel(type),
+        ...defaultNodeExtras(type),
         ui: { x: at.x, y: at.y },
       };
       // A→N inherits the original edge's branch semantics; N→B is plain.
@@ -475,7 +475,7 @@ export function FlowCanvas({
               editable={editable}
               onPointerDown={onNodePointerDown(node.id)}
               onSelect={() => designMode && onSelect(node)}
-              onAppend={() => addNode('action', { from: node.id })}
+              onAppend={() => addNode('create_record', { from: node.id })}
             />
           ))}
         </div>
@@ -487,10 +487,24 @@ export function FlowCanvas({
 /** One-line config summary shown on the node card (best-effort, type-aware). */
 function nodeSummary(node: FlowNode): string | undefined {
   const c = node.config as Record<string, unknown> | undefined;
-  if (!c) return undefined;
-  const pick = (k: string) => (typeof c[k] === 'string' ? (c[k] as string) : undefined);
+  const str = (v: unknown) => (typeof v === 'string' && v ? v : undefined);
+  const block = (key: string, inner: string) => {
+    const b = (node as Record<string, unknown>)[key];
+    return b && typeof b === 'object' ? str((b as Record<string, unknown>)[inner]) : undefined;
+  };
+  const pick = (k: string) => (c ? str(c[k]) : undefined);
+  if (node.type === 'start') {
+    return pick('schedule') || pick('objectName') || pick('triggerType');
+  }
   return (
     pick('objectName') ||
+    block('connectorConfig', 'actionId') ||
+    block('waitEventConfig', 'timerDuration') ||
+    block('waitEventConfig', 'eventType') ||
+    block('boundaryConfig', 'eventType') ||
+    pick('flowName') ||
+    pick('url') ||
+    pick('collection') ||
     pick('action') ||
     pick('flow') ||
     pick('event') ||

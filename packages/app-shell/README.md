@@ -193,22 +193,33 @@ Salesforce Flow Builder) instead of a flat step list. It is **dependency-free**
 - **Navigate** — fit-to-view, zoom in/out, and background pan.
 
 Selecting a node opens `FlowNodeInspector`, which renders **typed form fields
-per node type** (see `flow-node-config.ts`) rather than a raw JSON blob — e.g.
-an `action` node exposes Action / Object / Output variable, a `wait` node
-exposes Wait-for / Duration / Until / Condition, a `start` node exposes
-Trigger / Schedule / Object. Each field edits a scalar key on `node.config`.
-Type-specific fields sit under a **Configuration** divider, and **conditional
-fields** (`showWhen`) only appear when relevant — e.g. a `start` node shows
-*Schedule* only when its trigger is *Scheduled*, and a `wait` node shows
-*Duration* / *Until* / *Condition* / *Signal name* based on the selected
-*Wait for* mode. A conditional field is never hidden while it still holds a
-value, so existing config is always reachable.
+per node type** (see `flow-node-config.ts`) rather than a raw JSON blob. Node
+types follow the spec `FlowNodeAction` enum
+(`@objectstack/spec/automation/flow.zod.ts`): `start`, `decision`,
+`assignment`, `loop`, `create_record`, `update_record`, `delete_record`,
+`get_record`, `http_request`, `script`, `screen`, `wait`, `subflow`,
+`connector_action`, `parallel_gateway`, `join_gateway`, `boundary_event`,
+`end`. The `start` node *is* the flow trigger, so it exposes
+Trigger / Object / Cron schedule / Entry condition — its trigger vocabulary is
+borrowed from the spec `WorkflowTriggerType` enum
+(`on_create` · `on_update` · `on_create_or_update` · `on_delete` · `schedule`).
+Spec **structured blocks** are edited through dedicated fields, not JSON: a
+`wait` node maps `waitEventConfig.*` (Wait-for / Duration / Timeout / On
+timeout), a `connector_action` maps `connectorConfig.*` (Connector / Action /
+Input), and a `boundary_event` maps `boundaryConfig.*`. CRUD/script/http fields
+live under `node.config`; spec blocks and `timeoutMs` live at the node
+top-level. Type-specific fields sit under a **Configuration** divider, and
+**conditional fields** (`showWhen`) only appear when relevant — e.g. the
+`start` node shows *Object* only for record triggers and *Cron schedule* only
+for the `schedule` trigger, and a `wait` node shows *Duration* / *Signal name*
+based on the selected *Wait for* mode. A conditional field is never hidden
+while it still holds a value, so existing config is always reachable.
 
-Flat object-map config — an `action` node's **Parameters** / **Field values**,
-a `subflow`'s **Input mapping** — is edited through an inline **key/value
-editor** (`keyValue` field kind), so authors never hand-write JSON for the
-common cases. Values are auto-typed on entry (`3` → number, `true` → boolean,
-otherwise string).
+Flat object-map config — a `create_record` node's **Field values**, a
+`connector_action`'s **Input**, a `get_record`'s **Filters** — is edited through
+an inline **key/value editor** (`keyValue` field kind), so authors never
+hand-write JSON for the common cases. Values are auto-typed on entry (`3` →
+number, `true` → boolean, otherwise string).
 
 Anything still not covered by a field (nested objects, arrays, plugin-specific
 keys) lives in an **optional** Advanced (JSON) escape hatch: it is shown only

@@ -24,7 +24,13 @@ import {
   InspectorEmptyState,
   spliceArray,
 } from './_shared';
-import { fieldsForNodeType, isFieldVisible, FLOW_NODE_TYPE_OPTIONS } from './flow-node-config';
+import {
+  fieldsForNodeType,
+  isFieldVisible,
+  getFieldValue,
+  configKeyOf,
+  FLOW_NODE_TYPE_OPTIONS,
+} from './flow-node-config';
 import { FlowNodeConfigField } from './FlowNodeConfigField';
 
 interface FlowNode {
@@ -41,6 +47,27 @@ function asConfig(node: FlowNode | null): Record<string, unknown> {
   return c && typeof c === 'object' && !Array.isArray(c) ? (c as Record<string, unknown>) : {};
 }
 
+/**
+ * Immutably set `value` at `path` on a plain object, pruning any intermediate
+ * object that becomes empty (so e.g. clearing the last `waitEventConfig` key
+ * removes the whole block). Empty string / null / undefined deletes the leaf.
+ */
+function setAtPath(obj: Record<string, unknown>, path: string[], value: unknown): Record<string, unknown> {
+  const [head, ...rest] = path;
+  const next: Record<string, unknown> = { ...obj };
+  if (rest.length === 0) {
+    if (value === undefined || value === null || value === '') delete next[head];
+    else next[head] = value;
+  } else {
+    const cur = next[head];
+    const base = cur && typeof cur === 'object' && !Array.isArray(cur) ? (cur as Record<string, unknown>) : {};
+    const child = setAtPath(base, rest, value);
+    if (Object.keys(child).length === 0) delete next[head];
+    else next[head] = child;
+  }
+  return next;
+}
+
 export function FlowNodeInspector({ selection, draft, onPatch, onClearSelection, locale, readOnly }: MetadataInspectorProps) {
   const nodes = Array.isArray((draft as any).nodes) ? ((draft as any).nodes as FlowNode[]) : [];
   const index = nodes.findIndex((n) => n?.id === selection.id);
@@ -48,14 +75,24 @@ export function FlowNodeInspector({ selection, draft, onPatch, onClearSelection,
 
   const fields = fieldsForNodeType(node?.type);
   const config = asConfig(node);
-  const visibleFields = fields.filter((f) => isFieldVisible(f, config));
-  const knownKeys = React.useMemo(() => new Set(fields.map((f) => f.key)), [fields]);
+  const visibleFields = fields.filter((f) => isFieldVisible(f, node, fields));
+  // Only fields stored under `config` "own" a config key; spec-structured
+  // blocks (waitEventConfig, etc.) and top-level timeoutMs never suppress an
+  // Advanced key.
+  const ownedConfigKeys = React.useMemo(() => {
+    const s = new Set<string>();
+    for (const f of fields) {
+      const k = configKeyOf(f);
+      if (k) s.add(k);
+    }
+    return s;
+  }, [fields]);
 
   const extraJson = React.useMemo(() => {
-    const extra = Object.fromEntries(Object.entries(config).filter(([k]) => !knownKeys.has(k)));
+    const extra = Object.fromEntries(Object.entries(config).filter(([k]) => !ownedConfigKeys.has(k)));
     return Object.keys(extra).length ? JSON.stringify(extra, null, 2) : '';
     // Recompute when the node identity changes (patch) or the known keys change.
-  }, [node, knownKeys]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [node, ownedConfigKeys]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const [advText, setAdvText] = React.useState(extraJson);
   const [advError, setAdvError] = React.useState<string | null>(null);
@@ -83,38 +120,27 @@ export function FlowNodeInspector({ selection, draft, onPatch, onClearSelection,
 
   const hasExtras = extraJson.trim() !== '';
 
-  const setConfigKey = (key: string, value: unknown) => {
-    const next = { ...config };
-    if (value === undefined || value === '' || value === null) delete next[key];
-    else next[key] = value;
-    if (Object.keys(next).length === 0) {
-      const { config: _omit, ...restNode } = node;
-      void _omit;
-      onPatch({ nodes: spliceArray(nodes, index, restNode) });
-    } else {
-      patchNode({ config: next });
-    }
+  const setField = (path: string[], value: unknown) => {
+    const nextNode = setAtPath(node, path, value);
+    onPatch({ nodes: spliceArray(nodes, index, nextNode) });
   };
 
   const commitAdvanced = () => {
     try {
       const parsed = advText.trim() === '' ? {} : JSON.parse(advText);
       if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) throw new Error('Must be a JSON object');
-      // Known-field values always win: the Advanced block may only set keys that
-      // no form field owns, so it can never overwrite or resurrect a field key.
-      const knownPart = Object.fromEntries(Object.entries(config).filter(([k]) => knownKeys.has(k)));
+      // Form-owned config keys always win: the Advanced block may only set keys
+      // that no form field owns, so it can never overwrite or resurrect one.
+      const knownPart = Object.fromEntries(Object.entries(config).filter(([k]) => ownedConfigKeys.has(k)));
       const extrasPart = Object.fromEntries(
-        Object.entries(parsed as Record<string, unknown>).filter(([k]) => !knownKeys.has(k)),
+        Object.entries(parsed as Record<string, unknown>).filter(([k]) => !ownedConfigKeys.has(k)),
       );
       const merged = { ...knownPart, ...extrasPart };
       setAdvError(null);
-      if (Object.keys(merged).length === 0) {
-        const { config: _omit, ...restNode } = node;
-        void _omit;
-        onPatch({ nodes: spliceArray(nodes, index, restNode) });
-      } else {
-        patchNode({ config: merged });
-      }
+      const nextNode = { ...node };
+      if (Object.keys(merged).length === 0) delete (nextNode as FlowNode).config;
+      else (nextNode as FlowNode).config = merged;
+      onPatch({ nodes: spliceArray(nodes, index, nextNode) });
     } catch (e) {
       setAdvError(String((e as Error).message));
     }
@@ -170,10 +196,10 @@ export function FlowNodeInspector({ selection, draft, onPatch, onClearSelection,
 
       {visibleFields.map((field) => (
         <FlowNodeConfigField
-          key={field.key}
+          key={field.id}
           field={field}
-          value={config[field.key]}
-          onCommit={(v) => setConfigKey(field.key, v)}
+          value={getFieldValue(node, field)}
+          onCommit={(v) => setField(field.path, v)}
           disabled={readOnly}
           locale={locale}
         />

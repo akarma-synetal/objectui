@@ -8,12 +8,23 @@
 
 import * as React from 'react';
 import {
+  Code,
   CircleDot,
   CircleStop,
   Diamond,
+  FilePen,
+  FilePlus,
+  FileSearch,
+  FileX,
+  GitFork,
+  Globe,
+  MonitorSmartphone,
   Play,
+  Plug,
   Plus,
+  Repeat,
   TimerReset,
+  Variable,
   Workflow,
   Zap,
   type LucideIcon,
@@ -33,6 +44,7 @@ export function nodeIcon(type: string): LucideIcon {
       return Diamond;
     case 'wait':
     case 'timer':
+    case 'delay':
       return TimerReset;
     case 'boundary_event':
     case 'signal':
@@ -40,6 +52,35 @@ export function nodeIcon(type: string): LucideIcon {
     case 'subflow':
     case 'flow':
       return Workflow;
+    case 'create_record':
+      return FilePlus;
+    case 'update_record':
+      return FilePen;
+    case 'delete_record':
+      return FileX;
+    case 'get_record':
+      return FileSearch;
+    case 'http_request':
+    case 'webhook':
+      return Globe;
+    case 'script':
+    case 'script_task':
+      return Code;
+    case 'screen':
+    case 'user_task':
+      return MonitorSmartphone;
+    case 'connector_action':
+    case 'service_task':
+      return Plug;
+    case 'assignment':
+      return Variable;
+    case 'loop':
+    case 'for_each':
+      return Repeat;
+    case 'parallel_gateway':
+    case 'join_gateway':
+    case 'parallel':
+      return GitFork;
     default:
       return CircleDot;
   }
@@ -90,6 +131,16 @@ const TONES: Record<string, NodeTone> = {
     accent: 'border-l-slate-400',
     label: 'text-slate-500 dark:text-slate-400',
   },
+  record: {
+    icon: 'text-cyan-600 dark:text-cyan-400',
+    accent: 'border-l-cyan-500',
+    label: 'text-cyan-600 dark:text-cyan-400',
+  },
+  integration: {
+    icon: 'text-fuchsia-600 dark:text-fuchsia-400',
+    accent: 'border-l-fuchsia-500',
+    label: 'text-fuchsia-600 dark:text-fuchsia-400',
+  },
 };
 
 export function nodeTone(type: string): NodeTone {
@@ -101,9 +152,13 @@ export function nodeTone(type: string): NodeTone {
     case 'decision':
     case 'branch':
     case 'gateway':
+    case 'parallel_gateway':
+    case 'join_gateway':
+    case 'parallel':
       return TONES.decision;
     case 'wait':
     case 'timer':
+    case 'delay':
       return TONES.wait;
     case 'boundary_event':
     case 'signal':
@@ -111,6 +166,18 @@ export function nodeTone(type: string): NodeTone {
     case 'subflow':
     case 'flow':
       return TONES.subflow;
+    case 'create_record':
+    case 'update_record':
+    case 'delete_record':
+    case 'get_record':
+      return TONES.record;
+    case 'http_request':
+    case 'connector_action':
+    case 'script':
+    case 'webhook':
+    case 'service_task':
+    case 'script_task':
+      return TONES.integration;
     default:
       return TONES.task;
   }
@@ -131,15 +198,54 @@ export interface PaletteItem {
   hint?: string;
 }
 
-/** Node types offered by the add-node palette, grouped by intent. */
+/** Node types offered by the add-node palette (spec `FlowNodeAction`). */
 export const NODE_PALETTE: PaletteItem[] = [
-  { type: 'action', label: 'Action', hint: 'Run an automated step' },
+  { type: 'create_record', label: 'Create record', hint: 'Insert a new record' },
+  { type: 'update_record', label: 'Update record', hint: 'Modify an existing record' },
+  { type: 'get_record', label: 'Get record', hint: 'Query records' },
   { type: 'decision', label: 'Decision', hint: 'Branch on a condition' },
-  { type: 'wait', label: 'Wait', hint: 'Pause or delay' },
+  { type: 'loop', label: 'Loop', hint: 'Iterate over a collection' },
+  { type: 'http_request', label: 'HTTP request', hint: 'Call an external API' },
+  { type: 'connector_action', label: 'Connector', hint: 'Run an integration action' },
+  { type: 'script', label: 'Script', hint: 'Run custom code' },
   { type: 'subflow', label: 'Subflow', hint: 'Invoke another flow' },
-  { type: 'signal', label: 'Signal', hint: 'Emit or await an event' },
+  { type: 'wait', label: 'Wait', hint: 'Pause for an event or timer' },
   { type: 'end', label: 'End', hint: 'Terminate the flow' },
 ];
+
+/** Human-friendly default label for a newly created node of `type`. */
+export function defaultNodeLabel(type: string): string {
+  const item = NODE_PALETTE.find((p) => p.type === type);
+  if (item) return item.label;
+  return type
+    .split('_')
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(' ');
+}
+
+/**
+ * Spec-valid seed fields for a newly created node, so structured blocks start
+ * in a valid-ish shape (e.g. a wait node already has a timer eventType) rather
+ * than an empty intermediate state. Returns extra node props to spread in.
+ */
+export function defaultNodeExtras(type: string): Record<string, unknown> {
+  switch (type) {
+    case 'start':
+      return { config: { triggerType: 'on_update' } };
+    case 'wait':
+      return { waitEventConfig: { eventType: 'timer', onTimeout: 'fail' } };
+    case 'connector_action':
+      return { connectorConfig: { connectorId: '', actionId: '', input: {} } };
+    case 'boundary_event':
+      return { boundaryConfig: { attachedToNodeId: '', eventType: 'error', interrupting: true } };
+    case 'http_request':
+      return { config: { method: 'GET' } };
+    case 'script':
+      return { config: { language: 'javascript' } };
+    default:
+      return {};
+  }
+}
 
 export interface NodeCardProps {
   id: string;

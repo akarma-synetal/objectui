@@ -15,6 +15,7 @@ import {
   InspectorSelectField,
   InspectorCheckboxField,
 } from './_shared';
+import { Label } from '@object-ui/components';
 import { FlowKeyValueField } from './FlowKeyValueField';
 
 export interface FlowNodeConfigFieldProps {
@@ -70,6 +71,20 @@ export function FlowNodeConfigField({ field, value, onCommit, disabled, locale }
             onCommit={(v) => onCommit(v)}
             disabled={disabled}
           />
+        );
+      case 'textarea':
+        return (
+          <div className="space-y-1">
+            <Label className="text-xs text-muted-foreground">{field.label}</Label>
+            <textarea
+              value={value != null ? String(value) : ''}
+              onChange={(e) => onCommit(e.target.value)}
+              placeholder={field.placeholder}
+              disabled={disabled}
+              rows={4}
+              className="w-full rounded border bg-background px-2 py-1.5 font-mono text-xs"
+            />
+          </div>
         );
       case 'expression':
       case 'text':
