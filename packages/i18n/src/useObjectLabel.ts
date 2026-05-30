@@ -19,6 +19,7 @@
 
 import { useMemo } from 'react';
 import { useObjectTranslation } from './provider';
+import { I18N_PROBE_FLAG } from './i18n';
 
 /**
  * Built-in Object UI top-level locale keys — not app namespaces.
@@ -94,7 +95,10 @@ export function useObjectLabel() {
       for (const ns of namespaces) {
         for (const suffix of suffixList) {
           const key = `${ns}.${suffix}`;
-          const translated = t(key, { defaultValue: '' });
+          // `I18N_PROBE_FLAG` marks this as a speculative convention lookup so
+          // the dev missing-key warner stays silent when it (expectedly) misses
+          // and we fall back to the server-resolved label.
+          const translated = t(key, { defaultValue: '', [I18N_PROBE_FLAG]: true });
           if (translated && translated !== key && translated !== '') {
             return translated;
           }

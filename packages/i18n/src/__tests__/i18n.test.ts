@@ -1,4 +1,5 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { I18N_PROBE_FLAG } from '../i18n';
 import {
   createI18n,
   getDirection,
@@ -250,6 +251,51 @@ describe('@object-ui/i18n', () => {
     it('formats with compact notation', () => {
       const result = formatNumber(1234567, { locale: 'en', notation: 'compact' });
       expect(result).toContain('M'); // e.g. 1.2M
+    });
+  });
+
+  // ── M2: dev-mode missing-key warnings (issue #1319) ────────────────────────
+  describe('warnMissingKeys', () => {
+    let warnSpy: ReturnType<typeof vi.spyOn>;
+
+    beforeEach(() => {
+      warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    });
+    afterEach(() => {
+      warnSpy.mockRestore();
+    });
+
+    it('warns once when a static key is missing', () => {
+      const i18n = createI18n({ detectBrowserLanguage: false, warnMissingKeys: true });
+      i18n.t('totally.missing.key');
+      expect(warnSpy).toHaveBeenCalledTimes(1);
+      expect(warnSpy.mock.calls[0][0]).toContain('totally.missing.key');
+    });
+
+    it('dedupes repeated lookups of the same missing key', () => {
+      const i18n = createI18n({ detectBrowserLanguage: false, warnMissingKeys: true });
+      i18n.t('repeat.me');
+      i18n.t('repeat.me');
+      i18n.t('repeat.me');
+      expect(warnSpy).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not warn for resolved keys', () => {
+      const i18n = createI18n({ detectBrowserLanguage: false, warnMissingKeys: true });
+      i18n.t('common.save');
+      expect(warnSpy).not.toHaveBeenCalled();
+    });
+
+    it('stays silent for flagged convention-key probes', () => {
+      const i18n = createI18n({ detectBrowserLanguage: false, warnMissingKeys: true });
+      i18n.t('crm.objects.lead.label', { defaultValue: '', [I18N_PROBE_FLAG]: true });
+      expect(warnSpy).not.toHaveBeenCalled();
+    });
+
+    it('does not warn at all when disabled', () => {
+      const i18n = createI18n({ detectBrowserLanguage: false, warnMissingKeys: false });
+      i18n.t('another.missing.key');
+      expect(warnSpy).not.toHaveBeenCalled();
     });
   });
 });

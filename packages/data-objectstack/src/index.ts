@@ -1233,7 +1233,12 @@ export class ObjectStackAdapter<T = unknown> implements DataSource<T> {
     await this.connect();
     
     try {
-      // Use cache with automatic fetching
+      // Use cache with automatic fetching. The cache is keyed by object name
+      // only (locale-independent); a language switch wipes it wholesale via
+      // `clearCache()` so the next read re-fetches in the new locale — see the
+      // shell's locale remount (issue #1319). Keeping the key locale-free here
+      // means a metadata *write* still invalidates the single entry it knows
+      // about, without having to fan out across every cached locale.
       const schema = await this.metadataCache.get(objectName, async () => {
         const result: any = await this.client.meta.getItem('object', objectName);
         
