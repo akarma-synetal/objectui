@@ -23,6 +23,10 @@ import {
 } from '../views/metadata-admin';
 import { PermissionMatrixEditPage } from '../views/metadata-admin/PermissionMatrixEditor';
 import { PackagesPage } from '../views/metadata-admin/PackagesPage';
+import {
+  viewItemToDraft,
+  draftToViewItem,
+} from '../views/metadata-admin/view-item-normalize';
 
 /* -------------------------------------------------------------------------- */
 /* 1) Top-level admin pages — bound to `metadata:directory` + `metadata:resource` */
@@ -121,6 +125,12 @@ registerMetadataResource({
     { key: 'type', label: 'Type', width: '15%' },
     { key: 'label', label: 'Label' },
   ],
+  // ADR-0017 — the framework expands each per-object aggregated view
+  // container into independent ViewItems whose real single-view spec is
+  // nested under `config`. Unwrap it into the `{ list | form }` family key
+  // the View inspector + preview read, and fold it back on save.
+  toDraft: viewItemToDraft,
+  fromDraft: draftToViewItem,
 });
 
 registerMetadataResource({
