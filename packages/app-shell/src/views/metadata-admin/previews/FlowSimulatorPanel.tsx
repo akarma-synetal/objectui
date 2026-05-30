@@ -155,7 +155,17 @@ export function FlowSimulatorPanel({ nodes, edges, variables, onRunStateChange }
   }, [reset]);
 
   const onRun = () => {
-    const sim = simRef.current ?? (reset(), simRef.current!);
+    // A paused run (wait / screen) continues from where it halted. Any other
+    // state — fresh, done, or errored — starts a clean run that re-seeds with
+    // the current Set-variables and Mock-outputs editors, so editing them and
+    // pressing Run again always reflects the new values.
+    let sim = simRef.current;
+    if (sim && sim.state.status === 'paused') {
+      sim.resume();
+    } else {
+      reset();
+      sim = simRef.current!;
+    }
     sim.runToEnd();
     sync();
   };
