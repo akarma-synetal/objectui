@@ -1432,12 +1432,22 @@ export class ObjectStackAdapter<T = unknown> implements DataSource<T> {
       const items: any[] = Array.isArray(result?.items)
         ? result.items
         : Array.isArray(result) ? result : [];
+      // This feeds the list-view switcher (ViewTabBar), so it must return
+      // LIST-family views only. The backend now exposes each view as an
+      // independent ViewItem carrying a `viewKind` discriminant (ADR-0017);
+      // form-family views (`form`/`detail`) are record forms, not list tabs,
+      // and must be excluded — otherwise e.g. `crm_activity.default` (a form)
+      // leaks in as a spurious switcher tab. Bare specs without `viewKind`
+      // (legacy artifacts / saved views) are kept as list views.
+      const FORM_FAMILY = new Set(['form', 'detail']);
       return items.filter((v: any) => {
         if (!v) return false;
         // Handle both bare view spec and `{list: {...}}` artifact wrapper
         const spec = v.list ?? v;
         const obj = spec?.data?.object ?? spec?.object ?? spec?.objectName;
-        return obj === objectName;
+        if (obj !== objectName) return false;
+        const viewKind = v.viewKind ?? spec?.viewKind;
+        return !(viewKind && FORM_FAMILY.has(viewKind));
       }).map((v: any) => v.list ?? v);
     } catch (err) {
       console.warn('[OBJECTSTACKDataSource] listViews failed:', err);
