@@ -88,7 +88,7 @@ Use this as a CI gate too — `total === 0` is the green-build condition.
 
 ### 1. Directory page badges
 
-`/apps/studio/metadata` — the directory is **scoped to the active project
+`/apps/<app>/metadata` — the directory is **scoped to the active project
 software package** (the sidebar `active_package` selector, published as
 `?package=`). Only metadata types that the selected project package
 contributes are listed — system/cloud types never appear, and there is no
@@ -110,7 +110,7 @@ governance page.
 
 ### 2. Resource list rows
 
-`/apps/studio/metadata/<type>` — invalid rows get a red ⚠ icon next to
+`/apps/<app>/metadata/<type>` — invalid rows get a red ⚠ icon next to
 the name and a destructive-tinted background; warning-only rows get an
 amber ⚠ and amber tint. The list header shows aggregate "Invalid N" and
 "Warnings N" chips. Hover the ⚠ for the first three messages.
@@ -128,7 +128,7 @@ scope is owned solely by the sidebar selector.)
 
 ### 3. Resource edit banners
 
-`/apps/studio/metadata/<type>/<name>` — a destructive banner at the top
+`/apps/<app>/metadata/<type>/<name>` — a destructive banner at the top
 of the edit page lists the first three errors with their paths; the
 same errors are also threaded into the form so the offending fields
 get inline messages **without** the user having to click Save first.
@@ -140,7 +140,7 @@ on save.
 
 ### 4. Governance overview page
 
-`/apps/studio/metadata/_diagnostics` — a single sortable table of every
+`/apps/<app>/metadata/_diagnostics` — a single sortable table of every
 invalid item across every type, grouped by type, with deep-links to the
 offending edit page. Toggle the severity tab to include
 warning-only items. This is the page to open during a release readiness
