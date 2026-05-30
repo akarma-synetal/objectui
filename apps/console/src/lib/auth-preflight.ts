@@ -10,25 +10,14 @@
  * which injects `Authorization: Bearer <token>` from
  * `localStorage['auth-session-token']` on every `/api/*` request.
  *
- * The Account SPA (`/_account/*`) uses a separate auth code path
- * (`useClient().auth.login/logout` from `@objectstack/client-react`) that
- * touches cookies but NOT this localStorage key. So when a user:
- *
- *   1. signs in on Account (cookie set, localStorage untouched), then
- *   2. signs out on Account (cookie cleared, localStorage still has the old
- *      token from a previous Console visit), then
- *   3. signs in again as a different user, then
- *   4. visits `/_console/home`
- *
- * the Console's AuthProvider sends the **stale Bearer** to `get-session`,
- * the server prefers Bearer over cookie, returns null, AuthProvider thinks
- * the user is unauthenticated, AuthGuard renders `<AccountLoginRedirect>`,
- * which sends the browser back to `/_account/login` — but Account sees a
- * valid cookie and bounces straight back to `/_console/home`.
- *
- *                        ╔════════════════╗
- *                        ║  LOGIN LOOP    ║
- *                        ╚════════════════╝
+ * Cookie-based sign-in (better-auth sets a session cookie) does NOT touch
+ * this localStorage key. So a stale Bearer can linger: a user signs out,
+ * signs back in as a different user (new cookie), but localStorage still
+ * holds the old token from a previous visit. The Console's AuthProvider
+ * then sends that **stale Bearer** to `get-session`; the server prefers
+ * Bearer over cookie and returns null, so AuthProvider wrongly treats the
+ * user as unauthenticated and bounces them to the login page even though
+ * the cookie session is valid.
  *
  * # What this does
  *

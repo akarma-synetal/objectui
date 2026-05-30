@@ -35,6 +35,7 @@ import {
 } from 'lucide-react';
 import type { MetadataPreviewProps } from '../preview-registry';
 import { PreviewShell, PreviewMessage, PreviewErrorBoundary } from './PreviewShell';
+import { ExternalDatasourcePanel } from '../external/ExternalDatasourcePanel';
 
 const SECRET_RE = /pass|secret|key|token|credential|auth/i;
 
@@ -71,6 +72,14 @@ export function DatasourcePreview({ name, draft }: MetadataPreviewProps) {
   const healthCheck = d.healthCheck as Record<string, unknown> | undefined;
   const readReplicas = Array.isArray(d.readReplicas) ? d.readReplicas : [];
   const capabilities = Array.isArray(d.capabilities) ? (d.capabilities as string[]) : [];
+
+  // External Datasource Federation (ADR-0015): a non-'managed' schemaMode
+  // marks this datasource as federated. The panel keys off the *saved* item
+  // name (`name`) so its REST calls hit a persisted datasource.
+  const schemaMode = (d.schemaMode as string | undefined) ?? 'managed';
+  const isFederated = schemaMode !== 'managed';
+  const external = (d.external as Record<string, unknown> | undefined) ?? undefined;
+  const allowWrites = !!external?.allowWrites;
 
   const configEntries = Object.entries(config);
 
@@ -111,6 +120,17 @@ export function DatasourcePreview({ name, draft }: MetadataPreviewProps) {
               </div>
             </div>
           </div>
+
+          {/* External Datasource Federation surfaces (browse / validate).
+              Keyed off the saved PK (`name`) — an unsaved draft has no
+              persisted datasource for the REST routes to introspect. */}
+          {isFederated && (
+            <ExternalDatasourcePanel
+              datasource={String(name ?? '')}
+              schemaMode={schemaMode}
+              allowWrites={allowWrites}
+            />
+          )}
 
           {/* Connection config */}
           <Section title="Connection" icon={Lock}>

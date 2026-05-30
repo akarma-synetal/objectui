@@ -1,6 +1,15 @@
 /**
  * System Hub Page
  *
+ * @deprecated This hand-written card hub is superseded by the
+ * metadata-driven left-side menu. ObjectStack is a metadata-driven
+ * platform: every administrable surface (objects, metadata types such as
+ * `datasource`) is reached through an app's `navigation[]` (defined in
+ * framework `packages/platform-objects/src/apps/*.app.ts`) and rendered by
+ * the standard `UnifiedSidebar` → `NavigationRenderer`. New admin surfaces
+ * must be added as nav items (`type:'object'` or `type:'component'` with
+ * `componentRef:'metadata:resource'`), NOT as bespoke cards/pages here.
+ *
  * Unified entry point for all system administration functions.
  * Displays card-based overview linking to Apps, Users, Organizations,
  * Roles, Permissions, Audit Log, Profile management pages, and
