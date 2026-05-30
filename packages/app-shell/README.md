@@ -262,6 +262,13 @@ be faithfully modelled is surfaced loudly instead of faked.
 - **Controls** — **Run** (to completion), **Step** (one node), **Reset**, and
   **Continue** (after a pause). Flow `variables` marked `isInput` become a seed
   form; values are auto-typed (`30` → number, `true` → boolean, `{…}` → JSON).
+- **Set variables / Mock outputs** — because a decision often reads a value no
+  declared input produces (e.g. a computed `daysToExpiry`), the panel adds a
+  free-form **Set variables** editor that injects/overrides *any* variable at
+  start, so **every branch is reachable**. A **Mock outputs** editor lets the
+  author pin what each mocked side-effect node "returns" (written to its
+  `outputVariable` / `outputVariables`), so data-dependent logic downstream of a
+  `get_record` or `script` can be exercised too.
 - **Semantics** — `start`/`assignment` pass through; a `decision` routes
   **edge-first** (first truthy outgoing `condition`, else the `isDefault` edge,
   else a surfaced dead-end), evaluating CEL via `@object-ui/core`'s

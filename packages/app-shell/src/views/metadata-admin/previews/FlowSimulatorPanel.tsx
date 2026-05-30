@@ -8,7 +8,7 @@
  */
 
 import * as React from 'react';
-import { Play, StepForward, RotateCcw, ChevronRight, AlertTriangle, CircleAlert } from 'lucide-react';
+import { Play, StepForward, RotateCcw, ChevronRight, AlertTriangle, CircleAlert, Plus, Trash2 } from 'lucide-react';
 import { Button, Input, Label, cn } from '@object-ui/components';
 import { FlowSimulator } from './simulator/flow-simulator';
 import type { FlowValidation, SimEdge, SimNode, SimState, SimStep } from './simulator/flow-sim-types';
@@ -44,6 +44,41 @@ function parseSeed(raw: string): unknown {
   return raw;
 }
 
+/** Node types whose side effects are mocked — authors can pin their output. */
+const MOCKABLE = new Set([
+  'create_record',
+  'update_record',
+  'delete_record',
+  'get_record',
+  'http_request',
+  'connector_action',
+  'script',
+]);
+
+/** A side-effect node the author can supply a mock result for. */
+interface MockableNode {
+  id: string;
+  label: string;
+  type: string;
+  /** Variable name(s) this node writes, for the field hint. */
+  outputs: string[];
+}
+
+function mockableNodes(nodes: SimNode[]): MockableNode[] {
+  const out: MockableNode[] = [];
+  for (const n of nodes) {
+    if (!MOCKABLE.has(n.type)) continue;
+    const cfg = (n.config ?? {}) as Record<string, unknown>;
+    const outputs: string[] = [];
+    if (typeof cfg.outputVariable === 'string' && cfg.outputVariable) outputs.push(cfg.outputVariable);
+    if (Array.isArray(cfg.outputVariables)) {
+      for (const o of cfg.outputVariables) if (typeof o === 'string') outputs.push(o);
+    }
+    out.push({ id: n.id, label: n.label || n.id, type: n.type, outputs });
+  }
+  return out;
+}
+
 const STATUS_TONE: Record<SimStep['status'], string> = {
   ok: 'bg-emerald-100 text-emerald-700',
   mocked: 'bg-violet-100 text-violet-700',
@@ -57,7 +92,13 @@ export function FlowSimulatorPanel({ nodes, edges, variables, onRunStateChange }
   const [snapshot, setSnapshot] = React.useState<SimState | null>(null);
   const [validation, setValidation] = React.useState<FlowValidation | null>(null);
   const inputs = React.useMemo(() => variables.filter((v) => v.isInput), [variables]);
+  const mockNodes = React.useMemo(() => mockableNodes(nodes), [nodes]);
   const [seed, setSeed] = React.useState<Record<string, string>>({});
+  /** Free-form variable overrides so any branch can be exercised (e.g. a
+   * decision that reads a computed value no input declares). */
+  const [scratch, setScratch] = React.useState<{ k: string; v: string }[]>([]);
+  /** Per-node mock outputs, keyed by node id (raw text, parsed on run). */
+  const [mocks, setMocks] = React.useState<Record<string, string>>({});
 
   const sync = React.useCallback(() => {
     const sim = simRef.current;
@@ -85,15 +126,28 @@ export function FlowSimulatorPanel({ nodes, edges, variables, onRunStateChange }
       const parsed = raw != null ? parseSeed(raw) : undefined;
       out[v.name] = parsed !== undefined ? parsed : v.defaultValue;
     }
+    // Scratch overrides win — they let an author drive any branch.
+    for (const row of scratch) {
+      const key = row.k.trim();
+      if (key) out[key] = parseSeed(row.v);
+    }
     return out;
-  }, [inputs, seed]);
+  }, [inputs, seed, scratch]);
+
+  const buildMocks = React.useCallback((): Record<string, unknown> => {
+    const out: Record<string, unknown> = {};
+    for (const [id, raw] of Object.entries(mocks)) {
+      if (raw != null && raw.trim() !== '') out[id] = parseSeed(raw);
+    }
+    return out;
+  }, [mocks]);
 
   const reset = React.useCallback(() => {
     const sim = new FlowSimulator(nodes, edges);
     simRef.current = sim;
-    setValidation(sim.reset(buildSeed(), {}));
+    setValidation(sim.reset(buildSeed(), buildMocks()));
     sync();
-  }, [nodes, edges, buildSeed, sync]);
+  }, [nodes, edges, buildSeed, buildMocks, sync]);
 
   const ensure = React.useCallback(() => {
     if (!simRef.current) reset();
@@ -185,6 +239,74 @@ export function FlowSimulatorPanel({ nodes, edges, variables, onRunStateChange }
           </section>
         )}
 
+        {/* Scratch variables — set/override any variable to drive a branch a
+            declared input cannot reach (e.g. a computed value a decision reads). */}
+        <section className="space-y-1.5">
+          <div className="flex items-center gap-1.5 font-medium text-muted-foreground">
+            <span>Set variables</span>
+            <button
+              type="button"
+              className="ml-auto inline-flex items-center gap-0.5 rounded border px-1.5 py-0.5 text-[10px] hover:bg-muted/50"
+              onClick={() => setScratch((p) => [...p, { k: '', v: '' }])}
+            >
+              <Plus className="h-3 w-3" /> Add
+            </button>
+          </div>
+          {scratch.length === 0 ? (
+            <div className="italic text-muted-foreground">Override or inject any variable (wins over inputs and mocks at start).</div>
+          ) : (
+            scratch.map((row, i) => (
+              <div key={i} className="flex items-center gap-1.5">
+                <Input
+                  value={row.k}
+                  onChange={(e) => setScratch((p) => p.map((r, j) => (j === i ? { ...r, k: e.target.value } : r)))}
+                  placeholder="name"
+                  className="h-7 w-24 shrink-0 font-mono text-[11px]"
+                />
+                <span className="text-muted-foreground">=</span>
+                <Input
+                  value={row.v}
+                  onChange={(e) => setScratch((p) => p.map((r, j) => (j === i ? { ...r, v: e.target.value } : r)))}
+                  placeholder="value"
+                  className="h-7 flex-1 text-xs"
+                />
+                <button
+                  type="button"
+                  className="shrink-0 rounded p-1 text-muted-foreground hover:bg-muted/50 hover:text-rose-600"
+                  onClick={() => setScratch((p) => p.filter((_, j) => j !== i))}
+                  aria-label="Remove variable"
+                >
+                  <Trash2 className="h-3 w-3" />
+                </button>
+              </div>
+            ))
+          )}
+        </section>
+
+        {/* Per-node mock outputs — what each mocked side effect "returns". */}
+        {mockNodes.length > 0 && (
+          <section className="space-y-1.5">
+            <div className="font-medium text-muted-foreground">Mock outputs</div>
+            {mockNodes.map((m) => (
+              <div key={m.id} className="space-y-0.5">
+                <Label className="flex items-baseline gap-1.5 text-[11px]" title={m.id}>
+                  <span className="truncate font-medium">{m.label}</span>
+                  <span className="text-[9px] uppercase text-muted-foreground">{m.type.replace(/_/g, ' ')}</span>
+                  {m.outputs.length > 0 && (
+                    <span className="truncate font-mono text-[10px] text-violet-600">→ {m.outputs.join(', ')}</span>
+                  )}
+                </Label>
+                <Input
+                  value={mocks[m.id] ?? ''}
+                  onChange={(e) => setMocks((p) => ({ ...p, [m.id]: e.target.value }))}
+                  placeholder={m.type === 'script' && m.outputs.length ? `{ "${m.outputs[0]}": … }` : 'mocked result (JSON)'}
+                  className="h-7 w-full font-mono text-[11px]"
+                />
+              </div>
+            ))}
+          </section>
+        )}
+
         {/* Variable watch */}
         {snapshot && (
           <section className="space-y-1.5">
@@ -231,10 +353,13 @@ export function FlowSimulatorPanel({ nodes, edges, variables, onRunStateChange }
                   {s.edges && s.edges.length > 0 && (
                     <ul className="mt-0.5 space-y-0.5">
                       {s.edges.map((ed) => (
-                        <li key={ed.edgeId} className={cn('flex items-center gap-1 font-mono text-[10px]', ed.selected ? 'text-sky-700' : 'text-muted-foreground')}>
-                          <span>{ed.selected ? '▶' : '·'}</span>
-                          <span className="truncate">{ed.isDefault ? 'else' : ed.condition}</span>
-                          <span className="ml-auto">{ed.error ? '⚠' : ed.result ? 'true' : 'false'}</span>
+                        <li key={ed.edgeId} className="space-y-0.5">
+                          <div className={cn('flex items-center gap-1 font-mono text-[10px]', ed.selected ? 'text-sky-700' : 'text-muted-foreground')}>
+                            <span>{ed.selected ? '▶' : '·'}</span>
+                            <span className="truncate">{ed.isDefault ? 'else' : ed.condition}</span>
+                            <span className={cn('ml-auto', ed.error && 'text-rose-600')}>{ed.error ? 'error' : ed.result ? 'true' : 'false'}</span>
+                          </div>
+                          {ed.error && <div className="pl-3 text-[10px] text-rose-600">{ed.error}</div>}
                         </li>
                       ))}
                     </ul>
