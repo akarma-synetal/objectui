@@ -11,6 +11,13 @@
  * object's *other* views are independent ViewItems surfaced by the view
  * switcher (a query), not nested here.
  *
+ * The render path forks on `viewKind`:
+ *   - list-family (grid / kanban / calendar / …) → `object-view`, with the
+ *     draft body injected as a named listView (below);
+ *   - form-family (simple / drawer / …) → `object-form`, with the draft's
+ *     sections mapped onto the form schema (a form view binds a record layout,
+ *     not a list, so the list renderer would just fall back to a bare grid).
+ *
  * A raw single-schema draft (a bare `{ type, … }` with no `config` wrapper,
  * e.g. an ad-hoc preview) is rendered straight through SchemaRenderer.
  */
@@ -37,6 +44,51 @@ function resolveObjectName(
     if (typeof c === 'string' && c) return c;
   }
   return undefined;
+}
+
+// Form layouts that render inline. `drawer` / `modal` render as overlays that
+// need a trigger to open, so the preview coerces them to `simple` — the point
+// of the preview pane is to show the section/field layout, not the chrome.
+const INLINE_FORM_TYPES = new Set(['simple', 'tabbed', 'wizard', 'split']);
+
+// A ViewItem form section uses the spec's `{ field, readonly, … }` shape, but
+// `object-form` selects fields by `name` and reads `readOnly`. Normalize so the
+// section's fields resolve (otherwise every section comes up empty).
+function toFormFieldEntry(f: unknown): string | Record<string, unknown> {
+  if (typeof f === 'string') return f;
+  if (f && typeof f === 'object') {
+    const o = f as Record<string, unknown>;
+    const name = (o.field ?? o.name) as string | undefined;
+    if (!name) return o;
+    return { ...o, name, readOnly: o.readOnly ?? o.readonly };
+  }
+  return String(f);
+}
+
+function buildFormPreviewSchema(
+  objectName: string,
+  body: Record<string, unknown>,
+): Record<string, unknown> {
+  const rawType = typeof body.type === 'string' ? body.type : 'simple';
+  const formType = INLINE_FORM_TYPES.has(rawType) ? rawType : 'simple';
+  const sections = Array.isArray(body.sections)
+    ? (body.sections as any[]).map((s) => ({
+        ...s,
+        fields: Array.isArray(s?.fields) ? s.fields.map(toFormFieldEntry) : [],
+      }))
+    : undefined;
+  return {
+    type: 'object-form',
+    objectName,
+    // A blank create-mode form: the preview shows the layout without needing a
+    // sample record to be selected.
+    mode: 'create',
+    formType,
+    sections,
+    fields: Array.isArray(body.fields) ? body.fields : undefined,
+    showSubmit: false,
+    showCancel: false,
+  };
 }
 
 export function ViewPreview({ name, draft, editing }: MetadataPreviewProps) {
@@ -94,6 +146,25 @@ export function ViewPreview({ name, draft, editing }: MetadataPreviewProps) {
           This view has no object binding yet. Set the bound <code>Object</code> in
           the right panel to fetch live data and field options.
         </PreviewMessage>
+      </PreviewShell>
+    );
+  }
+
+  // -------------------------------------------------------------------------
+  // Form-family view (`viewKind: 'form'`): render the record form layout via
+  // `object-form`. The list renderer (`object-view`) has no form layout, so a
+  // form view routed through it just falls back to a bare grid.
+  // -------------------------------------------------------------------------
+  if ((draft as any).viewKind === 'form' && body) {
+    const rawType = String((body as any).type ?? 'simple');
+    const formSchema = buildFormPreviewSchema(objectName, body as Record<string, unknown>);
+    return (
+      <PreviewShell hint={`view · ${rawType} · form${designMode ? ' · design' : ''}`}>
+        <PreviewErrorBoundary fallbackHint="The form view references an object or field that doesn't resolve.">
+          <div className="min-h-[300px] max-h-[75vh] overflow-auto">
+            <SchemaRenderer schema={formSchema as any} />
+          </div>
+        </PreviewErrorBoundary>
       </PreviewShell>
     );
   }
