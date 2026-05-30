@@ -45,18 +45,16 @@ for (const variant of ['chart', 'bar-chart', 'line-chart', 'pie-chart', 'area-ch
   });
 }
 
-import { registerBuiltinPreviews } from '@object-ui/app-shell/views/metadata-admin/previews';
 import {
   getMetadataPreview,
   listMetadataPreviewTypes,
-} from '@object-ui/app-shell/views/metadata-admin/preview-registry';
-import type { MetadataSelection } from '@object-ui/app-shell/views/metadata-admin/preview-registry';
-import { registerBuiltinInspectors } from '@object-ui/app-shell/views/metadata-admin/inspectors';
-import { getMetadataInspector } from '@object-ui/app-shell/views/metadata-admin/inspector-registry';
+  getMetadataInspector,
+} from '@object-ui/app-shell';
+import type { MetadataSelection } from '@object-ui/app-shell';
 import { SAMPLES } from './preview-samples';
 
-registerBuiltinPreviews();
-registerBuiltinInspectors();
+// Importing the @object-ui/app-shell root registers built-in previews and
+// inspectors as a module side-effect, so no explicit registration is needed.
 
 const ORDER = [
   'object',
@@ -143,7 +141,7 @@ function DesignerCard({ type }: { type: string }) {
                 onClearSelection: () => setSelection(null),
                 onSelectionChange: setSelection,
                 readOnly: false,
-                locale: 'en',
+                locale: 'en-US',
               })}
             </div>
           )}
