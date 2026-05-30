@@ -155,7 +155,16 @@ function DesignerCard({ type }: { type: string }) {
 
 function Gallery() {
   const registered = new Set(listMetadataPreviewTypes());
-  const types = ORDER.filter((t) => registered.has(t));
+  const all = ORDER.filter((t) => registered.has(t));
+  // Dev-harness isolation: `?only=flow` (or `#only=flow`) renders a single
+  // designer full-width so browser automation can interact without the other
+  // stacked designers churning element refs.
+  const only = React.useMemo(() => {
+    const q = new URLSearchParams(window.location.search).get('only');
+    const h = window.location.hash.match(/only=([a-z_]+)/)?.[1];
+    return q ?? h ?? null;
+  }, []);
+  const types = only && all.includes(only) ? [only] : all;
   const [active, setActive] = React.useState(types[0]);
 
   return (
@@ -163,28 +172,31 @@ function Gallery() {
       <header className="sticky top-0 z-20 border-b bg-background/95 px-6 py-3 backdrop-blur">
         <h1 className="text-lg font-semibold tracking-tight">Metadata Designer Gallery</h1>
         <p className="text-xs text-muted-foreground">
-          {types.length} designers · dev harness · {' '}
+          {types.length} designer{types.length === 1 ? '' : 's'} · dev harness
+          {only ? ` · isolated: ${only}` : ''} · {' '}
           <span className="text-muted-foreground/80">
             view/dashboard/report need a live data adapter and degrade to empty states here
           </span>
         </p>
-        <nav className="mt-2 flex flex-wrap gap-1">
-          {types.map((t) => (
-            <a
-              key={t}
-              href={`#designer-${t}`}
-              onClick={() => setActive(t)}
-              className={
-                'rounded px-2 py-0.5 text-[11px] transition-colors ' +
-                (active === t
-                  ? 'bg-primary text-primary-foreground'
-                  : 'bg-muted text-muted-foreground hover:bg-muted/70')
-              }
-            >
-              {t}
-            </a>
-          ))}
-        </nav>
+        {!only && (
+          <nav className="mt-2 flex flex-wrap gap-1">
+            {all.map((t) => (
+              <a
+                key={t}
+                href={`#designer-${t}`}
+                onClick={() => setActive(t)}
+                className={
+                  'rounded px-2 py-0.5 text-[11px] transition-colors ' +
+                  (active === t
+                    ? 'bg-primary text-primary-foreground'
+                    : 'bg-muted text-muted-foreground hover:bg-muted/70')
+                }
+              >
+                {t}
+              </a>
+            ))}
+          </nav>
+        )}
       </header>
       <main className="mx-auto max-w-5xl space-y-10 px-6 py-8">
         {types.map((t) => (

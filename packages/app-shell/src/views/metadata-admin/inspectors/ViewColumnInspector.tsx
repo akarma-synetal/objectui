@@ -24,6 +24,7 @@ import {
   InspectorShell,
   InspectorReorderButtons,
   InspectorTextField,
+  InspectorSelectField,
   InspectorRemoveButton,
   InspectorEmptyState,
   spliceArray,
@@ -31,6 +32,8 @@ import {
 } from './_shared';
 import { SchemaForm } from '../SchemaForm';
 import { getListColumnSchema } from '../view-schema';
+import { useObjectFields } from '../previews/useObjectFields';
+import { FieldsListEditor } from '../previews/FieldsListEditor';
 
 interface ViewColumn {
   // ObjectStack canonical shape
@@ -71,6 +74,15 @@ function hasDetailProps(c: ViewColumn): boolean {
   return Object.keys(c).some((k) => !IDENTITY_KEYS.includes(k));
 }
 
+/** Resolve the object a variant is bound to (drives field loading). */
+function readVariantObject(v: Record<string, unknown> | undefined): string {
+  if (!v) return '';
+  const data = v.data as Record<string, unknown> | undefined;
+  if (data && typeof data.object === 'string') return data.object;
+  if (typeof v.object === 'string') return v.object;
+  return '';
+}
+
 export function ViewColumnInspector({
   selection,
   draft,
@@ -95,6 +107,24 @@ export function ViewColumnInspector({
     : false;
 
   const columnSchema = React.useMemo(() => getListColumnSchema(), []);
+
+  // Load the bound object's field catalog so the column's field key is a
+  // proper picker (dropdown of real fields) instead of a free-text box.
+  const objectName = readVariantObject(variantSchema);
+  const { fields: objectFields } = useObjectFields(objectName || undefined);
+  const currentFieldKey = col ? colFieldKey(col) : '';
+  const fieldOptions = React.useMemo(() => {
+    const opts = objectFields.map((f) => ({
+      value: f.name,
+      label: f.label && f.label !== f.name ? `${f.label} · ${f.name}` : f.name,
+    }));
+    // Keep the current value visible even if it isn't a known object field
+    // (computed / virtual / stale columns).
+    if (currentFieldKey && !opts.some((o) => o.value === currentFieldKey)) {
+      opts.unshift({ value: currentFieldKey, label: `${currentFieldKey} (not in object)` });
+    }
+    return opts;
+  }, [objectFields, currentFieldKey]);
 
   if (!parsed || !col) {
     return (
@@ -181,31 +211,62 @@ export function ViewColumnInspector({
         />
       }
     >
-      <InspectorTextField
-        label={t('engine.inspector.viewColumn.accessorKey', locale)}
-        value={colFieldKey(col)}
-        onCommit={(v) => patchIdentity({ field: v })}
-        disabled={readOnly}
-        mono
-      />
-      <InspectorTextField
-        label={t('engine.inspector.viewColumn.header', locale)}
-        value={colDisplayLabel(col) === colFieldKey(col) ? '' : colDisplayLabel(col)}
-        onCommit={(v) => patchIdentity({ label: v })}
-        disabled={readOnly}
-      />
-
-      {!isStringColumn && columnSchema ? (
-        <div className="border-t pt-3">
-          <SchemaForm
-            schema={columnSchema}
-            value={col as Record<string, unknown>}
-            hiddenFields={IDENTITY_KEYS}
+      {variantSchema && (
+        <div className="pb-1">
+          <FieldsListEditor
+            variantKey={parsed.variant}
+            schema={variantSchema}
+            columns={rawColumns}
+            allStrings={
+              rawColumns.length > 0 &&
+              rawColumns.every((c) => typeof c === 'string')
+            }
+            objectName={objectName || undefined}
+            selectedIndex={parsed.index}
             readOnly={readOnly}
-            onChange={writeDetail}
+            onPatch={onPatch}
+            onSelectionChange={onSelectionChange}
           />
         </div>
-      ) : null}
+      )}
+
+      <div className="border-t pt-3 space-y-3">
+        {fieldOptions.length > 0 ? (
+          <InspectorSelectField
+            label={t('engine.inspector.viewColumn.accessorKey', locale)}
+            value={colFieldKey(col)}
+            options={fieldOptions}
+            onCommit={(v) => patchIdentity({ field: v })}
+            disabled={readOnly}
+          />
+        ) : (
+          <InspectorTextField
+            label={t('engine.inspector.viewColumn.accessorKey', locale)}
+            value={colFieldKey(col)}
+            onCommit={(v) => patchIdentity({ field: v })}
+            disabled={readOnly}
+            mono
+          />
+        )}
+        <InspectorTextField
+          label={t('engine.inspector.viewColumn.header', locale)}
+          value={colDisplayLabel(col) === colFieldKey(col) ? '' : colDisplayLabel(col)}
+          onCommit={(v) => patchIdentity({ label: v })}
+          disabled={readOnly}
+        />
+
+        {!isStringColumn && columnSchema ? (
+          <div className="border-t pt-3">
+            <SchemaForm
+              schema={columnSchema}
+              value={col as Record<string, unknown>}
+              hiddenFields={IDENTITY_KEYS}
+              readOnly={readOnly}
+              onChange={writeDetail}
+            />
+          </div>
+        ) : null}
+      </div>
     </InspectorShell>
   );
 }

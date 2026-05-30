@@ -142,6 +142,126 @@ export function ColumnChip({
   );
 }
 
+/* ───────────────────────── Field list row (vertical) ──────────────────── */
+
+/**
+ * FieldListRow — a full-width, vertically-stacked variant of {@link ColumnChip}
+ * for the right-panel Fields list. Same HTML5 drag-and-drop contract (click to
+ * select, drag the handle to reorder, × to remove) but laid out as a list row
+ * (icon · label · machine name · remove) so it reads like a mainstream
+ * low-code field manager rather than a horizontal toolbar.
+ */
+export function FieldListRow({
+  index,
+  label,
+  fieldName,
+  fieldType,
+  selected,
+  canEdit,
+  dragging,
+  dropBefore,
+  onSelect,
+  onRemove,
+  onDragStart,
+  onDragEnd,
+  onDragOverRow,
+  onDropRow,
+}: {
+  index: number;
+  label: string;
+  fieldName?: string;
+  fieldType: unknown;
+  selected: boolean;
+  canEdit: boolean;
+  dragging: boolean;
+  dropBefore: boolean;
+  onSelect: () => void;
+  onRemove: () => void;
+  onDragStart: () => void;
+  onDragEnd: () => void;
+  onDragOverRow: () => void;
+  onDropRow: () => void;
+}) {
+  return (
+    <div className="relative">
+      {dropBefore && (
+        <span className="pointer-events-none absolute -top-0.5 left-0 right-0 h-0.5 rounded bg-primary" />
+      )}
+      <div
+        role="button"
+        tabIndex={0}
+        draggable={canEdit}
+        aria-pressed={selected}
+        onDragStart={(e) => {
+          if (!canEdit) return;
+          e.dataTransfer.effectAllowed = 'move';
+          e.dataTransfer.setData(DND_MIME, String(index));
+          onDragStart();
+        }}
+        onDragEnd={onDragEnd}
+        onDragOver={(e) => {
+          if (!canEdit || !dragging) return;
+          if (!e.dataTransfer.types.includes(DND_MIME)) return;
+          e.preventDefault();
+          e.dataTransfer.dropEffect = 'move';
+          onDragOverRow();
+        }}
+        onDrop={(e) => {
+          if (!canEdit) return;
+          if (!e.dataTransfer.types.includes(DND_MIME)) return;
+          e.preventDefault();
+          e.stopPropagation();
+          onDropRow();
+        }}
+        onClick={onSelect}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            onSelect();
+          }
+        }}
+        className={
+          'group flex items-center gap-2 rounded-md border bg-card px-2 py-1.5 text-xs transition-colors hover:border-primary/40 ' +
+          (selected ? 'border-primary ring-1 ring-primary ' : 'border-border ') +
+          (canEdit ? 'cursor-grab active:cursor-grabbing' : '')
+        }
+      >
+        {canEdit && (
+          <GripVertical className="h-3.5 w-3.5 shrink-0 text-muted-foreground/40 group-hover:text-muted-foreground" />
+        )}
+        <FieldIcon type={fieldType} />
+        <span className="min-w-0 flex-1 truncate font-medium">{label}</span>
+        {fieldName && fieldName !== label && (
+          <code className="max-w-[7rem] shrink-0 truncate text-[10px] text-muted-foreground">
+            {fieldName}
+          </code>
+        )}
+        {canEdit && (
+          <span
+            role="button"
+            tabIndex={0}
+            aria-label={`Remove ${label}`}
+            onClick={(e) => {
+              e.stopPropagation();
+              onRemove();
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                e.stopPropagation();
+                onRemove();
+              }
+            }}
+            className="inline-flex h-4 w-4 shrink-0 items-center justify-center rounded text-muted-foreground/60 hover:bg-destructive/10 hover:text-destructive"
+          >
+            <X className="h-3 w-3" />
+          </span>
+        )}
+      </div>
+    </div>
+  );
+}
+
 /* ─────────────────────────── Add-field popover ────────────────────────── */
 
 export function AddFieldPopover({

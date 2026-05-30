@@ -197,9 +197,20 @@ export {
   useTypesIndex,
   useGlobalDiagnostics,
   matchesQuery,
+  registerMetadataPreview,
+  getMetadataPreview,
+  listMetadataPreviewTypes,
+  registerMetadataInspector,
+  getMetadataInspector,
+  listMetadataInspectorTypes,
 } from './views/metadata-admin';
 export type {
   MetadataResourceConfig,
   MetadataDomain,
   RichMetadataTypeEntry,
+  MetadataPreview,
+  MetadataPreviewProps,
+  MetadataSelection,
+  MetadataInspector,
+  MetadataInspectorProps,
 } from './views/metadata-admin';

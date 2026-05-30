@@ -15,7 +15,7 @@ import * as React from 'react';
 import { SchemaRenderer } from '@object-ui/react';
 import type { MetadataPreviewProps } from '../preview-registry';
 import { PreviewShell, PreviewErrorBoundary, PreviewMessage } from './PreviewShell';
-import { ViewColumnCanvas } from './ViewColumnCanvas';
+import { ViewVariantTabs } from './ViewVariantTabs';
 
 const VIEW_VARIANT_KEYS = [
   'list',
@@ -60,7 +60,7 @@ function resolveObjectName(draft: Record<string, unknown>, variantSchema?: Recor
   return undefined;
 }
 
-export function ViewPreview({ name, draft, editing, selection, onSelectionChange, onPatch }: MetadataPreviewProps) {
+export function ViewPreview({ name, draft, editing, selection, onSelectionChange }: MetadataPreviewProps) {
   const variants = React.useMemo(() => detectVariants(draft), [draft]);
   const objectName = React.useMemo(
     () => resolveObjectName(draft, variants[0]?.schema),
@@ -68,30 +68,18 @@ export function ViewPreview({ name, draft, editing, selection, onSelectionChange
   );
 
   const designMode = !!(editing && onSelectionChange);
-  const canEdit = designMode && !!onPatch;
 
-  // Build a richer per-variant info struct the canvas can consume.
-  // We compute it from the raw variants so legacy column shapes are
-  // preserved verbatim on round-trip.
+  // Build a richer per-variant info struct the tab strip can consume.
   const canvasVariants = React.useMemo(() => {
-    return variants.map((v) => {
-      const cols = Array.isArray((v.schema as any).columns)
-        ? ((v.schema as any).columns as unknown[])
-        : [];
-      const allStrings = cols.length > 0 && cols.every((c) => typeof c === 'string');
-      return { key: v.key, schema: v.schema, columns: cols, allStrings };
-    });
+    return variants.map((v) => ({ key: v.key }));
   }, [variants]);
 
-  // Render the form-canvas-style designer in design mode (replaces the
-  // legacy per-variant OutlineStrip). Non-design preview still uses
-  // the runtime SchemaRenderer below.
+  // In design mode, a thin variant-tab strip sits above the live grid (only
+  // when there is >1 variant). Column management moved to the right panel's
+  // FieldsListEditor so the preview stays a pure WYSIWYG canvas.
   const canvasNode = designMode ? (
-    <ViewColumnCanvas
-      draft={draft}
+    <ViewVariantTabs
       variants={canvasVariants}
-      objectName={objectName}
-      onPatch={canEdit ? onPatch : undefined}
       selection={selection ?? null}
       onSelectionChange={onSelectionChange}
     />

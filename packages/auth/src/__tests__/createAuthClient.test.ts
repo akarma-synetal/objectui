@@ -154,16 +154,16 @@ describe('createAuthClient', () => {
     expect(result).toBeNull();
   });
 
-  it('forgotPassword sends POST to /forget-password', async () => {
+  it('forgotPassword sends POST to /request-password-reset', async () => {
     const { mockFn, calls } = createMockFetch({
-      '/forget-password': { body: { status: true } },
+      '/request-password-reset': { body: { status: true } },
     });
     const client = createAuthClient({ baseURL: 'http://localhost/api/auth', fetchFn: mockFn });
 
     await client.forgotPassword('test@test.com');
 
     expect(calls).toHaveLength(1);
-    expect(calls[0].url).toContain('/api/auth/forget-password');
+    expect(calls[0].url).toContain('/api/auth/request-password-reset');
     expect(calls[0].method).toBe('POST');
     expect(JSON.parse(calls[0].body!)).toMatchObject({ email: 'test@test.com' });
   });

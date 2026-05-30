@@ -35,6 +35,7 @@ import {
 import type { MetadataDefaultInspectorProps } from '../default-inspector-registry';
 import { SchemaForm } from '../SchemaForm';
 import { useObjectFields } from '../previews/useObjectFields';
+import { FieldsListEditor } from '../previews/FieldsListEditor';
 import {
   getViewForm,
   getListVariantSchema,
@@ -107,6 +108,7 @@ export function ViewVariantInspector({
   onPatch,
   readOnly,
   onClearSelection,
+  onSelectionChange,
 }: ViewVariantInspectorProps) {
   const variant = (draft[variantKey] as Record<string, unknown> | undefined) ?? {};
 
@@ -115,6 +117,12 @@ export function ViewVariantInspector({
     typeof variant.type === 'string' ? (variant.type as string) : 'grid';
   const typeOptions = useTypeOptions(viewType);
   const binding = readObjectBinding(variant);
+
+  const rawColumns: unknown[] = Array.isArray(variant.columns)
+    ? (variant.columns as unknown[])
+    : [];
+  const allStrings =
+    rawColumns.length > 0 && rawColumns.every((c) => typeof c === 'string');
 
   // Load the bound object's field catalog so field-reference config props
   // (groupByField, startDateField, xAxisField, visibleFields, …) render as
@@ -181,6 +189,22 @@ export function ViewVariantInspector({
         disabled={readOnly}
         mono
       />
+
+      {!isFormFamily && (
+        <div className="border-t pt-3">
+          <FieldsListEditor
+            variantKey={variantKey}
+            schema={variant}
+            columns={rawColumns}
+            allStrings={allStrings}
+            objectName={binding.value || undefined}
+            selectedIndex={null}
+            readOnly={readOnly}
+            onPatch={onPatch}
+            onSelectionChange={onSelectionChange}
+          />
+        </div>
+      )}
 
       <div className="border-t pt-3">
         {schema ? (
