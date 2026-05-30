@@ -104,13 +104,27 @@ function isNamedItem(item: unknown): item is { name: string } {
 }
 
 /**
- * Merge `view` metadata (the @objectstack/spec View container, keyed by
- * target object name) into object definitions so that `objectDef.listViews`
+ * Merge `view` metadata into object definitions so that `objectDef.listViews`
  * is populated for the renderer (`@object-ui/plugin-view`) which expects it.
  *
- * Each View has shape `{ list?, form?, listViews?, formViews? }`. We collapse:
- *   - `view.list`      → `listViews[view.list.name || 'default']`
- *   - `view.listViews` → spread into `listViews`
+ * Two view shapes coexist in the `view` metadata type (the backend returns
+ * both for back-compat — see framework `objectql/engine.ts` registration):
+ *
+ *  1. Independent **ViewItem** (ADR-0017, "Object has-many View") — the
+ *     canonical first-class shape, one entry per named view:
+ *       { name: '<object>.<key>', object, viewKind: 'list' | 'form',
+ *         label, isDefault?, config: { type, data, columns, … } }
+ *     `viewKind` is the family discriminant and the view body lives under
+ *     `config`. We route `viewKind: 'list'` items into `listViews` and
+ *     `viewKind: 'form'` items into `formViews` — so FORM-family views never
+ *     surface in the list-view switcher (which only reads `listViews`).
+ *
+ *  2. Legacy aggregated **container** `{ list?, form?, listViews?, formViews? }`
+ *     keyed by the bare object name. Kept for adapters/fixtures that don't
+ *     expand into ViewItems. When an object already has expanded ViewItems the
+ *     container is skipped, since it restates the same views (and keying both
+ *     would list every view twice — once under its short key, once under its
+ *     canonical `<object>.<key>` name).
  *
  * Existing `obj.listViews` / `obj.list_views` win to preserve overrides.
  */
@@ -121,12 +135,47 @@ interface ViewBucket {
   formViews: Record<string, any>;
 }
 
-function mergeViewsIntoObjects(objects: any[], views: any[]): any[] {
+/** A first-class ViewItem carries a `viewKind` discriminant + `object` binding. */
+function isViewItem(view: any): boolean {
+  return !!view && typeof view === 'object' && !!view.viewKind && !!view.object;
+}
+
+export function mergeViewsIntoObjects(objects: any[], views: any[]): any[] {
   if (!objects.length || !views.length) return objects;
   const byObject: Record<string, ViewBucket> = {};
+  // Objects that received expanded ViewItems — their legacy aggregated
+  // container (also present in the `view` list) is superseded and skipped.
+  const hasViewItems = new Set<string>();
   for (const view of views) {
+    if (isViewItem(view)) hasViewItems.add(view.object);
+  }
+  for (const view of views) {
+    // ── New protocol: independent ViewItem ({ name, object, viewKind, config }) ──
+    if (isViewItem(view)) {
+      const bucket = (byObject[view.object] ||= { listViews: {}, formViews: {} });
+      // Canonical `<object>.<key>` name doubles as the view id, so `/view/<name>`
+      // URLs resolve directly against the switcher tab ids.
+      const key = view.name || `${view.object}.${view.viewKind}`;
+      const body = view.config && typeof view.config === 'object' ? view.config : {};
+      // Flatten `config` to the legacy NamedListView/FormView shape the
+      // renderer consumes (type/data/columns/sections at top level); carry the
+      // item-level label/isDefault and stamp `name` so primary-view promotion
+      // (which matches on `list.name`) finds this entry by its listViews key.
+      const entry = { ...body, name: key, label: view.label ?? (body as any).label, isDefault: !!view.isDefault };
+      if (view.viewKind === 'form') {
+        bucket.formViews[key] = entry;
+        if (view.isDefault || !bucket.form) bucket.form = entry;
+      } else {
+        bucket.listViews[key] = entry;
+        if (view.isDefault) bucket.primary = entry;
+      }
+      continue;
+    }
+    // ── Legacy aggregated container ({ list, form, listViews, formViews }) ──
     const objName = view?.name || view?.list?.data?.object || view?.form?.data?.object;
     if (!objName) continue;
+    // Expanded ViewItems supersede the bare container for this object.
+    if (hasViewItems.has(objName)) continue;
     const bucket = (byObject[objName] ||= { listViews: {}, formViews: {} });
     if (view.list) {
       // Preserve the primary list view as `obj.list` per @objectstack/spec
