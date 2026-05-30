@@ -23,6 +23,63 @@ export interface I18nConfig {
     prefix?: string;
     suffix?: string;
   };
+  /**
+   * Warn (once per key) in the dev console when a translation key is missing
+   * and the UI falls back to the key/defaultValue. Helps catch un-translated
+   * static strings while iterating. Defaults to ON outside production builds.
+   *
+   * Convention-key probes from `useObjectLabel` (object/field/view labels that
+   * intentionally fall back to server metadata) are excluded — they are not
+   * real "missing keys", just speculative lookups.
+   */
+  warnMissingKeys?: boolean;
+}
+
+/**
+ * Internal `t()` option flag set by `useObjectLabel` on its convention-key
+ * probes. The missing-key handler skips any lookup carrying this flag, so the
+ * deliberate object/field/view label probes (which usually miss and fall back
+ * to server metadata) never surface as dev warnings. Not part of the public
+ * API — shared between `i18n.ts` and `useObjectLabel.ts` to avoid drift.
+ */
+export const I18N_PROBE_FLAG = '__ouiLabelProbe';
+
+// Module-scoped ambient: this browser-targeted package omits @types/node, but
+// bundlers (Vite/esbuild) statically replace `process.env.NODE_ENV`, so the
+// reference is safe and tree-shakes to a constant in production.
+declare const process: { env: Record<string, string | undefined> } | undefined;
+
+/** True outside production builds (bundlers statically replace this). */
+function isDevEnv(): boolean {
+  return typeof process === 'undefined' || process.env.NODE_ENV !== 'production';
+}
+
+/**
+ * Build a dev-only i18next `missingKeyHandler`. Dedupes by language+key so a
+ * missing string warns once, not on every re-render, and stays silent for the
+ * convention-key probes flagged with {@link I18N_PROBE_FLAG}.
+ */
+function createMissingKeyHandler(): (
+  lngs: readonly string[],
+  ns: string,
+  key: string,
+  fallbackValue: string,
+  updateMissing: boolean,
+  options: Record<string, unknown>,
+) => void {
+  const seen = new Set<string>();
+  return (lngs, _ns, key, fallbackValue, _updateMissing, options) => {
+    if (options && options[I18N_PROBE_FLAG]) return;
+    const lng = Array.isArray(lngs) ? lngs[0] : String(lngs ?? '');
+    const dedupeKey = `${lng}:${key}`;
+    if (seen.has(dedupeKey)) return;
+    seen.add(dedupeKey);
+    const fb = fallbackValue ? `"${fallbackValue}"` : 'the key itself';
+    // eslint-disable-next-line no-console
+    console.warn(
+      `[object-ui i18n] Missing translation for "${key}" (language "${lng}") — falling back to ${fb}.`,
+    );
+  };
 }
 
 /**
@@ -35,6 +92,7 @@ export function createI18n(config: I18nConfig = {}): I18nInstance {
     resources = {},
     detectBrowserLanguage = true,
     interpolation,
+    warnMissingKeys = isDevEnv(),
   } = config;
 
   // Merge built-in locales with user-provided resources
@@ -81,6 +139,10 @@ export function createI18n(config: I18nConfig = {}): I18nInstance {
       ...interpolation,
     },
     returnNull: false,
+    // Dev-only: surface un-translated static keys in the console (deduped,
+    // and silent for useObjectLabel's intentional convention-key probes).
+    saveMissing: warnMissingKeys,
+    missingKeyHandler: warnMissingKeys ? createMissingKeyHandler() : undefined,
     react: {
       useSuspense: false,
     },

@@ -10,9 +10,10 @@
  * apps/console/src/App.tsx for one with custom system routes + CreateApp.
  */
 
-import { Suspense, useEffect, type ReactNode } from 'react';
+import { Suspense, useEffect, useRef, type ReactNode } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { AuthGuard, useAuth } from '@object-ui/auth';
+import { useObjectTranslation } from '@object-ui/i18n';
 import { SchemaRendererProvider } from '@object-ui/react';
 import { createObjectStackUserStateAdapter } from '@object-ui/data-objectstack';
 import { AdapterProvider, useAdapter } from '../providers/AdapterProvider';
@@ -79,12 +80,40 @@ export function ConnectedShell({ children }: { children: ReactNode }) {
 
 function ConnectedShellInner({ children }: { children: ReactNode }) {
   const adapter = useAdapter();
+  const { language } = useObjectTranslation();
+
+  // ── Language switch → relabel without a page refresh (issue #1319) ──
+  //
+  // Static UI strings already flip reactively through react-i18next, and
+  // metadata labels that have a translation key resolve client-side via
+  // `useObjectLabel`. The gap is *server-resolved* labels (object/field/view
+  // labels, action-dialog text) with no client key: renderers fetch those into
+  // local state keyed by object name, so they never re-fetch on a language
+  // change and the UI ends up half-translated until a hard refresh.
+  //
+  // We close the gap in two moves, both keyed off `language`:
+  //   1. Drop the adapter's locale-blind metadata cache (render phase, before
+  //      any child re-fetches) so the next read hits the network. This runs in
+  //      render — not an effect — because the remount below mounts children
+  //      (and their fetch effects) before a parent effect here would fire, so
+  //      an effect-based clear would race and serve the stale entry.
+  //   2. Remount the metadata subtree via `key={language}` so every renderer's
+  //      fetch effect re-runs; combined with the new `Accept-Language` header
+  //      (see `createAuthenticatedFetch`) the refetch comes back in the new
+  //      locale. The adapter — and its live connection — sits above the key and
+  //      is preserved, so this is an in-app relabel, not a reconnect.
+  const lastLanguage = useRef<string | null>(null);
+  if (adapter && lastLanguage.current !== null && lastLanguage.current !== language) {
+    adapter.clearCache?.();
+  }
+  if (adapter) lastLanguage.current = language;
+
   if (!adapter) return <LoadingFallback />;
   // Expose the adapter via SchemaRendererContext so descendant hooks like
   // useDiscovery() (used to gate the global AI chatbot) can resolve it.
   return (
     <SchemaRendererProvider dataSource={adapter}>
-      <MetadataProvider adapter={adapter}>
+      <MetadataProvider key={language} adapter={adapter}>
         <UserStateBridge />
         {children}
       </MetadataProvider>
