@@ -18,29 +18,7 @@ import type { MetadataInspectorProps } from '../inspector-registry';
 import type { MetadataDefaultInspectorProps } from '../default-inspector-registry';
 import { ViewColumnInspector } from './ViewColumnInspector';
 import { ViewVariantInspector } from './ViewVariantInspector';
-
-const VARIANT_KEYS = [
-  'list',
-  'form',
-  'kanban',
-  'calendar',
-  'gantt',
-  'map',
-  'gallery',
-  'timeline',
-  'feed',
-  'detail',
-] as const;
-
-/** Pick the primary variant key from a draft (prefer `list`, else first). */
-function primaryVariantKey(draft: Record<string, unknown>): string {
-  const present = VARIANT_KEYS.filter((k) => {
-    const v = draft[k];
-    return v && typeof v === 'object' && !Array.isArray(v);
-  });
-  if (present.includes('list')) return 'list';
-  return present[0] ?? 'list';
-}
+import { bindingForStoreKey, primaryVariantBinding } from '../view-variant-model';
 
 /** Scoped inspector: a selection is always present here. */
 export function ViewInspector(props: MetadataInspectorProps) {
@@ -49,7 +27,10 @@ export function ViewInspector(props: MetadataInspectorProps) {
     return <ViewColumnInspector {...props} />;
   }
   // kind === 'view' (or any non-column kind) → variant home, scoped.
-  const variantKey = selection.id || primaryVariantKey(props.draft);
+  // `selection.id` carries the variant's STORE key (the tab strip emits it).
+  const binding =
+    bindingForStoreKey(props.draft, selection.id || undefined) ??
+    primaryVariantBinding(props.draft);
   return (
     <ViewVariantInspector
       type={props.type}
@@ -60,7 +41,8 @@ export function ViewInspector(props: MetadataInspectorProps) {
       onClearSelection={props.onClearSelection}
       readOnly={props.readOnly}
       locale={props.locale}
-      variantKey={variantKey}
+      variantKey={binding?.storeKey ?? 'list'}
+      familyKey={binding?.familyKey ?? binding?.storeKey ?? 'list'}
       isHome={false}
     />
   );
@@ -68,10 +50,12 @@ export function ViewInspector(props: MetadataInspectorProps) {
 
 /** Default inspector: no selection — the View's "home" panel. */
 export function ViewDefaultInspector(props: MetadataDefaultInspectorProps) {
+  const binding = primaryVariantBinding(props.draft);
   return (
     <ViewVariantInspector
       {...props}
-      variantKey={primaryVariantKey(props.draft)}
+      variantKey={binding?.storeKey ?? 'list'}
+      familyKey={binding?.familyKey ?? binding?.storeKey ?? 'list'}
       isHome
     />
   );

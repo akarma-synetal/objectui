@@ -28,8 +28,13 @@ export default defineConfig({
     // app's own src/, not packages/components/src.
     projects: [
       // The root config itself is the default project (packages/* + examples/*).
-      './vitest.config.mts',
-      './apps/console/vitest.config.ts',
+      // Absolute paths so the project list resolves the same regardless of the
+      // cwd vitest is launched from. `turbo run test` runs each package's
+      // `vitest run` from that package's directory; with relative entries the
+      // list resolves against e.g. packages/i18n/ and fails to find the (root)
+      // config — a startup error that surfaces only on cold turbo caches.
+      path.resolve(__dirname, './vitest.config.mts'),
+      path.resolve(__dirname, './apps/console/vitest.config.ts'),
     ],
     passWithNoTests: true,
     // Performance: use threads (lighter than forks). Isolation is enabled to

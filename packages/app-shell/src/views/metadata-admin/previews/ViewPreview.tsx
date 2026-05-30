@@ -1,58 +1,37 @@
 // Copyright (c) 2025 ObjectStack. Licensed under the Apache-2.0 license.
 
 /**
- * ViewPreview — renders a View metadata draft using the same
- * `object-view` SchemaRenderer the runtime ObjectView route uses,
- * with the current draft's variants injected as `listViews` so the
- * draft drives what authors see (not the saved version).
+ * ViewPreview — renders a View metadata draft using the same `object-view`
+ * SchemaRenderer the runtime ObjectView route uses, with the draft's own
+ * `config` body injected as a named `listView` so the preview reflects the
+ * unsaved edit (not the last saved version).
  *
- * If the draft is a "single-schema legacy" view (no list/form/kanban
- * wrappers, just one top-level `type`), we pass the schema straight
- * to SchemaRenderer.
+ * A view is the canonical first-class **ViewItem** ({ viewKind, config }):
+ * one view, one `config` body — there are no in-document variant tabs. An
+ * object's *other* views are independent ViewItems surfaced by the view
+ * switcher (a query), not nested here.
+ *
+ * A raw single-schema draft (a bare `{ type, … }` with no `config` wrapper,
+ * e.g. an ad-hoc preview) is rendered straight through SchemaRenderer.
  */
 
 import * as React from 'react';
 import { SchemaRenderer } from '@object-ui/react';
 import type { MetadataPreviewProps } from '../preview-registry';
 import { PreviewShell, PreviewErrorBoundary, PreviewMessage } from './PreviewShell';
-import { ViewVariantTabs } from './ViewVariantTabs';
+import { primaryVariantBinding } from '../view-variant-model';
 
-const VIEW_VARIANT_KEYS = [
-  'list',
-  'form',
-  'kanban',
-  'calendar',
-  'gantt',
-  'map',
-  'gallery',
-  'timeline',
-  'feed',
-  'detail',
-] as const;
-
-type VariantKey = (typeof VIEW_VARIANT_KEYS)[number];
-
-function detectVariants(draft: Record<string, unknown>): Array<{ key: VariantKey; schema: Record<string, unknown> }> {
-  const out: Array<{ key: VariantKey; schema: Record<string, unknown> }> = [];
-  for (const k of VIEW_VARIANT_KEYS) {
-    const v = (draft as any)[k];
-    if (v && typeof v === 'object' && !Array.isArray(v)) {
-      out.push({ key: k, schema: v as Record<string, unknown> });
-    }
-  }
-  return out;
-}
-
-function resolveObjectName(draft: Record<string, unknown>, variantSchema?: Record<string, unknown>): string | undefined {
+function resolveObjectName(
+  draft: Record<string, unknown>,
+  body?: Record<string, unknown>,
+): string | undefined {
   const candidates: any[] = [
-    variantSchema?.object,
-    (variantSchema as any)?.data?.object,
-    (variantSchema as any)?.objectName,
+    body?.object,
+    (body as any)?.data?.object,
+    (body as any)?.objectName,
     (draft as any).object,
     (draft as any).objectName,
     (draft as any).data?.object,
-    (draft as any).list?.data?.object,
-    (draft as any).list?.object,
   ];
   for (const c of candidates) {
     if (typeof c === 'string' && c) return c;
@@ -60,65 +39,46 @@ function resolveObjectName(draft: Record<string, unknown>, variantSchema?: Recor
   return undefined;
 }
 
-export function ViewPreview({ name, draft, editing, selection, onSelectionChange }: MetadataPreviewProps) {
-  const variants = React.useMemo(() => detectVariants(draft), [draft]);
+export function ViewPreview({ name, draft, editing }: MetadataPreviewProps) {
+  // The single ViewItem body (`draft.config`), or undefined for a raw schema.
+  const body = React.useMemo(
+    () => primaryVariantBinding(draft)?.schema,
+    [draft],
+  );
   const objectName = React.useMemo(
-    () => resolveObjectName(draft, variants[0]?.schema),
-    [draft, variants],
+    () => resolveObjectName(draft, body),
+    [draft, body],
   );
 
-  const designMode = !!(editing && onSelectionChange);
+  const designMode = !!editing;
 
-  // Build a richer per-variant info struct the tab strip can consume.
-  const canvasVariants = React.useMemo(() => {
-    return variants.map((v) => ({ key: v.key }));
-  }, [variants]);
-
-  // In design mode, a thin variant-tab strip sits above the live grid (only
-  // when there is >1 variant). Column management moved to the right panel's
-  // FieldsListEditor so the preview stays a pure WYSIWYG canvas.
-  const canvasNode = designMode ? (
-    <ViewVariantTabs
-      variants={canvasVariants}
-      selection={selection ?? null}
-      onSelectionChange={onSelectionChange}
-    />
-  ) : null;
-
-  // Compose the listViews map: the draft IS the "default" — surface it as a
-  // primary named view FIRST so the view switcher picks it as default. Then
-  // append any saved sibling named listViews.
-  const { listViews, defaultViewId } = React.useMemo<{
-    listViews: Record<string, unknown>;
-    defaultViewId: string | undefined;
-  }>(() => {
-    const out: Record<string, unknown> = {};
-    const primaryVariant = variants.find((v) => v.key === 'list') ?? variants[0];
-    const primaryId = String(name) || primaryVariant?.key || 'default';
-    if (primaryVariant) {
-      out[primaryId] = {
-        ...primaryVariant.schema,
-        label: (primaryVariant.schema as any).label ?? (draft as any).label ?? name,
-      };
+  // Surface the draft body as a named listView so the preview renders THIS
+  // view (with unsaved edits) rather than the object's saved default.
+  const { listViews, defaultViewId, defaultViewType } = React.useMemo(() => {
+    if (!body) {
+      return { listViews: {}, defaultViewId: undefined, defaultViewType: 'grid' };
     }
-    const saved = (draft as any).listViews;
-    if (saved && typeof saved === 'object' && !Array.isArray(saved)) {
-      for (const [k, v] of Object.entries(saved)) {
-        if (v && typeof v === 'object' && k !== primaryId) out[k] = v;
-      }
-    }
-    return { listViews: out, defaultViewId: primaryVariant ? primaryId : undefined };
-  }, [draft, variants, name]);
+    const id = String(name) || 'default';
+    return {
+      listViews: {
+        [id]: {
+          ...body,
+          label: (body as any).label ?? (draft as any).label ?? name,
+        },
+      },
+      defaultViewId: id,
+      defaultViewType: ((body as any).type as string) ?? 'grid',
+    };
+  }, [body, draft, name]);
 
   // -------------------------------------------------------------------------
-  // Path A — single-schema legacy view: render directly.
+  // Raw single-schema draft (no ViewItem `config` wrapper): render directly.
   // -------------------------------------------------------------------------
-  if (!variants.length && (draft as any).type) {
+  if (!body && (draft as any).type) {
     const schema = { ...(draft as Record<string, unknown>) };
     return (
       <PreviewShell hint={`view · ${(schema as any).type}${designMode ? ' · design' : ''}`}>
         <PreviewErrorBoundary fallbackHint="The view's `type` may not be registered, or required fields are missing.">
-          {canvasNode}
           <div className="min-h-[300px] max-h-[75vh] overflow-auto">
             <SchemaRenderer schema={schema as any} />
           </div>
@@ -130,22 +90,18 @@ export function ViewPreview({ name, draft, editing, selection, onSelectionChange
   if (!objectName) {
     return (
       <PreviewShell hint={`view${designMode ? ' · design' : ''}`}>
-        {canvasNode}
         <PreviewMessage tone="warn">
-          This view has no object binding yet. Set <code>list.data.object</code> in the Form tab to fetch live data and field options.
+          This view has no object binding yet. Set the bound <code>Object</code> in
+          the right panel to fetch live data and field options.
         </PreviewMessage>
       </PreviewShell>
     );
   }
 
   // -------------------------------------------------------------------------
-  // Path B — multi-variant view: delegate to `object-view`, which is what
-  // the runtime route uses. Inject the draft's listViews so the preview
-  // reflects unsaved edits.
+  // Delegate to `object-view` — the same renderer the runtime route uses —
+  // with the draft body injected so the preview reflects unsaved edits.
   // -------------------------------------------------------------------------
-  const defaultViewType =
-    ((variants[0]?.schema as any)?.type as string) ?? 'grid';
-
   const schema = React.useMemo(
     () => ({
       type: 'object-view',
@@ -162,15 +118,9 @@ export function ViewPreview({ name, draft, editing, selection, onSelectionChange
     [objectName, defaultViewType, defaultViewId, listViews],
   );
 
-  const variantHint = variants
-    .map((v) => v.key)
-    .slice(0, 3)
-    .join(' · ');
-
   return (
-    <PreviewShell hint={`view · ${variantHint || 'list'}${designMode ? ' · design' : ''}`}>
+    <PreviewShell hint={`view · ${defaultViewType}${designMode ? ' · design' : ''}`}>
       <PreviewErrorBoundary fallbackHint="The view references an object or field that doesn't resolve.">
-        {canvasNode}
         <div className="min-h-[300px] max-h-[75vh] overflow-auto">
           <SchemaRenderer schema={schema as any} />
         </div>
