@@ -2,10 +2,9 @@
  * Flow Runs — pick a flow, trigger a test run with sample inputs, and
  * inspect recent run history.
  *
- * Ported from apps/studio's FlowTestRunner + FlowRunsPanel. Console is not
- * project-scoped: there is no useScopedClient and no projectId param. The
- * client comes from `useAdapter().getClient()` (which exposes `.automation`
- * and `.meta`). Studio's `JsonTree` is replaced with a plain `<pre>` block.
+ * Console is not project-scoped: there is no useScopedClient and no projectId
+ * param. The client comes from `useAdapter().getClient()` (which exposes
+ * `.automation` and `.meta`). Run output renders as a plain `<pre>` block.
  */
 
 import { useEffect, useMemo, useState, useCallback } from 'react';

@@ -1,10 +1,10 @@
 /**
  * API Console — REST endpoint debugger with auto-discovery.
  *
- * Ported from apps/studio: console is not project-scoped, so the projectId
- * prop, scope toggle (Project API / System API), and the `Server`/`FolderOpen`
- * icons are dropped. The discovery hook is the console-local copy under
- * `./hooks/useApiDiscovery`. UI primitives come from `@object-ui/components`.
+ * Console is not project-scoped, so there is no projectId prop, no scope
+ * toggle (Project API / System API), and no `Server`/`FolderOpen` icons. The
+ * discovery hook is the console-local copy under `./hooks/useApiDiscovery`.
+ * UI primitives come from `@object-ui/components`.
  */
 
 import { useState, useCallback, useMemo } from 'react';

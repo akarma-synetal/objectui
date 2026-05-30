@@ -3,10 +3,9 @@
  * `sharing.allowAnonymous === true && sharing.publicLink`, and lets devs
  * publish a non-public FormView or tweak sharing / submitBehavior.
  *
- * Ported from apps/studio's `$package.forms.index.tsx`. Console is not
- * project-scoped, so this drops `useParams().package`, the `<Link>` to the
- * legacy metadata editor, and the `useMetadataHmr` polling — refresh is
- * driven by the explicit Refresh button.
+ * Console is not project-scoped, so there is no `useParams().package`, no
+ * `<Link>` to the legacy metadata editor, and no `useMetadataHmr` polling —
+ * refresh is driven by the explicit Refresh button.
  */
 
 import { useEffect, useState } from 'react';

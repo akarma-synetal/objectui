@@ -11,8 +11,8 @@
  * those don't reflect the runtime the SPA is actually attached to (e.g.
  * a tenant ObjectOS runtime pointing at a separate cloud control plane).
  *
- * Mirrors `apps/studio/src/lib/config.ts` but lives in app-shell because
- * the Console SPA in `apps/console` consumes app-shell code.
+ * The runtime-config shape lives in app-shell because the Console SPA in
+ * `apps/console` consumes app-shell code.
  *
  * Server-side: see
  *   cloud/packages/service-cloud/src/multi-environment-plugins.ts

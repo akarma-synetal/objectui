@@ -291,12 +291,13 @@ mapping logic stays consistent across direct and managed usage.
 This package depends on `streamdown`, `shiki`, `mermaid`, and `katex`
 for code/markdown rendering. Together they weigh ~20 MB minified.
 
-In host apps that don't always show the chat panel (e.g. Studio's
+In host apps that don't always show the chat panel (e.g. Console's
 opt-in AI sidebar), import this package via `React.lazy` so the heavy
 chunks only download when the panel actually opens. See
-`apps/studio/src/routes/__root.tsx` for the reference pattern, and
-`apps/studio/vite.config.ts` for the `manualChunks` rules that keep
-the chat-only deps in dedicated, lazy-loadable chunks.
+`packages/app-shell/src/layout/ConsoleFloatingChatbot.tsx` for the
+reference lazy-load pattern, and `apps/console/vite.config.ts` for the
+`manualChunks` rules that keep the chat-only deps in dedicated,
+lazy-loadable chunks.
 
 ## License
 

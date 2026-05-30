@@ -2,8 +2,8 @@
  * useApiDiscovery — fetches the API discovery payload and builds a flat list
  * of REST endpoint definitions grouped by service / metadata type / object.
  *
- * Ported from apps/studio: console is not project-scoped, so this drops the
- * `projectId` parameter and the `/projects/:projectId/...` URL rewriting.
+ * Console is not project-scoped, so there is no `projectId` parameter and no
+ * `/projects/:projectId/...` URL rewriting.
  */
 
 import { useState, useEffect, useCallback } from 'react';
