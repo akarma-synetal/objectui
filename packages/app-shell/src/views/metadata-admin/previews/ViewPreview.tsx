@@ -90,6 +90,7 @@ export function ViewPreview({ name, draft, editing, selection, onSelectionChange
     <ViewColumnCanvas
       draft={draft}
       variants={canvasVariants}
+      objectName={objectName}
       onPatch={canEdit ? onPatch : undefined}
       selection={selection ?? null}
       onSelectionChange={onSelectionChange}
@@ -140,9 +141,10 @@ export function ViewPreview({ name, draft, editing, selection, onSelectionChange
 
   if (!objectName) {
     return (
-      <PreviewShell hint="view">
+      <PreviewShell hint={`view${designMode ? ' · design' : ''}`}>
+        {canvasNode}
         <PreviewMessage tone="warn">
-          This view has no object binding yet. Set <code>list.data.object</code> in the Form tab to fetch live data.
+          This view has no object binding yet. Set <code>list.data.object</code> in the Form tab to fetch live data and field options.
         </PreviewMessage>
       </PreviewShell>
     );

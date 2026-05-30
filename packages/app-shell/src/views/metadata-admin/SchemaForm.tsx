@@ -229,6 +229,45 @@ function inferWidget(
   return undefined;
 }
 
+/**
+ * Detect a field-reference widget by NAME CONVENTION, gated on having an
+ * object field catalog in `widgetContext`. This is what makes every view
+ * type's field-reference config (titleField, groupByField, startDateField,
+ * xAxisField, visibleFields, yAxisFields, …) render as an object-field
+ * picker instead of free text — without hardcoding per-type knowledge.
+ *
+ * Convention (spec props carry no `format:'field'` marker, so name + shape
+ * is the pragmatic signal):
+ *   • SINGLE (`field-ref`): a string prop named `*Field` (or bare `field`),
+ *     excluding enum props (those are real selects).
+ *   • MULTI  (`field-multi`): an array-of-strings prop named `*Fields`
+ *     (or `columns` / `fieldOrder`).
+ */
+function detectFieldRefWidget(
+  name: string,
+  schema: JsonSchema | undefined,
+  widgetContext?: WidgetContext,
+): string | undefined {
+  if (!widgetContext?.objectFields) return undefined;
+  if (Array.isArray(schema?.enum)) return undefined;
+
+  const isStringArray =
+    schema?.type === 'array' &&
+    (schema.items as JsonSchema | undefined)?.type === 'string';
+  if (isStringArray && (/Fields$/.test(name) || name === 'columns' || name === 'fieldOrder')) {
+    return 'field-multi';
+  }
+
+  const isString =
+    schema?.type === 'string' ||
+    (Array.isArray(schema?.anyOf) &&
+      (schema!.anyOf as JsonSchema[]).some((b) => b?.type === 'string'));
+  if (isString && (/.Field$/.test(name) || name === 'field')) {
+    return 'field-ref';
+  }
+  return undefined;
+}
+
 /* -------------------------------------------------------------------------- */
 /* FormView spec (subset)                                                     */
 /* -------------------------------------------------------------------------- */
@@ -639,7 +678,13 @@ function FieldRow({
   const id = `mdf-${name}`;
 
   // Auto-infer widget from fieldSpec.type or schema
-  const widget = inferWidget(fieldSpec, schema);
+  let widget = inferWidget(fieldSpec, schema);
+  // Field-reference props become object-field pickers when a field catalog
+  // is available and the spec didn't pin an explicit widget.
+  if (!fieldSpec?.widget) {
+    const refWidget = detectFieldRefWidget(name, schema, widgetContext);
+    if (refWidget) widget = refWidget;
+  }
 
   // Booleans with a schema default are never *missing* — don't show the
   // required asterisk (which would otherwise lie about user obligation).

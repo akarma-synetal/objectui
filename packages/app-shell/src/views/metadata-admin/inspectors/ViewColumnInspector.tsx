@@ -5,9 +5,16 @@
  *
  * Selection shape:  { kind: 'column', id: '<variant>.columns[<i>]' }
  *
- * Example: `list.columns[2]`. The `variant` key is one of the known
- * View variant keys (list/form/kanban/…). Patches splice
- * `draft[variant].columns[i]` immutably.
+ * SPEC-DRIVEN: the column's detail properties (width / align / pinned /
+ * summary / sortable / …) are rendered from the spec's `ListColumn`
+ * JSONSchema via the generic {@link SchemaForm}, NOT a hardcoded field
+ * list. New ListColumn props in `@objectstack/spec` appear automatically.
+ *
+ * A thin curated layer stays on top for the column IDENTITY (field key +
+ * label) because those round-trip through two shapes: the ObjectStack
+ * canonical `{ field, label }` and the legacy TanStack `{ accessorKey,
+ * header }`. A column that is a bare string (e.g. a kanban card field) is
+ * kept as a string until the author edits a detail prop.
  */
 
 import * as React from 'react';
@@ -17,14 +24,13 @@ import {
   InspectorShell,
   InspectorReorderButtons,
   InspectorTextField,
-  InspectorNumberField,
-  InspectorSelectField,
-  InspectorCheckboxField,
   InspectorRemoveButton,
   InspectorEmptyState,
   spliceArray,
   moveArray,
 } from './_shared';
+import { SchemaForm } from '../SchemaForm';
+import { getListColumnSchema } from '../view-schema';
 
 interface ViewColumn {
   // ObjectStack canonical shape
@@ -33,18 +39,11 @@ interface ViewColumn {
   // TanStack-style shape (legacy/imported tables)
   accessorKey?: string;
   header?: string;
-  width?: string | number;
-  align?: 'left' | 'center' | 'right';
-  sortable?: boolean;
-  filterable?: boolean;
   [k: string]: unknown;
 }
 
-const ALIGN = [
-  { value: 'left', label: 'left' },
-  { value: 'center', label: 'center' },
-  { value: 'right', label: 'right' },
-];
+/** Identity keys owned by the curated layer — hidden from the spec form. */
+const IDENTITY_KEYS = ['field', 'label', 'accessorKey', 'header'];
 
 function parseId(id: string): { variant: string; index: number } | null {
   const m = /^([a-zA-Z_][\w]*)\.columns\[(\d+)\]$/.exec(id);
@@ -67,42 +66,64 @@ function colDisplayLabel(c: ViewColumn): string {
   return c.label ?? c.header ?? colFieldKey(c);
 }
 
-export function ViewColumnInspector({ selection, draft, onPatch, onClearSelection, onSelectionChange, locale, readOnly }: MetadataInspectorProps) {
+/** Does the object carry any detail prop beyond its identity keys? */
+function hasDetailProps(c: ViewColumn): boolean {
+  return Object.keys(c).some((k) => !IDENTITY_KEYS.includes(k));
+}
+
+export function ViewColumnInspector({
+  selection,
+  draft,
+  onPatch,
+  onClearSelection,
+  onSelectionChange,
+  locale,
+  readOnly,
+}: MetadataInspectorProps) {
   const parsed = parseId(selection.id);
-  const variantSchema = parsed ? ((draft as any)[parsed.variant] as Record<string, unknown> | undefined) : undefined;
-  const rawColumns: unknown[] = parsed && Array.isArray(variantSchema?.columns) ? (variantSchema!.columns as unknown[]) : [];
+  const variantSchema = parsed
+    ? ((draft as any)[parsed.variant] as Record<string, unknown> | undefined)
+    : undefined;
+  const rawColumns: unknown[] =
+    parsed && Array.isArray(variantSchema?.columns)
+      ? (variantSchema!.columns as unknown[])
+      : [];
   const columns: ViewColumn[] = rawColumns.map(readColumn);
   const col = parsed ? columns[parsed.index] ?? null : null;
-  // Track whether the source array stored a string at this position, so
-  // edits round-trip in the same shape rather than silently upgrading it.
-  const isStringColumn = parsed ? typeof rawColumns[parsed.index] === 'string' : false;
+  const isStringColumn = parsed
+    ? typeof rawColumns[parsed.index] === 'string'
+    : false;
+
+  const columnSchema = React.useMemo(() => getListColumnSchema(), []);
 
   if (!parsed || !col) {
     return (
-      <InspectorShell kindLabel={t('engine.inspector.viewColumn.kind', locale)} title={selection.label ?? selection.id} onClose={onClearSelection} closeLabel={t('engine.inspector.viewColumn.close', locale)}>
+      <InspectorShell
+        kindLabel={t('engine.inspector.viewColumn.kind', locale)}
+        title={selection.label ?? selection.id}
+        onClose={onClearSelection}
+        closeLabel={t('engine.inspector.viewColumn.close', locale)}
+      >
         <InspectorEmptyState message={selection.id} />
       </InspectorShell>
     );
   }
 
+  /** Write the column array back, preserving string shape when lossless. */
   const writeColumns = (next: ViewColumn[]) => {
-    // Preserve string-shape entries: a column that was originally a
-    // string stays a string if only its field key changed (lossless),
-    // otherwise it gets promoted to an object.
     const serialized = next.map((c, i) => {
       const wasString = typeof rawColumns[i] === 'string';
       const fieldKey = colFieldKey(c);
-      const onlyHasField =
-        !c.label && !c.header && c.width == null && c.align == null && c.sortable == null && c.filterable == null;
-      if (wasString && onlyHasField && fieldKey) return fieldKey;
+      if (wasString && !hasDetailProps(c) && !c.label && !c.header && fieldKey) {
+        return fieldKey;
+      }
       return c;
     });
     onPatch({ [parsed.variant]: { ...variantSchema, columns: serialized } });
   };
 
-  const patch = (updates: Partial<ViewColumn>) => {
-    // Write back to whichever shape the original column used so we don't
-    // create duplicate keys (header AND label, accessorKey AND field).
+  /** Patch identity (field/label) honouring whichever shape is in use. */
+  const patchIdentity = (updates: Partial<ViewColumn>) => {
     const targetField = 'field' in col || !('accessorKey' in col) ? 'field' : 'accessorKey';
     const targetLabel = 'label' in col || !('header' in col) ? 'label' : 'header';
     const remapped: Partial<ViewColumn> = { ...updates };
@@ -114,25 +135,27 @@ export function ViewColumnInspector({ selection, draft, onPatch, onClearSelectio
       remapped[targetLabel] = updates.label;
       if (targetLabel !== 'label') delete remapped.label;
     }
-    const newCols = spliceArray(columns, parsed.index, { ...col, ...remapped });
-    writeColumns(newCols);
+    writeColumns(spliceArray(columns, parsed.index, { ...col, ...remapped }));
   };
+
+  /** Whole-column write from the spec detail form. */
+  const writeDetail = (next: Record<string, unknown>) => {
+    writeColumns(spliceArray(columns, parsed.index, next as ViewColumn));
+  };
+
   const remove = () => {
-    const newCols = spliceArray(columns, parsed.index, null);
-    writeColumns(newCols);
+    writeColumns(spliceArray(columns, parsed.index, null));
     onClearSelection();
   };
+
   const move = (to: number) => {
-    const newCols = moveArray(columns, parsed.index, to);
-    writeColumns(newCols);
+    writeColumns(moveArray(columns, parsed.index, to));
     onSelectionChange?.({
       kind: 'column',
       id: `${parsed.variant}.columns[${to}]`,
       label: colDisplayLabel(col) || `columns[${to}]`,
     });
   };
-
-  const widthNumber = typeof col.width === 'number' ? col.width : (typeof col.width === 'string' ? Number(col.width.replace(/[^\d.]/g, '')) || undefined : undefined);
 
   return (
     <InspectorShell
@@ -150,18 +173,39 @@ export function ViewColumnInspector({ selection, draft, onPatch, onClearSelectio
           disabled={readOnly}
         />
       }
-      footer={<InspectorRemoveButton label={t('engine.inspector.viewColumn.remove', locale)} onClick={remove} disabled={readOnly} />}
+      footer={
+        <InspectorRemoveButton
+          label={t('engine.inspector.viewColumn.remove', locale)}
+          onClick={remove}
+          disabled={readOnly}
+        />
+      }
     >
-      <InspectorTextField label={t('engine.inspector.viewColumn.accessorKey', locale)} value={colFieldKey(col)} onCommit={(v) => patch({ field: v })} disabled={readOnly} mono />
-      <InspectorTextField label={t('engine.inspector.viewColumn.header', locale)} value={colDisplayLabel(col) === colFieldKey(col) ? '' : colDisplayLabel(col)} onCommit={(v) => patch({ label: v })} disabled={readOnly} />
-      {!isStringColumn && (
-        <>
-          <InspectorNumberField label={t('engine.inspector.viewColumn.width', locale)} value={widthNumber} onCommit={(v) => patch({ width: v })} disabled={readOnly} />
-          <InspectorSelectField label={t('engine.inspector.viewColumn.align', locale)} value={col.align} options={ALIGN} onCommit={(v) => patch({ align: v as ViewColumn['align'] })} disabled={readOnly} />
-          <InspectorCheckboxField label={t('engine.inspector.viewColumn.sortable', locale)} value={col.sortable !== false} onCommit={(v) => patch({ sortable: v })} disabled={readOnly} />
-          <InspectorCheckboxField label={t('engine.inspector.viewColumn.filterable', locale)} value={col.filterable !== false} onCommit={(v) => patch({ filterable: v })} disabled={readOnly} />
-        </>
-      )}
+      <InspectorTextField
+        label={t('engine.inspector.viewColumn.accessorKey', locale)}
+        value={colFieldKey(col)}
+        onCommit={(v) => patchIdentity({ field: v })}
+        disabled={readOnly}
+        mono
+      />
+      <InspectorTextField
+        label={t('engine.inspector.viewColumn.header', locale)}
+        value={colDisplayLabel(col) === colFieldKey(col) ? '' : colDisplayLabel(col)}
+        onCommit={(v) => patchIdentity({ label: v })}
+        disabled={readOnly}
+      />
+
+      {!isStringColumn && columnSchema ? (
+        <div className="border-t pt-3">
+          <SchemaForm
+            schema={columnSchema}
+            value={col as Record<string, unknown>}
+            hiddenFields={IDENTITY_KEYS}
+            readOnly={readOnly}
+            onChange={writeDetail}
+          />
+        </div>
+      ) : null}
     </InspectorShell>
   );
 }

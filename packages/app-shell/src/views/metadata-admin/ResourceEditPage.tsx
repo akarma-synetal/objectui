@@ -96,6 +96,7 @@ import { HistoryPanel } from './ResourceHistoryPage';
 import { AuditPanel } from './AuditPanel';
 import { getMetadataPreview, type MetadataSelection } from './preview-registry';
 import { getMetadataInspector } from './inspector-registry';
+import { getMetadataDefaultInspector } from './default-inspector-registry';
 import { detectLocale, t, tFormat } from './i18n';
 import { JsonSourceEditor } from './JsonSourceEditor';
 import { validateMetadataDraft, hasClientValidator } from './clientValidation';
@@ -1061,6 +1062,10 @@ function MetadataResourceEditPageImpl({
   // `registerMetadataInspector()` so a type can opt in independently
   // of having a Preview, and so plugins can swap implementations.
   const InspectorComponent = getMetadataInspector(type);
+  // Optional "home" inspector shown when there is NO selection, replacing
+  // the generic whole-draft SchemaForm with a curated panel (e.g. the View
+  // type + fields manager). Falls back to SchemaForm when unregistered.
+  const DefaultInspectorComponent = getMetadataDefaultInspector(type);
 
   // Cancel edits: revert the draft to the last saved snapshot and exit
   // edit mode. Safe to call even with no snapshot (no-op).
@@ -1806,6 +1811,21 @@ function MetadataResourceEditPageImpl({
                               }))
                             }
                             onClearSelection={() => setSelection(null)}
+                            onSelectionChange={setSelection}
+                            readOnly={formReadOnly}
+                            locale={locale}
+                          />
+                        ) : !selection && DefaultInspectorComponent ? (
+                          <DefaultInspectorComponent
+                            type={type}
+                            name={name}
+                            draft={draft}
+                            onPatch={(patch) =>
+                              handleDraftChange((d) => ({
+                                ...(d as Record<string, unknown>),
+                                ...patch,
+                              }))
+                            }
                             onSelectionChange={setSelection}
                             readOnly={formReadOnly}
                             locale={locale}

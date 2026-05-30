@@ -44,12 +44,14 @@
     "@object-ui/providers": "workspace:*",
     "@object-ui/react": "workspace:*",
     "@object-ui/types": "workspace:*",
+    "@objectstack/spec": "^7.2.1",
     "@monaco-editor/react": "^4.7.0",
     "@sentry/react": "^10.53.1",
     "jsonc-parser": "^3.3.1",
     "lucide-react": "^1.16.0",
     "qrcode": "^1.5.4",
-    "sonner": "^2.0.7"
+    "sonner": "^2.0.7",
+    "zod": "^4.4.3"
   },
   "peerDependencies": {
     "@object-ui/plugin-calendar": "workspace:^",

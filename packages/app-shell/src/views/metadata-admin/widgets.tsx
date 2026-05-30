@@ -37,6 +37,15 @@ export interface WidgetContext {
   objectNames?: string[];
   /** Loading flag for the object list. */
   objectsLoading?: boolean;
+  /**
+   * Field catalog of the bound object. Drives the `field-ref` /
+   * `field-multi` pickers so View config props that reference a field
+   * (kanban.groupByField, calendar.startDateField, chart.xAxisField, …)
+   * render as dropdowns of the object's real fields instead of free text.
+   */
+  objectFields?: Array<{ name: string; label?: string; type?: string }>;
+  /** Loading flag for the field catalog. */
+  objectFieldsLoading?: boolean;
 }
 
 export interface WidgetProps {
@@ -649,6 +658,163 @@ function StringTagsWidget({
 
 
 /* -------------------------------------------------------------------------- */
+/* field-ref / field-multi — pick object field(s) from the bound object       */
+/* -------------------------------------------------------------------------- */
+
+const NO_FIELD = '__none__';
+
+/**
+ * Single object-field picker. Used for View config props that reference one
+ * field by name (titleField, groupByField, startDateField, colorField,
+ * xAxisField, …). Field list comes from `context.objectFields`; a value not
+ * present in the catalog is still shown so stale/custom values survive.
+ */
+function FieldRefWidget({ id, value, onChange, readOnly, context }: WidgetProps) {
+  const fields = context?.objectFields ?? [];
+  const current = value == null ? '' : String(value);
+  const inCatalog = !current || fields.some((f) => f.name === current);
+  return (
+    <Select
+      value={current || NO_FIELD}
+      onValueChange={(v) => onChange(v === NO_FIELD ? '' : v)}
+      disabled={readOnly}
+    >
+      <SelectTrigger id={id}>
+        <SelectValue placeholder={fields.length ? 'Select field…' : 'No object bound'} />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value={NO_FIELD}>
+          <span className="text-muted-foreground">— None —</span>
+        </SelectItem>
+        {!inCatalog && current && (
+          <SelectItem value={current}>
+            <span className="font-mono">{current}</span>
+            <span className="ml-2 text-xs text-muted-foreground">(not in object)</span>
+          </SelectItem>
+        )}
+        {fields.map((f) => (
+          <SelectItem key={f.name} value={f.name}>
+            <span className="flex items-center gap-2">
+              <span>{f.label || f.name}</span>
+              <code className="text-xs text-muted-foreground">{f.name}</code>
+            </span>
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
+}
+
+/**
+ * Ordered multi object-field picker. Used for props that reference a list of
+ * fields (kanban card `columns`, gallery `visibleFields`, chart
+ * `yAxisFields`, `searchableFields`, …). Preserves order; supports reorder
+ * and removal; values outside the catalog are retained.
+ */
+function FieldRefMultiWidget({ id, value, onChange, readOnly, context }: WidgetProps) {
+  const fields = context?.objectFields ?? [];
+  const selected: string[] = Array.isArray(value)
+    ? value.map(String)
+    : typeof value === 'string' && value
+      ? value.split(',').map((s) => s.trim()).filter(Boolean)
+      : [];
+  const labelFor = (name: string) => fields.find((f) => f.name === name)?.label || name;
+  const remaining = fields.filter((f) => !selected.includes(f.name));
+
+  const add = (name: string) => {
+    if (!selected.includes(name)) onChange([...selected, name]);
+  };
+  const removeAt = (i: number) => {
+    const next = selected.slice();
+    next.splice(i, 1);
+    onChange(next);
+  };
+  const move = (i: number, dir: -1 | 1) => {
+    const j = i + dir;
+    if (j < 0 || j >= selected.length) return;
+    const next = selected.slice();
+    [next[i], next[j]] = [next[j], next[i]];
+    onChange(next);
+  };
+
+  return (
+    <div className="space-y-2">
+      {selected.length > 0 && (
+        <div className="space-y-1">
+          {selected.map((name, i) => (
+            <div
+              key={name}
+              className="flex items-center gap-1 rounded border border-input bg-background px-2 py-1 text-sm"
+            >
+              <span className="flex-1 truncate">
+                {labelFor(name)}
+                <code className="ml-2 text-xs text-muted-foreground">{name}</code>
+              </span>
+              {!readOnly && (
+                <>
+                  <button
+                    type="button"
+                    aria-label="Move up"
+                    disabled={i === 0}
+                    onClick={() => move(i, -1)}
+                    className="px-1 text-muted-foreground hover:text-foreground disabled:opacity-30"
+                  >
+                    ↑
+                  </button>
+                  <button
+                    type="button"
+                    aria-label="Move down"
+                    disabled={i === selected.length - 1}
+                    onClick={() => move(i, 1)}
+                    className="px-1 text-muted-foreground hover:text-foreground disabled:opacity-30"
+                  >
+                    ↓
+                  </button>
+                  <button
+                    type="button"
+                    aria-label={`Remove ${name}`}
+                    onClick={() => removeAt(i)}
+                    className="px-1 text-muted-foreground hover:text-destructive"
+                  >
+                    ×
+                  </button>
+                </>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+      {!readOnly && (
+        <Select value="" onValueChange={add} disabled={remaining.length === 0}>
+          <SelectTrigger id={id}>
+            <SelectValue
+              placeholder={
+                fields.length
+                  ? remaining.length
+                    ? 'Add field…'
+                    : 'All fields added'
+                  : 'No object bound'
+              }
+            />
+          </SelectTrigger>
+          <SelectContent>
+            {remaining.map((f) => (
+              <SelectItem key={f.name} value={f.name}>
+                <span className="flex items-center gap-2">
+                  <span>{f.label || f.name}</span>
+                  <code className="text-xs text-muted-foreground">{f.name}</code>
+                </span>
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      )}
+    </div>
+  );
+}
+
+
+/* -------------------------------------------------------------------------- */
 /* registry                                                                   */
 /* -------------------------------------------------------------------------- */
 
@@ -663,6 +829,8 @@ export const WIDGETS: Record<string, WidgetRenderer> = {
   'ref:object': RefObjectWidget,
   'object-selector': ObjectSelectorWidget,
   'field-selector': FieldSelectorWidget,
+  'field-ref': FieldRefWidget,
+  'field-multi': FieldRefMultiWidget,
   'master-detail': MasterDetailWidget,
   'string-tags': StringTagsWidget,
   'code': CodeWidget,

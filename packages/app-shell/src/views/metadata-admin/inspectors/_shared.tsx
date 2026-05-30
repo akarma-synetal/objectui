@@ -36,9 +36,15 @@ export interface InspectorShellProps {
    * Use {@link InspectorReorderButtons} for the standard ↑/↓ pair.
    */
   headerActions?: React.ReactNode;
+  /**
+   * Hide the close (×) button. Used by "home" inspectors that have no
+   * better state to fall back to (e.g. the View inspector is the default
+   * right-panel for a view, so closing it would just re-open it).
+   */
+  hideClose?: boolean;
 }
 
-export function InspectorShell({ kindLabel, title, onClose, closeLabel = 'Close', children, footer, headerActions }: InspectorShellProps) {
+export function InspectorShell({ kindLabel, title, onClose, closeLabel = 'Close', children, footer, headerActions, hideClose }: InspectorShellProps) {
   return (
     <div className="flex h-full flex-col">
       <div className="flex items-start justify-between gap-2 border-b px-4 py-2.5">
@@ -48,9 +54,11 @@ export function InspectorShell({ kindLabel, title, onClose, closeLabel = 'Close'
         </div>
         <div className="flex items-center gap-1 shrink-0">
           {headerActions}
-          <Button variant="ghost" size="sm" onClick={onClose} aria-label={closeLabel} className="h-7 w-7 p-0">
-            <X className="h-4 w-4" />
-          </Button>
+          {!hideClose && (
+            <Button variant="ghost" size="sm" onClick={onClose} aria-label={closeLabel} className="h-7 w-7 p-0">
+              <X className="h-4 w-4" />
+            </Button>
+          )}
         </div>
       </div>
       <div className="flex-1 overflow-auto px-4 py-3 space-y-3">{children}</div>
