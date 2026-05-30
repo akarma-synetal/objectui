@@ -249,7 +249,7 @@ export { useObjectChat } from './useObjectChat';
 export type { UseObjectChatOptions, UseObjectChatReturn } from './useObjectChat';
 
 // Export the agent catalog hook (talks to @objectstack/service-ai)
-export { useAgents } from './useAgents';
+export { useAgents, resolveDefaultAgentName, PLATFORM_DEFAULT_AGENT } from './useAgents';
 export type {
   UseAgentsOptions,
   UseAgentsReturn,
@@ -282,6 +282,7 @@ export type {
   ChatMessage as ChatbotEnhancedMessage,
   ChatToolInvocation as ChatbotEnhancedToolInvocation,
   ChatSource as ChatbotEnhancedSource,
+  ChatbotLabels,
   ToolDecisionState,
 } from './ChatbotEnhanced';
 

@@ -120,7 +120,13 @@ export function ConsoleLayout({
           stub FAB is dependency-free; the heavy chat bundle only loads
           on first interaction. */}
       {showChatbot && (
-        <ConsoleChatbotFab appLabel={appLabel} objects={objects} userId={userId} />
+        <ConsoleChatbotFab
+          appLabel={appLabel}
+          appName={activeAppName}
+          defaultAgent={activeApp?.defaultAgent}
+          objects={objects}
+          userId={userId}
+        />
       )}
     </AppShell>
     </MobileViewSwitcherProvider>

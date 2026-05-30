@@ -16,6 +16,7 @@ import {
   useObjectChat,
   useAgents,
   useHitlInChat,
+  resolveDefaultAgentName,
   type ChatMessage,
   type AgentDescriptor,
 } from '@object-ui/plugin-chatbot';
@@ -28,8 +29,95 @@ import {
   Button,
   ShareDialog,
 } from '@object-ui/components';
-import { Share2 } from 'lucide-react';
+import { Share2, SquarePen } from 'lucide-react';
+import { useObjectTranslation } from '@object-ui/i18n';
 import { useChatConversation, type HydratedUIMessage } from '../hooks';
+
+/**
+ * Display names for the built-in platform agents. The backend ships English
+ * labels ("Data Assistant" / "Metadata Assistant"); we localize the known
+ * ones here so the whole surface reads natively. Custom app agents fall back
+ * to whatever label the backend provides.
+ */
+const PLATFORM_AGENT_LABELS: Record<string, { zh: string; en: string }> = {
+  data_chat: { zh: '数据助手', en: 'Data Assistant' },
+  metadata_assistant: { zh: '元数据开发助手', en: 'Metadata Assistant' },
+};
+
+function localizeAgentLabel(
+  isZh: boolean,
+  agentName: string | undefined,
+  fallbackLabel: string,
+): string {
+  const known = agentName ? PLATFORM_AGENT_LABELS[agentName] : undefined;
+  if (known) return isZh ? known.zh : known.en;
+  return fallbackLabel;
+}
+
+/**
+ * Localized UI strings + starter prompts for the floating assistant.
+ * Keeps the chat surface in the user's language and gives non-expert users
+ * concrete things to click instead of a blank input — the modern AI pattern.
+ */
+function buildChatLocale(
+  language: string | undefined,
+  appLabel: string,
+  agentName: string | undefined,
+  fallbackAgentLabel: string,
+  objects: ConsoleObject[],
+) {
+  const isZh = (language ?? '').toLowerCase().startsWith('zh');
+  const agentLabel = localizeAgentLabel(isZh, agentName, fallbackAgentLabel);
+  const sampleObjects = objects.slice(0, 2).map((o) => o.label || o.name);
+
+  if (isZh) {
+    const suggestions = [
+      sampleObjects[0] ? `查询最近创建的${sampleObjects[0]}` : '帮我查询最近的数据',
+      sampleObjects[0] ? `统计${sampleObjects[0]}的总数量` : '统计各对象的记录数量',
+      sampleObjects[1]
+        ? `${sampleObjects[1]}有哪些字段？`
+        : '当前应用里有哪些数据对象？',
+    ].filter(Boolean);
+    return {
+      agentLabel,
+      labels: {
+        emptyTitle: `你好，我是${agentLabel}`,
+        emptyDescription: `随时帮你查询和分析「${appLabel}」中的数据。试试下面的问题，或直接输入你的需求。`,
+        clear: '清空对话',
+        sendHint: '发送',
+      },
+      placeholder: `向${agentLabel}提问…`,
+      loadingPlaceholder: '正在加载助手…',
+      title: `${appLabel} 智能助手`,
+      newChat: '开启新对话',
+      share: '分享对话',
+      suggestions,
+    };
+  }
+
+  const suggestions = [
+    sampleObjects[0] ? `Show the latest ${sampleObjects[0]}` : 'Show my most recent records',
+    sampleObjects[0] ? `How many ${sampleObjects[0]} are there?` : 'Count records by status',
+    sampleObjects[1]
+      ? `What fields does ${sampleObjects[1]} have?`
+      : 'What data can I work with here?',
+  ].filter(Boolean);
+  return {
+    agentLabel,
+    labels: {
+      emptyTitle: `Hi, I'm ${agentLabel}`,
+      emptyDescription: `I can help you query and analyze your ${appLabel} data. Try a prompt below, or just type your question.`,
+      clear: 'Clear',
+      sendHint: 'to send',
+    },
+    placeholder: `Ask ${agentLabel}...`,
+    loadingPlaceholder: 'Loading assistant...',
+    title: `${appLabel} Assistant`,
+    newChat: 'New chat',
+    share: 'Share conversation',
+    suggestions,
+  };
+}
 
 interface ConsoleObject {
   name: string;
@@ -38,14 +126,31 @@ interface ConsoleObject {
 
 export interface ConsoleFloatingChatbotProps {
   appLabel: string;
+  /**
+   * Machine name of the active app (e.g. "studio", "crm"). Forwarded as
+   * `context.appName` so the backend can scope skills/resolution to the
+   * current application surface.
+   */
+  appName?: string;
   objects: ConsoleObject[];
   /**
    * Base URL of the AI service. Defaults to `${VITE_SERVER_URL}/api/v1/ai`
    * (or the relative `/api/v1/ai` when no server URL is configured).
    */
   apiBase?: string;
-  /** Default agent name to select on first render. */
+  /**
+   * Agent the app is bound to (`app.defaultAgent`). When set, the chatbot
+   * opens straight onto this agent — Studio → `metadata_assistant`, every
+   * other app falls through to the platform data-query agent (`data_chat`).
+   */
   defaultAgent?: string;
+  /**
+   * Show the in-header agent switcher. Off by default: end users get the
+   * single agent bound to their app and never have to choose. Enable for
+   * power users / admins (or via `VITE_AI_SHOW_AGENT_PICKER`) when a
+   * surface genuinely exposes multiple agents.
+   */
+  showAgentPicker?: boolean;
   /** Whether the floating panel should open immediately on mount. */
   defaultOpen?: boolean;
   /**
@@ -74,12 +179,15 @@ function resolveApiBase(explicit?: string): string {
  */
 interface ChatbotInnerProps {
   appLabel: string;
+  appName?: string;
   objects: ConsoleObject[];
   agents: AgentDescriptor[];
   agentsLoading: boolean;
   agentsError: Error | undefined;
   activeAgent: string | undefined;
   onAgentChange: (name: string) => void;
+  /** Whether to render the in-header agent switcher. */
+  showAgentPicker: boolean;
   chatApi: string | undefined;
   /**
    * Base URL of the AI service (no trailing slash). Forwarded to
@@ -105,22 +213,22 @@ interface ChatbotInnerProps {
 
 function ChatbotInner({
   appLabel,
+  appName,
   objects,
   agents,
   agentsLoading,
-  agentsError,
   activeAgent,
   onAgentChange,
+  showAgentPicker,
   chatApi,
   apiBase,
   defaultOpen = false,
   conversationId,
   initialMessages: persistedMessages,
 }: ChatbotInnerProps) {
-  const objectNames = objects.map((o) => o.label || o.name).join(', ');
+  const { language } = useObjectTranslation();
 
-  // Replay persisted history when present. Suppress the static "welcome"
-  // bubble in that case — showing it above real prior turns is confusing.
+  // Replay persisted history when present.
   const hydratedHistory = React.useMemo<ChatMessage[]>(() => {
     if (!persistedMessages || persistedMessages.length === 0) return [];
     return persistedMessages.map((m) => ({
@@ -135,11 +243,11 @@ function ChatbotInner({
     return found?.label ?? activeAgent ?? appLabel;
   }, [agents, activeAgent, appLabel]);
 
-  const welcomeContent = activeAgent
-    ? `Hello! I'm **${activeAgentLabel}**, your ${appLabel} assistant. How can I help you today?`
-    : `Hello! I'm your **${appLabel}** assistant. ${
-        agentsError ? '(Backend unreachable — running in offline demo mode.)' : ''
-      }`;
+  // Localized labels, placeholder, title and contextual starter prompts.
+  const locale = React.useMemo(
+    () => buildChatLocale(language, appLabel, activeAgent, activeAgentLabel, objects),
+    [language, appLabel, activeAgent, activeAgentLabel, objects],
+  );
 
   const {
     messages,
@@ -155,24 +263,22 @@ function ChatbotInner({
     body: {
       context: {
         activeApp: appLabel,
+        appName,
         objects: objects.map((o) => ({ name: o.name, label: o.label })),
         agentName: activeAgent,
       },
     },
-    initialMessages: hydratedHistory.length > 0
-      ? hydratedHistory
-      : [
-          {
-            id: 'welcome',
-            role: 'assistant' as const,
-            content: welcomeContent,
-          },
-        ],
+    // Start empty so the modern empty-state + starter prompts render. We no
+    // longer inject a synthetic "welcome" bubble — the agent identity now
+    // lives in the empty-state title, matching mainstream AI tools.
+    initialMessages: hydratedHistory,
     // Local-mode fallback: only used when `chatApi` is undefined (no agent
     // resolved yet, or no backend available). Keeps the UI usable.
     autoResponse: !chatApi,
-    autoResponseText: objectNames
-      ? `I can help you work with ${objectNames}. What would you like to do?`
+    autoResponseText: objects.length > 0
+      ? `I can help you work with ${objects
+          .map((o) => o.label || o.name)
+          .join(', ')}. What would you like to do?`
       : "Thanks for your message! I'm here to help you navigate and manage your data.",
     autoResponseDelay: 600,
   });
@@ -190,8 +296,12 @@ function ChatbotInner({
     },
   });
 
+  // Agent switcher — deliberately hidden by default. End users get the
+  // single agent bound to their app (Studio → metadata_assistant, others
+  // → data_chat) and are never asked to choose. Only surfaces when the
+  // host explicitly opts in AND there is more than one agent to pick.
   const headerExtra =
-    agents.length > 0 ? (
+    showAgentPicker && agents.length > 1 ? (
       <Select
         value={activeAgent}
         onValueChange={onAgentChange}
@@ -226,18 +336,36 @@ function ChatbotInner({
     () => apiBase.replace(/\/v1\/ai$/, '').replace(/\/ai$/, '') || '/api',
     [apiBase],
   );
-  const headerActions = conversationId ? (
-    <Button
-      variant="ghost"
-      size="icon"
-      className="h-7 w-7"
-      aria-label="Share conversation"
-      data-testid="floating-chatbot-share"
-      onClick={() => setShareOpen(true)}
-    >
-      <Share2 className="h-4 w-4" />
-    </Button>
-  ) : null;
+  const headerActions = (
+    <>
+      {messages.length > 0 ? (
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-7 w-7"
+          aria-label={locale.newChat}
+          title={locale.newChat}
+          data-testid="floating-chatbot-new"
+          onClick={clear}
+        >
+          <SquarePen className="h-4 w-4" />
+        </Button>
+      ) : null}
+      {conversationId ? (
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-7 w-7"
+          aria-label={locale.share}
+          title={locale.share}
+          data-testid="floating-chatbot-share"
+          onClick={() => setShareOpen(true)}
+        >
+          <Share2 className="h-4 w-4" />
+        </Button>
+      ) : null}
+    </>
+  );
 
   return (
     <>
@@ -247,18 +375,23 @@ function ChatbotInner({
           defaultOpen,
           panelWidth: 420,
           panelHeight: 560,
-          title: `${appLabel} Assistant`,
+          title: locale.title,
           triggerSize: 56,
         }}
         headerExtra={headerExtra}
         headerActions={headerActions}
         messages={messages as ChatMessage[]}
+        labels={locale.labels}
+        showAvatars
+        hideClearBar
+        assistantAvatarFallback={locale.agentLabel}
+        suggestions={messages.length === 0 ? locale.suggestions : undefined}
         placeholder={
           activeAgent
-            ? `Ask ${activeAgentLabel}...`
+            ? locale.placeholder
             : agentsLoading
-              ? 'Loading agents...'
-              : 'Ask anything...'
+              ? locale.loadingPlaceholder
+              : locale.placeholder
         }
         onSendMessage={(content: string) => sendMessage(content)}
         onClear={clear}
@@ -289,24 +422,33 @@ function ChatbotInner({
 
 export default function ConsoleFloatingChatbot({
   appLabel,
+  appName,
   objects,
   apiBase: apiBaseProp,
   defaultAgent: defaultAgentProp,
+  showAgentPicker: showAgentPickerProp,
   defaultOpen = false,
   userId,
 }: ConsoleFloatingChatbotProps) {
   const apiBase = React.useMemo(() => resolveApiBase(apiBaseProp), [apiBaseProp]);
   const env = (import.meta as any).env ?? {};
   const envDefaultAgent = env.VITE_AI_DEFAULT_AGENT as string | undefined;
+  // Power-user / admin escape hatch: force the picker on globally without
+  // touching app metadata.
+  const showAgentPicker =
+    showAgentPickerProp ?? env.VITE_AI_SHOW_AGENT_PICKER === 'true';
 
   const { agents, isLoading: agentsLoading, error: agentsError } = useAgents({ apiBase });
 
   const [activeAgent, setActiveAgent] = React.useState<string | undefined>(undefined);
   React.useEffect(() => {
     if (!activeAgent && agents.length > 0) {
+      // Mirror the backend's resolution: app.defaultAgent → data_chat →
+      // first agent. This binds the right copilot per app instead of
+      // landing on whichever agent happens to be first in the catalog.
       const preferred = defaultAgentProp ?? envDefaultAgent;
-      const match = preferred ? agents.find((a) => a.name === preferred) : undefined;
-      setActiveAgent((match ?? agents[0]).name);
+      const resolved = resolveDefaultAgentName(agents, preferred);
+      if (resolved) setActiveAgent(resolved);
     }
   }, [agents, activeAgent, defaultAgentProp, envDefaultAgent]);
 
@@ -330,12 +472,14 @@ export default function ConsoleFloatingChatbot({
     <ChatbotInner
       key={`${chatApi ?? 'local'}:${conversationId ?? 'pending'}`}
       appLabel={appLabel}
+      appName={appName}
       objects={objects}
       agents={agents}
       agentsLoading={agentsLoading}
       agentsError={agentsError}
       activeAgent={activeAgent}
       onAgentChange={setActiveAgent}
+      showAgentPicker={showAgentPicker}
       chatApi={chatApi}
       apiBase={apiBase}
       defaultOpen={defaultOpen}

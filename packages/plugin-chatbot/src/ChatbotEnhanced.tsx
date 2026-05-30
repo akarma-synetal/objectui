@@ -19,7 +19,7 @@
  */
 import * as React from 'react';
 import { cn } from '@object-ui/components';
-import { AlertCircle, Copy, Check, RefreshCw, CornerDownLeft } from 'lucide-react';
+import { AlertCircle, Copy, Check, RefreshCw, CornerDownLeft, Bot } from 'lucide-react';
 import type { ChatStatus } from 'ai';
 import {
   humanizeToolName,
@@ -134,6 +134,21 @@ export interface ChatSource {
   url: string;
 }
 
+/**
+ * Localizable UI strings for the chat surface. Every field is optional and
+ * falls back to an English default, keeping existing callers source-compatible.
+ */
+export interface ChatbotLabels {
+  /** Empty-state heading shown before the first message. */
+  emptyTitle?: string;
+  /** Empty-state supporting line. */
+  emptyDescription?: string;
+  /** "Clear conversation" action label. */
+  clear?: string;
+  /** Trailing hint next to the send button (e.g. "to send"). */
+  sendHint?: string;
+}
+
 export interface ChatbotEnhancedProps extends React.HTMLAttributes<HTMLDivElement> {
   messages?: ChatMessage[];
   placeholder?: string;
@@ -153,10 +168,22 @@ export interface ChatbotEnhancedProps extends React.HTMLAttributes<HTMLDivElemen
   /** Current streaming/API error */
   error?: Error;
   showTimestamp?: boolean;
+  /**
+   * Render avatars beside each message (assistant gets a bot glyph, the user
+   * gets their initial / image). Defaults to false to preserve the previous
+   * minimal layout for existing callers.
+   */
+  showAvatars?: boolean;
   userAvatarUrl?: string;
   userAvatarFallback?: string;
   assistantAvatarUrl?: string;
   assistantAvatarFallback?: string;
+  /**
+   * Hide the internal "clear conversation" strip. Hosts that surface a clear
+   * / new-chat control in their own chrome (e.g. a floating panel header) set
+   * this to avoid a redundant second header row.
+   */
+  hideClearBar?: boolean;
   maxHeight?: string;
   /** Kept for back-compat — markdown is now always rendered by streamdown. */
   enableMarkdown?: boolean;
@@ -171,6 +198,11 @@ export interface ChatbotEnhancedProps extends React.HTMLAttributes<HTMLDivElemen
    * Clicking a chip submits the message immediately.
    */
   suggestions?: string[];
+  /**
+   * Optional UI string overrides for localization. Each field falls back
+   * to its English default, so existing callers keep working unchanged.
+   */
+  labels?: ChatbotLabels;
   /**
    * Available LLM models for the picker (sourced from
    * `GET /api/v1/ai/models` exposed by `@objectstack/service-ai`).
@@ -274,16 +306,19 @@ const ChatbotEnhanced = React.forwardRef<HTMLDivElement, ChatbotEnhancedProps>(
       isLoading = false,
       error,
       showTimestamp = false,
+      showAvatars = false,
       userAvatarUrl,
       userAvatarFallback = 'You',
       assistantAvatarUrl,
       assistantAvatarFallback = 'AI',
+      hideClearBar = false,
       maxHeight = '500px',
       enableMarkdown: _enableMarkdown = true,
       enableFileUpload = false,
       acceptedFileTypes = 'image/*,.pdf,.doc,.docx,.txt',
       maxFileSize = 10 * 1024 * 1024,
       suggestions,
+      labels,
       models,
       selectedModelId,
       onModelChange,
@@ -301,6 +336,19 @@ const ChatbotEnhanced = React.forwardRef<HTMLDivElement, ChatbotEnhancedProps>(
   ) => {
     const status = deriveStatus(isLoading, error);
     const [copiedId, setCopiedId] = React.useState<string | null>(null);
+
+    // Resolve localizable strings once, English defaults preserved.
+    const L = React.useMemo(
+      () => ({
+        emptyTitle: labels?.emptyTitle ?? 'Start a conversation',
+        emptyDescription:
+          labels?.emptyDescription ??
+          'Ask anything — the assistant has access to your current app context.',
+        clear: labels?.clear ?? 'Clear',
+        sendHint: labels?.sendHint ?? 'to send',
+      }),
+      [labels],
+    );
 
     const handleSubmit = React.useCallback(
       (payload: PromptInputMessage) => {
@@ -338,17 +386,14 @@ const ChatbotEnhanced = React.forwardRef<HTMLDivElement, ChatbotEnhancedProps>(
         style={{ maxHeight }}
         {...props}
       >
-        {onClear && messages.length > 0 && (
-          <div className="flex items-center justify-between px-4 py-2 border-b bg-muted/30">
-            <span className="text-sm text-muted-foreground">
-              {messages.length} message{messages.length !== 1 ? 's' : ''}
-            </span>
+        {onClear && !hideClearBar && messages.length > 0 && (
+          <div className="flex items-center justify-end px-4 py-2 border-b bg-muted/30">
             <button
               type="button"
               onClick={onClear}
               className="text-xs text-muted-foreground hover:text-foreground transition-colors"
             >
-              Clear
+              {L.clear}
             </button>
           </div>
         )}
@@ -360,12 +405,26 @@ const ChatbotEnhanced = React.forwardRef<HTMLDivElement, ChatbotEnhancedProps>(
         <Conversation className="flex-1 min-h-0">
           <ConversationContent className="space-y-4 px-4 py-3">
             {messages.length === 0 ? (
-              <ConversationEmptyState
-                title="Start a conversation"
-                description="Ask anything — the assistant has access to your current app context."
-              >
+              <ConversationEmptyState className="gap-4">
+                <div className="flex size-12 items-center justify-center rounded-full bg-primary/10 text-primary">
+                  {assistantAvatarUrl ? (
+                    <img
+                      src={assistantAvatarUrl}
+                      alt=""
+                      className="size-full rounded-full object-cover"
+                    />
+                  ) : (
+                    <Bot className="size-6" />
+                  )}
+                </div>
+                <div className="space-y-1">
+                  <h3 className="font-medium text-sm">{L.emptyTitle}</h3>
+                  <p className="text-muted-foreground text-sm">
+                    {L.emptyDescription}
+                  </p>
+                </div>
                 {suggestions && suggestions.length > 0 ? (
-                  <Suggestions className="justify-center pt-2">
+                  <Suggestions className="justify-center">
                     {suggestions.map((s) => (
                       <Suggestion
                         key={s}
@@ -384,6 +443,29 @@ const ChatbotEnhanced = React.forwardRef<HTMLDivElement, ChatbotEnhancedProps>(
                 const sources = message.sources ?? [];
                 return (
                   <Message key={message.id} from={formatMessageProps(message.role)}>
+                    <div
+                      className={cn(
+                        'flex w-full gap-2.5',
+                        showAvatars
+                          ? isUser
+                            ? 'flex-row-reverse items-start'
+                            : 'flex-row items-start'
+                          : 'flex-col',
+                      )}
+                    >
+                      {showAvatars ? (
+                        <MessageAvatar
+                          isUser={isUser}
+                          url={isUser ? userAvatarUrl : assistantAvatarUrl}
+                          fallback={isUser ? userAvatarFallback : assistantAvatarFallback}
+                        />
+                      ) : null}
+                      <div
+                        className={cn(
+                          'flex min-w-0 flex-col gap-2',
+                          showAvatars && !isUser && 'flex-1',
+                        )}
+                      >
                     <MessageContent>
                       {!isUser && reasoning ? (
                         <Reasoning
@@ -570,6 +652,8 @@ const ChatbotEnhanced = React.forwardRef<HTMLDivElement, ChatbotEnhancedProps>(
                         ) : null}
                       </MessageActions>
                     ) : null}
+                      </div>
+                    </div>
                   </Message>
                 );
               })
@@ -646,7 +730,7 @@ const ChatbotEnhanced = React.forwardRef<HTMLDivElement, ChatbotEnhancedProps>(
                     ⌘
                   </kbd>
                   <CornerDownLeft className="h-3 w-3" />
-                  <span className="opacity-70">to send</span>
+                  <span className="opacity-70">{L.sendHint}</span>
                 </span>
               </PromptInputTools>
               <PromptInputSubmit
@@ -658,18 +742,44 @@ const ChatbotEnhanced = React.forwardRef<HTMLDivElement, ChatbotEnhancedProps>(
           </PromptInput>
         </div>
 
-        {/* Suppress unused warnings on legacy props we accept for back-compat. */}
-        <span
-          hidden
-          data-avatar-user={userAvatarUrl ?? userAvatarFallback}
-          data-avatar-assistant={assistantAvatarUrl ?? assistantAvatarFallback}
-        />
       </div>
     );
   }
 );
 
 ChatbotEnhanced.displayName = 'ChatbotEnhanced';
+
+/**
+ * Compact circular avatar shown beside a message when `showAvatars` is on.
+ * Assistant → bot glyph (or image); user → initial (or image).
+ */
+function MessageAvatar({
+  isUser,
+  url,
+  fallback,
+}: {
+  isUser: boolean;
+  url?: string;
+  fallback?: string;
+}) {
+  return (
+    <div
+      className={cn(
+        'mt-0.5 flex size-7 shrink-0 items-center justify-center overflow-hidden rounded-full text-[11px] font-medium',
+        isUser ? 'bg-secondary text-secondary-foreground' : 'bg-primary/10 text-primary',
+      )}
+      aria-hidden="true"
+    >
+      {url ? (
+        <img src={url} alt="" className="size-full object-cover" />
+      ) : isUser ? (
+        (fallback?.trim()?.charAt(0)?.toUpperCase() || 'U')
+      ) : (
+        <Bot className="size-4" />
+      )}
+    </div>
+  );
+}
 
 function ErrorBanner({
   error,

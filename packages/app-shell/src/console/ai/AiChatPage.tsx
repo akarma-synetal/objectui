@@ -31,6 +31,7 @@ import {
   useAgents,
   useObjectChat,
   useHitlInChat,
+  resolveDefaultAgentName,
   type AgentDescriptor,
   type ChatMessage,
 } from '@object-ui/plugin-chatbot';
@@ -78,9 +79,12 @@ export function AiChatPage({ apiBase: apiBaseProp, defaultAgent: defaultAgentPro
   const [activeAgent, setActiveAgent] = useState<string | undefined>(undefined);
   useEffect(() => {
     if (!activeAgent && agents.length > 0) {
+      // Prefer the data-query agent over "first in catalog" so the
+      // dedicated AI workspace opens on the same default the rest of the
+      // platform binds to.
       const preferred = defaultAgentProp ?? envDefaultAgent;
-      const match = preferred ? agents.find((a) => a.name === preferred) : undefined;
-      setActiveAgent((match ?? agents[0]).name);
+      const resolved = resolveDefaultAgentName(agents, preferred);
+      if (resolved) setActiveAgent(resolved);
     }
   }, [agents, activeAgent, defaultAgentProp, envDefaultAgent]);
 
