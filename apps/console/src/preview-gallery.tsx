@@ -51,9 +51,12 @@ import {
   listMetadataPreviewTypes,
 } from '@object-ui/app-shell/views/metadata-admin/preview-registry';
 import type { MetadataSelection } from '@object-ui/app-shell/views/metadata-admin/preview-registry';
+import { registerBuiltinInspectors } from '@object-ui/app-shell/views/metadata-admin/inspectors';
+import { getMetadataInspector } from '@object-ui/app-shell/views/metadata-admin/inspector-registry';
 import { SAMPLES } from './preview-samples';
 
 registerBuiltinPreviews();
+registerBuiltinInspectors();
 
 const ORDER = [
   'object',
@@ -91,6 +94,8 @@ function DesignerCard({ type }: { type: string }) {
   const onPatch = (patch: Record<string, unknown>) =>
     setDraft((d) => ({ ...d, ...patch }));
 
+  const Inspector = selection ? getMetadataInspector(type) : undefined;
+
   return (
     <section className="scroll-mt-4" id={`designer-${type}`}>
       <div className="mb-2 flex items-center gap-2">
@@ -114,17 +119,34 @@ function DesignerCard({ type }: { type: string }) {
           </div>
           <span className="text-[11px] text-muted-foreground">designer · {type}</span>
         </div>
-        <div className="flex-1 min-h-0 overflow-auto bg-muted/30 p-4 bg-[radial-gradient(circle_at_1px_1px,theme(colors.border)_1px,transparent_0)] [background-size:16px_16px]">
-          <Preview
-            type={type}
-            name={String(draft.name ?? '')}
-            draft={draft}
-            editing
-            selection={selection}
-            onSelectionChange={setSelection}
-            onPatch={onPatch}
-            locale="en"
-          />
+        <div className="flex min-h-0 flex-1">
+          <div className="flex-1 min-h-0 overflow-auto bg-muted/30 p-4 bg-[radial-gradient(circle_at_1px_1px,theme(colors.border)_1px,transparent_0)] [background-size:16px_16px]">
+            {React.createElement(Preview, {
+              type,
+              name: String(draft.name ?? ''),
+              draft,
+              editing: true,
+              selection,
+              onSelectionChange: setSelection,
+              onPatch,
+              locale: 'en',
+            })}
+          </div>
+          {Inspector && selection && (
+            <div className="w-80 shrink-0 overflow-auto border-l bg-background">
+              {React.createElement(Inspector, {
+                type,
+                name: String(draft.name ?? ''),
+                draft,
+                selection,
+                onPatch,
+                onClearSelection: () => setSelection(null),
+                onSelectionChange: setSelection,
+                readOnly: false,
+                locale: 'en',
+              })}
+            </div>
+          )}
         </div>
       </div>
     </section>

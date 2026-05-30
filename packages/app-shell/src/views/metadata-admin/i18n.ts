@@ -309,7 +309,10 @@ const ENGINE_STRINGS_EN: Record<string, string> = {
   'engine.inspector.flowNode.id': 'ID',
   'engine.inspector.flowNode.label': 'Label',
   'engine.inspector.flowNode.type': 'Node Type',
+  'engine.inspector.flowNode.description': 'Description',
   'engine.inspector.flowNode.config': 'Config (JSON)',
+  'engine.inspector.flowNode.advanced': 'Advanced (JSON)',
+  'engine.inspector.flowNode.advancedHint': 'Extra config keys not covered by the fields above.',
   'engine.inspector.flowNode.remove': 'Remove node',
   // Approval step inspector
   'engine.inspector.approvalStep.kind': 'Step',
@@ -626,7 +629,10 @@ const ENGINE_STRINGS_ZH: Record<string, string> = {
   'engine.inspector.flowNode.id': 'ID',
   'engine.inspector.flowNode.label': '标签',
   'engine.inspector.flowNode.type': '节点类型',
+  'engine.inspector.flowNode.description': '描述',
   'engine.inspector.flowNode.config': '配置（JSON）',
+  'engine.inspector.flowNode.advanced': '高级（JSON）',
+  'engine.inspector.flowNode.advancedHint': '上方字段未覆盖的额外配置键。',
   'engine.inspector.flowNode.remove': '删除节点',
   // Approval step inspector
   'engine.inspector.approvalStep.kind': '审批步骤',

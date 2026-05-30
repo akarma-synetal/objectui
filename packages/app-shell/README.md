@@ -140,6 +140,67 @@ Renders forms (modal or inline).
 />
 ```
 
+## Metadata designers
+
+The metadata-admin engine (`src/views/metadata-admin`) renders an in-app editor
+for each metadata type. Every type has a pure-renderer **preview** that doubles
+as its **designer** when given `editing` + `onPatch` props — no backend round
+trip is required to edit a draft.
+
+### Visual flow canvas
+
+The `flow` designer (`FlowPreview` → `FlowCanvas`) renders an automation as an
+industry-standard top-down node-link diagram (think n8n / Power Automate /
+Salesforce Flow Builder) instead of a flat step list. It is **dependency-free**
+— no ReactFlow / `@xyflow` — so the app-shell bundle stays lean.
+
+**JSON shape** (a `flow` draft):
+
+```jsonc
+{
+  "nodes": [
+    { "id": "start", "type": "start", "label": "Start" },
+    { "id": "decide", "type": "decision", "label": "Renew?",
+      "ui": { "x": 220, "y": 180 } },   // optional persisted canvas position
+    { "id": "email", "type": "action", "label": "Send reminder" },
+    { "id": "end", "type": "end", "label": "End" }
+  ],
+  "edges": [
+    { "source": "start", "target": "decide" },
+    { "source": "decide", "target": "email", "condition": "${days <= 30}", "label": "Due" },
+    { "source": "decide", "target": "end", "isDefault": true, "label": "Skip" },
+    { "source": "email", "target": "end" }
+  ]
+}
+```
+
+- **Layout** — nodes without a `ui` hint are placed by a deterministic layered
+  auto-layout (cycle-guarded), so a flow always renders cleanly even before any
+  manual positioning. Dragging a node persists its position to `node.ui.{x,y}`;
+  positions degrade gracefully (they are layout hints, not required data).
+- **Edges** — branch semantics (`condition`, `label`, `isDefault`) are rendered
+  as labels on the connectors and preserved when a node is inserted on an edge.
+
+**Interactions** (design mode):
+
+- **Add node** — toolbar palette (Action / Decision / Wait / Subflow / Signal /
+  End); the new node is auto-selected.
+- **Append** — the bottom `+` handle on a node adds a connected child.
+- **Insert on edge** — the `+` on a connector splices a node between two nodes,
+  preserving the original branch condition on the first segment.
+- **Reposition** — drag a node (committed on pointer-up).
+- **Delete** — `Delete` / `Backspace` removes the selected node and its edges.
+- **Navigate** — fit-to-view, zoom in/out, and background pan.
+
+Selecting a node opens `FlowNodeInspector`, which renders **typed form fields
+per node type** (see `flow-node-config.ts`) rather than a raw JSON blob — e.g.
+an `action` node exposes Action / Object / Output variable, a `wait` node
+exposes Wait-for / Duration / Until / Condition, a `start` node exposes
+Trigger / Schedule / Object. Each field edits a scalar key on `node.config`.
+Any config keys not covered by a field (objects, arrays, bespoke flags) remain
+editable in a collapsible **Advanced (JSON)** block, and the `ui` layout hint is
+kept out of that block and preserved across edits.
+
 ## Architecture
 
 This package sits between the low-level `@object-ui/react` (SchemaRenderer) and the high-level `apps/console` (full application):
