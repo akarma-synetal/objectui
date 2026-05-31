@@ -23,7 +23,6 @@ import { AgentPreview } from './AgentPreview';
 import { ToolPreview } from './ToolPreview';
 import { PermissionPreview } from './PermissionPreview';
 import { ActionPreview } from './ActionPreview';
-import { ApprovalPreview } from './ApprovalPreview';
 import { JobPreview } from './JobPreview';
 import { TranslationPreview } from './TranslationPreview';
 import { RolePreview } from './RolePreview';
@@ -47,9 +46,11 @@ export function registerBuiltinPreviews(): void {
   registerMetadataPreview('email_template', EmailTemplatePreview);
   registerMetadataPreview('translation', TranslationPreview);
   // Automation
+  // Approval is a flow node (`type: 'approval'`) since ADR-0019 — it renders on
+  // the Flow canvas with its `approve` / `reject` branches; no standalone
+  // approval-process preview.
   registerMetadataPreview('flow', FlowPreview);
   registerMetadataPreview('workflow', WorkflowPreview);
-  registerMetadataPreview('approval', ApprovalPreview);
   registerMetadataPreview('job', JobPreview);
   // AI
   registerMetadataPreview('agent', AgentPreview);

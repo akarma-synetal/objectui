@@ -492,9 +492,10 @@ export function RecordDetailView({ dataSource, objects, onEdit, objectNameOverri
   }, [authFetch, pureRecordId, objectName]);
 
   // ─── Approvals ─────────────────────────────────────────────────────
-  // Surfaces "Submit for Approval" / "Recall" buttons on the record header
-  // when an active approval process is registered for this object, and a
-  // status badge when a request exists.
+  // Since ADR-0019 an approval is a flow node: the flow opens the request,
+  // there is no manual submit/recall from the record header. When the current
+  // user is a pending approver, surface "Approve" / "Reject" on the header and
+  // a status badge whenever a request exists.
   const approvals = useRecordApprovals(objectName, pureRecordId, user?.id);
   // Hold latest approvals snapshot in a ref so the action handler
   // (memoized once inside ActionRunner) always sees fresh state instead of
@@ -508,13 +509,10 @@ export function RecordDetailView({ dataSource, objects, onEdit, objectNameOverri
       ? (action.params as Record<string, any>)
       : {};
     try {
-      if (target === 'submit_approval') {
-        await approvalsRef.current.submit({
-          processName: params.processName,
-          comment: params.comment,
-        });
-      } else if (target === 'recall_approval') {
-        await approvalsRef.current.recall({ comment: params.comment });
+      if (target === 'approve_request') {
+        await approvalsRef.current.approve({ comment: params.comment });
+      } else if (target === 'reject_request') {
+        await approvalsRef.current.reject({ comment: params.comment });
       } else {
         return { success: false, error: `Unknown approval target: ${target}` };
       }
@@ -1184,57 +1182,44 @@ export function RecordDetailView({ dataSource, objects, onEdit, objectNameOverri
         }),
       }));
 
-      // Inject approval actions — only when the approvals plugin is
-      // available and an active process exists for this object.
-      if (approvals.available && approvals.processes.length > 0) {
-        if (approvals.canSubmit) {
-          base.push({
-            name: 'submit_approval',
-            type: 'approval',
-            target: 'submit_approval',
-            label: t('approvals.submitForApproval', { defaultValue: 'Submit for Approval' }),
-            icon: 'send',
-            variant: 'default',
-            locations: ['record_header'],
-            refreshAfter: true,
-            successMessage: t('approvals.submitSuccess', { defaultValue: 'Approval request submitted' }),
-            ...(approvals.processes.length === 1
-              ? { params: { processName: approvals.processes[0].name } }
-              : {
-                  collectParams: [{
-                    name: 'processName',
-                    label: t('approvals.process', { defaultValue: 'Process' }),
-                    type: 'select',
-                    required: true,
-                    options: approvals.processes.map((p) => ({
-                      value: p.name,
-                      label: p.label || p.name,
-                    })),
-                  }, {
-                    name: 'comment',
-                    label: t('approvals.comment', { defaultValue: 'Comment (optional)' }),
-                    type: 'text',
-                    multiline: true,
-                  }],
-                }),
-          });
-        }
-        if (approvals.canRecall) {
-          base.push({
-            name: 'recall_approval',
-            type: 'approval',
-            target: 'recall_approval',
-            label: t('approvals.recall', { defaultValue: 'Recall' }),
-            icon: 'undo',
-            variant: 'outline',
-            locations: ['record_header'],
-            refreshAfter: true,
-            confirmText: t('approvals.recallConfirm', {
-              defaultValue: 'Recall this pending approval request?',
-            }),
-            successMessage: t('approvals.recallSuccess', { defaultValue: 'Approval recalled' }),
-          });
-        }
+      // Inject approval actions — only when the current user is a pending
+      // approver for this record (ADR-0019: approvals are opened by a flow
+      // node, so there is no manual submit/recall; an approver records a
+      // decision that resumes the flow down its approve/reject edge).
+      if (approvals.available && approvals.canDecide) {
+        const commentParam = {
+          name: 'comment',
+          label: t('approvals.comment', { defaultValue: 'Comment (optional)' }),
+          type: 'text',
+          multiline: true,
+        };
+        base.push({
+          name: 'approve_request',
+          type: 'approval',
+          target: 'approve_request',
+          label: t('approvals.approve', { defaultValue: 'Approve' }),
+          icon: 'check',
+          variant: 'default',
+          locations: ['record_header'],
+          refreshAfter: true,
+          collectParams: [commentParam],
+          successMessage: t('approvals.approveSuccess', { defaultValue: 'Approved' }),
+        });
+        base.push({
+          name: 'reject_request',
+          type: 'approval',
+          target: 'reject_request',
+          label: t('approvals.reject', { defaultValue: 'Reject' }),
+          icon: 'x',
+          variant: 'destructive',
+          locations: ['record_header'],
+          refreshAfter: true,
+          confirmText: t('approvals.rejectConfirm', {
+            defaultValue: 'Reject this approval request?',
+          }),
+          collectParams: [commentParam],
+          successMessage: t('approvals.rejectSuccess', { defaultValue: 'Rejected' }),
+        });
       }
 
       return base;
@@ -1378,7 +1363,7 @@ export function RecordDetailView({ dataSource, objects, onEdit, objectNameOverri
       }),
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [objectDef?.name, pureRecordId, childRelatedData, actionRefreshKey, appName, navigate, dataSource, t, objectLabel, objects, historyEnabled, historyEntries, historyLoading, approvals.available, approvals.processes, approvals.canSubmit, approvals.canRecall, approvals.pendingRequest, approvals.latestRequest, embedded]);
+  }, [objectDef?.name, pureRecordId, childRelatedData, actionRefreshKey, appName, navigate, dataSource, t, objectLabel, objects, historyEnabled, historyEntries, historyLoading, approvals.available, approvals.canDecide, approvals.pendingRequest, approvals.latestRequest, embedded]);
 
   if (isLoading) {
     return <SkeletonDetail />;

@@ -2,23 +2,23 @@
  * useRecordApprovals
  *
  * Resolves the approval state for a single record so the detail-view header
- * can surface "Submit for Approval" / "Recall" actions and a status badge.
+ * can surface a status badge and — when the current user is a pending
+ * approver — "Approve" / "Reject" actions.
+ *
+ * Since ADR-0019 an approval is a **flow node** (`type: 'approval'`), not a
+ * standalone process: the flow opens the request when it reaches the node,
+ * and a decision resumes the run down its `approve` / `reject` edge. There is
+ * therefore no manual "submit" or "recall" from the record header — those
+ * endpoints were removed. This hook reads the record's requests and lets a
+ * pending approver record a decision.
  *
  * Talks directly to the framework REST endpoints under
- * `/api/v1/approvals/*`. Fails open: if the approvals plugin is not
- * installed (404) or the user has no identity, returns inert state so the
- * detail view continues to render normally.
+ * `/api/v1/approvals/*`. Fails open: if the approvals plugin is not installed
+ * (404 / 501) or the user has no identity, returns inert state so the detail
+ * view continues to render normally.
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-
-export interface ApprovalProcessLite {
-  id: string;
-  name: string;
-  label?: string;
-  object_name: string;
-  active?: boolean;
-}
 
 export interface ApprovalRequestLite {
   id: string;
@@ -36,13 +36,12 @@ export interface ApprovalRequestLite {
 interface UseRecordApprovalsResult {
   loading: boolean;
   available: boolean;
-  processes: ApprovalProcessLite[];
   pendingRequest: ApprovalRequestLite | null;
   latestRequest: ApprovalRequestLite | null;
-  canSubmit: boolean;
-  canRecall: boolean;
-  submit: (input?: { processName?: string; comment?: string }) => Promise<ApprovalRequestLite>;
-  recall: (input?: { comment?: string }) => Promise<ApprovalRequestLite>;
+  /** The current user is among the pending approvers and may record a decision. */
+  canDecide: boolean;
+  approve: (input?: { comment?: string }) => Promise<ApprovalRequestLite | undefined>;
+  reject: (input?: { comment?: string }) => Promise<ApprovalRequestLite | undefined>;
   refresh: () => Promise<void>;
 }
 
@@ -75,7 +74,6 @@ export function useRecordApprovals(
 ): UseRecordApprovalsResult {
   const [loading, setLoading] = useState(false);
   const [available, setAvailable] = useState(true);
-  const [processes, setProcesses] = useState<ApprovalProcessLite[]>([]);
   const [requests, setRequests] = useState<ApprovalRequestLite[]>([]);
   const unavailableRef = useRef(false);
 
@@ -84,19 +82,13 @@ export function useRecordApprovals(
     if (unavailableRef.current) return;
     setLoading(true);
     try {
-      const [procResp, reqResp] = await Promise.all([
-        fetchJson<{ data: ApprovalProcessLite[] }>(
-          `/approvals/processes?object=${encodeURIComponent(objectName)}&activeOnly=true`,
-        ),
-        fetchJson<{ data: ApprovalRequestLite[] }>(
-          `/approvals/requests?object=${encodeURIComponent(objectName)}&recordId=${encodeURIComponent(recordId)}`,
-        ),
-      ]);
-      setProcesses(procResp?.data ?? []);
+      const reqResp = await fetchJson<{ data: ApprovalRequestLite[] }>(
+        `/approvals/requests?object=${encodeURIComponent(objectName)}&recordId=${encodeURIComponent(recordId)}`,
+      );
       setRequests(reqResp?.data ?? []);
       setAvailable(true);
     } catch (err: any) {
-      if (err?.status === 404) {
+      if (err?.status === 404 || err?.status === 501) {
         unavailableRef.current = true;
         setAvailable(false);
       }
@@ -108,7 +100,6 @@ export function useRecordApprovals(
 
   useEffect(() => {
     if (!objectName || !recordId) {
-      setProcesses([]);
       setRequests([]);
       return;
     }
@@ -130,35 +121,14 @@ export function useRecordApprovals(
     return sorted[0] ?? null;
   }, [requests]);
 
-  const canSubmit = available && processes.length > 0 && !pendingRequest;
-  const canRecall = !!pendingRequest && !!currentUserId
-    && pendingRequest.submitter_id === currentUserId;
+  const canDecide = !!pendingRequest && !!currentUserId
+    && (pendingRequest.pending_approvers ?? []).includes(currentUserId);
 
-  const submit = useCallback(
-    async (input?: { processName?: string; comment?: string }) => {
-      if (!objectName || !recordId) throw new Error('Missing object or record');
-      const processName = input?.processName
-        ?? (processes.length === 1 ? processes[0].name : undefined);
-      const row = await fetchJson<ApprovalRequestLite>(`/approvals/requests`, {
-        method: 'POST',
-        body: JSON.stringify({
-          object: objectName,
-          recordId,
-          ...(processName ? { processName } : {}),
-          ...(input?.comment ? { comment: input.comment } : {}),
-        }),
-      });
-      await refresh();
-      return row;
-    },
-    [objectName, recordId, processes, refresh],
-  );
-
-  const recall = useCallback(
-    async (input?: { comment?: string }) => {
+  const decide = useCallback(
+    async (decision: 'approve' | 'reject', input?: { comment?: string }) => {
       if (!pendingRequest) throw new Error('No pending request');
-      const out = await fetchJson<{ request: ApprovalRequestLite }>(
-        `/approvals/requests/${encodeURIComponent(pendingRequest.id)}/recall`,
+      const out = await fetchJson<{ request?: ApprovalRequestLite }>(
+        `/approvals/requests/${encodeURIComponent(pendingRequest.id)}/${decision}`,
         {
           method: 'POST',
           body: JSON.stringify({
@@ -168,21 +138,22 @@ export function useRecordApprovals(
         },
       );
       await refresh();
-      return out.request;
+      return out?.request;
     },
     [pendingRequest, currentUserId, refresh],
   );
 
+  const approve = useCallback((input?: { comment?: string }) => decide('approve', input), [decide]);
+  const reject = useCallback((input?: { comment?: string }) => decide('reject', input), [decide]);
+
   return {
     loading,
     available,
-    processes,
     pendingRequest,
     latestRequest,
-    canSubmit,
-    canRecall,
-    submit,
-    recall,
+    canDecide,
+    approve,
+    reject,
     refresh,
   };
 }

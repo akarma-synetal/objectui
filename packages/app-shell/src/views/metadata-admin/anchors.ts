@@ -102,31 +102,9 @@ export function registerBuiltinAnchors(): void {
     createDefaults: { events: [] },
   });
 
-  // approval.object → object (approval processes targeting this object)
-  registerMetadataResource({
-    type: 'approval',
-    anchors: [{
-      anchorType: 'object',
-      match: anchorByField('object'),
-      groupLabel: 'Approval Processes',
-      order: 70,
-    }],
-    createFields: ['label', 'name', 'object', 'description'],
-    createDerive: [
-      { from: 'label', to: 'name', transform: 'slugify', untilUserEdits: true },
-    ],
-    createDefaults: {
-      active: true,
-      lockRecord: true,
-      steps: [{
-        name: 'step_1',
-        label: 'First approval',
-        approvers: [{ type: 'manager', value: 'manager' }],
-        behavior: 'first_response',
-        rejectionBehavior: 'reject_process',
-      }],
-    },
-  });
+  // Approval is no longer a standalone metadata type (ADR-0019) — it is a flow
+  // node (`type: 'approval'`). Approvals therefore surface on an object through
+  // the Flows it belongs to, not a separate "Approval Processes" group.
 
   // page.object → object (auto-generated record pages, etc.)
   registerMetadataResource({

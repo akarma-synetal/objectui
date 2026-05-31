@@ -261,6 +261,65 @@ const FLOW_NODE_CONFIG: Record<string, FlowConfigField[]> = {
       ],
     }),
   ],
+  // Approval node (ADR-0019). The node opens an approval request on entry,
+  // suspends the run, and resumes down its `approve` / `reject` out-edge once a
+  // decision is recorded. Config mirrors `@objectstack/spec`
+  // ApprovalNodeConfigSchema; entry criteria and on-approve / on-reject actions
+  // are NOT here — they live on the graph (the edge into this node, and the
+  // nodes wired to its `approve` / `reject` out-edges).
+  approval: [
+    cfg('approvers', 'Approvers', 'objectList', {
+      help: 'Who may act on this step. Wire the node’s out-edges with labels "approve" and "reject".',
+      columns: [
+        {
+          key: 'type',
+          label: 'Type',
+          kind: 'select',
+          options: [
+            { value: 'user', label: 'User' },
+            { value: 'role', label: 'Role' },
+            { value: 'team', label: 'Team' },
+            { value: 'department', label: 'Department' },
+            { value: 'manager', label: 'Manager' },
+            { value: 'field', label: 'Field' },
+            { value: 'queue', label: 'Queue' },
+          ],
+        },
+        { key: 'value', label: 'Value', kind: 'text', placeholder: 'user id / role / field — per type' },
+      ],
+    }),
+    cfg('behavior', 'Behavior', 'select', {
+      options: [
+        { value: 'first_response', label: 'First response wins' },
+        { value: 'unanimous', label: 'Unanimous (all approve)' },
+      ],
+      defaultValue: 'first_response',
+      help: 'How multiple approvers combine.',
+    }),
+    cfg('lockRecord', 'Lock record', 'boolean', {
+      help: 'Lock the triggering record from edits while this node is pending.',
+    }),
+    cfg('approvalStatusField', 'Status field', 'text', {
+      placeholder: 'approval_status',
+      help: 'Business-object field to mirror request status onto (pending/approved/rejected). Should be readonly.',
+    }),
+    // Per-node SLA escalation (spec ApprovalEscalationSchema, nested under
+    // config.escalation). Sub-fields reveal once escalation is enabled.
+    { id: 'escalation.enabled', path: ['config', 'escalation', 'enabled'], label: 'SLA escalation', kind: 'boolean', defaultValue: 'false', help: 'Escalate when a decision is not recorded within the timeout.' },
+    { id: 'escalation.timeoutHours', path: ['config', 'escalation', 'timeoutHours'], label: 'Timeout (hours)', kind: 'number', placeholder: '24', showWhen: { field: 'escalation.enabled', equals: ['true'] } },
+    {
+      id: 'escalation.action', path: ['config', 'escalation', 'action'], label: 'On timeout', kind: 'select', defaultValue: 'notify',
+      options: [
+        { value: 'notify', label: 'Notify' },
+        { value: 'reassign', label: 'Reassign' },
+        { value: 'auto_approve', label: 'Auto-approve' },
+        { value: 'auto_reject', label: 'Auto-reject' },
+      ],
+      showWhen: { field: 'escalation.enabled', equals: ['true'] },
+    },
+    { id: 'escalation.escalateTo', path: ['config', 'escalation', 'escalateTo'], label: 'Escalate to', kind: 'text', placeholder: 'user id / role / manager level', showWhen: { field: 'escalation.enabled', equals: ['true'] } },
+    { id: 'escalation.notifySubmitter', path: ['config', 'escalation', 'notifySubmitter'], label: 'Notify submitter', kind: 'boolean', showWhen: { field: 'escalation.enabled', equals: ['true'] } },
+  ],
   wait: [
     at('waitEventConfig', 'eventType', 'Wait for', 'select', {
       options: [
@@ -366,7 +425,6 @@ const TYPE_ALIASES: Record<string, string> = {
   service_task: 'connector_action',
   script_task: 'script',
   notification: 'connector_action',
-  approval: 'screen',
   signal: 'boundary_event',
   webhook: 'connector_action',
   for_each: 'loop',
@@ -397,7 +455,10 @@ export function getFieldValue(node: Record<string, unknown> | null | undefined, 
  * only config-rooted fields suppress an Advanced key.
  */
 export function configKeyOf(field: FlowConfigField): string | undefined {
-  return field.path.length === 2 && field.path[0] === 'config' ? field.path[1] : undefined;
+  // Any config-rooted field claims its first config segment — so nested groups
+  // (e.g. `['config','escalation','enabled']`) all claim `escalation`, keeping
+  // the whole block out of the Advanced editor.
+  return field.path.length >= 2 && field.path[0] === 'config' ? field.path[1] : undefined;
 }
 
 /**
@@ -417,7 +478,9 @@ export function isFieldVisible(
   const controller = fields.find((f) => f.id === field.showWhen!.field);
   if (!controller) return false;
   const raw = getFieldValue(node, controller);
-  const value = raw === undefined || raw === null || raw === '' ? controller.defaultValue : raw;
+  const resolved = raw === undefined || raw === null || raw === '' ? controller.defaultValue : raw;
+  // Boolean controllers (e.g. `escalation.enabled`) compare against 'true'/'false'.
+  const value = typeof resolved === 'boolean' ? String(resolved) : resolved;
   return typeof value === 'string' && field.showWhen.equals.includes(value);
 }
 
@@ -434,6 +497,7 @@ export const FLOW_NODE_TYPE_OPTIONS = [
   'http_request',
   'script',
   'screen',
+  'approval',
   'wait',
   'subflow',
   'connector_action',

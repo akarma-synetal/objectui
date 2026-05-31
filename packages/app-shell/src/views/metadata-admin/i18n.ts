@@ -325,16 +325,6 @@ const ENGINE_STRINGS_EN: Record<string, string> = {
   'engine.inspector.flowNode.list.remove': 'Remove item',
   'engine.inspector.flowNode.list.empty': 'No items yet.',
   'engine.inspector.flowNode.remove': 'Remove node',
-  // Approval step inspector
-  'engine.inspector.approvalStep.kind': 'Step',
-  'engine.inspector.approvalStep.close': 'Close step',
-  'engine.inspector.approvalStep.name': 'Name (machine)',
-  'engine.inspector.approvalStep.label': 'Label',
-  'engine.inspector.approvalStep.description': 'Description',
-  'engine.inspector.approvalStep.behavior': 'Behavior',
-  'engine.inspector.approvalStep.entryCriteria': 'Entry criteria (CEL)',
-  'engine.inspector.approvalStep.rejectionBehavior': 'Rejection behavior',
-  'engine.inspector.approvalStep.remove': 'Remove step',
   // Workflow action inspector
   'engine.inspector.workflowAction.kind': 'Action',
   'engine.inspector.workflowAction.close': 'Close action',
@@ -656,16 +646,6 @@ const ENGINE_STRINGS_ZH: Record<string, string> = {
   'engine.inspector.flowNode.list.remove': '删除项',
   'engine.inspector.flowNode.list.empty': '暂无项。',
   'engine.inspector.flowNode.remove': '删除节点',
-  // Approval step inspector
-  'engine.inspector.approvalStep.kind': '审批步骤',
-  'engine.inspector.approvalStep.close': '关闭步骤',
-  'engine.inspector.approvalStep.name': '机器名',
-  'engine.inspector.approvalStep.label': '标签',
-  'engine.inspector.approvalStep.description': '描述',
-  'engine.inspector.approvalStep.behavior': '审批策略',
-  'engine.inspector.approvalStep.entryCriteria': '进入条件（CEL）',
-  'engine.inspector.approvalStep.rejectionBehavior': '拒绝行为',
-  'engine.inspector.approvalStep.remove': '删除步骤',
   // Workflow action inspector
   'engine.inspector.workflowAction.kind': '动作',
   'engine.inspector.workflowAction.close': '关闭动作',

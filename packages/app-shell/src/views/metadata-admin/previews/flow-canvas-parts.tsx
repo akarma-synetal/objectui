@@ -24,6 +24,7 @@ import {
   Plus,
   Repeat,
   TimerReset,
+  UserCheck,
   Variable,
   Workflow,
   Zap,
@@ -69,6 +70,8 @@ export function nodeIcon(type: string): LucideIcon {
     case 'screen':
     case 'user_task':
       return MonitorSmartphone;
+    case 'approval':
+      return UserCheck;
     case 'connector_action':
     case 'service_task':
       return Plug;
@@ -141,6 +144,11 @@ const TONES: Record<string, NodeTone> = {
     accent: 'border-l-fuchsia-500',
     label: 'text-fuchsia-600 dark:text-fuchsia-400',
   },
+  approval: {
+    icon: 'text-teal-600 dark:text-teal-400',
+    accent: 'border-l-teal-500',
+    label: 'text-teal-600 dark:text-teal-400',
+  },
 };
 
 export function nodeTone(type: string): NodeTone {
@@ -166,6 +174,8 @@ export function nodeTone(type: string): NodeTone {
     case 'subflow':
     case 'flow':
       return TONES.subflow;
+    case 'approval':
+      return TONES.approval;
     case 'create_record':
     case 'update_record':
     case 'delete_record':
@@ -208,6 +218,7 @@ export const NODE_PALETTE: PaletteItem[] = [
   { type: 'http_request', label: 'HTTP request', hint: 'Call an external API' },
   { type: 'connector_action', label: 'Connector', hint: 'Run an integration action' },
   { type: 'script', label: 'Script', hint: 'Run custom code' },
+  { type: 'approval', label: 'Approval', hint: 'Pause for a human decision' },
   { type: 'subflow', label: 'Subflow', hint: 'Invoke another flow' },
   { type: 'wait', label: 'Wait', hint: 'Pause for an event or timer' },
   { type: 'end', label: 'End', hint: 'Terminate the flow' },
@@ -238,6 +249,10 @@ export function defaultNodeExtras(type: string): Record<string, unknown> {
       return { connectorConfig: { connectorId: '', actionId: '', input: {} } };
     case 'boundary_event':
       return { boundaryConfig: { attachedToNodeId: '', eventType: 'error', interrupting: true } };
+    case 'approval':
+      // Seed a node-model approval: at least one approver + spec defaults. The
+      // author wires the out-edges with labels `approve` / `reject`.
+      return { config: { approvers: [{ type: 'manager' }], behavior: 'first_response', lockRecord: true } };
     case 'http_request':
       return { config: { method: 'GET' } };
     case 'script':
