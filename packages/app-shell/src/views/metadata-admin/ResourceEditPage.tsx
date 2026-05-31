@@ -77,6 +77,7 @@ import type {
   MetadataReference,
 } from '@object-ui/data-objectstack';
 import { PageShell } from './PageShell';
+import { MetadataTypeActions } from './MetadataTypeActions';
 import { LayeredDiff, countOverlaidFields } from './LayeredDiff';
 import { SchemaForm, type SchemaFormIssue } from './SchemaForm';
 import {
@@ -1104,6 +1105,18 @@ function MetadataResourceEditPageImpl({
   // designer is present, saving a full row of vertical chrome.
   const actionsNode = (
     <>
+      {/* Declarative type-level actions (GAP-1) — e.g. datasource
+          "Test connection". Only on a saved item: record_header actions
+          template `${ctx.recordId}` from the item name, which `(new)`
+          drafts don't have yet. */}
+      {!createMode && (
+        <MetadataTypeActions
+          entry={entry}
+          location="record_header"
+          recordId={name}
+          onAfter={() => setReloadKey((k) => k + 1)}
+        />
+      )}
       {/* Info sheets — icon-only group, mirrors the canvas
           toolbar style (small ghost icons + tooltip). Keeps
           the primary edit / save actions visually dominant. */}

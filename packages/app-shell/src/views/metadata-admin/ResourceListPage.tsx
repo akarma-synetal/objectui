@@ -27,6 +27,7 @@ import {
 } from '@object-ui/components';
 import { Empty, EmptyTitle, EmptyDescription } from '@object-ui/components';
 import { PageShell } from './PageShell';
+import { MetadataTypeActions } from './MetadataTypeActions';
 import {
   useMetadataClient,
   useMetadataTypes,
@@ -305,6 +306,14 @@ function DefaultMetadataList({ type }: { type: string }) {
       ]}
       actions={
         <>
+          {/* Declarative type-level actions (GAP-1) scoped to the list
+              toolbar. Per-row (`list_item`) actions are not surfaced here
+              yet — they need the row's recordId from the grid. */}
+          <MetadataTypeActions
+            entry={entry}
+            location="list_toolbar"
+            onAfter={() => setRefreshKey((k) => k + 1)}
+          />
           <Button
             variant="ghost"
             size="sm"

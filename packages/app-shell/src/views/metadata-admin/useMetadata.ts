@@ -18,12 +18,49 @@
 import { useEffect, useMemo, useState } from 'react';
 import { MetadataClient, type MetadataDiagnosticsSummary, type MetadataDiagnosticsEntry } from '@object-ui/data-objectstack';
 
+/**
+ * A declarative **type-level** action surfaced on a metadata type by the
+ * framework's `/meta/types` endpoint (spec `ActionSchema`). Mirrors how a
+ * business object carries `actions`, but scoped to the metadata type itself
+ * (e.g. datasource → "Test connection"). The metadata-admin engine renders
+ * these with the same button mechanism objects use — see `MetadataTypeActions`.
+ */
+export interface MetadataTypeAction {
+  /** Machine name (lowercase snake_case) — stable key. */
+  name: string;
+  /** Display label (plain string; framework already localised it). */
+  label?: string;
+  /** Interaction type. Only `'api'` is wired in the engine today. */
+  type?: string;
+  /**
+   * URL / endpoint. Supports `${ctx.X}` and `${param.X}` interpolation —
+   * the engine resolves `${ctx.recordId}` to the current item name.
+   */
+  target?: string;
+  /** HTTP method for `type:'api'` (defaults to POST). */
+  method?: string;
+  /** Lucide icon name. */
+  icon?: string;
+  /** Button visual variant. */
+  variant?: 'primary' | 'secondary' | 'danger' | 'ghost' | 'link';
+  /** Locations where this action is visible (list_toolbar, record_header, …). */
+  locations?: string[];
+  /** Confirmation prompt shown before execution. */
+  confirmText?: string;
+  /** Reload the view after a successful run. */
+  refreshAfter?: boolean;
+  /** Static request body / param bag forwarded to the endpoint. */
+  params?: Record<string, unknown>;
+}
+
 export interface RichMetadataTypeEntry {
   type: string;
   label?: string;
   description?: string;
   domain?: string;
   allowOrgOverride?: boolean;
+  /** Declarative type-level actions (GAP-1). Rendered by `MetadataTypeActions`. */
+  actions?: MetadataTypeAction[];
   /**
    * Two-tier model (PR-10d.7): brand-new items of this type can be
    * authored at runtime even when `allowOrgOverride` is false. UI
