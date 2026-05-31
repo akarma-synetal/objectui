@@ -533,6 +533,13 @@ function nodeSummary(node: FlowNode): string | undefined {
   if (node.type === 'script') {
     return pick('actionType') || pick('template') || (c && c.script ? 'code' : undefined);
   }
+  if (node.type === 'approval') {
+    const approvers = c?.approvers;
+    const n = Array.isArray(approvers) ? approvers.length : 0;
+    const behavior = pick('behavior');
+    if (n > 0) return `${n} approver${n === 1 ? '' : 's'}${behavior === 'unanimous' ? ' · all' : ''}`;
+    return behavior || undefined;
+  }
   return (
     pick('objectName') ||
     block('connectorConfig', 'actionId') ||

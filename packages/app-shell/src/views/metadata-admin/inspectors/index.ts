@@ -9,7 +9,6 @@ import { registerMetadataInspector } from '../inspector-registry';
 import { registerMetadataDefaultInspector } from '../default-inspector-registry';
 import { DashboardWidgetInspector } from './DashboardWidgetInspector';
 import { FlowNodeInspector } from './FlowNodeInspector';
-import { ApprovalStepInspector } from './ApprovalStepInspector';
 import { WorkflowActionInspector } from './WorkflowActionInspector';
 import { AppNavInspector } from './AppNavInspector';
 import { ViewInspector, ViewDefaultInspector } from './ViewInspector';
@@ -19,8 +18,9 @@ import { ObjectFieldInspector } from './ObjectFieldInspector';
 
 export function registerBuiltinInspectors(): void {
   registerMetadataInspector('dashboard', DashboardWidgetInspector);
+  // Approval is authored as a flow node (`type: 'approval'`) since ADR-0019 —
+  // edited through FlowNodeInspector, not a standalone step inspector.
   registerMetadataInspector('flow', FlowNodeInspector);
-  registerMetadataInspector('approval', ApprovalStepInspector);
   registerMetadataInspector('workflow', WorkflowActionInspector);
   registerMetadataInspector('app', AppNavInspector);
   registerMetadataInspector('view', ViewInspector);

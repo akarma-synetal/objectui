@@ -13,7 +13,7 @@ export {
 } from './useNavigationSync';
 export { useObjectActions } from './useObjectActions';
 export { useRecentItems, type RecentItem } from './useRecentItems';
-export { useRecordApprovals, type ApprovalProcessLite, type ApprovalRequestLite } from './useRecordApprovals';
+export { useRecordApprovals, type ApprovalRequestLite } from './useRecordApprovals';
 export { useResponsiveSidebar } from './useResponsiveSidebar';
 export { useTrackRouteAsRecent, type UseTrackRouteAsRecentOptions } from './useTrackRouteAsRecent';
 export {

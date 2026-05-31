@@ -16,7 +16,7 @@
  * Schemas are loaded lazily — the first call for a given type kicks
  * off a dynamic `import()` of the relevant spec subpath, then caches
  * the result. Types we don't have a client-side schema for (e.g.
- * `validation`, `role`, `workflow`, etc.) return an empty issue list;
+ * `validation`, `trigger`, `connector`, etc.) return an empty issue list;
  * the user still gets server-side diagnostics on save.
  */
 
@@ -64,8 +64,11 @@ const LOADERS: Record<string, SchemaLoader> = {
 
   // automation
   flow: async () => (await import('@objectstack/spec/automation')).FlowSchema as unknown as ZodLikeSchema,
-  workflow: async () => (await import('@objectstack/spec/automation')).WorkflowRuleSchema as unknown as ZodLikeSchema,
-  approval: async () => (await import('@objectstack/spec/automation')).ApprovalProcessSchema as unknown as ZodLikeSchema,
+  workflow: async () => (await import('@objectstack/spec/automation')).StateMachineSchema as unknown as ZodLikeSchema,
+  // `approval` is no longer a standalone metadata type — it's a flow node
+  // (`type: 'approval'`, ADR-0019). Its config (ApprovalNodeConfigSchema) is
+  // validated as part of the enclosing flow; there is no top-level schema, so
+  // it falls through to server-side validation.
   webhook: async () => (await import('@objectstack/spec/automation')).WebhookSchema as unknown as ZodLikeSchema,
 
   // ai
@@ -92,6 +95,25 @@ const LOADERS: Record<string, SchemaLoader> = {
   // api
   api: async () => (await import('@objectstack/spec/api')).ApiEndpointSchema as unknown as ZodLikeSchema,
 };
+
+// Flow node `type` values the running server accepts but the published
+// `@objectstack/spec` FlowNodeSchema enum predates. The framework HEAD opened
+// FlowNodeSchema.type to a validated string (ADR-0019 P2) and registers these
+// as built-in node descriptors, but that spec change is not yet on npm — so the
+// published closed enum spuriously flags them. We suppress only the enum
+// mismatch on the node's `.type`; every other field is still validated.
+//   - `approval`: durable-pause approval node (ADR-0019).
+//   - `connector_action`: deliberate open extension point for connector-provided
+//     node types — must never be flagged as invalid.
+const FORWARD_COMPAT_FLOW_NODE_TYPES = new Set(['approval', 'connector_action']);
+const FLOW_NODE_TYPE_ISSUE = /^nodes\.(\d+)\.type$/;
+
+function nodeTypeAt(draft: unknown, index: number): string | undefined {
+  const nodes = (draft as { nodes?: unknown })?.nodes;
+  if (!Array.isArray(nodes)) return undefined;
+  const node = nodes[index] as { type?: unknown } | undefined;
+  return typeof node?.type === 'string' ? node.type : undefined;
+}
 
 const SCHEMA_CACHE = new Map<string, ZodLikeSchema | null>();
 
@@ -143,7 +165,23 @@ export async function validateMetadataDraft(
   const result = schema.safeParse(draft);
   if (result.success) return { ok: true, issues: [] };
 
-  const issues: SchemaFormIssue[] = (result.error?.issues ?? []).map((i) => ({
+  let rawIssues = result.error?.issues ?? [];
+  // Forward-compat: don't let the published flow schema's closed node-type
+  // enum reject node types the running server supports (see
+  // FORWARD_COMPAT_FLOW_NODE_TYPES). Suppress only the `.type` enum mismatch
+  // for those nodes; all other issues still surface.
+  if (type === 'flow') {
+    rawIssues = rawIssues.filter((i) => {
+      const path = (i.path ?? []).map((seg) => String(seg)).join('.');
+      const match = FLOW_NODE_TYPE_ISSUE.exec(path);
+      if (!match) return true;
+      const nodeType = nodeTypeAt(draft, Number(match[1]));
+      return !(nodeType && FORWARD_COMPAT_FLOW_NODE_TYPES.has(nodeType));
+    });
+  }
+  if (rawIssues.length === 0) return { ok: true, issues: [] };
+
+  const issues: SchemaFormIssue[] = rawIssues.map((i) => ({
     path: (i.path ?? []).map((seg) => String(seg)).join('.'),
     message: i.message,
   }));
