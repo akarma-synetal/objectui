@@ -515,7 +515,10 @@ export function FlowCanvas({
                   )}
                   {editable && (
                     <foreignObject
-                      x={mid.x - 11}
+                      // Sit the insert handle at the edge midpoint, but slide it
+                      // to the right of the branch-label pill when one is present
+                      // so the two don't stack on the same spot.
+                      x={branchLabel ? mid.x + 66 : mid.x - 11}
                       y={mid.y - 11}
                       width={22}
                       height={22}

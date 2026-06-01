@@ -87,7 +87,10 @@ export function FlowPreview({ draft, editing, selection, onSelectionChange, onPa
   const handleAddNode = React.useCallback(() => {
     if (!canEdit) return;
     const existingIds = nodes.map((n) => n.id).filter(Boolean);
-    const newNode: FlowNode = { id: uniqueId('node', existingIds), type: 'task', label: 'New node' };
+    // A flow's first node is its trigger — seed a `start` node (not a generic
+    // `task`) so the canvas opens on the canonical entry point and the author
+    // adds subsequent steps from there.
+    const newNode: FlowNode = { id: uniqueId('node', existingIds), type: 'start', label: 'Start' };
     const next = appendArray(nodes, newNode);
     onPatch!({ nodes: next });
     onSelectionChange?.({ kind: 'node', id: newNode.id, label: newNode.label || newNode.id });
