@@ -15,7 +15,7 @@ import {
   DropdownMenuTrigger,
 } from '@object-ui/components';
 import { Edit, Trash2, MoreVertical } from 'lucide-react';
-import { useObjectTranslation } from '@object-ui/react';
+import { useObjectTranslation, useCondition, toPredicateInput } from '@object-ui/react';
 
 const ROW_ACTION_FALLBACKS: Record<string, string> = {
   'grid.openMenu': 'Open menu',
@@ -75,6 +75,34 @@ export interface RowActionMenuProps {
   onActionDef?: (def: RowActionDef, row: any) => void;
 }
 
+/**
+ * One schema-driven row-action menu item. Extracted into its own component
+ * so the `visible` CEL predicate can be evaluated with a hook
+ * (`useCondition`) without violating the rules-of-hooks inside a `.map()`.
+ * Mirrors `ActionMenuItem` on the record_header path: when a `visible`
+ * predicate is present and evaluates false against the row, the item is
+ * hidden (so e.g. "Resume" no longer shows on a running record). Bare field
+ * references (`status == "active"`, `is_default != true`) resolve against
+ * the row record passed in as evaluation context.
+ */
+const RowActionMenuItem: React.FC<{
+  def: RowActionDef;
+  row: any;
+  onActionDef?: (def: RowActionDef, row: any) => void;
+}> = ({ def, row, onActionDef }) => {
+  const isVisible = useCondition(toPredicateInput(def.visible), row);
+  if (def.visible && !isVisible) return null;
+  return (
+    <DropdownMenuItem
+      onClick={() => onActionDef?.(def, row)}
+      data-testid={`row-action-${def.name}`}
+      className={def.variant === 'danger' ? 'text-destructive focus:text-destructive' : undefined}
+    >
+      {def.label ?? formatActionLabel(def.name)}
+    </DropdownMenuItem>
+  );
+};
+
 export const RowActionMenu: React.FC<RowActionMenuProps> = ({
   row,
   rowActions,
@@ -114,14 +142,12 @@ export const RowActionMenu: React.FC<RowActionMenuProps> = ({
           </DropdownMenuItem>
         )}
         {rowActionDefs?.map(def => (
-          <DropdownMenuItem
+          <RowActionMenuItem
             key={def.name}
-            onClick={() => onActionDef?.(def, row)}
-            data-testid={`row-action-${def.name}`}
-            className={def.variant === 'danger' ? 'text-destructive focus:text-destructive' : undefined}
-          >
-            {def.label ?? formatActionLabel(def.name)}
-          </DropdownMenuItem>
+            def={def}
+            row={row}
+            onActionDef={onActionDef}
+          />
         ))}
         {rowActions?.map(action => (
           <DropdownMenuItem
