@@ -1448,7 +1448,27 @@ export class ObjectStackAdapter<T = unknown> implements DataSource<T> {
         if (obj !== objectName) return false;
         const viewKind = v.viewKind ?? spec?.viewKind;
         return !(viewKind && FORM_FAMILY.has(viewKind));
-      }).map((v: any) => v.list ?? v);
+      }).map((v: any) => {
+        const spec = v.list ?? v;
+        // Canonical ViewItem (ADR-0017) carries its body under `config`;
+        // the display `type` (grid/kanban/gallery/…) lives at `config.type`,
+        // and only the list/form *family* sits at the top level (`viewKind`).
+        // Flatten `config` up to the legacy NamedListView shape the switcher +
+        // ObjectView consume — mirroring MetadataProvider.mergeViewsIntoObjects
+        // so the two paths don't drift. Without this an un-flattened item has
+        // no top-level `type`, so ObjectView's saved-view normalization defaults
+        // it to 'grid' and overrides the metadata entry — a kanban/gallery/
+        // calendar view then silently renders as a plain table.
+        if (spec && spec.config && typeof spec.config === 'object') {
+          return {
+            ...spec.config,
+            name: spec.name ?? spec.config.name,
+            label: spec.label ?? spec.config.label,
+            isDefault: !!spec.isDefault,
+          };
+        }
+        return spec;
+      });
     } catch (err) {
       console.warn('[OBJECTSTACKDataSource] listViews failed:', err);
       return [];
