@@ -1587,8 +1587,24 @@ export function ObjectView({ dataSource, objects, onEdit, externalRefreshKey }: 
              * remains for back-compat where the action lives elsewhere.
              */
             rowActionDefs: (Array.isArray((objectDef as any)?.actions)
-                ? (objectDef as any).actions.filter((a: any) =>
-                    Array.isArray(a?.locations) && a.locations.includes('list_item'))
+                ? (objectDef as any).actions
+                    .filter((a: any) =>
+                      Array.isArray(a?.locations) && a.locations.includes('list_item'))
+                    // Localize label / confirm / success the same way the
+                    // record_header and list_toolbar paths do — the row kebab
+                    // previously rendered raw English `a.label`. The `visible`
+                    // CEL is forwarded untouched (spread) and evaluated per-row
+                    // at render time inside RowActionMenu.
+                    .map((a: any) => ({
+                      ...a,
+                      label: actionLabel(objectDef.name, a.name, a.label || a.name),
+                      ...(a.confirmText !== undefined && {
+                        confirmText: actionConfirm(objectDef.name, a.name, a.confirmText),
+                      }),
+                      ...(a.successMessage !== undefined && {
+                        successMessage: actionSuccess(objectDef.name, a.name, a.successMessage),
+                      }),
+                    }))
                 : []),
             bulkActions: viewDef.bulkActions ?? listSchema.bulkActions,
             bulkActionDefs: (viewDef as any).bulkActionDefs ?? (listSchema as any).bulkActionDefs,
