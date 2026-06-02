@@ -21,7 +21,7 @@
  */
 
 import * as React from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import {
   Save,
   RotateCcw,
@@ -31,6 +31,7 @@ import {
   Loader2,
   AlertTriangle,
   Layers3,
+  GitCompareArrows,
   Boxes,
   Eye,
   Pencil,
@@ -79,6 +80,7 @@ import type {
 import { PageShell } from './PageShell';
 import { MetadataTypeActions } from './MetadataTypeActions';
 import { LayeredDiff, countOverlaidFields } from './LayeredDiff';
+import { DraftReviewPanel, computeDraftChangeCount } from './DraftReviewPanel';
 import { SchemaForm, type SchemaFormIssue } from './SchemaForm';
 import {
   useMetadataClient,
@@ -219,6 +221,7 @@ function MetadataResourceEditPageImpl({
   embedded,
 }: MetadataResourceEditPageImplProps) {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const client = useMetadataClient();
   const { entries } = useMetadataTypes(client);
   const entry: RichMetadataTypeEntry | undefined = entries.find((t) => t.type === type);
@@ -561,7 +564,32 @@ function MetadataResourceEditPageImpl({
   const initialTabRef = React.useRef<string | null>(null);
 
   const [openSheet, setOpenSheet] =
-    React.useState<'layers' | 'references' | 'related' | 'history' | 'audit' | null>(null);
+    React.useState<'layers' | 'references' | 'related' | 'history' | 'audit' | 'review' | null>(null);
+
+  // ADR-0033 Phase B — `?review=1` arrival (from the chat's "Review N change(s)"
+  // affordance). The AI may have drafted this item *after* the page mounted, so
+  // we first force a fresh fetch, then — once the draft is loaded — open the
+  // generic review/diff sheet and consume the query param (so a refresh/back
+  // doesn't re-trigger it). The same-item-already-open case is covered by the
+  // reload bump (the load effect keys off `reloadKey`, not the search string).
+  const reviewParam = searchParams.get('review');
+  const reviewBumpedRef = React.useRef(false);
+  React.useEffect(() => {
+    if (reviewParam !== '1' || createMode) return;
+    if (!reviewBumpedRef.current) {
+      reviewBumpedRef.current = true;
+      setReloadKey((k) => k + 1);
+      return; // wait for the reload to settle before reading hasDraft
+    }
+    if (!loading) {
+      if (hasDraft) setOpenSheet('review');
+      const next = new URLSearchParams(searchParams);
+      next.delete('review');
+      setSearchParams(next, { replace: true });
+      reviewBumpedRef.current = false;
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [reviewParam, createMode, loading, hasDraft]);
 
   // Inspector tabs: properties form vs raw JSON source view. Source view
   // is for power users who need to edit fields the form doesn't expose
@@ -1204,6 +1232,32 @@ function MetadataResourceEditPageImpl({
                   <span
                     className="absolute -top-1 -right-1 min-w-[14px] h-[14px] px-1 rounded-full bg-emerald-600 text-emerald-50 text-[9px] leading-[14px] text-center font-medium"
                     title={t('engine.layers.diff', locale)}
+                  >
+                    {n}
+                  </span>
+                ) : null;
+              })()}
+            </Button>
+          )}
+          {!createMode && hasDraft && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setOpenSheet('review')}
+              title={t('designer.draftReview.title', locale)}
+              className="h-7 w-7 p-0 relative"
+              data-testid="resource-review-trigger"
+            >
+              <GitCompareArrows className="h-3.5 w-3.5" />
+              {(() => {
+                const n = computeDraftChangeCount(
+                  layered?.effective ?? null,
+                  draft,
+                );
+                return n > 0 ? (
+                  <span
+                    className="absolute -top-1 -right-1 min-w-[14px] h-[14px] px-1 rounded-full bg-amber-500 text-amber-50 text-[9px] leading-[14px] text-center font-medium"
+                    title={tFormat('designer.draftReview.badge', locale, { n })}
                   >
                     {n}
                   </span>
@@ -1983,6 +2037,30 @@ function MetadataResourceEditPageImpl({
           </SheetHeader>
           <div className="flex-1 min-h-0 overflow-auto p-4">
             <LayeredDiff layered={layered} locale={locale} />
+          </div>
+        </SheetContent>
+      </Sheet>
+
+      {/* ADR-0033 Phase B — generic draft↔published review/diff. Available for
+          ANY type whenever a pending draft exists; opened by the chat's
+          "Review N change(s)" affordance (?review=1) or the toolbar button. */}
+      <Sheet
+        open={openSheet === 'review'}
+        onOpenChange={(o) => !o && setOpenSheet(null)}
+      >
+        <SheetContent side="right" className="w-[92vw] sm:max-w-[720px] p-0 flex flex-col gap-0">
+          <SheetHeader className="px-4 py-3 border-b">
+            <SheetTitle className="text-base">{t('designer.draftReview.title', locale)}</SheetTitle>
+            <SheetDescription className="text-xs">
+              {type} / {name} · {t('designer.canvas.reviewVsPublished', locale)}
+            </SheetDescription>
+          </SheetHeader>
+          <div className="flex-1 min-h-0 overflow-auto p-4">
+            <DraftReviewPanel
+              published={layered?.effective ?? null}
+              draft={draft}
+              locale={locale}
+            />
           </div>
         </SheetContent>
       </Sheet>

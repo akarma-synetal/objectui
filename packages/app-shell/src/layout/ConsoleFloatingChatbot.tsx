@@ -32,7 +32,7 @@ import {
 import { Share2, SquarePen } from 'lucide-react';
 import { useObjectTranslation } from '@object-ui/i18n';
 import { useChatConversation, type HydratedUIMessage } from '../hooks';
-import { useAssistant, type AssistantEditorContext } from '../assistant/assistantBus';
+import { useAssistant, requestAssistantReview, type AssistantEditorContext } from '../assistant/assistantBus';
 
 /**
  * Display names for the built-in platform agents. The backend ships English
@@ -92,6 +92,7 @@ function buildChatLocale(
       title: `${appLabel} 智能助手`,
       newChat: '开启新对话',
       share: '分享对话',
+      reviewDraft: (n: number) => `查看 ${n} 项变更`,
       suggestions,
     };
   }
@@ -116,6 +117,7 @@ function buildChatLocale(
     title: `${appLabel} Assistant`,
     newChat: 'New chat',
     share: 'Share conversation',
+    reviewDraft: (n: number) => `Review ${n} change${n === 1 ? '' : 's'}`,
     suggestions,
   };
 }
@@ -437,6 +439,14 @@ function ChatbotInner({
         toolApproveLabel="Approve & run"
         toolDenyLabel="Reject"
         toolDenyReason="Operator rejected from chat"
+        onReviewDraft={(items) => {
+          // ADR-0033 Phase B: open the first drafted item in the designer's
+          // review/diff. The remaining items stay drafted and surface their
+          // own review when opened. The host navigator (AppContent) knows the
+          // app base and performs the routing.
+          if (items[0]) requestAssistantReview(items[0]);
+        }}
+        toolReviewLabel={locale.reviewDraft}
       />
       {conversationId && (
         <ShareDialog

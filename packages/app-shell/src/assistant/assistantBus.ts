@@ -39,23 +39,39 @@ export interface AssistantEditorContext {
   fields?: AssistantEditorField[];
 }
 
+/** A metadata item the chat has asked the host to open in review/diff. */
+export interface AssistantReviewTarget {
+  type: string;
+  name: string;
+}
+
 export interface AssistantSnapshot {
   /** What the user is currently editing, or null when no designer is active. */
   editor: AssistantEditorContext | null;
   /** Monotonic counter — bumped each time a surface requests the chat to open. */
   openSeq: number;
+  /**
+   * Monotonic counter — bumped each time the chat asks the host to open a
+   * drafted item in review (ADR-0033 Phase B). The host (which knows the app
+   * base) watches this and navigates to the designer.
+   */
+  reviewSeq: number;
+  /** The item to review, set alongside the latest `reviewSeq` bump. */
+  reviewTarget: AssistantReviewTarget | null;
 }
 
 let editor: AssistantEditorContext | null = null;
 let openSeq = 0;
+let reviewSeq = 0;
+let reviewTarget: AssistantReviewTarget | null = null;
 // Cached snapshot — its reference only changes on a real state change so
 // useSyncExternalStore doesn't loop.
-let snapshot: AssistantSnapshot = { editor, openSeq };
+let snapshot: AssistantSnapshot = { editor, openSeq, reviewSeq, reviewTarget };
 
 const listeners = new Set<() => void>();
 
 function commit(): void {
-  snapshot = { editor, openSeq };
+  snapshot = { editor, openSeq, reviewSeq, reviewTarget };
   for (const l of listeners) l();
 }
 
@@ -83,6 +99,16 @@ export const assistantBus = {
   /** Ask the global chat to open (and warm/mount the lazy FAB). */
   requestOpen(): void {
     openSeq += 1;
+    commit();
+  },
+  /**
+   * Ask the host to open `target` in the designer's review/diff (ADR-0033
+   * Phase B). The chat calls this from the "Review N change(s)" affordance;
+   * a navigator that knows the app base performs the routing.
+   */
+  requestReview(target: AssistantReviewTarget): void {
+    reviewSeq += 1;
+    reviewTarget = target;
     commit();
   },
 };
@@ -114,4 +140,9 @@ export function useRegisterAssistantEditor(ctx: AssistantEditorContext | null): 
 /** Open the global AI chat from anywhere (e.g. an "Ask AI" button). */
 export function requestAssistantOpen(): void {
   assistantBus.requestOpen();
+}
+
+/** Ask the host to open a drafted item in the designer's review/diff. */
+export function requestAssistantReview(target: AssistantReviewTarget): void {
+  assistantBus.requestReview(target);
 }

@@ -84,6 +84,53 @@ describe('uiMessageToChatMessage', () => {
   });
 });
 
+// ADR-0033 Phase B — the chat lifts draft envelopes onto the invocation so a
+// "Review N change(s)" affordance can open the designer's review/diff.
+describe('draftReview detection (ADR-0033)', () => {
+  const toolPart = (output: unknown) => ({
+    type: 'tool-create_metadata',
+    toolCallId: 'd1',
+    state: 'output-available' as const,
+    input: {},
+    output,
+  });
+  const draftReviewOf = (output: unknown) =>
+    uiMessageToChatMessage({ id: 'm', role: 'assistant', parts: [toolPart(output)] })
+      .toolInvocations?.[0]?.draftReview;
+
+  it('lifts a single drafted item ({status:drafted, type, name})', () => {
+    const dr = draftReviewOf({ status: 'drafted', type: 'object', name: 'project', summary: 'Drafted new object "project"' });
+    expect(dr).toEqual({ items: [{ type: 'object', name: 'project' }], summary: 'Drafted new object "project"' });
+  });
+
+  it('lifts a batch from apply_blueprint ({status:drafted, drafted:[…]})', () => {
+    const dr = draftReviewOf({
+      status: 'drafted',
+      drafted: [
+        { type: 'object', name: 'project' },
+        { type: 'view', name: 'open_tasks' },
+      ],
+      failed: [],
+      summary: 'drafted 2 artifact(s)',
+    });
+    expect(dr?.items).toEqual([
+      { type: 'object', name: 'project' },
+      { type: 'view', name: 'open_tasks' },
+    ]);
+  });
+
+  it('parses the Vercel `{ type:text, value }` wrapper (stringified JSON)', () => {
+    const dr = draftReviewOf({ type: 'text', value: JSON.stringify({ status: 'drafted', type: 'view', name: 'grid_v' }) });
+    expect(dr?.items).toEqual([{ type: 'view', name: 'grid_v' }]);
+  });
+
+  it('does NOT surface blueprint_proposed (no draft yet) or plain results', () => {
+    expect(draftReviewOf({ status: 'blueprint_proposed', counts: { objects: 3 } })).toBeUndefined();
+    expect(draftReviewOf({ users: [] })).toBeUndefined();
+    expect(draftReviewOf({ status: 'drafted' })).toBeUndefined(); // no type/name → no target
+  });
+});
+
 describe('uiMessagesToChatMessages', () => {
   it('returns [] for empty / non-array input', () => {
     expect(uiMessagesToChatMessages([])).toEqual([]);
