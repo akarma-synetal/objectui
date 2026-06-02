@@ -90,6 +90,67 @@ function pickPlaceholderGradient(seed: string): typeof PLACEHOLDER_GRADIENTS[num
     return PLACEHOLDER_GRADIENTS[Math.abs(h) % PLACEHOLDER_GRADIENTS.length];
 }
 
+/**
+ * Card cover art with graceful degradation.
+ *
+ *  - `contain` covers (icons / logos) are centred at a capped size on a soft
+ *    tinted backdrop so cards read as polished "app tiles" instead of a giant
+ *    glyph stretched edge-to-edge.
+ *  - `cover` covers (photos) fill the tile.
+ *  - When there is no cover value — or the cover URL fails to load (404, dead
+ *    CDN) — we fall back to the deterministic letter-avatar placeholder rather
+ *    than leaving a broken `<img>` (alt text on a blank box).
+ */
+const GalleryCover: React.FC<{
+    imageUrl?: string;
+    title: string;
+    coverFit: 'cover' | 'contain';
+    aspectClass: string;
+    placeholder: typeof PLACEHOLDER_GRADIENTS[number];
+    hidden: boolean;
+}> = ({ imageUrl, title, coverFit, aspectClass, placeholder, hidden }) => {
+    const [errored, setErrored] = useState(false);
+    const showImage = !!imageUrl && !errored;
+
+    return (
+        <div className={cn('w-full overflow-hidden relative', aspectClass)} hidden={hidden}>
+            {showImage ? (
+                coverFit === 'contain' ? (
+                    <div className={cn('flex h-full w-full items-center justify-center bg-gradient-to-br', placeholder.bg)}>
+                        <img
+                            src={imageUrl}
+                            alt={title}
+                            loading="lazy"
+                            onError={() => setErrored(true)}
+                            className="h-1/2 w-1/2 max-h-24 max-w-24 object-contain transition-transform duration-300 ease-out group-hover:scale-[1.08]"
+                        />
+                    </div>
+                ) : (
+                    <img
+                        src={imageUrl}
+                        alt={title}
+                        loading="lazy"
+                        onError={() => setErrored(true)}
+                        className="h-full w-full object-cover transition-transform duration-300 ease-out group-hover:scale-[1.04]"
+                    />
+                )
+            ) : (
+                <div
+                    className={cn(
+                        'flex h-full w-full items-center justify-center bg-gradient-to-br ring-1 ring-inset',
+                        placeholder.bg,
+                        placeholder.ring,
+                    )}
+                >
+                    <span className={cn('text-5xl font-semibold tracking-tight opacity-90', placeholder.text)}>
+                        {title[0]?.toUpperCase()}
+                    </span>
+                </div>
+            )}
+        </div>
+    );
+};
+
 export const ObjectGallery: React.FC<ObjectGalleryProps> = (props) => {
     const { schema } = props;
     const context = useContext(SchemaRendererContext);
@@ -320,31 +381,14 @@ export const ObjectGallery: React.FC<ObjectGalleryProps> = (props) => {
                         )}
                     />
                 )}
-                <div className={cn('w-full overflow-hidden relative', ASPECT_CLASSES[cardSize])} hidden={!showCoverArea}>
-                    {imageUrl ? (
-                        <img
-                            src={imageUrl}
-                            alt={title}
-                            className={cn(
-                                'h-full w-full transition-transform duration-300 ease-out group-hover:scale-[1.04]',
-                                coverFit === 'cover' && 'object-cover',
-                                coverFit === 'contain' && 'object-contain',
-                            )}
-                        />
-                    ) : (
-                        <div
-                            className={cn(
-                                'flex h-full w-full items-center justify-center bg-gradient-to-br ring-1 ring-inset',
-                                placeholder.bg,
-                                placeholder.ring,
-                            )}
-                        >
-                            <span className={cn('text-5xl font-semibold tracking-tight opacity-90', placeholder.text)}>
-                                {title[0]?.toUpperCase()}
-                            </span>
-                        </div>
-                    )}
-                </div>
+                <GalleryCover
+                    imageUrl={imageUrl}
+                    title={title}
+                    coverFit={coverFit}
+                    aspectClass={ASPECT_CLASSES[cardSize]}
+                    placeholder={placeholder}
+                    hidden={!showCoverArea}
+                />
                 <CardContent className={cn('p-3', showCoverArea && 'border-t border-border/60')}>
                     <h3 className="font-semibold tracking-tight truncate text-sm leading-tight text-foreground" title={title}>
                         {title}
