@@ -90,6 +90,104 @@ function pickPlaceholderGradient(seed: string): typeof PLACEHOLDER_GRADIENTS[num
     return PLACEHOLDER_GRADIENTS[Math.abs(h) % PLACEHOLDER_GRADIENTS.length];
 }
 
+/**
+ * Card cover art with graceful degradation.
+ *
+ *  - `contain` covers (icons / logos) are centred at a capped size on a soft
+ *    tinted backdrop so cards read as polished "app tiles" instead of a giant
+ *    glyph stretched edge-to-edge.
+ *  - `cover` covers (photos) fill the tile.
+ *  - When there is no cover value — or the cover URL fails to load (404, dead
+ *    CDN) — we fall back to the deterministic letter-avatar placeholder rather
+ *    than leaving a broken `<img>` (alt text on a blank box).
+ */
+const GalleryCover: React.FC<{
+    imageUrl?: string;
+    title: string;
+    coverFit: 'cover' | 'contain';
+    aspectClass: string;
+    placeholder: typeof PLACEHOLDER_GRADIENTS[number];
+    hidden: boolean;
+}> = ({ imageUrl, title, coverFit, aspectClass, placeholder, hidden }) => {
+    const [errored, setErrored] = useState(false);
+    const showImage = !!imageUrl && !errored;
+
+    return (
+        <div className={cn('w-full overflow-hidden relative', aspectClass)} hidden={hidden}>
+            {showImage ? (
+                coverFit === 'contain' ? (
+                    <div className={cn('flex h-full w-full items-center justify-center bg-gradient-to-br', placeholder.bg)}>
+                        <img
+                            src={imageUrl}
+                            alt={title}
+                            loading="lazy"
+                            onError={() => setErrored(true)}
+                            className="h-1/2 w-1/2 max-h-24 max-w-24 object-contain transition-transform duration-300 ease-out group-hover:scale-[1.08]"
+                        />
+                    </div>
+                ) : (
+                    <img
+                        src={imageUrl}
+                        alt={title}
+                        loading="lazy"
+                        onError={() => setErrored(true)}
+                        className="h-full w-full object-cover transition-transform duration-300 ease-out group-hover:scale-[1.04]"
+                    />
+                )
+            ) : (
+                <div
+                    className={cn(
+                        'flex h-full w-full items-center justify-center bg-gradient-to-br ring-1 ring-inset',
+                        placeholder.bg,
+                        placeholder.ring,
+                    )}
+                >
+                    <span className={cn('text-5xl font-semibold tracking-tight opacity-90', placeholder.text)}>
+                        {title[0]?.toUpperCase()}
+                    </span>
+                </div>
+            )}
+        </div>
+    );
+};
+
+/**
+ * Small rounded icon tile used in the compact "app card" layout (icon-style
+ * galleries, coverFit:'contain'). Renders the cover image at icon scale on a
+ * soft tinted backdrop; falls back to the letter avatar on missing/broken art.
+ */
+const GalleryIconTile: React.FC<{
+    imageUrl?: string;
+    title: string;
+    placeholder: typeof PLACEHOLDER_GRADIENTS[number];
+}> = ({ imageUrl, title, placeholder }) => {
+    const [errored, setErrored] = useState(false);
+    const showImage = !!imageUrl && !errored;
+    return (
+        <div
+            className={cn(
+                'flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br ring-1 ring-inset',
+                placeholder.bg,
+                placeholder.ring,
+            )}
+        >
+            {showImage ? (
+                <img
+                    src={imageUrl}
+                    alt={title}
+                    loading="lazy"
+                    onError={() => setErrored(true)}
+                    className="h-6 w-6 object-contain transition-transform duration-300 ease-out group-hover:scale-110"
+                />
+            ) : (
+                <span className={cn('text-base font-semibold', placeholder.text)}>
+                    {title[0]?.toUpperCase()}
+                </span>
+            )}
+        </div>
+    );
+};
+
 export const ObjectGallery: React.FC<ObjectGalleryProps> = (props) => {
     const { schema } = props;
     const context = useContext(SchemaRendererContext);
@@ -289,116 +387,119 @@ export const ObjectGallery: React.FC<ObjectGalleryProps> = (props) => {
     if (loading && !items.length) return <div className="p-4 text-sm text-muted-foreground">Loading Gallery...</div>;
     if (!items.length) return <div className="p-4 text-sm text-muted-foreground">No items to display</div>;
 
+    // Detail rows (description / tags / badges) shared by both card layouts.
+    const renderFields = (item: Record<string, unknown>) => {
+        if (!visibleFields || visibleFields.length === 0) return null;
+        return (
+            <div className="mt-1.5 space-y-1">
+                {visibleFields.map((field) => {
+                    const value = (item as any)[field];
+                    if (value == null || value === '') return null;
+                    const enriched = buildEnrichedField(field);
+                    const rendererType = resolveCellRendererType(enriched as any) || enriched.type || 'text';
+                    const CellRenderer = getCellRenderer(rendererType);
+                    // Auto-prepend a muted label for low-semantic field types
+                    // (bare numbers/currency/percent) so a card row isn't an
+                    // unlabeled "5,000,000". Types with inherent visual context
+                    // (badges, links, dates) stay unlabeled for a clean look.
+                    const fieldLabel: string | undefined =
+                        (enriched as any)?.label && String((enriched as any).label).trim()
+                            ? String((enriched as any).label)
+                            : undefined;
+                    const showLabel =
+                        fieldLabel != null &&
+                        LOW_SEMANTIC_RENDERER_TYPES.has(rendererType);
+                    return (
+                        <div
+                            key={field}
+                            className={cn(
+                                'text-xs text-muted-foreground truncate [&_*]:!text-xs',
+                                showLabel && 'flex items-baseline gap-1.5',
+                            )}
+                            onClick={(e) => {
+                                // Don't navigate when interacting with rich cell
+                                // content (email/phone/url links) inside a card.
+                                const target = e.target as HTMLElement;
+                                if (target.closest('a,button')) e.stopPropagation();
+                            }}
+                        >
+                            {showLabel && (
+                                <span className="shrink-0 text-muted-foreground/70 tabular-nums">
+                                    {fieldLabel}
+                                </span>
+                            )}
+                            <CellRenderer value={value} field={enriched as any} />
+                        </div>
+                    );
+                })}
+            </div>
+        );
+    };
+
     const renderCard = (item: Record<string, unknown>, i: number) => {
         const id = (item.id ?? item._id ?? i) as string | number;
         const title = String(item[titleField] ?? 'Untitled');
         const imageUrl = item[coverField] as string | undefined;
         const placeholder = pickPlaceholderGradient(String(id) + '|' + title);
 
+        const cardClass = cn(
+            'group relative overflow-hidden border-border/60 bg-card',
+            'transition-all duration-200 ease-out',
+            'hover:shadow-lg hover:border-border hover:-translate-y-0.5',
+            (props.onCardClick || props.onRowClick || schema.navigation) && 'cursor-pointer',
+        );
+
+        // Icon-style galleries (coverFit:'contain' — app marketplaces, logo
+        // catalogues) read far better as a compact "app card": a small rounded
+        // icon tile beside the title with details below, instead of a giant
+        // glyph stretched across a photo-sized cover. Photographic galleries
+        // (coverFit:'cover') keep the full-bleed cover layout.
+        const isAppCard = showCoverArea && coverFit === 'contain';
+
+        if (isAppCard) {
+            return (
+                <Card key={id} role="listitem" className={cardClass} onClick={(e) => navigation.handleClick(item, e)}>
+                    <div
+                        aria-hidden
+                        className={cn('absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r', placeholder.bg)}
+                    />
+                    <CardContent className="p-4">
+                        <div className="flex items-start gap-3">
+                            <GalleryIconTile imageUrl={imageUrl} title={title} placeholder={placeholder} />
+                            <div className="min-w-0 flex-1">
+                                <h3 className="font-semibold tracking-tight truncate text-sm leading-tight text-foreground" title={title}>
+                                    {title}
+                                </h3>
+                                {renderFields(item)}
+                            </div>
+                        </div>
+                    </CardContent>
+                </Card>
+            );
+        }
+
         return (
-            <Card
-                key={id}
-                role="listitem"
-                className={cn(
-                    'group relative overflow-hidden border-border/60 bg-card',
-                    'transition-all duration-200 ease-out',
-                    'hover:shadow-lg hover:border-border hover:-translate-y-0.5',
-                    (props.onCardClick || props.onRowClick || schema.navigation) && 'cursor-pointer',
-                )}
-                onClick={(e) => navigation.handleClick(item, e)}
-            >
-                {/* Top accent strip: only shown for text-only cards (no cover
-                    image area). Uses the deterministic palette so each card
-                    has stable but varied personality — mirrors the home-page
-                    AppCard accent treatment. */}
+            <Card key={id} role="listitem" className={cardClass} onClick={(e) => navigation.handleClick(item, e)}>
+                {/* Top accent strip: only for text-only cards (no cover area). */}
                 {!showCoverArea && (
                     <div
                         aria-hidden
-                        className={cn(
-                            'absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r',
-                            placeholder.bg,
-                        )}
+                        className={cn('absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r', placeholder.bg)}
                     />
                 )}
-                <div className={cn('w-full overflow-hidden relative', ASPECT_CLASSES[cardSize])} hidden={!showCoverArea}>
-                    {imageUrl ? (
-                        <img
-                            src={imageUrl}
-                            alt={title}
-                            className={cn(
-                                'h-full w-full transition-transform duration-300 ease-out group-hover:scale-[1.04]',
-                                coverFit === 'cover' && 'object-cover',
-                                coverFit === 'contain' && 'object-contain',
-                            )}
-                        />
-                    ) : (
-                        <div
-                            className={cn(
-                                'flex h-full w-full items-center justify-center bg-gradient-to-br ring-1 ring-inset',
-                                placeholder.bg,
-                                placeholder.ring,
-                            )}
-                        >
-                            <span className={cn('text-5xl font-semibold tracking-tight opacity-90', placeholder.text)}>
-                                {title[0]?.toUpperCase()}
-                            </span>
-                        </div>
-                    )}
-                </div>
+                <GalleryCover
+                    imageUrl={imageUrl}
+                    title={title}
+                    coverFit={coverFit}
+                    aspectClass={ASPECT_CLASSES[cardSize]}
+                    placeholder={placeholder}
+                    hidden={!showCoverArea}
+                />
                 <CardContent className={cn('p-3', showCoverArea && 'border-t border-border/60')}>
                     <h3 className="font-semibold tracking-tight truncate text-sm leading-tight text-foreground" title={title}>
                         {title}
                     </h3>
-                    {visibleFields && visibleFields.length > 0 && (
-                        <div className="mt-1.5 space-y-1">
-                            {visibleFields.map((field) => {
-                                const value = (item as any)[field];
-                                if (value == null || value === '') return null;
-                                const enriched = buildEnrichedField(field);
-                                const rendererType = resolveCellRendererType(enriched as any) || enriched.type || 'text';
-                                const CellRenderer = getCellRenderer(rendererType);
-                                // Auto-prepend a muted label for low-semantic
-                                // field types. Numbers, currencies, and
-                                // percentages render as bare digits — without
-                                // a label, a card row like "5,000,000" gives
-                                // the user no clue which field they're
-                                // looking at. Types that carry inherent
-                                // visual context (badges, icons on links/
-                                // phone/email, dates relative to today) stay
-                                // unlabeled so the card aesthetic remains
-                                // clean.
-                                const fieldLabel: string | undefined =
-                                    (enriched as any)?.label && String((enriched as any).label).trim()
-                                        ? String((enriched as any).label)
-                                        : undefined;
-                                const showLabel =
-                                    fieldLabel != null &&
-                                    LOW_SEMANTIC_RENDERER_TYPES.has(rendererType);
-                                return (
-                                    <div
-                                        key={field}
-                                        className={cn(
-                                            'text-xs text-muted-foreground truncate [&_*]:!text-xs',
-                                            showLabel && 'flex items-baseline gap-1.5',
-                                        )}
-                                        onClick={(e) => {
-                                            // Prevent navigation when interacting with rich cell
-                                            // content like email/phone/url links inside a card.
-                                            const target = e.target as HTMLElement;
-                                            if (target.closest('a,button')) e.stopPropagation();
-                                        }}
-                                    >
-                                        {showLabel && (
-                                            <span className="shrink-0 text-muted-foreground/70 tabular-nums">
-                                                {fieldLabel}
-                                            </span>
-                                        )}
-                                        <CellRenderer value={value} field={enriched as any} />
-                                    </div>
-                                );
-                            })}
-                        </div>
-                    )}
+                    {renderFields(item)}
                 </CardContent>
             </Card>
         );
