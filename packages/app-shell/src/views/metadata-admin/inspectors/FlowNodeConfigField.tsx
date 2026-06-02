@@ -20,6 +20,7 @@ import { FlowKeyValueField } from './FlowKeyValueField';
 import { FlowStringListField } from './FlowStringListField';
 import { FlowObjectListField } from './FlowObjectListField';
 import { FlowReferenceField, type FlowReferenceContext } from './FlowReferenceField';
+import { validateExpressionClient } from './expression-validate';
 
 export interface FlowNodeConfigFieldProps {
   field: FlowConfigField;
@@ -144,10 +145,23 @@ export function FlowNodeConfigField({ field, value, onCommit, disabled, locale, 
     }
   })();
 
+  // ADR-0032 — surface a malformed condition (e.g. the `{record.x}` brace-in-CEL
+  // mistake) inline, as the author types, with the same corrective message the
+  // build and the agent tool emit. Only checked for expression-bearing fields.
+  const exprIssue =
+    field.kind === 'expression' ? validateExpressionClient('predicate', value) : null;
+
   return (
     <div className="space-y-1">
       {control}
-      {field.help && <p className="text-[11px] leading-snug text-muted-foreground">{field.help}</p>}
+      {exprIssue && (
+        <p className="text-[11px] leading-snug text-destructive" role="alert">
+          {exprIssue.message}
+        </p>
+      )}
+      {field.help && !exprIssue && (
+        <p className="text-[11px] leading-snug text-muted-foreground">{field.help}</p>
+      )}
     </div>
   );
 }

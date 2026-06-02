@@ -27,6 +27,7 @@ import {
 } from './_shared';
 import { Label } from '@object-ui/components';
 import { edgeKey, conditionText } from '../previews/flow-canvas-layout';
+import { validateExpressionClient } from './expression-validate';
 
 interface FlowEdge {
   id?: string;
@@ -127,6 +128,16 @@ export function FlowEdgeInspector({ selection, draft, onPatch, onClearSelection,
         disabled={readOnly || isDefault}
         mono
       />
+      {(() => {
+        // ADR-0032 — flag a malformed edge guard (e.g. `{record.x}` brace-in-CEL)
+        // inline, with the same corrective message as build/agent validation.
+        const issue = isDefault ? null : validateExpressionClient('predicate', edge.condition);
+        return issue ? (
+          <p className="text-[11px] leading-snug text-destructive" role="alert">
+            {issue.message}
+          </p>
+        ) : null;
+      })()}
       <InspectorCheckboxField
         label={t('engine.inspector.flowEdge.isDefault', locale)}
         value={isDefault}
