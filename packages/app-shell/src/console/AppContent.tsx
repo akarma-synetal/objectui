@@ -9,7 +9,8 @@
  */
 
 import { Routes, Route, Navigate, useNavigate, useLocation, useParams } from 'react-router-dom';
-import { useState, useEffect, useCallback, lazy, Suspense, useMemo, type ReactNode } from 'react';
+import { useState, useEffect, useCallback, useRef, lazy, Suspense, useMemo, type ReactNode } from 'react';
+import { useAssistant } from '../assistant/assistantBus';
 import { ModalForm } from '@object-ui/plugin-form';
 import { Empty, EmptyTitle, EmptyDescription, Button } from '@object-ui/components';
 import { toast } from 'sonner';
@@ -81,6 +82,28 @@ interface AppContentProps {
    * the no-app branch.
    */
   extraRoutesNoApp?: ReactNode;
+}
+
+/**
+ * Bridges the global chat's "Review N change(s)" affordance (ADR-0033 Phase B)
+ * to the metadata designer. The chat publishes a review target on `assistantBus`;
+ * this navigator — which lives inside the app router and knows the app base —
+ * routes to `/apps/:appName/metadata/:type/:name?review=1`, where the designer
+ * reloads the pending draft and opens its review/diff.
+ */
+function DraftReviewNavigator({ appName }: { appName: string | undefined }) {
+  const { reviewSeq, reviewTarget } = useAssistant();
+  const navigate = useNavigate();
+  const lastSeq = useRef(reviewSeq);
+  useEffect(() => {
+    if (reviewSeq === lastSeq.current || !reviewTarget || !appName) return;
+    lastSeq.current = reviewSeq;
+    const { type, name } = reviewTarget;
+    navigate(
+      `/apps/${appName}/metadata/${encodeURIComponent(type)}/${encodeURIComponent(name)}?review=1`,
+    );
+  }, [reviewSeq, reviewTarget, appName, navigate]);
+  return null;
 }
 
 export function AppContent({ extraRoutes, extraRoutesNoApp }: AppContentProps = {}) {
@@ -370,6 +393,7 @@ export function AppContent({ extraRoutes, extraRoutesNoApp }: AppContentProps = 
         />
         <KeyboardShortcutsDialog />
         <OnboardingWalkthrough />
+        <DraftReviewNavigator appName={appName} />
           <ErrorBoundary>
             <Suspense fallback={<LoadingScreen />}>
               <RouteFader className="h-full">

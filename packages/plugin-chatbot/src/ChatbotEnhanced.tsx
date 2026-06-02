@@ -19,7 +19,7 @@
  */
 import * as React from 'react';
 import { cn } from '@object-ui/components';
-import { AlertCircle, Copy, Check, RefreshCw, CornerDownLeft, Bot } from 'lucide-react';
+import { AlertCircle, Copy, Check, RefreshCw, CornerDownLeft, Bot, GitCompareArrows } from 'lucide-react';
 import type { ChatStatus } from 'ai';
 import {
   humanizeToolName,
@@ -126,6 +126,15 @@ export interface ChatToolInvocation {
    * without parsing the tool result JSON themselves.
    */
   pendingActionId?: string;
+  /**
+   * ObjectStack ADR-0033 extension. When a metadata-authoring tool stages a
+   * change as a DRAFT, its result carries `{ status: 'drafted', type, name, … }`
+   * (or a `drafted: [{type,name}]` batch from `apply_blueprint`). `mapMessages.ts`
+   * lifts the reviewable targets here so chat UIs can render a "Review N
+   * change(s)" affordance that opens the designer's review/diff. Nothing is
+   * live until the human publishes — this is the review entry point.
+   */
+  draftReview?: { items: Array<{ type: string; name: string }>; summary?: string };
 }
 
 export interface ChatSource {
@@ -249,6 +258,15 @@ export interface ChatbotEnhancedProps extends React.HTMLAttributes<HTMLDivElemen
    * operator immediate feedback while the server processes the decision.
    */
   toolDecisions?: Record<string, ToolDecisionState>;
+  /**
+   * When provided, tool parts whose result drafted metadata (ADR-0033) render a
+   * "Review N change(s)" button inside their body. The callback receives the
+   * reviewable `{ type, name }` targets; the host typically navigates to the
+   * designer's review/diff. See `ChatToolInvocation.draftReview`.
+   */
+  onReviewDraft?: (items: Array<{ type: string; name: string }>) => void;
+  /** Label for the review-draft button (default "Review {n} change(s)"). */
+  toolReviewLabel?: (count: number) => string;
 }
 
 export type ToolDecisionState =
@@ -330,6 +348,8 @@ const ChatbotEnhanced = React.forwardRef<HTMLDivElement, ChatbotEnhancedProps>(
       toolDenyLabel = 'Deny',
       toolDenyReason = 'User denied the operation',
       toolDecisions,
+      onReviewDraft,
+      toolReviewLabel = (n) => `Review ${n} change${n === 1 ? '' : 's'}`,
       ...props
     },
     ref
@@ -578,6 +598,23 @@ const ChatbotEnhanced = React.forwardRef<HTMLDivElement, ChatbotEnhancedProps>(
                                       >
                                         {toolDenyLabel}
                                       </button>
+                                    </div>
+                                  ) : null}
+                                  {tool.draftReview && tool.draftReview.items.length > 0 && onReviewDraft ? (
+                                    <div className="flex items-center gap-2 p-3 border-t bg-muted/30">
+                                      <button
+                                        type="button"
+                                        onClick={() => onReviewDraft(tool.draftReview!.items)}
+                                        className="inline-flex h-7 items-center gap-1.5 rounded-md bg-primary px-3 text-xs font-medium text-primary-foreground hover:bg-primary/90"
+                                      >
+                                        <GitCompareArrows className="size-3.5" />
+                                        {toolReviewLabel(tool.draftReview.items.length)}
+                                      </button>
+                                      {tool.draftReview.summary ? (
+                                        <span className="truncate text-xs text-muted-foreground">
+                                          {tool.draftReview.summary}
+                                        </span>
+                                      ) : null}
                                     </div>
                                   ) : null}
                                 </ToolContent>

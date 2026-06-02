@@ -597,6 +597,10 @@ const ENGINE_STRINGS_EN: Record<string, string> = {
   'designer.canvas.diffChanged': 'Changed',
   'designer.canvas.diffRemoved': 'Removed',
   'designer.canvas.diffChangedKeys': 'Changed: {keys}',
+  // ADR-0033 Phase B — generic draft review/diff (host level)
+  'designer.draftReview.title': 'Review changes',
+  'designer.draftReview.badge': '{n} pending',
+  'designer.draftReview.empty': 'No changes vs the published version.',
   // AI assistant entry points
   'designer.canvas.askAi': 'Ask AI',
   'designer.canvas.askAiGenerate': 'Generate fields with AI',
@@ -1056,6 +1060,9 @@ const ENGINE_STRINGS_ZH: Record<string, string> = {
   'designer.canvas.diffChanged': '修改',
   'designer.canvas.diffRemoved': '删除',
   'designer.canvas.diffChangedKeys': '变更：{keys}',
+  'designer.draftReview.title': '查看变更',
+  'designer.draftReview.badge': '{n} 项待审',
+  'designer.draftReview.empty': '与已发布版本相比没有变更。',
   // AI assistant entry points
   'designer.canvas.askAi': '问 AI',
   'designer.canvas.askAiGenerate': '用 AI 生成字段',

@@ -67,9 +67,13 @@ function extractReasoning(parts: AnyPart[]): string | undefined {
  * is enabled. We surface this on the invocation so chat UIs can render an
  * inline approve/reject affordance without round-tripping back to the server.
  */
-function detectPendingApproval(
-  result: unknown,
-): { pendingActionId: string; raw: Record<string, unknown> } | undefined {
+/**
+ * Parse a tool result into the framework's JSON envelope object, if it is one.
+ * The Vercel SDK wraps tool outputs as `{ type: 'text', value: string }`, so we
+ * peel one layer if present, then fall back to the raw value. Returns the first
+ * candidate that parses to a plain object.
+ */
+function parseResultEnvelope(result: unknown): Record<string, unknown> | undefined {
   const tryParse = (value: unknown): Record<string, unknown> | undefined => {
     if (value && typeof value === 'object') return value as Record<string, unknown>;
     if (typeof value !== 'string') return undefined;
@@ -82,22 +86,64 @@ function detectPendingApproval(
       return undefined;
     }
   };
-  // The Vercel SDK wraps tool outputs as `{ type: 'text', value: string }`.
-  // Peel one layer if present, then fall back to the raw value.
   const candidates: unknown[] = [result];
   if (result && typeof result === 'object' && 'value' in (result as Record<string, unknown>)) {
     candidates.push((result as Record<string, unknown>).value);
   }
+  // Prefer a candidate that carries the framework's `status` discriminator —
+  // this peels the Vercel `{ type:'text', value:'…json…' }` wrapper, whose
+  // outer object has no `status`, to the inner envelope that does.
+  let fallback: Record<string, unknown> | undefined;
   for (const candidate of candidates) {
     const obj = tryParse(candidate);
     if (!obj) continue;
-    const status = obj.status;
-    const id = obj.pendingActionId;
-    if (status === 'pending_approval' && typeof id === 'string' && id.length > 0) {
-      return { pendingActionId: id, raw: obj };
-    }
+    if (typeof obj.status === 'string') return obj;
+    fallback ??= obj;
+  }
+  return fallback;
+}
+
+function detectPendingApproval(
+  result: unknown,
+): { pendingActionId: string; raw: Record<string, unknown> } | undefined {
+  const obj = parseResultEnvelope(result);
+  if (!obj) return undefined;
+  const id = obj.pendingActionId;
+  if (obj.status === 'pending_approval' && typeof id === 'string' && id.length > 0) {
+    return { pendingActionId: id, raw: obj };
   }
   return undefined;
+}
+
+/**
+ * Best-effort detector for the framework's ADR-0033 draft envelopes. Metadata
+ * authoring tools stage changes as DRAFTS and return one of:
+ *   • single — `{ status:'drafted', type, name, summary, changedKeys }`
+ *     (create_object / add_field / create_metadata / update_metadata / …)
+ *   • batch  — `{ status:'drafted', drafted:[{type,name}], failed, summary }`
+ *     (apply_blueprint)
+ * We lift the reviewable `{ type, name }` targets so the chat can render a
+ * "Review N change(s)" affordance that opens the designer's review/diff.
+ * `blueprint_proposed` (propose_blueprint) has no draft yet → not surfaced here.
+ */
+function detectDraftResult(
+  result: unknown,
+): { items: Array<{ type: string; name: string }>; summary?: string } | undefined {
+  const obj = parseResultEnvelope(result);
+  if (!obj || obj.status !== 'drafted') return undefined;
+  const items: Array<{ type: string; name: string }> = [];
+  if (Array.isArray(obj.drafted)) {
+    for (const d of obj.drafted) {
+      if (d && typeof d === 'object') {
+        const { type, name } = d as Record<string, unknown>;
+        if (typeof type === 'string' && typeof name === 'string') items.push({ type, name });
+      }
+    }
+  } else if (typeof obj.type === 'string' && typeof obj.name === 'string') {
+    items.push({ type: obj.type, name: obj.name });
+  }
+  if (items.length === 0) return undefined;
+  return { items, summary: typeof obj.summary === 'string' ? obj.summary : undefined };
 }
 
 function extractToolInvocations(parts: AnyPart[]): ChatToolInvocation[] {
@@ -115,6 +161,7 @@ function extractToolInvocations(parts: AnyPart[]): ChatToolInvocation[] {
             : 'tool';
       const result = p.output ?? p.result;
       const pending = detectPendingApproval(result);
+      const draftReview = detectDraftResult(result);
       const baseState = p.state;
       // Promote pending HITL results to `approval-requested` so the UI
       // unlocks the inline approve/reject buttons. Once the operator
@@ -131,6 +178,7 @@ function extractToolInvocations(parts: AnyPart[]): ChatToolInvocation[] {
         errorText: p.errorText,
         state,
         pendingActionId: pending?.pendingActionId,
+        draftReview,
       } satisfies ChatToolInvocation;
     });
 }
