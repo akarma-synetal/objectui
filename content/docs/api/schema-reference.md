@@ -56,7 +56,6 @@ All schema types extend `BaseSchema`. These shared properties are available on e
 | `label` | `string` | Human-readable display label. |
 | `description` | `string` | Help text or tooltip content. |
 | `className` | `string` | Tailwind CSS utility classes. |
-| `style` | `Record<string, string \| number>` | Inline styles (prefer `className`). |
 | `body` | `SchemaNode \| SchemaNode[]` | Child components rendered inside this component. |
 | `children` | `SchemaNode \| SchemaNode[]` | Alias for `body`. |
 | `visible` / `visibleOn` | `boolean` / `string` | Control visibility. `visibleOn` accepts expression strings. |

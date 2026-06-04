@@ -401,15 +401,15 @@ All ObjectUI plugins share these characteristics:
 
 ## Next Steps
 
-- **[Plugin Concepts](/docs/concepts/plugins)** - Learn how plugins work in detail
+- **[Plugin Guide](/docs/guide/plugins)** - Learn how plugins work in detail
 - **[Quick Start Guide](/docs/guide/quick-start)** - Build your first ObjectUI app
 - **[Component Gallery](/docs/components)** - Explore core components
-- **[Schema Rendering](/docs/concepts/schema-rendering)** - Learn how the engine works
+- **[Schema Rendering](/docs/guide/schema-rendering)** - Learn how the engine works
 
 ## Need Help?
 
 Can't find what you're looking for? Check out:
 
-- [Concepts](/docs/concepts) - Core concepts and architecture
-- [Advanced](/docs/reference) - API documentation and protocol specs
+- [Architecture](/docs/guide/architecture) - Core concepts and package boundaries
+- [API Reference](/docs/api) - Schema documentation and protocol specs
 - [GitHub](https://github.com/objectstack-ai/objectui) - Report issues or contribute

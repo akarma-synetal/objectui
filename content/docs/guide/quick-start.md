@@ -5,12 +5,12 @@ description: "Get up and running with ObjectUI in 5 minutes - install, configure
 
 # Quick Start
 
-Get up and running with ObjectUI in **5 minutes**. This guide walks you through installation, basic setup, and rendering your first server-driven UI.
+Get up and running with ObjectUI in a small Vite app. This guide installs the core renderer, registers the built-in component packages, and renders a first JSON schema.
 
 ## Prerequisites
 
 - **Node.js** 20+
-- **pnpm** 9+ (recommended) or npm/yarn
+- **pnpm** 9+ or npm/yarn
 - Basic knowledge of **React** and **TypeScript**
 
 ## Step 1: Create a React Project
@@ -30,7 +30,7 @@ Install the core ObjectUI packages:
 pnpm add @object-ui/react @object-ui/core @object-ui/types @object-ui/components @object-ui/fields
 ```
 
-Install Tailwind CSS (required for styling):
+Install Tailwind CSS for styling:
 
 ```bash
 pnpm add -D tailwindcss @tailwindcss/vite
@@ -54,72 +54,53 @@ Add to your `src/index.css`:
 
 ```css
 @import "tailwindcss";
+@import "@object-ui/components/style.css";
+@import "@object-ui/fields/style.css";
+
+@source "../node_modules/@object-ui/components/**/*.{js,ts,tsx}";
+@source "../node_modules/@object-ui/fields/**/*.{js,ts,tsx}";
 ```
 
-## Step 4: Register Components
+The `@source` lines let Tailwind see the utility classes used by ObjectUI packages.
 
-Create `src/setup.ts` to register the built-in components:
-
-```ts
-import { Registry } from '@object-ui/core';
-import { registerAllComponents } from '@object-ui/components';
-import { registerAllFields } from '@object-ui/fields';
-
-// Register the built-in component renderers
-registerAllComponents(Registry);
-registerAllFields(Registry);
-```
-
-## Step 5: Render Your First UI
+## Step 4: Render Your First Schema
 
 Replace `src/App.tsx` with:
 
 ```tsx
-import './setup';
-import { SchemaRenderer } from '@object-ui/react';
+import '@object-ui/components';
+import '@object-ui/fields';
+import { SchemaRenderer, SchemaRendererProvider } from '@object-ui/react';
 
-// Define your UI as JSON schema
 const schema = {
-  type: 'form',
-  fields: [
-    {
-      name: 'name',
-      label: 'Full Name',
-      type: 'string',
-      required: true,
-    },
-    {
-      name: 'email',
-      label: 'Email Address',
-      type: 'string',
-      widget: 'email',
-    },
-    {
-      name: 'role',
-      label: 'Role',
-      type: 'string',
-      widget: 'select',
-      options: [
-        { label: 'Admin', value: 'admin' },
-        { label: 'Editor', value: 'editor' },
-        { label: 'Viewer', value: 'viewer' },
-      ],
-    },
-  ],
-  submitLabel: 'Create User',
-};
+  type: 'card',
+  title: 'Team Directory',
+  description: 'Rendered from JSON metadata',
+  className: 'mx-auto max-w-3xl',
+  body: {
+    type: 'data-table',
+    caption: 'Users',
+    columns: [
+      { header: 'Name', accessorKey: 'name', sortable: true },
+      { header: 'Email', accessorKey: 'email' },
+      { header: 'Role', accessorKey: 'role' },
+    ],
+    data: [
+      { name: 'Ada Lovelace', email: 'ada@example.com', role: 'Admin' },
+      { name: 'Grace Hopper', email: 'grace@example.com', role: 'Editor' },
+      { name: 'Katherine Johnson', email: 'katherine@example.com', role: 'Viewer' },
+    ],
+    pagination: false,
+    searchable: false,
+  },
+} as const;
 
 function App() {
   return (
-    <div className="max-w-md mx-auto p-8">
-      <h1 className="text-2xl font-bold mb-6">ObjectUI Demo</h1>
-      <SchemaRenderer
-        schema={schema}
-        onSubmit={(data) => {
-          console.log('Form submitted:', data);
-          alert(JSON.stringify(data, null, 2));
-        }}
-      />
+    <div className="min-h-screen bg-background p-8 text-foreground">
+      <SchemaRendererProvider dataSource={{}}>
+        <SchemaRenderer schema={schema} />
+      </SchemaRendererProvider>
     </div>
   );
 }
@@ -127,65 +108,63 @@ function App() {
 export default App;
 ```
 
-## Step 6: Run the App
+Importing `@object-ui/components` and `@object-ui/fields` registers their renderers with the shared `ComponentRegistry`. `SchemaRendererProvider` supplies the data scope used by expressions, smart fields, and data-aware plugins.
+
+## Step 5: Run the App
 
 ```bash
 pnpm dev
 ```
 
-Open [http://localhost:5173](http://localhost:5173) — you should see a fully functional form rendered from JSON!
+Open [http://localhost:5173](http://localhost:5173). You should see a card and data table rendered from JSON.
 
 ## What Just Happened?
 
-1. **JSON Schema** → You defined a form as a JSON object with fields, types, and labels
-2. **Registry** → Built-in components were registered to handle each schema type
-3. **SchemaRenderer** → Converted the JSON into interactive React components (Shadcn UI)
-4. **Zero UI Code** → No JSX needed for the form fields — it's all driven by data
+1. **Schema** - the UI was described as JSON with `type`, visual props, and nested `body`.
+2. **Registry** - importing the component packages registered renderers for `card` and `data-table`.
+3. **Renderer** - `SchemaRenderer` resolved each `type` and rendered React components.
+4. **Provider** - `SchemaRendererProvider` made a data scope available for expressions and plugins.
 
 ## Next Steps
 
-### Add a Data Table
+### Add Actions
 
-```tsx
-const tableSchema = {
-  type: 'crud',
-  resource: 'users',
-  columns: [
-    { name: 'name', label: 'Name' },
-    { name: 'email', label: 'Email' },
-    { name: 'role', label: 'Role' },
-  ],
-};
-```
+Actions are data, not inline functions. Define them in schema events:
 
-### Add Internationalization
-
-```bash
-pnpm add @object-ui/i18n
-```
-
-```tsx
-import { I18nProvider } from '@object-ui/i18n';
-
-function App() {
-  return (
-    <I18nProvider config={{ defaultLanguage: 'zh' }}>
-      <SchemaRenderer schema={schema} />
-    </I18nProvider>
-  );
+```json
+{
+  "type": "button",
+  "label": "Open details",
+  "events": {
+    "onClick": [
+      {
+        "action": "navigate",
+        "params": {
+          "url": "/users/ada"
+        }
+      }
+    ]
+  }
 }
 ```
 
-### Use Lazy Loading for Plugins
+Learn the full action model in [Enhanced Actions](/docs/core/enhanced-actions).
+
+### Connect a Data Source
+
+```bash
+pnpm add @object-ui/data-objectstack
+```
 
 ```tsx
-import { createLazyPlugin } from '@object-ui/react';
+import { createObjectStackAdapter } from '@object-ui/data-objectstack';
 
-const ObjectGrid = createLazyPlugin(
-  () => import('@object-ui/plugin-grid'),
-  { fallback: <div>Loading grid...</div> }
-);
+const dataSource = createObjectStackAdapter({
+  baseUrl: 'https://api.example.com'
+});
 ```
+
+Pass the adapter to `SchemaRendererProvider` and let data-aware renderers call the `DataSource` interface. See [Data Connectivity](/docs/guide/data-source).
 
 ### Learn More
 
@@ -193,4 +172,4 @@ const ObjectGrid = createLazyPlugin(
 - [Schema Rendering](/docs/guide/schema-rendering) — Deep dive into schema rendering
 - [Component Registry](/docs/guide/component-registry) — Customize and extend components
 - [Plugins](/docs/guide/plugins) — Add views like Grid, Kanban, Charts
-- [Fields Guide](/docs/guide/fields) — All 30+ field types
+- [Fields Guide](/docs/guide/fields) — Field widgets and cell renderers

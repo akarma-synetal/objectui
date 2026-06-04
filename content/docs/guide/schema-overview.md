@@ -170,7 +170,7 @@ const block: BlockSchema = {
 
 ObjectUI also includes enhanced view components:
 
-### [Detail View](/docs/components/detail-view)
+### [Detail View](/docs/plugins/plugin-detail)
 Rich detail pages with sections, tabs, and related records.
 
 ### [View Switcher](/docs/components/complex/view-switcher)
@@ -348,16 +348,10 @@ ObjectUI includes enhanced view components:
 
 ## Learning Resources
 
-### Documentation
-- **[Implementation Guide](https://github.com/objectstack-ai/objectui/blob/main/packages/types/PHASE2_IMPLEMENTATION.md)** - Complete implementation details and technical specifications
-- **[Quick Start Guide](https://github.com/objectstack-ai/objectui/blob/main/PHASE2_QUICK_START.md)** - Step-by-step tutorial for getting started
-
-### API Reference
-- **[TypeScript Types](https://github.com/objectstack-ai/objectui/tree/main/packages/types/src)** - Browse all type definitions
-- **[Zod Validation Schemas](https://github.com/objectstack-ai/objectui/tree/main/packages/types/src/zod)** - Runtime validation schemas
-
-### Code Examples
-- **[Test Suite](https://github.com/objectstack-ai/objectui/blob/main/packages/types/src/__tests__/phase2-schemas.test.ts)** - 40+ working examples demonstrating all features
+- **[Schema Type Reference](/docs/api/schema-reference)** - Complete schema reference with JSON examples.
+- **[Quick Start](/docs/guide/quick-start)** - Render your first ObjectUI schema.
+- **[Schema Rendering](/docs/guide/schema-rendering)** - Understand the renderer pipeline.
+- **[Component Registry](/docs/guide/component-registry)** - Learn how schema `type` values resolve to components.
 
 ## Getting Help
 
@@ -366,14 +360,14 @@ ObjectUI includes enhanced view components:
 - **[GitHub Issues](https://github.com/objectstack-ai/objectui/issues)** - Report bugs and request features
 
 ### Official Documentation
-- **[Documentation Site](https://objectui.com/docs)** - Full documentation and guides
-- **[Schema Reference](/docs/core)** - Detailed schema documentation
+- **[Documentation Site](https://www.objectui.org/docs)** - Full documentation and guides
+- **[Schema Reference](/docs/api/schema-reference)** - Detailed schema documentation
 
 ## Next Steps
 
 Ready to build with ObjectUI? Here's what to do next:
 
-1. **[Review schema documentation](/docs/core)** - Learn about each schema in detail
-2. **[Try the Quick Start](https://github.com/objectstack-ai/objectui/blob/main/PHASE2_QUICK_START.md)** - Build your first ObjectUI application
-3. **[Explore examples](https://github.com/objectstack-ai/objectui/blob/main/packages/types/src/__tests__/phase2-schemas.test.ts)** - See real-world usage patterns
-4. **[Join the community](https://github.com/objectstack-ai/objectui/discussions)** - Connect with other developers
+1. **[Review schema documentation](/docs/api/schema-reference)** - Learn about each schema in detail
+2. **[Try the Quick Start](/docs/guide/quick-start)** - Build your first ObjectUI application
+3. **[Explore components](/docs/components)** - See the core renderer catalog
+4. **[Explore plugins](/docs/plugins)** - Add heavier widgets such as grids, kanban, charts, maps, and reports

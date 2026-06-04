@@ -1,148 +1,87 @@
 ---
-title: "You Define the Intent. We Render the Reality."
-description: "ObjectUI - The Universal Schema-Driven UI Engine for React"
+title: "ObjectUI Documentation"
+description: "Build schema-driven React interfaces with ObjectUI, Tailwind CSS, and Shadcn UI"
 ---
 
-## What is ObjectUI?
+# ObjectUI Documentation
 
-Frontend development for enterprise apps is repetitive. You spend 80% of your time gluing together form libraries, data tables, and validation logic—writing the same boilerplate over and over.
+ObjectUI is a schema-driven UI engine for React. It renders JSON metadata into accessible, themeable components built with Tailwind CSS, Shadcn UI, and Radix primitives.
 
-**ObjectUI turns UI into Data.** Define your interface in standard JSON, and let our engine render pixel-perfect, accessible React + Tailwind components.
+Use it when your application needs server-driven pages, metadata-defined forms, reusable enterprise views, or an embeddable renderer that stays independent from any single backend.
 
-### The Magic: JSON → Beautiful UI
+## Start Here
 
-ObjectUI bridges the gap between configuration speed and design quality:
+1. [Quick Start](/docs/guide/quick-start) - install ObjectUI and render a first schema.
+2. [Schema Rendering](/docs/guide/schema-rendering) - learn how JSON becomes React UI.
+3. [Data Connectivity](/docs/guide/data-source) - connect a backend through the `DataSource` contract.
+4. [Schema Reference](/docs/api/schema-reference) - inspect the supported schema shapes.
 
-**Input: The Protocol (JSON Schema)**
+## A Small Schema
 
 ```json
 {
   "type": "data-table",
+  "caption": "Users",
   "className": "rounded-lg border",
-  "dataSource": {
-    "api": "/api/users",
-    "method": "GET"
-  },
   "columns": [
     {
-      "key": "name",
-      "title": "User Name",
+      "header": "Name",
+      "accessorKey": "name",
       "sortable": true
     },
     {
-      "key": "email",
-      "title": "Email Address"
+      "header": "Email",
+      "accessorKey": "email"
+    }
+  ],
+  "data": [
+    {
+      "name": "Ada Lovelace",
+      "email": "ada@example.com"
+    },
+    {
+      "name": "Grace Hopper",
+      "email": "grace@example.com"
     }
   ]
 }
 ```
 
-**Output: Production-Ready Shadcn Component**
+That schema renders through `SchemaRenderer` after the component package is imported once for registration side effects.
 
-The engine transforms your JSON into a **fully interactive, accessible data table** with:
-- ✅ Server-side data fetching
-- ✅ Column sorting and filtering
-- ✅ Responsive design
-- ✅ Light/dark theme support
-- ✅ WCAG 2.1 AA accessibility
+## Build Paths
 
----
+### Render Schemas
 
-## Why ObjectUI?
+- [Schema Renderer](/docs/core/schema-renderer) explains the runtime component.
+- [Component Registry](/docs/guide/component-registry) explains how `type` maps to React components.
+- [Expressions](/docs/guide/expressions) covers visibility, disabled state, and dynamic values.
 
-### 1. The Stack You Love 🎨
+### Build Applications
 
-ObjectUI is built on the modern frontend stack:
-- **React 18+** with hooks and concurrent rendering
-- **Radix UI primitives** (the foundation of Shadcn)
-- **Tailwind CSS** for styling—use utility classes directly
-- **TypeScript-first** with complete type definitions
+- [App Schema](/docs/core/app-schema) defines app navigation, branding, and layout.
+- [Layout Guide](/docs/guide/layout) covers page structure and layout primitives.
+- [Building a CRUD App](/docs/guide/building-crud-app) walks through a full task manager.
 
-### 2. Server-Driven Agility ⚡️
+### Connect Data
 
-In traditional development, changing a form field requires:
-1. Editing React code
-2. Running tests
-3. Building the app
-4. Deploying to production
+- [Data Connectivity](/docs/guide/data-source) covers the backend adapter contract.
+- [ObjectStack Adapter](/docs/utilities/data-objectstack) connects ObjectUI to ObjectStack backends.
+- [User State Persistence](/docs/guide/user-state-persistence) covers favorites and recent items.
 
-With ObjectUI, the UI is a **configuration**. Change the schema on the backend, and the dashboard updates instantly—**no code push required.**
+### Extend ObjectUI
 
-### 3. Enterprise Ready-Made 🏢
+- [Plugin Guide](/docs/guide/plugins) explains lazy-loaded feature packages.
+- [Plugin Development](/docs/guide/plugin-development) walks through a custom plugin.
+- [Theming](/docs/guide/theming) covers design tokens, Tailwind, and runtime themes.
 
-Stop rebuilding components from scratch. ObjectUI includes:
-- 📊 **Data Tables** with sorting, filtering, pagination
-- 📋 **Multi-step Forms** with validation
-- 🗂️ **Kanban Boards** with drag-and-drop
-- 📈 **Dashboards** with real-time updates
-- All components are accessible, responsive, and themeable
+## Reference
 
----
+- [Components](/docs/components) - core renderers grouped by category.
+- [Fields](/docs/guide/fields) - field widgets and cell renderers.
+- [Plugins](/docs/plugins) - heavier views such as grids, kanban, charts, maps, and reports.
+- [Utilities](/docs/utilities) - CLI, runner, plugin scaffolding, and editor tooling.
 
-## 🆕 Phase 2: Advanced Features
+## Console
 
-ObjectUI Phase 2 introduces enterprise-grade capabilities:
-
-### Application Framework
-- **[AppSchema](/docs/core/app-schema)** - Complete app configuration with navigation, branding, and layouts
-- **[ThemeSchema](/docs/core/theme-schema)** - Dynamic theming with light/dark modes and color palettes
-
-### Advanced Actions
-- **[Enhanced Actions](/docs/core/enhanced-actions)** - AJAX calls, confirmation dialogs, action chaining, and conditional execution
-- **Callbacks** - Success/failure handlers with tracking
-
-### Reporting & Analytics
-- **[ReportSchema](/docs/core/report-schema)** - Enterprise reports with aggregation, export (PDF/Excel/CSV), and scheduling
-- **Data Visualization** - Charts, metrics, and dashboards
-
-### Reusable Components
-- **[BlockSchema](/docs/blocks/block-schema)** - Reusable component blocks with variables, slots, and marketplace support
-- **Component Library** - Share and discover pre-built blocks
-
-[**Learn more about Phase 2 →**](/docs/guide/phase2-schemas)
-
----
-
-## 🛠️ Developer Tools & Utilities
-
-ObjectUI provides a complete toolkit for building schema-driven applications:
-
-### Command-Line Tools
-
-- **[CLI](/docs/utilities/cli)** - Build and run apps directly from JSON/YAML schemas
-  ```bash
-  npx @object-ui/cli dev dashboard.json
-  ```
-
-- **[Create Plugin](/docs/utilities/create-plugin)** - Scaffold new plugins with best practices
-  ```bash
-  npx @object-ui/create-plugin my-plugin
-  ```
-
-- **[Runner](/docs/utilities/runner)** - Universal runtime for testing and development
-  ```bash
-  pnpm --filter @object-ui/runner dev
-  ```
-
-- **[Agent Skill](/docs/guide/agent-skills)** - Install the ObjectUI skill into Claude Code, Cursor, Codex, GitHub Copilot, Windsurf, Gemini, Cline and more
-  ```bash
-  npx skills add objectstack-ai/objectui
-  ```
-
-### Data Integration
-
-- **[ObjectStack Adapter](/docs/utilities/data-objectstack)** - Connect to ObjectStack backends
-  ```typescript
-  import { ObjectStackProvider } from '@object-ui/data-objectstack'
-  ```
-
-### Editor Extensions
-
-- **[VS Code Extension](/docs/utilities/vscode-extension)** - Schema preview, validation, and IntelliSense
-  ```bash
-  code --install-extension objectui.object-ui
-  ```
-
-[**Explore all utilities →**](/docs/utilities)
-
----
+The ObjectUI Console is the reference application for rendering ObjectStack metadata as an admin UI. Start with [Console](/docs/guide/console), then use [Console Architecture](/docs/guide/console-architecture) and [Metadata Diagnostics](/docs/guide/metadata-diagnostics) when integrating a real backend.
