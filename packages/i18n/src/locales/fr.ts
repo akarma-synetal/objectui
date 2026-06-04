@@ -36,6 +36,7 @@ const fr = {
     openChat: "Ouvrir le chat",
     closeChat: "Fermer le chat",
     toggleSidebar: "Basculer la barre latérale",
+    package: "Package",
   },
   validation: {
     required: "{{field}} est obligatoire",
@@ -1191,10 +1192,14 @@ const fr = {
     inbox: "Boîte de réception",
     inboxAriaLabel: "Ouvrir la boîte de réception",
     area: "Zone",
+    scope: "Périmètre",
     recent: "Récent",
     favorites: "Favoris",
     starred: "Étoilés",
     removeFromFavorites: "Retirer {{name}} des favoris",
+  },
+  topbar: {
+    aiAssistant: "Assistant IA",
   },
   home: {
     title: "Accueil",

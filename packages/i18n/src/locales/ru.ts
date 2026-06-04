@@ -36,6 +36,7 @@ const ru = {
     openChat: "Открыть чат",
     closeChat: "Закрыть чат",
     toggleSidebar: "Переключить боковую панель",
+    package: "Пакет",
   },
   validation: {
     required: "Поле {{field}} обязательно для заполнения",
@@ -1191,10 +1192,14 @@ const ru = {
     inbox: "Входящие",
     inboxAriaLabel: "Открыть входящие",
     area: "Область",
+    scope: "Область",
     recent: "Недавние",
     favorites: "Избранное",
     starred: "Отмеченные",
     removeFromFavorites: "Убрать {{name}} из избранного",
+  },
+  topbar: {
+    aiAssistant: "ИИ-ассистент",
   },
   home: {
     title: "Главная",

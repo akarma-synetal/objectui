@@ -26,6 +26,7 @@ import {
 } from '@object-ui/components';
 import { resolveFieldTypeMeta, resolveCategoryTone } from './field-types';
 import type { ObjectFieldInfo } from './useObjectFields';
+import { detectLocale, t, tFormat } from '../i18n';
 
 const DND_MIME = 'text/x-objectui-viewcol';
 
@@ -277,6 +278,7 @@ export function AddFieldPopover({
   error: string | null;
   onAdd: (field: ObjectFieldInfo) => void;
 }) {
+  const locale = React.useMemo(() => detectLocale(), []);
   const [open, setOpen] = React.useState(false);
   const [query, setQuery] = React.useState('');
 
@@ -295,7 +297,7 @@ export function AddFieldPopover({
           type="button"
           className="inline-flex items-center gap-1 rounded-md border border-dashed px-2 py-1 text-xs text-muted-foreground hover:border-primary/40 hover:bg-accent/40 hover:text-foreground"
         >
-          <Plus className="h-3.5 w-3.5" /> Add field
+          <Plus className="h-3.5 w-3.5" /> {t('engine.form.addFieldPlain', locale)}
         </button>
       </PopoverTrigger>
       <PopoverContent align="start" className="w-72 p-0">
@@ -305,17 +307,17 @@ export function AddFieldPopover({
             autoFocus
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search fields…"
+            placeholder={t('engine.form.searchFields', locale)}
             className="h-8 w-full rounded border border-input bg-background pl-7 pr-2 text-xs outline-none focus:border-primary"
           />
         </div>
         <div className="max-h-72 overflow-auto p-1">
           {loading ? (
-            <Hint>Loading fields…</Hint>
+            <Hint>{t('engine.form.loadingFields', locale)}</Hint>
           ) : error ? (
-            <Hint tone="warn">No object fields ({error}).</Hint>
+            <Hint tone="warn">{tFormat('engine.form.noObjectFields', locale, { error })}</Hint>
           ) : filtered.length === 0 ? (
-            <Hint>{query ? 'No matching fields.' : 'No fields on this object.'}</Hint>
+            <Hint>{query ? t('engine.form.noMatchingFields', locale) : t('engine.form.noFieldsOnObject', locale)}</Hint>
           ) : (
             filtered.map((f) => {
               const used = usedNames.has(f.name);
@@ -335,7 +337,7 @@ export function AddFieldPopover({
                   )}
                   {used && (
                     <Badge variant="secondary" className="px-1 py-0 text-[9px]">
-                      Added
+                      {t('engine.form.added', locale)}
                     </Badge>
                   )}
                 </button>

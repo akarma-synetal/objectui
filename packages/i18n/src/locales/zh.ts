@@ -39,6 +39,7 @@ const zh = {
     openChat: '打开聊天',
     closeChat: '关闭聊天',
     toggleSidebar: '切换侧边栏',
+    package: '软件包',
   },
   validation: {
     required: '{{field}}不能为空',
@@ -1335,10 +1336,14 @@ const zh = {
     inbox: '消息中心',
     inboxAriaLabel: '打开消息中心',
     area: '区域',
+    scope: '范围',
     recent: '最近使用',
     favorites: '收藏',
     starred: '已收藏',
     removeFromFavorites: '从收藏中移除 {{name}}',
+  },
+  topbar: {
+    aiAssistant: 'AI 助手',
   },
   home: {
     title: '首页',

@@ -22,6 +22,7 @@
 import React from 'react';
 import { Skeleton } from '@object-ui/components';
 import * as jsonc from 'jsonc-parser';
+import { detectLocale, t } from './i18n';
 
 // Lazy: Monaco's React wrapper itself pulls in the editor core
 // (~3MB), so we keep it out of the initial app-shell chunk.
@@ -71,6 +72,7 @@ export function JsonSourceEditor({
   issues,
   height = '60vh',
 }: JsonSourceEditorProps) {
+  const locale = React.useMemo(() => detectLocale(), []);
   const [text, setText] = React.useState<string>(() => stringify(value));
   const [parseError, setParseError] = React.useState<string | null>(null);
   const lastCommittedRef = React.useRef<string>(text);
@@ -177,10 +179,10 @@ export function JsonSourceEditor({
         lastCommittedRef.current = v;
         onChange(parsed as Record<string, unknown>);
       } else {
-        setParseError('Root must be a JSON object');
+        setParseError(t('engine.form.rootJsonObject', locale));
       }
     } catch (err: any) {
-      setParseError(err?.message ?? 'Invalid JSON');
+      setParseError(err?.message ?? t('engine.form.invalidJson', locale));
     }
   };
 

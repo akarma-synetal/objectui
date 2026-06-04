@@ -36,6 +36,7 @@ const de = {
     openChat: "Chat öffnen",
     closeChat: "Chat schließen",
     toggleSidebar: "Seitenleiste umschalten",
+    package: "Paket",
   },
   validation: {
     required: "{{field}} ist erforderlich",
@@ -1191,10 +1192,14 @@ const de = {
     inbox: "Posteingang",
     inboxAriaLabel: "Posteingang öffnen",
     area: "Bereich",
+    scope: "Bereich",
     recent: "Zuletzt",
     favorites: "Favoriten",
     starred: "Markiert",
     removeFromFavorites: "{{name}} aus Favoriten entfernen",
+  },
+  topbar: {
+    aiAssistant: "KI-Assistent",
   },
   home: {
     title: "Startseite",

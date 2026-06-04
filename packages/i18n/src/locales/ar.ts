@@ -36,6 +36,7 @@ const ar = {
     openChat: "فتح المحادثة",
     closeChat: "إغلاق المحادثة",
     toggleSidebar: "تبديل الشريط الجانبي",
+    package: "الحزمة",
   },
   validation: {
     required: "{{field}} مطلوب",
@@ -1191,10 +1192,14 @@ const ar = {
     inbox: "صندوق الوارد",
     inboxAriaLabel: "فتح صندوق الوارد",
     area: "المنطقة",
+    scope: "النطاق",
     recent: "الأخيرة",
     favorites: "المفضلة",
     starred: "المميزة",
     removeFromFavorites: "إزالة {{name}} من المفضلة",
+  },
+  topbar: {
+    aiAssistant: "مساعد الذكاء الاصطناعي",
   },
   home: {
     title: "الرئيسية",

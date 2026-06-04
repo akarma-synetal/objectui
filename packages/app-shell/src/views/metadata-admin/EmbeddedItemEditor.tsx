@@ -21,6 +21,7 @@ import { Loader2, Save, AlertTriangle } from 'lucide-react';
 import { Button } from '@object-ui/components';
 import { SchemaForm, type SchemaFormIssue } from './SchemaForm';
 import { useMetadataClient, useMetadataTypes } from './useMetadata';
+import { detectLocale, t, tFormat, translateValidationMessage } from './i18n';
 
 export interface EmbeddedItemEditorProps {
   parentType: string;
@@ -46,6 +47,7 @@ export function EmbeddedItemEditor({
   initialRaw,
   onSaved,
 }: EmbeddedItemEditorProps) {
+  const locale = React.useMemo(() => detectLocale(), []);
   const client = useMetadataClient();
   const { entries } = useMetadataTypes(client);
   const subEntry = editAs ? entries.find((e) => e.type === editAs) : undefined;
@@ -77,7 +79,7 @@ export function EmbeddedItemEditor({
 
   async function doSave() {
     if (!embeddedPath) {
-      setError('Cannot save: this item has no embeddedPath registered.');
+      setError(t('engine.embedded.saveNoPath', locale));
       return;
     }
     setSaving(true);
@@ -112,10 +114,14 @@ export function EmbeddedItemEditor({
           const trimmed = fullPath.startsWith(prefix)
             ? fullPath.slice(prefix.length)
             : fullPath;
-          return { path: trimmed, message: String(x.message ?? 'Invalid') };
+          return { path: trimmed, message: translateValidationMessage(String(x.message ?? 'Invalid'), locale) };
         });
         setIssues(mapped);
-        setError(`Validation failed (${mapped.length} issue${mapped.length === 1 ? '' : 's'}).`);
+        setError(
+          mapped.length === 1
+            ? t('engine.validation.failedOne', locale)
+            : tFormat('engine.validation.failed', locale, { count: mapped.length }),
+        );
       } else {
         setError(err?.message ?? String(err));
       }
@@ -129,13 +135,10 @@ export function EmbeddedItemEditor({
     return (
       <div className="p-4 space-y-3">
         <div className="text-xs text-muted-foreground">
-          No form schema is registered for{' '}
-          <code className="font-mono">{editAs ?? 'this item'}</code>. Edit
-          the raw JSON below; saving will splice it back into{' '}
-          <span className="font-mono">
-            {parentType}/{parentName}.{embeddedPath}.{itemName}
-          </span>
-          .
+          {tFormat('engine.embedded.noSchema', locale, {
+            type: editAs ?? 'this item',
+            target: `${parentType}/${parentName}.${embeddedPath}.${itemName}`,
+          })}
         </div>
         <textarea
           className="w-full h-[60vh] font-mono text-xs border rounded p-3 bg-muted/30"
@@ -145,7 +148,7 @@ export function EmbeddedItemEditor({
               setDraft(JSON.parse(e.target.value));
               setError(null);
             } catch (err: any) {
-              setError(`Invalid JSON: ${err.message}`);
+              setError(`${t('engine.form.invalidJson', locale)}: ${err.message}`);
             }
           }}
         />
@@ -161,7 +164,7 @@ export function EmbeddedItemEditor({
             ) : (
               <Save className="h-4 w-4 mr-1" />
             )}
-            Save into parent
+            {tFormat('engine.embedded.saveIntoParent', locale, { parentType: 'parent' })}
           </Button>
         </div>
       </div>
@@ -177,13 +180,12 @@ export function EmbeddedItemEditor({
       )}
       {savedAt != null && !error && (
         <div className="text-sm text-emerald-700 border border-emerald-300 bg-emerald-50 rounded p-2">
-          Saved.
+          {t('engine.embedded.saved', locale)}
         </div>
       )}
       {readOnly && (
         <div className="text-xs text-amber-800 border border-amber-300 bg-amber-50 rounded p-2">
-          The parent type is read-only — saving will still attempt a PUT
-          and may be refused by the server.
+          {t('engine.embedded.readOnlyParent', locale)}
         </div>
       )}
 
@@ -202,14 +204,14 @@ export function EmbeddedItemEditor({
           ) : (
             <Save className="h-4 w-4 mr-1" />
           )}
-          Save into {parentType}
+          {tFormat('engine.embedded.saveIntoParent', locale, { parentType })}
         </Button>
       </div>
 
       {!embeddedPath && (
         <div className="text-xs text-muted-foreground border rounded p-3">
-          <div className="font-medium">Read-only</div>
-          <div>No embedded path registered — cannot determine where to write this item back.</div>
+          <div className="font-medium">{t('engine.embedded.readOnly', locale)}</div>
+          <div>{t('engine.embedded.noPathHint', locale)}</div>
         </div>
       )}
     </div>
