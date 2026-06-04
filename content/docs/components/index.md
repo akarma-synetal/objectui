@@ -117,9 +117,7 @@ All ObjectUI components follow the same schema-based pattern:
 {
   "type": "component-name",
   "className": "tailwind-classes",
-  "props": {
-    // Component-specific properties
-  }
+  "componentSpecificProperty": "value"
 }
 ```
 
@@ -176,14 +174,14 @@ All ObjectUI components share these characteristics:
 ## Next Steps
 
 - **[Quick Start Guide](/docs/guide/quick-start)** - Build your first ObjectUI app
-- **[Schema Rendering](/docs/concepts/schema-rendering)** - Learn how the engine works
-- **[Component Registry](/docs/concepts/component-registry)** - Register custom components
-- **[Expressions](/docs/concepts/expressions)** - Dynamic values with expressions
+- **[Schema Rendering](/docs/guide/schema-rendering)** - Learn how the engine works
+- **[Component Registry](/docs/guide/component-registry)** - Register custom components
+- **[Expressions](/docs/guide/expressions)** - Dynamic values with expressions
 
 ## Need Help?
 
 Can't find what you're looking for? Check out:
 
-- [Concepts](/docs/concepts) - Core concepts and architecture
-- [Advanced](/docs/reference) - API documentation and protocol specs
+- [Architecture](/docs/guide/architecture) - Core concepts and package boundaries
+- [API Reference](/docs/api) - Schema documentation and protocol specs
 - [GitHub](https://github.com/objectstack-ai/objectui) - Report issues or contribute

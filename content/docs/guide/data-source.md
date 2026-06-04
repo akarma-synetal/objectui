@@ -2,42 +2,59 @@
 title: "Data Connectivity"
 ---
 
-Object UI follows the **Universal Adapter Pattern**. We never hardcode `fetch` or `axios` calls inside UI components.
+ObjectUI follows the **Universal Adapter Pattern**. UI components do not hardcode transport details. They receive a `DataSource` implementation from `SchemaRendererProvider` and call a stable CRUD/query contract.
 
-Instead, the core engine communicates with your backend via a standardized `DataSource` interface.
+This keeps the renderer backend-agnostic: ObjectStack, REST, GraphQL, and proprietary backends can all be adapted behind the same interface.
 
 ## The Interface
 
-All data fetching logic is abstracted into this interface defined in `@object-ui/types`:
+The canonical interface lives in `@object-ui/types`:
 
 ```typescript
-export interface DataSource {
-  /**
-   * Universal fetch method.
-   * @param resource - The entity name (e.g. "users", "orders")
-   * @param params - Query parameters (filters, sorting, pagination)
-   */
-  find(resource: string, params?: any): Promise<any[]>;
-  
-  findOne(resource: string, id: string): Promise<any>;
-  create(resource: string, data: any): Promise<any>;
-  update(resource: string, id: string, data: any): Promise<any>;
-  delete(resource: string, id: string): Promise<any>;
-  
-  /**
-   * Get object metadata (Important for smart components)
-   */
-  getObjectSchema(objectName: string): Promise<any>;
+import type { QueryParams, QueryResult } from '@object-ui/types';
+
+export interface DataSource<T = unknown> {
+  find(resource: string, params?: QueryParams): Promise<QueryResult<T>>;
+  findOne(resource: string, id: string | number, params?: QueryParams): Promise<T | null>;
+  create(resource: string, data: Partial<T>): Promise<T>;
+  update(
+    resource: string,
+    id: string | number,
+    data: Partial<T>,
+    opts?: { ifMatch?: string },
+  ): Promise<T>;
+  delete(
+    resource: string,
+    id: string | number,
+    opts?: { ifMatch?: string },
+  ): Promise<boolean>;
+
+  getObjectSchema(objectName: string): Promise<unknown>;
+}
+```
+
+`find()` returns a `QueryResult<T>` so components can receive both rows and pagination metadata:
+
+```typescript
+interface QueryResult<T = unknown> {
+  data: T[];
+  total?: number;
+  page?: number;
+  pageSize?: number;
+  hasMore?: boolean;
+  cursor?: string;
+  metadata?: Record<string, unknown>;
 }
 ```
 
 ## Available Adapters
 
 ### ObjectStack Adapter (Official)
-For connecting to Steedos, Salesforce, or any ObjectStack-compatible backend.
+
+Use `@object-ui/data-objectstack` for ObjectStack-compatible backends.
 
 ```bash
-npm install @object-ui/data-objectstack
+pnpm add @object-ui/data-objectstack
 ```
 
 ```typescript
@@ -50,40 +67,99 @@ const dataSource = createObjectStackAdapter({
 
 ## Usage
 
-You inject the data source implementation at the root of your application via the `<SchemaRenderer>` or a provider.
+Inject the data source at the renderer boundary:
 
 ```tsx
-import { RestDataSource } from '@object-ui/data-rest';
-import { SchemaRenderer } from '@object-ui/react';
+import '@object-ui/components';
+import '@object-ui/fields';
+import { SchemaRenderer, SchemaRendererProvider } from '@object-ui/react';
+import { createObjectStackAdapter } from '@object-ui/data-objectstack';
 
-// 1. Initialize your adapter
-const myApi = new RestDataSource('https://api.example.com/v1');
+const dataSource = createObjectStackAdapter({
+  baseUrl: 'https://api.example.com'
+});
 
 function App() {
   return (
-    // 2. Inject it into the engine
-    <SchemaRenderer 
-      schema={mySchema} 
-      dataSource={myApi} 
-    />
+    <SchemaRendererProvider dataSource={dataSource}>
+      <SchemaRenderer schema={mySchema} />
+    </SchemaRendererProvider>
   );
 }
 ```
 
 ## Creating a Custom Adapter
 
-If you have a proprietary backend, simply implement the interface:
+If you have a proprietary backend, wrap its SDK or client in a `DataSource` implementation. Keep transport details in the adapter, not in renderers.
 
 ```typescript
-import type { DataSource } from '@object-ui/types';
+import type { DataSource, QueryParams, QueryResult } from '@object-ui/types';
 
-class MyCustomDataSource implements DataSource {
-  async find(resource, params) {
-    // Your custom logic here
-    const response = await fetch(`/my-legacy-api/${resource}`);
-    return response.json();
+type User = {
+  id: string;
+  name: string;
+  email: string;
+};
+
+type BackendClient = {
+  listUsers(params?: QueryParams): Promise<{ rows: User[]; total?: number }>;
+  getUser(id: string | number): Promise<User | null>;
+  createUser(data: Partial<User>): Promise<User>;
+  updateUser(id: string | number, data: Partial<User>): Promise<User>;
+  deleteUser(id: string | number): Promise<boolean>;
+  describeObject(name: string): Promise<unknown>;
+};
+
+class UserDataSource implements DataSource<User> {
+  constructor(private readonly client: BackendClient) {}
+
+  async find(resource: string, params?: QueryParams): Promise<QueryResult<User>> {
+    if (resource !== 'users') {
+      return { data: [], total: 0 };
+    }
+
+    const result = await this.client.listUsers(params);
+    return {
+      data: result.rows,
+      total: result.total,
+    };
   }
-  
-  // ... implement other methods
+
+  findOne(_resource: string, id: string | number): Promise<User | null> {
+    return this.client.getUser(id);
+  }
+
+  create(_resource: string, data: Partial<User>): Promise<User> {
+    return this.client.createUser(data);
+  }
+
+  update(_resource: string, id: string | number, data: Partial<User>): Promise<User> {
+    return this.client.updateUser(id, data);
+  }
+
+  delete(_resource: string, id: string | number): Promise<boolean> {
+    return this.client.deleteUser(id);
+  }
+
+  getObjectSchema(objectName: string): Promise<unknown> {
+    return this.client.describeObject(objectName);
+  }
 }
 ```
+
+## Query Parameters
+
+ObjectUI uses OData-style query keys for broad compatibility:
+
+```typescript
+await dataSource.find('users', {
+  $select: ['id', 'name', 'email'],
+  $filter: { status: 'active' },
+  $orderby: { name: 'asc' },
+  $skip: 0,
+  $top: 25,
+  $count: true,
+});
+```
+
+Data-aware plugins may also use optional methods such as `bulkUpdate`, `bulkDelete`, `getView`, or `listViewOverrides` when an adapter supports them. Keep the required CRUD methods implemented first, then add optional capabilities as your UI needs them.

@@ -232,7 +232,7 @@ Coercion details per type (v1):
   (`¥ $ € £ ¥`), trailing `%` (divides by 100), accepts `1.5e3`. Locale-aware
   decimal separator (`,` in de/fr).
 * **boolean** — case-insensitive: `true/false`, `yes/no`, `y/n`, `1/0`,
-  `是/否`, `√/×`, `on/off`.
+  localized yes/no tokens, checkmarks, and `on/off`.
 * **date** — tries in order: ISO 8601 → locale short date → Excel serial
   number (1900-system; documented limitation: 1904-system not auto-detected
   in v1). Returns native `Date`.
@@ -605,4 +605,3 @@ packages/plugin-grid/src/
   ObjectGrid.tsx           (add features.clipboardPaste branch)
   StagedRowsToolbar.tsx    (new)
 ```
-

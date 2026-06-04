@@ -42,7 +42,7 @@ function MyComponent() {
   return (
     <div dir={direction}>
       <h1>{t('common.save')}</h1>
-      <button onClick={() => changeLanguage('zh')}>中文</button>
+      <button onClick={() => changeLanguage('zh')}>Chinese</button>
       <button onClick={() => changeLanguage('ar')}>العربية</button>
     </div>
   );
