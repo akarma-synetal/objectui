@@ -40,8 +40,8 @@ jobs:
     runs-on: ubuntu-latest
     # Bound the job so a stalled runner / non-exiting test worker fails fast and
     # is retryable, instead of hanging up to GitHub's 6h default. Cold PR runs
-    # can exceed 20 minutes when the per-branch turbo cache is empty.
-    timeout-minutes: 30
+    # can exceed 30 minutes when the per-branch turbo cache is empty.
+    timeout-minutes: 40
 
     steps:
       - name: Checkout code
