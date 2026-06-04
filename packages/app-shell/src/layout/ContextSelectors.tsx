@@ -223,7 +223,14 @@ function SelectorControl({
 }) {
   const options = useSelectorOptions(def);
   const Icon = getIcon(def.icon);
-  const label = resolveI18nLabel(def.label as any, t) || def.id;
+  const rawLabel = resolveI18nLabel(def.label as any, t) || def.id;
+  const label = rawLabel === 'Package'
+    ? (t?.('common.package', { defaultValue: rawLabel }) ?? rawLabel)
+    : rawLabel;
+  const placeholder = t?.('actionDialog.selectPlaceholder', {
+    label,
+    defaultValue: `Select ${label}…`,
+  }) ?? `Select ${label}…`;
 
   // Context selectors are *mandatory scope* selectors: a concrete option must
   // always be active. Allowing an "All" choice would unscope the surface and,
@@ -255,7 +262,7 @@ function SelectorControl({
       >
         <span className="flex min-w-0 items-center gap-1.5 truncate">
           <Icon className="h-3.5 w-3.5 shrink-0 opacity-60" />
-          <SelectValue placeholder={`Select ${label}…`} />
+          <SelectValue placeholder={placeholder} />
         </span>
       </SelectTrigger>
       <SelectContent>

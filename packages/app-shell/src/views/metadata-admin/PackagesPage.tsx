@@ -62,6 +62,7 @@ import {
   DialogDescription,
   DialogFooter,
 } from '@object-ui/components';
+import { detectLocale, t, tFormat } from './i18n';
 
 /* -------------------------------------------------------------------------- */
 /* Types + API                                                                 */
@@ -111,17 +112,27 @@ async function apiJson<T>(path: string, init?: RequestInit): Promise<T> {
 /* -------------------------------------------------------------------------- */
 
 function ScopeBadge({ scope }: { scope?: string }) {
+  const locale = React.useMemo(() => detectLocale(), []);
   const s = scope ?? 'project';
   const variant =
     s === 'project' ? 'default' : s === 'system' ? 'secondary' : 'outline';
-  return <Badge variant={variant as any}>{s}</Badge>;
+  const labelKey =
+    s === 'project'
+      ? 'engine.packages.scope.project'
+      : s === 'system'
+        ? 'engine.packages.scope.system'
+        : s === 'cloud'
+          ? 'engine.packages.scope.cloud'
+          : '';
+  return <Badge variant={variant as any}>{labelKey ? t(labelKey, locale) : s}</Badge>;
 }
 
 function StatusBadge({ pkg }: { pkg: InstalledPackage }) {
+  const locale = React.useMemo(() => detectLocale(), []);
   const enabled = pkg.enabled !== false && pkg.status !== 'disabled';
   return (
     <Badge variant={enabled ? ('default' as any) : ('outline' as any)}>
-      {enabled ? 'enabled' : 'disabled'}
+      {enabled ? t('engine.packages.status.enabled', locale) : t('engine.packages.status.disabled', locale)}
     </Badge>
   );
 }
@@ -142,6 +153,7 @@ function CreatePackageDialog({
   onOpenChange: (v: boolean) => void;
   onCreated: (id: string) => void;
 }) {
+  const locale = React.useMemo(() => detectLocale(), []);
   const [id, setId] = React.useState('');
   const [name, setName] = React.useState('');
   const [version, setVersion] = React.useState('0.1.0');
@@ -183,7 +195,7 @@ function CreatePackageDialog({
       onCreated(id.trim());
       onOpenChange(false);
     } catch (e: any) {
-      setError(e?.message ?? 'Failed to create package');
+      setError(e?.message ?? t('engine.packages.create.failed', locale));
     } finally {
       setBusy(false);
     }
@@ -193,16 +205,14 @@ function CreatePackageDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>New Package</DialogTitle>
+          <DialogTitle>{t('engine.packages.create.title', locale)}</DialogTitle>
           <DialogDescription>
-            Create a project-scoped package to author and publish your own
-            metadata. The id should be reverse-domain (e.g.{' '}
-            <code className="font-mono">com.acme.crm</code>).
+            {tFormat('engine.packages.create.description', locale, { example: 'com.acme.crm' })}
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-4 py-2">
           <div className="space-y-1.5">
-            <Label htmlFor="pkg-id">Package ID</Label>
+            <Label htmlFor="pkg-id">{t('engine.packages.create.id', locale)}</Label>
             <Input
               id="pkg-id"
               placeholder="com.acme.crm"
@@ -212,12 +222,12 @@ function CreatePackageDialog({
             />
             {!!id && !idValid && (
               <p className="text-xs text-destructive">
-                Use letters, numbers, dot, dash or underscore (2–255 chars).
+                {t('engine.packages.create.idInvalid', locale)}
               </p>
             )}
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="pkg-name">Display name</Label>
+            <Label htmlFor="pkg-name">{t('engine.packages.create.name', locale)}</Label>
             <Input
               id="pkg-name"
               placeholder="Acme CRM"
@@ -226,7 +236,7 @@ function CreatePackageDialog({
             />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="pkg-version">Version</Label>
+            <Label htmlFor="pkg-version">{t('engine.packages.create.version', locale)}</Label>
             <Input
               id="pkg-version"
               placeholder="0.1.0"
@@ -235,7 +245,7 @@ function CreatePackageDialog({
               aria-invalid={!!version && !versionValid}
             />
             {!!version && !versionValid && (
-              <p className="text-xs text-destructive">Use semantic version, e.g. 0.1.0</p>
+              <p className="text-xs text-destructive">{t('engine.packages.create.versionInvalid', locale)}</p>
             )}
           </div>
           {error && (
@@ -247,10 +257,10 @@ function CreatePackageDialog({
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={busy}>
-            Cancel
+            {t('engine.cancel', locale)}
           </Button>
           <Button onClick={submit} disabled={!canSubmit}>
-            {busy ? 'Creating…' : 'Create package'}
+            {busy ? t('engine.packages.create.creating', locale) : t('engine.packages.create.submit', locale)}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -284,6 +294,7 @@ function PackageDetailSheet({
   onOpenChange: (v: boolean) => void;
   onChanged: () => void;
 }) {
+  const locale = React.useMemo(() => detectLocale(), []);
   const [busy, setBusy] = React.useState<string | null>(null);
   const [msg, setMsg] = React.useState<{ kind: 'ok' | 'err'; text: string } | null>(null);
   // ADR-0033 — pending DRAFT items bound to this package. AI-authored metadata
@@ -331,7 +342,7 @@ function PackageDetailSheet({
       setMsg({ kind: 'ok', text: okText });
       onChanged();
     } catch (e: any) {
-      setMsg({ kind: 'err', text: e?.message ?? 'Action failed' });
+      setMsg({ kind: 'err', text: e?.message ?? t('engine.packages.detail.actionFailed', locale) });
     } finally {
       setBusy(null);
     }
@@ -350,13 +361,13 @@ function PackageDetailSheet({
             const n = r.validationErrors?.length ?? 0;
             throw new Error(
               n
-                ? `Publish blocked by ${n} validation error(s).`
-                : r.validationErrors?.[0]?.message || 'Nothing to publish.',
+                ? tFormat('engine.packages.detail.publishBlocked', locale, { count: n })
+                : r.validationErrors?.[0]?.message || t('engine.packages.detail.nothingToPublish', locale),
             );
           }
           return r;
         }),
-      'Package published.',
+      t('engine.packages.detail.published', locale),
     );
 
   // ADR-0033 — publish every pending draft of this app in one shot, then
@@ -379,18 +390,21 @@ function PackageDetailSheet({
             setDrafts([]);
           }
           if (r?.failedCount) {
-            throw new Error(`Published ${r.publishedCount ?? 0}; ${r.failedCount} failed.`);
+            throw new Error(tFormat('engine.packages.detail.publishDraftsPartial', locale, {
+              published: r.publishedCount ?? 0,
+              failed: r.failedCount,
+            }));
           }
           return r;
         }),
-      'App published — all drafts are now live.',
+      t('engine.packages.detail.publishDraftsOk', locale),
     );
 
   const revert = () =>
     run(
       'revert',
       () => apiJson(`${API}/${encodeURIComponent(id)}/revert`, { method: 'POST' }),
-      'Reverted to last published state.',
+      t('engine.packages.detail.reverted', locale),
     );
 
   // ADR-0033 — discard every pending draft of this app in one shot, reverting
@@ -414,11 +428,14 @@ function PackageDetailSheet({
             setDrafts([]);
           }
           if (r?.failedCount) {
-            throw new Error(`Discarded ${r.discardedCount ?? 0}; ${r.failedCount} failed.`);
+            throw new Error(tFormat('engine.packages.detail.discardDraftsPartial', locale, {
+              discarded: r.discardedCount ?? 0,
+              failed: r.failedCount,
+            }));
           }
           return r;
         }),
-      'All pending changes discarded — back to the published version.',
+      t('engine.packages.detail.discardDraftsOk', locale),
     );
 
   // ADR-0033 — delete the WHOLE package: every metadata row (active + draft)
@@ -426,9 +443,7 @@ function PackageDetailSheet({
   // sheet on success. Errors stay visible (sheet kept open).
   const deleteApp = async () => {
     const ok = window.confirm(
-      `Delete "${pkg?.manifest.name || id}" and all its data?\n\n` +
-        `This removes every object, view, dashboard and app in the package AND ` +
-        `drops the database tables those objects created. This cannot be undone.`,
+      tFormat('engine.packages.detail.deleteConfirm', locale, { name: pkg?.manifest.name || id }),
     );
     if (!ok) return;
     setBusy('delete');
@@ -438,7 +453,7 @@ function PackageDetailSheet({
       onChanged();
       onOpenChange(false);
     } catch (e: any) {
-      setMsg({ kind: 'err', text: e?.message ?? 'Delete failed' });
+      setMsg({ kind: 'err', text: e?.message ?? t('engine.packages.detail.deleteFailed', locale) });
     } finally {
       setBusy(null);
     }
@@ -451,7 +466,7 @@ function PackageDetailSheet({
         apiJson(`${API}/${encodeURIComponent(id)}/${enabled ? 'disable' : 'enable'}`, {
           method: 'PATCH',
         }),
-      enabled ? 'Package disabled.' : 'Package enabled.',
+      enabled ? t('engine.packages.detail.disabled', locale) : t('engine.packages.detail.enabled', locale),
     );
 
   const exportPkg = () =>
@@ -471,7 +486,7 @@ function PackageDetailSheet({
         a.remove();
         URL.revokeObjectURL(url);
       },
-      'Package exported.',
+      t('engine.packages.detail.exported', locale),
     );
 
   return (
@@ -486,16 +501,16 @@ function PackageDetailSheet({
         </SheetHeader>
 
         <div className="mt-4">
-          <DetailRow label="Version">{pkg.manifest.version || '—'}</DetailRow>
-          <DetailRow label="Type">{pkg.manifest.type || '—'}</DetailRow>
-          <DetailRow label="Scope">
+          <DetailRow label={t('engine.packages.col.version', locale)}>{pkg.manifest.version || '—'}</DetailRow>
+          <DetailRow label={t('engine.packages.detail.type', locale)}>{pkg.manifest.type || '—'}</DetailRow>
+          <DetailRow label={t('engine.packages.col.scope', locale)}>
             <ScopeBadge scope={pkg.manifest.scope} />
           </DetailRow>
-          <DetailRow label="Status">
+          <DetailRow label={t('engine.packages.col.status', locale)}>
             <StatusBadge pkg={pkg} />
           </DetailRow>
           {pkg.manifest.description && (
-            <DetailRow label="Description">{pkg.manifest.description}</DetailRow>
+            <DetailRow label={t('engine.packages.detail.description', locale)}>{pkg.manifest.description}</DetailRow>
           )}
         </div>
 
@@ -507,7 +522,7 @@ function PackageDetailSheet({
           onClick={() => onOpenChange(false)}
         >
           <ExternalLink className="h-3.5 w-3.5" />
-          Browse this package's metadata
+          {t('engine.packages.detail.browseMetadata', locale)}
         </Link>
 
         {drafts && drafts.length > 0 && (
@@ -515,21 +530,25 @@ function PackageDetailSheet({
             <Separator className="my-4" />
             <div className="space-y-2">
               <p className="flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                Pending changes
+                {t('engine.packages.detail.pendingChanges', locale)}
                 <Badge variant="secondary">{drafts.length}</Badge>
               </p>
               <p className="text-xs text-muted-foreground">
-                Drafted, not yet published. Publish the whole app, or review each below.
+                {t('engine.packages.detail.pendingHint', locale)}
               </p>
               {!isKernel && (
                 <div className="flex flex-wrap gap-2">
                   <Button size="sm" onClick={publishDrafts} disabled={!!busy}>
                     <Upload className="mr-1.5 h-3.5 w-3.5" />
-                    {busy === 'publish-drafts' ? 'Publishing…' : `Publish app (${drafts.length})`}
+                    {busy === 'publish-drafts'
+                      ? t('engine.packages.detail.publishing', locale)
+                      : tFormat('engine.packages.detail.publishApp', locale, { count: drafts.length })}
                   </Button>
                   <Button size="sm" variant="outline" onClick={discardDrafts} disabled={!!busy}>
                     <Undo2 className="mr-1.5 h-3.5 w-3.5" />
-                    {busy === 'discard-drafts' ? 'Discarding…' : `Discard changes (${drafts.length})`}
+                    {busy === 'discard-drafts'
+                      ? t('engine.packages.detail.discarding', locale)
+                      : tFormat('engine.packages.detail.discardChanges', locale, { count: drafts.length })}
                   </Button>
                 </div>
               )}
@@ -557,21 +576,21 @@ function PackageDetailSheet({
 
         {isKernel ? (
           <p className="text-sm text-muted-foreground">
-            This is a platform kernel package. Authoring actions are disabled.
+            {t('engine.packages.detail.kernelReadOnly', locale)}
           </p>
         ) : (
           <div className="space-y-2">
             <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-              Actions
+              {t('engine.packages.detail.actions', locale)}
             </p>
             <div className="flex flex-wrap gap-2">
               <Button size="sm" onClick={publish} disabled={!!busy}>
                 <Upload className="mr-1.5 h-3.5 w-3.5" />
-                {busy === 'publish' ? 'Publishing…' : 'Publish'}
+                {busy === 'publish' ? t('engine.packages.detail.publishing', locale) : t('engine.packages.detail.publish', locale)}
               </Button>
               <Button size="sm" variant="outline" onClick={revert} disabled={!!busy}>
                 <Undo2 className="mr-1.5 h-3.5 w-3.5" />
-                Revert
+                {t('engine.packages.detail.revert', locale)}
               </Button>
               <Button size="sm" variant="outline" onClick={toggleEnable} disabled={!!busy}>
                 {enabled ? (
@@ -579,11 +598,11 @@ function PackageDetailSheet({
                 ) : (
                   <Power className="mr-1.5 h-3.5 w-3.5" />
                 )}
-                {enabled ? 'Disable' : 'Enable'}
+                {enabled ? t('engine.packages.detail.disable', locale) : t('engine.packages.detail.enable', locale)}
               </Button>
               <Button size="sm" variant="outline" onClick={exportPkg} disabled={!!busy}>
                 <Download className="mr-1.5 h-3.5 w-3.5" />
-                {busy === 'export' ? 'Exporting…' : 'Export'}
+                {busy === 'export' ? t('engine.packages.detail.exporting', locale) : t('engine.packages.detail.export', locale)}
               </Button>
               <Button
                 size="sm"
@@ -593,7 +612,7 @@ function PackageDetailSheet({
                 className="text-destructive hover:bg-destructive/10 hover:text-destructive"
               >
                 <Trash2 className="mr-1.5 h-3.5 w-3.5" />
-                {busy === 'delete' ? 'Deleting…' : 'Delete app'}
+                {busy === 'delete' ? t('engine.packages.detail.deleting', locale) : t('engine.packages.detail.deleteApp', locale)}
               </Button>
             </div>
           </div>
@@ -620,6 +639,7 @@ function PackageDetailSheet({
 /* -------------------------------------------------------------------------- */
 
 export function PackagesPage() {
+  const locale = React.useMemo(() => detectLocale(), []);
   const { pathname } = useLocation();
   // App base = path up to (and excluding) `/component/...`, so links to
   // `/apps/:app/metadata/...` work regardless of nesting.
@@ -657,11 +677,11 @@ export function PackagesPage() {
       });
       setPackages(list);
     } catch (e: any) {
-      setError(e?.message ?? 'Failed to load packages');
+      setError(e?.message ?? t('engine.packages.loadFailed', locale));
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [locale]);
 
   React.useEffect(() => {
     void load();
@@ -704,10 +724,10 @@ export function PackagesPage() {
       try {
         manifest = JSON.parse(text);
       } catch {
-        throw new Error('Selected file is not valid JSON.');
+        throw new Error(t('engine.packages.import.invalidJson', locale));
       }
       if (!manifest || typeof manifest !== 'object' || (!manifest.id && !manifest.name)) {
-        throw new Error('Invalid package file: missing "id" or "name".');
+        throw new Error(t('engine.packages.import.invalidPackage', locale));
       }
       const res = await apiJson<any>('/api/v1/marketplace/install-local', {
         method: 'POST',
@@ -716,11 +736,11 @@ export function PackagesPage() {
       });
       setImportMsg({
         kind: 'ok',
-        text: `Imported "${res?.manifestId ?? manifest.id}". Refresh the app switcher to use it.`,
+        text: tFormat('engine.packages.import.success', locale, { id: res?.manifestId ?? manifest.id }),
       });
       await load();
     } catch (err: any) {
-      setImportMsg({ kind: 'err', text: err?.message ?? 'Import failed' });
+      setImportMsg({ kind: 'err', text: err?.message ?? t('engine.packages.import.failed', locale) });
     } finally {
       setImporting(false);
     }
@@ -739,16 +759,16 @@ export function PackagesPage() {
             <PackageIcon className="h-5 w-5" />
           </div>
           <div>
-            <h1 className="text-xl font-semibold tracking-tight">Packages</h1>
+            <h1 className="text-xl font-semibold tracking-tight">{t('engine.packages.title', locale)}</h1>
             <p className="text-sm text-muted-foreground">
-              Author, publish, and manage the packages installed in this environment.
+              {t('engine.packages.description', locale)}
             </p>
           </div>
         </div>
         <div className="flex items-center gap-2">
           <Button variant="outline" size="sm" onClick={() => void load()} disabled={loading}>
             <RefreshCw className={`mr-1.5 h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} />
-            Refresh
+            {t('engine.packages.refresh', locale)}
           </Button>
           <input
             ref={fileRef}
@@ -764,11 +784,11 @@ export function PackagesPage() {
             disabled={importing}
           >
             <FileUp className="mr-1.5 h-3.5 w-3.5" />
-            {importing ? 'Importing…' : 'Import'}
+            {importing ? t('engine.packages.importing', locale) : t('engine.packages.import', locale)}
           </Button>
           <Button size="sm" onClick={() => setCreateOpen(true)}>
             <Plus className="mr-1.5 h-3.5 w-3.5" />
-            New Package
+            {t('engine.packages.new', locale)}
           </Button>
         </div>
       </div>
@@ -791,7 +811,7 @@ export function PackagesPage() {
           <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             className="pl-8"
-            placeholder="Search packages…"
+            placeholder={t('engine.packages.search', locale)}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
           />
@@ -800,7 +820,7 @@ export function PackagesPage() {
           <div className="flex items-center gap-2">
             <Switch id="show-kernel" checked={showKernel} onCheckedChange={setShowKernel} />
             <Label htmlFor="show-kernel" className="text-sm text-muted-foreground">
-              Show platform packages ({kernelCount})
+              {tFormat('engine.packages.showPlatform', locale, { count: kernelCount })}
             </Label>
           </div>
         )}
@@ -822,11 +842,11 @@ export function PackagesPage() {
         ) : filtered.length === 0 ? (
           <div className="p-8">
             <Empty>
-              <EmptyTitle>No packages</EmptyTitle>
+              <EmptyTitle>{t('engine.packages.empty', locale)}</EmptyTitle>
               <EmptyDescription>
                 {packages.length === 0
-                  ? 'Create your first package to start authoring metadata.'
-                  : 'No packages match your filters.'}
+                  ? t('engine.packages.emptyCreate', locale)
+                  : t('engine.packages.emptyFiltered', locale)}
               </EmptyDescription>
             </Empty>
           </div>
@@ -834,11 +854,11 @@ export function PackagesPage() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Name</TableHead>
+                <TableHead>{t('engine.packages.col.name', locale)}</TableHead>
                 <TableHead>ID</TableHead>
-                <TableHead className="w-24">Version</TableHead>
-                <TableHead className="w-24">Scope</TableHead>
-                <TableHead className="w-24">Status</TableHead>
+                <TableHead className="w-24">{t('engine.packages.col.version', locale)}</TableHead>
+                <TableHead className="w-24">{t('engine.packages.col.scope', locale)}</TableHead>
+                <TableHead className="w-24">{t('engine.packages.col.status', locale)}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>

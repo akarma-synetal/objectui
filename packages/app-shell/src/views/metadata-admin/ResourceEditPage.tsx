@@ -102,7 +102,7 @@ import { readFields } from './previews/object-fields-io';
 import { useRegisterAssistantEditor, type AssistantEditorContext } from '../../assistant/assistantBus';
 import { getMetadataInspector } from './inspector-registry';
 import { getMetadataDefaultInspector } from './default-inspector-registry';
-import { detectLocale, t, tFormat } from './i18n';
+import { detectLocale, t, tFormat, translateValidationMessage } from './i18n';
 import { JsonSourceEditor } from './JsonSourceEditor';
 import { validateMetadataDraft, hasClientValidator } from './clientValidation';
 
@@ -767,6 +767,25 @@ function MetadataResourceEditPageImpl({
     window.history.replaceState({}, '', url.toString());
   }, [relatedTarget, embedded]);
 
+  function labelForIssuePath(path: string): string {
+    const key = path.split('.')[0];
+    if (!key) return path;
+    const formForLabels = (createMode && config.createSchema ? undefined : (entry?.form as any));
+    const sections = Array.isArray(formForLabels?.sections) ? formForLabels.sections : [];
+    for (const section of sections) {
+      const fields = Array.isArray(section?.fields) ? section.fields : [];
+      for (const field of fields) {
+        if (typeof field === 'string') {
+          if (field === key) return field;
+        } else if (field?.field === key) {
+          return String(field.label ?? key);
+        }
+      }
+    }
+    const props = (schema?.properties ?? {}) as Record<string, any>;
+    return String(props[key]?.title ?? key);
+  }
+
   async function doSave(force: boolean) {
     setSaving(true);
     setError(null);
@@ -792,7 +811,7 @@ function MetadataResourceEditPageImpl({
         ? { ...builtBody, [identityField]: savedName }
         : builtBody;
       if (!savedName) {
-        setError('A name is required.');
+        setError(t('engine.validation.nameRequired', locale));
         setSaving(false);
         return;
       }
@@ -856,7 +875,7 @@ function MetadataResourceEditPageImpl({
         const i = err?.body?.issues ?? [];
         let mapped: SchemaFormIssue[] = (Array.isArray(i) ? i : []).map((x: any) => ({
           path: Array.isArray(x.path) ? x.path.join('.') : String(x.path ?? ''),
-          message: String(x.message ?? 'Invalid'),
+          message: translateValidationMessage(String(x.message ?? 'Invalid'), locale),
         }));
         // Backend's invalid_metadata sometimes returns a flat string like
         // "<type>/<name> failed spec validation: <path>: <message>".
@@ -866,18 +885,18 @@ function MetadataResourceEditPageImpl({
         if (mapped.length === 0 && raw) {
           const m = raw.match(/failed spec validation:\s*(.+?):\s*(.+)$/);
           if (m) {
-            mapped = [{ path: m[1].trim(), message: m[2].trim() }];
+            mapped = [{ path: m[1].trim(), message: translateValidationMessage(m[2].trim(), locale) }];
           } else {
-            mapped = [{ path: '', message: raw }];
+            mapped = [{ path: '', message: translateValidationMessage(raw, locale) }];
           }
         }
         setIssues(mapped);
         if (mapped.length === 1 && !mapped[0].path) {
           setError(mapped[0].message);
         } else if (mapped.length === 1) {
-          setError(`${mapped[0].path}: ${mapped[0].message}`);
+          setError(`${labelForIssuePath(mapped[0].path)}: ${mapped[0].message}`);
         } else {
-          setError(`Validation failed (${mapped.length} issues).`);
+          setError(tFormat('engine.validation.failed', locale, { count: mapped.length }));
         }
       } else {
         setError(err?.message ?? String(err));
@@ -1660,8 +1679,14 @@ function MetadataResourceEditPageImpl({
               // diagnostics, so it stays in sync with every keystroke.
               // Warnings remain server-sourced (Zod doesn't model them).
               const liveErrors = hasClientValidator(type)
-                ? issues.map((i) => ({ path: i.path, message: i.message }))
-                : (diag?.errors ?? []);
+                ? issues.map((i) => ({
+                    path: i.path,
+                    message: translateValidationMessage(i.message, locale),
+                  }))
+                : (diag?.errors ?? []).map((i) => ({
+                    ...i,
+                    message: translateValidationMessage(i.message, locale),
+                  }));
               const liveValid = hasClientValidator(type)
                 ? liveErrors.length === 0
                 : diag?.valid !== false;
@@ -1698,7 +1723,7 @@ function MetadataResourceEditPageImpl({
                       <ul className="mt-1 space-y-0.5 font-mono text-[11px]">
                         {head.map((e, i) => (
                           <li key={i} className="truncate">
-                            <span className="opacity-70">{e.path || '(root)'}</span>: {e.message}
+                            <span className="opacity-70">{e.path ? labelForIssuePath(e.path) : '(root)'}</span>: {e.message}
                           </li>
                         ))}
                         {rest > 0 && (

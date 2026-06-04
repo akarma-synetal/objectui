@@ -51,7 +51,7 @@ import {
 } from '@object-ui/components';
 import { evaluatePredicate } from './predicate';
 import { WIDGETS, type WidgetContext } from './widgets';
-import { detectLocale, t } from './i18n';
+import { detectLocale, t, tFormat, translateValidationMessage } from './i18n';
 
 type JsonSchema = Record<string, any>;
 
@@ -409,8 +409,9 @@ export function SchemaForm({
 
   const issuesByPath = React.useMemo(() => {
     const map: Record<string, string[]> = {};
+    const locale = detectLocale();
     for (const i of issues) {
-      (map[i.path] ??= []).push(i.message);
+      (map[i.path] ??= []).push(translateValidationMessage(i.message, locale));
     }
     return map;
   }, [issues]);
@@ -570,8 +571,7 @@ function SectionedSchemaForm({
                   className="rounded border border-dashed border-amber-500/40 bg-amber-500/5 p-2 text-xs text-amber-700 dark:text-amber-300"
                   style={{ gridColumn: `span ${f.colSpan ?? 1}` }}
                 >
-                  ⚠️ Field <code>{f.field}</code> declared in form layout but
-                  missing from schema. Skipping.
+                  {tFormat('engine.form.missingField', detectLocale(), { field: f.field })}
                 </div>
               );
             }
@@ -789,6 +789,7 @@ function FieldControl({
   widgetContext?: WidgetContext;
   formData?: Record<string, unknown>;
 }) {
+  const locale = detectLocale();
   // Composite/repeater are first-class structured types — render natively
   // with recursive FieldRow calls so all UI features (widgets, options,
   // visibility, readonly) work uniformly at every nesting level.
@@ -938,8 +939,7 @@ function FieldControl({
             readOnly={readOnly}
           />
           <div className="text-[10px] text-muted-foreground">
-            widget <code className="font-mono">{widget}</code> — falling back
-            to JSON until a custom renderer is registered.
+            {tFormat('engine.form.fallbackJson', locale, { widget })}
           </div>
         </div>
       );
@@ -966,7 +966,7 @@ function FieldControl({
         disabled={readOnly}
       >
         <SelectTrigger id={id}>
-          <SelectValue placeholder="Select…" />
+          <SelectValue placeholder={t('engine.form.selectEllipsis', locale)} />
         </SelectTrigger>
         <SelectContent>
           {options.map((opt) => (
@@ -994,7 +994,7 @@ function FieldControl({
         disabled={readOnly}
       >
         <SelectTrigger id={id}>
-          <SelectValue placeholder="Select…" />
+          <SelectValue placeholder={t('engine.form.selectEllipsis', locale)} />
         </SelectTrigger>
         <SelectContent>
           {enumValues.map((opt) => (
@@ -1094,7 +1094,7 @@ function FieldControl({
         <Input
           id={id}
           value={arr.map(String).join(', ')}
-          placeholder="comma, separated, values"
+          placeholder={t('engine.form.arrayPlaceholder', locale)}
           onChange={(e) => {
             const raw = e.target.value;
             const parts = raw
@@ -1316,7 +1316,7 @@ function RepeaterField({
                   {!readOnly && (
                     <td className="p-1.5 text-right">
                       <Button type="button" variant="ghost" size="sm" onClick={() => remove(idx)}
-                        className="h-7 w-7 p-0" aria-label="Remove">
+                        className="h-7 w-7 p-0" aria-label={t('engine.form.remove', detectLocale())}>
                         <Trash2 className="h-3.5 w-3.5" />
                       </Button>
                     </td>
@@ -1328,7 +1328,7 @@ function RepeaterField({
         </div>
         {!readOnly && (
           <Button type="button" variant="outline" size="sm" onClick={add}>
-            <Plus className="h-3.5 w-3.5 mr-1" /> Add
+            <Plus className="h-3.5 w-3.5 mr-1" /> {t('engine.form.add', detectLocale())}
           </Button>
         )}
       </div>
@@ -1361,7 +1361,7 @@ function RepeaterField({
               </button>
               {!readOnly && (
                 <Button type="button" variant="ghost" size="sm" onClick={() => remove(idx)}
-                  className="h-7 w-7 p-0" aria-label="Remove">
+                  className="h-7 w-7 p-0" aria-label={t('engine.form.remove', detectLocale())}>
                   <Trash2 className="h-3.5 w-3.5" />
                 </Button>
               )}
@@ -1392,7 +1392,7 @@ function RepeaterField({
       })}
       {!readOnly && (
         <Button type="button" variant="outline" size="sm" onClick={add}>
-          <Plus className="h-3.5 w-3.5 mr-1" /> Add item
+          <Plus className="h-3.5 w-3.5 mr-1" /> {t('engine.form.addItem', detectLocale())}
         </Button>
       )}
     </div>
@@ -1445,6 +1445,7 @@ function RecordField({
   formData?: Record<string, unknown>;
   onChange: (v: unknown) => void;
 }) {
+  const locale = detectLocale();
   // Delegate to a registered widget if the form spec asked for one
   // explicitly (e.g. `widget: 'airtable'`). The widget owns the entire UI.
   if (widget) {
@@ -1498,11 +1499,11 @@ function RecordField({
   const renameItem = (oldKey: string, newKey: string) => {
     if (newKey === oldKey) return;
     if (record[newKey]) {
-      setKeyError(`Key "${newKey}" already exists`);
+      setKeyError(tFormat('engine.form.keyExists', locale, { key: newKey }));
       return;
     }
     if (keyRegex && !keyRegex.test(newKey)) {
-      setKeyError(`Key must match ${keyRegex}`);
+      setKeyError(tFormat('engine.form.keyPattern', locale, { pattern: String(keyRegex) }));
       return;
     }
     const next: Record<string, Record<string, unknown>> = {};
@@ -1519,15 +1520,15 @@ function RecordField({
   const addItem = () => {
     const trimmed = pendingKey.trim();
     if (!trimmed) {
-      setKeyError('Key is required');
+      setKeyError(t('engine.form.keyRequired', locale));
       return;
     }
     if (record[trimmed]) {
-      setKeyError(`Key "${trimmed}" already exists`);
+      setKeyError(tFormat('engine.form.keyExists', locale, { key: trimmed }));
       return;
     }
     if (keyRegex && !keyRegex.test(trimmed)) {
-      setKeyError(`Key must match ${keyRegex}`);
+      setKeyError(tFormat('engine.form.keyPattern', locale, { pattern: String(keyRegex) }));
       return;
     }
     const blank: Record<string, unknown> = { [keyProp]: trimmed };
@@ -1559,7 +1560,7 @@ function RecordField({
     <div className="space-y-2">
       {entries.length === 0 && (
         <div className="rounded-md border border-dashed border-border/50 px-3 py-4 text-center text-xs text-muted-foreground">
-          {t('engine.list.empty', detectLocale())}
+          {t('engine.list.empty', locale)}
         </div>
       )}
       {entries.map(([key, row]) => {
@@ -1599,8 +1600,8 @@ function RecordField({
                   }}
                   onDragEnd={() => { setDragKey(null); setDropTarget(null); }}
                   className="cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground"
-                  aria-label="Drag to reorder"
-                  title="Drag to reorder"
+                  aria-label={t('engine.form.dragToReorder', locale)}
+                  title={t('engine.form.dragToReorder', locale)}
                 >
                   <GripVertical className="h-3.5 w-3.5" />
                 </span>
@@ -1616,7 +1617,7 @@ function RecordField({
               </button>
               {!readOnly && (
                 <Button type="button" variant="ghost" size="sm" onClick={() => removeItem(key)}
-                  className="h-7 w-7 p-0" aria-label="Remove">
+                  className="h-7 w-7 p-0" aria-label={t('engine.form.remove', locale)}>
                   <Trash2 className="h-3.5 w-3.5" />
                 </Button>
               )}
@@ -1667,7 +1668,7 @@ function RecordField({
             onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addItem(); } }}
           />
           <Button type="button" variant="outline" size="sm" onClick={addItem}>
-            <Plus className="h-3.5 w-3.5 mr-1" /> Add
+            <Plus className="h-3.5 w-3.5 mr-1" /> {t('engine.form.add', locale)}
           </Button>
           {keyError && <span className="text-xs text-destructive">{keyError}</span>}
         </div>
@@ -1690,6 +1691,7 @@ function RawJsonEditor({
   readOnly?: boolean;
   small?: boolean;
 }) {
+  const locale = detectLocale();
   const [text, setText] = React.useState<string>(() =>
     safeStringify(value),
   );
@@ -1721,7 +1723,7 @@ function RawJsonEditor({
             setError(null);
             onChange(parsed);
           } catch (err: any) {
-            setError(err?.message ?? 'Invalid JSON');
+            setError(err?.message ?? t('engine.form.invalidJson', locale));
           }
         }}
       />

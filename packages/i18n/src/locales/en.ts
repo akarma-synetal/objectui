@@ -39,6 +39,7 @@ const en = {
     openChat: 'Open chat',
     closeChat: 'Close chat',
     toggleSidebar: 'Toggle sidebar',
+    package: 'Package',
   },
   validation: {
     required: '{{field}} is required',
@@ -1336,10 +1337,14 @@ const en = {
     inbox: 'Inbox',
     inboxAriaLabel: 'Open inbox',
     area: 'Area',
+    scope: 'Scope',
     recent: 'Recent',
     favorites: 'Favorites',
     starred: 'Starred',
     removeFromFavorites: 'Remove {{name}} from favorites',
+  },
+  topbar: {
+    aiAssistant: 'AI Assistant',
   },
   home: {
     title: 'Home',
