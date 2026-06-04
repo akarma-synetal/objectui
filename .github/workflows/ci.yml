@@ -39,9 +39,9 @@ jobs:
     name: Test
     runs-on: ubuntu-latest
     # Bound the job so a stalled runner / non-exiting test worker fails fast and
-    # is retryable, instead of hanging up to GitHub's 6h default (the suite
-    # normally finishes in ~6 min).
-    timeout-minutes: 20
+    # is retryable, instead of hanging up to GitHub's 6h default. PR runs can
+    # spend extra time rebuilding affected package graphs on cold caches.
+    timeout-minutes: 30
 
     steps:
       - name: Checkout code
