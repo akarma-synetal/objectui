@@ -586,25 +586,18 @@ export function RecordDetailView({ dataSource, objects, onEdit, objectNameOverri
 
   // Fetch related child records for each reverse reference.
   //
-  // PERF: skip this eager fan-out when the reference rail will render the
-  // related lists instead. `buildDefaultPageSchema` emits the rail (and
-  // hides the duplicate Related tab) whenever there are ≥2 related lists
-  // and the author hasn't opted out via `hideReferenceRail`. In that
-  // layout `childRelatedData` is never displayed — the rail fetches its
-  // own data lazily (on-visible + concurrency-capped, see
-  // record-reference-rail.tsx). Preloading every child here therefore
-  // produced ~N redundant concurrent queries on every record open that
-  // head-of-line-blocked the rail's real fetches (measured: opening a
-  // record with 8 related lists fired ~50 concurrent requests, all TTFB
-  // ~9s). When the rail is NOT emitted (≤1 related list, or
-  // hideReferenceRail), the Related tab consumes this data, so we still
-  // load it.
+  // PERF: only the legacy `DetailView` path consumes `childRelatedData`
+  // (it's threaded into `detailSchema.related[].data`). The default
+  // schema path renders each related list via `record:related_list`,
+  // whose `RelatedList` self-fetches lazily when its tab is shown — so
+  // preloading here would just fire ~N redundant concurrent queries on
+  // every record open (measured: a record with 8 related lists fired ~50
+  // concurrent requests, all TTFB ~9s) for data the schema path never
+  // reads. Skip the fan-out entirely whenever the schema page renders;
+  // load eagerly only for the legacy fallback that needs it.
   useEffect(() => {
+    if (effectivePage) return;
     if (!dataSource || !pureRecordId || childRelations.length === 0) return;
-    const railWillRender =
-      childRelations.length >= 2 &&
-      (objectDef as any)?.detail?.hideReferenceRail !== true;
-    if (railWillRender) return;
     let cancelled = false;
     Promise.all(
       childRelations.map(({ childObject, referenceField }) =>
@@ -629,7 +622,7 @@ export function RecordDetailView({ dataSource, objects, onEdit, objectNameOverri
       setChildRelatedData(data);
     });
     return () => { cancelled = true; };
-  }, [dataSource, pureRecordId, childRelations, objectDef]);
+  }, [dataSource, pureRecordId, childRelations, objectDef, effectivePage]);
 
   // ── Audit history fetch ────────────────────────────────────────────
   // Loads recent sys_audit_log entries for this record so the DetailView can
@@ -1610,6 +1603,8 @@ export function RecordDetailView({ dataSource, objects, onEdit, objectNameOverri
           // Per-object opt-outs read from `objectDef.detail.*`. Lets
           // catalog/atomic objects (product, task, ...) keep a focused
           // single-column layout instead of inheriting the rail.
+          showReferenceRail:
+            (objectDef as any)?.detail?.showReferenceRail === true || undefined,
           hideReferenceRail:
             (objectDef as any)?.detail?.hideReferenceRail === true || undefined,
           hideRelatedTab:
