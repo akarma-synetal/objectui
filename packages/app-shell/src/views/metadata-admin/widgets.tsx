@@ -31,6 +31,7 @@ import {
   Label,
 } from '@object-ui/components';
 import { Plus, Trash2 } from 'lucide-react';
+import { detectLocale, t } from './i18n';
 
 export interface WidgetContext {
   /** Names of all object metadata records (for `ref:object`). */
@@ -98,6 +99,7 @@ function RefObjectWidget({
   readOnly,
   context,
 }: WidgetProps) {
+  const locale = detectLocale();
   const names = context?.objectNames ?? [];
   const v = value == null ? '' : String(value);
   if (context?.objectsLoading) {
@@ -106,7 +108,7 @@ function RefObjectWidget({
         id={id}
         value={v}
         disabled
-        placeholder="Loading objects…"
+        placeholder={t('engine.form.loadingObjects', locale)}
       />
     );
   }
@@ -119,7 +121,7 @@ function RefObjectWidget({
         value={v}
         disabled={readOnly}
         onChange={(e) => onChange(e.target.value || undefined)}
-        placeholder="object_name (no objects detected)"
+        placeholder={t('engine.form.noObjects', locale)}
       />
     );
   }
@@ -130,7 +132,7 @@ function RefObjectWidget({
       disabled={readOnly}
     >
       <SelectTrigger id={id}>
-        <SelectValue placeholder="Select object…" />
+        <SelectValue placeholder={t('engine.form.selectObject', locale)} />
       </SelectTrigger>
       <SelectContent>
         {names.map((n) => (
@@ -155,6 +157,7 @@ function ObjectSelectorWidget({
   context,
   fieldSpec,
 }: WidgetProps) {
+  const locale = detectLocale();
   const names = context?.objectNames ?? [];
   const multiple = fieldSpec?.multiple ?? false;
   
@@ -187,7 +190,7 @@ function ObjectSelectorWidget({
   };
 
   if (context?.objectsLoading) {
-    return <Input id={id} value="Loading objects..." readOnly disabled />;
+    return <Input id={id} value={t('engine.form.loadingObjects', locale)} readOnly disabled />;
   }
 
   return (
@@ -222,7 +225,7 @@ function ObjectSelectorWidget({
         disabled={readOnly || names.length === 0}
       >
         <SelectTrigger id={id}>
-          <SelectValue placeholder={multiple ? "Add objects..." : "Select object..."} />
+          <SelectValue placeholder={multiple ? t('engine.form.addObjects', locale) : t('engine.form.selectObjectDots', locale)} />
         </SelectTrigger>
         <SelectContent>
           {names.map(name => (
@@ -249,6 +252,7 @@ function FieldSelectorWidget({
   fieldSpec,
   formData,
 }: WidgetProps) {
+  const locale = detectLocale();
   const [fields, setFields] = React.useState<Array<{ name: string; label: string; type: string }>>([]);
   const [loading, setLoading] = React.useState(false);
   
@@ -309,11 +313,11 @@ function FieldSelectorWidget({
   };
 
   if (!objectName) {
-    return <Input id={id} value="(Select an object first)" readOnly disabled />;
+    return <Input id={id} value={t('engine.form.selectObjectFirst', locale)} readOnly disabled />;
   }
 
   if (loading) {
-    return <Input id={id} value="Loading fields..." readOnly disabled />;
+    return <Input id={id} value={t('engine.form.loadingFields', locale)} readOnly disabled />;
   }
 
   return (
@@ -352,7 +356,7 @@ function FieldSelectorWidget({
         disabled={readOnly || fields.length === 0}
       >
         <SelectTrigger id={id}>
-          <SelectValue placeholder={multiple ? "Add fields..." : "Select field..."} />
+          <SelectValue placeholder={multiple ? t('engine.form.addFields', locale) : t('engine.form.selectFieldDots', locale)} />
         </SelectTrigger>
         <SelectContent>
           {fields.map(f => (
@@ -381,6 +385,7 @@ function MasterDetailWidget({
   readOnly,
   context,
 }: WidgetProps) {
+  const locale = detectLocale();
   // Unwrap anyOf/oneOf: pick the first array-of-object branch.
   let resolved = schema as Record<string, any> | undefined;
   if (resolved?.anyOf || resolved?.oneOf) {
@@ -402,8 +407,7 @@ function MasterDetailWidget({
     // Falls back to JSON if the array items aren't a typed object.
     return (
       <div className="rounded border border-dashed border-amber-500/40 bg-amber-500/5 p-2 text-xs text-amber-700 dark:text-amber-300">
-        master-detail widget requires <code>items.properties</code> on the
-        JSON schema (or an <code>anyOf</code> branch that has them).
+        {t('engine.form.masterDetailSchemaError', locale)}
       </div>
     );
   }
@@ -449,7 +453,7 @@ function MasterDetailWidget({
                   colSpan={cols.length + 1}
                   className="px-2 py-3 text-center text-xs text-muted-foreground"
                 >
-                  No rows. Click + to add.
+                  {t('engine.form.noRows', locale)}
                 </td>
               </tr>
             )}
@@ -474,7 +478,7 @@ function MasterDetailWidget({
                     onClick={() => removeRow(idx)}
                     disabled={readOnly}
                     className="h-7 w-7 p-0"
-                    aria-label="Remove row"
+                    aria-label={t('engine.form.removeRow', locale)}
                   >
                     <Trash2 className="h-3.5 w-3.5" />
                   </Button>
@@ -491,7 +495,7 @@ function MasterDetailWidget({
         onClick={addRow}
         disabled={readOnly}
       >
-        <Plus className="h-3.5 w-3.5 mr-1" /> Add row
+        <Plus className="h-3.5 w-3.5 mr-1" /> {t('engine.form.addRow', locale)}
       </Button>
     </div>
   );
@@ -592,6 +596,7 @@ function StringTagsWidget({
   onChange,
   readOnly,
 }: WidgetProps) {
+  const locale = detectLocale();
   const tags = Array.isArray(value) ? (value as string[]) : [];
   const [draft, setDraft] = React.useState('');
 
@@ -638,7 +643,7 @@ function StringTagsWidget({
           type="text"
           value={draft}
           disabled={readOnly}
-          placeholder={tags.length === 0 ? 'Type and press Enter…' : ''}
+          placeholder={tags.length === 0 ? t('engine.form.tagsPlaceholder', locale) : ''}
           onChange={(e) => setDraft(e.target.value)}
           onKeyDown={(e) => {
             if (e.key === 'Enter' || e.key === ',') {
@@ -670,6 +675,7 @@ const NO_FIELD = '__none__';
  * present in the catalog is still shown so stale/custom values survive.
  */
 function FieldRefWidget({ id, value, onChange, readOnly, context }: WidgetProps) {
+  const locale = detectLocale();
   const fields = context?.objectFields ?? [];
   const current = value == null ? '' : String(value);
   const inCatalog = !current || fields.some((f) => f.name === current);
@@ -680,16 +686,16 @@ function FieldRefWidget({ id, value, onChange, readOnly, context }: WidgetProps)
       disabled={readOnly}
     >
       <SelectTrigger id={id}>
-        <SelectValue placeholder={fields.length ? 'Select field…' : 'No object bound'} />
+        <SelectValue placeholder={fields.length ? t('engine.form.selectField', locale) : t('engine.form.noObjectBound', locale)} />
       </SelectTrigger>
       <SelectContent>
         <SelectItem value={NO_FIELD}>
-          <span className="text-muted-foreground">— None —</span>
+          <span className="text-muted-foreground">{t('engine.form.none', locale)}</span>
         </SelectItem>
         {!inCatalog && current && (
           <SelectItem value={current}>
             <span className="font-mono">{current}</span>
-            <span className="ml-2 text-xs text-muted-foreground">(not in object)</span>
+            <span className="ml-2 text-xs text-muted-foreground">{t('engine.form.notInObject', locale)}</span>
           </SelectItem>
         )}
         {fields.map((f) => (
@@ -712,6 +718,7 @@ function FieldRefWidget({ id, value, onChange, readOnly, context }: WidgetProps)
  * and removal; values outside the catalog are retained.
  */
 function FieldRefMultiWidget({ id, value, onChange, readOnly, context }: WidgetProps) {
+  const locale = detectLocale();
   const fields = context?.objectFields ?? [];
   const selected: string[] = Array.isArray(value)
     ? value.map(String)
@@ -791,9 +798,9 @@ function FieldRefMultiWidget({ id, value, onChange, readOnly, context }: WidgetP
               placeholder={
                 fields.length
                   ? remaining.length
-                    ? 'Add field…'
-                    : 'All fields added'
-                  : 'No object bound'
+                    ? t('engine.form.addField', locale)
+                    : t('engine.form.allFieldsAdded', locale)
+                  : t('engine.form.noObjectBound', locale)
               }
             />
           </SelectTrigger>
