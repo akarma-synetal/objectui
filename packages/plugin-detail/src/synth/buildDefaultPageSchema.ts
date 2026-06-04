@@ -65,9 +65,17 @@ export interface BuildPageOptions {
   /** Suppress the auto-prepended `record:path` stepper. */
   hidePath?: boolean;
   /**
-   * Suppress the auto-emitted Reference Rail (aside region with
-   * `record:reference_rail`). The rail is auto-emitted only when
-   * `related` has at least 2 entries.
+   * Opt in to the Reference Rail (aside region with
+   * `record:reference_rail`). The rail is OFF by default — it fans out a
+   * collection query per related list, which is wasteful on records the
+   * author never intended to summarize. Set `showReferenceRail: true`
+   * (per object via `detail.showReferenceRail`) to surface it; it then
+   * emits only when `related` has at least 2 entries.
+   */
+  showReferenceRail?: boolean;
+  /**
+   * Force-suppress the Reference Rail even when `showReferenceRail` is on.
+   * Retained for callers that toggle the rail off contextually.
    */
   hideReferenceRail?: boolean;
   /**
@@ -493,6 +501,7 @@ export function buildDefaultPageSchema(
   // (HubSpot/Dynamics convention). Authors can opt out of either via
   // `hideReferenceRail` / `hideRelatedTab`.
   const willEmitRail =
+    options.showReferenceRail === true &&
     !options.hideReferenceRail &&
     Array.isArray(options.related) &&
     options.related.length >= 2;

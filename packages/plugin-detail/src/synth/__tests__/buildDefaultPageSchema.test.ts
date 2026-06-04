@@ -288,10 +288,9 @@ describe('buildDefaultPageSchema', () => {
 
     it('emits Related tab with one record:related_list per entry', () => {
       const page = buildDefaultPageSchema(leadDef, {
-        // Force the Related tab to appear even with 2+ related lists,
-        // which would otherwise trigger the Reference Rail and suppress
-        // the duplicate Related tab.
-        hideReferenceRail: true,
+        // The Related tab is the default home for related lists. The
+        // Reference Rail is opt-in (`showReferenceRail`), so it stays off
+        // here and the Related tab renders even with 2+ related lists.
         related: [
           {
             objectName: 'task',
@@ -315,8 +314,24 @@ describe('buildDefaultPageSchema', () => {
       expect(tabs.items[1].children[0].limit).toBe(10);
     });
 
-    it('auto-emits a Reference Rail aside region and suppresses the duplicate Related tab when 2+ related lists are present', () => {
+    it('does NOT emit a Reference Rail by default, keeping the Related tab', () => {
       const page = buildDefaultPageSchema(leadDef, {
+        related: [
+          { objectName: 'task', relationshipField: 'lead_id' },
+          { objectName: 'note', relationshipField: 'parent_id' },
+        ],
+      });
+      // No aside region — the rail is opt-in.
+      expect(page.regions.find((r: any) => r.name === 'aside')).toBeUndefined();
+      // Related tab survives (Details + Related).
+      const tabs = page.regions[0].components.find((c: any) => c.type === 'page:tabs');
+      const labels = tabs.items.map((t: any) => t.label);
+      expect(labels).toContain('Related');
+    });
+
+    it('emits a Reference Rail aside region and suppresses the duplicate Related tab when showReferenceRail is on and 2+ related lists are present', () => {
+      const page = buildDefaultPageSchema(leadDef, {
+        showReferenceRail: true,
         related: [
           { objectName: 'task', relationshipField: 'lead_id' },
           { objectName: 'note', relationshipField: 'parent_id' },
@@ -352,6 +367,7 @@ describe('buildDefaultPageSchema', () => {
 
     it('appends slots.rightRail after the auto-emitted reference rail', () => {
       const page = buildDefaultPageSchema(leadDef, {
+        showReferenceRail: true,
         related: [
           { objectName: 'task', relationshipField: 'lead_id' },
           { objectName: 'note', relationshipField: 'parent_id' },
