@@ -36,6 +36,7 @@ const ko = {
     openChat: "채팅 열기",
     closeChat: "채팅 닫기",
     toggleSidebar: "사이드바 전환",
+    package: "패키지",
   },
   validation: {
     required: "{{field}}은(는) 필수입니다",
@@ -1191,10 +1192,14 @@ const ko = {
     inbox: "받은 편지함",
     inboxAriaLabel: "받은 편지함 열기",
     area: "영역",
+    scope: "범위",
     recent: "최근",
     favorites: "즐겨찾기",
     starred: "즐겨찾기",
     removeFromFavorites: "즐겨찾기에서 {{name}} 제거",
+  },
+  topbar: {
+    aiAssistant: "AI 어시스턴트",
   },
   home: {
     title: "홈",

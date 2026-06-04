@@ -36,6 +36,7 @@ const ja = {
     openChat: "チャットを開く",
     closeChat: "チャットを閉じる",
     toggleSidebar: "サイドバーを切り替え",
+    package: "パッケージ",
   },
   validation: {
     required: "{{field}}は必須です",
@@ -1191,10 +1192,14 @@ const ja = {
     inbox: "受信箱",
     inboxAriaLabel: "受信箱を開く",
     area: "エリア",
+    scope: "スコープ",
     recent: "最近",
     favorites: "お気に入り",
     starred: "スター付き",
     removeFromFavorites: "お気に入りから {{name}} を削除",
+  },
+  topbar: {
+    aiAssistant: "AI アシスタント",
   },
   home: {
     title: "ホーム",
