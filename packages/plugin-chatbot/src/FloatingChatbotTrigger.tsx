@@ -34,6 +34,30 @@ export interface FloatingChatbotTriggerProps {
   className?: string
 }
 
+const TRIGGER_SIZE_CLASSES: Record<number, string> = {
+  32: "size-8",
+  36: "size-9",
+  40: "size-10",
+  44: "size-11",
+  48: "size-12",
+  52: "size-[52px]",
+  56: "size-14",
+  60: "size-[60px]",
+  64: "size-16",
+  72: "size-[72px]",
+  80: "size-20",
+}
+
+function closestSize(size: number, sizes: number[]) {
+  return sizes.reduce((best, next) =>
+    Math.abs(next - size) < Math.abs(best - size) ? next : best
+  )
+}
+
+function getTriggerSizeClass(size: number) {
+  return TRIGGER_SIZE_CLASSES[size] ?? TRIGGER_SIZE_CLASSES[closestSize(size, Object.keys(TRIGGER_SIZE_CLASSES).map(Number))]
+}
+
 /**
  * Floating Action Button (FAB) trigger for the chatbot.
  * Renders a circular button fixed to the viewport corner.
@@ -51,13 +75,14 @@ export function FloatingChatbotTrigger({
       onClick={toggle}
       className={cn(
         "fixed z-50 rounded-full shadow-lg transition-transform hover:scale-105",
+        getTriggerSizeClass(size),
+        isOpen && "hidden",
         // Lift the FAB above the mobile bottom navigation bar (~56px) so it
         // doesn't sit on top of the nav icons. On desktop we use the
         // standard 24px gap from the bottom edge.
         position === "bottom-right" ? "right-6 bottom-20 sm:bottom-6" : "left-6 bottom-20 sm:bottom-6",
         className
       )}
-      style={{ width: size, height: size }}
       size="icon"
       aria-label={isOpen ? label('closeChat', 'Close chat') : label('openChat', 'Open chat')}
       data-testid="floating-chatbot-trigger"

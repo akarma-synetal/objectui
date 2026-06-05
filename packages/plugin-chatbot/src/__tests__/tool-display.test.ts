@@ -66,9 +66,16 @@ describe('summarizeChatError', () => {
         'Failed after 3 attempts. Last error: Gateway request timed out: Cannot connect to API. See https://example.com',
       ),
     );
-    expect(summary).toBe('Gateway request timed out:');
+    expect(summary).toBe('Gateway request timed out');
     expect(details).toContain('Cannot connect to API');
     expect(details).not.toMatch(/^Failed after/);
+  });
+  it('uses the actionable part of invalid response format errors', () => {
+    const { summary, details } = summarizeChatError(
+      new Error('Invalid error response format: Gateway request failed'),
+    );
+    expect(summary).toBe('Gateway request failed');
+    expect(details).toBe('Invalid error response format: Gateway request failed');
   });
   it('returns a fallback when message is empty', () => {
     expect(summarizeChatError(new Error('')).summary).toMatch(

@@ -57,7 +57,8 @@ export function ConsoleChatbotFab(props: ConsoleChatbotFabProps) {
       onClick={() => setArmed(true)}
       onMouseEnter={prefetchChatbot}
       onFocus={prefetchChatbot}
-      className="fixed bottom-6 right-6 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg ring-1 ring-primary/20 transition-transform hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+      className="fixed bottom-20 right-6 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg ring-1 ring-primary/20 transition-transform hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 sm:bottom-6"
+      data-testid="console-chatbot-fab"
     >
       {/* Inline SVG — no lucide-react import here, FAB stays dependency-free. */}
       <svg

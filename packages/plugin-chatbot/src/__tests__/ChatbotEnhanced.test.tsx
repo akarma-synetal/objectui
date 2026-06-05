@@ -52,9 +52,53 @@ describe('ChatbotEnhanced (AI Elements composition)', () => {
         onReload={onReload}
       />
     );
+    expect(screen.getByText(/Response failed/i)).toBeInTheDocument();
     expect(screen.getByText(/network down/i)).toBeInTheDocument();
     fireEvent.click(screen.getByText(/Retry/i));
     expect(onReload).toHaveBeenCalled();
+  });
+
+  it('shows an assistant thinking row while waiting for a response', () => {
+    render(
+      <ChatbotEnhanced
+        messages={[{ id: 'u1', role: 'user', content: 'Find recent deals' }]}
+        isLoading
+      />
+    );
+
+    expect(screen.getByText('Find recent deals')).toBeInTheDocument();
+    expect(screen.getByText(/Assistant is responding/i)).toBeInTheDocument();
+  });
+
+  it('renders thinking dots inside an empty streaming assistant message', () => {
+    render(
+      <ChatbotEnhanced
+        messages={[
+          { id: 'u1', role: 'user', content: 'Find recent deals' },
+          { id: 'a1', role: 'assistant', content: '', streaming: true },
+        ]}
+        isLoading
+      />
+    );
+
+    expect(screen.getByText(/Assistant is responding/i)).toBeInTheDocument();
+    expect(screen.queryByText('Copy')).not.toBeInTheDocument();
+    expect(screen.queryByText('Regenerate')).not.toBeInTheDocument();
+  });
+
+  it('turns the submit control into a stop control while streaming', () => {
+    const onStop = vi.fn();
+    render(
+      <ChatbotEnhanced
+        messages={[{ id: 'u1', role: 'user', content: 'Find recent deals' }]}
+        isLoading
+        onStop={onStop}
+      />
+    );
+
+    expect(screen.queryByLabelText('Submit')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByLabelText('Stop response'));
+    expect(onStop).toHaveBeenCalled();
   });
 
   it('exposes a copy action on assistant messages', () => {

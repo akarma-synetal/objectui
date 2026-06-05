@@ -161,6 +161,18 @@ VITE_AI_DEFAULT_AGENT=sales_copilot
 The picker lets the user switch agents at runtime; switching transparently
 remounts the chat hook against the new agent's `/chat` endpoint.
 
+The floating panel is responsive by default. On desktop it uses the configured
+`panelWidth` / `panelHeight`; on narrow browser viewports it expands between
+safe side gutters, stays above the mobile bottom navigation area, and hides the
+FAB while open so the close button in the panel header is the only active
+dismiss control.
+
+During a conversation, the chat surface renders an inline assistant responding
+indicator while the backend is streaming, keeps message actions quiet until
+hover/focus, and summarizes backend failures into a compact retryable notice
+with optional technical details. The prompt submit control also becomes a
+dedicated stop button while a response is in progress.
+
 This plugin automatically registers with ObjectUI's component registry when imported:
 
 ```tsx
