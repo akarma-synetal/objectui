@@ -28,7 +28,6 @@ import {
   SidebarMenuItem,
   SidebarMenuButton,
   SidebarMenuAction,
-  SidebarTrigger,
   useSidebar,
 } from '@object-ui/components';
 import {
@@ -55,6 +54,7 @@ import { useObjectTranslation, useObjectLabel } from '@object-ui/i18n';
 // loaded from /api/v1/i18n/translations/:locale.
 import { useNavigationContext } from '../context/NavigationContext';
 import { useAppContextSelectors } from './ContextSelectors';
+import { LocalizedSidebarTrigger } from './LocalizedSidebarTrigger';
 
 // ---------------------------------------------------------------------------
 // useNavOrder – localStorage-persisted drag-and-drop reorder for nav items
@@ -551,7 +551,7 @@ export function UnifiedSidebar({ activeAppName }: UnifiedSidebarProps) {
       </SidebarContent>
 
       <SidebarFooter className="border-t p-1">
-        <SidebarTrigger className="w-full justify-start pl-2 group-data-[state=collapsed]:justify-center group-data-[state=collapsed]:pl-0" />
+        <LocalizedSidebarTrigger className="w-full justify-start pl-2 group-data-[state=collapsed]:justify-center group-data-[state=collapsed]:pl-0" />
       </SidebarFooter>
     </Sidebar>
     {/* Mobile bottom-tab navigation removed — the drawer (☰) already

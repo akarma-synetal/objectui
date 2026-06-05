@@ -52,7 +52,7 @@ export function AppSwitcher({ activeAppName, onAppChange }: AppSwitcherProps) {
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" sideOffset={8} className="w-60">
         <DropdownMenuLabel className="text-xs text-muted-foreground font-normal">
-          Switch Application
+          {t('layout.appSwitcher.switchApplication', { defaultValue: 'Switch Application' })}
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
         {activeApps.map((app: any) => {

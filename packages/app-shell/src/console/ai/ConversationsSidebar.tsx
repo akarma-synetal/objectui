@@ -9,6 +9,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Plus, Trash2, Pencil, MessageSquare, Search, Check, X } from 'lucide-react';
+import { useObjectTranslation } from '@object-ui/i18n';
 import {
   Button,
   Input,
@@ -25,9 +26,13 @@ export interface ConversationsSidebarProps {
   apiBase: string;
   className?: string;
   refreshKey?: number | string;
+  onNavigate?: () => void;
 }
 
-function formatTimestamp(iso?: string): string {
+function formatTimestamp(
+  iso: string | undefined,
+  t: ReturnType<typeof useObjectTranslation>['t'],
+): string {
   if (!iso) return '';
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return '';
@@ -36,10 +41,10 @@ function formatTimestamp(iso?: string): string {
   const min = 60 * 1000;
   const hour = 60 * min;
   const day = 24 * hour;
-  if (diff < min) return 'just now';
-  if (diff < hour) return `${Math.floor(diff / min)}m ago`;
-  if (diff < day) return `${Math.floor(diff / hour)}h ago`;
-  if (diff < 7 * day) return `${Math.floor(diff / day)}d ago`;
+  if (diff < min) return t('console.ai.justNow');
+  if (diff < hour) return t('console.ai.minutesAgo', { count: Math.floor(diff / min) });
+  if (diff < day) return t('console.ai.hoursAgo', { count: Math.floor(diff / hour) });
+  if (diff < 7 * day) return t('console.ai.daysAgo', { count: Math.floor(diff / day) });
   return d.toLocaleDateString();
 }
 
@@ -48,7 +53,9 @@ export function ConversationsSidebar({
   apiBase,
   className,
   refreshKey,
+  onNavigate,
 }: ConversationsSidebarProps) {
+  const { t } = useObjectTranslation();
   const navigate = useNavigate();
   const { conversationId: activeId } = useParams<{ conversationId?: string }>();
   const { conversations, isLoading, error, remove, rename } = useConversationList({
@@ -69,15 +76,21 @@ export function ConversationsSidebar({
     });
   }, [conversations, filter]);
 
-  const handleNew = useCallback(() => navigate('/ai'), [navigate]);
+  const handleNew = useCallback(() => {
+    navigate('/ai');
+    onNavigate?.();
+  }, [navigate, onNavigate]);
 
   const handleDelete = useCallback(
     async (e: React.MouseEvent, id: string) => {
       e.stopPropagation();
       await remove(id);
-      if (id === activeId) navigate('/ai', { replace: true });
+      if (id === activeId) {
+        navigate('/ai', { replace: true });
+        onNavigate?.();
+      }
     },
-    [remove, activeId, navigate],
+    [remove, activeId, navigate, onNavigate],
   );
 
   const handleRenameSubmit = useCallback(
@@ -99,7 +112,7 @@ export function ConversationsSidebar({
     >
       <div className="flex shrink-0 flex-col gap-2 border-b px-3 py-2">
         <div className="flex items-center justify-between gap-2">
-          <span className="text-sm font-medium">Chats</span>
+          <span className="text-sm font-medium">{t('console.ai.chats')}</span>
           <Button
             size="sm"
             variant="outline"
@@ -107,7 +120,7 @@ export function ConversationsSidebar({
             data-testid="ai-new-chat"
           >
             <Plus className="h-3.5 w-3.5" />
-            New
+            {t('console.ai.newChat')}
           </Button>
         </div>
         <div className="relative">
@@ -115,7 +128,7 @@ export function ConversationsSidebar({
           <Input
             value={filter}
             onChange={(e) => setFilter(e.target.value)}
-            placeholder="Search chats..."
+            placeholder={t('console.ai.searchChats')}
             className="h-7 pl-7 text-xs"
             data-testid="ai-conversations-search"
           />
@@ -123,7 +136,7 @@ export function ConversationsSidebar({
       </div>
       <ScrollArea className="flex-1 min-h-0">
         {isLoading && conversations.length === 0 ? (
-          <div className="px-3 py-4 text-xs text-muted-foreground">Loading…</div>
+          <div className="px-3 py-4 text-xs text-muted-foreground">{t('common.loading')}</div>
         ) : error ? (
           <div className="px-3 py-4 text-xs text-destructive">
             {error.message}
@@ -131,11 +144,11 @@ export function ConversationsSidebar({
         ) : conversations.length === 0 ? (
           <Empty className="px-3 py-8">
             <MessageSquare className="h-8 w-8 text-muted-foreground" />
-            <EmptyTitle>No chats yet</EmptyTitle>
-            <EmptyDescription>Start a new conversation to see it here.</EmptyDescription>
+            <EmptyTitle>{t('console.ai.noChatsYet')}</EmptyTitle>
+            <EmptyDescription>{t('console.ai.noChatsDescription')}</EmptyDescription>
           </Empty>
         ) : visible.length === 0 ? (
-          <div className="px-3 py-4 text-xs text-muted-foreground">No matching chats.</div>
+          <div className="px-3 py-4 text-xs text-muted-foreground">{t('console.ai.noMatchingChats')}</div>
         ) : (
           <ul className="flex flex-col py-1">
             {visible.map((c) => (
@@ -144,7 +157,10 @@ export function ConversationsSidebar({
                 conversation={c}
                 active={c.id === activeId}
                 renaming={c.id === renamingId}
-                onSelect={() => navigate(`/ai/${c.id}`)}
+                onSelect={() => {
+                  navigate(`/ai/${c.id}`);
+                  onNavigate?.();
+                }}
                 onDelete={(e) => handleDelete(e, c.id)}
                 onStartRename={() => setRenamingId(c.id)}
                 onCancelRename={() => setRenamingId(undefined)}
@@ -179,7 +195,8 @@ function ConversationRow({
   onCancelRename,
   onSubmitRename,
 }: RowProps) {
-  const title = conversation.title?.trim() || conversation.preview?.trim() || 'New conversation';
+  const { t } = useObjectTranslation();
+  const title = conversation.title?.trim() || conversation.preview?.trim() || t('console.ai.newConversation');
   const [draft, setDraft] = useState(title);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -216,7 +233,7 @@ function ConversationRow({
             }}
             className="h-7 flex-1 text-sm"
             data-testid={`ai-conversation-rename-input-${conversation.id}`}
-            aria-label="Rename conversation"
+            aria-label={t('console.ai.renameConversation')}
           />
           <Button
             size="sm"
@@ -224,7 +241,7 @@ function ConversationRow({
             className="h-7 w-7 p-0"
             onClick={() => onSubmitRename(draft)}
             data-testid={`ai-conversation-rename-confirm-${conversation.id}`}
-            aria-label="Save rename"
+            aria-label={t('console.ai.saveRename')}
           >
             <Check className="h-3.5 w-3.5" />
           </Button>
@@ -233,7 +250,7 @@ function ConversationRow({
             variant="ghost"
             className="h-7 w-7 p-0"
             onClick={onCancelRename}
-            aria-label="Cancel rename"
+            aria-label={t('console.ai.cancelRename')}
           >
             <X className="h-3.5 w-3.5" />
           </Button>
@@ -244,67 +261,54 @@ function ConversationRow({
 
   return (
     <li>
-      <button
-        type="button"
-        onClick={onSelect}
+      <div
         className={cn(
-          'group flex w-full flex-col gap-0.5 border-l-2 border-transparent px-3 py-2 text-left text-sm transition-colors hover:bg-accent/50',
+          'group flex w-full items-start gap-2 border-l-2 border-transparent px-3 py-2 text-sm transition-colors hover:bg-accent/50',
           active && 'border-primary bg-accent',
         )}
         data-testid={`ai-conversation-row-${conversation.id}`}
       >
-        <div className="flex items-start justify-between gap-2">
-          <span className="line-clamp-1 flex-1 font-medium">{title}</span>
-          <div className="flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100">
-            <span
-              role="button"
-              tabIndex={0}
-              onClick={(e) => {
-                e.stopPropagation();
-                onStartRename();
-              }}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' || e.key === ' ') {
-                  e.stopPropagation();
-                  onStartRename();
-                }
-              }}
-              className="hover:text-primary"
-              data-testid={`ai-conversation-rename-${conversation.id}`}
-              aria-label="Rename conversation"
-            >
-              <Pencil className="h-3.5 w-3.5" />
+        <button
+          type="button"
+          onClick={onSelect}
+          className="min-w-0 flex-1 text-left"
+          data-testid={`ai-conversation-select-${conversation.id}`}
+        >
+          <span className="line-clamp-1 font-medium">{title}</span>
+          {conversation.preview && conversation.preview !== title ? (
+            <span className="mt-0.5 block line-clamp-1 text-xs text-muted-foreground">
+              {conversation.preview}
             </span>
-            <span
-              role="button"
-              tabIndex={0}
-              onClick={(e) => {
-                e.stopPropagation();
-                onDelete(e);
-              }}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' || e.key === ' ') {
-                  e.stopPropagation();
-                  onDelete(e as unknown as React.MouseEvent);
-                }
-              }}
-              className="hover:text-destructive"
-              data-testid={`ai-conversation-delete-${conversation.id}`}
-              aria-label="Delete conversation"
-            >
-              <Trash2 className="h-3.5 w-3.5" />
-            </span>
-          </div>
-        </div>
-        {conversation.preview && conversation.preview !== title ? (
-          <span className="line-clamp-1 text-xs text-muted-foreground">
-            {conversation.preview}
+          ) : null}
+          <span className="mt-0.5 block text-[10px] text-muted-foreground">
+            {formatTimestamp(conversation.updatedAt ?? conversation.createdAt, t)}
           </span>
-        ) : null}
-        <span className="text-[10px] text-muted-foreground">
-          {formatTimestamp(conversation.updatedAt ?? conversation.createdAt)}
-        </span>
-      </button>
+        </button>
+        <div className="flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100">
+          <Button
+            type="button"
+            size="sm"
+            variant="ghost"
+            className="h-7 w-7 p-0 hover:text-primary"
+            onClick={onStartRename}
+            data-testid={`ai-conversation-rename-${conversation.id}`}
+            aria-label={t('console.ai.renameConversation')}
+          >
+            <Pencil className="h-3.5 w-3.5" />
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            variant="ghost"
+            className="h-7 w-7 p-0 hover:text-destructive"
+            onClick={onDelete}
+            data-testid={`ai-conversation-delete-${conversation.id}`}
+            aria-label={t('console.ai.deleteConversation')}
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+          </Button>
+        </div>
+      </div>
     </li>
   );
 }

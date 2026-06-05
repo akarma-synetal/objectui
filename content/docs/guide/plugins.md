@@ -174,6 +174,8 @@ Chat interface component.
 - Message history
 - User and assistant roles
 - Timestamps and avatars
+- Responsive floating panel for console assistants
+- Inline responding, stop, and retry states
 - Lazy-loaded (~35 KB)
 
 [Read full documentation →](../plugins/plugin-chatbot.md)

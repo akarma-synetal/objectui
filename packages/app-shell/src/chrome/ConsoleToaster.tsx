@@ -9,11 +9,13 @@
 import { Toaster as Sonner } from 'sonner';
 import { CircleCheck, Info, LoaderCircle, OctagonX, TriangleAlert } from 'lucide-react';
 import { useTheme } from './ThemeProvider';
+import { useObjectTranslation } from '@object-ui/i18n';
 
 type ToasterProps = React.ComponentProps<typeof Sonner>;
 
 export function ConsoleToaster(props: ToasterProps) {
   const { theme = 'system' } = useTheme();
+  const { t } = useObjectTranslation();
 
   return (
     <Sonner
@@ -27,6 +29,7 @@ export function ConsoleToaster(props: ToasterProps) {
       richColors
       expand
       visibleToasts={4}
+      containerAriaLabel={t('notifications.regionLabel', { defaultValue: 'Notifications' })}
       icons={{
         success: <CircleCheck className="h-4 w-4" />,
         info: <Info className="h-4 w-4" />,

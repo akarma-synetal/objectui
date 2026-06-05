@@ -280,12 +280,6 @@ export interface ChatbotModelOption {
   provider?: string;
 }
 
-function deriveStatus(isLoading?: boolean, error?: Error): ChatStatus {
-  if (error) return 'error';
-  if (isLoading) return 'streaming';
-  return 'ready';
-}
-
 function formatMessageProps(role: ChatMessage['role']): MessageProps['from'] {
   // The vendored Message only knows user/assistant — render system as assistant
   // (FloatingChatbotProvider already renders system messages inline elsewhere).
@@ -354,7 +348,7 @@ const ChatbotEnhanced = React.forwardRef<HTMLDivElement, ChatbotEnhancedProps>(
     },
     ref
   ) => {
-    const status = deriveStatus(isLoading, error);
+    const promptStatus: ChatStatus = isLoading ? 'streaming' : 'ready';
     const [copiedId, setCopiedId] = React.useState<string | null>(null);
 
     // Resolve localizable strings once, English defaults preserved.
@@ -400,7 +394,7 @@ const ChatbotEnhanced = React.forwardRef<HTMLDivElement, ChatbotEnhancedProps>(
       <div
         ref={ref}
         className={cn(
-          'flex flex-col border rounded-lg bg-background overflow-hidden',
+          'flex min-h-0 flex-col overflow-hidden rounded-lg border bg-background',
           className
         )}
         style={{ maxHeight }}
@@ -461,6 +455,12 @@ const ChatbotEnhanced = React.forwardRef<HTMLDivElement, ChatbotEnhancedProps>(
                 const tools = message.toolInvocations ?? [];
                 const reasoning = message.reasoning?.trim();
                 const sources = message.sources ?? [];
+                const isEmptyAssistantStreaming =
+                  !isUser &&
+                  Boolean(message.streaming) &&
+                  !message.content &&
+                  tools.length === 0 &&
+                  !reasoning;
                 return (
                   <Message key={message.id} from={formatMessageProps(message.role)}>
                     <div
@@ -628,10 +628,12 @@ const ChatbotEnhanced = React.forwardRef<HTMLDivElement, ChatbotEnhancedProps>(
                             {message.content}
                           </div>
                         ) : null
+                      ) : isEmptyAssistantStreaming ? (
+                        <ThinkingDots />
                       ) : message.content ? (
                         <MessageResponse>{message.content}</MessageResponse>
                       ) : null}
-                      {message.streaming ? (
+                      {message.streaming && !isEmptyAssistantStreaming ? (
                         <span
                           aria-hidden
                           className="ml-0.5 inline-block w-[2px] h-4 align-middle bg-current animate-pulse"
@@ -655,8 +657,8 @@ const ChatbotEnhanced = React.forwardRef<HTMLDivElement, ChatbotEnhancedProps>(
                         <div className="text-[10px] opacity-70 mt-1">{message.timestamp}</div>
                       ) : null}
                     </MessageContent>
-                    {!isUser ? (
-                      <MessageActions>
+                    {!isUser && !isEmptyAssistantStreaming ? (
+                      <MessageActions className="opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100">
                         <MessageAction
                           label="Copy"
                           tooltip="Copy"
@@ -695,6 +697,13 @@ const ChatbotEnhanced = React.forwardRef<HTMLDivElement, ChatbotEnhancedProps>(
                 );
               })
             )}
+            {isLoading && !messages.some((message) => message.streaming) ? (
+              <AssistantThinkingMessage
+                showAvatar={showAvatars}
+                assistantAvatarUrl={assistantAvatarUrl}
+                assistantAvatarFallback={assistantAvatarFallback}
+              />
+            ) : null}
           </ConversationContent>
           <ConversationScrollButton />
         </Conversation>
@@ -727,7 +736,7 @@ const ChatbotEnhanced = React.forwardRef<HTMLDivElement, ChatbotEnhancedProps>(
             ) : null}
             <PromptInputTextarea
               placeholder={placeholder}
-              disabled={disabled || status === 'streaming'}
+              disabled={disabled || promptStatus === 'streaming'}
               onChange={
                 onInputChange
                   ? (e) => onInputChange(e.currentTarget.value)
@@ -771,9 +780,11 @@ const ChatbotEnhanced = React.forwardRef<HTMLDivElement, ChatbotEnhancedProps>(
                 </span>
               </PromptInputTools>
               <PromptInputSubmit
-                status={status}
+                aria-label={promptStatus === 'streaming' ? 'Stop response' : 'Submit'}
+                status={promptStatus}
                 disabled={disabled}
-                onClick={status === 'streaming' ? onStop : undefined}
+                onClick={promptStatus === 'streaming' ? onStop : undefined}
+                type={promptStatus === 'streaming' ? 'button' : 'submit'}
               />
             </PromptInputFooter>
           </PromptInput>
@@ -818,6 +829,46 @@ function MessageAvatar({
   );
 }
 
+function AssistantThinkingMessage({
+  showAvatar,
+  assistantAvatarUrl,
+  assistantAvatarFallback,
+}: {
+  showAvatar: boolean;
+  assistantAvatarUrl?: string;
+  assistantAvatarFallback?: string;
+}) {
+  return (
+    <Message from="assistant" aria-live="polite">
+      <div className={cn('flex w-full gap-2.5', showAvatar ? 'flex-row items-start' : 'flex-col')}>
+        {showAvatar ? (
+          <MessageAvatar
+            isUser={false}
+            url={assistantAvatarUrl}
+            fallback={assistantAvatarFallback}
+          />
+        ) : null}
+        <MessageContent className="rounded-lg border bg-muted/30 px-3 py-2 text-muted-foreground">
+          <ThinkingDots />
+        </MessageContent>
+      </div>
+    </Message>
+  );
+}
+
+function ThinkingDots() {
+  return (
+    <>
+      <span className="sr-only">Assistant is responding</span>
+      <span aria-hidden="true" className="inline-flex items-center gap-1">
+        <span className="size-1.5 rounded-full bg-current animate-pulse" />
+        <span className="size-1.5 rounded-full bg-current animate-pulse" />
+        <span className="size-1.5 rounded-full bg-current animate-pulse" />
+      </span>
+    </>
+  );
+}
+
 function ErrorBanner({
   error,
   onReload,
@@ -829,38 +880,47 @@ function ErrorBanner({
   const [expanded, setExpanded] = React.useState(false);
   return (
     <div
-      className="flex flex-col gap-1 border-t bg-destructive/10 px-4 py-2 text-destructive text-sm"
+      className="border-t bg-background px-3 py-2 text-sm"
       role="alert"
     >
-      <div className="flex items-center gap-2">
-        <AlertCircle className="h-4 w-4 shrink-0" />
-        <span className="flex-1 leading-snug">{summary || 'An error occurred'}</span>
-        {details ? (
-          <button
-            type="button"
-            onClick={() => setExpanded((v) => !v)}
-            className="text-xs underline hover:no-underline"
-            aria-expanded={expanded}
-          >
-            {expanded ? 'Hide details' : 'Details'}
-          </button>
-        ) : null}
-        {onReload ? (
-          <button
-            type="button"
-            onClick={onReload}
-            className="inline-flex h-7 items-center rounded-md border border-destructive/30 bg-destructive/10 px-2 text-xs font-medium hover:bg-destructive/20"
-          >
-            <RefreshCw className="mr-1 h-3 w-3" />
-            Retry
-          </button>
+      <div className="rounded-md border border-destructive/20 bg-destructive/5 px-3 py-2 text-foreground">
+        <div className="flex items-start gap-2">
+          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-destructive" />
+          <div className="min-w-0 flex-1">
+            <div className="font-medium leading-snug text-destructive">Response failed</div>
+            <div className="mt-0.5 break-words leading-snug text-muted-foreground">
+              {summary || 'Something went wrong. Please try again.'}
+            </div>
+          </div>
+          <div className="flex shrink-0 items-center gap-1">
+            {details ? (
+              <button
+                type="button"
+                onClick={() => setExpanded((v) => !v)}
+                className="inline-flex h-7 items-center rounded-md px-2 text-xs font-medium text-muted-foreground hover:bg-destructive/10 hover:text-foreground"
+                aria-expanded={expanded}
+              >
+                {expanded ? 'Hide' : 'Details'}
+              </button>
+            ) : null}
+            {onReload ? (
+              <button
+                type="button"
+                onClick={onReload}
+                className="inline-flex h-7 items-center rounded-md border border-destructive/30 bg-background px-2 text-xs font-medium text-destructive hover:bg-destructive/10"
+              >
+                <RefreshCw className="mr-1 h-3 w-3" />
+                Retry
+              </button>
+            ) : null}
+          </div>
+        </div>
+        {expanded && details ? (
+          <pre className="mt-2 max-h-28 overflow-auto whitespace-pre-wrap break-words rounded border bg-background px-2 py-1 font-mono text-[11px] leading-snug text-muted-foreground">
+            {details}
+          </pre>
         ) : null}
       </div>
-      {expanded && details ? (
-        <pre className="max-h-32 overflow-auto whitespace-pre-wrap break-words rounded bg-destructive/5 px-2 py-1 font-mono text-[11px] leading-snug text-destructive/90">
-          {details}
-        </pre>
-      ) : null}
     </div>
   );
 }

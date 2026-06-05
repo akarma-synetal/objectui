@@ -1,0 +1,78 @@
+import '@testing-library/jest-dom/vitest';
+import { describe, expect, it, vi } from 'vitest';
+import { fireEvent, render, screen } from '@testing-library/react';
+import { MemoryRouter, Route, Routes } from 'react-router-dom';
+
+const remove = vi.fn(async () => undefined);
+const rename = vi.fn(async () => undefined);
+
+vi.mock('../../../hooks/useConversationList', () => ({
+  useConversationList: () => ({
+    conversations: [
+      {
+        id: 'conv-a',
+        title: 'Pipeline review',
+        preview: 'Show recent opportunities',
+        updatedAt: new Date().toISOString(),
+      },
+    ],
+    isLoading: false,
+    error: undefined,
+    refetch: vi.fn(),
+    remove,
+    rename,
+  }),
+}));
+
+vi.mock('@object-ui/i18n', () => ({
+  useObjectTranslation: () => ({
+    t: (key: string) => ({
+      'common.loading': 'Loading...',
+      'console.ai.chats': 'Chats',
+      'console.ai.newChat': 'New',
+      'console.ai.searchChats': 'Search chats...',
+      'console.ai.noChatsYet': 'No chats yet',
+      'console.ai.noChatsDescription': 'Start a new conversation to see it here.',
+      'console.ai.noMatchingChats': 'No matching chats.',
+      'console.ai.newConversation': 'New conversation',
+      'console.ai.renameConversation': 'Rename conversation',
+      'console.ai.deleteConversation': 'Delete conversation',
+      'console.ai.saveRename': 'Save rename',
+      'console.ai.cancelRename': 'Cancel rename',
+    } as Record<string, string>)[key] ?? key,
+  }),
+}));
+
+import { ConversationsSidebar } from '../ConversationsSidebar';
+
+function renderSidebar(onNavigate = vi.fn()) {
+  render(
+    <MemoryRouter initialEntries={['/ai/conv-a']}>
+      <Routes>
+        <Route
+          path="/ai/:conversationId"
+          element={
+            <ConversationsSidebar
+              userId="u1"
+              apiBase="/api/v1/ai"
+              onNavigate={onNavigate}
+            />
+          }
+        />
+      </Routes>
+    </MemoryRouter>,
+  );
+  return { onNavigate };
+}
+
+describe('ConversationsSidebar', () => {
+  it('renders row actions as real buttons and closes mobile chrome after navigation', () => {
+    const { onNavigate } = renderSidebar();
+
+    fireEvent.click(screen.getByTestId('ai-conversation-select-conv-a'));
+    expect(onNavigate).toHaveBeenCalledTimes(1);
+
+    expect(screen.getByLabelText('Rename conversation')).toBeInTheDocument();
+    expect(screen.getByLabelText('Delete conversation')).toBeInTheDocument();
+  });
+});

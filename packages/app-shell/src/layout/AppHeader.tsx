@@ -20,7 +20,6 @@
 
 import { useLocation, useParams, Link, useNavigate } from 'react-router-dom';
 import {
-  SidebarTrigger,
   Button,
   DropdownMenu,
   DropdownMenuTrigger,
@@ -67,6 +66,7 @@ import { getIcon } from '../utils/getIcon';
 import { useMobileViewSwitcher } from './MobileViewSwitcherContext';
 import { useNavigationContext } from '../context/NavigationContext';
 import { getProductName } from '../runtime-config';
+import { LocalizedSidebarTrigger } from './LocalizedSidebarTrigger';
 
 function humanizeSlug(slug: string): string {
   return slug.replace(/[-_]/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
@@ -576,7 +576,7 @@ export function AppHeader({
           <>
             {/* Keep the sidebar trigger visible through narrow desktop widths,
                 where the sidebar may already be collapsed into icon mode. */}
-            <SidebarTrigger className="lg:hidden shrink-0 ml-1" aria-label={t('common.toggleSidebar') || 'Toggle sidebar'} />
+            <LocalizedSidebarTrigger className="lg:hidden shrink-0 ml-1" aria-label={t('common.toggleSidebar', { defaultValue: 'Toggle sidebar' })} />
 
             {/* App dropdown — desktop/tablet only. On mobile the sidebar
                 already shows the active app at its top, so a second app
@@ -643,7 +643,7 @@ export function AppHeader({
                     <button
                       type="button"
                       className="sm:hidden flex items-center gap-0.5 min-w-0 ml-1 rounded-md px-1.5 py-1 text-sm font-medium hover:bg-accent active:bg-accent/80 transition-colors"
-                      aria-label="Switch view"
+                      aria-label={t('topbar.switchView', { defaultValue: 'Switch view' })}
                     >
                       <span className="truncate max-w-[180px]">
                         {mobileSwitcher.triggerLabel ??
@@ -699,7 +699,7 @@ export function AppHeader({
         {!isOnline && (
           <div className="flex items-center gap-1 px-2 py-1 rounded-full bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-200 text-xs font-medium">
             <span className="h-2 w-2 rounded-full bg-yellow-500 animate-pulse" />
-            Offline
+            {t('topbar.offline', { defaultValue: 'Offline' })}
           </div>
         )}
 
@@ -708,7 +708,7 @@ export function AppHeader({
 
         {/* Presence Avatars — app only */}
         {isApp && activeUsers.length > 0 && (
-          <div className="hidden md:flex items-center shrink-0" title="Users currently online">
+          <div className="hidden md:flex items-center shrink-0" title={t('topbar.usersOnline', { defaultValue: 'Users currently online' })}>
             <PresenceAvatars users={activeUsers} size="sm" maxVisible={3} showStatus />
           </div>
         )}

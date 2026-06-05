@@ -124,14 +124,23 @@ export function summarizeChatError(err: unknown): {
     '',
   );
 
-  // Headline = up to the first sentence boundary (period, colon, semicolon)
-  // followed by a space, otherwise the first 140 characters.
+  const headlineSource =
+    stripped.match(/^Invalid error response format:\s*(.+)$/i)?.[1]?.trim() ??
+    stripped;
+
+  const colonPrefix = headlineSource.match(/^([^:]{8,80}):\s+(.+)$/)?.[1]?.trim();
+
+  // Headline = a human-sized prefix or sentence, otherwise the first 140
+  // characters. Avoid preserving a trailing colon as the visible summary.
   const sentence =
-    stripped.match(/^([^.;:]+[.;:!?])\s/)?.[1]?.trim() ??
-    (stripped.length > 140 ? `${stripped.slice(0, 137).trimEnd()}…` : stripped);
+    colonPrefix ??
+    headlineSource.match(/^([^.;!?]+[.;!?])\s/)?.[1]?.trim() ??
+    (headlineSource.length > 140
+      ? `${headlineSource.slice(0, 137).trimEnd()}…`
+      : headlineSource);
 
   return {
-    summary: sentence,
+    summary: sentence.replace(/:$/, ''),
     details: stripped.length > sentence.length ? stripped : undefined,
   };
 }
