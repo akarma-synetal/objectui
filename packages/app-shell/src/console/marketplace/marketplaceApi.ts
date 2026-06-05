@@ -14,9 +14,29 @@
  */
 
 import { getCloudBase } from '../../runtime-config';
+import { TokenStorage } from '@object-ui/auth';
 
 const SERVER_URL = (import.meta.env.VITE_SERVER_URL || '').replace(/\/$/, '');
 const API_BASE = `${SERVER_URL}/api/v1/marketplace`;
+
+/**
+ * Attach the Bearer token to same-origin `/api/v1/cloud-connection/*` calls.
+ *
+ * objectui authenticates with a Bearer token (better-auth, stored in
+ * localStorage by `@object-ui/auth` and normally injected by the app's
+ * `createAuthenticatedFetch` wrapper). These marketplace routes use raw
+ * `fetch()` and so bypass that wrapper — relying on `credentials: 'include'`
+ * (the session cookie) alone is NOT enough on a tenant runtime: after
+ * platform SSO the env's session cookie is not reliably presented, so the
+ * cloud-connection route's `resolveEnvSession` finds no session and returns
+ * 401 "Sign in to this environment." even though the user is signed in.
+ * Injecting the Bearer (which the server's `getSession` accepts) fixes it.
+ * `credentials: 'include'` is kept so the cookie still rides along when set.
+ */
+function withEnvAuth(headers: Record<string, string>): Record<string, string> {
+  const token = TokenStorage.get();
+  return token ? { ...headers, Authorization: `Bearer ${token}` } : headers;
+}
 
 /**
  * Per-locale overrides for translatable package fields. Mirrors
@@ -188,7 +208,7 @@ export async function installPackage(input: {
     const res = await fetch(`/api/v1/cloud-connection/install`, {
       method: 'POST',
       credentials: 'include',
-      headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
+      headers: withEnvAuth({ 'Accept': 'application/json', 'Content-Type': 'application/json' }),
       body: JSON.stringify({
         package_id: input.packageId,
         seed_sample_data: !!input.seedSampleData,
@@ -380,7 +400,7 @@ export async function getCloudInstallationInfo(
     try {
       const res = await fetch(
         `/api/v1/cloud-connection/installation?package_id=${encodeURIComponent(packageId)}`,
-        { credentials: 'include', headers: { 'Accept': 'application/json' } },
+        { credentials: 'include', headers: withEnvAuth({ 'Accept': 'application/json' }) },
       );
       if (!res.ok) return null;
       const payload: any = await res.json().catch(() => ({}));
