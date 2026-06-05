@@ -277,22 +277,22 @@ export function AppSidebar({ activeAppName, onAppChange }: { activeAppName: stri
   // owner/admin on the server, so non-admins have no reason to see it).
   const systemFallbackNavigation: NavigationItem[] = React.useMemo(() => {
     const items: NavigationItem[] = [
-      { id: 'sys-settings', label: 'System Settings', type: 'url' as const, url: '/apps/setup', icon: 'settings' },
-      { id: 'sys-apps', label: 'Applications', type: 'url' as const, url: '/apps/setup/system/apps', icon: 'layout-grid' },
+      { id: 'sys-settings', label: t('layout.systemNav.systemSettings', { defaultValue: 'System Settings' }), type: 'url' as const, url: '/apps/setup', icon: 'settings' },
+      { id: 'sys-apps', label: t('layout.systemNav.applications', { defaultValue: 'Applications' }), type: 'url' as const, url: '/apps/setup/system/apps', icon: 'layout-grid' },
     ];
     if (isWorkspaceAdmin) {
-      items.push({ id: 'sys-marketplace', label: 'App Marketplace', type: 'url' as const, url: '/apps/setup/system/marketplace', icon: 'store' });
+      items.push({ id: 'sys-marketplace', label: t('layout.systemNav.appMarketplace', { defaultValue: 'App Marketplace' }), type: 'url' as const, url: '/apps/setup/system/marketplace', icon: 'store' });
     }
     items.push(
-      { id: 'sys-objects', label: 'Object Manager', type: 'url' as const, url: '/apps/setup/system/metadata/object', icon: 'database' },
-      { id: 'sys-users', label: 'Users', type: 'url' as const, url: '/apps/setup/system/users', icon: 'users' },
-      { id: 'sys-orgs', label: 'Organizations', type: 'url' as const, url: '/apps/setup/system/organizations', icon: 'building-2' },
-      { id: 'sys-roles', label: 'Roles', type: 'url' as const, url: '/apps/setup/system/roles', icon: 'shield' },
-      { id: 'sys-config', label: 'Configuration', type: 'url' as const, url: '/apps/setup/system/settings', icon: 'sliders-horizontal' },
-      { id: 'sys-create-app', label: 'Create App', type: 'url' as const, url: '/create-app', icon: 'plus' },
+      { id: 'sys-objects', label: t('layout.systemNav.objectManager', { defaultValue: 'Object Manager' }), type: 'url' as const, url: '/apps/setup/system/metadata/object', icon: 'database' },
+      { id: 'sys-users', label: t('layout.systemNav.users', { defaultValue: 'Users' }), type: 'url' as const, url: '/apps/setup/system/users', icon: 'users' },
+      { id: 'sys-orgs', label: t('layout.systemNav.organizations', { defaultValue: 'Organizations' }), type: 'url' as const, url: '/apps/setup/system/organizations', icon: 'building-2' },
+      { id: 'sys-roles', label: t('layout.systemNav.roles', { defaultValue: 'Roles' }), type: 'url' as const, url: '/apps/setup/system/roles', icon: 'shield' },
+      { id: 'sys-config', label: t('layout.systemNav.configuration', { defaultValue: 'Configuration' }), type: 'url' as const, url: '/apps/setup/system/settings', icon: 'sliders-horizontal' },
+      { id: 'sys-create-app', label: t('layout.systemNav.createApp', { defaultValue: 'Create App' }), type: 'url' as const, url: '/create-app', icon: 'plus' },
     );
     return items;
-  }, [isWorkspaceAdmin]);
+  }, [isWorkspaceAdmin, t]);
 
   return (
     <>
@@ -320,7 +320,7 @@ export function AppSidebar({ activeAppName, onAppChange }: { activeAppName: stri
                   <div className="grid flex-1 text-left text-sm leading-tight">
                     <span className="truncate font-semibold">{resolveI18nLabel(activeApp.label, t)}</span>
                     <span className="truncate text-xs">
-                      {resolveI18nLabel(activeApp.description, t) || `${activeApps.length} Apps Available`}
+                      {resolveI18nLabel(activeApp.description, t) || t('layout.appSwitcher.appsAvailable', { defaultValue: '{{count}} apps available', count: activeApps.length })}
                     </span>
                   </div>
                   <ChevronsUpDown className="ml-auto" />
@@ -333,7 +333,7 @@ export function AppSidebar({ activeAppName, onAppChange }: { activeAppName: stri
                 sideOffset={4}
               >
                 <DropdownMenuLabel className="text-xs text-muted-foreground">
-                  Switch Application
+                  {t('layout.appSwitcher.switchApplication', { defaultValue: 'Switch Application' })}
                 </DropdownMenuLabel>
                 {activeApps.map((app: any) => (
                   <DropdownMenuItem
@@ -404,7 +404,7 @@ export function AppSidebar({ activeAppName, onAppChange }: { activeAppName: stri
              <SidebarGroup>
                <SidebarGroupLabel className="flex items-center gap-1.5">
                  <Layers className="h-3.5 w-3.5" />
-                 Area
+                 {t('sidebar.area', { defaultValue: 'Area' })}
                </SidebarGroupLabel>
                <SidebarGroupContent>
                  <SidebarMenu>
@@ -443,7 +443,7 @@ export function AppSidebar({ activeAppName, onAppChange }: { activeAppName: stri
              <SidebarGroupContent className="relative">
                <Search className="pointer-events-none absolute left-2 top-1/2 size-4 -translate-y-1/2 select-none opacity-70" />
                <SidebarInput
-                 placeholder="Search navigation..."
+                 placeholder={t('sidebar.searchNavigation', { defaultValue: 'Search navigation...' })}
                  value={navSearchQuery}
                  onChange={(e: any) => setNavSearchQuery(e.target.value)}
                  className="pl-8"
@@ -478,7 +478,7 @@ export function AppSidebar({ activeAppName, onAppChange }: { activeAppName: stri
                >
                  <ChevronRight className={`h-3 w-3 transition-transform duration-150 ${recentExpanded ? 'rotate-90' : ''}`} />
                  <Clock className="h-3.5 w-3.5" />
-                 Recent
+                 {t('sidebar.recent', { defaultValue: 'Recent' })}
                </SidebarGroupLabel>
                {recentExpanded && (
                <SidebarGroupContent>
@@ -508,7 +508,7 @@ export function AppSidebar({ activeAppName, onAppChange }: { activeAppName: stri
              <SidebarGroup>
                <SidebarGroupLabel className="flex items-center gap-1.5">
                  <Star className="h-3.5 w-3.5" />
-                 Favorites
+                 {t('sidebar.favorites', { defaultValue: 'Favorites' })}
                </SidebarGroupLabel>
                <SidebarGroupContent>
                  <SidebarMenu>
@@ -525,7 +525,7 @@ export function AppSidebar({ activeAppName, onAppChange }: { activeAppName: stri
                        <SidebarMenuAction
                          showOnHover
                          onClick={(e: any) => { e.stopPropagation(); removeFavorite(item.id); }}
-                         aria-label={`Remove ${item.label} from favorites`}
+                         aria-label={t('sidebar.removeFromFavorites', { defaultValue: 'Remove {{name}} from favorites', name: item.label })}
                        >
                          <StarOff className="h-3 w-3" />
                        </SidebarMenuAction>
@@ -541,7 +541,7 @@ export function AppSidebar({ activeAppName, onAppChange }: { activeAppName: stri
            <SidebarGroup data-testid="system-fallback-nav">
              <SidebarGroupLabel className="flex items-center gap-1.5">
                <Settings className="h-3.5 w-3.5" />
-               System
+               {t('layout.appSwitcher.systemConsole', { defaultValue: 'System' })}
              </SidebarGroupLabel>
              <SidebarGroupContent>
                <SidebarMenu>
@@ -549,10 +549,10 @@ export function AppSidebar({ activeAppName, onAppChange }: { activeAppName: stri
                    const NavIcon = getIcon(item.icon);
                    return (
                      <SidebarMenuItem key={item.id}>
-                       <SidebarMenuButton asChild tooltip={item.label as string}>
+                       <SidebarMenuButton asChild tooltip={item.label}>
                          <Link to={(item as any).url || '/system'}>
                            <NavIcon className="h-4 w-4" />
-                           <span>{item.label as string}</span>
+                           <span>{item.label}</span>
                          </Link>
                        </SidebarMenuButton>
                      </SidebarMenuItem>

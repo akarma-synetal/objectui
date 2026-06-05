@@ -3,6 +3,7 @@ import { Spinner, Button } from '@object-ui/components';
 import { Database, CheckCircle2, Loader2, AlertCircle, RefreshCw } from 'lucide-react';
 import { useState, useEffect, useMemo } from 'react';
 import { getProductName } from '../runtime-config';
+import { en as enLocale, zh as zhLocale } from '@object-ui/i18n';
 
 interface LoadingScreenProps {
   /** Optional message override */
@@ -17,37 +18,30 @@ interface LoadingScreenProps {
 
 // Bootstrap-critical UI: must render before i18n is loaded (especially when the
 // server is unreachable, which is also when i18n can't load translations).
-// We deliberately do NOT use useObjectTranslation here — it suspends on first
-// render and would prevent the splash from rendering at all on a server-down
-// boot. Strings stay hardcoded English; localized error UX should happen
-// post-bootstrap, after i18n has loaded successfully.
+// Do not use useObjectTranslation here — it can suspend on first render and
+// prevent the splash from rendering at all on a server-down boot. Keep a small
+// synchronous dictionary for the startup shell instead.
 // The product name is read from the runtime-config singleton (sync) so it
 // reflects server-pushed branding when available, falling back to 'ObjectOS'.
-const STRINGS = {
-  initializing: 'Initializing…',
-  steps: {
-    connecting: 'Connecting to server',
-    loadingConfig: 'Loading configuration',
-    preparingWorkspace: 'Preparing workspace',
-  },
-  error: {
-    connectionFailed: 'Cannot connect to server',
-    checkServer: 'Please check your network connection or that the backend is running.',
-  },
-  actions: {
-    retry: 'Retry',
-    retrying: 'Retrying…',
-  },
-};
+function getStartupStrings() {
+  if (typeof document !== 'undefined' && document.documentElement.lang?.startsWith('zh')) {
+    return zhLocale.console;
+  }
+  if (typeof navigator !== 'undefined' && navigator.language?.startsWith('zh')) {
+    return zhLocale.console;
+  }
+  return enLocale.console;
+}
 
 export function LoadingScreen({ message, error, onRetry, retrying }: LoadingScreenProps) {
   const [currentStep, setCurrentStep] = useState(0);
+  const strings = getStartupStrings();
 
   const loadingSteps = useMemo(() => [
-    STRINGS.steps.connecting,
-    STRINGS.steps.loadingConfig,
-    STRINGS.steps.preparingWorkspace,
-  ], []);
+    strings.loadingSteps.connecting,
+    strings.loadingSteps.loadingConfig,
+    strings.loadingSteps.preparingWorkspace,
+  ], [strings]);
 
   useEffect(() => {
     if (message || error) return; // skip auto-progression when overridden or in error state
@@ -71,7 +65,7 @@ export function LoadingScreen({ message, error, onRetry, retrying }: LoadingScre
         {/* Title */}
         <div className="text-center space-y-2">
           <h1 className="text-2xl font-bold tracking-tight">{getProductName()}</h1>
-          <p className="text-sm text-muted-foreground">{STRINGS.initializing}</p>
+          <p className="text-sm text-muted-foreground">{strings.initializing}</p>
         </div>
 
         {/* Error block */}
@@ -81,14 +75,14 @@ export function LoadingScreen({ message, error, onRetry, retrying }: LoadingScre
               <div className="flex items-center gap-2 text-destructive">
                 <AlertCircle className="h-5 w-5 shrink-0" />
                 <span className="text-sm font-semibold">
-                  {STRINGS.error.connectionFailed}
+                  {strings.error.connectionFailed}
                 </span>
               </div>
               <p className="text-xs text-muted-foreground text-center break-words">
                 {error}
               </p>
               <p className="text-xs text-muted-foreground text-center">
-                {STRINGS.error.checkServer}
+                {strings.error.checkServer}
               </p>
             </div>
             {onRetry && (
@@ -102,12 +96,12 @@ export function LoadingScreen({ message, error, onRetry, retrying }: LoadingScre
                 {retrying ? (
                   <>
                     <Loader2 className="h-4 w-4 animate-spin" />
-                    {STRINGS.actions.retrying}
+                    {strings.actions.retrying}
                   </>
                 ) : (
                   <>
                     <RefreshCw className="h-4 w-4" />
-                    {STRINGS.actions.retry}
+                    {strings.actions.retry}
                   </>
                 )}
               </Button>

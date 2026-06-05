@@ -12,6 +12,7 @@ import React, { useEffect } from 'react';
 import { useNavigationContext } from '../../context/NavigationContext';
 import { AppHeader } from '../../layout/AppHeader';
 import { useDiscovery } from '@object-ui/react';
+import { useObjectTranslation } from '@object-ui/i18n';
 
 // Lightweight FAB stub — the heavy chat chunk graph only downloads on
 // first hover/click. See ../../layout/ConsoleChatbotFab.tsx.
@@ -29,6 +30,7 @@ interface HomeLayoutProps {
 export function HomeLayout({ children, userId }: HomeLayoutProps) {
   const { setContext } = useNavigationContext();
   const { isAiEnabled } = useDiscovery();
+  const { t } = useObjectTranslation();
   // Render the chatbot whenever AI is reachable. If the developer has explicitly
   // configured `VITE_AI_BASE_URL`, trust that opt-in even when discovery
   // reports AI as disabled (e.g. framework started without `--preset full`).
@@ -51,7 +53,7 @@ export function HomeLayout({ children, userId }: HomeLayoutProps) {
       {/* Global floating chatbot — also available on the home/workspace
           screen. Stub FAB is dependency-free; the heavy chat bundle only
           loads on first interaction. */}
-      {showChatbot && <ConsoleChatbotFab appLabel="Workspace" objects={[]} userId={userId} />}
+      {showChatbot && <ConsoleChatbotFab appLabel={t('workspace.default', { defaultValue: 'Workspace' })} objects={[]} userId={userId} />}
     </div>
   );
 }

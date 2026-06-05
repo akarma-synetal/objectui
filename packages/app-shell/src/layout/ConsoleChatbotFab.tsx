@@ -17,6 +17,7 @@
  */
 import React, { Suspense, lazy, useEffect, useRef, useState } from 'react';
 import { useAssistant } from '../assistant/assistantBus';
+import { useObjectTranslation } from '@object-ui/i18n';
 
 const ConsoleFloatingChatbot = lazy(() => import('./ConsoleFloatingChatbot'));
 const prefetchChatbot = () => {
@@ -29,6 +30,7 @@ export type ConsoleChatbotFabProps = ConsoleFloatingChatbotProps;
 
 export function ConsoleChatbotFab(props: ConsoleChatbotFabProps) {
   const [armed, setArmed] = useState(false);
+  const { t } = useObjectTranslation();
 
   // A designer surface can ask the assistant to open (e.g. an "Ask AI"
   // button) via the assistant bus — arming the lazy chatbot just like a
@@ -53,7 +55,7 @@ export function ConsoleChatbotFab(props: ConsoleChatbotFabProps) {
   return (
     <button
       type="button"
-      aria-label={`Open ${props.appLabel} assistant`}
+      aria-label={t('topbar.openAssistant', { defaultValue: 'Open {{name}} assistant', name: props.appLabel })}
       onClick={() => setArmed(true)}
       onMouseEnter={prefetchChatbot}
       onFocus={prefetchChatbot}

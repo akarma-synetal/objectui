@@ -16,6 +16,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '@object-ui/auth';
+import { useObjectTranslation } from '@object-ui/i18n';
 import {
   Select,
   SelectContent,
@@ -48,6 +49,21 @@ import { ConversationsSidebar } from './ConversationsSidebar';
 
 const DEFAULT_AI_PATH = '/api/v1/ai';
 
+const PLATFORM_AGENT_LABEL_KEYS: Record<string, { key: string; defaultValue: string }> = {
+  data_chat: { key: 'console.ai.agentLabels.dataChat', defaultValue: 'Data Assistant' },
+  metadata_assistant: { key: 'console.ai.agentLabels.metadataAssistant', defaultValue: 'Metadata Assistant' },
+};
+
+function localizeAgentLabel(
+  t: (key: string, options?: Record<string, unknown>) => string,
+  agentName: string | undefined,
+  fallback: string,
+): string {
+  const known = agentName ? PLATFORM_AGENT_LABEL_KEYS[agentName] : undefined;
+  if (!known) return fallback;
+  return t(known.key, { defaultValue: known.defaultValue });
+}
+
 function resolveApiBase(explicit?: string): string {
   if (explicit) return explicit.replace(/\/$/, '');
   const env = (import.meta as any).env ?? {};
@@ -66,6 +82,7 @@ export interface AiChatPageProps {
 
 export function AiChatPage({ apiBase: apiBaseProp, defaultAgent: defaultAgentProp }: AiChatPageProps = {}) {
   const { user } = useAuth();
+  const { t } = useObjectTranslation();
   const userId = user?.id;
   const { conversationId: urlConversationId } = useParams<{ conversationId?: string }>();
   const navigate = useNavigate();
@@ -163,7 +180,7 @@ export function AiChatPage({ apiBase: apiBaseProp, defaultAgent: defaultAgentPro
           size="icon"
           className="h-8 w-8 shrink-0 md:hidden"
           onClick={() => setMobileChatsOpen(true)}
-          aria-label="Open chats"
+          aria-label={t('console.ai.openChats')}
           data-testid="ai-chat-mobile-sidebar-trigger"
         >
           <PanelLeft className="h-4 w-4" />
@@ -172,10 +189,10 @@ export function AiChatPage({ apiBase: apiBaseProp, defaultAgent: defaultAgentPro
         <div className="hidden min-w-0 border-l pl-3 sm:flex sm:flex-col">
           <div className="flex items-center gap-1.5 text-sm font-medium leading-none">
             <MessageSquare className="h-3.5 w-3.5 text-muted-foreground" />
-            AI Workspace
+            {t('console.ai.workspaceTitle')}
           </div>
           <div className="mt-1 truncate text-[11px] text-muted-foreground">
-            Ask, inspect, and resume conversations
+            {t('console.ai.workspaceSubtitle')}
           </div>
         </div>
         <div className="ml-auto flex items-center gap-2">
@@ -186,18 +203,18 @@ export function AiChatPage({ apiBase: apiBaseProp, defaultAgent: defaultAgentPro
             onClick={() => setShareOpen(true)}
             disabled={!conversationId}
             data-testid="ai-chat-share-button"
-            title={conversationId ? 'Share this conversation' : 'Start chatting to enable sharing'}
+            title={conversationId ? t('console.ai.shareTitle') : t('console.ai.shareDisabledTitle')}
           >
             <Share2 className="h-3.5 w-3.5" />
-            Share
+            {t('console.ai.share')}
           </Button>
         </div>
       </header>
       <Sheet open={mobileChatsOpen} onOpenChange={setMobileChatsOpen}>
         <SheetContent side="left" className="w-[320px] p-0 sm:max-w-[360px]" data-testid="ai-chat-mobile-sidebar">
           <SheetHeader className="sr-only">
-            <SheetTitle>Chats</SheetTitle>
-            <SheetDescription>Browse and manage AI conversations.</SheetDescription>
+            <SheetTitle>{t('console.ai.chats')}</SheetTitle>
+            <SheetDescription>{t('console.ai.chatsDescription')}</SheetDescription>
           </SheetHeader>
           <ConversationsSidebar
             userId={userId}
@@ -273,10 +290,11 @@ function ChatPane({
   hydrating,
   onSent,
 }: ChatPaneProps) {
+  const { t } = useObjectTranslation();
   const activeAgentLabel = useMemo<string>(() => {
     const found = agents.find((a) => a.name === activeAgent);
-    return found?.label ?? activeAgent ?? 'Assistant';
-  }, [agents, activeAgent]);
+    return localizeAgentLabel(t, activeAgent, found?.label ?? activeAgent ?? t('console.ai.assistant'));
+  }, [agents, activeAgent, t]);
 
   const hydrated = useMemo<ChatMessage[]>(() => {
     return initialMessages.map((m) => ({
@@ -288,8 +306,8 @@ function ChatPane({
 
   const suggestions = useMemo<string[] | undefined>(() => {
     if (hydrated.length > 0) return undefined;
-    return buildAgentSuggestions(activeAgent, activeAgentLabel);
-  }, [hydrated.length, activeAgent, activeAgentLabel]);
+    return buildAgentSuggestions(activeAgent, activeAgentLabel, t);
+  }, [hydrated.length, activeAgent, activeAgentLabel, t]);
 
   const {
     messages,
@@ -336,7 +354,11 @@ function ChatPane({
         <div className="min-w-0">
           <div className="text-xs font-medium leading-none">{activeAgentLabel}</div>
           <div className="mt-1 text-[10px] text-muted-foreground">
-            {hydrating ? 'Loading conversation history...' : conversationId ? 'Conversation ready' : 'Preparing a new conversation'}
+            {hydrating
+              ? t('console.ai.loadingHistory')
+              : conversationId
+                ? t('console.ai.conversationReady')
+                : t('console.ai.preparingConversation')}
           </div>
         </div>
         <Select value={activeAgent} onValueChange={onAgentChange} disabled={agentsLoading}>
@@ -346,7 +368,9 @@ function ChatPane({
           <SelectContent align="start">
             {agents.map((agent) => (
               <SelectItem key={agent.name} value={agent.name} className="text-xs">
-                <span className="font-medium">{agent.label}</span>
+                <span className="font-medium">
+                  {localizeAgentLabel(t, agent.name, agent.label)}
+                </span>
                 {agent.description ? (
                   <span className="block text-muted-foreground text-[10px] truncate max-w-[260px]">
                     {agent.description}
@@ -361,7 +385,7 @@ function ChatPane({
             className="text-[10px] text-amber-700 dark:text-amber-400"
             title={agentsError.message}
           >
-            ⚠ Offline demo mode — agent list unavailable
+            {t('console.ai.offlineDemoMode')}
           </span>
         ) : null}
       </div>
@@ -376,11 +400,17 @@ function ChatPane({
         messages={messages as ChatMessage[]}
         placeholder={
           activeAgent
-            ? `Ask ${activeAgentLabel}...`
+            ? t('console.ai.askAgent', { agent: activeAgentLabel })
             : agentsLoading
-              ? 'Loading agents...'
-              : 'Ask anything...'
+              ? t('console.ai.loadingAgents')
+              : t('console.ai.askAnything')
         }
+        labels={{
+          emptyTitle: t('console.ai.emptyTitle'),
+          emptyDescription: t('console.ai.emptyDescription'),
+          clear: t('console.ai.clearConversation'),
+          sendHint: t('console.ai.sendHint'),
+        }}
         suggestions={suggestions}
         onSendMessage={handleSend}
         onClear={clear}
@@ -400,36 +430,47 @@ function ChatPane({
   );
 }
 
-const AGENT_SUGGESTIONS: Record<string, string[]> = {
-  data_chat: [
-    '系统里有多少个用户？列出他们的邮箱。',
-    '帮我列出最近创建的 5 条记录。',
-    '统计每个对象的记录数。',
-  ],
-  metadata_assistant: [
-    '系统里注册了哪些对象类型？',
-    'sys_user 对象有哪些字段？',
-    '描述一下用户相关的对象关系。',
-  ],
-};
+type TranslationFn = (key: string, options?: Record<string, unknown>) => string;
 
-const GENERIC_SUGGESTIONS = [
-  'What can you help me with?',
-  'List the available data objects.',
-  'Summarize my recent activity.',
-];
+function dataChatSuggestions(t: TranslationFn): string[] {
+  return [
+    t('console.ai.suggestions.dataChat.userCount', { defaultValue: 'How many users are in the system? List their emails.' }),
+    t('console.ai.suggestions.dataChat.recentRecords', { defaultValue: 'List the 5 most recently created records.' }),
+    t('console.ai.suggestions.dataChat.recordCounts', { defaultValue: 'Count records for each object.' }),
+  ];
+}
+
+function metadataAssistantSuggestions(t: TranslationFn): string[] {
+  return [
+    t('console.ai.suggestions.metadataAssistant.objectTypes', { defaultValue: 'Which object types are registered in the system?' }),
+    t('console.ai.suggestions.metadataAssistant.userFields', { defaultValue: 'What fields does the sys_user object have?' }),
+    t('console.ai.suggestions.metadataAssistant.userRelationships', { defaultValue: 'Describe the user-related object relationships.' }),
+  ];
+}
+
+function genericSuggestions(t: TranslationFn): string[] {
+  return [
+    t('console.ai.suggestions.generic.help', { defaultValue: 'What can you help me with?' }),
+    t('console.ai.suggestions.generic.availableObjects', { defaultValue: 'List the available data objects.' }),
+    t('console.ai.suggestions.generic.recentActivity', { defaultValue: 'Summarize my recent activity.' }),
+  ];
+}
 
 function buildAgentSuggestions(
   agentName: string | undefined,
   agentLabel: string,
+  t: TranslationFn,
 ): string[] {
-  if (agentName && AGENT_SUGGESTIONS[agentName]) {
-    return AGENT_SUGGESTIONS[agentName];
+  if (agentName === 'data_chat') {
+    return dataChatSuggestions(t);
+  }
+  if (agentName === 'metadata_assistant') {
+    return metadataAssistantSuggestions(t);
   }
   const lower = (agentName ?? agentLabel).toLowerCase();
-  if (lower.includes('data')) return AGENT_SUGGESTIONS.data_chat;
-  if (lower.includes('metadata')) return AGENT_SUGGESTIONS.metadata_assistant;
-  return GENERIC_SUGGESTIONS;
+  if (lower.includes('data')) return dataChatSuggestions(t);
+  if (lower.includes('metadata')) return metadataAssistantSuggestions(t);
+  return genericSuggestions(t);
 }
 
 export default AiChatPage;
