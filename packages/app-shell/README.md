@@ -77,6 +77,9 @@ function MyForm() {
 - **Type-Safe**: Full TypeScript support
 - **Console AI Entry Point**: The lazy chatbot FAB keeps mobile bottom
   navigation clear until the full assistant panel is loaded
+- **Full-Page AI Workspace**: The `/ai` surface provides a responsive chat
+  workspace with a desktop conversation rail, mobile Chats drawer, and a
+  constrained reading width for long conversations
 
 ## Components
 

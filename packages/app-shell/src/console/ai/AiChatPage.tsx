@@ -24,8 +24,13 @@ import {
   SelectValue,
   Button,
   ShareDialog,
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
 } from '@object-ui/components';
-import { Share2 } from 'lucide-react';
+import { MessageSquare, PanelLeft, Share2 } from 'lucide-react';
 import {
   ChatbotEnhanced,
   useAgents,
@@ -101,6 +106,7 @@ export function AiChatPage({ apiBase: apiBaseProp, defaultAgent: defaultAgentPro
 
   const [refreshKey, setRefreshKey] = useState(0);
   const [shareOpen, setShareOpen] = useState(false);
+  const [mobileChatsOpen, setMobileChatsOpen] = useState(false);
   const restApiBase = useMemo(
     () => apiBase.replace(/\/v1\/ai$/, '').replace(/\/ai$/, '') || '/api',
     [apiBase],
@@ -151,8 +157,27 @@ export function AiChatPage({ apiBase: apiBaseProp, defaultAgent: defaultAgentPro
 
   return (
     <div className="flex h-svh w-full flex-col bg-background" data-testid="ai-chat-page">
-      <header className="sticky top-0 z-30 flex h-14 w-full shrink-0 items-center gap-2 border-b bg-background px-2 sm:px-4">
+      <header className="sticky top-0 z-30 flex h-14 w-full shrink-0 items-center gap-2 border-b bg-background/95 px-2 backdrop-blur sm:px-4">
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-8 w-8 shrink-0 md:hidden"
+          onClick={() => setMobileChatsOpen(true)}
+          aria-label="Open chats"
+          data-testid="ai-chat-mobile-sidebar-trigger"
+        >
+          <PanelLeft className="h-4 w-4" />
+        </Button>
         <AppHeader variant="home" />
+        <div className="hidden min-w-0 border-l pl-3 sm:flex sm:flex-col">
+          <div className="flex items-center gap-1.5 text-sm font-medium leading-none">
+            <MessageSquare className="h-3.5 w-3.5 text-muted-foreground" />
+            AI Workspace
+          </div>
+          <div className="mt-1 truncate text-[11px] text-muted-foreground">
+            Ask, inspect, and resume conversations
+          </div>
+        </div>
         <div className="ml-auto flex items-center gap-2">
           <Button
             variant="outline"
@@ -168,6 +193,21 @@ export function AiChatPage({ apiBase: apiBaseProp, defaultAgent: defaultAgentPro
           </Button>
         </div>
       </header>
+      <Sheet open={mobileChatsOpen} onOpenChange={setMobileChatsOpen}>
+        <SheetContent side="left" className="w-[320px] p-0 sm:max-w-[360px]" data-testid="ai-chat-mobile-sidebar">
+          <SheetHeader className="sr-only">
+            <SheetTitle>Chats</SheetTitle>
+            <SheetDescription>Browse and manage AI conversations.</SheetDescription>
+          </SheetHeader>
+          <ConversationsSidebar
+            userId={userId}
+            apiBase={apiBase}
+            refreshKey={refreshKey}
+            className="h-full border-r-0"
+            onNavigate={() => setMobileChatsOpen(false)}
+          />
+        </SheetContent>
+      </Sheet>
       {conversationId && (
         <ShareDialog
           open={shareOpen}
@@ -178,14 +218,14 @@ export function AiChatPage({ apiBase: apiBaseProp, defaultAgent: defaultAgentPro
           apiBase={restApiBase}
         />
       )}
-      <div className="flex flex-1 min-h-0 w-full">
+      <div className="flex min-h-0 flex-1 w-full bg-muted/20">
         <ConversationsSidebar
           userId={userId}
           apiBase={apiBase}
           refreshKey={refreshKey}
           className="hidden w-72 shrink-0 border-r md:flex"
         />
-        <main className="flex flex-1 min-w-0 flex-col">
+        <main className="flex min-w-0 flex-1 flex-col">
           <ChatPane
             key={`${chatApi ?? 'local'}:${conversationId ?? 'pending'}`}
             agents={agents}
@@ -292,10 +332,15 @@ function ChatPane({
 
   const headerSlot =
     agents.length > 0 ? (
-      <div className="flex flex-wrap items-center gap-2 px-4 py-2">
-        <span className="text-xs text-muted-foreground">Agent:</span>
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b bg-background/80 px-3 py-2 sm:px-4">
+        <div className="min-w-0">
+          <div className="text-xs font-medium leading-none">{activeAgentLabel}</div>
+          <div className="mt-1 text-[10px] text-muted-foreground">
+            {hydrating ? 'Loading conversation history...' : conversationId ? 'Conversation ready' : 'Preparing a new conversation'}
+          </div>
+        </div>
         <Select value={activeAgent} onValueChange={onAgentChange} disabled={agentsLoading}>
-          <SelectTrigger className="h-7 w-[220px] text-xs" data-testid="ai-chat-agent-picker">
+          <SelectTrigger className="h-7 w-full text-xs sm:w-[220px]" data-testid="ai-chat-agent-picker">
             <SelectValue placeholder="Choose agent..." />
           </SelectTrigger>
           <SelectContent align="start">
@@ -311,9 +356,6 @@ function ChatPane({
             ))}
           </SelectContent>
         </Select>
-        {hydrating ? (
-          <span className="text-[10px] text-muted-foreground">Loading history…</span>
-        ) : null}
         {agentsError ? (
           <span
             className="text-[10px] text-amber-700 dark:text-amber-400"
@@ -326,33 +368,35 @@ function ChatPane({
     ) : null;
 
   return (
-    <ChatbotEnhanced
-      className="flex-1 min-h-0 rounded-none border-0"
-      maxHeight="100%"
-      headerSlot={headerSlot}
-      messages={messages as ChatMessage[]}
-      placeholder={
-        activeAgent
-          ? `Ask ${activeAgentLabel}…  (try “${(suggestions?.[0]) ?? 'How can you help?'}”)`
-          : agentsLoading
-            ? 'Loading agents…'
-            : 'Ask anything…'
-      }
-      suggestions={suggestions}
-      onSendMessage={handleSend}
-      onClear={clear}
-      onStop={isLoading ? stop : undefined}
-      onReload={reload}
-      isLoading={isLoading}
-      error={error}
-      enableMarkdown
-      onToolApprove={hitl.decide}
-      toolDecisions={hitl.decisions}
-      toolApproveLabel="Approve & run"
-      toolDenyLabel="Reject"
-      toolDenyReason="Operator rejected from chat"
-      data-testid="ai-chat-panel"
-    />
+    <div className="flex min-h-0 flex-1 justify-center px-0 md:px-4 md:py-4">
+      <ChatbotEnhanced
+        className="min-h-0 flex-1 rounded-none border-0 bg-background shadow-none md:max-w-5xl md:rounded-md md:border md:shadow-sm"
+        maxHeight="100%"
+        headerSlot={headerSlot}
+        messages={messages as ChatMessage[]}
+        placeholder={
+          activeAgent
+            ? `Ask ${activeAgentLabel}...`
+            : agentsLoading
+              ? 'Loading agents...'
+              : 'Ask anything...'
+        }
+        suggestions={suggestions}
+        onSendMessage={handleSend}
+        onClear={clear}
+        onStop={isLoading ? stop : undefined}
+        onReload={reload}
+        isLoading={isLoading}
+        error={error}
+        enableMarkdown
+        onToolApprove={hitl.decide}
+        toolDecisions={hitl.decisions}
+        toolApproveLabel="Approve & run"
+        toolDenyLabel="Reject"
+        toolDenyReason="Operator rejected from chat"
+        data-testid="ai-chat-panel"
+      />
+    </div>
   );
 }
 

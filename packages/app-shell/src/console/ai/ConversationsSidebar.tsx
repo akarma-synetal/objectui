@@ -25,6 +25,7 @@ export interface ConversationsSidebarProps {
   apiBase: string;
   className?: string;
   refreshKey?: number | string;
+  onNavigate?: () => void;
 }
 
 function formatTimestamp(iso?: string): string {
@@ -48,6 +49,7 @@ export function ConversationsSidebar({
   apiBase,
   className,
   refreshKey,
+  onNavigate,
 }: ConversationsSidebarProps) {
   const navigate = useNavigate();
   const { conversationId: activeId } = useParams<{ conversationId?: string }>();
@@ -69,15 +71,21 @@ export function ConversationsSidebar({
     });
   }, [conversations, filter]);
 
-  const handleNew = useCallback(() => navigate('/ai'), [navigate]);
+  const handleNew = useCallback(() => {
+    navigate('/ai');
+    onNavigate?.();
+  }, [navigate, onNavigate]);
 
   const handleDelete = useCallback(
     async (e: React.MouseEvent, id: string) => {
       e.stopPropagation();
       await remove(id);
-      if (id === activeId) navigate('/ai', { replace: true });
+      if (id === activeId) {
+        navigate('/ai', { replace: true });
+        onNavigate?.();
+      }
     },
-    [remove, activeId, navigate],
+    [remove, activeId, navigate, onNavigate],
   );
 
   const handleRenameSubmit = useCallback(
@@ -144,7 +152,10 @@ export function ConversationsSidebar({
                 conversation={c}
                 active={c.id === activeId}
                 renaming={c.id === renamingId}
-                onSelect={() => navigate(`/ai/${c.id}`)}
+                onSelect={() => {
+                  navigate(`/ai/${c.id}`);
+                  onNavigate?.();
+                }}
                 onDelete={(e) => handleDelete(e, c.id)}
                 onStartRename={() => setRenamingId(c.id)}
                 onCancelRename={() => setRenamingId(undefined)}
@@ -244,67 +255,54 @@ function ConversationRow({
 
   return (
     <li>
-      <button
-        type="button"
-        onClick={onSelect}
+      <div
         className={cn(
-          'group flex w-full flex-col gap-0.5 border-l-2 border-transparent px-3 py-2 text-left text-sm transition-colors hover:bg-accent/50',
+          'group flex w-full items-start gap-2 border-l-2 border-transparent px-3 py-2 text-sm transition-colors hover:bg-accent/50',
           active && 'border-primary bg-accent',
         )}
         data-testid={`ai-conversation-row-${conversation.id}`}
       >
-        <div className="flex items-start justify-between gap-2">
-          <span className="line-clamp-1 flex-1 font-medium">{title}</span>
-          <div className="flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100">
-            <span
-              role="button"
-              tabIndex={0}
-              onClick={(e) => {
-                e.stopPropagation();
-                onStartRename();
-              }}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' || e.key === ' ') {
-                  e.stopPropagation();
-                  onStartRename();
-                }
-              }}
-              className="hover:text-primary"
-              data-testid={`ai-conversation-rename-${conversation.id}`}
-              aria-label="Rename conversation"
-            >
-              <Pencil className="h-3.5 w-3.5" />
+        <button
+          type="button"
+          onClick={onSelect}
+          className="min-w-0 flex-1 text-left"
+          data-testid={`ai-conversation-select-${conversation.id}`}
+        >
+          <span className="line-clamp-1 font-medium">{title}</span>
+          {conversation.preview && conversation.preview !== title ? (
+            <span className="mt-0.5 block line-clamp-1 text-xs text-muted-foreground">
+              {conversation.preview}
             </span>
-            <span
-              role="button"
-              tabIndex={0}
-              onClick={(e) => {
-                e.stopPropagation();
-                onDelete(e);
-              }}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' || e.key === ' ') {
-                  e.stopPropagation();
-                  onDelete(e as unknown as React.MouseEvent);
-                }
-              }}
-              className="hover:text-destructive"
-              data-testid={`ai-conversation-delete-${conversation.id}`}
-              aria-label="Delete conversation"
-            >
-              <Trash2 className="h-3.5 w-3.5" />
-            </span>
-          </div>
-        </div>
-        {conversation.preview && conversation.preview !== title ? (
-          <span className="line-clamp-1 text-xs text-muted-foreground">
-            {conversation.preview}
+          ) : null}
+          <span className="mt-0.5 block text-[10px] text-muted-foreground">
+            {formatTimestamp(conversation.updatedAt ?? conversation.createdAt)}
           </span>
-        ) : null}
-        <span className="text-[10px] text-muted-foreground">
-          {formatTimestamp(conversation.updatedAt ?? conversation.createdAt)}
-        </span>
-      </button>
+        </button>
+        <div className="flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100">
+          <Button
+            type="button"
+            size="sm"
+            variant="ghost"
+            className="h-7 w-7 p-0 hover:text-primary"
+            onClick={onStartRename}
+            data-testid={`ai-conversation-rename-${conversation.id}`}
+            aria-label="Rename conversation"
+          >
+            <Pencil className="h-3.5 w-3.5" />
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            variant="ghost"
+            className="h-7 w-7 p-0 hover:text-destructive"
+            onClick={onDelete}
+            data-testid={`ai-conversation-delete-${conversation.id}`}
+            aria-label="Delete conversation"
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+          </Button>
+        </div>
+      </div>
     </li>
   );
 }
