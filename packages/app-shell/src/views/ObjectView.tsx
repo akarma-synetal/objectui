@@ -107,6 +107,51 @@ function substituteFilterTokens(filter: any, currentUserId: string | undefined):
 }
 
 export function ObjectView({ dataSource, objects, onEdit, externalRefreshKey }: any) {
+    const { objectName } = useParams();
+    const { t } = useObjectTranslation();
+
+    // Resolve the object definition up front. When it's missing we render the
+    // "object not found" empty state *here*, before the inner component mounts.
+    // This is the key to keeping the Rules of Hooks satisfied: ObjectViewInner
+    // holds ~50 hooks and must call them unconditionally, so the missing-object
+    // branch lives in this thin wrapper instead of as a mid-component early
+    // return. The inner subtree then mounts/unmounts as a whole (object exists
+    // ↔ doesn't) rather than toggling the number of hooks executed per render.
+    const objectDef = objects.find((o: any) => o.name === objectName);
+    if (!objectDef) {
+      return (
+        <div className="h-full p-4 flex items-center justify-center">
+          <Empty>
+            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-muted">
+              <TableIcon className="h-6 w-6 text-muted-foreground" />
+            </div>
+            <EmptyTitle>{t('console.objectView.objectNotFound')}</EmptyTitle>
+            <EmptyDescription>
+              {t('console.objectView.objectNotFoundDescription', { objectName })}
+              {' '}
+              {t('console.objectView.objectNotFoundHint')}
+            </EmptyDescription>
+          </Empty>
+        </div>
+      );
+    }
+
+    return (
+      <ObjectViewInner
+        dataSource={dataSource}
+        objects={objects}
+        onEdit={onEdit}
+        externalRefreshKey={externalRefreshKey}
+      />
+    );
+}
+
+/**
+ * Inner ObjectView body. Only mounted by {@link ObjectView} once the object
+ * definition is known to exist, so every hook below runs unconditionally on
+ * every render of this component — no early return sits between hook calls.
+ */
+function ObjectViewInner({ dataSource, objects, onEdit, externalRefreshKey }: any) {
     const navigate = useNavigate();
     const { appName, objectName, viewId } = useParams();
     const [searchParams, setSearchParams] = useSearchParams();
@@ -259,26 +304,10 @@ export function ObjectView({ dataSource, objects, onEdit, externalRefreshKey }: 
     const isAdmin = user?.role === 'admin';
     const { can } = usePermissions();
     
-    // Get Object Definition
+    // Get Object Definition. The outer ObjectView wrapper already guards the
+    // missing-object case, so this always resolves while this component is
+    // mounted — every hook below can therefore run unconditionally.
     const objectDef = objects.find((o: any) => o.name === objectName);
-
-    if (!objectDef) {
-      return (
-        <div className="h-full p-4 flex items-center justify-center">
-          <Empty>
-            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-muted">
-              <TableIcon className="h-6 w-6 text-muted-foreground" />
-            </div>
-            <EmptyTitle>{t('console.objectView.objectNotFound')}</EmptyTitle>
-            <EmptyDescription>
-              {t('console.objectView.objectNotFoundDescription', { objectName })}
-              {' '}
-              {t('console.objectView.objectNotFoundHint')}
-            </EmptyDescription>
-          </Empty>
-        </div>
-      );
-    }
 
     // Refresh trigger — bumped after view CRUD or external data mutations.
     const [refreshKey, setRefreshKey] = useState(0);
