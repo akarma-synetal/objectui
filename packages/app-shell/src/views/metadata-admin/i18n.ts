@@ -303,6 +303,19 @@ const ENGINE_STRINGS_EN: Record<string, string> = {
   'engine.inspector.widget.width': 'Width',
   'engine.inspector.widget.height': 'Height',
   'engine.inspector.widget.remove': 'Remove widget',
+  // Dataset binding (ADR-0021) — governed cross-object semantic layer.
+  'engine.inspector.widget.datasetSection': 'Dataset binding',
+  'engine.inspector.widget.dataset': 'Dataset',
+  'engine.inspector.widget.datasetPlaceholder': 'e.g. sales_pipeline',
+  'engine.inspector.widget.datasetHint':
+    'Bind a governed dataset. When set, it takes precedence over the inline object query above and the widget renders via the dataset (consistent, cross-object, RLS-enforced).',
+  'engine.inspector.widget.dimensions': 'Dimensions',
+  'engine.inspector.widget.dimensionsPlaceholder': 'e.g. stage, region (comma-separated)',
+  'engine.inspector.widget.dimensionsHint':
+    'Dataset dimension names to group by. Leave empty for a single-value KPI metric.',
+  'engine.inspector.widget.values': 'Values (measures)',
+  'engine.inspector.widget.valuesPlaceholder': 'e.g. revenue, deal_count (comma-separated)',
+  'engine.inspector.widget.valuesHint': 'Dataset measure names to show.',
   // Flow node inspector
   'engine.inspector.flowNode.kind': 'Node',
   'engine.inspector.flowNode.close': 'Close node',
@@ -940,6 +953,18 @@ const ENGINE_STRINGS_ZH: Record<string, string> = {
   'engine.inspector.widget.width': '宽度',
   'engine.inspector.widget.height': '高度',
   'engine.inspector.widget.remove': '删除组件',
+  // Dataset binding (ADR-0021) — governed cross-object semantic layer.
+  'engine.inspector.widget.datasetSection': '数据集绑定',
+  'engine.inspector.widget.dataset': '数据集',
+  'engine.inspector.widget.datasetPlaceholder': '例如：sales_pipeline',
+  'engine.inspector.widget.datasetHint':
+    '绑定一个受治理的数据集。设置后优先于上方的内联对象查询，组件改为按数据集渲染（口径一致、可跨对象、强制 RLS）。',
+  'engine.inspector.widget.dimensions': '维度',
+  'engine.inspector.widget.dimensionsPlaceholder': '例如：stage, region（逗号分隔）',
+  'engine.inspector.widget.dimensionsHint': '用于分组的数据集维度名。留空则渲染为单值 KPI。',
+  'engine.inspector.widget.values': '值（度量）',
+  'engine.inspector.widget.valuesPlaceholder': '例如：revenue, deal_count（逗号分隔）',
+  'engine.inspector.widget.valuesHint': '要展示的数据集度量名。',
   // Flow node inspector
   'engine.inspector.flowNode.kind': '节点',
   'engine.inspector.flowNode.close': '关闭节点',

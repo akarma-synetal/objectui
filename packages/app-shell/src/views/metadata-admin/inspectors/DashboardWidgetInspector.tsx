@@ -108,6 +108,17 @@ export function DashboardWidgetInspector({
     onPatch({ widgets });
   }
 
+  // ── Dataset binding (ADR-0021) ──────────────────────────────────────────
+  // Field access goes through `as any`: the bundled `@object-ui/types`
+  // `DashboardWidgetSchema` only gains `dataset`/`dimensions`/`values` once
+  // objectui bumps `@objectstack/spec`. Same accessor pattern as DatasetWidget.
+  const w = widget as any;
+  const datasetName = typeof w.dataset === 'string' ? (w.dataset as string) : '';
+  const dimensionsCsv = Array.isArray(w.dimensions) ? (w.dimensions as string[]).join(', ') : '';
+  const valuesCsv = Array.isArray(w.values) ? (w.values as string[]).join(', ') : '';
+  const parseList = (s: string): string[] =>
+    s.split(',').map((x) => x.trim()).filter(Boolean);
+
   function moveWidget(to: number) {
     onPatch({ widgets: moveArray(widgetsAll, index, to) });
     if (widget.id) {
@@ -176,6 +187,64 @@ export function DashboardWidgetInspector({
           </SelectContent>
         </Select>
       </Field>
+
+      {/* Dataset binding (ADR-0021) — governed cross-object semantic layer.
+          When `dataset` is set, DashboardRenderer renders this widget via
+          <DatasetWidget> (consistent numbers, cross-object, RLS-enforced),
+          taking precedence over the inline single-object query below. The
+          inline fields are kept visible so existing widgets stay editable
+          (additive dual-form, mirroring report's dataset binding). */}
+      <div className="space-y-3 rounded-md border border-dashed border-primary/40 bg-primary/5 p-3">
+        <div className="text-[10px] font-semibold uppercase tracking-wider text-primary/80">
+          {t('engine.inspector.widget.datasetSection', locale)}
+        </div>
+        <Field id="widget-dataset" label={t('engine.inspector.widget.dataset', locale)}>
+          <Input
+            id="widget-dataset"
+            value={datasetName}
+            placeholder={t('engine.inspector.widget.datasetPlaceholder', locale)}
+            onChange={(e) =>
+              patchWidget({ dataset: e.target.value || undefined } as Partial<DashboardWidgetSchema>)
+            }
+            disabled={readOnly}
+          />
+          <p className="text-[10px] leading-snug text-muted-foreground">
+            {t('engine.inspector.widget.datasetHint', locale)}
+          </p>
+        </Field>
+        {datasetName && (
+          <>
+            <Field id="widget-dimensions" label={t('engine.inspector.widget.dimensions', locale)}>
+              <Input
+                id="widget-dimensions"
+                value={dimensionsCsv}
+                placeholder={t('engine.inspector.widget.dimensionsPlaceholder', locale)}
+                onChange={(e) =>
+                  patchWidget({ dimensions: parseList(e.target.value) } as Partial<DashboardWidgetSchema>)
+                }
+                disabled={readOnly}
+              />
+              <p className="text-[10px] leading-snug text-muted-foreground">
+                {t('engine.inspector.widget.dimensionsHint', locale)}
+              </p>
+            </Field>
+            <Field id="widget-values" label={t('engine.inspector.widget.values', locale)}>
+              <Input
+                id="widget-values"
+                value={valuesCsv}
+                placeholder={t('engine.inspector.widget.valuesPlaceholder', locale)}
+                onChange={(e) =>
+                  patchWidget({ values: parseList(e.target.value) } as Partial<DashboardWidgetSchema>)
+                }
+                disabled={readOnly}
+              />
+              <p className="text-[10px] leading-snug text-muted-foreground">
+                {t('engine.inspector.widget.valuesHint', locale)}
+              </p>
+            </Field>
+          </>
+        )}
+      </div>
 
       <Field id="widget-object" label={t('engine.inspector.widget.object', locale)}>
         <Input
