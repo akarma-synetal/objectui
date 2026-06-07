@@ -43,9 +43,22 @@ import { WIDGET_TYPE_META, UnknownWidgetIcon } from '../previews/widget-types';
 import type { MetadataDefaultInspectorProps } from '../default-inspector-registry';
 import { SchemaForm } from '../SchemaForm';
 import { getDashboardForm, getDashboardSchema } from '../dashboard-schema';
+import { mergeServerFields } from '../mergeServerFields';
 import { t } from '../i18n';
 
 type DashboardWidget = DashboardWidgetSchema & { id: string };
+
+/**
+ * Top-level dashboard fields rendered by this inspector's own controls (or by
+ * the dedicated widgets list), pruned from the spec-form graft so they are not
+ * double-rendered. Mirrors the `hiddenFields` passed to SchemaForm.
+ */
+const DASHBOARD_CURATED_FIELDS = new Set([
+  'name',
+  'label',
+  'description',
+  'widgets',
+]);
 
 export function DashboardDefaultInspector({
   draft,
@@ -53,6 +66,7 @@ export function DashboardDefaultInspector({
   readOnly,
   locale,
   onSelectionChange,
+  serverSchema,
 }: MetadataDefaultInspectorProps) {
   const tr = React.useCallback((key: string) => t(key, locale), [locale]);
 
@@ -99,8 +113,19 @@ export function DashboardDefaultInspector({
   const [dragIndex, setDragIndex] = React.useState<number | null>(null);
   const [overIndex, setOverIndex] = React.useState<number | null>(null);
 
-  const schema = getDashboardSchema();
-  const form = getDashboardForm();
+  // Graft any server-only top-level dashboard fields onto the bundled-spec
+  // form so they are editable even when the bundled spec lags the server.
+  const { schema, form } = React.useMemo(
+    () =>
+      mergeServerFields({
+        bundledSchema: getDashboardSchema(),
+        bundledForm: getDashboardForm(),
+        serverSchema,
+        excludeFields: DASHBOARD_CURATED_FIELDS,
+        sectionTitle: t('engine.inspector.moreFields', locale),
+      }),
+    [serverSchema, locale],
+  );
 
   return (
     <InspectorShell

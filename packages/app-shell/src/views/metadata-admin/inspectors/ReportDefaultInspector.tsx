@@ -41,7 +41,21 @@ import type { MetadataDefaultInspectorProps } from '../default-inspector-registr
 import { SchemaForm } from '../SchemaForm';
 import { useObjectFields, type ObjectFieldInfo } from '../previews/useObjectFields';
 import { getReportForm, getReportSchema } from '../report-schema';
+import { mergeServerFields } from '../mergeServerFields';
 import { t } from '../i18n';
+
+/**
+ * Top-level report fields this inspector renders with its own dedicated
+ * controls (type / object / columns + identity), so the spec-form graft
+ * never double-renders them. Mirrors the `hiddenFields` passed to SchemaForm.
+ */
+const REPORT_CURATED_FIELDS = new Set([
+  'type',
+  'objectName',
+  'label',
+  'name',
+  'columns',
+]);
 
 export interface ReportDefaultInspectorProps extends MetadataDefaultInspectorProps {
   /**
@@ -97,6 +111,7 @@ export function ReportDefaultInspector({
   locale,
   onSelectionChange,
   objectFieldsOverride,
+  serverSchema,
 }: ReportDefaultInspectorProps) {
   const tr = React.useCallback((key: string) => t(key, locale), [locale]);
 
@@ -176,8 +191,20 @@ export function ReportDefaultInspector({
   const [dragIndex, setDragIndex] = React.useState<number | null>(null);
   const [overIndex, setOverIndex] = React.useState<number | null>(null);
 
-  const schema = getReportSchema();
-  const form = getReportForm();
+  // Graft any server-only top-level fields (e.g. dataset/rows/values) onto
+  // the bundled-spec form so they are directly editable here even when the
+  // bundled `@objectstack/spec` lags the running server (skew root-cure).
+  const { schema, form } = React.useMemo(
+    () =>
+      mergeServerFields({
+        bundledSchema: getReportSchema(),
+        bundledForm: getReportForm(),
+        serverSchema,
+        excludeFields: REPORT_CURATED_FIELDS,
+        sectionTitle: t('engine.inspector.moreFields', locale),
+      }),
+    [serverSchema, locale],
+  );
 
   return (
     <InspectorShell

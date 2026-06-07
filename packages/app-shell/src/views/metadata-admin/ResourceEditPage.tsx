@@ -2019,6 +2019,7 @@ function MetadataResourceEditPageImpl({
                             onSelectionChange={setSelection}
                             readOnly={formReadOnly}
                             locale={locale}
+                            serverSchema={entry?.schema as Record<string, unknown> | undefined}
                           />
                         ) : (
                           <SchemaForm
