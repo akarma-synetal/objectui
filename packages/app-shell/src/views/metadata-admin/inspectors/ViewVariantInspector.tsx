@@ -42,7 +42,16 @@ import {
   getFormVariantSchema,
 } from '../view-schema';
 import { isFormFamilyKey } from '../view-variant-model';
+import { mergeServerFields } from '../mergeServerFields';
 import { t } from '../i18n';
+
+/**
+ * Variant-body fields this inspector renders with its own controls, pruned
+ * from the spec-form graft so they are not double-rendered. Mirrors the
+ * `hiddenFields` passed to SchemaForm (`type`/`object`/`label`) plus the
+ * canvas-owned `columns`.
+ */
+const VIEW_CURATED_FIELDS = new Set(['type', 'object', 'label', 'columns']);
 
 export interface ViewVariantInspectorProps extends MetadataDefaultInspectorProps {
   /**
@@ -148,6 +157,7 @@ export function ViewVariantInspector({
   onSelectionChange,
   objectFieldsOverride,
   locale,
+  serverSchema,
 }: ViewVariantInspectorProps) {
   const variant = (draft[variantKey] as Record<string, unknown> | undefined) ?? {};
 
@@ -188,8 +198,27 @@ export function ViewVariantInspector({
     [objectFields],
   );
 
-  const form = isFormFamily ? undefined : getViewForm();
-  const schema = isFormFamily ? getFormVariantSchema() : getListVariantSchema();
+  // Graft server-only fields onto the bundled variant form so new server
+  // fields are editable even when the bundled spec lags (skew root-cure). A
+  // View is a nested document: the variant body lives under
+  // `serverSchema.properties.{list|form}`, so we pass that sub-schema.
+  const serverVariantSchema = (() => {
+    const props = (serverSchema?.properties as Record<string, any> | undefined);
+    return (isFormFamily ? props?.form : props?.list) as
+      | Record<string, unknown>
+      | undefined;
+  })();
+  const { schema, form } = React.useMemo(
+    () =>
+      mergeServerFields({
+        bundledSchema: isFormFamily ? getFormVariantSchema() : getListVariantSchema(),
+        bundledForm: isFormFamily ? undefined : getViewForm(),
+        serverSchema: serverVariantSchema,
+        excludeFields: VIEW_CURATED_FIELDS,
+        sectionTitle: t('engine.inspector.moreFields', locale),
+      }),
+    [isFormFamily, serverVariantSchema, locale],
+  );
 
   /** Shallow-write a curated patch onto the variant. */
   const writeVariant = (patch: Record<string, unknown>) => {

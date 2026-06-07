@@ -37,6 +37,15 @@ export interface MetadataDefaultInspectorProps {
   readOnly: boolean;
   /** Active UI locale for i18n. */
   locale: SupportedLocale;
+  /**
+   * The live server JSONSchema for this type (`RichMetadataTypeEntry.schema`,
+   * from `/meta/types`). Curated inspectors graft any server-only top-level
+   * fields onto the bundled-spec form so new server fields (e.g. a report's
+   * `dataset`/`rows`/`values`) are directly editable even when objectui's
+   * bundled `@objectstack/spec` lags the running server. Undefined when no
+   * server schema is available (offline / older server).
+   */
+  serverSchema?: Record<string, unknown>;
 }
 
 export type MetadataDefaultInspector = ComponentType<MetadataDefaultInspectorProps>;

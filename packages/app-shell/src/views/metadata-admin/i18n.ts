@@ -416,6 +416,8 @@ const ENGINE_STRINGS_EN: Record<string, string> = {
   'engine.inspector.report.columns': 'Columns',
   'engine.inspector.report.columnsEmpty': 'No columns yet. Add a field below.',
   'engine.inspector.report.noSchema': 'Spec schema unavailable — basic properties only.',
+  // Trailing section for fields the live server has but the bundled spec lacks.
+  'engine.inspector.moreFields': 'More fields',
   // Dashboard default (home) inspector
   'engine.inspector.dashboard.kind': 'Dashboard',
   'engine.inspector.dashboard.close': 'Close dashboard',
@@ -1050,6 +1052,8 @@ const ENGINE_STRINGS_ZH: Record<string, string> = {
   'engine.inspector.report.columns': '列',
   'engine.inspector.report.columnsEmpty': '还没有列。在下方添加字段。',
   'engine.inspector.report.noSchema': '规格 schema 不可用 —— 仅显示基础属性。',
+  // Trailing section for fields the live server has but the bundled spec lacks.
+  'engine.inspector.moreFields': '更多字段',
   // Dashboard default (home) inspector
   'engine.inspector.dashboard.kind': '仪表盘',
   'engine.inspector.dashboard.close': '关闭仪表盘',
