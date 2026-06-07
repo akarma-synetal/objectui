@@ -9,7 +9,7 @@
  */
 
 import * as React from 'react';
-import { Loader2, Database, Columns3, Plus } from 'lucide-react';
+import { Loader2, Database, Columns3, Plus, Table2, AlertTriangle } from 'lucide-react';
 import { useAdapter } from '../../../providers/AdapterProvider';
 import type { MetadataPreviewProps } from '../preview-registry';
 import { PreviewShell, PreviewErrorBoundary, PreviewEmptyState } from './PreviewShell';
@@ -20,8 +20,100 @@ const ReportRenderer = React.lazy(() =>
   import('@object-ui/plugin-report').then((m) => ({ default: m.ReportRenderer })),
 );
 
+/**
+ * DatasetBoundReport — renders a report that binds to a semantic-layer
+ * `dataset` (ADR-0021 dual-form) instead of an inline object query. The report
+ * picks dimensions (`rows`) and measures (`values`) by NAME from the dataset;
+ * we run them through the same `adapter.queryDataset` path the dataset preview
+ * uses, so the numbers match every other surface on that dataset.
+ */
+function DatasetBoundReport({ draft }: { draft: Record<string, unknown> }) {
+  const adapter = useAdapter();
+  const datasetName = String((draft as any).dataset);
+  const rows = React.useMemo(
+    () => (Array.isArray((draft as any).rows) ? ((draft as any).rows as string[]).filter(Boolean) : []),
+    [draft],
+  );
+  const values = React.useMemo(
+    () => (Array.isArray((draft as any).values) ? ((draft as any).values as string[]).filter(Boolean) : []),
+    [draft],
+  );
+  const runtimeFilter = (draft as any).runtimeFilter;
+
+  const [state, setState] = React.useState<{ status: 'idle' | 'loading' | 'ok' | 'error'; rows: Array<Record<string, unknown>>; error?: string }>({ status: 'idle', rows: [] });
+
+  const signature = `${datasetName}|${rows.join(',')}|${values.join(',')}`;
+  React.useEffect(() => {
+    if (values.length === 0) { setState({ status: 'idle', rows: [] }); return; }
+    let cancelled = false;
+    setState({ status: 'loading', rows: [] });
+    (adapter as unknown as { queryDataset: (d: string, s: unknown) => Promise<{ rows: Array<Record<string, unknown>> }> })
+      .queryDataset(datasetName, { dimensions: rows, measures: values, runtimeFilter })
+      .then((res) => { if (!cancelled) setState({ status: 'ok', rows: Array.isArray(res?.rows) ? res.rows : [] }); })
+      .catch((e) => { if (!cancelled) setState({ status: 'error', rows: [], error: String((e as Error)?.message ?? e) }); });
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [signature]);
+
+  if (values.length === 0) {
+    return (
+      <PreviewShell>
+        <PreviewEmptyState
+          icon={<Table2 className="h-8 w-8" />}
+          title="Pick measures to show"
+          description={`This report binds the "${datasetName}" dataset — choose at least one measure (values) to render.`}
+        />
+      </PreviewShell>
+    );
+  }
+
+  const columns = [...rows, ...values];
+  return (
+    <PreviewShell hint={`report · dataset "${datasetName}"${rows.length ? ' · by ' + rows.join(', ') : ''}`}>
+      <div className="p-3">
+        {state.status === 'loading' && (
+          <div className="flex items-center gap-2 p-4 text-xs text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" /> Running report…</div>
+        )}
+        {state.status === 'error' && (
+          <div role="alert" className="flex items-start gap-2 rounded-md border border-destructive/40 bg-destructive/5 px-3 py-2 text-xs text-destructive">
+            <AlertTriangle className="h-3.5 w-3.5 mt-0.5 shrink-0" /><span className="break-words">{state.error}</span>
+          </div>
+        )}
+        {state.status === 'ok' && state.rows.length === 0 && (
+          <PreviewEmptyState icon={<Table2 className="h-8 w-8" />} title="No rows" description="The dataset returned no rows for this report's scope." />
+        )}
+        {state.rows.length > 0 && (
+          <div className="overflow-auto max-h-[70vh] rounded-md border">
+            <table className="w-full text-xs">
+              <thead className="bg-muted/40">
+                <tr>{columns.map((c) => <th key={c} className="px-2 py-1.5 text-left font-medium whitespace-nowrap">{c}</th>)}</tr>
+              </thead>
+              <tbody>
+                {state.rows.map((row, i) => (
+                  <tr key={i} className="border-t">
+                    {columns.map((c) => {
+                      const v = row[c];
+                      const text = v == null ? '—' : typeof v === 'number' ? (Number.isInteger(v) ? String(v) : v.toLocaleString(undefined, { maximumFractionDigits: 2 })) : String(v);
+                      return <td key={c} className="px-2 py-1 tabular-nums whitespace-nowrap">{text}</td>;
+                    })}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    </PreviewShell>
+  );
+}
+
 export function ReportPreview({ draft, editing, selection, onSelectionChange, onPatch, locale }: MetadataPreviewProps) {
   const adapter = useAdapter();
+  // ADR-0021 dual-form: a report bound to a semantic-layer dataset renders
+  // through the dataset query path rather than the inline-object ReportRenderer.
+  if (typeof (draft as any).dataset === 'string' && (draft as any).dataset) {
+    return <DatasetBoundReport draft={draft as Record<string, unknown>} />;
+  }
   // Different fixture sets use different keys for the source object:
   //   • new schema: `object`
   //   • legacy: `objectName`
