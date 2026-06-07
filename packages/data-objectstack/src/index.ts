@@ -1793,6 +1793,74 @@ export class ObjectStackAdapter<T = unknown> implements DataSource<T> {
     }
   }
 
+  /**
+   * Run a semantic-layer `dataset` (ADR-0021) and return chart-ready rows.
+   *
+   * Posts to `POST /api/v1/analytics/dataset/query` (see `@objectstack/rest`
+   * `registerAnalyticsEndpoints`). Accepts either a saved dataset name or an
+   * inline draft definition — the inline form is what the Studio dataset
+   * editor sends to preview an unsaved draft. The adapter's bearer token is
+   * forwarded so tenant/RLS scoping (ADR-0021 D-C) is enforced server-side.
+   *
+   * Unlike {@link aggregate}, this does NOT fall back to client-side
+   * aggregation: cross-object joins can only run on the server, so a failure
+   * is surfaced to the caller (the preview panel shows the error) rather than
+   * silently returning wrong numbers.
+   *
+   * @param dataset - An inline dataset definition (draft) OR a saved dataset name.
+   * @param selection - Dimension/measure names to project + runtime directives.
+   */
+  async queryDataset(
+    dataset: Record<string, unknown> | string,
+    selection: {
+      dimensions?: string[];
+      measures: string[];
+      runtimeFilter?: Record<string, unknown>;
+      timeDimensions?: unknown[];
+      compareTo?: { kind: 'previousPeriod' | 'previousYear'; dimension: string };
+      order?: Record<string, 'asc' | 'desc'>;
+      limit?: number;
+      offset?: number;
+      timezone?: string;
+    },
+  ): Promise<{ rows: Array<Record<string, unknown>>; fields: Array<{ name: string; type: string }> }> {
+    await this.connect();
+    const base = (this.baseUrl || '').replace(/\/$/, '');
+    const url = `${base}/api/v1/analytics/dataset/query`;
+    const requestBody = typeof dataset === 'string'
+      ? { datasetName: dataset, selection }
+      : { dataset, selection };
+
+    const res = await this.fetchImpl(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(this.token ? { Authorization: `Bearer ${this.token}` } : {}),
+      },
+      body: JSON.stringify(requestBody),
+    });
+
+    if (!res.ok) {
+      let detail = '';
+      try {
+        const errBody = await res.json();
+        detail = errBody?.message || errBody?.error || JSON.stringify(errBody);
+      } catch { /* non-JSON error body */ }
+      throw new Error(`Dataset query failed: ${res.status} ${res.statusText}${detail ? ` — ${detail}` : ''}`);
+    }
+
+    const payload = await res.json();
+    // Unwrap the standard `{ success, data }` envelope when present.
+    const data = payload && typeof payload === 'object' && 'success' in payload && 'data' in payload
+      ? (payload as { data: unknown }).data
+      : payload;
+    const rows = Array.isArray((data as any)?.rows)
+      ? (data as any).rows
+      : (Array.isArray(data) ? (data as any) : []);
+    const fields = Array.isArray((data as any)?.fields) ? (data as any).fields : [];
+    return { rows, fields };
+  }
+
   /** Client-side aggregation fallback */
   private aggregateClientSide(records: any[], params: { field: string; function: string; groupBy: string }): any[] {
     const { field, function: aggFn, groupBy } = params;

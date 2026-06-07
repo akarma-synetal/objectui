@@ -17,6 +17,7 @@ import { ReportColumnInspector } from './ReportColumnInspector';
 import { ReportDefaultInspector } from './ReportDefaultInspector';
 import { ObjectFieldInspector } from './ObjectFieldInspector';
 import { ObjectDefaultInspector } from './ObjectDefaultInspector';
+import { DatasetDefaultInspector } from './DatasetDefaultInspector';
 
 export function registerBuiltinInspectors(): void {
   registerMetadataInspector('dashboard', DashboardWidgetInspector);
@@ -36,4 +37,6 @@ export function registerBuiltinInspectors(): void {
   registerMetadataDefaultInspector('report', ReportDefaultInspector);
   registerMetadataInspector('object', ObjectFieldInspector);
   registerMetadataDefaultInspector('object', ObjectDefaultInspector);
+  // ADR-0021: structured dataset designer (object/include/dimensions/measures).
+  registerMetadataDefaultInspector('dataset', DatasetDefaultInspector);
 }

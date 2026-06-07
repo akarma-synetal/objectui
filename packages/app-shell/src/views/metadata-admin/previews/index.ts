@@ -28,6 +28,7 @@ import { RolePreview } from './RolePreview';
 import { SkillPreview } from './SkillPreview';
 import { DatasourcePreview } from './DatasourcePreview';
 import { ValidationPreview } from './ValidationPreview';
+import { DatasetPreview } from './DatasetPreview';
 
 export function registerBuiltinPreviews(): void {
   // UI surfaces
@@ -41,6 +42,8 @@ export function registerBuiltinPreviews(): void {
   registerMetadataPreview('object', ObjectPreview);
   registerMetadataPreview('datasource', DatasourcePreview);
   registerMetadataPreview('validation', ValidationPreview);
+  // Analytics (ADR-0021): live cross-object dataset preview.
+  registerMetadataPreview('dataset', DatasetPreview);
   // System
   registerMetadataPreview('email_template', EmailTemplatePreview);
   registerMetadataPreview('translation', TranslationPreview);
