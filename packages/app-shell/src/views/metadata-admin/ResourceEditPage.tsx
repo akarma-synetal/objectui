@@ -369,7 +369,9 @@ function MetadataResourceEditPageImpl({
     if (!hasClientValidator(type)) return;
     let cancelled = false;
     const handle = window.setTimeout(() => {
-      void validateMetadataDraft(type, draft).then((res) => {
+      // Pass the live server schema so the client never flags fields the
+      // running server now treats as optional (cross-repo spec-skew root-cure).
+      void validateMetadataDraft(type, draft, entry?.schema as { required?: unknown } | undefined).then((res) => {
         if (cancelled) return;
         setIssues(res.issues);
       });
@@ -378,7 +380,7 @@ function MetadataResourceEditPageImpl({
       cancelled = true;
       window.clearTimeout(handle);
     };
-  }, [type, draft]);
+  }, [type, draft, entry?.schema]);
   // Per-item draft pending publish (mode=draft saves land here).
   // When non-null, the editor is "viewing the draft" and we surface
   // Publish / Discard-draft actions.
