@@ -144,20 +144,20 @@ export function HomePage() {
             })}
           </EmptyDescription>
           <div className="mt-6 flex flex-col sm:flex-row items-center gap-3">
-            <Button onClick={() => navigate('/create-app')} data-testid="create-first-app-btn">
+            {/*
+              AI-first magic moment: the primary CTA deep-links into the AI
+              workspace preselecting the metadata-authoring agent, so a brand-new
+              user goes straight from "describe your business" to a generated
+              backend. Manual create / settings stay as secondary paths.
+            */}
+            <Button onClick={() => navigate('/ai?agent=metadata_assistant')} data-testid="build-with-ai-btn">
+              <Sparkles className="mr-2 h-4 w-4" />
+              {t('home.buildWithAI', { defaultValue: 'Build with AI' })}
+            </Button>
+            <Button variant="outline" onClick={() => navigate('/create-app')} data-testid="create-first-app-btn">
               <Plus className="mr-2 h-4 w-4" />
               {t('home.createFirstApp', { defaultValue: 'Create Your First App' })}
             </Button>
-            {isAdmin && (
-              <Button
-                variant="outline"
-                onClick={() => navigate('/apps/setup/system/marketplace')}
-                data-testid="browse-marketplace-empty-btn"
-              >
-                <Store className="mr-2 h-4 w-4" />
-                {t('home.browseMarketplace', { defaultValue: 'Browse App Marketplace' })}
-              </Button>
-            )}
             <Button variant="outline" onClick={() => navigate('/apps/setup')} data-testid="go-to-settings-btn">
               <Settings className="mr-2 h-4 w-4" />
               {t('home.systemSettings', { defaultValue: 'System Settings' })}
@@ -199,6 +199,15 @@ export function HomePage() {
           <p className="text-base sm:text-lg text-muted-foreground mt-2 max-w-2xl">
             {t('home.heroTagline', { defaultValue: 'Pick up where you left off, or explore something new.' })}
           </p>
+
+          {/* AI-first action: keep the magic moment one click away even after
+              the workspace has apps — describe a need, let AI build it. */}
+          <div className="mt-5">
+            <Button onClick={() => navigate('/ai?agent=metadata_assistant')} data-testid="home-build-with-ai">
+              <Sparkles className="mr-2 h-4 w-4" />
+              {t('home.buildWithAI', { defaultValue: 'Build with AI' })}
+            </Button>
+          </div>
 
           {/* At-a-glance stat pills */}
           <div className="mt-5 flex flex-wrap items-center gap-2.5">
