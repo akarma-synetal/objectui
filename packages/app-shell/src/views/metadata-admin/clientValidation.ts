@@ -160,6 +160,17 @@ export interface ValidateResult {
 export async function validateMetadataDraft(
   type: string,
   draft: unknown,
+  /**
+   * The live server JSON schema for this type (from `/meta/types`, i.e.
+   * `RichMetadataTypeEntry.schema`). When provided it ROOT-CURES cross-repo
+   * spec skew: the bundled `@objectstack/spec` may lag the running server, so
+   * we never let the client be STRICTER than the server — a "missing required
+   * field" flagged by the (possibly stale) bundled Zod is suppressed when the
+   * server marks that field optional. The server's own validation on save
+   * stays authoritative. This makes the editor track the live schema without a
+   * per-change shim (cf. `FORWARD_COMPAT_FLOW_NODE_TYPES`).
+   */
+  serverSchema?: { required?: unknown },
 ): Promise<ValidateResult> {
   const schema = await getSchemaForType(type);
   if (!schema) return { ok: true, issues: [] };
@@ -168,6 +179,24 @@ export async function validateMetadataDraft(
   if (result.success) return { ok: true, issues: [] };
 
   let rawIssues = result.error?.issues ?? [];
+
+  // Cross-repo skew root-cure — drop "missing required field" false positives
+  // for top-level fields the SERVER schema marks optional. Only suppresses when
+  // the field is actually absent in the draft (a present-but-invalid field
+  // still surfaces), so the client can never be stricter than the live server.
+  const serverRequired = Array.isArray(serverSchema?.required)
+    ? new Set((serverSchema!.required as unknown[]).map((x) => String(x)))
+    : undefined;
+  if (serverRequired && draft && typeof draft === 'object' && !Array.isArray(draft)) {
+    const d = draft as Record<string, unknown>;
+    rawIssues = rawIssues.filter((i) => {
+      const path = i.path ?? [];
+      if (path.length !== 1) return true; // only top-level field issues
+      const field = String(path[0]);
+      const absent = d[field] === undefined || d[field] === null;
+      return !(absent && !serverRequired.has(field));
+    });
+  }
   // Forward-compat: don't let the published flow schema's closed node-type
   // enum reject node types the running server supports (see
   // FORWARD_COMPAT_FLOW_NODE_TYPES). Suppress only the `.type` enum mismatch
