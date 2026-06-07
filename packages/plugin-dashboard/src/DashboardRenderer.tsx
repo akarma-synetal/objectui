@@ -30,6 +30,7 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { isObjectProvider } from './utils';
+import { DatasetWidget } from './DatasetWidget';
 
 interface SortableWidgetWrapperProps {
   id: string;
@@ -401,6 +402,12 @@ export const DashboardRenderer = forwardRef<HTMLDivElement, DashboardRendererPro
         const clampedLayout = widget.layout
           ? { ...widget.layout, w: Math.min(widget.layout.w, columns) }
           : undefined;
+
+        // ADR-0021 — a widget bound to a semantic-layer dataset renders through
+        // the governed queryDataset path (DatasetWidget) instead of the inline
+        // object-aggregate schema. `as any` because the bundled DashboardWidget
+        // type gains `dataset` only after objectui bumps @objectstack/spec.
+        const datasetBound = !!(widget as any).dataset;
 
         const getComponentSchema = () => {
             if (widget.component) return widget.component;
@@ -786,7 +793,9 @@ export const DashboardRenderer = forwardRef<HTMLDivElement, DashboardRendererPro
                 style={innerGridSpanStyle}
                 {...designModeProps}
             >
-                 <SchemaRenderer schema={componentSchema} className={cn("h-full w-full", designMode && "pointer-events-none")} dataSource={dataSource} />
+                 {datasetBound
+                   ? <div className={cn("h-full w-full", designMode && "pointer-events-none")}><DatasetWidget widget={widget} dataSource={dataSource} /></div>
+                   : <SchemaRenderer schema={componentSchema} className={cn("h-full w-full", designMode && "pointer-events-none")} dataSource={dataSource} />}
                  {designMode && <div className="absolute inset-0 z-10" aria-hidden="true" data-testid="widget-click-overlay" />}
             </div>
         ) : (
@@ -813,7 +822,9 @@ export const DashboardRenderer = forwardRef<HTMLDivElement, DashboardRendererPro
                 )}
                 <CardContent className="p-0">
                     <div className={cn("h-full w-full", "p-3 sm:p-4 md:p-6", designMode && "pointer-events-none")}>
-                        <SchemaRenderer schema={componentSchema} dataSource={dataSource} />
+                        {datasetBound
+                          ? <DatasetWidget widget={widget} dataSource={dataSource} />
+                          : <SchemaRenderer schema={componentSchema} dataSource={dataSource} />}
                     </div>
                 </CardContent>
                 {designMode && <div className="absolute inset-0 z-10" aria-hidden="true" data-testid="widget-click-overlay" />}
