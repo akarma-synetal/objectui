@@ -299,6 +299,7 @@ ComponentRegistry.register('chatbot-enhanced',
         maxHeight={schema.maxHeight}
         enableMarkdown={schema.enableMarkdown ?? true}
         enableFileUpload={schema.enableFileUpload ?? false}
+        processVisibility={schema.processVisibility}
         className={className}
         {...props}
       />
@@ -314,6 +315,7 @@ ComponentRegistry.register('chatbot-enhanced',
       { name: 'disabled', type: 'boolean', label: 'Disabled', defaultValue: false },
       { name: 'enableMarkdown', type: 'boolean', label: 'Enable Markdown', defaultValue: true },
       { name: 'enableFileUpload', type: 'boolean', label: 'Enable File Upload', defaultValue: false },
+      { name: 'processVisibility', type: 'enum', label: 'Agent Process Visibility', defaultValue: 'summary' },
       { name: 'userAvatarUrl', type: 'string', label: 'User Avatar URL' },
       { name: 'userAvatarFallback', type: 'string', label: 'User Avatar Fallback', defaultValue: 'You' },
       { name: 'assistantAvatarUrl', type: 'string', label: 'Assistant Avatar URL' },

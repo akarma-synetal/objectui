@@ -9,7 +9,11 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { renderHook, waitFor, act } from '@testing-library/react';
 
-import { useChatConversation } from '../useChatConversation';
+import {
+  sanitizeChatMessagesForCache,
+  useChatConversation,
+  writeConversationMessagesCache,
+} from '../useChatConversation';
 
 const API_BASE = 'http://ai.test/api/v1/ai';
 const CACHE_PREFIX = 'objectstack:ai-chat-conversation-id';
@@ -68,6 +72,76 @@ describe('useChatConversation', () => {
     ]);
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(fetchMock.mock.calls[0][0]).toBe(`${API_BASE}/conversations/conv-cached`);
+  });
+
+  it('preserves non-text message parts during hydration', async () => {
+    localStorage.setItem(`${CACHE_PREFIX}:u1`, 'conv-tools');
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse({
+        id: 'conv-tools',
+        messages: [
+          {
+            id: 'm1',
+            role: 'assistant',
+            content: [
+              { type: 'tool-query_data', toolCallId: 'tc1', input: { objectName: 'deal' }, output: { count: 3 }, state: 'output-available' },
+              { type: 'text', text: 'Found 3 deals.' },
+            ],
+          },
+        ],
+      }),
+    );
+
+    const { result } = renderHook(() =>
+      useChatConversation({ userId: 'u1', apiBase: API_BASE }),
+    );
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    expect(result.current.initialMessages[0]?.parts).toEqual([
+      { type: 'tool-query_data', toolCallId: 'tc1', input: { objectName: 'deal' }, output: { count: 3 }, state: 'output-available' },
+      { type: 'text', text: 'Found 3 deals.' },
+    ]);
+  });
+
+  it('falls back to the sanitized local message cache when the server has no messages', async () => {
+    localStorage.setItem(`${CACHE_PREFIX}:u1`, 'conv-cached');
+    writeConversationMessagesCache(
+      'conv-cached',
+      sanitizeChatMessagesForCache([
+        { id: 'u1', role: 'user', content: 'count records' },
+        {
+          id: 'a1',
+          role: 'assistant',
+          content: 'Found records.',
+          toolInvocations: [
+            { toolCallId: 'tc1', toolName: 'aggregate_data', state: 'output-available' },
+          ],
+        },
+      ]),
+    );
+    fetchMock.mockResolvedValueOnce(jsonResponse({ id: 'conv-cached', messages: [] }));
+
+    const { result } = renderHook(() =>
+      useChatConversation({ userId: 'u1', apiBase: API_BASE }),
+    );
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    expect(result.current.initialMessages).toEqual([
+      { id: 'u1', role: 'user', parts: [{ type: 'text', text: 'count records' }] },
+      {
+        id: 'a1',
+        role: 'assistant',
+        parts: [
+          { type: 'text', text: 'Found records.' },
+          {
+            type: 'tool-aggregate_data',
+            toolCallId: 'tc1',
+            toolName: 'aggregate_data',
+            state: 'output-available',
+          },
+        ],
+      },
+    ]);
   });
 
   it('falls back to POST when cached id 404s', async () => {

@@ -153,6 +153,8 @@ const schema = {
 | `headers` | object | - | Additional headers for API requests |
 | `body` | object | - | Additional body params for API requests |
 | `maxToolRoundtrips` | number | `5` | Max tool-calling round-trips per message |
+| `surface` | `'card' \| 'plain'` | `'card'` | Controls whether the chat renders as a bordered panel or a frameless full-page workspace |
+| `processVisibility` | `'hidden' \| 'summary' \| 'debug'` | `'summary'` | Controls how much agent reasoning and tool detail is shown |
 | `onError` | function | - | Error callback for streaming/API errors |
 
 ## Operating Modes
@@ -230,7 +232,19 @@ System messages appear centered with muted styling:
 
 ### Tool Messages (AI Mode)
 
-Tool messages represent results from tool invocations during AI streaming. They are generated automatically by the vercel/ai SDK when the backend performs tool calls (e.g., fetching weather, querying a database). The SDK may emit `role: 'tool'` messages as well as populate the assistant message's `toolInvocations` array. In the current chat UI, any non-`user` role (including `tool`) is rendered as an assistant bubble, so if you do not want raw tool messages to appear you should filter them out before rendering and instead rely on the assistant message's `toolInvocations`:
+Tool messages represent results from tool invocations during AI streaming. They are generated automatically by the vercel/ai SDK when the backend performs tool calls (e.g., fetching weather, querying a database). The SDK may emit `role: 'tool'` messages as well as populate the assistant message's `toolInvocations` array.
+
+By default, `ChatbotEnhanced` renders tool invocations as a compact agent activity summary. Repeated calls are grouped, raw tool names are hidden, and reasoning text is not shown. Use `processVisibility="debug"` for developer/admin views that need the full reasoning panel, raw tool names, parameters, and results. Use `processVisibility="hidden"` to suppress non-interactive activity entirely; approval and draft-review actions remain visible.
+
+Use `surface="plain"` for full-page chat workspaces where the surrounding app
+already provides navigation chrome. The default `surface="card"` remains a
+better fit for embedded dashboards, side panels, and floating chat windows.
+
+Console chat surfaces also keep a sanitized browser-side display cache for the
+current conversation. When a conversation can be reopened but the server returns
+no message rows, the UI restores user/assistant text and grouped tool names plus
+states. Reasoning, tool parameters, and raw tool results are not stored in this
+cache.
 
 ```tsx
 {

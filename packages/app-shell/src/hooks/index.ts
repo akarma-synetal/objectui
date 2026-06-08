@@ -18,7 +18,9 @@ export { useRecordApprovals, type ApprovalRequestLite } from './useRecordApprova
 export { useResponsiveSidebar } from './useResponsiveSidebar';
 export { useTrackRouteAsRecent, type UseTrackRouteAsRecentOptions } from './useTrackRouteAsRecent';
 export {
+  sanitizeChatMessagesForCache,
   useChatConversation,
+  writeConversationMessagesCache,
   type HydratedUIMessage,
   type UseChatConversationOptions,
   type UseChatConversationReturn,

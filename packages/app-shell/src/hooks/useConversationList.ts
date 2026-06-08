@@ -43,10 +43,24 @@ interface ServerConversation {
   agentId?: string;
   createdAt?: string;
   updatedAt?: string;
+  preview?: unknown;
   messages?: Array<{ role: string; content: unknown }>;
 }
 
-function extractPreview(messages: ServerConversation['messages']): string | undefined {
+const PLACEHOLDER_TITLES = new Set([
+  'new chat',
+  'new conversation',
+  'untitled',
+  '新对话',
+]);
+
+function isPlaceholderTitle(title: string | undefined): boolean {
+  const normalized = title?.trim().toLowerCase();
+  return !normalized || PLACEHOLDER_TITLES.has(normalized);
+}
+
+function extractPreview(row: ServerConversation): string | undefined {
+  const messages = row.messages;
   if (!messages || messages.length === 0) return undefined;
   // Prefer the most recent user message, fall back to last message.
   for (let i = messages.length - 1; i >= 0; i--) {
@@ -62,6 +76,22 @@ function extractPreview(messages: ServerConversation['messages']): string | unde
 
 function stringifyContent(content: unknown): string | undefined {
   if (typeof content === 'string') return content.slice(0, 140);
+  if (
+    content &&
+    typeof content === 'object' &&
+    'text' in content &&
+    typeof (content as { text?: unknown }).text === 'string'
+  ) {
+    return (content as { text: string }).text.slice(0, 140);
+  }
+  if (
+    content &&
+    typeof content === 'object' &&
+    'parts' in content &&
+    Array.isArray((content as { parts?: unknown }).parts)
+  ) {
+    return stringifyContent((content as { parts: unknown[] }).parts);
+  }
   if (Array.isArray(content)) {
     const text = content
       .map((p) => {
@@ -78,14 +108,29 @@ function stringifyContent(content: unknown): string | undefined {
 }
 
 function normalize(row: ServerConversation): ConversationSummary {
+  const title = row.title?.trim();
+  const preview = extractPreview(row) ?? stringifyContent(row.preview);
   return {
     id: row.id,
-    title: row.title,
+    title: isPlaceholderTitle(title) ? undefined : title,
     agentId: row.agentId,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
-    preview: extractPreview(row.messages),
+    preview,
   };
+}
+
+async function fetchConversationDetail(
+  apiBase: string,
+  id: string,
+): Promise<ConversationSummary | undefined> {
+  const res = await fetch(`${apiBase}/conversations/${encodeURIComponent(id)}`, {
+    credentials: 'include',
+  });
+  if (!res.ok) return undefined;
+  const body = (await res.json()) as ServerConversation | { conversation?: ServerConversation };
+  const row = 'conversation' in body && body.conversation ? body.conversation : body;
+  return normalize(row as ServerConversation);
 }
 
 export function useConversationList(
@@ -165,6 +210,33 @@ export function useConversationList(
           .map(normalize)
           .sort((a, b) => (b.updatedAt ?? '').localeCompare(a.updatedAt ?? ''));
         setConversations(sorted);
+        const needsPreview = sorted
+          .filter((row) => !row.title && !row.preview)
+          .slice(0, 20);
+        if (needsPreview.length > 0) {
+          const details = await Promise.all(
+            needsPreview.map((row) => fetchConversationDetail(apiBase, row.id).catch(() => undefined)),
+          );
+          if (cancelled) return;
+          const byId = new Map(
+            details
+              .filter((row): row is ConversationSummary => Boolean(row?.preview || row?.title))
+              .map((row) => [row.id, row]),
+          );
+          if (byId.size > 0) {
+            setConversations((current) =>
+              current.map((row) => {
+                const detail = byId.get(row.id);
+                if (!detail) return row;
+                return {
+                  ...row,
+                  title: row.title ?? detail.title,
+                  preview: row.preview ?? detail.preview,
+                };
+              }),
+            );
+          }
+        }
       } catch (err) {
         if (cancelled) return;
         setError(err instanceof Error ? err : new Error(String(err)));

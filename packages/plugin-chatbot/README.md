@@ -298,6 +298,49 @@ function MyChat() {
 variant. Both are also used internally by `useObjectChat`, so the
 mapping logic stays consistent across direct and managed usage.
 
+### Surface chrome
+
+`ChatbotEnhanced` defaults to `surface="card"`, which keeps the bordered panel
+chrome suitable for dashboards, sidebars, and floating chat windows. Full-page
+chat routes can use `surface="plain"` to remove the outer panel border and let
+messages, controls, and the prompt input sit in a continuous workspace:
+
+```tsx
+<ChatbotEnhanced
+  messages={messages}
+  surface="plain"
+  hideClearBar
+/>
+```
+
+### Agent process visibility
+
+`ChatbotEnhanced` defaults to an end-user friendly agent process view. Tool
+calls are grouped into a compact activity summary, repeated calls collapse into
+one row, raw tool names are hidden, and reasoning text is not rendered. This
+keeps the final answer as the primary reading target while still showing that
+the assistant is doing work.
+
+Use `processVisibility="debug"` for developer or admin trace surfaces that need
+the full reasoning panel, raw tool names, tool parameters, and tool results:
+
+```tsx
+<ChatbotEnhanced
+  messages={messages}
+  processVisibility="debug"
+/>
+```
+
+Use `processVisibility="hidden"` when a host wants to suppress non-interactive
+agent activity entirely. Human-in-the-loop approvals and draft review actions
+remain visible so users can still complete required decisions.
+
+Console hosts also keep a sanitized browser-side display cache for the active
+conversation. If the backend conversation record is available but returns no
+message rows on refresh, the UI can restore user/assistant text plus grouped
+tool names and states. The cache intentionally omits reasoning, tool
+parameters, and raw tool results.
+
 ## Bundle considerations
 
 This package depends on `streamdown`, `shiki`, `mermaid`, and `katex`

@@ -247,6 +247,7 @@ export const ChatbotSchema = BaseSchema.extend({
   userAvatar: z.string().optional().describe('User avatar URL'),
   assistantAvatar: z.string().optional().describe('Assistant avatar URL'),
   markdown: z.boolean().optional().describe('Enable markdown rendering'),
+  processVisibility: z.enum(['hidden', 'summary', 'debug']).optional().describe('How much agent reasoning/tool detail to show'),
   height: z.union([z.string(), z.number()]).optional().describe('Chatbot height'),
   api: z.string().optional().describe('Backend API endpoint for streaming chat'),
   conversationId: z.string().optional().describe('Conversation ID for multi-turn context'),

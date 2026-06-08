@@ -444,6 +444,7 @@ export type PromptInputProps = Omit<
 > & {
   accept?: string; // e.g., "image/*" or leave undefined for any
   multiple?: boolean;
+  fileInputLabel?: string;
   // When true, accepts drops anywhere on document. Default false (opt-in).
   globalDrop?: boolean;
   // Render a hidden input with given name and keep it in sync for native form posts. Default false.
@@ -465,6 +466,7 @@ export const PromptInput = ({
   className,
   accept,
   multiple,
+  fileInputLabel = "Upload files",
   globalDrop,
   syncHiddenInput,
   maxFiles,
@@ -781,12 +783,12 @@ export const PromptInput = ({
     <>
       <input
         accept={accept}
-        aria-label="Upload files"
+        aria-label={fileInputLabel}
         className="hidden"
         multiple={multiple}
         onChange={handleChange}
         ref={inputRef}
-        title="Upload files"
+        title={fileInputLabel}
         type="file"
       />
       <form
@@ -1417,4 +1419,3 @@ export const PromptInputCommandSeparator = ({
 }: PromptInputCommandSeparatorProps) => (
   <CommandSeparator className={cn(className)} {...props} />
 );
-

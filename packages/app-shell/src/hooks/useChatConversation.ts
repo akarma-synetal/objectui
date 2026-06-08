@@ -12,10 +12,16 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 /** Minimal UIMessage shape compatible with `@ai-sdk/react`'s `useChat`. */
+export interface HydratedUIMessagePart {
+  type: string;
+  text?: string;
+  [key: string]: unknown;
+}
+
 export interface HydratedUIMessage {
   id: string;
   role: 'user' | 'assistant' | 'system';
-  parts: Array<{ type: 'text'; text: string }>;
+  parts: HydratedUIMessagePart[];
 }
 
 export interface UseChatConversationOptions {
@@ -48,7 +54,22 @@ export interface UseChatConversationReturn {
   reset: () => Promise<void>;
 }
 
+interface CacheableChatToolInvocation {
+  toolCallId: string;
+  toolName: string;
+  state?: string;
+  errorText?: string;
+}
+
+interface CacheableChatMessage {
+  id: string;
+  role: 'user' | 'assistant' | 'system';
+  content?: string;
+  toolInvocations?: CacheableChatToolInvocation[];
+}
+
 const CACHE_PREFIX = 'objectstack:ai-chat-conversation-id';
+const MESSAGE_CACHE_PREFIX = 'objectstack:ai-chat-messages';
 
 function cacheKey(userId: string, scope?: string): string {
   return scope ? `${CACHE_PREFIX}:${userId}:${scope}` : `${CACHE_PREFIX}:${userId}`;
@@ -71,6 +92,78 @@ function writeCache(key: string, value: string | undefined): void {
   }
 }
 
+function messageCacheKey(conversationId: string): string {
+  return `${MESSAGE_CACHE_PREFIX}:${conversationId}`;
+}
+
+function readMessageCache(conversationId: string): HydratedUIMessage[] {
+  try {
+    const raw = localStorage.getItem(messageCacheKey(conversationId));
+    if (!raw) return [];
+    const parsed = JSON.parse(raw) as unknown;
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter((msg): msg is HydratedUIMessage => {
+      return (
+        Boolean(msg) &&
+        typeof msg === 'object' &&
+        typeof (msg as { id?: unknown }).id === 'string' &&
+        ((msg as { role?: unknown }).role === 'user' ||
+          (msg as { role?: unknown }).role === 'assistant' ||
+          (msg as { role?: unknown }).role === 'system') &&
+        Array.isArray((msg as { parts?: unknown }).parts)
+      );
+    });
+  } catch {
+    return [];
+  }
+}
+
+export function writeConversationMessagesCache(
+  conversationId: string | undefined,
+  messages: HydratedUIMessage[],
+): void {
+  if (!conversationId) return;
+  try {
+    if (messages.length === 0) {
+      localStorage.removeItem(messageCacheKey(conversationId));
+      return;
+    }
+    localStorage.setItem(messageCacheKey(conversationId), JSON.stringify(messages));
+  } catch {
+    /* ignore — private mode, quota, etc. */
+  }
+}
+
+export function sanitizeChatMessagesForCache(
+  messages: CacheableChatMessage[],
+): HydratedUIMessage[] {
+  return messages
+    .map<HydratedUIMessage | undefined>((message) => {
+      const parts: HydratedUIMessagePart[] = [];
+      if (message.content) {
+        parts.push({ type: 'text', text: message.content });
+      }
+      if (message.role === 'assistant') {
+        for (const tool of message.toolInvocations ?? []) {
+          parts.push({
+            type: `tool-${tool.toolName}`,
+            toolCallId: tool.toolCallId,
+            toolName: tool.toolName,
+            state: tool.state ?? (tool.errorText ? 'output-error' : 'output-available'),
+            ...(tool.errorText ? { errorText: tool.errorText } : {}),
+          });
+        }
+      }
+      if (parts.length === 0) return undefined;
+      return {
+        id: message.id,
+        role: message.role,
+        parts,
+      };
+    })
+    .filter((message): message is HydratedUIMessage => Boolean(message));
+}
+
 interface ServerMessage {
   id?: string;
   role: string;
@@ -82,25 +175,45 @@ interface ServerConversation {
   messages?: ServerMessage[];
 }
 
-function contentToText(content: unknown): string {
-  if (typeof content === 'string') return content;
+function contentToParts(content: unknown): HydratedUIMessagePart[] {
+  if (typeof content === 'string') {
+    return content ? [{ type: 'text', text: content }] : [];
+  }
   if (Array.isArray(content)) {
     return content
-      .map((part) => {
-        if (typeof part === 'string') return part;
+      .map<HydratedUIMessagePart | undefined>((part) => {
+        if (typeof part === 'string') {
+          return part ? { type: 'text', text: part } : undefined;
+        }
+        if (
+          part &&
+          typeof part === 'object' &&
+          'type' in part &&
+          typeof (part as { type?: unknown }).type === 'string'
+        ) {
+          return part as HydratedUIMessagePart;
+        }
         if (
           part &&
           typeof part === 'object' &&
           'text' in part &&
           typeof (part as { text?: unknown }).text === 'string'
         ) {
-          return (part as { text: string }).text;
+          return { type: 'text', text: (part as { text: string }).text };
         }
-        return '';
+        return undefined;
       })
-      .join('');
+      .filter((part): part is HydratedUIMessagePart => Boolean(part));
   }
-  return '';
+  if (
+    content &&
+    typeof content === 'object' &&
+    'parts' in content &&
+    Array.isArray((content as { parts?: unknown }).parts)
+  ) {
+    return contentToParts((content as { parts: unknown[] }).parts);
+  }
+  return [];
 }
 
 function toUIMessages(rows: ServerMessage[] | undefined): HydratedUIMessage[] {
@@ -109,12 +222,12 @@ function toUIMessages(rows: ServerMessage[] | undefined): HydratedUIMessage[] {
   rows.forEach((row, idx) => {
     const role = row.role as HydratedUIMessage['role'];
     if (role !== 'user' && role !== 'assistant' && role !== 'system') return;
-    const text = contentToText(row.content);
-    if (!text) return;
+    const parts = contentToParts(row.content);
+    if (parts.length === 0) return;
     out.push({
       id: row.id ?? `msg-${idx}`,
       role,
-      parts: [{ type: 'text', text }],
+      parts,
     });
   });
   return out;
@@ -194,12 +307,14 @@ export function useChatConversation(
           if (existing) {
             writeCache(key, existing.id);
             setConversationId(existing.id);
-            setInitialMessages(toUIMessages(existing.messages));
+            const messages = toUIMessages(existing.messages);
+            setInitialMessages(messages.length > 0 ? messages : readMessageCache(existing.id));
             resolvedForUserRef.current = userId;
             return;
           }
           // Requested id is gone — fall through to create a fresh one.
           writeCache(key, undefined);
+          writeConversationMessagesCache(activeId, []);
         } else {
           const cached = readCache(key);
           if (cached) {
@@ -207,11 +322,13 @@ export function useChatConversation(
             if (cancelled) return;
             if (existing) {
               setConversationId(existing.id);
-              setInitialMessages(toUIMessages(existing.messages));
+              const messages = toUIMessages(existing.messages);
+              setInitialMessages(messages.length > 0 ? messages : readMessageCache(existing.id));
               resolvedForUserRef.current = userId;
               return;
             }
             writeCache(key, undefined);
+            writeConversationMessagesCache(cached, []);
           }
         }
         const fresh = await createConversation(apiBase);
@@ -245,9 +362,11 @@ export function useChatConversation(
     setIsLoading(true);
     try {
       if (conversationId) await deleteConversation(apiBase, conversationId);
+      writeConversationMessagesCache(conversationId, []);
       writeCache(key, undefined);
       const fresh = await createConversation(apiBase);
       writeCache(key, fresh.id);
+      writeConversationMessagesCache(fresh.id, []);
       if (!mountedRef.current) return;
       setConversationId(fresh.id);
       setInitialMessages([]);

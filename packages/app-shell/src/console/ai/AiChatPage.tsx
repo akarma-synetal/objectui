@@ -32,7 +32,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from '@object-ui/components';
-import { MessageSquare, PanelLeft, Share2 } from 'lucide-react';
+import { PanelLeft, Share2 } from 'lucide-react';
 import {
   ChatbotEnhanced,
   useAgents,
@@ -40,15 +40,85 @@ import {
   useHitlInChat,
   resolveDefaultAgentName,
   type AgentDescriptor,
+  type ChatbotEnhancedToolInvocation,
   type ChatMessage,
 } from '@object-ui/plugin-chatbot';
 
 import { AppHeader } from '../../layout/AppHeader';
 import { useNavigationContext } from '../../context/NavigationContext';
-import { useChatConversation, type HydratedUIMessage } from '../../hooks/useChatConversation';
+import {
+  sanitizeChatMessagesForCache,
+  useChatConversation,
+  writeConversationMessagesCache,
+  type HydratedUIMessage,
+  type HydratedUIMessagePart,
+} from '../../hooks/useChatConversation';
 import { ConversationsSidebar } from './ConversationsSidebar';
 
 const DEFAULT_AI_PATH = '/api/v1/ai';
+
+function partString(part: HydratedUIMessagePart, key: string): string | undefined {
+  const value = part[key];
+  return typeof value === 'string' && value.length > 0 ? value : undefined;
+}
+
+function partToolState(part: HydratedUIMessagePart): ChatbotEnhancedToolInvocation['state'] | undefined {
+  const state = partString(part, 'state');
+  switch (state) {
+    case 'input-streaming':
+    case 'input-available':
+    case 'approval-requested':
+    case 'approval-responded':
+    case 'output-available':
+    case 'output-error':
+    case 'output-denied':
+      return state;
+    default:
+      return undefined;
+  }
+}
+
+function hydratedMessagesToChatMessages(messages: HydratedUIMessage[]): ChatMessage[] {
+  return messages.map((message) => {
+    const toolInvocations: ChatbotEnhancedToolInvocation[] = [];
+    const content = message.parts
+      .filter((part) => part.type === 'text')
+      .map((part) => part.text ?? '')
+      .join('');
+
+    if (message.role === 'assistant') {
+      for (const part of message.parts) {
+        if (!part.type.startsWith('tool-')) continue;
+        const toolName = partString(part, 'toolName') ?? part.type.slice('tool-'.length);
+        const toolCallId = partString(part, 'toolCallId') ?? `${message.id}-${toolName}`;
+        const state = partToolState(part);
+        toolInvocations.push({
+          toolCallId,
+          toolName,
+          ...(state ? { state } : {}),
+          ...(part.errorText ? { errorText: String(part.errorText) } : {}),
+        });
+      }
+    }
+
+    return {
+      id: message.id,
+      role: message.role,
+      content,
+      ...(toolInvocations.length > 0 ? { toolInvocations } : {}),
+    };
+  });
+}
+
+function firstUserMessageText(messages: HydratedUIMessage[]): string | undefined {
+  const message = messages.find((item) => item.role === 'user');
+  const text = message?.parts
+    .filter((part) => part.type === 'text')
+    .map((part) => part.text ?? '')
+    .join('')
+    .trim();
+  return text || undefined;
+}
 
 const PLATFORM_AGENT_LABEL_KEYS: Record<string, { key: string; defaultValue: string }> = {
   data_chat: { key: 'console.ai.agentLabels.dataChat', defaultValue: 'Data Assistant' },
@@ -126,7 +196,7 @@ export function AiChatPage({ apiBase: apiBaseProp, defaultAgent: defaultAgentPro
     ? `${apiBase}/agents/${encodeURIComponent(activeAgent)}/chat`
     : undefined;
 
-  const { conversationId, initialMessages, isLoading: convoLoading } = useChatConversation({
+  const { conversationId, initialMessages } = useChatConversation({
     userId,
     scope: activeAgent,
     apiBase,
@@ -134,6 +204,7 @@ export function AiChatPage({ apiBase: apiBaseProp, defaultAgent: defaultAgentPro
   });
 
   const [refreshKey, setRefreshKey] = useState(0);
+  const [titleHints, setTitleHints] = useState<Record<string, string>>({});
   const [shareOpen, setShareOpen] = useState(false);
   const [mobileChatsOpen, setMobileChatsOpen] = useState(false);
   const restApiBase = useMemo(
@@ -159,10 +230,22 @@ export function AiChatPage({ apiBase: apiBaseProp, defaultAgent: defaultAgentPro
     }
   }, [conversationId, initialMessages.length]);
 
+  useEffect(() => {
+    if (!conversationId) return;
+    const hint = firstUserMessageText(initialMessages);
+    if (!hint) return;
+    setTitleHints((current) =>
+      current[conversationId] === hint ? current : { ...current, [conversationId]: hint },
+    );
+  }, [conversationId, initialMessages]);
+
   const handleSent = useCallback(
     (firstUserMessage?: string) => {
       // New user turn → bump sidebar list so the row's preview/timestamp refreshes.
       setRefreshKey((k) => k + 1);
+      if (firstUserMessage && conversationId) {
+        setTitleHints((current) => ({ ...current, [conversationId]: firstUserMessage }));
+      }
 
       // Server now generates a concise LLM-summarised title fire-and-forget
       // after the first assistant turn lands (see service-ai
@@ -197,29 +280,8 @@ export function AiChatPage({ apiBase: apiBaseProp, defaultAgent: defaultAgentPro
         >
           <PanelLeft className="h-4 w-4" />
         </Button>
-        <AppHeader variant="home" />
-        <div className="hidden min-w-0 border-l pl-3 sm:flex sm:flex-col">
-          <div className="flex items-center gap-1.5 text-sm font-medium leading-none">
-            <MessageSquare className="h-3.5 w-3.5 text-muted-foreground" />
-            {t('console.ai.workspaceTitle')}
-          </div>
-          <div className="mt-1 truncate text-[11px] text-muted-foreground">
-            {t('console.ai.workspaceSubtitle')}
-          </div>
-        </div>
-        <div className="ml-auto flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-8 gap-1.5"
-            onClick={() => setShareOpen(true)}
-            disabled={!conversationId}
-            data-testid="ai-chat-share-button"
-            title={conversationId ? t('console.ai.shareTitle') : t('console.ai.shareDisabledTitle')}
-          >
-            <Share2 className="h-3.5 w-3.5" />
-            {t('console.ai.share')}
-          </Button>
+        <div className="min-w-0 flex-1">
+          <AppHeader variant="home" />
         </div>
       </header>
       <Sheet open={mobileChatsOpen} onOpenChange={setMobileChatsOpen}>
@@ -232,6 +294,7 @@ export function AiChatPage({ apiBase: apiBaseProp, defaultAgent: defaultAgentPro
             userId={userId}
             apiBase={apiBase}
             refreshKey={refreshKey}
+            titleHints={titleHints}
             className="h-full border-r-0"
             onNavigate={() => setMobileChatsOpen(false)}
           />
@@ -252,6 +315,7 @@ export function AiChatPage({ apiBase: apiBaseProp, defaultAgent: defaultAgentPro
           userId={userId}
           apiBase={apiBase}
           refreshKey={refreshKey}
+          titleHints={titleHints}
           className="hidden w-72 shrink-0 border-r md:flex"
         />
         <main className="flex min-w-0 flex-1 flex-col">
@@ -266,8 +330,8 @@ export function AiChatPage({ apiBase: apiBaseProp, defaultAgent: defaultAgentPro
             apiBase={apiBase}
             conversationId={conversationId}
             initialMessages={initialMessages}
-            hydrating={convoLoading}
             onSent={handleSent}
+            onShare={() => setShareOpen(true)}
           />
         </main>
       </div>
@@ -285,8 +349,8 @@ interface ChatPaneProps {
   apiBase: string;
   conversationId: string | undefined;
   initialMessages: HydratedUIMessage[];
-  hydrating: boolean;
   onSent: (firstUserMessage?: string) => void;
+  onShare: () => void;
 }
 
 function ChatPane({
@@ -299,8 +363,8 @@ function ChatPane({
   apiBase,
   conversationId,
   initialMessages,
-  hydrating,
   onSent,
+  onShare,
 }: ChatPaneProps) {
   const { t } = useObjectTranslation();
   const activeAgentLabel = useMemo<string>(() => {
@@ -309,11 +373,7 @@ function ChatPane({
   }, [agents, activeAgent, t]);
 
   const hydrated = useMemo<ChatMessage[]>(() => {
-    return initialMessages.map((m) => ({
-      id: m.id,
-      role: m.role,
-      content: m.parts.map((p) => p.text).join(''),
-    }));
+    return hydratedMessagesToChatMessages(initialMessages);
   }, [initialMessages]);
 
   const suggestions = useMemo<string[] | undefined>(() => {
@@ -344,6 +404,13 @@ function ChatPane({
     autoResponseDelay: 600,
   });
 
+  useEffect(() => {
+    writeConversationMessagesCache(
+      conversationId,
+      sanitizeChatMessagesForCache(messages as ChatMessage[]),
+    );
+  }, [conversationId, messages]);
+
   const hitl = useHitlInChat({
     messages: messages as ChatMessage[],
     apiBase,
@@ -360,53 +427,68 @@ function ChatPane({
     [sendMessage, onSent],
   );
 
-  const headerSlot =
-    agents.length > 0 ? (
-      <div className="flex flex-wrap items-center justify-between gap-2 border-b bg-background/80 px-3 py-2 sm:px-4">
-        <div className="min-w-0">
-          <div className="text-xs font-medium leading-none">{activeAgentLabel}</div>
-          <div className="mt-1 text-[10px] text-muted-foreground">
-            {hydrating
-              ? t('console.ai.loadingHistory')
-              : conversationId
-                ? t('console.ai.conversationReady')
-                : t('console.ai.preparingConversation')}
-          </div>
-        </div>
-        <Select value={activeAgent} onValueChange={onAgentChange} disabled={agentsLoading}>
-          <SelectTrigger className="h-7 w-full text-xs sm:w-[220px]" data-testid="ai-chat-agent-picker">
-            <SelectValue placeholder="Choose agent..." />
-          </SelectTrigger>
-          <SelectContent align="start">
-            {agents.map((agent) => (
-              <SelectItem key={agent.name} value={agent.name} className="text-xs">
-                <span className="font-medium">
-                  {localizeAgentLabel(t, agent.name, agent.label)}
-                </span>
-                {agent.description ? (
-                  <span className="block text-muted-foreground text-[10px] truncate max-w-[260px]">
-                    {agent.description}
+  const headerSlot = (
+    <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/50 px-4 pb-2 pt-3 sm:px-6">
+      <div className="flex min-w-0 flex-1 items-center gap-2">
+        {agents.length > 0 ? (
+          <Select value={activeAgent} onValueChange={onAgentChange} disabled={agentsLoading}>
+            <SelectTrigger
+              className="h-7 w-auto min-w-0 border-0 bg-transparent px-1.5 text-xs shadow-none hover:bg-accent focus:ring-0 focus:ring-offset-0 focus-visible:ring-1 focus-visible:ring-border/80 focus-visible:ring-offset-0 sm:min-w-[160px]"
+              data-testid="ai-chat-agent-picker"
+            >
+              <SelectValue placeholder="Choose agent..." />
+            </SelectTrigger>
+            <SelectContent align="start">
+              {agents.map((agent) => (
+                <SelectItem key={agent.name} value={agent.name} className="text-xs">
+                  <span className="font-medium">
+                    {localizeAgentLabel(t, agent.name, agent.label)}
                   </span>
-                ) : null}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        {agentsError ? (
-          <span
-            className="text-[10px] text-amber-700 dark:text-amber-400"
-            title={agentsError.message}
-          >
-            {t('console.ai.offlineDemoMode')}
+                  {agent.description ? (
+                    <span className="block text-muted-foreground text-[10px] truncate max-w-[260px]">
+                      {agent.description}
+                    </span>
+                  ) : null}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        ) : (
+          <span className="truncate text-xs font-medium text-foreground/85">
+            {activeAgentLabel}
           </span>
-        ) : null}
+        )}
       </div>
-    ) : null;
+      <div className="flex shrink-0 items-center gap-1">
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-7 w-7 text-muted-foreground hover:text-foreground"
+          onClick={onShare}
+          disabled={!conversationId}
+          aria-label={t('console.ai.share')}
+          data-testid="ai-chat-share-button"
+          title={conversationId ? t('console.ai.shareTitle') : t('console.ai.shareDisabledTitle')}
+        >
+          <Share2 className="h-3.5 w-3.5" />
+        </Button>
+      </div>
+      {agentsError ? (
+        <span
+          className="basis-full text-[10px] text-amber-700 dark:text-amber-400"
+          title={agentsError.message}
+        >
+          {t('console.ai.offlineDemoMode')}
+        </span>
+      ) : null}
+    </div>
+  );
 
   return (
-    <div className="flex min-h-0 flex-1 justify-center px-0 md:px-4 md:py-4">
+    <div className="flex min-h-0 flex-1 justify-center px-0">
       <ChatbotEnhanced
-        className="min-h-0 flex-1 rounded-none border-0 bg-background shadow-none md:max-w-5xl md:rounded-md md:border md:shadow-sm"
+        className="min-h-0 flex-1 bg-background md:max-w-5xl"
+        surface="plain"
         maxHeight="100%"
         headerSlot={headerSlot}
         messages={messages as ChatMessage[]}
@@ -422,10 +504,26 @@ function ChatPane({
           emptyDescription: t('console.ai.emptyDescription'),
           clear: t('console.ai.clearConversation'),
           sendHint: t('console.ai.sendHint'),
+          agentActivity: t('console.ai.agentActivity'),
+          toolCompleted: t('console.ai.toolCompleted'),
+          toolRunning: t('console.ai.toolRunning'),
+          toolAwaitingApproval: t('console.ai.toolAwaitingApproval'),
+          toolFailed: t('console.ai.toolFailed'),
+          toolDetailsHidden: t('console.ai.toolDetailsHidden'),
+          copy: t('console.ai.copy'),
+          copied: t('console.ai.copied'),
+          regenerate: t('console.ai.regenerate'),
+          model: t('console.ai.model'),
+          submit: t('console.ai.submit'),
+          uploadFiles: t('console.ai.uploadFiles'),
+          stopResponse: t('console.ai.stopResponse'),
+          trace: t('console.ai.trace'),
+          viewTrace: t('console.ai.viewTrace'),
         }}
         suggestions={suggestions}
         onSendMessage={handleSend}
         onClear={clear}
+        hideClearBar
         onStop={isLoading ? stop : undefined}
         onReload={reload}
         isLoading={isLoading}
