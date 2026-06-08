@@ -19,7 +19,7 @@
  */
 import * as React from 'react';
 import { cn } from '@object-ui/components';
-import { AlertCircle, Copy, Check, RefreshCw, CornerDownLeft, Bot, GitCompareArrows, Rocket } from 'lucide-react';
+import { AlertCircle, Copy, Check, RefreshCw, CornerDownLeft, Bot, GitCompareArrows, Rocket, Clock3, CheckCircle2, XCircle } from 'lucide-react';
 import type { ChatStatus } from 'ai';
 import {
   humanizeToolName,
@@ -156,7 +156,40 @@ export interface ChatbotLabels {
   clear?: string;
   /** Trailing hint next to the send button (e.g. "to send"). */
   sendHint?: string;
+  /** Compact agent activity heading shown in summary mode. */
+  agentActivity?: string;
+  /** Status label for completed tool work. */
+  toolCompleted?: string;
+  /** Status label for running tool work. */
+  toolRunning?: string;
+  /** Status label for tool work waiting for approval. */
+  toolAwaitingApproval?: string;
+  /** Status label for failed tool work. */
+  toolFailed?: string;
+  /** Helper text explaining that raw internals are hidden. */
+  toolDetailsHidden?: string;
+  /** Message action label for copying assistant text. */
+  copy?: string;
+  /** Message action label shown after a successful copy. */
+  copied?: string;
+  /** Message action label for regenerating the last assistant response. */
+  regenerate?: string;
+  /** Accessible label for the model picker. */
+  model?: string;
+  /** Accessible label for the submit button. */
+  submit?: string;
+  /** Accessible label for the attachment file picker. */
+  uploadFiles?: string;
+  /** Accessible label for the stop-streaming button. */
+  stopResponse?: string;
+  /** Trace link label in debug mode. */
+  trace?: string;
+  /** Trace link tooltip in debug mode. */
+  viewTrace?: string;
 }
+
+export type ChatbotProcessVisibility = 'hidden' | 'summary' | 'debug';
+export type ChatbotSurface = 'card' | 'plain';
 
 export interface ChatbotEnhancedProps extends React.HTMLAttributes<HTMLDivElement> {
   messages?: ChatMessage[];
@@ -277,6 +310,21 @@ export interface ChatbotEnhancedProps extends React.HTMLAttributes<HTMLDivElemen
   onPublishDrafts?: (packageId: string) => void;
   /** Label for the publish-drafts button (default "Publish"). */
   publishDraftsLabel?: string;
+  /**
+   * Controls how agent internals are exposed. `summary` keeps end-user chat
+   * readable by grouping repeated tool calls and hiding raw args/results.
+   * Use `debug` for developer/admin trace views.
+   *
+   * @default 'summary'
+   */
+  processVisibility?: ChatbotProcessVisibility;
+  /**
+   * Visual chrome for the chat surface. `card` keeps the embeddable bordered
+   * panel; `plain` removes panel chrome for full-page chat workspaces.
+   *
+   * @default 'card'
+   */
+  surface?: ChatbotSurface;
 }
 
 export type ToolDecisionState =
@@ -312,6 +360,90 @@ function looksLikeJson(text: string): boolean {
   } catch {
     return false;
   }
+}
+
+type ToolSummaryState = 'running' | 'awaiting' | 'completed' | 'failed';
+
+interface ToolSummaryGroup {
+  key: string;
+  title: string;
+  rawName: string;
+  count: number;
+  state: ToolSummaryState;
+  errorText?: string;
+}
+
+function getToolState(tool: ChatToolInvocation): ToolSummaryState {
+  const state =
+    tool.state ??
+    (tool.errorText
+      ? 'output-error'
+      : tool.result !== undefined
+        ? 'output-available'
+        : 'input-available');
+
+  if (state === 'output-error' || state === 'output-denied') {
+    return 'failed';
+  }
+  if (state === 'approval-requested' || state === 'approval-responded') {
+    return 'awaiting';
+  }
+  if (state === 'output-available') {
+    return 'completed';
+  }
+  return 'running';
+}
+
+function shouldRenderDetailedTool(tool: ChatToolInvocation): boolean {
+  const state = getToolState(tool);
+  return (
+    state === 'awaiting' ||
+    state === 'failed' ||
+    Boolean(tool.pendingActionId) ||
+    Boolean(tool.draftReview?.items.length)
+  );
+}
+
+function getToolStateRank(state: ToolSummaryState): number {
+  switch (state) {
+    case 'failed':
+      return 4;
+    case 'awaiting':
+      return 3;
+    case 'running':
+      return 2;
+    case 'completed':
+      return 1;
+  }
+}
+
+function summarizeTools(tools: ChatToolInvocation[]): ToolSummaryGroup[] {
+  const groups = new Map<string, ToolSummaryGroup>();
+
+  for (const tool of tools) {
+    const state = getToolState(tool);
+    const key = `${tool.toolName}:${state}`;
+    const existing = groups.get(key);
+    if (existing) {
+      existing.count += 1;
+      existing.errorText = existing.errorText ?? tool.errorText;
+      continue;
+    }
+    groups.set(key, {
+      key,
+      title: humanizeToolName(tool.toolName) || tool.toolName,
+      rawName: tool.toolName,
+      count: 1,
+      state,
+      errorText: tool.errorText,
+    });
+  }
+
+  return Array.from(groups.values()).sort((a, b) => {
+    const byRank = getToolStateRank(b.state) - getToolStateRank(a.state);
+    if (byRank !== 0) return byRank;
+    return a.title.localeCompare(b.title);
+  });
 }
 
 const ChatbotEnhanced = React.forwardRef<HTMLDivElement, ChatbotEnhancedProps>(
@@ -356,11 +488,14 @@ const ChatbotEnhanced = React.forwardRef<HTMLDivElement, ChatbotEnhancedProps>(
       toolReviewLabel = (n) => `Review ${n} change${n === 1 ? '' : 's'}`,
       onPublishDrafts,
       publishDraftsLabel = 'Publish',
+      processVisibility = 'summary',
+      surface = 'card',
       ...props
     },
     ref
   ) => {
     const promptStatus: ChatStatus = isLoading ? 'streaming' : 'ready';
+    const isPlainSurface = surface === 'plain';
     const [copiedId, setCopiedId] = React.useState<string | null>(null);
 
     // Resolve localizable strings once, English defaults preserved.
@@ -372,6 +507,23 @@ const ChatbotEnhanced = React.forwardRef<HTMLDivElement, ChatbotEnhancedProps>(
           'Ask anything — the assistant has access to your current app context.',
         clear: labels?.clear ?? 'Clear',
         sendHint: labels?.sendHint ?? 'to send',
+        agentActivity: labels?.agentActivity ?? 'Agent activity',
+        toolCompleted: labels?.toolCompleted ?? 'Completed',
+        toolRunning: labels?.toolRunning ?? 'Running',
+        toolAwaitingApproval: labels?.toolAwaitingApproval ?? 'Awaiting approval',
+        toolFailed: labels?.toolFailed ?? 'Failed',
+        toolDetailsHidden:
+          labels?.toolDetailsHidden ??
+          'Detailed tool inputs and outputs are hidden in this view.',
+        copy: labels?.copy ?? 'Copy',
+        copied: labels?.copied ?? 'Copied',
+        regenerate: labels?.regenerate ?? 'Regenerate',
+        model: labels?.model ?? 'Model',
+        submit: labels?.submit ?? 'Submit',
+        uploadFiles: labels?.uploadFiles ?? 'Upload files',
+        stopResponse: labels?.stopResponse ?? 'Stop response',
+        trace: labels?.trace ?? 'trace',
+        viewTrace: labels?.viewTrace ?? 'View trace',
       }),
       [labels],
     );
@@ -402,18 +554,175 @@ const ChatbotEnhanced = React.forwardRef<HTMLDivElement, ChatbotEnhancedProps>(
       window.setTimeout(() => setCopiedId((prev) => (prev === message.id ? null : prev)), 1500);
     }, []);
 
+    const renderToolDetail = (tool: ChatToolInvocation) => {
+      const state =
+        tool.state ??
+        (tool.errorText
+          ? 'output-error'
+          : tool.result !== undefined
+            ? 'output-available'
+            : 'input-available');
+      const partType = `tool-${tool.toolName}` as `tool-${string}`;
+      const decision = toolDecisions?.[tool.toolCallId];
+      const isAwaitingApproval =
+        state === 'approval-requested' && Boolean(onToolApprove) && !decision;
+      const hidePendingPayload =
+        state === 'approval-requested' && Boolean(tool.pendingActionId);
+      const friendlyTitle = humanizeToolName(tool.toolName);
+      const renderableResult = unwrapToolResult(tool.result);
+      const showRawName =
+        processVisibility === 'debug' &&
+        friendlyTitle &&
+        friendlyTitle.toLowerCase() !== tool.toolName.toLowerCase();
+      const showPayload =
+        processVisibility === 'debug' ||
+        isAwaitingApproval ||
+        Boolean(tool.draftReview?.items.length);
+      const titleNode = (
+        <span className="inline-flex items-center gap-2">
+          <span>{friendlyTitle || tool.toolName}</span>
+          {showRawName ? (
+            <code className="rounded bg-muted px-1 py-px text-[10px] font-mono text-muted-foreground">
+              {tool.toolName}
+            </code>
+          ) : null}
+        </span>
+      );
+
+      return (
+        <Tool
+          key={tool.toolCallId}
+          defaultOpen={
+            state === 'output-error' ||
+            state === 'approval-requested' ||
+            Boolean(tool.draftReview && tool.draftReview.items.length > 0)
+          }
+        >
+          <ToolHeader type={partType} state={state} title={titleNode} />
+          <ToolContent>
+            {showPayload && tool.args !== undefined ? (
+              <ToolInput input={tool.args} />
+            ) : null}
+            {hidePendingPayload ? null : showPayload || state === 'output-error' ? (
+              <SmartToolOutput
+                output={renderableResult}
+                errorText={tool.errorText}
+              />
+            ) : null}
+            {decision ? (
+              <div
+                className={
+                  'flex items-center gap-2 p-3 border-t text-xs ' +
+                  (decision.state === 'error'
+                    ? 'bg-destructive/10 text-destructive'
+                    : decision.state === 'success'
+                      ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400'
+                      : 'bg-muted/30 text-muted-foreground')
+                }
+              >
+                <span aria-hidden="true">
+                  {decision.state === 'pending'
+                    ? '...'
+                    : decision.state === 'success'
+                      ? 'OK'
+                      : 'X'}
+                </span>
+                <span>
+                  {decision.message ??
+                    (decision.state === 'pending'
+                      ? 'Submitting decision...'
+                      : decision.state === 'success'
+                        ? 'Action approved and executed.'
+                        : 'Decision failed.')}
+                </span>
+              </div>
+            ) : null}
+            {isAwaitingApproval ? (
+              <div className="flex gap-2 p-3 border-t bg-muted/30">
+                <button
+                  type="button"
+                  onClick={() => onToolApprove?.(tool.toolCallId, true)}
+                  className="inline-flex h-7 items-center rounded-md bg-primary px-3 text-xs font-medium text-primary-foreground hover:bg-primary/90"
+                >
+                  {toolApproveLabel}
+                </button>
+                <button
+                  type="button"
+                  onClick={() =>
+                    onToolApprove?.(
+                      tool.toolCallId,
+                      false,
+                      toolDenyReason,
+                    )
+                  }
+                  className="inline-flex h-7 items-center rounded-md border bg-background px-3 text-xs font-medium hover:bg-accent"
+                >
+                  {toolDenyLabel}
+                </button>
+              </div>
+            ) : null}
+            {tool.draftReview &&
+            tool.draftReview.items.length > 0 &&
+            (onReviewDraft ||
+              (onPublishDrafts && tool.draftReview.packageId)) ? (
+              <div className="flex items-center gap-2 p-3 border-t bg-muted/30">
+                {onPublishDrafts && tool.draftReview.packageId ? (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      onPublishDrafts(tool.draftReview!.packageId!)
+                    }
+                    className="inline-flex h-7 items-center gap-1.5 rounded-md bg-primary px-3 text-xs font-medium text-primary-foreground hover:bg-primary/90"
+                  >
+                    <Rocket className="size-3.5" />
+                    {publishDraftsLabel}
+                  </button>
+                ) : null}
+                {onReviewDraft ? (
+                  <button
+                    type="button"
+                    onClick={() => onReviewDraft(tool.draftReview!.items)}
+                    className={
+                      onPublishDrafts && tool.draftReview.packageId
+                        ? 'inline-flex h-7 items-center gap-1.5 rounded-md border px-3 text-xs font-medium hover:bg-muted'
+                        : 'inline-flex h-7 items-center gap-1.5 rounded-md bg-primary px-3 text-xs font-medium text-primary-foreground hover:bg-primary/90'
+                    }
+                  >
+                    <GitCompareArrows className="size-3.5" />
+                    {toolReviewLabel(tool.draftReview.items.length)}
+                  </button>
+                ) : null}
+                {tool.draftReview.summary ? (
+                  <span className="truncate text-xs text-muted-foreground">
+                    {tool.draftReview.summary}
+                  </span>
+                ) : null}
+              </div>
+            ) : null}
+          </ToolContent>
+        </Tool>
+      );
+    };
+
     return (
       <div
         ref={ref}
         className={cn(
-          'flex min-h-0 flex-col overflow-hidden rounded-lg border bg-background',
+          isPlainSurface
+            ? 'flex min-h-0 flex-col overflow-hidden bg-background'
+            : 'flex min-h-0 flex-col overflow-hidden rounded-lg border bg-background',
           className
         )}
         style={{ maxHeight }}
         {...props}
       >
         {onClear && !hideClearBar && messages.length > 0 && (
-          <div className="flex items-center justify-end px-4 py-2 border-b bg-muted/30">
+          <div
+            className={cn(
+              'flex items-center justify-end px-4 py-2',
+              isPlainSurface ? 'bg-background' : 'border-b bg-muted/30',
+            )}
+          >
             <button
               type="button"
               onClick={onClear}
@@ -425,35 +734,45 @@ const ChatbotEnhanced = React.forwardRef<HTMLDivElement, ChatbotEnhancedProps>(
         )}
 
         {headerSlot ? (
-          <div className="shrink-0 border-b bg-background/50">{headerSlot}</div>
+          <div className={cn('shrink-0', !isPlainSurface && 'border-b bg-background/50')}>
+            {headerSlot}
+          </div>
         ) : null}
 
         <Conversation className="flex-1 min-h-0">
-          <ConversationContent className="space-y-4 px-4 py-3">
+          <ConversationContent
+            className={cn(
+              'space-y-4',
+              isPlainSurface
+                ? 'mx-auto w-full max-w-2xl px-4 py-8 sm:px-0'
+                : 'px-4 py-3',
+            )}
+          >
             {messages.length === 0 ? (
-              <ConversationEmptyState className="gap-4">
-                <div className="flex size-12 items-center justify-center rounded-full bg-primary/10 text-primary">
+              <ConversationEmptyState className="gap-3 px-0 py-8">
+                <div className="flex size-9 items-center justify-center rounded-md bg-muted/70 text-muted-foreground">
                   {assistantAvatarUrl ? (
                     <img
                       src={assistantAvatarUrl}
                       alt=""
-                      className="size-full rounded-full object-cover"
+                      className="size-full rounded-md object-cover"
                     />
                   ) : (
-                    <Bot className="size-6" />
+                    <Bot className="size-4" />
                   )}
                 </div>
                 <div className="space-y-1">
-                  <h3 className="font-medium text-sm">{L.emptyTitle}</h3>
-                  <p className="text-muted-foreground text-sm">
+                  <h3 className="text-sm font-medium text-foreground/90">{L.emptyTitle}</h3>
+                  <p className="text-sm text-muted-foreground">
                     {L.emptyDescription}
                   </p>
                 </div>
                 {suggestions && suggestions.length > 0 ? (
-                  <Suggestions className="justify-center">
+                  <Suggestions className="justify-center gap-2">
                     {suggestions.map((s) => (
                       <Suggestion
                         key={s}
+                        className="h-8 border-border/60 bg-background/80 px-3 text-xs font-medium text-foreground/90 shadow-none hover:bg-muted/60"
                         suggestion={s}
                         onClick={handleSuggestionClick}
                       />
@@ -473,6 +792,16 @@ const ChatbotEnhanced = React.forwardRef<HTMLDivElement, ChatbotEnhancedProps>(
                   !message.content &&
                   tools.length === 0 &&
                   !reasoning;
+                const summaryTools =
+                  !isUser && processVisibility === 'summary'
+                    ? tools.filter((tool) => !shouldRenderDetailedTool(tool))
+                    : [];
+                const detailedTools =
+                  !isUser && processVisibility === 'debug'
+                    ? tools
+                    : !isUser && processVisibility !== 'debug'
+                      ? tools.filter(shouldRenderDetailedTool)
+                      : [];
                 return (
                   <Message key={message.id} from={formatMessageProps(message.role)}>
                     <div
@@ -499,7 +828,7 @@ const ChatbotEnhanced = React.forwardRef<HTMLDivElement, ChatbotEnhancedProps>(
                         )}
                       >
                     <MessageContent>
-                      {!isUser && reasoning ? (
+                      {!isUser && processVisibility === 'debug' && reasoning ? (
                         <Reasoning
                           isStreaming={Boolean(message.streaming) && !message.content}
                           className="mb-2"
@@ -508,156 +837,14 @@ const ChatbotEnhanced = React.forwardRef<HTMLDivElement, ChatbotEnhancedProps>(
                           <ReasoningContent>{reasoning}</ReasoningContent>
                         </Reasoning>
                       ) : null}
-                      {!isUser && tools.length > 0
-                        ? tools.map((tool) => {
-                            const state =
-                              tool.state ??
-                              (tool.errorText
-                                ? 'output-error'
-                                : tool.result !== undefined
-                                  ? 'output-available'
-                                  : 'input-available');
-                            const partType = `tool-${tool.toolName}` as `tool-${string}`;
-                            const decision = toolDecisions?.[tool.toolCallId];
-                            const isAwaitingApproval =
-                              state === 'approval-requested' && Boolean(onToolApprove) && !decision;
-                            const hidePendingPayload =
-                              state === 'approval-requested' && Boolean(tool.pendingActionId);
-                            const friendlyTitle = humanizeToolName(tool.toolName);
-                            const renderableResult = unwrapToolResult(tool.result);
-                            const titleNode = (
-                              <span className="inline-flex items-center gap-2">
-                                <span>{friendlyTitle || tool.toolName}</span>
-                                {friendlyTitle && friendlyTitle.toLowerCase() !== tool.toolName.toLowerCase() ? (
-                                  <code className="rounded bg-muted px-1 py-px text-[10px] font-mono text-muted-foreground">
-                                    {tool.toolName}
-                                  </code>
-                                ) : null}
-                              </span>
-                            );
-                            return (
-                              <Tool
-                                key={tool.toolCallId}
-                                defaultOpen={
-                                  state === 'output-error' ||
-                                  state === 'approval-requested' ||
-                                  // Surface pending draft actions (Publish / Review)
-                                  // immediately — they live inside ToolContent, so a
-                                  // collapsed card hides the primary CTA from the user.
-                                  Boolean(tool.draftReview && tool.draftReview.items.length > 0)
-                                }
-                              >
-                                <ToolHeader
-                                  type={partType}
-                                  state={state}
-                                  title={titleNode}
-                                />
-                                <ToolContent>
-                                  {tool.args !== undefined ? (
-                                    <ToolInput input={tool.args} />
-                                  ) : null}
-                                  {hidePendingPayload ? null : (
-                                    <SmartToolOutput
-                                      output={renderableResult}
-                                      errorText={tool.errorText}
-                                    />
-                                  )}
-                                  {decision ? (
-                                    <div
-                                      className={
-                                        'flex items-center gap-2 p-3 border-t text-xs ' +
-                                        (decision.state === 'error'
-                                          ? 'bg-destructive/10 text-destructive'
-                                          : decision.state === 'success'
-                                            ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400'
-                                            : 'bg-muted/30 text-muted-foreground')
-                                      }
-                                    >
-                                      <span aria-hidden="true">
-                                        {decision.state === 'pending'
-                                          ? '⏳'
-                                          : decision.state === 'success'
-                                            ? '✓'
-                                            : '✗'}
-                                      </span>
-                                      <span>
-                                        {decision.message ??
-                                          (decision.state === 'pending'
-                                            ? 'Submitting decision…'
-                                            : decision.state === 'success'
-                                              ? 'Action approved and executed.'
-                                              : 'Decision failed.')}
-                                      </span>
-                                    </div>
-                                  ) : null}
-                                  {isAwaitingApproval ? (
-                                    <div className="flex gap-2 p-3 border-t bg-muted/30">
-                                      <button
-                                        type="button"
-                                        onClick={() =>
-                                          onToolApprove?.(tool.toolCallId, true)
-                                        }
-                                        className="inline-flex h-7 items-center rounded-md bg-primary px-3 text-xs font-medium text-primary-foreground hover:bg-primary/90"
-                                      >
-                                        {toolApproveLabel}
-                                      </button>
-                                      <button
-                                        type="button"
-                                        onClick={() =>
-                                          onToolApprove?.(
-                                            tool.toolCallId,
-                                            false,
-                                            toolDenyReason,
-                                          )
-                                        }
-                                        className="inline-flex h-7 items-center rounded-md border bg-background px-3 text-xs font-medium hover:bg-accent"
-                                      >
-                                        {toolDenyLabel}
-                                      </button>
-                                    </div>
-                                  ) : null}
-                                  {tool.draftReview &&
-                                  tool.draftReview.items.length > 0 &&
-                                  (onReviewDraft ||
-                                    (onPublishDrafts && tool.draftReview.packageId)) ? (
-                                    <div className="flex items-center gap-2 p-3 border-t bg-muted/30">
-                                      {onPublishDrafts && tool.draftReview.packageId ? (
-                                        <button
-                                          type="button"
-                                          onClick={() =>
-                                            onPublishDrafts(tool.draftReview!.packageId!)
-                                          }
-                                          className="inline-flex h-7 items-center gap-1.5 rounded-md bg-primary px-3 text-xs font-medium text-primary-foreground hover:bg-primary/90"
-                                        >
-                                          <Rocket className="size-3.5" />
-                                          {publishDraftsLabel}
-                                        </button>
-                                      ) : null}
-                                      {onReviewDraft ? (
-                                        <button
-                                          type="button"
-                                          onClick={() => onReviewDraft(tool.draftReview!.items)}
-                                          className={
-                                            onPublishDrafts && tool.draftReview.packageId
-                                              ? 'inline-flex h-7 items-center gap-1.5 rounded-md border px-3 text-xs font-medium hover:bg-muted'
-                                              : 'inline-flex h-7 items-center gap-1.5 rounded-md bg-primary px-3 text-xs font-medium text-primary-foreground hover:bg-primary/90'
-                                          }
-                                        >
-                                          <GitCompareArrows className="size-3.5" />
-                                          {toolReviewLabel(tool.draftReview.items.length)}
-                                        </button>
-                                      ) : null}
-                                      {tool.draftReview.summary ? (
-                                        <span className="truncate text-xs text-muted-foreground">
-                                          {tool.draftReview.summary}
-                                        </span>
-                                      ) : null}
-                                    </div>
-                                  ) : null}
-                                </ToolContent>
-                              </Tool>
-                            );
-                          })
+                      {!isUser && processVisibility === 'summary' && summaryTools.length > 0 ? (
+                        <ToolActivitySummary
+                          groups={summarizeTools(summaryTools)}
+                          labels={L}
+                        />
+                      ) : null}
+                      {!isUser && detailedTools.length > 0
+                        ? detailedTools.map(renderToolDetail)
                         : null}
                       {isUser ? (
                         message.content ? (
@@ -697,8 +884,8 @@ const ChatbotEnhanced = React.forwardRef<HTMLDivElement, ChatbotEnhancedProps>(
                     {!isUser && !isEmptyAssistantStreaming ? (
                       <MessageActions className="opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100">
                         <MessageAction
-                          label="Copy"
-                          tooltip="Copy"
+                          label={copiedId === message.id ? L.copied : L.copy}
+                          tooltip={copiedId === message.id ? L.copied : L.copy}
                           onClick={() => handleCopy(message)}
                         >
                           {copiedId === message.id ? (
@@ -709,21 +896,21 @@ const ChatbotEnhanced = React.forwardRef<HTMLDivElement, ChatbotEnhancedProps>(
                         </MessageAction>
                         {onReload ? (
                           <MessageAction
-                            label="Regenerate"
-                            tooltip="Regenerate"
+                            label={L.regenerate}
+                            tooltip={L.regenerate}
                             onClick={onReload}
                           >
                             <RefreshCw className="size-3.5" />
                           </MessageAction>
                         ) : null}
-                        {message.traceId ? (
+                        {processVisibility === 'debug' && message.traceId ? (
                           <a
                             href={`#trace/${message.traceId}`}
                             data-trace-id={message.traceId}
                             className="text-[10px] text-muted-foreground hover:text-foreground ml-1 underline"
-                            title="View trace"
+                            title={L.viewTrace}
                           >
-                            trace
+                            {L.trace}
                           </a>
                         ) : null}
                       </MessageActions>
@@ -749,7 +936,12 @@ const ChatbotEnhanced = React.forwardRef<HTMLDivElement, ChatbotEnhancedProps>(
           <ErrorBanner error={error} onReload={onReload} />
         ) : null}
 
-        <div className="relative">
+        <div
+          className={cn(
+            'relative',
+            isPlainSurface && 'mx-auto w-full max-w-2xl px-4 pb-4 sm:px-0',
+          )}
+        >
           {promptOverlaySlot ? (
             <div className="absolute bottom-full left-0 right-0 z-10 px-3 pb-1">
               {promptOverlaySlot}
@@ -757,6 +949,7 @@ const ChatbotEnhanced = React.forwardRef<HTMLDivElement, ChatbotEnhancedProps>(
           ) : null}
           <PromptInput
             accept={acceptedFileTypes}
+            fileInputLabel={L.uploadFiles}
             maxFileSize={maxFileSize}
             onSubmit={handleSubmit}
             onError={(e) => {
@@ -792,7 +985,7 @@ const ChatbotEnhanced = React.forwardRef<HTMLDivElement, ChatbotEnhancedProps>(
                 ) : null}
                 {models && models.length > 0 ? (
                   <select
-                    aria-label="Model"
+                    aria-label={L.model}
                     value={selectedModelId ?? models[0].id}
                     onChange={(e) => onModelChange?.(e.target.value)}
                     className="h-7 rounded-md border bg-background px-2 text-xs text-muted-foreground hover:text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
@@ -817,7 +1010,7 @@ const ChatbotEnhanced = React.forwardRef<HTMLDivElement, ChatbotEnhancedProps>(
                 </span>
               </PromptInputTools>
               <PromptInputSubmit
-                aria-label={promptStatus === 'streaming' ? 'Stop response' : 'Submit'}
+                aria-label={promptStatus === 'streaming' ? L.stopResponse : L.submit}
                 status={promptStatus}
                 disabled={disabled}
                 onClick={promptStatus === 'streaming' ? onStop : undefined}
@@ -904,6 +1097,86 @@ function ThinkingDots() {
       </span>
     </>
   );
+}
+
+interface ToolActivitySummaryLabels {
+  toolCompleted: string;
+  toolRunning: string;
+  toolAwaitingApproval: string;
+  toolFailed: string;
+}
+
+function ToolActivitySummary({
+  groups,
+  labels,
+}: {
+  groups: ToolSummaryGroup[];
+  labels: ToolActivitySummaryLabels;
+}) {
+  if (groups.length === 0) return null;
+
+  return (
+    <div className="not-prose mb-2 border-l border-border/70 pl-3">
+      <div className="space-y-1">
+        {groups.map((group) => (
+          <div
+            key={group.key}
+            className="flex min-h-6 items-center justify-between gap-3 text-xs"
+          >
+            <div className="flex min-w-0 items-center gap-2">
+              <ToolSummaryIcon state={group.state} />
+              <span className="truncate font-medium text-foreground">
+                {group.title}
+              </span>
+              {group.count > 1 ? (
+                <span className="shrink-0 text-[10px] text-muted-foreground">
+                  x{group.count}
+                </span>
+              ) : null}
+            </div>
+            <span
+              className={cn(
+                'shrink-0 text-[10px] font-medium',
+                group.state === 'failed'
+                  ? 'text-destructive'
+                  : group.state === 'completed'
+                    ? 'text-emerald-700 dark:text-emerald-400'
+                    : 'text-muted-foreground',
+              )}
+            >
+              {getToolSummaryStatus(group.state, labels)}
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function ToolSummaryIcon({ state }: { state: ToolSummaryState }) {
+  if (state === 'failed') {
+    return <XCircle className="size-3.5 shrink-0 text-destructive" />;
+  }
+  if (state === 'completed') {
+    return <CheckCircle2 className="size-3.5 shrink-0 text-emerald-600" />;
+  }
+  return <Clock3 className="size-3.5 shrink-0 text-muted-foreground" />;
+}
+
+function getToolSummaryStatus(
+  state: ToolSummaryState,
+  labels: ToolActivitySummaryLabels,
+) {
+  switch (state) {
+    case 'failed':
+      return labels.toolFailed;
+    case 'awaiting':
+      return labels.toolAwaitingApproval;
+    case 'running':
+      return labels.toolRunning;
+    case 'completed':
+      return labels.toolCompleted;
+  }
 }
 
 function ErrorBanner({

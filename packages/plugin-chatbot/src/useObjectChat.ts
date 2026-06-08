@@ -13,6 +13,11 @@ import { DefaultChatTransport } from 'ai';
 import { generateUniqueId } from './utils';
 import { uiMessagesToChatMessages } from './mapMessages';
 
+type InitialMessage = OuiChatMessage & {
+  parts?: Array<Record<string, unknown>>;
+  reasoning?: string;
+};
+
 /**
  * Configuration options for useObjectChat hook.
  */
@@ -26,7 +31,7 @@ export interface UseObjectChatOptions {
   /**
    * Initial messages to populate the chat.
    */
-  initialMessages?: OuiChatMessage[];
+  initialMessages?: InitialMessage[];
   /**
    * Conversation ID for multi-turn context.
    */
@@ -170,11 +175,39 @@ export function useObjectChat(options: UseObjectChatOptions = {}): UseObjectChat
   // Convert OUI messages to vercel/ai v3 UIMessage format for initialMessages
   const aiInitialMessages = useMemo(
     () =>
-      normalizeMessages(initialMessages).map((msg) => ({
-        id: msg.id,
-        role: msg.role as 'user' | 'assistant' | 'system',
-        parts: [{ type: 'text' as const, text: msg.content ?? '' }],
-      })),
+      (initialMessages ?? []).map((msg, idx) => {
+        if (Array.isArray(msg.parts) && msg.parts.length > 0) {
+          return {
+            id: msg.id || `msg-${idx}`,
+            role: (msg.role || 'user') as 'user' | 'assistant' | 'system',
+            parts: msg.parts,
+          };
+        }
+        const normalized = normalizeMessages([msg])[0];
+        const parts: Array<Record<string, unknown>> = [];
+        if (normalized.content) {
+          parts.push({ type: 'text', text: normalized.content });
+        }
+        if (msg.reasoning) {
+          parts.push({ type: 'reasoning', text: msg.reasoning });
+        }
+        for (const tool of normalized.toolInvocations ?? []) {
+          parts.push({
+            type: `tool-${tool.toolName}`,
+            toolCallId: tool.toolCallId,
+            toolName: tool.toolName,
+            input: tool.args,
+            output: tool.result,
+            errorText: tool.errorText,
+            state: tool.state,
+          });
+        }
+        return {
+          id: normalized.id || `msg-${idx}`,
+          role: normalized.role as 'user' | 'assistant' | 'system',
+          parts: parts.length > 0 ? parts : [{ type: 'text', text: '' }],
+        };
+      }),
     // initialMessages is intentionally referenced once on first render only
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [],

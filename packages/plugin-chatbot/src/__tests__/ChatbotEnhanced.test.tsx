@@ -114,7 +114,7 @@ describe('ChatbotEnhanced (AI Elements composition)', () => {
     );
   });
 
-  it('renders tool invocations, reasoning, and source citations', () => {
+  it('summarizes tool invocations and hides reasoning by default', () => {
     render(
       <ChatbotEnhanced
         messages={[
@@ -139,11 +139,41 @@ describe('ChatbotEnhanced (AI Elements composition)', () => {
         ]}
       />
     );
+    expect(screen.queryByText(/Agent activity/i)).not.toBeInTheDocument();
+    expect(screen.getByText(/Query data/i)).toBeInTheDocument();
+    expect(screen.getByText(/Completed/i)).toBeInTheDocument();
+    expect(screen.queryByText(/query_data/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Picked the query_data tool/i)).not.toBeInTheDocument();
+    // Sources trigger renders count
+    expect(screen.getByText(/Used 1 sources/i)).toBeInTheDocument();
+  });
+
+  it('renders raw tool invocations and reasoning in debug mode', () => {
+    render(
+      <ChatbotEnhanced
+        processVisibility="debug"
+        messages={[
+          {
+            id: 'a1',
+            role: 'assistant',
+            content: 'Found 3 deals.',
+            reasoning: 'Picked the query_data tool because the user asked for deals.',
+            toolInvocations: [
+              {
+                toolCallId: 'tc1',
+                toolName: 'query_data',
+                args: { objectName: 'deal', limit: 3 },
+                result: { count: 3 },
+                state: 'output-available',
+              },
+            ],
+          },
+        ]}
+      />
+    );
     expect(screen.getAllByText(/query_data/i).length).toBeGreaterThan(0);
     expect(screen.getByText(/Completed/i)).toBeInTheDocument();
     expect(screen.getByText(/Picked the query_data tool/i)).toBeInTheDocument();
-    // Sources trigger renders count
-    expect(screen.getByText(/Used 1 sources/i)).toBeInTheDocument();
   });
 
   it('renders a model picker and forwards changes', () => {

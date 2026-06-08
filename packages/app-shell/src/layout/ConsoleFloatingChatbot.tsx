@@ -17,6 +17,7 @@ import {
   useAgents,
   useHitlInChat,
   resolveDefaultAgentName,
+  uiMessagesToChatMessages,
   type ChatMessage,
   type AgentDescriptor,
 } from '@object-ui/plugin-chatbot';
@@ -33,7 +34,12 @@ import { Share2, SquarePen } from 'lucide-react';
 import { useObjectTranslation } from '@object-ui/i18n';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
-import { useChatConversation, type HydratedUIMessage } from '../hooks';
+import {
+  sanitizeChatMessagesForCache,
+  useChatConversation,
+  writeConversationMessagesCache,
+  type HydratedUIMessage,
+} from '../hooks';
 import { useAssistant, requestAssistantReview, type AssistantEditorContext } from '../assistant/assistantBus';
 
 /**
@@ -88,6 +94,21 @@ function buildChatLocale(
         emptyDescription: `随时帮你查询和分析「${appLabel}」中的数据。试试下面的问题，或直接输入你的需求。`,
         clear: '清空对话',
         sendHint: '发送',
+        agentActivity: '执行过程',
+        toolCompleted: '已完成',
+        toolRunning: '运行中',
+        toolAwaitingApproval: '等待确认',
+        toolFailed: '失败',
+        toolDetailsHidden: '已隐藏工具参数和原始结果，仅保留过程摘要。',
+        copy: '复制',
+        copied: '已复制',
+        regenerate: '重新生成',
+        model: '模型',
+        submit: '发送',
+        uploadFiles: '上传文件',
+        stopResponse: '停止生成',
+        trace: '调试 trace',
+        viewTrace: '查看调试 trace',
       },
       placeholder: `向${agentLabel}提问…`,
       loadingPlaceholder: '正在加载助手…',
@@ -116,6 +137,21 @@ function buildChatLocale(
       emptyDescription: `I can help you query and analyze your ${appLabel} data. Try a prompt below, or just type your question.`,
       clear: 'Clear',
       sendHint: 'to send',
+      agentActivity: 'Agent activity',
+      toolCompleted: 'Completed',
+      toolRunning: 'Running',
+      toolAwaitingApproval: 'Awaiting approval',
+      toolFailed: 'Failed',
+      toolDetailsHidden: 'Tool inputs and raw results are hidden in this view.',
+      copy: 'Copy',
+      copied: 'Copied',
+      regenerate: 'Regenerate',
+      model: 'Model',
+      submit: 'Submit',
+      uploadFiles: 'Upload files',
+      stopResponse: 'Stop response',
+      trace: 'trace',
+      viewTrace: 'View trace',
     },
     placeholder: `Ask ${agentLabel}...`,
     loadingPlaceholder: 'Loading assistant...',
@@ -265,11 +301,7 @@ function ChatbotInner({
   // Replay persisted history when present.
   const hydratedHistory = React.useMemo<ChatMessage[]>(() => {
     if (!persistedMessages || persistedMessages.length === 0) return [];
-    return persistedMessages.map((m) => ({
-      id: m.id,
-      role: m.role,
-      content: m.parts.map((p) => p.text).join(''),
-    }));
+    return uiMessagesToChatMessages(persistedMessages as any) as ChatMessage[];
   }, [persistedMessages]);
 
   const activeAgentLabel = React.useMemo<string>(() => {
@@ -325,6 +357,13 @@ function ChatbotInner({
       : "Thanks for your message! I'm here to help you navigate and manage your data.",
     autoResponseDelay: 600,
   });
+
+  React.useEffect(() => {
+    writeConversationMessagesCache(
+      conversationId,
+      sanitizeChatMessagesForCache(messages as ChatMessage[]),
+    );
+  }, [conversationId, messages]);
 
   // HITL bridge — turns the pending-approval tool result envelope from the
   // framework's action-tools.ts into inline approve/reject buttons that talk
@@ -575,4 +614,3 @@ export default function ConsoleFloatingChatbot({
     />
   );
 }
-

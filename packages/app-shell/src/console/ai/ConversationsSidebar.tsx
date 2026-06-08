@@ -26,6 +26,7 @@ export interface ConversationsSidebarProps {
   apiBase: string;
   className?: string;
   refreshKey?: number | string;
+  titleHints?: Record<string, string>;
   onNavigate?: () => void;
 }
 
@@ -53,6 +54,7 @@ export function ConversationsSidebar({
   apiBase,
   className,
   refreshKey,
+  titleHints,
   onNavigate,
 }: ConversationsSidebarProps) {
   const { t } = useObjectTranslation();
@@ -67,14 +69,24 @@ export function ConversationsSidebar({
   const [filter, setFilter] = useState('');
   const [renamingId, setRenamingId] = useState<string | undefined>(undefined);
 
+  const decoratedConversations = useMemo(() => {
+    return conversations.map((conversation) => {
+      const hint = titleHints?.[conversation.id]?.trim();
+      if (!hint || conversation.title?.trim() || conversation.preview?.trim()) {
+        return conversation;
+      }
+      return { ...conversation, preview: hint };
+    });
+  }, [conversations, titleHints]);
+
   const visible = useMemo(() => {
     const q = filter.trim().toLowerCase();
-    if (!q) return conversations;
-    return conversations.filter((c) => {
+    if (!q) return decoratedConversations;
+    return decoratedConversations.filter((c) => {
       const hay = `${c.title ?? ''} ${c.preview ?? ''}`.toLowerCase();
       return hay.includes(q);
     });
-  }, [conversations, filter]);
+  }, [decoratedConversations, filter]);
 
   const handleNew = useCallback(() => {
     navigate('/ai');

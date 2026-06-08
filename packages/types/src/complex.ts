@@ -532,6 +532,11 @@ export interface ChatbotSchema extends BaseSchema {
    */
   markdown?: boolean;
   /**
+   * How much agent reasoning/tool detail to show.
+   * @default 'summary'
+   */
+  processVisibility?: 'hidden' | 'summary' | 'debug';
+  /**
    * Chat height
    */
   height?: string | number;

@@ -15,6 +15,12 @@ vi.mock('../../../hooks/useConversationList', () => ({
         preview: 'Show recent opportunities',
         updatedAt: new Date().toISOString(),
       },
+      {
+        id: 'conv-b',
+        title: undefined,
+        preview: 'How many users are in the system?',
+        updatedAt: new Date(Date.now() - 1000).toISOString(),
+      },
     ],
     isLoading: false,
     error: undefined,
@@ -72,7 +78,8 @@ describe('ConversationsSidebar', () => {
     fireEvent.click(screen.getByTestId('ai-conversation-select-conv-a'));
     expect(onNavigate).toHaveBeenCalledTimes(1);
 
-    expect(screen.getByLabelText('Rename conversation')).toBeInTheDocument();
-    expect(screen.getByLabelText('Delete conversation')).toBeInTheDocument();
+    expect(screen.getAllByLabelText('Rename conversation')).toHaveLength(2);
+    expect(screen.getAllByLabelText('Delete conversation')).toHaveLength(2);
+    expect(screen.getByText('How many users are in the system?')).toBeInTheDocument();
   });
 });
