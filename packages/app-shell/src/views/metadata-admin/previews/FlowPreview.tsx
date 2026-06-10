@@ -23,6 +23,7 @@ import {
   Bug,
   CircleDot,
   GitBranch,
+  History,
   PanelRight,
   Plus,
   Settings2,
@@ -36,6 +37,7 @@ import { t as tr } from '../i18n';
 import { FlowCanvas } from './FlowCanvas';
 import { edgeKey } from './flow-canvas-layout';
 import { FlowSimulatorPanel } from './FlowSimulatorPanel';
+import { FlowRunsPanel } from './FlowRunsPanel';
 
 interface FlowNode {
   id: string;
@@ -78,6 +80,7 @@ export function FlowPreview({ draft, editing, selection, onSelectionChange, onPa
 
   const [showDebug, setShowDebug] = React.useState(false);
   const [showVars, setShowVars] = React.useState(true);
+  const [showRuns, setShowRuns] = React.useState(false);
   const [runHL, setRunHL] = React.useState<{
     activeNodeId: string | null;
     visitedNodeIds: string[];
@@ -96,6 +99,8 @@ export function FlowPreview({ draft, editing, selection, onSelectionChange, onPa
     onSelectionChange?.({ kind: 'node', id: newNode.id, label: newNode.label || newNode.id });
   }, [canEdit, nodes, onPatch, onSelectionChange]);
 
+  // Run history needs the published flow name (the engine keys runs by it).
+  const flowName = typeof d.name === 'string' && d.name ? d.name : '';
   const flowType = String(d.type ?? 'autolaunched');
   const status = String(d.status ?? (d.active ? 'active' : 'draft'));
   const runAs = String(d.runAs ?? 'user');
@@ -128,7 +133,7 @@ export function FlowPreview({ draft, editing, selection, onSelectionChange, onPa
       <PreviewErrorBoundary fallbackHint="One of the flow nodes or edges is malformed.">
         <div className={
           'grid gap-0 h-full min-h-[440px] ' +
-          (showDebug || showVars ? 'lg:grid-cols-[1fr_240px]' : 'grid-cols-1')
+          (showDebug || showVars || showRuns ? 'lg:grid-cols-[1fr_240px]' : 'grid-cols-1')
         }>
           {/* Visual canvas */}
           <div className="flex flex-col min-w-0 min-h-0">
@@ -139,7 +144,7 @@ export function FlowPreview({ draft, editing, selection, onSelectionChange, onPa
               {version && <Pill label="v" value={version} />}
               {errorStrategy && <Pill icon={GitBranch} label="On error" value={errorStrategy} />}
               <div className="ml-auto flex items-center gap-1.5">
-                {!showDebug && (
+                {!showDebug && !showRuns && (
                   <button
                     type="button"
                     onClick={() => setShowVars((v) => !v)}
@@ -154,9 +159,30 @@ export function FlowPreview({ draft, editing, selection, onSelectionChange, onPa
                     <PanelRight className="h-3 w-3" /> Variables
                   </button>
                 )}
+                {flowName && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowRuns((v) => !v);
+                      setShowDebug(false);
+                    }}
+                    className={
+                      'inline-flex items-center gap-1 rounded border px-2 py-0.5 text-[11px] font-medium transition-colors ' +
+                      (showRuns
+                        ? 'border-emerald-500 bg-emerald-50 text-emerald-700'
+                        : 'border-border text-muted-foreground hover:bg-muted/50 hover:text-foreground')
+                    }
+                    title="Run history from the automation engine"
+                  >
+                    <History className="h-3 w-3" /> Runs
+                  </button>
+                )}
                 <button
                   type="button"
-                  onClick={() => setShowDebug((v) => !v)}
+                  onClick={() => {
+                    setShowDebug((v) => !v);
+                    setShowRuns(false);
+                  }}
                   className={
                     'inline-flex items-center gap-1 rounded border px-2 py-0.5 text-[11px] font-medium transition-colors ' +
                     (showDebug
@@ -195,8 +221,9 @@ export function FlowPreview({ draft, editing, selection, onSelectionChange, onPa
             </div>
           </div>
 
-          {/* Right side panel: Variables (default) or the debug simulator.
-              Collapsible so the canvas can use the full width. */}
+          {/* Right side panel: Variables (default), the debug simulator, or
+              the engine run history. Collapsible so the canvas can use the
+              full width. */}
           {showDebug ? (
             <div className="border-l bg-muted/20">
               <FlowSimulatorPanel
@@ -205,6 +232,10 @@ export function FlowPreview({ draft, editing, selection, onSelectionChange, onPa
                 variables={variables}
                 onRunStateChange={setRunHL}
               />
+            </div>
+          ) : showRuns && flowName ? (
+            <div className="border-l bg-muted/20">
+              <FlowRunsPanel flowName={flowName} />
             </div>
           ) : showVars ? (
             <div className="border-l bg-muted/20 p-3 text-xs space-y-2">

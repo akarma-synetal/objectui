@@ -23,6 +23,7 @@ import {
   Plug,
   Plus,
   Repeat,
+  ShieldAlert,
   TimerReset,
   UserCheck,
   Variable,
@@ -84,6 +85,8 @@ export function nodeIcon(type: string): LucideIcon {
     case 'join_gateway':
     case 'parallel':
       return GitFork;
+    case 'try_catch':
+      return ShieldAlert;
     default:
       return CircleDot;
   }
@@ -200,6 +203,7 @@ export function nodeTone(type: string): NodeTone {
       return TONES.wait;
     case 'boundary_event':
     case 'signal':
+    case 'try_catch':
       return TONES.signal;
     case 'subflow':
     case 'flow':
@@ -275,6 +279,7 @@ export function nodeCategory(type: string): NodeCategory {
     case 'parallel_gateway':
     case 'join_gateway':
     case 'parallel':
+    case 'try_catch':
       return 'Logic';
     case 'approval':
     case 'screen':
@@ -302,8 +307,11 @@ export const NODE_PALETTE: PaletteItem[] = [
   { type: 'decision', label: 'Decision', hint: 'Branch on a condition', category: 'Logic' },
   { type: 'loop', label: 'Loop', hint: 'Iterate over a collection', category: 'Logic' },
   { type: 'assignment', label: 'Set variables', hint: 'Assign flow variables', category: 'Logic' },
-  { type: 'parallel_gateway', label: 'Parallel split', hint: 'Fork into concurrent branches', category: 'Logic' },
-  { type: 'join_gateway', label: 'Parallel join', hint: 'Wait for concurrent branches', category: 'Logic' },
+  // ADR-0031: authors get the structured constructs (well-formed by
+  // construction); the BPMN `parallel_gateway` / `join_gateway` pair is an
+  // import/export representation only — the engine has no executor for it.
+  { type: 'parallel', label: 'Parallel', hint: 'Run branches concurrently, join at end', category: 'Logic' },
+  { type: 'try_catch', label: 'Try / Catch', hint: 'Protect steps with error handling and retry', category: 'Logic' },
   { type: 'approval', label: 'Approval', hint: 'Pause for a human decision', category: 'Human' },
   { type: 'screen', label: 'Screen', hint: 'Collect input from a user', category: 'Human' },
   { type: 'http_request', label: 'HTTP request', hint: 'Call an external API', category: 'Integration' },
