@@ -117,6 +117,158 @@ describe('useConsoleActionRuntime — authenticated handlers', () => {
   });
 });
 
+describe('flowHandler — list_toolbar selection fallback', () => {
+  // Toolbar-invoked flow actions carry no `_rowRecord` (that's a list_item /
+  // row-menu concept). The grid publishes its checkbox selection into the
+  // shared ActionRunner context as `selectedRecords`; with exactly one row
+  // selected the flow must receive that row's id as recordId, otherwise a
+  // record-bound flow node fails ("Update requires an ID or options.multi=true").
+  it('uses the single selected row from the runner context as recordId', async () => {
+    authFetchSpy.mockResolvedValue({ ok: true, json: async () => ({ success: true, data: {} }) });
+    const { result } = renderHook(() =>
+      useConsoleActionRuntime({ dataSource: {}, objects: [], objectName: 'inv' }),
+    );
+
+    let res: any;
+    await act(async () => {
+      res = await result.current.flowHandler(
+        { type: 'flow', name: 'showcase_bulk_reassign', target: 'showcase_reassign_wizard' } as any,
+        { selectedRecords: [{ id: 'rec_42', name: 'Acme' }] } as any,
+      );
+    });
+
+    expect(res).toMatchObject({ success: true });
+    const [url, init] = authFetchSpy.mock.calls[0];
+    expect(String(url)).toContain('/api/v1/automation/showcase_reassign_wizard/trigger');
+    const body = JSON.parse(init.body);
+    expect(body.recordId).toBe('rec_42');
+    expect(body.params.recordId).toBe('rec_42');
+  });
+
+  it('blocks with an error (no trigger call) when multiple rows are selected', async () => {
+    const { result } = renderHook(() =>
+      useConsoleActionRuntime({ dataSource: {}, objects: [] }),
+    );
+
+    let res: any;
+    await act(async () => {
+      res = await result.current.flowHandler(
+        { type: 'flow', target: 'showcase_reassign_wizard' } as any,
+        { selectedRecords: [{ id: 'a' }, { id: 'b' }] } as any,
+      );
+    });
+
+    expect(res.success).toBe(false);
+    expect(res.error).toMatch(/single record/i);
+    expect(authFetchSpy).not.toHaveBeenCalled();
+  });
+
+  it('an explicit _rowRecord (list_item invocation) still wins over the selection', async () => {
+    authFetchSpy.mockResolvedValue({ ok: true, json: async () => ({ success: true, data: {} }) });
+    const { result } = renderHook(() =>
+      useConsoleActionRuntime({ dataSource: {}, objects: [] }),
+    );
+
+    await act(async () => {
+      await result.current.flowHandler(
+        { type: 'flow', target: 'f', params: { _rowRecord: { id: 'row_1' } } } as any,
+        { selectedRecords: [{ id: 'other_1' }, { id: 'other_2' }] } as any,
+      );
+    });
+
+    expect(JSON.parse(authFetchSpy.mock.calls[0][1].body).recordId).toBe('row_1');
+  });
+
+  it('end-to-end: selection published via updateContext reaches the flow trigger', async () => {
+    authFetchSpy.mockResolvedValue({ ok: true, json: async () => ({ success: true, data: {} }) });
+
+    // Mirrors the real wiring: ObjectGrid calls `updateContext({ selectedRecords })`
+    // on the shared runner; the toolbar button then executes the flow action.
+    function Probe() {
+      const { execute, updateContext } = useAction();
+      return (
+        <button
+          onClick={() => {
+            updateContext({ selectedRecords: [{ id: 'sel_1' }] });
+            void execute({ type: 'flow', name: 'showcase_bulk_reassign', target: 'showcase_reassign_wizard' } as any);
+          }}
+        >
+          run-flow
+        </button>
+      );
+    }
+
+    render(
+      <ConsoleActionRuntimeProvider dataSource={{}} objects={[]}>
+        <Probe />
+      </ConsoleActionRuntimeProvider>,
+    );
+
+    fireEvent.click(screen.getByText('run-flow'));
+
+    await waitFor(() => expect(authFetchSpy).toHaveBeenCalled());
+    const [url, init] = authFetchSpy.mock.calls[0];
+    expect(String(url)).toContain('/api/v1/automation/showcase_reassign_wizard/trigger');
+    expect(JSON.parse(init.body).recordId).toBe('sel_1');
+  });
+});
+
+describe('serverActionHandler — list_toolbar selection fallback', () => {
+  it('uses the single selected row from the runner context as recordId', async () => {
+    authFetchSpy.mockResolvedValue({ ok: true, json: async () => ({ success: true, data: {} }) });
+    const { result } = renderHook(() =>
+      useConsoleActionRuntime({ dataSource: {}, objects: [], objectName: 'inv' }),
+    );
+
+    let res: any;
+    await act(async () => {
+      res = await result.current.serverActionHandler(
+        { type: 'script', name: 'archive' } as any,
+        { selectedRecords: [{ id: 'rec_7' }] } as any,
+      );
+    });
+
+    expect(res).toMatchObject({ success: true });
+    const [url, init] = authFetchSpy.mock.calls[0];
+    expect(String(url)).toContain('/api/v1/actions/inv/archive');
+    expect(JSON.parse(init.body).recordId).toBe('rec_7');
+  });
+
+  it('honors a custom recordIdField when resolving from the selection', async () => {
+    authFetchSpy.mockResolvedValue({ ok: true, json: async () => ({ success: true, data: {} }) });
+    const { result } = renderHook(() =>
+      useConsoleActionRuntime({ dataSource: {}, objects: [], objectName: 'inv' }),
+    );
+
+    await act(async () => {
+      await result.current.serverActionHandler(
+        { type: 'script', name: 'archive', recordIdField: 'code' } as any,
+        { selectedRecords: [{ id: 'rec_7', code: 'INV-001' }] } as any,
+      );
+    });
+
+    expect(JSON.parse(authFetchSpy.mock.calls[0][1].body).recordId).toBe('INV-001');
+  });
+
+  it('blocks with an error (no API call) when multiple rows are selected', async () => {
+    const { result } = renderHook(() =>
+      useConsoleActionRuntime({ dataSource: {}, objects: [], objectName: 'inv' }),
+    );
+
+    let res: any;
+    await act(async () => {
+      res = await result.current.serverActionHandler(
+        { type: 'script', name: 'archive' } as any,
+        { selectedRecords: [{ id: 'a' }, { id: 'b' }] } as any,
+      );
+    });
+
+    expect(res.success).toBe(false);
+    expect(res.error).toMatch(/single record/i);
+    expect(authFetchSpy).not.toHaveBeenCalled();
+  });
+});
+
 describe('ConsoleActionRuntimeProvider — page-level action execution', () => {
   function Probe() {
     const { execute } = useAction();
