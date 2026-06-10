@@ -107,14 +107,21 @@ export function FlowRunner({ state, authFetch, baseUrl, onClose, onComplete }: F
       );
       const json = await res.json().catch(() => null);
       if (!res.ok || json?.success === false) {
+        // Transport / envelope failure — possibly transient (network, 5xx), so
+        // keep the dialog open and let the user retry the same run.
         toast.error(json?.error || `Resume failed (HTTP ${res.status})`);
         return;
       }
       const data = json?.data ?? {};
       // The HTTP envelope is `{ success:true, data: AutomationResult }`; a flow
-      // that errored downstream surfaces as `data.success === false`.
+      // that errored downstream surfaces as `data.success === false`. That is
+      // TERMINAL: the engine consumes the suspension before running downstream
+      // nodes (resume-once), so this run can never be resumed again — a retry
+      // would only hit "No suspended run". Close the runner instead of leaving
+      // a dead form open.
       if (data.success === false || data.status === 'failed') {
         toast.error(data.error || 'The flow failed to complete.');
+        onClose();
         return;
       }
       if (data.status === 'paused' && data.screen) {
