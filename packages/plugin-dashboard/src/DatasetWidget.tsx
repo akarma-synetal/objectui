@@ -37,7 +37,12 @@ export function DatasetWidget({ widget, dataSource }: { widget: any; dataSource:
   const datasetName = String(widget?.dataset ?? '');
   const dimensions: string[] = useMemo(() => (Array.isArray(widget?.dimensions) ? widget.dimensions.filter(Boolean) : []), [widget]);
   const values: string[] = useMemo(() => (Array.isArray(widget?.values) ? widget.values.filter(Boolean) : []), [widget]);
-  const compareTo = widget?.compareTo;
+  // Dataset `compareTo` must be the structured `{ kind, dimension }` shape (it
+  // needs a time dimension + dateRange). The legacy widget form is a bare string
+  // (`'previousPeriod'`) — forwarding it makes the executor throw "compareTo
+  // requires a timeDimension". Only pass the structured form; drop the legacy
+  // string (the base measure still renders; the comparison overlay is opt-in).
+  const compareTo = widget?.compareTo && typeof widget.compareTo === 'object' ? widget.compareTo : undefined;
   const isMetric = widget?.type === 'metric' || dimensions.length === 0;
 
   // ADR-0021 dual-form: the widget's presentation-scope `filter` must flow into

@@ -22,10 +22,15 @@ describe('DatasetWidget', () => {
     await waitFor(() => expect(src.queryDataset).toHaveBeenCalledWith('sales', { dimensions: ['stage'], measures: ['revenue'] }));
   });
 
-  it('forwards compareTo when set', async () => {
-    const src = makeSource(async () => ({ rows: [{ revenue: 1 }] }));
-    render(<DatasetWidget widget={{ type: 'metric', dataset: 'sales', values: ['revenue'], compareTo: 'previousPeriod' }} dataSource={src} />);
-    await waitFor(() => expect(src.queryDataset).toHaveBeenCalledWith('sales', { dimensions: [], measures: ['revenue'], compareTo: 'previousPeriod' }));
+  it('forwards a structured compareTo, but drops the legacy string form (which the executor cannot run)', async () => {
+    const structured = { kind: 'previousPeriod', dimension: 'close_date' };
+    const src1 = makeSource(async () => ({ rows: [{ revenue: 1 }] }));
+    render(<DatasetWidget widget={{ type: 'metric', dataset: 'sales', values: ['revenue'], compareTo: structured }} dataSource={src1} />);
+    await waitFor(() => expect(src1.queryDataset).toHaveBeenCalledWith('sales', { dimensions: [], measures: ['revenue'], compareTo: structured }));
+
+    const src2 = makeSource(async () => ({ rows: [{ revenue: 1 }] }));
+    render(<DatasetWidget widget={{ type: 'metric', dataset: 'sales', values: ['revenue'], compareTo: 'previousPeriod' }} dataSource={src2} />);
+    await waitFor(() => expect(src2.queryDataset).toHaveBeenCalledWith('sales', { dimensions: [], measures: ['revenue'] }));
   });
 
   it('forwards the widget filter as runtimeFilter — a dataset-bound widget stays filtered (ADR-0021)', async () => {
