@@ -106,7 +106,9 @@ export function DatasetWidget({ widget, dataSource }: { widget: any; dataSource:
   // requires a timeDimension". Only pass the structured form; drop the legacy
   // string (the base measure still renders; the comparison overlay is opt-in).
   const compareTo = widget?.compareTo && typeof widget.compareTo === 'object' ? widget.compareTo : undefined;
-  const isMetric = widget?.type === 'metric' || dimensions.length === 0;
+  const widgetType = String(widget?.type ?? '');
+  const isMetric = METRIC_TYPES.has(widgetType) || dimensions.length === 0;
+  const isTable = widgetType === 'table' || widgetType === 'pivot';
 
   // ADR-0021 dual-form: the widget's presentation-scope `filter` must flow into
   // the dataset query as `runtimeFilter`, or a dataset-bound widget renders the
@@ -182,18 +184,44 @@ export function DatasetWidget({ widget, dataSource }: { widget: any; dataSource:
     );
   }
 
-  // Chart — bar chart of the first measure over the first dimension, via the
-  // shared chart registry (`bar-chart`). Remap the measure column to its display
-  // label so the legend/tooltip read "Tasks" rather than "task_count".
-  const measureLabel = measureField(values[0])?.label;
-  const dataKey = measureLabel && measureLabel !== values[0] ? measureLabel : values[0];
-  const chartRows = dataKey === values[0]
-    ? state.rows
-    : state.rows.map((r) => ({ ...r, [dataKey]: r[values[0]] }));
+  // Table / pivot — a grouped table of the selected dimensions + measures.
+  if (isTable) {
+    const columns = [...dimensions, ...values];
+    return (
+      <div className="h-full w-full overflow-auto p-1">
+        <table className="w-full text-xs">
+          <thead className="bg-muted/40">
+            <tr>
+              {columns.map((c) => (
+                <th key={c} className="px-2 py-1.5 text-left font-medium whitespace-nowrap">{measureField(c)?.label ?? c}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {state.rows.map((row, i) => (
+              <tr key={i} className="border-t">
+                {columns.map((c) => (
+                  <td key={c} className="px-2 py-1 whitespace-nowrap tabular-nums">
+                    {values.includes(c) ? formatMeasure(row[c], measureField(c)?.format) : formatValue(row[c])}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    );
+  }
+
+  // Chart — route to the advanced renderer with the widget's TRUE chart family
+  // and one series per measure. Series carry the measure display label so the
+  // legend reads "Tasks" rather than "task_count".
+  const chartType = CHART_TYPE_MAP[widgetType] ?? 'bar';
+  const series = values.map((v) => ({ dataKey: v, label: measureField(v)?.label ?? v }));
   return (
     <div className={cn('h-full w-full min-h-[220px]')}>
       <SchemaRenderer
-        schema={{ type: 'bar-chart', data: chartRows, xAxisKey: dimensions[0], dataKey } as any}
+        schema={{ type: 'chart', chartType, data: state.rows, xAxisKey: dimensions[0], series } as any}
       />
     </div>
   );
