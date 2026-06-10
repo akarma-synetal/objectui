@@ -28,6 +28,7 @@ import { useObjectLabel } from '@object-ui/i18n';
 import { ActionProvider } from '@object-ui/react';
 import { toast } from 'sonner';
 import type {
+  ActionContext,
   ActionDef,
   ActionParamDef,
   ActionResult,
@@ -64,8 +65,8 @@ export interface ConsoleActionRuntime {
   paramCollectionHandler: ParamCollectionHandler;
   resultDialogHandler: ResultDialogHandler;
   apiHandler: (action: ActionDef) => Promise<ActionResult>;
-  flowHandler: (action: ActionDef) => Promise<ActionResult>;
-  serverActionHandler: (action: ActionDef) => Promise<ActionResult>;
+  flowHandler: (action: ActionDef, context?: ActionContext) => Promise<ActionResult>;
+  serverActionHandler: (action: ActionDef, context?: ActionContext) => Promise<ActionResult>;
   /** Authenticated fetch wrapper (Bearer + tenant + cookies). */
   authFetch: ReturnType<typeof createAuthenticatedFetch>;
   /** Props to spread onto `<ActionProvider>`. */
@@ -263,7 +264,9 @@ export function useConsoleActionRuntime(opts: ConsoleActionRuntimeOptions): Cons
   }, [dataSource, objApiName, authFetch, activeOrganization, refresh]);
 
   // Flow action handler — POST to /api/v1/automation/{name}/trigger.
-  const flowHandler = useCallback(async (action: ActionDef): Promise<ActionResult> => {
+  // `context` is the shared ActionRunner context (registered handlers are
+  // invoked as `handler(action, runnerContext)`).
+  const flowHandler = useCallback(async (action: ActionDef, context?: ActionContext): Promise<ActionResult> => {
     const flowName = action.target || action.name;
     if (!flowName) {
       return { success: false, error: 'No flow target provided for flow action' };
@@ -273,7 +276,20 @@ export function useConsoleActionRuntime(opts: ConsoleActionRuntimeOptions): Cons
       const params = { ...(action.params || {}) } as Record<string, any>;
       const rowRecord = params._rowRecord as Record<string, any> | undefined;
       delete params._rowRecord;
-      const recordId = params.recordId ?? rowRecord?.id;
+      let recordId = params.recordId ?? rowRecord?.id;
+      // list_toolbar invocations carry no `_rowRecord` — fall back to the
+      // grid's checkbox selection, which ObjectGrid publishes into the runner
+      // context as `selectedRecords`. Flows take a single `recordId` input
+      // variable, so a multi-row selection is ambiguous: block with a message
+      // instead of triggering a run that fails at its first record-bound node.
+      if (recordId == null) {
+        const selected = Array.isArray(context?.selectedRecords) ? context!.selectedRecords : [];
+        if (selected.length === 1) {
+          recordId = selected[0]?.id;
+        } else if (selected.length > 1) {
+          return { success: false, error: 'This flow runs on a single record — select exactly one row.' };
+        }
+      }
       if (recordId != null && params.recordId == null) params.recordId = recordId;
       const res = await authFetch(
         `${baseUrl}/api/v1/automation/${encodeURIComponent(flowName)}/trigger`,
@@ -308,7 +324,9 @@ export function useConsoleActionRuntime(opts: ConsoleActionRuntimeOptions): Cons
   }, [authFetch, objApiName, refresh]);
 
   // Server-side action handler — POST to /api/v1/actions/{object}/{action}.
-  const serverActionHandler = useCallback(async (action: ActionDef): Promise<ActionResult> => {
+  // `context` is the shared ActionRunner context (registered handlers are
+  // invoked as `handler(action, runnerContext)`).
+  const serverActionHandler = useCallback(async (action: ActionDef, context?: ActionContext): Promise<ActionResult> => {
     const targetName = action.target || action.name;
     if (!targetName) {
       return { success: false, error: 'No action target provided' };
@@ -319,7 +337,20 @@ export function useConsoleActionRuntime(opts: ConsoleActionRuntimeOptions): Cons
     const _rowRecord = (params as any)._rowRecord as Record<string, any> | undefined;
     delete (params as any)._rowRecord;
     const recordIdField = (action as any).recordIdField || 'id';
-    const resolvedRecordId = (params as any).recordId ?? _rowRecord?.[recordIdField];
+    let resolvedRecordId = (params as any).recordId ?? _rowRecord?.[recordIdField];
+    // Same list_toolbar fallback as flowHandler: no `_rowRecord` means the
+    // action came from the toolbar — resolve the recordId from the grid's
+    // checkbox selection (published as `selectedRecords`). Multi-select is
+    // ambiguous for a single-record action, so block with a message.
+    if (resolvedRecordId == null) {
+      const selected = Array.isArray(context?.selectedRecords) ? context!.selectedRecords : [];
+      if (selected.length === 1) {
+        resolvedRecordId = selected[0]?.[recordIdField];
+      } else if (selected.length > 1) {
+        // The runner's post-execution hook surfaces `error` as a toast.
+        return { success: false, error: 'This action runs on a single record — select exactly one row.' };
+      }
+    }
 
     // Re-entrancy guard.
     const inflightKey = `${targetName}:${resolvedRecordId ?? ''}`;

@@ -534,7 +534,17 @@ export const ObjectGrid: React.FC<ObjectGridProps> = ({
   });
 
   // --- Action support for action columns ---
-  const { execute: executeAction } = useAction();
+  const { execute: executeAction, updateContext: updateActionContext } = useAction();
+
+  // Publish the checkbox selection into the shared ActionRunner context so
+  // actions rendered OUTSIDE the grid but inside the same <ActionProvider>
+  // (e.g. `list_toolbar` flow buttons in the ObjectView header) can resolve a
+  // recordId from the selected rows. Cleared on unmount / selection change so
+  // a stale selection never leaks into later invocations.
+  React.useEffect(() => {
+    updateActionContext({ selectedRecords: selectedRows });
+    return () => { updateActionContext({ selectedRecords: [] }); };
+  }, [selectedRows, updateActionContext]);
 
   // --- Row color support ---
   const getRowClassName = useRowColor(schema.rowColor);
