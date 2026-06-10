@@ -451,6 +451,20 @@ const FLOW_NODE_CONFIG: Record<string, FlowConfigField[]> = {
     at('connectorConfig', 'input', 'Input', 'keyValue', { help: 'Mapped inputs for the connector action.' }),
     { id: 'timeoutMs', path: ['timeoutMs'], label: 'Timeout (ms)', kind: 'number', placeholder: '30000' },
   ],
+  // ADR-0031 structured constructs. Their bodies are nested regions
+  // (config.branches / config.try / config.catch) — sub-graphs the flat field
+  // kinds can't model; authors edit them in the JSON source editor. Only the
+  // scalar knobs surface here.
+  parallel: [],
+  try_catch: [
+    cfg('errorVariable', 'Error variable', 'text', {
+      placeholder: '$error',
+      help: 'Variable the caught error is bound to inside the catch region.',
+    }),
+  ],
+  // Legacy BPMN interop pair — kept so imported flows still render an
+  // inspector, but no longer offered by the palette / type picker (the engine
+  // has no executor; ADR-0031 makes them import/export-only).
   parallel_gateway: [],
   join_gateway: [],
   boundary_event: [
@@ -518,7 +532,6 @@ const TYPE_ALIASES: Record<string, string> = {
   signal: 'boundary_event',
   webhook: 'connector_action',
   for_each: 'loop',
-  parallel: 'parallel_gateway',
 };
 
 /** Resolve the config fields for a node type (alias-aware). */
@@ -591,8 +604,9 @@ export const FLOW_NODE_TYPE_OPTIONS = [
   'wait',
   'subflow',
   'connector_action',
-  'parallel_gateway',
-  'join_gateway',
-  'boundary_event',
+  // ADR-0031: structured constructs replace the BPMN gateway/boundary types in
+  // the picker — those remain import/export-only (no engine executor).
+  'parallel',
+  'try_catch',
   'end',
 ] as const;

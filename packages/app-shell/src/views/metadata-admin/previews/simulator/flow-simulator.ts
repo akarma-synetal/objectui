@@ -9,8 +9,10 @@
  * end. `wait` and `screen` PAUSE for manual continuation. `loop` resolves its
  * collection and exposes the iterator but is a labelled single pass (the edge
  * model has no separate body/exit edge). `parallel_gateway` fans out WITHOUT
- * join synchronization; `join_gateway`, `subflow` and `boundary_event` are
- * marked unsupported rather than faked. A hard step ceiling guards cycles.
+ * join synchronization; the ADR-0031 structured containers (`parallel`,
+ * `try_catch` — nested body regions), `join_gateway`, `subflow` and
+ * `boundary_event` are marked unsupported rather than faked. A hard step
+ * ceiling guards cycles.
  */
 
 import type {
@@ -35,7 +37,9 @@ const MOCKED_SIDE_EFFECT = new Set([
   'http_request',
   'connector_action',
 ]);
-const UNSUPPORTED = new Set(['join_gateway', 'subflow', 'boundary_event']);
+// `parallel` / `try_catch` carry nested body regions (ADR-0031) the flat
+// stepper can't walk — pass through honestly instead of faking their semantics.
+const UNSUPPORTED = new Set(['join_gateway', 'subflow', 'boundary_event', 'parallel', 'try_catch']);
 
 const edgeId = (e: SimEdge, i: number): string => e.id || `${e.source}->${e.target}#${i}`;
 const condStr = (c: SimEdge['condition']): string | undefined => (typeof c === 'string' ? c : undefined);

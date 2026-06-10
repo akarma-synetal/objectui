@@ -38,7 +38,8 @@ interface ActionDescriptorLite {
   configSchema?: unknown;
 }
 
-function apiBase(): string {
+/** Server API base — shared by the palette fetch and the runs panel. */
+export function apiBase(): string {
   const url = (import.meta as { env?: { VITE_SERVER_URL?: string } }).env?.VITE_SERVER_URL || '';
   return `${String(url).replace(/\/$/, '')}/api/v1`;
 }
