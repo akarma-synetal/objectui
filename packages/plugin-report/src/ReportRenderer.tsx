@@ -32,6 +32,7 @@ import { LegacyReportRenderer, type LegacyReportRendererProps } from './LegacyRe
 import { SpecReportGrid } from './SpecReportGrid';
 import { MatrixRenderer } from './MatrixRenderer';
 import { JoinedReportRenderer } from './JoinedReportRenderer';
+import { DatasetReportRenderer, isDatasetReport } from './DatasetReportRenderer';
 import type { DrillOpenIn, DrillView } from './drill';
 
 export type ReportRendererSchema = SpecReport | LegacyReportRendererProps['schema'];
@@ -96,6 +97,22 @@ export const ReportRenderer: React.FC<ReportRendererProps> = (props) => {
     && typeof (schema as Record<string, unknown>).report === 'object'
   ) {
     schema = (schema as Record<string, unknown>).report as ReportRendererSchema;
+  }
+  // ADR-0021 single-form: a report bound to a semantic-layer `dataset` (rather
+  // than an inline `objectName` + `columns` query) renders through the dataset
+  // path — `queryDataset` + a grouped table — exactly like a dataset-bound
+  // dashboard widget. Checked BEFORE the legacy `isSpecReport` guards, which
+  // require `objectName`/`columns` and would otherwise drop a dataset report
+  // into the legacy renderer (→ blank).
+  if (isDatasetReport(schema)) {
+    return (
+      <DatasetReportRenderer
+        report={schema as Parameters<typeof DatasetReportRenderer>[0]['report']}
+        dataSource={dataSource}
+        runtimeFilter={runtimeFilter}
+        className={className}
+      />
+    );
   }
   if (isSpecReport(schema)) {
     const reportType = schema.type ?? 'tabular';
