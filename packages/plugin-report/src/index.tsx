@@ -15,13 +15,15 @@ import { ReportConfigPanel } from './ReportConfigPanel';
 import { SpecReportGrid } from './SpecReportGrid';
 import { MatrixRenderer } from './MatrixRenderer';
 import { JoinedReportRenderer } from './JoinedReportRenderer';
+import { DatasetReportRenderer, isDatasetReport } from './DatasetReportRenderer';
 
-export { ReportRenderer, LegacyReportRenderer, ReportViewer, ReportBuilder, ReportConfigPanel, SpecReportGrid, MatrixRenderer, JoinedReportRenderer };
+export { ReportRenderer, LegacyReportRenderer, ReportViewer, ReportBuilder, ReportConfigPanel, SpecReportGrid, MatrixRenderer, JoinedReportRenderer, DatasetReportRenderer, isDatasetReport };
 export type { ReportRendererProps, ReportRendererSchema } from './ReportRenderer';
 export type { LegacyReportRendererProps } from './LegacyReportRenderer';
 export type { SpecReportGridProps } from './SpecReportGrid';
 export type { MatrixRendererProps, MatrixCellClickArgs } from './MatrixRenderer';
 export type { JoinedReportRendererProps } from './JoinedReportRenderer';
+export type { DatasetReportRendererProps } from './DatasetReportRenderer';
 export {
   buildDrillAction,
   createDrillHandler,

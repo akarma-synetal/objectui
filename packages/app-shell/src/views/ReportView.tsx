@@ -408,7 +408,19 @@ export function ReportView({ dataSource }: { dataSource?: DataSource }) {
   // and drill protocol end-to-end. The legacy ReportViewer is only used as a
   // last resort for fully-legacy schemas that lack `objectName` (e.g. inline
   // `fields` + `data` arrays from older app code).
-  const useSpecRenderer = Boolean(
+  // ADR-0021 single-form: a report bound to a semantic-layer `dataset` (no
+  // `objectName`/`columns`) still routes through the spec ReportRenderer, which
+  // dispatches it to the dataset path (queryDataset + grouped table / joined
+  // blocks). Without this it would fall to the legacy ReportViewer, which has no
+  // data source to fetch from → a blank page.
+  const isDatasetBound = Boolean(
+    previewReport &&
+      (typeof previewReport.dataset === 'string' ||
+        (previewReport.type === 'joined' &&
+          Array.isArray(previewReport.blocks) &&
+          previewReport.blocks.some((b: any) => typeof b?.dataset === 'string'))),
+  );
+  const useSpecRenderer = isDatasetBound || Boolean(
     previewReport &&
       previewReport.objectName &&
       (previewReport.type === 'matrix' ||
