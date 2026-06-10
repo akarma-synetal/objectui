@@ -17,6 +17,36 @@ export interface ChartImplProps {
   color?: string;
 }
 
+/** Truncate a long axis label, keeping the full text available on hover. */
+function truncate(s: string, max = 14): string {
+  return s.length > max ? `${s.slice(0, max - 1)}…` : s;
+}
+
+/**
+ * Angled, truncated X-axis tick — used when categories are many or wide so the
+ * labels don't overlap on a narrow widget. A `<title>` exposes the full label
+ * on hover when truncated.
+ */
+function AngledTick({ x, y, payload }: any) {
+  const raw = String(payload?.value ?? '');
+  const label = truncate(raw);
+  return (
+    <g transform={`translate(${x},${y})`}>
+      <text
+        dy={10}
+        textAnchor="end"
+        transform="rotate(-32)"
+        fill="hsl(var(--muted-foreground))"
+        fontSize={11}
+        fontFamily="monospace"
+      >
+        {raw !== label && <title>{raw}</title>}
+        {label}
+      </text>
+    </g>
+  );
+}
+
 /**
  * ChartImpl - The heavy implementation that imports Recharts
  * This component is lazy-loaded to avoid including Recharts in the initial bundle
@@ -30,10 +60,14 @@ export default function ChartImpl({
   // Default to standard primary color
   color = 'hsl(var(--primary))',
 }: ChartImplProps) {
+  // Angle + truncate the category labels when they would crowd a narrow widget:
+  // many categories, or any label long enough to collide with its neighbour.
+  const labels = data.map((d) => String(d?.[xAxisKey] ?? ''));
+  const needAngle = labels.length > 4 || labels.some((l) => l.length > 8);
   return (
     <div className={`p-2 sm:p-3 md:p-4 rounded-xl border border-border bg-card/40 backdrop-blur-sm shadow-lg shadow-background/5 ${className}`}>
       <ResponsiveContainer width="100%" height={height}>
-        <BarChart data={data} margin={{ top: 10, right: 10, left: 10, bottom: 5 }}>
+        <BarChart data={data} margin={{ top: 10, right: 10, left: 10, bottom: needAngle ? 24 : 5 }}>
           <defs>
             <linearGradient id="barGradient" x1="0" y1="0" x2="0" y2="1">
               <stop offset="0%" stopColor={color} stopOpacity={1} />
@@ -52,12 +86,14 @@ export default function ChartImpl({
             </filter>
           </defs>
           <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
-          <XAxis 
-            dataKey={xAxisKey} 
-            tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12, fontFamily: 'monospace' }} 
+          <XAxis
+            dataKey={xAxisKey}
+            tick={needAngle ? <AngledTick /> : { fill: 'hsl(var(--muted-foreground))', fontSize: 12, fontFamily: 'monospace' }}
             tickLine={false}
             axisLine={{ stroke: 'hsl(var(--border))' }}
-            dy={10}
+            interval={needAngle ? 0 : 'preserveStartEnd'}
+            height={needAngle ? 56 : undefined}
+            dy={needAngle ? undefined : 10}
           />
           <YAxis 
             tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12, fontFamily: 'monospace' }} 
