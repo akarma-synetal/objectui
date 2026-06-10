@@ -23,8 +23,30 @@ import { Loader2, BarChart3, AlertTriangle } from 'lucide-react';
 import { resolveDateMacros } from './utils';
 
 type Row = Record<string, unknown>;
+/** Measure column metadata from the analytics result (ADR-0021). */
+interface ResultField { name: string; type?: string; label?: string; format?: string }
 interface DatasetCapableSource {
-  queryDataset?: (dataset: string, selection: unknown) => Promise<{ rows: Row[] }>;
+  queryDataset?: (dataset: string, selection: unknown) => Promise<{ rows: Row[]; fields?: ResultField[] }>;
+}
+
+/**
+ * Format a measure value using its dataset `format` hint (numeral-style, e.g.
+ * "$0,0", "0.0", "0.0%"). Falls back to a thousand-separated number. The format
+ * can't be baked into the numeric row value server-side (charts need the raw
+ * number), so it is applied here at render time.
+ */
+function formatMeasure(v: unknown, format?: string): string {
+  if (v == null) return '—';
+  if (typeof v !== 'number') return String(v);
+  if (!format) {
+    // No format hint → preserve the plain rendering (integers verbatim).
+    return Number.isInteger(v) ? String(v) : v.toLocaleString(undefined, { maximumFractionDigits: 2 });
+  }
+  const isPercent = format.includes('%');
+  const isCurrency = format.includes('$');
+  const decimals = format.split('.')[1]?.match(/0/g)?.length ?? 0;
+  const body = v.toLocaleString(undefined, { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+  return `${isCurrency ? '$' : ''}${body}${isPercent ? '%' : ''}`;
 }
 
 function formatValue(v: unknown): string {
@@ -59,7 +81,7 @@ export function DatasetWidget({ widget, dataSource }: { widget: any; dataSource:
     [rawFilter],
   );
 
-  const [state, setState] = useState<{ status: 'idle' | 'loading' | 'ok' | 'error'; rows: Row[]; error?: string }>({ status: 'idle', rows: [] });
+  const [state, setState] = useState<{ status: 'idle' | 'loading' | 'ok' | 'error'; rows: Row[]; fields?: ResultField[]; error?: string }>({ status: 'idle', rows: [] });
 
   // Signature uses the RAW filter (stable) — the resolved one carries a
   // render-time `now` and would otherwise force a refetch loop.
@@ -79,7 +101,7 @@ export function DatasetWidget({ widget, dataSource }: { widget: any; dataSource:
       ...(runtimeFilter ? { runtimeFilter } : {}),
       ...(compareTo ? { compareTo } : {}),
     })
-      .then((res) => { if (!cancelled) setState({ status: 'ok', rows: Array.isArray(res?.rows) ? res.rows : [] }); })
+      .then((res) => { if (!cancelled) setState({ status: 'ok', rows: Array.isArray(res?.rows) ? res.rows : [], fields: Array.isArray(res?.fields) ? res.fields : [] }); })
       .catch((e) => { if (!cancelled) setState({ status: 'error', rows: [], error: String((e as Error)?.message ?? e) }); });
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -102,23 +124,35 @@ export function DatasetWidget({ widget, dataSource }: { widget: any; dataSource:
     return <div className="flex h-full w-full items-center justify-center rounded border border-dashed bg-muted/20 p-4 text-xs text-muted-foreground"><BarChart3 className="mr-2 h-4 w-4" />No rows</div>;
   }
 
-  // Metric / KPI — show the single measure value of the first row.
+  // Measure metadata (label + format) carried on the result fields, keyed by name.
+  const fieldByName = new Map((state.fields ?? []).map((f) => [f.name, f]));
+  const measureField = (name: string) => fieldByName.get(name);
+
+  // Metric / KPI — show the single measure value of the first row, using the
+  // measure's display label (not the raw name) and its format (e.g. "$616,000").
   if (isMetric) {
+    const f = measureField(values[0]);
     const value = state.rows[0]?.[values[0]];
     return (
       <div className="flex h-full w-full flex-col items-start justify-center gap-1 p-2">
-        <span className="text-2xl font-semibold tabular-nums">{formatValue(value)}</span>
-        <span className="text-xs text-muted-foreground">{values[0]}</span>
+        <span className="text-2xl font-semibold tabular-nums">{formatMeasure(value, f?.format)}</span>
+        <span className="text-xs text-muted-foreground">{f?.label ?? values[0]}</span>
       </div>
     );
   }
 
   // Chart — bar chart of the first measure over the first dimension, via the
-  // shared chart registry (`bar-chart`).
+  // shared chart registry (`bar-chart`). Remap the measure column to its display
+  // label so the legend/tooltip read "Tasks" rather than "task_count".
+  const measureLabel = measureField(values[0])?.label;
+  const dataKey = measureLabel && measureLabel !== values[0] ? measureLabel : values[0];
+  const chartRows = dataKey === values[0]
+    ? state.rows
+    : state.rows.map((r) => ({ ...r, [dataKey]: r[values[0]] }));
   return (
     <div className={cn('h-full w-full min-h-[220px]')}>
       <SchemaRenderer
-        schema={{ type: 'bar-chart', data: state.rows, xAxisKey: dimensions[0], dataKey: values[0] } as any}
+        schema={{ type: 'bar-chart', data: chartRows, xAxisKey: dimensions[0], dataKey } as any}
       />
     </div>
   );

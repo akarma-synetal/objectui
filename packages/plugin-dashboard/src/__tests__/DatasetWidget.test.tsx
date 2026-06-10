@@ -16,6 +16,16 @@ describe('DatasetWidget', () => {
     expect(src.queryDataset).toHaveBeenCalledWith('sales', { dimensions: [], measures: ['revenue'] });
   });
 
+  it('renders the measure label + formatted value from the result fields', async () => {
+    const src = { queryDataset: vi.fn(async () => ({
+      rows: [{ spent_sum: 616000 }],
+      fields: [{ name: 'spent_sum', type: 'number', label: 'Total Spent', format: '$0,0' }],
+    })) };
+    render(<DatasetWidget widget={{ type: 'metric', dataset: 'sales', values: ['spent_sum'] }} dataSource={src} />);
+    expect(await screen.findByText('$616,000')).toBeInTheDocument();
+    expect(screen.getByText('Total Spent')).toBeInTheDocument();
+  });
+
   it('runs the dataset query for a dimensioned (chart) widget — rows→dimensions, values→measures', async () => {
     const src = makeSource(async () => ({ rows: [{ stage: 'won', revenue: 100 }, { stage: 'lost', revenue: 20 }] }));
     render(<DatasetWidget widget={{ type: 'bar', dataset: 'sales', dimensions: ['stage'], values: ['revenue'] }} dataSource={src} />);
