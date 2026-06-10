@@ -20,6 +20,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { SchemaRenderer } from '@object-ui/react';
 import { cn } from '@object-ui/components';
 import { Loader2, BarChart3, AlertTriangle } from 'lucide-react';
+import { resolveDateMacros } from './utils';
 
 type Row = Record<string, unknown>;
 interface DatasetCapableSource {
@@ -36,12 +37,33 @@ export function DatasetWidget({ widget, dataSource }: { widget: any; dataSource:
   const datasetName = String(widget?.dataset ?? '');
   const dimensions: string[] = useMemo(() => (Array.isArray(widget?.dimensions) ? widget.dimensions.filter(Boolean) : []), [widget]);
   const values: string[] = useMemo(() => (Array.isArray(widget?.values) ? widget.values.filter(Boolean) : []), [widget]);
-  const compareTo = widget?.compareTo;
+  // Dataset `compareTo` must be the structured `{ kind, dimension }` shape (it
+  // needs a time dimension + dateRange). The legacy widget form is a bare string
+  // (`'previousPeriod'`) — forwarding it makes the executor throw "compareTo
+  // requires a timeDimension". Only pass the structured form; drop the legacy
+  // string (the base measure still renders; the comparison overlay is opt-in).
+  const compareTo = widget?.compareTo && typeof widget.compareTo === 'object' ? widget.compareTo : undefined;
   const isMetric = widget?.type === 'metric' || dimensions.length === 0;
+
+  // ADR-0021 dual-form: the widget's presentation-scope `filter` must flow into
+  // the dataset query as `runtimeFilter`, or a dataset-bound widget renders the
+  // UNFILTERED total (e.g. "open pipeline" showing the grand total). Resolve
+  // date macros client-side first — exactly as the legacy widget renderers do
+  // (the server does not expand `{current_quarter_start}` etc.). Keyed on the
+  // raw filter ref so the resolution is stable across renders.
+  const rawFilter = widget?.filter;
+  const runtimeFilter = useMemo(
+    () => (rawFilter && typeof rawFilter === 'object' && Object.keys(rawFilter).length > 0
+      ? resolveDateMacros(rawFilter)
+      : undefined),
+    [rawFilter],
+  );
 
   const [state, setState] = useState<{ status: 'idle' | 'loading' | 'ok' | 'error'; rows: Row[]; error?: string }>({ status: 'idle', rows: [] });
 
-  const signature = `${datasetName}|${dimensions.join(',')}|${values.join(',')}`;
+  // Signature uses the RAW filter (stable) — the resolved one carries a
+  // render-time `now` and would otherwise force a refetch loop.
+  const signature = `${datasetName}|${dimensions.join(',')}|${values.join(',')}|${JSON.stringify(rawFilter ?? null)}|${JSON.stringify(compareTo ?? null)}`;
   useEffect(() => {
     const src = dataSource as DatasetCapableSource | undefined;
     if (!src || typeof src.queryDataset !== 'function') {
@@ -51,7 +73,12 @@ export function DatasetWidget({ widget, dataSource }: { widget: any; dataSource:
     if (values.length === 0) { setState({ status: 'idle', rows: [] }); return; }
     let cancelled = false;
     setState({ status: 'loading', rows: [] });
-    src.queryDataset(datasetName, { dimensions, measures: values, ...(compareTo ? { compareTo } : {}) })
+    src.queryDataset(datasetName, {
+      dimensions,
+      measures: values,
+      ...(runtimeFilter ? { runtimeFilter } : {}),
+      ...(compareTo ? { compareTo } : {}),
+    })
       .then((res) => { if (!cancelled) setState({ status: 'ok', rows: Array.isArray(res?.rows) ? res.rows : [] }); })
       .catch((e) => { if (!cancelled) setState({ status: 'error', rows: [], error: String((e as Error)?.message ?? e) }); });
     return () => { cancelled = true; };

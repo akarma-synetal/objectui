@@ -22,10 +22,33 @@ describe('DatasetWidget', () => {
     await waitFor(() => expect(src.queryDataset).toHaveBeenCalledWith('sales', { dimensions: ['stage'], measures: ['revenue'] }));
   });
 
-  it('forwards compareTo when set', async () => {
+  it('forwards a structured compareTo, but drops the legacy string form (which the executor cannot run)', async () => {
+    const structured = { kind: 'previousPeriod', dimension: 'close_date' };
+    const src1 = makeSource(async () => ({ rows: [{ revenue: 1 }] }));
+    render(<DatasetWidget widget={{ type: 'metric', dataset: 'sales', values: ['revenue'], compareTo: structured }} dataSource={src1} />);
+    await waitFor(() => expect(src1.queryDataset).toHaveBeenCalledWith('sales', { dimensions: [], measures: ['revenue'], compareTo: structured }));
+
+    const src2 = makeSource(async () => ({ rows: [{ revenue: 1 }] }));
+    render(<DatasetWidget widget={{ type: 'metric', dataset: 'sales', values: ['revenue'], compareTo: 'previousPeriod' }} dataSource={src2} />);
+    await waitFor(() => expect(src2.queryDataset).toHaveBeenCalledWith('sales', { dimensions: [], measures: ['revenue'] }));
+  });
+
+  it('forwards the widget filter as runtimeFilter — a dataset-bound widget stays filtered (ADR-0021)', async () => {
+    const src = makeSource(async () => ({ rows: [{ revenue: 8179769 }] }));
+    const filter = { stage: { $nin: ['closed_won', 'closed_lost'] } };
+    render(<DatasetWidget widget={{ type: 'metric', dataset: 'sales', values: ['revenue'], filter }} dataSource={src} />);
+    await waitFor(() => expect(src.queryDataset).toHaveBeenCalledWith('sales', {
+      dimensions: [], measures: ['revenue'], runtimeFilter: filter,
+    }));
+  });
+
+  it('resolves date macros in the widget filter before sending runtimeFilter', async () => {
     const src = makeSource(async () => ({ rows: [{ revenue: 1 }] }));
-    render(<DatasetWidget widget={{ type: 'metric', dataset: 'sales', values: ['revenue'], compareTo: 'previousPeriod' }} dataSource={src} />);
-    await waitFor(() => expect(src.queryDataset).toHaveBeenCalledWith('sales', { dimensions: [], measures: ['revenue'], compareTo: 'previousPeriod' }));
+    render(<DatasetWidget widget={{ type: 'metric', dataset: 'sales', values: ['revenue'], filter: { close_date: { $gte: '{current_quarter_start}' } } }} dataSource={src} />);
+    await waitFor(() => expect(src.queryDataset).toHaveBeenCalled());
+    const selection = src.queryDataset.mock.calls[0][1] as any;
+    // Macro is resolved to a concrete value, not passed through verbatim.
+    expect(selection.runtimeFilter.close_date.$gte).not.toBe('{current_quarter_start}');
   });
 
   it('surfaces a dataset error instead of wrong numbers', async () => {
