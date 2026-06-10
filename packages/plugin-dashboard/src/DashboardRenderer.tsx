@@ -755,7 +755,12 @@ export const DashboardRenderer = forwardRef<HTMLDivElement, DashboardRendererPro
         };
         
         const componentSchema = getComponentSchema();
-        const isSelfContained = widget.type === 'metric';
+        // A `metric` widget renders its own card chrome ONLY in the inline
+        // (object-metric) path. A dataset-bound metric uses DatasetWidget, which
+        // renders just the value — so it must take the shared Card wrapper to get
+        // a title + border like the kpi/gauge widgets (otherwise it shows as bare
+        // text with no title, inconsistent with its neighbours).
+        const isSelfContained = widget.type === 'metric' && !datasetBound;
         const resolvedTitle = tWidgetTitle(widget);
         const resolvedDescription = tWidgetDescription(widget);
         const widgetKey = widget.id || resolvedTitle || `widget-${index}`;
