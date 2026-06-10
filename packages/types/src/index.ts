@@ -709,36 +709,12 @@ export {
   isJoinedSpecReport,
 } from './spec-report';
 
-export type {
-  // Workflow System
-  WorkflowStatus,
-  WorkflowNodeType,
-  WorkflowEdgeType,
-  WorkflowNode,
-  WorkflowNodeAction,
-  WorkflowEdge,
-  ApprovalRule,
-  WorkflowVariable,
-  WorkflowSchema,
-  WorkflowDesignerSchema,
-  ApprovalHistoryItem,
-  ApprovalProcessSchema,
-  WorkflowInstanceSchema,
-  // Flow Designer (spec v3.0.9)
-  FlowNodeType,
-  FlowWaitEventType,
-  FlowNodeExecutionStatus,
-  FlowNodeExecutorDescriptor,
-  FlowBoundaryConfig,
-  FlowNode,
-  FlowEdgeType,
-  FlowEdge,
-  FlowVersionEntry,
-  FlowConcurrencyPolicy,
-  FlowBpmnInteropResult,
-  FlowExecutionStep,
-  FlowDesignerSchema,
-} from './workflow';
+// Workflow / Flow Designer schemas removed in 9.0 — they backed the retired
+// `@object-ui/plugin-workflow` designers, whose BPMN-style node vocabulary the
+// ObjectStack automation engine does not execute (ADR-0020, ADR-0031). The
+// supported flow designer is the Studio's metadata-admin FlowCanvas in
+// `@object-ui/app-shell`, which models nodes/edges locally against the
+// `@objectstack/spec` flow schema.
 
 export type {
   // AI System

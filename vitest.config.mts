@@ -107,7 +107,6 @@ export default defineConfig({
       '@object-ui/plugin-report': path.resolve(__dirname, './packages/plugin-report/src'),
       '@object-ui/plugin-ai': path.resolve(__dirname, './packages/plugin-ai/src'),
       '@object-ui/plugin-designer': path.resolve(__dirname, './packages/plugin-designer/src'),
-      '@object-ui/plugin-workflow': path.resolve(__dirname, './packages/plugin-workflow/src'),
       '@object-ui/runner': path.resolve(__dirname, './packages/runner/src'),
       '@object-ui/auth': path.resolve(__dirname, './packages/auth/src'),
       '@object-ui/mobile': path.resolve(__dirname, './packages/mobile/src'),
