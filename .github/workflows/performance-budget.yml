@@ -152,8 +152,13 @@ jobs:
 
       - name: Comment PR with results
         if: github.event_name == 'pull_request' && always()
+        continue-on-error: true
         uses: actions/github-script@v9
         with:
+          # GitHub's API intermittently rejects valid run tokens with 401
+          # (seen on PR #1627), so 401/403 must stay retryable here.
+          retries: 3
+          retry-exempt-status-codes: 400,404,422
           script: |
             const fs = require('fs');
             const status = '${{ steps.budget.outputs.budget_status }}';
@@ -180,9 +185,14 @@ jobs:
               // Size report not generated
             }
 
-            github.rest.issues.createComment({
-              issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              body
-            });
+            try {
+              await github.rest.issues.createComment({
+                issue_number: context.issue.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body
+              });
+            } catch (error) {
+              core.warning(`Could not comment on PR: ${error.message}`);
+              await core.summary.addRaw(body).write();
+            }
