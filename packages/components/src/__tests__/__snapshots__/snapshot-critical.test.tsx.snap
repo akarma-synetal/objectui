@@ -72,7 +72,6 @@ exports[`Accordion snapshots > renders accordion with first item expanded 1`] = 
       data-state="closed"
     >
       <button
-        aria-controls="radix-_r_j_"
         aria-expanded="false"
         class="flex flex-1 items-center justify-between py-4 font-medium transition-all hover:underline [&[data-state=open]>svg]:rotate-180"
         data-orientation="vertical"
@@ -130,7 +129,6 @@ exports[`Accordion snapshots > renders accordion with multiple items 1`] = `
       data-state="closed"
     >
       <button
-        aria-controls="radix-_r_b_"
         aria-expanded="false"
         class="flex flex-1 items-center justify-between py-4 font-medium transition-all hover:underline [&[data-state=open]>svg]:rotate-180"
         data-orientation="vertical"
@@ -181,7 +179,6 @@ exports[`Accordion snapshots > renders accordion with multiple items 1`] = `
       data-state="closed"
     >
       <button
-        aria-controls="radix-_r_d_"
         aria-expanded="false"
         class="flex flex-1 items-center justify-between py-4 font-medium transition-all hover:underline [&[data-state=open]>svg]:rotate-180"
         data-orientation="vertical"
@@ -232,7 +229,6 @@ exports[`Accordion snapshots > renders accordion with multiple items 1`] = `
       data-state="closed"
     >
       <button
-        aria-controls="radix-_r_f_"
         aria-expanded="false"
         class="flex flex-1 items-center justify-between py-4 font-medium transition-all hover:underline [&[data-state=open]>svg]:rotate-180"
         data-orientation="vertical"
