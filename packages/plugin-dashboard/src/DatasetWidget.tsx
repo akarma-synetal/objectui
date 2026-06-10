@@ -6,10 +6,18 @@
  *
  * It selects the dataset's dimensions/measures BY NAME and runs them through
  * `dataSource.queryDataset` — the same governed path the dataset preview and
- * dataset-bound reports use — so the numbers match everywhere. A `metric`
- * widget shows the single measure value; other types render a bar chart via the
- * shared chart registry (`bar-chart`). Errors surface instead of silently
- * showing wrong/empty numbers.
+ * dataset-bound reports use — so the numbers match everywhere.
+ *
+ * Rendering dispatch (by `widget.type`):
+ *  - metric / kpi / gauge / solid-gauge / bullet (or no dimensions) → KPI value
+ *    with the measure's display label + format.
+ *  - table / pivot → a grouped table of `dimensions` + `values`.
+ *  - bar / column / horizontal-bar / line / area / pie / donut / funnel /
+ *    scatter / radar / treemap / sankey → the shared advanced `chart` renderer
+ *    with its TRUE chart type and one series per measure. A type the renderer
+ *    can't draw maps to its closest family (never a silent blank bar).
+ *
+ * Errors surface instead of silently showing wrong/empty numbers.
  *
  * Field access goes through `as any` because the bundled `@object-ui/types`
  * `DashboardWidgetSchema` only gains `dataset`/`dimensions`/`values` once
@@ -54,6 +62,39 @@ function formatValue(v: unknown): string {
   if (typeof v === 'number') return Number.isInteger(v) ? String(v) : v.toLocaleString(undefined, { maximumFractionDigits: 2 });
   return String(v);
 }
+
+/** Single-value KPI widget types — rendered as a number, not a chart. */
+const METRIC_TYPES = new Set(['metric', 'kpi', 'gauge', 'solid-gauge', 'bullet']);
+
+/**
+ * Map a dashboard widget `type` to the advanced chart renderer's `chartType`.
+ * Families the renderer doesn't draw distinctly fall back to their closest
+ * relative (e.g. `spline`/`step-line` → line, `stacked-area` → area,
+ * `pyramid` → funnel, grouped/stacked/bi-polar bars → bar) so a widget never
+ * renders blank or as a misleading default.
+ */
+const CHART_TYPE_MAP: Record<string, string> = {
+  bar: 'bar',
+  column: 'column',
+  'horizontal-bar': 'horizontal-bar',
+  'grouped-bar': 'bar',
+  'stacked-bar': 'bar',
+  'bi-polar-bar': 'bar',
+  line: 'line',
+  spline: 'line',
+  'step-line': 'line',
+  area: 'area',
+  'stacked-area': 'area',
+  pie: 'pie',
+  donut: 'donut',
+  funnel: 'funnel',
+  pyramid: 'funnel',
+  scatter: 'scatter',
+  bubble: 'scatter',
+  radar: 'radar',
+  treemap: 'treemap',
+  sankey: 'sankey',
+};
 
 export function DatasetWidget({ widget, dataSource }: { widget: any; dataSource: unknown }) {
   const datasetName = String(widget?.dataset ?? '');

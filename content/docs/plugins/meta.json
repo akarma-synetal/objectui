@@ -19,7 +19,6 @@
     "plugin-markdown",
     "plugin-report",
     "plugin-timeline",
-    "plugin-view",
-    "plugin-workflow"
+    "plugin-view"
   ]
 }

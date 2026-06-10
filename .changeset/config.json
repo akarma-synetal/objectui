@@ -37,7 +37,6 @@
       "@object-ui/plugin-report",
       "@object-ui/plugin-timeline",
       "@object-ui/plugin-view",
-      "@object-ui/plugin-workflow",
       "@object-ui/collaboration",
       "@object-ui/app-shell",
       "@object-ui/providers",
