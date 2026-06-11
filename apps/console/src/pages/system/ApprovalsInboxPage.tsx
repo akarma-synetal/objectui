@@ -22,7 +22,7 @@
  * an input is focused.
  */
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import {
   Button,
@@ -89,6 +89,11 @@ import {
   User as UserIcon,
   ChevronLeft,
   ChevronRight,
+  ArrowRightLeft,
+  BellRing,
+  HelpCircle,
+  Send,
+  Check,
 } from 'lucide-react';
 import {
   approvalsApi,
@@ -177,6 +182,12 @@ function agingClass(r: ApprovalRequestRow): string {
   if (h > 72) return 'text-red-600 dark:text-red-400 font-medium';
   if (h > 24) return 'text-amber-600 dark:text-amber-400';
   return 'text-muted-foreground';
+}
+
+/** Compact duration for SLA chips: "36h" under 2 days, else "3d". */
+function compactDuration(ms: number): string {
+  const h = Math.max(1, Math.round(Math.abs(ms) / 36e5));
+  return h < 48 ? `${h}h` : `${Math.round(h / 24)}d`;
 }
 
 const PAYLOAD_SYSTEM_KEYS = new Set([
@@ -279,6 +290,9 @@ export function ApprovalsInboxPage() {
     if (code === 'NOT_IMPLEMENTED' || status === 501) {
       return tr('recallUnavailable', 'Recall is not available on this deployment.');
     }
+    if (code === 'THROTTLED' || status === 429) {
+      return tr('remindThrottled', 'A reminder was sent recently — try again later.');
+    }
     if (status === 404) return tr('requestGone', 'This request no longer exists. Refresh the list.');
     if (code === 'FORBIDDEN' || status === 403) return tr('notAllowed', 'You are not allowed to perform this action.');
     if (code === 'INVALID_STATE' || status === 409) return tr('alreadyDecided', 'This request was already decided. Refresh the list.');
@@ -326,6 +340,15 @@ export function ApprovalsInboxPage() {
   // Inline reject confirmation target (row-level quick action / keyboard)
   const [rejectTarget, setRejectTarget] = useState<ApprovalRequestRow | null>(null);
   const [inlineActing, setInlineActing] = useState<string | null>(null);
+
+  // Thread interactions (reassign / request-info / reply / remind)
+  const [reassignOpen, setReassignOpen] = useState(false);
+  const [reassignTo, setReassignTo] = useState('');
+  const [requestInfoOpen, setRequestInfoOpen] = useState(false);
+  const [requestInfoText, setRequestInfoText] = useState('');
+  const [reply, setReply] = useState('');
+  const [threadBusy, setThreadBusy] = useState(false);
+  const [userOptions, setUserOptions] = useState<Array<{ name: string; email: string }>>([]);
 
   // Keyboard row focus
   const [focusIndex, setFocusIndex] = useState<number>(-1);
@@ -468,6 +491,96 @@ export function ApprovalsInboxPage() {
       setSubmitting(null);
     }
   }, [selected, resolveActor, comment, load, user?.id, humanizeError, tr, tab, openDrawer]);
+
+  /** Refresh the open drawer + list after a thread interaction. */
+  const refreshThread = useCallback(async (id: string) => {
+    const [req, acts] = await Promise.all([
+      approvalsApi.getRequest(id),
+      approvalsApi.listActions(id),
+    ]);
+    setSelected(req.data);
+    setActions(acts.data);
+    void load();
+  }, [load]);
+
+  const doReassign = useCallback(async () => {
+    if (!selected || !reassignTo.trim()) return;
+    setThreadBusy(true);
+    try {
+      await approvalsApi.reassign(selected.id, {
+        actor_id: resolveActor(selected), to: reassignTo.trim(), comment: comment.trim() || undefined,
+      });
+      toast.success(tr('reassignSuccess', 'Handed to {{to}}', { to: reassignTo.trim() }));
+      setReassignOpen(false);
+      setReassignTo('');
+      setComment('');
+      await refreshThread(selected.id);
+      refreshBadge();
+    } catch (err: any) {
+      toast.error(humanizeError(err, tr('actionFailed', 'Action failed')));
+    } finally {
+      setThreadBusy(false);
+    }
+  }, [selected, reassignTo, comment, resolveActor, refreshThread, refreshBadge, humanizeError, tr]);
+
+  const doRemind = useCallback(async () => {
+    if (!selected) return;
+    setThreadBusy(true);
+    try {
+      const res = await approvalsApi.remind(selected.id, { actor_id: user?.id });
+      toast.success(tr('remindSuccess', 'Reminder sent to {{count}} approver(s)', { count: res.notified }));
+      await refreshThread(selected.id);
+    } catch (err: any) {
+      toast.error(humanizeError(err, tr('actionFailed', 'Action failed')));
+    } finally {
+      setThreadBusy(false);
+    }
+  }, [selected, user?.id, refreshThread, humanizeError, tr]);
+
+  const doRequestInfo = useCallback(async () => {
+    if (!selected || !requestInfoText.trim()) return;
+    setThreadBusy(true);
+    try {
+      await approvalsApi.requestInfo(selected.id, {
+        actor_id: resolveActor(selected), comment: requestInfoText.trim(),
+      });
+      toast.success(tr('requestInfoSent', 'Sent back to the requester for more information'));
+      setRequestInfoOpen(false);
+      setRequestInfoText('');
+      await refreshThread(selected.id);
+    } catch (err: any) {
+      toast.error(humanizeError(err, tr('actionFailed', 'Action failed')));
+    } finally {
+      setThreadBusy(false);
+    }
+  }, [selected, requestInfoText, resolveActor, refreshThread, humanizeError, tr]);
+
+  const doReply = useCallback(async () => {
+    if (!selected || !reply.trim()) return;
+    setThreadBusy(true);
+    try {
+      await approvalsApi.comment(selected.id, { actor_id: user?.id, comment: reply.trim() });
+      setReply('');
+      await refreshThread(selected.id);
+    } catch (err: any) {
+      toast.error(humanizeError(err, tr('actionFailed', 'Action failed')));
+    } finally {
+      setThreadBusy(false);
+    }
+  }, [selected, reply, user?.id, refreshThread, humanizeError, tr]);
+
+  /** Lazy user directory for the reassign picker (name + email datalist). */
+  const loadUserOptions = useCallback(async () => {
+    if (userOptions.length) return;
+    try {
+      const base = (import.meta.env.VITE_SERVER_URL || '').replace(/\/$/, '');
+      const res = await fetch(`${base}/api/v1/data/sys_user?limit=100`, { credentials: 'include' });
+      const j = await res.json();
+      setUserOptions(((j.records || []) as any[])
+        .filter(u => u.email && u.name && u.id !== user?.id)
+        .map(u => ({ name: String(u.name), email: String(u.email) })));
+    } catch { /* picker degrades to free text */ }
+  }, [userOptions.length, user?.id]);
 
   const canApproveReject = useMemo(() => {
     if (!selected || selected.status !== 'pending') return false;
@@ -1057,6 +1170,16 @@ export function ApprovalsInboxPage() {
                           >
                             <Clock className="h-3 w-3 inline mr-1" />
                             {formatRelative(submittedAt(r))}
+                            {r.status === 'pending' && r.sla_due_at && (
+                              <div className={cn(
+                                'mt-0.5 text-[10px] font-medium',
+                                Date.parse(r.sla_due_at) < Date.now() ? 'text-red-600 dark:text-red-400' : 'text-muted-foreground',
+                              )}>
+                                {Date.parse(r.sla_due_at) < Date.now()
+                                  ? tr('slaOverdue', 'SLA overdue {{dur}}', { dur: compactDuration(Date.now() - Date.parse(r.sla_due_at)) })
+                                  : tr('slaRemaining', 'SLA {{dur}} left', { dur: compactDuration(Date.parse(r.sla_due_at) - Date.now()) })}
+                              </div>
+                            )}
                           </TableCell>
                           <TableCell className="w-20"><InlineActions r={r} /></TableCell>
                         </TableRow>
@@ -1112,6 +1235,64 @@ export function ApprovalsInboxPage() {
           )}
         </TabsContent>
       </Tabs>
+
+      {/* Reassign dialog */}
+      <AlertDialog open={reassignOpen} onOpenChange={(open) => { if (!open) { setReassignOpen(false); setReassignTo(''); } }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{tr('reassignTitle', 'Hand this approval to someone else?')}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {tr('reassignBody', 'Your approver slot moves to the person you pick — they are notified and can act immediately.')}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div>
+            <Label htmlFor="reassign-to" className="text-xs">{tr('reassignTo', 'New approver')}</Label>
+            <Input
+              id="reassign-to"
+              list="reassign-user-options"
+              value={reassignTo}
+              onChange={(e) => setReassignTo(e.target.value)}
+              placeholder={tr('reassignToPlaceholder', 'Pick a user or type an email / role:<name>')}
+              className="mt-1"
+            />
+            <datalist id="reassign-user-options">
+              {userOptions.map(u => (
+                <option key={u.email} value={u.email}>{u.name}</option>
+              ))}
+            </datalist>
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{tr('cancel', 'Cancel')}</AlertDialogCancel>
+            <AlertDialogAction disabled={!reassignTo.trim() || threadBusy} onClick={() => void doReassign()}>
+              {tr('reassignBtn', 'Reassign')}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Request-info dialog */}
+      <AlertDialog open={requestInfoOpen} onOpenChange={(open) => { if (!open) { setRequestInfoOpen(false); setRequestInfoText(''); } }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{tr('requestInfoTitle', 'Ask the requester for more information?')}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {tr('requestInfoBody', 'The request stays pending; the requester is notified and can reply on the thread.')}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <Textarea
+            value={requestInfoText}
+            onChange={(e) => setRequestInfoText(e.target.value)}
+            rows={3}
+            placeholder={tr('requestInfoPlaceholder', 'What do you need from the requester?')}
+          />
+          <AlertDialogFooter>
+            <AlertDialogCancel>{tr('cancel', 'Cancel')}</AlertDialogCancel>
+            <AlertDialogAction disabled={!requestInfoText.trim() || threadBusy} onClick={() => void doRequestInfo()}>
+              {tr('requestInfoBtn', 'Request info')}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Shared inline-reject confirmation */}
       <AlertDialog open={!!rejectTarget} onOpenChange={(open) => !open && setRejectTarget(null)}>
@@ -1189,6 +1370,18 @@ export function ApprovalsInboxPage() {
                 {selected.completed_at && (
                   <span>· {tr('completedAt', 'Completed {{when}}', { when: formatRelative(selected.completed_at) })}</span>
                 )}
+                {selected.status === 'pending' && selected.sla_due_at && (
+                  <Badge variant="outline" className={cn(
+                    'text-[10px]',
+                    Date.parse(selected.sla_due_at) < Date.now()
+                      ? 'border-red-200 bg-red-50 text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-400'
+                      : 'border-border text-muted-foreground',
+                  )}>
+                    {Date.parse(selected.sla_due_at) < Date.now()
+                      ? tr('slaOverdue', 'SLA overdue {{dur}}', { dur: compactDuration(Date.now() - Date.parse(selected.sla_due_at)) })
+                      : tr('slaRemaining', 'SLA {{dur}} left', { dur: compactDuration(Date.parse(selected.sla_due_at) - Date.now()) })}
+                  </Badge>
+                )}
               </div>
 
               {/* Business summary card */}
@@ -1239,6 +1432,30 @@ export function ApprovalsInboxPage() {
                 </CardContent>
               </Card>
 
+              {(selected.flow_steps?.length ?? 0) > 1 && (
+                <div className="flex items-center px-1" aria-label={tr('stepProgress', 'Approval steps')}>
+                  {selected.flow_steps!.map((s, i) => (
+                    <Fragment key={s.id}>
+                      {i > 0 && <div className={cn('h-px flex-1 mx-2', s.state === 'done' || s.state === 'current' ? 'bg-emerald-300 dark:bg-emerald-700' : 'bg-border')} />}
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <span className={cn(
+                          'flex items-center justify-center h-5 w-5 rounded-full text-[10px] font-semibold',
+                          s.state === 'done' && 'bg-emerald-500 text-white',
+                          s.state === 'current' && 'bg-amber-500 text-white ring-2 ring-amber-200 dark:ring-amber-500/30',
+                          s.state === 'upcoming' && 'bg-muted text-muted-foreground border',
+                        )}>
+                          {s.state === 'done' ? <Check className="h-3 w-3" /> : i + 1}
+                        </span>
+                        <span className={cn(
+                          'text-xs',
+                          s.state === 'current' ? 'font-medium' : 'text-muted-foreground',
+                        )}>{s.label}</span>
+                      </div>
+                    </Fragment>
+                  ))}
+                </div>
+              )}
+
               <div>
                 <h3 className="text-sm font-semibold mb-3">{tr('history', 'Activity')}</h3>
                 {actions.length === 0 ? (
@@ -1249,6 +1466,10 @@ export function ApprovalsInboxPage() {
                       const color = a.action === 'approve' ? 'bg-emerald-500'
                                   : a.action === 'reject'  ? 'bg-destructive'
                                   : a.action === 'submit'  ? 'bg-blue-500'
+                                  : a.action === 'reassign' ? 'bg-indigo-500'
+                                  : a.action === 'remind' ? 'bg-amber-500'
+                                  : a.action === 'request_info' ? 'bg-amber-500'
+                                  : a.action === 'comment' ? 'bg-slate-400'
                                   : 'bg-muted-foreground';
                       const actorName = a.actor_name
                         ?? (a.actor_id && a.actor_id === selected.submitter_id
@@ -1258,6 +1479,10 @@ export function ApprovalsInboxPage() {
                         : a.action === 'approve' ? tr('actApprove', 'Approved')
                         : a.action === 'reject' ? tr('actReject', 'Rejected')
                         : a.action === 'recall' ? tr('actRecall', 'Recalled')
+                        : a.action === 'reassign' ? tr('actReassign', 'Reassigned')
+                        : a.action === 'remind' ? tr('actRemind', 'Reminder sent')
+                        : a.action === 'request_info' ? tr('actRequestInfo', 'Requested more info')
+                        : a.action === 'comment' ? tr('actComment', 'Commented')
                         : a.action;
                       return (
                         <li key={a.id} className="relative text-xs">
@@ -1283,6 +1508,20 @@ export function ApprovalsInboxPage() {
                       );
                     })}
                   </ol>
+                )}
+                {selected.status === 'pending' && (canApproveReject || canRecall) && (
+                  <div className="flex items-center gap-2 mt-3">
+                    <Input
+                      value={reply}
+                      onChange={(e) => setReply(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === 'Enter' && reply.trim()) { e.preventDefault(); void doReply(); } }}
+                      placeholder={tr('replyPlaceholder', 'Reply on this request…')}
+                      className="h-8 text-sm"
+                    />
+                    <Button size="sm" variant="outline" className="h-8 px-2 shrink-0" disabled={!reply.trim() || threadBusy} onClick={() => void doReply()}>
+                      <Send className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
                 )}
               </div>
 
@@ -1409,6 +1648,31 @@ export function ApprovalsInboxPage() {
                           </AlertDialogFooter>
                         </AlertDialogContent>
                       </AlertDialog>
+                      {canApproveReject && (
+                        <>
+                          <Button
+                            size="sm" variant="outline" disabled={submitting !== null || threadBusy}
+                            className="border-amber-300 text-amber-700 hover:bg-amber-50 dark:text-amber-400"
+                            onClick={() => setRequestInfoOpen(true)}
+                          >
+                            <HelpCircle className="h-4 w-4 mr-1" />
+                            {tr('requestInfoBtn', 'Request info')}
+                          </Button>
+                          <Button
+                            size="sm" variant="outline" disabled={submitting !== null || threadBusy}
+                            onClick={() => { void loadUserOptions(); setReassignOpen(true); }}
+                          >
+                            <ArrowRightLeft className="h-4 w-4 mr-1" />
+                            {tr('reassignBtn', 'Reassign')}
+                          </Button>
+                        </>
+                      )}
+                      {canRecall && (
+                        <Button size="sm" variant="outline" disabled={threadBusy} onClick={() => void doRemind()}>
+                          <BellRing className="h-4 w-4 mr-1" />
+                          {tr('remindBtn', 'Send reminder')}
+                        </Button>
+                      )}
                       {canRecall && (
                         <AlertDialog>
                           <AlertDialogTrigger asChild>
