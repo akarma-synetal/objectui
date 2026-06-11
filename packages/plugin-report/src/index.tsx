@@ -10,39 +10,14 @@ import { ComponentRegistry } from '@object-ui/core';
 import { ReportRenderer } from './ReportRenderer';
 import { LegacyReportRenderer } from './LegacyReportRenderer';
 import { ReportViewer } from './ReportViewer';
-import { ReportBuilder } from './ReportBuilder';
-import { ReportConfigPanel } from './ReportConfigPanel';
-import { SpecReportGrid } from './SpecReportGrid';
-import { MatrixRenderer } from './MatrixRenderer';
-import { JoinedReportRenderer } from './JoinedReportRenderer';
 import { DatasetReportRenderer, isDatasetReport } from './DatasetReportRenderer';
 
-export { ReportRenderer, LegacyReportRenderer, ReportViewer, ReportBuilder, ReportConfigPanel, SpecReportGrid, MatrixRenderer, JoinedReportRenderer, DatasetReportRenderer, isDatasetReport };
+export { ReportRenderer, LegacyReportRenderer, ReportViewer, DatasetReportRenderer, isDatasetReport };
 export type { ReportRendererProps, ReportRendererSchema } from './ReportRenderer';
 export type { LegacyReportRendererProps } from './LegacyReportRenderer';
-export type { SpecReportGridProps } from './SpecReportGrid';
-export type { MatrixRendererProps, MatrixCellClickArgs } from './MatrixRenderer';
-export type { JoinedReportRendererProps } from './JoinedReportRenderer';
 export type { DatasetReportRendererProps } from './DatasetReportRenderer';
-export {
-  buildDrillAction,
-  createDrillHandler,
-  registerDrillHandler,
-  isDrillAction,
-} from './drill';
-export type {
-  DrillActionDef,
-  DrillHandlerOptions,
-  DrillNavigateTarget,
-  DrillOpenIn,
-  DrillView,
-} from './drill';
-export type { AvailableField } from './ReportConfigPanel';
-export { JoinedBlocksEditor, validateJoinedBlocks } from './JoinedBlocksEditor';
-export type { JoinedBlocksEditorProps } from './JoinedBlocksEditor';
 export { formatValue } from './formatValue';
 export { exportReport, exportAsCSV, exportAsJSON, exportAsHTML, exportAsPDF, exportAsExcel } from './ReportExportEngine';
-export { ScheduleConfig } from './ScheduleConfig';
 export {
   exportWithLiveData,
   exportExcelWithFormulas,
@@ -55,7 +30,13 @@ export type {
   ScheduleTriggerCallback,
 } from './LiveReportExporter';
 
-// Spec-native report execution
+// Report execution helpers.
+//
+// `mergeFilters` is the shared scope-filter combinator used by the dataset
+// renderer. The `useReportData` hook and its aggregation helpers implement
+// the pre-9.0 CLIENT-SIDE pipeline (inline columns/groupings) — they are kept
+// exported for stored-JSON consumers during the migration window, but new
+// code should bind a dataset and let the semantic layer aggregate.
 export {
   useReportData,
   columnKey,
@@ -76,7 +57,7 @@ export type {
   UseReportDataOptions,
 } from './hooks/useReportData';
 
-// Register report component (dispatches spec vs legacy automatically)
+// Register report component (dispatches dataset-bound vs legacy automatically)
 ComponentRegistry.register(
   'report',
   ReportRenderer,
@@ -101,7 +82,7 @@ ComponentRegistry.register(
     label: 'Spec Report',
     category: 'Report',
     inputs: [
-        { name: 'objectName', type: 'string', label: 'Object Name' },
+        { name: 'dataset', type: 'string', label: 'Dataset' },
         { name: 'type', type: 'string', label: 'Report Type' },
     ]
   }
@@ -118,20 +99,6 @@ ComponentRegistry.register(
     inputs: [
         { name: 'report', type: 'code', label: 'Report Definition' },
         { name: 'showToolbar', type: 'boolean', label: 'Show Toolbar' }
-    ]
-  }
-);
-
-// Register report builder component
-ComponentRegistry.register(
-  'report-builder',
-  ReportBuilder,
-  {
-    namespace: 'report',
-    label: 'Report Builder',
-    category: 'Report',
-    inputs: [
-        { name: 'report', type: 'code', label: 'Initial Report' },
     ]
   }
 );

@@ -471,7 +471,7 @@ export function ReportView({ dataSource }: { dataSource?: DataSource }) {
                  <Suspense fallback={<div className="p-8 text-sm text-muted-foreground">{t('common.loading', { defaultValue: 'Loading…' })}</div>}>
                    {useSpecRenderer ? (
                      <div className="p-4 sm:p-6">
-                       <ReportRenderer schema={previewReport} dataSource={dataSource as any} />
+                       <ReportRenderer schema={previewReport} dataSource={dataSource as any} rows={reportRuntimeData} />
                      </div>
                    ) : (
                      <ReportViewer schema={viewerSchema} />

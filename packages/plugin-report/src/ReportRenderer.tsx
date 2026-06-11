@@ -1,78 +1,58 @@
 /**
  * ReportRenderer
  *
- * Thin dispatcher that routes a report schema to the correct renderer based
- * on whether it is a spec-native `SpecReport` (preferred) or a legacy
- * presentation-layer schema (`data`/`columns`/`chart`).
+ * Thin dispatcher that routes a report schema to the correct renderer.
+ *
+ * ADR-0021 single-form: a 9.0 report is **dataset-bound** — it binds a
+ * semantic-layer `dataset` and selects its `values` (measure names) grouped
+ * by `rows` (dimension names). That is the live rendering path.
  *
  * Dispatch table:
- * | report.type            | Renderer                          |
- * |------------------------|-----------------------------------|
- * | tabular | summary      | <SpecReportGrid>                  |
- * | matrix                 | placeholder (M2)                  |
- * | joined                 | placeholder (M3)                  |
- * | (legacy / no type)     | <LegacyReportRenderer>            |
+ * | schema shape                          | Renderer                                  |
+ * |---------------------------------------|-------------------------------------------|
+ * | dataset-bound (dataset / blocks)      | <DatasetReportRenderer>                   |
+ * | pre-9.0 spec report (stored JSON)     | specReportToPresentation → <ReportViewer> |
+ * | legacy presentation ({data, columns}) | <LegacyReportRenderer>                    |
  *
- * Host apps can:
- * - Pass a `SpecReport` plus a `dataSource` to drive a live, drillable report.
- * - Pass a legacy `{ data, columns, chart }` schema for backwards compatibility.
+ * The pre-9.0 query-form renderers (SpecReportGrid / MatrixRenderer /
+ * JoinedReportRenderer) were retired with the cutover — stored old-shape JSON
+ * renders through the lossy {@link specReportToPresentation} bridge until it
+ * is migrated to a dataset binding.
  */
 
 import * as React from 'react';
-import type { ActionRunner } from '@object-ui/core';
 import {
-  isJoinedSpecReport,
   isSpecReport,
-  type JoinedSpecReport,
+  specReportToPresentation,
   type SpecReport,
   type DataSource,
+  type ReportViewerSchema,
 } from '@object-ui/types';
 import { SchemaRendererContext } from '@object-ui/react';
 import { LegacyReportRenderer, type LegacyReportRendererProps } from './LegacyReportRenderer';
-import { SpecReportGrid } from './SpecReportGrid';
-import { MatrixRenderer } from './MatrixRenderer';
-import { JoinedReportRenderer } from './JoinedReportRenderer';
+import { ReportViewer } from './ReportViewer';
 import { DatasetReportRenderer, isDatasetReport } from './DatasetReportRenderer';
-import type { DrillOpenIn, DrillView } from './drill';
 
 export type ReportRendererSchema = SpecReport | LegacyReportRendererProps['schema'];
 
 export interface ReportRendererProps {
-  /** Either a spec-native `SpecReport` or a legacy presentation schema. */
+  /** Either a spec `Report` (dataset-bound) or a legacy presentation schema. */
   schema: ReportRendererSchema;
-  /** Required for spec reports unless `rows` is provided. */
+  /** Required for dataset-bound reports unless the host pre-fetched rows. */
   dataSource?: DataSource | Record<string, unknown>;
-  /** Pre-fetched rows (skips data fetch). */
+  /** Pre-fetched rows — feeds the pre-9.0 / legacy presentation paths. */
   rows?: Array<Record<string, unknown>>;
-  /** Runtime filter merged on top of `report.filter`. */
+  /** Runtime filter merged on top of the report's own scope filter. */
   runtimeFilter?: Record<string, unknown>;
-  /** Action runner used to dispatch `drill` actions on row click. */
-  actionRunner?: ActionRunner;
-  /** Default view for drill targets. */
-  drillView?: DrillView;
-  /** Where the drill target should open. */
-  drillOpenIn?: DrillOpenIn;
   /** Optional class for the outer container. */
   className?: string;
 }
-
-const PLACEHOLDER_BANNER: React.CSSProperties = {
-  border: '1px dashed var(--color-border, #d4d4d8)',
-  borderRadius: 8,
-  padding: 16,
-  color: 'var(--color-muted-foreground, #71717a)',
-  background: 'var(--color-muted, #f4f4f5)',
-  fontSize: 13,
-};
 
 export const ReportRenderer: React.FC<ReportRendererProps> = (props) => {
   const {
     dataSource: propDataSource,
     rows,
     runtimeFilter,
-    actionRunner,
-    drillView,
-    drillOpenIn,
     className,
   } = props;
   // Fall back to the SchemaRenderer context when no dataSource prop is
@@ -80,7 +60,7 @@ export const ReportRenderer: React.FC<ReportRendererProps> = (props) => {
   // <SchemaRenderer schema={{ type: 'spec-report', ... }} /> (e.g. from
   // the dashboard drill-down drawer), which does not forward runtime
   // context as props. Without this fallback the report cannot fetch
-  // data and the matrix renders empty cells.
+  // data and renders empty.
   const context = React.useContext(SchemaRendererContext);
   const dataSource = (propDataSource ?? context?.dataSource) as
     | DataSource
@@ -98,12 +78,8 @@ export const ReportRenderer: React.FC<ReportRendererProps> = (props) => {
   ) {
     schema = (schema as Record<string, unknown>).report as ReportRendererSchema;
   }
-  // ADR-0021 single-form: a report bound to a semantic-layer `dataset` (rather
-  // than an inline `objectName` + `columns` query) renders through the dataset
-  // path — `queryDataset` + a grouped table — exactly like a dataset-bound
-  // dashboard widget. Checked BEFORE the legacy `isSpecReport` guards, which
-  // require `objectName`/`columns` and would otherwise drop a dataset report
-  // into the legacy renderer (→ blank).
+
+  // ADR-0021 single-form: the dataset-bound path is THE report renderer.
   if (isDatasetReport(schema)) {
     return (
       <DatasetReportRenderer
@@ -114,58 +90,26 @@ export const ReportRenderer: React.FC<ReportRendererProps> = (props) => {
       />
     );
   }
+
+  // Stored pre-9.0 spec JSON (objectName/columns query form) — its inline
+  // renderers were retired; bridge it to the presentation viewer. The
+  // conversion is lossy by construction (see specReportToPresentation): the
+  // proper fix is migrating the stored report to a dataset binding.
   if (isSpecReport(schema)) {
-    const reportType = schema.type ?? 'tabular';
-
-    if (reportType === 'matrix') {
-      return (
-        <MatrixRenderer
-          report={schema}
-          dataSource={dataSource as DataSource | undefined}
-          rows={rows}
-          runtimeFilter={runtimeFilter}
-          actionRunner={actionRunner}
-          drillView={drillView}
-          drillOpenIn={drillOpenIn}
-          className={className}
-        />
-      );
-    }
-    if (reportType === 'joined') {
-      if (isJoinedSpecReport(schema)) {
-        return (
-          <JoinedReportRenderer
-            report={schema as JoinedSpecReport}
-            dataSource={dataSource as DataSource | undefined}
-            runtimeFilter={runtimeFilter}
-            actionRunner={actionRunner}
-            drillView={drillView}
-            drillOpenIn={drillOpenIn}
-            className={className}
-          />
-        );
-      }
-      return (
-        <div className={className} style={PLACEHOLDER_BANNER} data-testid="report-joined-placeholder">
-          Joined report (<code>{schema.name}</code>) is missing a <code>blocks</code> array.
-        </div>
-      );
-    }
-
+    const presentation = specReportToPresentation(schema);
+    const viewerSchema = {
+      type: 'report-viewer',
+      report: presentation,
+      data: rows ?? [],
+      showToolbar: false,
+    } as unknown as ReportViewerSchema;
     return (
-      <SpecReportGrid
-        report={schema}
-        dataSource={dataSource as DataSource | undefined}
-        rows={rows}
-        runtimeFilter={runtimeFilter}
-        actionRunner={actionRunner}
-        drillView={drillView}
-        drillOpenIn={drillOpenIn}
-        className={className}
-      />
+      <div className={className} data-testid="report-presentation-bridge">
+        <ReportViewer schema={viewerSchema} />
+      </div>
     );
   }
 
-  // Legacy path — preserves backwards compatibility with the pre-spec schema.
+  // Legacy presentation path — pre-spec `{ data, columns, chart }` schemas.
   return <LegacyReportRenderer schema={schema as LegacyReportRendererProps['schema']} />;
 };

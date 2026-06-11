@@ -8,17 +8,18 @@
  * `buildReportSchema` / `ConfigPanelRenderer` engine in `plugin-report`, so the
  * runtime and the metadata studio share ONE report-editing surface. The
  * inspector renders the report config fields straight from `@objectstack/spec`
- * (`reportForm` / `ReportSchema`) plus a curated object / type / columns layer.
+ * (`reportForm` / `ReportSchema`) plus a curated type / dataset / values /
+ * rows layer (ADR-0021 single-form).
  *
  * It lives in `app-shell` (next to the studio inspector) rather than in
  * `plugin-report`: `app-shell` depends on `plugin-report`, so hosting the
  * inspector here avoids the circular import a plugin-side panel would need.
  *
- * The Report document is FLAT (label / objectName / type / columns / … at the
- * top level), so — unlike the View migration — no shape adapter is required:
- * the report config IS the inspector draft. Field loading is network-free:
- * the host's `availableFields` are mapped into `objectFieldsOverride` so the
- * inspector issues no `client.get('object', …)` request.
+ * The Report document is FLAT (label / dataset / type / values / rows / … at
+ * the top level), so — unlike the View migration — no shape adapter is
+ * required: the report config IS the inspector draft. The dataset catalog
+ * (binding options + measure/dimension pickers) loads through the shared
+ * MetadataClient.
  *
  * Props mirror the legacy `plugin-report` panel so it is a drop-in replacement
  * for ReportView.
@@ -31,7 +32,6 @@ import { X } from 'lucide-react';
 import { ReportDefaultInspector } from './metadata-admin/inspectors/ReportDefaultInspector';
 import { RuntimeDraftBar } from './RuntimeDraftBar';
 import { detectLocale } from './metadata-admin/i18n';
-import type { ObjectFieldInfo } from './metadata-admin/previews/useObjectFields';
 
 /** Field option shape the host (ReportView) already computes. */
 interface AvailableField {
@@ -51,7 +51,11 @@ export interface ReportConfigPanelProps {
   onSave: (config: Record<string, any>) => void;
   /** Called on every field change so the host can drive a live preview. */
   onFieldChange?: (key: string, value: any, draft?: Record<string, any>) => void;
-  /** Field catalog for the bound object — mapped to a network-free override. */
+  /**
+   * Legacy field catalog for the pre-9.0 object-bound report editor. Kept for
+   * prop compatibility; a 9.0 report binds a dataset, so the inspector now
+   * sources its pickers from the dataset catalog instead.
+   */
   availableFields?: AvailableField[];
   /** Reserved for parity with the legacy panel; unused by the inspector. */
   getFieldsForObject?: (objectName: string | undefined) => AvailableField[] | undefined;
@@ -66,31 +70,18 @@ export interface ReportConfigPanelProps {
   onAfterChange?: () => void;
 }
 
-/** Map the host's `{ value, label, type }` fields into the inspector's catalog. */
-function toObjectFields(fields: AvailableField[] | undefined): ObjectFieldInfo[] {
-  if (!Array.isArray(fields)) return [];
-  return fields.map((f) => ({
-    name: f.value,
-    label: f.label || f.value,
-    type: f.type || 'text',
-    hidden: false,
-  }));
-}
-
 export function ReportConfigPanel({
   open,
   onClose,
   config,
   onSave,
   onFieldChange,
-  availableFields,
   name,
   metadataClient,
   onAfterChange,
 }: ReportConfigPanelProps) {
   const { t } = useObjectTranslation();
   const locale = useMemo(() => detectLocale(), []);
-  const objectFields = useMemo(() => toObjectFields(availableFields), [availableFields]);
   // Unsaved-edits flag — gates Publish (mirrors studio's "save first").
   const [dirty, setDirty] = useState(false);
 
@@ -174,7 +165,6 @@ export function ReportConfigPanel({
           draft={draft}
           readOnly={false}
           locale={locale}
-          objectFieldsOverride={objectFields}
           onPatch={handlePatch}
         />
       </div>

@@ -1,28 +1,29 @@
 // Copyright (c) 2025 ObjectStack. Licensed under the Apache-2.0 license.
 
 /**
- * ReportPreview — runs the live Report draft through the same
- * ReportRenderer the runtime ReportView uses.
+ * ReportPreview — runs the live Report draft through the dataset query path
+ * (ADR-0021 single-form).
  *
- * Uses the app-shell AdapterProvider's data source so previews see
- * actual rows. Lazy-loaded to keep the metadata-admin bundle small.
+ * A 9.0 report binds a semantic-layer `dataset` and selects its measures
+ * (`values`) grouped by dimensions (`rows`); the preview executes that
+ * selection through `adapter.queryDataset`, so the numbers match every other
+ * surface on the same dataset. A draft without a dataset binding (e.g. stored
+ * pre-9.0 query-form JSON) gets an actionable empty state pointing at the
+ * inspector's Dataset control instead of the retired legacy renderer.
+ *
+ * Uses the app-shell AdapterProvider's data source so previews see actual
+ * rows.
  */
 
 import * as React from 'react';
-import { Loader2, Database, Columns3, Plus, Table2, AlertTriangle } from 'lucide-react';
+import { Database, Loader2, Table2, AlertTriangle } from 'lucide-react';
 import { useAdapter } from '../../../providers/AdapterProvider';
 import type { MetadataPreviewProps } from '../preview-registry';
-import { PreviewShell, PreviewErrorBoundary, PreviewEmptyState } from './PreviewShell';
-import { OutlineStrip } from './OutlineStrip';
-import { t as tr } from '../i18n';
-
-const ReportRenderer = React.lazy(() =>
-  import('@object-ui/plugin-report').then((m) => ({ default: m.ReportRenderer })),
-);
+import { PreviewShell, PreviewEmptyState } from './PreviewShell';
 
 /**
  * DatasetBoundReport — renders a report that binds to a semantic-layer
- * `dataset` (ADR-0021 dual-form) instead of an inline object query. The report
+ * `dataset` (ADR-0021 single-form). The report
  * picks dimensions (`rows`) and measures (`values`) by NAME from the dataset;
  * we run them through the same `adapter.queryDataset` path the dataset preview
  * uses, so the numbers match every other surface on that dataset.
@@ -107,123 +108,22 @@ function DatasetBoundReport({ draft }: { draft: Record<string, unknown> }) {
   );
 }
 
-export function ReportPreview({ draft, editing, selection, onSelectionChange, onPatch, locale }: MetadataPreviewProps) {
-  const adapter = useAdapter();
-  // ADR-0021 dual-form: a report bound to a semantic-layer dataset renders
-  // through the dataset query path rather than the inline-object ReportRenderer.
+export function ReportPreview({ draft }: MetadataPreviewProps) {
+  // ADR-0021 single-form: a report binds a semantic-layer dataset.
   if (typeof (draft as any).dataset === 'string' && (draft as any).dataset) {
     return <DatasetBoundReport draft={draft as Record<string, unknown>} />;
   }
-  // Different fixture sets use different keys for the source object:
-  //   • new schema: `object`
-  //   • legacy: `objectName`
-  //   • some reports embed it under `data.object`
-  const objectName =
-    (draft as any).object ?? (draft as any).objectName ?? (draft as any).data?.object;
-  const visualization = (draft as any).visualization?.type ?? (draft as any).type;
 
-  const designMode = !!(editing && onSelectionChange);
-  const canEdit = designMode && !!onPatch;
-  const selectedId = selection && selection.kind === 'column' ? selection.id : null;
-  const columnEntries = React.useMemo(() => {
-    const cols = Array.isArray((draft as any).columns) ? (draft as any).columns as Array<Record<string, unknown>> : [];
-    return cols.map((c, i) => ({ id: `columns[${i}]`, label: String(c.label ?? c.field ?? `col ${i + 1}`) }));
-  }, [draft]);
-
-  const handleAdd = React.useCallback(() => {
-    if (!canEdit) return;
-    const cols = Array.isArray((draft as any).columns) ? (draft as any).columns as Array<Record<string, unknown>> : [];
-    const newCol = { field: '', label: 'New column' };
-    const next = [...cols, newCol];
-    onPatch!({ columns: next });
-    onSelectionChange?.({ kind: 'column', id: `columns[${next.length - 1}]`, label: newCol.label });
-  }, [canEdit, draft, onPatch, onSelectionChange]);
-
-  // ReportRenderer routes through `isSpecReport`, which requires `columns`
-  // to be an array. Ensure that shape unconditionally so an empty draft
-  // doesn't silently fall through to the legacy empty-Card path.
-  const normalizedDraft = React.useMemo(
-    () => ({ columns: [], ...(draft as Record<string, unknown>) }),
-    [draft],
-  );
-
-  if (!objectName) {
-    return (
-      <PreviewShell>
-        <PreviewEmptyState
-          icon={<Database className="h-8 w-8" />}
-          title="Pick a source object to preview the report"
-          description="Reports need a source object — choose one in the Object Name field on the right panel to start designing."
-        />
-      </PreviewShell>
-    );
-  }
-
-  // Without columns, the spec renderer has nothing to draw — show an
-  // actionable empty state instead of an empty card.
-  const hasColumns = Array.isArray((draft as any).columns) && (draft as any).columns.length > 0;
-  if (!hasColumns) {
-    return (
-      <PreviewShell>
-        {designMode && (
-          <OutlineStrip
-            title={tr('engine.inspector.reportColumn.outlineLabel', locale)}
-            entries={columnEntries}
-            selectedId={selectedId}
-            onSelect={(e) => onSelectionChange?.({ kind: 'column', id: e.id, label: e.label })}
-            onAdd={canEdit ? handleAdd : undefined}
-            addLabel={tr('engine.inspector.add.column', locale)}
-          />
-        )}
-        <PreviewEmptyState
-          icon={<Columns3 className="h-8 w-8" />}
-          title="No columns yet"
-          description={
-            canEdit
-              ? 'Add at least one column to preview the report against live data.'
-              : 'Define columns in the Properties tab to see a preview.'
-          }
-          action={
-            canEdit ? (
-              <button
-                type="button"
-                onClick={handleAdd}
-                className="inline-flex items-center gap-1.5 rounded-md border bg-background px-3 py-1.5 text-xs font-medium hover:bg-accent transition-colors"
-              >
-                <Plus className="h-3.5 w-3.5" /> Add first column
-              </button>
-            ) : undefined
-          }
-        />
-      </PreviewShell>
-    );
-  }
-
+  // No dataset bound — either a fresh draft or stored pre-9.0 query-form
+  // JSON (objectName/columns), whose inline-query renderer was retired with
+  // the 9.0 cutover. Point the author at the dataset binding.
   return (
-    <PreviewShell hint={`report · ${visualization ?? 'table'}${designMode ? ' · design' : ''}`}>
-      <PreviewErrorBoundary fallbackHint="The Report references an object/field that doesn't resolve, or its visualization config is incomplete.">
-        {designMode && (
-          <OutlineStrip
-            title={tr('engine.inspector.reportColumn.outlineLabel', locale)}
-            entries={columnEntries}
-            selectedId={selectedId}
-            onSelect={(e) => onSelectionChange?.({ kind: 'column', id: e.id, label: e.label })}
-            onAdd={canEdit ? handleAdd : undefined}
-            addLabel={tr('engine.inspector.add.column', locale)}
-          />
-        )}
-        <React.Suspense
-          fallback={
-            <div className="p-6 text-sm text-muted-foreground flex items-center gap-2">
-              <Loader2 className="h-4 w-4 animate-spin" /> Loading report renderer…
-            </div>
-          }
-        >
-          <div className="p-3 min-h-[300px] max-h-[70vh] overflow-auto">
-            <ReportRenderer schema={normalizedDraft as any} dataSource={adapter as any} />
-          </div>
-        </React.Suspense>
-      </PreviewErrorBoundary>
+    <PreviewShell>
+      <PreviewEmptyState
+        icon={<Database className="h-8 w-8" />}
+        title="Bind a dataset to preview this report"
+        description="Since the 9.0 single-form cutover a report renders its dataset's measures (values) grouped by dimensions (rows). Choose a Dataset in the right panel to start designing."
+      />
     </PreviewShell>
   );
 }
