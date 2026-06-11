@@ -199,29 +199,16 @@ function resolveLabel(label: unknown, fallback: string): string {
 }
 
 /**
- * Map a UI-spec aggregate to the legacy presentation aggregation enum.
- * Legacy uses `'distinct'` where spec uses `'unique'`.
- */
-function aggregateToLegacy(
-  aggregate: SpecReportAggregate | undefined,
-): LegacyReportPresentationLike['fields'] extends Array<infer F>
-  ? F extends { aggregation?: infer A }
-    ? A
-    : undefined
-  : undefined {
-  if (!aggregate) return undefined as any;
-  if (aggregate === 'unique') return 'distinct' as any;
-  return aggregate as any;
-}
-
-/**
  * Convert a spec `Report` into the legacy presentation `ReportSchema` so the
  * existing `ReportRenderer`/`ReportViewer` can render it during migration.
  *
- * This is a **lossy** conversion — spec-only concepts (`groupingsAcross`,
- * `responsive`, `aria`, `performance`) are dropped. The intended migration
- * path is to deprecate the legacy renderers in favour of spec-native ones
- * (see plugin-report roadmap M1–M2).
+ * Since the ADR-0021 single-form cutover (`@objectstack/spec` 9.0) a report is
+ * **dataset-bound**: `rows` (dimension names) and `values` (measure names) are
+ * plain `string[]` that reference the dataset's semantic layer — the per-column
+ * `label` / `aggregate` and per-grouping `sortOrder` / `dateGranularity` now
+ * live in the dataset definition, not the report. This conversion is therefore
+ * **lossy by construction**: it maps the names through and leaves label /
+ * aggregation / sort / granularity for the dataset-aware renderer to resolve.
  */
 export function specReportToPresentation(report: SpecReport): LegacyReportPresentationLike {
   const reportType = (report.type ?? 'tabular') as SpecReportTypeName;
@@ -234,21 +221,17 @@ export function specReportToPresentation(report: SpecReport): LegacyReportPresen
       ? 'tabular'
       : reportType;
 
-  const fields: NonNullable<LegacyReportPresentationLike['fields']> = (report.columns ?? []).map(
-    (col) => ({
-      name: col.field,
-      label: resolveLabel(col.label, col.field),
-      aggregation: aggregateToLegacy(col.aggregate as SpecReportAggregate | undefined),
-    }),
+  // `values` are measure names defined in the dataset; the report only refers
+  // to them. Label / aggregation are resolved downstream from the dataset.
+  const fields: NonNullable<LegacyReportPresentationLike['fields']> = (report.values ?? []).map(
+    (name) => ({ name, label: resolveLabel(undefined, name) }),
   );
 
+  // `rows` are dimension names from the dataset; sort / dateGranularity live in
+  // the dataset definition, not the report.
   const groupBy: NonNullable<LegacyReportPresentationLike['groupBy']> = (
-    report.groupingsDown ?? []
-  ).map((g) => ({
-    field: g.field,
-    sort: g.sortOrder ?? 'asc',
-    dateGranularity: g.dateGranularity,
-  }));
+    report.rows ?? []
+  ).map((field) => ({ field, sort: 'asc' as const }));
 
   return {
     type: 'report',
@@ -266,15 +249,19 @@ export function specReportToPresentation(report: SpecReport): LegacyReportPresen
  * Type guard: does this object look like a spec `Report` (vs. a legacy
  * presentation `ReportSchema`)?
  *
- * Heuristic: spec reports carry `name` + `objectName` + `columns`, while
- * legacy presentation schemas carry `type: 'report'` + `fields`.
+ * Heuristic (spec 9.0, dataset-bound): spec reports carry `name` + a report
+ * `type` and are **not** the legacy presentation shape (which carries
+ * `type: 'report'` + `fields`). A non-joined spec report references a `dataset`;
+ * a joined one carries `blocks`. We accept any of those discriminators.
  */
 export function isSpecReport(value: unknown): value is SpecReport {
   if (!value || typeof value !== 'object') return false;
   const v = value as Record<string, unknown>;
-  return typeof v.name === 'string'
-    && typeof v.objectName === 'string'
-    && Array.isArray(v.columns);
+  if (typeof v.name !== 'string') return false;
+  if (v.type === 'report' && Array.isArray(v.fields)) return false; // legacy presentation
+  return typeof v.dataset === 'string'
+    || Array.isArray((v as { blocks?: unknown }).blocks)
+    || (typeof v.type === 'string' && ['tabular', 'summary', 'matrix', 'joined'].includes(v.type));
 }
 
 // ---------------------------------------------------------------------------

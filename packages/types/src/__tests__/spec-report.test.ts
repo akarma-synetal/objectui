@@ -2,10 +2,10 @@
  * ObjectUI
  * Copyright (c) 2024-present ObjectStack Inc.
  *
- * Tests for the Spec Report bridge:
+ * Tests for the Spec Report bridge (spec 9.0, dataset-bound — ADR-0021):
  * - Re-exports compile and match the spec shape.
  * - Aggregate mapping handles the `unique → count_distinct` translation.
- * - The presentation adapter is lossy but well-behaved.
+ * - The presentation adapter maps the dataset `rows` / `values` names through.
  */
 
 import { describe, it, expect } from 'vitest';
@@ -34,113 +34,82 @@ describe('SpecReport bridge', () => {
   });
 
   describe('SpecReportSchema parsing', () => {
-    it('accepts a minimal tabular report', () => {
+    it('accepts a minimal tabular report (dataset + values)', () => {
       const input: SpecReportInput = {
         name: 'sales_dump',
         label: 'Sales Dump',
-        objectName: 'opportunity',
-        columns: [{ field: 'name' }, { field: 'amount' }],
+        dataset: 'opportunity_ds',
+        values: ['name', 'amount'],
       };
       const parsed = SpecReport.create(input);
       expect(parsed.name).toBe('sales_dump');
       expect(parsed.type).toBe('tabular'); // default
-      expect(parsed.columns).toHaveLength(2);
+      expect(parsed.values).toHaveLength(2);
     });
 
-    it('accepts a summary report with groupings and aggregates', () => {
+    it('accepts a summary report with rows (dimensions) + values (measures)', () => {
       const input: SpecReportInput = {
         name: 'sales_by_owner',
         label: 'Sales by Owner',
-        objectName: 'opportunity',
+        dataset: 'opportunity_ds',
         type: 'summary',
-        columns: [
-          { field: 'owner_id' },
-          { field: 'amount', aggregate: 'sum' },
-          { field: 'id', aggregate: 'unique' },
-        ],
-        groupingsDown: [{ field: 'owner_id' }],
+        rows: ['owner_id'],
+        values: ['amount_sum', 'account_count'],
       };
       const parsed = SpecReportSchema.parse(input);
       expect(parsed.type).toBe('summary');
-      expect(parsed.groupingsDown).toHaveLength(1);
-      expect(parsed.columns[1].aggregate).toBe('sum');
+      expect(parsed.rows).toHaveLength(1);
+      expect(parsed.values).toEqual(['amount_sum', 'account_count']);
     });
   });
 
   describe('specReportToPresentation adapter', () => {
-    it('extracts string labels from I18nLabel objects', () => {
+    it('extracts the report-level label/description and maps value names to fields', () => {
       const report = SpecReport.create({
         name: 'demo',
         label: 'Demo Report',
         description: 'A short description',
-        objectName: 'lead',
-        columns: [{ field: 'email', label: 'E-mail' }],
+        dataset: 'lead_ds',
+        values: ['email'],
       });
       const legacy = specReportToPresentation(report);
       expect(legacy.type).toBe('report');
       expect(legacy.title).toBe('Demo Report');
       expect(legacy.description).toBe('A short description');
-      expect(legacy.fields?.[0].label).toBe('E-mail');
-    });
-
-    it('maps unique aggregate to legacy distinct', () => {
-      const report = SpecReport.create({
-        name: 'distinct_demo',
-        label: 'Distinct Demo',
-        objectName: 'account',
-        columns: [{ field: 'id', aggregate: 'unique' }],
-      });
-      const legacy = specReportToPresentation(report);
-      expect(legacy.fields?.[0].aggregation).toBe('distinct');
+      expect(legacy.fields?.[0].name).toBe('email');
     });
 
     it('collapses joined report type to tabular for legacy renderer', () => {
       const report = SpecReport.create({
         name: 'joined_demo',
         label: 'Joined',
-        objectName: 'account',
         type: 'joined',
-        columns: [{ field: 'name' }],
-      });
+        blocks: [{ name: 'b1', label: 'Block 1', dataset: 'account_ds', values: ['name'] }],
+      } as never);
       const legacy = specReportToPresentation(report);
       expect(legacy.reportType).toBe('tabular');
     });
 
-    it('preserves matrix report type', () => {
+    it('preserves matrix report type and maps rows to groupBy', () => {
       const report = SpecReport.create({
         name: 'matrix_demo',
         label: 'Matrix',
-        objectName: 'opportunity',
+        dataset: 'opportunity_ds',
         type: 'matrix',
-        columns: [{ field: 'amount', aggregate: 'sum' }],
-        groupingsDown: [{ field: 'region' }],
-        groupingsAcross: [{ field: 'quarter' }],
+        rows: ['region'],
+        values: ['amount_sum'],
       });
       const legacy = specReportToPresentation(report);
       expect(legacy.reportType).toBe('matrix');
-      // groupingsAcross is intentionally lost in the legacy projection.
       expect(legacy.groupBy?.[0].field).toBe('region');
     });
 
-    it('preserves dateGranularity on groupings', () => {
-      const report = SpecReport.create({
-        name: 'time_demo',
-        label: 'Time',
-        objectName: 'order',
-        type: 'summary',
-        columns: [{ field: 'amount', aggregate: 'sum' }],
-        groupingsDown: [{ field: 'close_date', dateGranularity: 'quarter' }],
-      });
-      const legacy = specReportToPresentation(report);
-      expect(legacy.groupBy?.[0].dateGranularity).toBe('quarter');
-    });
-
-    it('omits groupBy when no groupings present', () => {
+    it('omits groupBy when no rows present', () => {
       const report = SpecReport.create({
         name: 'plain',
         label: 'Plain',
-        objectName: 'account',
-        columns: [{ field: 'name' }],
+        dataset: 'account_ds',
+        values: ['name'],
       });
       const legacy = specReportToPresentation(report);
       expect(legacy.groupBy).toBeUndefined();
@@ -148,12 +117,12 @@ describe('SpecReport bridge', () => {
   });
 
   describe('isSpecReport type guard', () => {
-    it('recognises a spec report', () => {
+    it('recognises a dataset-bound spec report', () => {
       const report = SpecReport.create({
         name: 'r1',
         label: 'Report A',
-        objectName: 'account',
-        columns: [{ field: 'name' }],
+        dataset: 'account_ds',
+        values: ['name'],
       });
       expect(isSpecReport(report)).toBe(true);
     });

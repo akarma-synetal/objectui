@@ -1105,8 +1105,8 @@ export type {
   GlobalFilterSchema as SpecGlobalFilterSchema,
   GlobalFilterOptionsFrom,
   GlobalFilterOptionsFromSchema,
-  WidgetMeasure,
-  WidgetMeasureSchema,
+  // WidgetMeasure / WidgetMeasureSchema removed in @objectstack/spec 9.0
+  // (ADR-0021 single-form cutover) — dashboard widgets are dataset-bound now.
   WidgetColorVariant,
   WidgetColorVariantSchema,
 } from '@objectstack/spec/ui';
