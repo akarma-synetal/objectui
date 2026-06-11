@@ -87,6 +87,8 @@ import {
   X,
   ExternalLink,
   User as UserIcon,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react';
 import {
   approvalsApi,
@@ -146,6 +148,14 @@ function stepLabel(r: ApprovalRequestRow): string | null {
 function submitterDisplay(r: ApprovalRequestRow): string {
   return r.submitter_name || formatIdentity(r.submitter_id);
 }
+/** Approver chip text: server-resolved display name, else readable identity. */
+function approverDisplay(a: string, r: ApprovalRequestRow): string {
+  return r.pending_approver_names?.[a] || formatIdentity(a);
+}
+/** Object subtitle: schema label when resolved, else the machine name. */
+function objectDisplay(r: ApprovalRequestRow): string {
+  return r.object_label || r.object_name;
+}
 function submittedAt(r: ApprovalRequestRow): string | undefined {
   return r.submitted_at || r.created_at || undefined;
 }
@@ -193,15 +203,31 @@ function formatPayloadValue(key: string, v: unknown): string {
   return s;
 }
 
-/** First N scalar business fields of the record snapshot, for the summary card. */
-function payloadSummary(payload: unknown, max = 6): Array<[string, string]> {
+/** Opaque foreign-key shape: long unbroken alphanumeric token, not a number. */
+const OPAQUE_ID_RE = /^[A-Za-z0-9_-]{15,}$/;
+
+/**
+ * First N scalar business fields of the record snapshot, for the summary
+ * card. Lookup foreign keys render their server-resolved record title
+ * (`payload_display`); an unresolved opaque id is dropped rather than shown —
+ * a business reader gets nothing from `dpOfPMy7cbeEL1jk`.
+ */
+function payloadSummary(
+  payload: unknown,
+  display?: Record<string, string>,
+  max = 6,
+): Array<[string, string]> {
   if (!payload || typeof payload !== 'object' || Array.isArray(payload)) return [];
   const out: Array<[string, string]> = [];
   for (const [k, v] of Object.entries(payload as Record<string, unknown>)) {
     if (PAYLOAD_SYSTEM_KEYS.has(k)) continue;
     if (v == null || typeof v === 'object') continue;
     if (String(v).trim() === '') continue;
-    out.push([prettifyKey(k), formatPayloadValue(k, v)]);
+    const resolved = display?.[k];
+    if (!resolved && typeof v === 'string' && OPAQUE_ID_RE.test(v.trim()) && !/^\d+$/.test(v.trim())) {
+      continue;
+    }
+    out.push([prettifyKey(k), resolved ?? formatPayloadValue(k, v)]);
     if (out.length >= max) break;
   }
   return out;
@@ -416,6 +442,18 @@ export function ApprovalsInboxPage() {
           : tr('recalledToast', 'Request recalled'),
       );
       setComment('');
+      // Queue processing (Fiori "My Inbox" pattern): a decision on the
+      // pending tab advances straight to the next waiting item instead of
+      // parking on the finished one. Recall keeps the drawer for review.
+      if (kind !== 'recall' && tab === 'pending') {
+        const list = filteredRef.current;
+        const idx = list.findIndex(r => r.id === selected.id);
+        const next = list[idx + 1] ?? list[idx - 1];
+        void load();
+        if (next && next.id !== selected.id) void openDrawer(next.id);
+        else closeDrawer();
+        return;
+      }
       // Refresh drawer + list.
       const [req, acts] = await Promise.all([
         approvalsApi.getRequest(selected.id),
@@ -429,7 +467,7 @@ export function ApprovalsInboxPage() {
     } finally {
       setSubmitting(null);
     }
-  }, [selected, resolveActor, comment, load, user?.id, humanizeError, tr]);
+  }, [selected, resolveActor, comment, load, user?.id, humanizeError, tr, tab, openDrawer]);
 
   const canApproveReject = useMemo(() => {
     if (!selected || selected.status !== 'pending') return false;
@@ -441,6 +479,7 @@ export function ApprovalsInboxPage() {
     if (!selected || selected.status !== 'pending') return false;
     return selected.submitter_id === user?.id || actorOverride.trim().length > 0;
   }, [selected, user?.id, actorOverride]);
+
 
   /** Unique process labels present in current rows (for filter dropdown). */
   const processOptions = useMemo(() => {
@@ -472,6 +511,11 @@ export function ApprovalsInboxPage() {
       return hay.includes(q);
     });
   }, [rows, query, processFilter, objectFilter, statusFilter]);
+  /** Position of the open request within the visible list (drawer prev/next). */
+  const drawerIndex = useMemo(
+    () => (selectedId ? filteredRows.findIndex(r => r.id === selectedId) : -1),
+    [filteredRows, selectedId],
+  );
 
   // Reset selection when underlying filtered list changes (avoid acting on hidden rows).
   useEffect(() => {
@@ -646,6 +690,25 @@ export function ApprovalsInboxPage() {
     return () => window.removeEventListener('keydown', onKey);
   }, [selectedId, rejectTarget, tab, openDrawer, toggleRow, inlineApprove, isActionable]);
 
+  // Drawer keyboard: ←/→ walk the visible list without going back to it.
+  useEffect(() => {
+    if (!selectedId) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+      const el = e.target as HTMLElement | null;
+      const tag = el?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || el?.isContentEditable) return;
+      if (document.querySelector('[role="alertdialog"]')) return;
+      const list = filteredRef.current;
+      const idx = list.findIndex(r => r.id === selectedId);
+      if (idx < 0) return;
+      const target = e.key === 'ArrowLeft' ? list[idx - 1] : list[idx + 1];
+      if (target) { e.preventDefault(); void openDrawer(target.id); }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [selectedId, openDrawer]);
+
   const hasFilters = !!query || processFilter !== 'all' || objectFilter !== 'all' || statusFilter !== 'all';
 
   const onTabChange = (v: string) => {
@@ -682,7 +745,7 @@ export function ApprovalsInboxPage() {
           <span className="truncate">{r.record_title || formatIdentity(r.record_id)}</span>
           <ExternalLink className="h-3 w-3 shrink-0 text-muted-foreground" />
         </Link>
-        <div className="text-xs text-muted-foreground truncate">{r.object_name}</div>
+        <div className="text-xs text-muted-foreground truncate">{objectDisplay(r)}</div>
       </div>
     );
   }
@@ -1014,7 +1077,7 @@ export function ApprovalsInboxPage() {
                       </div>
                       <div className="text-sm truncate">
                         {r.record_title || formatIdentity(r.record_id)}
-                        <span className="text-muted-foreground text-xs ml-1.5">{r.object_name}</span>
+                        <span className="text-muted-foreground text-xs ml-1.5">{objectDisplay(r)}</span>
                       </div>
                       <div className="flex items-center justify-between text-xs text-muted-foreground">
                         <span className="inline-flex items-center gap-1 truncate">
@@ -1082,9 +1145,31 @@ export function ApprovalsInboxPage() {
               {selected ? processLabel(selected) : tr('drawerTitle', 'Approval Request')}
             </SheetTitle>
             <SheetDescription>
-              {selected ? (stepLabel(selected) || selected.object_name) : ''}
+              {selected ? (stepLabel(selected) || objectDisplay(selected)) : ''}
             </SheetDescription>
           </SheetHeader>
+
+          {selected && drawerIndex >= 0 && filteredRows.length > 1 && (
+            <div className="flex items-center justify-between mt-2 text-xs text-muted-foreground">
+              <Button
+                variant="ghost" size="sm" className="h-7 px-2"
+                disabled={drawerIndex <= 0}
+                onClick={() => { const prev = filteredRows[drawerIndex - 1]; if (prev) void openDrawer(prev.id); }}
+              >
+                <ChevronLeft className="h-4 w-4 mr-0.5" />
+                {tr('prevRequest', 'Previous')}
+              </Button>
+              <span>{tr('positionOf', '{{index}} of {{total}}', { index: drawerIndex + 1, total: filteredRows.length })}</span>
+              <Button
+                variant="ghost" size="sm" className="h-7 px-2"
+                disabled={drawerIndex >= filteredRows.length - 1}
+                onClick={() => { const next = filteredRows[drawerIndex + 1]; if (next) void openDrawer(next.id); }}
+              >
+                {tr('nextRequest', 'Next')}
+                <ChevronRight className="h-4 w-4 ml-0.5" />
+              </Button>
+            </div>
+          )}
 
           {drawerLoading ? (
             <div className="space-y-2 mt-6">
@@ -1118,7 +1203,7 @@ export function ApprovalsInboxPage() {
                         <span className="truncate">{selected.record_title || formatIdentity(selected.record_id)}</span>
                         <ExternalLink className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
                       </Link>
-                      <div className="text-xs text-muted-foreground">{selected.object_name}</div>
+                      <div className="text-xs text-muted-foreground">{objectDisplay(selected)}</div>
                     </div>
                     <div className="text-right text-xs text-muted-foreground shrink-0">
                       <div className="inline-flex items-center gap-1">
@@ -1127,9 +1212,9 @@ export function ApprovalsInboxPage() {
                       </div>
                     </div>
                   </div>
-                  {payloadSummary(selected.payload).length > 0 && (
+                  {payloadSummary(selected.payload, selected.payload_display).length > 0 && (
                     <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm border-t pt-3">
-                      {payloadSummary(selected.payload).map(([k, v]) => (
+                      {payloadSummary(selected.payload, selected.payload_display).map(([k, v]) => (
                         <div key={k} className="min-w-0">
                           <div className="text-[11px] text-muted-foreground">{k}</div>
                           <div className="truncate" title={v}>{v}</div>
@@ -1145,7 +1230,7 @@ export function ApprovalsInboxPage() {
                       <div className="flex flex-wrap gap-1">
                         {(selected.pending_approvers || []).map((a, i) => (
                           <Badge key={i} variant="outline" className="text-[11px]" title={a}>
-                            {formatIdentity(a)}
+                            {approverDisplay(a, selected)}
                           </Badge>
                         ))}
                       </div>
@@ -1165,9 +1250,10 @@ export function ApprovalsInboxPage() {
                                   : a.action === 'reject'  ? 'bg-destructive'
                                   : a.action === 'submit'  ? 'bg-blue-500'
                                   : 'bg-muted-foreground';
-                      const actorName = a.actor_id && a.actor_id === selected.submitter_id
-                        ? submitterDisplay(selected)
-                        : formatIdentity(a.actor_id);
+                      const actorName = a.actor_name
+                        ?? (a.actor_id && a.actor_id === selected.submitter_id
+                          ? submitterDisplay(selected)
+                          : formatIdentity(a.actor_id));
                       const actionText = a.action === 'submit' ? tr('actSubmit', 'Submitted')
                         : a.action === 'approve' ? tr('actApprove', 'Approved')
                         : a.action === 'reject' ? tr('actReject', 'Rejected')
@@ -1260,6 +1346,22 @@ export function ApprovalsInboxPage() {
                     )}
                     <div>
                       <Label htmlFor="comment" className="text-xs">{tr('comment', 'Comment (optional)')}</Label>
+                      <div className="flex flex-wrap gap-1.5 mt-1.5">
+                        {[
+                          tr('quickPhrase1', 'Approved — meets requirements.'),
+                          tr('quickPhrase2', 'Approved with conditions — please monitor execution.'),
+                          tr('quickPhrase3', 'Please add supporting material and resubmit.'),
+                        ].map((p) => (
+                          <button
+                            key={p}
+                            type="button"
+                            onClick={() => setComment(p)}
+                            className="text-[11px] px-2 py-0.5 rounded-full border text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+                          >
+                            {p}
+                          </button>
+                        ))}
+                      </div>
                       <Textarea
                         id="comment"
                         value={comment}
@@ -1337,7 +1439,7 @@ export function ApprovalsInboxPage() {
                         {canRecall
                           ? tr('whyDisabledSubmitter', 'You submitted this request, so you can recall it — but only the assigned approvers can approve or reject.')
                           : tr('whyDisabled', 'Only the assigned approvers can act on this request. It is waiting on: {{who}}.', {
-                              who: (selected.pending_approvers || []).map(formatIdentity).join(', ') || '—',
+                              who: (selected.pending_approvers || []).map(a => approverDisplay(a, selected)).join(', ') || '—',
                             })}
                       </div>
                     )}

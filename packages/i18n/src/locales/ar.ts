@@ -1750,6 +1750,12 @@ const ar = {
     },
   },
   approvalsInbox: {
+    prevRequest: 'السابق',
+    nextRequest: 'التالي',
+    positionOf: '{{index}} من {{total}}',
+    quickPhrase1: 'موافق — مستوفٍ للمتطلبات.',
+    quickPhrase2: 'موافقة مشروطة — يرجى متابعة التنفيذ.',
+    quickPhrase3: 'يرجى إضافة مستندات داعمة وإعادة التقديم.',
     title: 'مركز الموافقات',
     subtitle: 'راجع طلبات الموافقة وتعامل معها.',
     refresh: 'تحديث',

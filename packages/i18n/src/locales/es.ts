@@ -1750,6 +1750,12 @@ const es = {
     },
   },
   approvalsInbox: {
+    prevRequest: 'Anterior',
+    nextRequest: 'Siguiente',
+    positionOf: '{{index}} de {{total}}',
+    quickPhrase1: 'Aprobada: cumple los requisitos.',
+    quickPhrase2: 'Aprobada con condiciones: supervisar la ejecución.',
+    quickPhrase3: 'Añade documentación de apoyo y vuelve a enviarla.',
     title: 'Centro de aprobaciones',
     subtitle: 'Revisa y gestiona las solicitudes de aprobación.',
     refresh: 'Actualizar',

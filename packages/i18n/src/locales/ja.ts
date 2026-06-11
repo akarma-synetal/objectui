@@ -1750,6 +1750,12 @@ const ja = {
     },
   },
   approvalsInbox: {
+    prevRequest: '前へ',
+    nextRequest: '次へ',
+    positionOf: '{{index}} / {{total}} 件',
+    quickPhrase1: '承認します。要件を満たしています。',
+    quickPhrase2: '条件付きで承認します。実行状況にご注意ください。',
+    quickPhrase3: '資料を追加のうえ再提出してください。',
     title: '承認センター',
     subtitle: '承認リクエストを確認して処理します。',
     refresh: '更新',

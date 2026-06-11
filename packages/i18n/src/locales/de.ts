@@ -1750,6 +1750,12 @@ const de = {
     },
   },
   approvalsInbox: {
+    prevRequest: 'Zurück',
+    nextRequest: 'Weiter',
+    positionOf: '{{index}} von {{total}}',
+    quickPhrase1: 'Genehmigt — erfüllt die Anforderungen.',
+    quickPhrase2: 'Unter Vorbehalt genehmigt — bitte Umsetzung beobachten.',
+    quickPhrase3: 'Bitte Unterlagen ergänzen und erneut einreichen.',
     title: 'Genehmigungen',
     subtitle: 'Genehmigungsanfragen prüfen und bearbeiten.',
     refresh: 'Aktualisieren',

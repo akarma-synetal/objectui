@@ -1888,6 +1888,12 @@ const en = {
       },
     },
   approvalsInbox: {
+    prevRequest: 'Previous',
+    nextRequest: 'Next',
+    positionOf: '{{index}} of {{total}}',
+    quickPhrase1: 'Approved — meets requirements.',
+    quickPhrase2: 'Approved with conditions — please monitor execution.',
+    quickPhrase3: 'Please add supporting material and resubmit.',
     title: 'Approvals Inbox',
     subtitle: 'Review and act on approval requests.',
     refresh: 'Refresh',
