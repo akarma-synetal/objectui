@@ -29,8 +29,8 @@ importers:
         specifier: ^10.0.1
         version: 10.0.1(eslint@10.4.1(jiti@2.7.0))
       '@objectstack/spec':
-        specifier: ^9.0.0
-        version: 9.0.0(ai@6.0.198(zod@4.4.3))
+        specifier: ^9.0.1
+        version: 9.0.1(ai@6.0.198(zod@4.4.3))
       '@playwright/test':
         specifier: ^1.60.0
         version: 1.60.0
@@ -251,8 +251,8 @@ importers:
         specifier: ^9.0.0
         version: 9.0.0(ai@6.0.198(zod@4.4.3))
       '@objectstack/spec':
-        specifier: ^9.0.0
-        version: 9.0.0(ai@6.0.198(zod@4.4.3))
+        specifier: ^9.0.1
+        version: 9.0.1(ai@6.0.198(zod@4.4.3))
       '@tailwindcss/postcss':
         specifier: ^4.3.0
         version: 4.3.0
@@ -380,8 +380,8 @@ importers:
         specifier: workspace:*
         version: link:../../packages/types
       '@objectstack/spec':
-        specifier: ^9.0.0
-        version: 9.0.0(ai@6.0.198(zod@4.4.3))
+        specifier: ^9.0.1
+        version: 9.0.1(ai@6.0.198(zod@4.4.3))
       fumadocs-core:
         specifier: 16.9.3
         version: 16.9.3(@mdx-js/mdx@3.1.1)(@tanstack/react-router@1.170.8(react-dom@19.2.7(react@19.2.7))(react@19.2.7))(@types/estree-jsx@1.0.5)(@types/hast@3.0.4)(@types/mdast@4.0.4)(@types/react@19.2.17)(lucide-react@1.17.0(react@19.2.7))(next@16.2.7(@babel/core@7.29.7)(@opentelemetry/api@1.9.1)(@playwright/test@1.60.0)(react-dom@19.2.7(react@19.2.7))(react@19.2.7))(react-dom@19.2.7(react@19.2.7))(react-router@7.17.0(react-dom@19.2.7(react@19.2.7))(react@19.2.7))(react@19.2.7)(zod@4.4.3)
@@ -693,8 +693,8 @@ importers:
         specifier: workspace:*
         version: link:../types
       '@objectstack/spec':
-        specifier: ^9.0.0
-        version: 9.0.0(ai@6.0.198(zod@4.4.3))
+        specifier: ^9.0.1
+        version: 9.0.1(ai@6.0.198(zod@4.4.3))
       '@sentry/react':
         specifier: ^10.56.0
         version: 10.56.0(react@19.2.7)
@@ -1034,8 +1034,8 @@ importers:
         specifier: ^9.0.0
         version: 9.0.0(ai@6.0.198(zod@4.4.3))
       '@objectstack/spec':
-        specifier: ^9.0.0
-        version: 9.0.0(ai@6.0.198(zod@4.4.3))
+        specifier: ^9.0.1
+        version: 9.0.1(ai@6.0.198(zod@4.4.3))
       lodash:
         specifier: ^4.18.1
         version: 4.18.1
@@ -1837,8 +1837,8 @@ importers:
         specifier: workspace:*
         version: link:../types
       '@objectstack/spec':
-        specifier: ^9.0.0
-        version: 9.0.0(ai@6.0.198(zod@4.4.3))
+        specifier: ^9.0.1
+        version: 9.0.1(ai@6.0.198(zod@4.4.3))
       lucide-react:
         specifier: ^1.17.0
         version: 1.17.0(react@19.2.7)
@@ -2060,8 +2060,8 @@ importers:
         specifier: workspace:*
         version: link:../types
       '@objectstack/spec':
-        specifier: ^9.0.0
-        version: 9.0.0(ai@6.0.198(zod@4.4.3))
+        specifier: ^9.0.1
+        version: 9.0.1(ai@6.0.198(zod@4.4.3))
       lucide-react:
         specifier: ^1.17.0
         version: 1.17.0(react@19.2.7)
@@ -2231,8 +2231,8 @@ importers:
         specifier: workspace:*
         version: link:../types
       '@objectstack/spec':
-        specifier: ^9.0.0
-        version: 9.0.0(ai@6.0.198(zod@4.4.3))
+        specifier: ^9.0.1
+        version: 9.0.1(ai@6.0.198(zod@4.4.3))
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1
@@ -2360,8 +2360,8 @@ importers:
         specifier: workspace:*
         version: link:../types
       '@objectstack/spec':
-        specifier: ^9.0.0
-        version: 9.0.0(ai@6.0.198(zod@4.4.3))
+        specifier: ^9.0.1
+        version: 9.0.1(ai@6.0.198(zod@4.4.3))
       react:
         specifier: 19.2.7
         version: 19.2.7
@@ -2474,8 +2474,8 @@ importers:
   packages/types:
     dependencies:
       '@objectstack/spec':
-        specifier: ^9.0.0
-        version: 9.0.0(ai@6.0.198(zod@4.4.3))
+        specifier: ^9.0.1
+        version: 9.0.1(ai@6.0.198(zod@4.4.3))
       zod:
         specifier: ^4.4.3
         version: 4.4.3
@@ -3829,6 +3829,15 @@ packages:
 
   '@objectstack/spec@9.0.0':
     resolution: {integrity: sha512-02/NF7c/oAFr4pfpyBgsly9Tv1LFZFaX5rXVtjLCJOMYBVBqAXctOUuhUsv7G7RGOYubNuuig0PsNlK+EtX1DA==}
+    engines: {node: '>=18.0.0'}
+    peerDependencies:
+      ai: ^6.0.0
+    peerDependenciesMeta:
+      ai:
+        optional: true
+
+  '@objectstack/spec@9.0.1':
+    resolution: {integrity: sha512-tBoq2RcFaLp8lzqwBgNHVFcLHPgKoIB9acUTh29/Jcv7F4ovklc18dko3VkRX0I6N0t/7Qeqo0fUsPpdrLiKQA==}
     engines: {node: '>=18.0.0'}
     peerDependencies:
       ai: ^6.0.0
@@ -6579,6 +6588,9 @@ packages:
 
   dompurify@3.4.8:
     resolution: {integrity: sha512-yb1cEmaOum7wFvOCSQxyfgVlv5D47Rc30iZWoMpbDIWTnJ6grDDQyu2KFJzB2k7u0pMuJcQ1zphH//fFnw2tjQ==}
+
+  dompurify@3.4.9:
+    resolution: {integrity: sha512-4dPSRMRDqHvs0V4YDFCsaIZo4if5u0xM+llyxiM2fwuZFdKArUBAF3VtI2+n8NKg9P870WMdYk0UhqQNoWXbfQ==}
 
   domutils@3.2.2:
     resolution: {integrity: sha512-6kZKyUajlDuqlHKVX1w7gyslj9MPIXzIFiz/rGu35uC1wMi+kMhQwGhl4lt9unC9Vb9INnY9Z3/ZA3+FhASLaw==}
@@ -11572,6 +11584,12 @@ snapshots:
     optionalDependencies:
       ai: 6.0.198(zod@4.4.3)
 
+  '@objectstack/spec@9.0.1(ai@6.0.198(zod@4.4.3))':
+    dependencies:
+      zod: 4.4.3
+    optionalDependencies:
+      ai: 6.0.198(zod@4.4.3)
+
   '@open-draft/deferred-promise@2.2.0': {}
 
   '@open-draft/deferred-promise@3.0.0': {}
@@ -14343,6 +14361,10 @@ snapshots:
     optionalDependencies:
       '@types/trusted-types': 2.0.7
 
+  dompurify@3.4.9:
+    optionalDependencies:
+      '@types/trusted-types': 2.0.7
+
   domutils@3.2.2:
     dependencies:
       dom-serializer: 2.0.0
@@ -16405,7 +16427,7 @@ snapshots:
 
   monaco-editor@0.55.1:
     dependencies:
-      dompurify: 3.4.8
+      dompurify: 3.4.9
       marked: 14.0.0
 
   mongodb-connection-string-url@7.0.1:
