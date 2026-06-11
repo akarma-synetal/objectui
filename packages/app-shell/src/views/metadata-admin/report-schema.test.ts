@@ -40,7 +40,7 @@ describe('report-schema — getReportForm', () => {
     expect((form?.sections?.length ?? 0)).toBeGreaterThan(0);
   });
 
-  it('prunes inspector-owned fields (columns / objectName / name) from every section', () => {
+  it('prunes inspector-owned fields (dataset / values / rows / name) from every section', () => {
     const form = getReportForm();
     const declared = new Set<string>();
     for (const s of form?.sections ?? []) {
@@ -48,12 +48,30 @@ describe('report-schema — getReportForm', () => {
         declared.add(typeof f === 'string' ? f : (f as { field: string }).field);
       }
     }
-    expect(declared.has('columns')).toBe(false);
-    expect(declared.has('objectName')).toBe(false);
+    expect(declared.has('dataset')).toBe(false);
+    expect(declared.has('values')).toBe(false);
+    expect(declared.has('rows')).toBe(false);
     expect(declared.has('name')).toBe(false);
   });
 
-  it('keeps non-owned spec fields (e.g. filter / chart / description)', () => {
+  it('prunes form fields the 9.0 schema no longer carries (query-form leftovers)', () => {
+    const form = getReportForm();
+    const declared = new Set<string>();
+    for (const s of form?.sections ?? []) {
+      for (const f of s.fields ?? []) {
+        declared.add(typeof f === 'string' ? f : (f as { field: string }).field);
+      }
+    }
+    // Removed in the ADR-0021 single-form cutover — the editor must not offer
+    // fields the schema strips at parse time.
+    expect(declared.has('objectName')).toBe(false);
+    expect(declared.has('columns')).toBe(false);
+    expect(declared.has('groupingsDown')).toBe(false);
+    expect(declared.has('groupingsAcross')).toBe(false);
+    expect(declared.has('filter')).toBe(false);
+  });
+
+  it('keeps non-owned spec fields and surfaces runtimeFilter', () => {
     const form = getReportForm();
     const declared = new Set<string>();
     for (const s of form?.sections ?? []) {
@@ -62,8 +80,10 @@ describe('report-schema — getReportForm', () => {
       }
     }
     expect(declared.has('description')).toBe(true);
-    expect(declared.has('filter')).toBe(true);
     expect(declared.has('chart')).toBe(true);
+    // `filter` was renamed `runtimeFilter` in 9.0 — the alignment pass appends
+    // it when the bundled form predates the rename.
+    expect(declared.has('runtimeFilter')).toBe(true);
   });
 
   it('drops sections that become empty after pruning', () => {

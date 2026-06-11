@@ -31,8 +31,9 @@ const TO_JSON_OPTS = { io: 'input', unrepresentable: 'any' } as const;
 
 /** Fields the curated inspector owns directly, pruned from the spec form. */
 const FORM_FIELDS_OWNED_ELSEWHERE = new Set([
-  'columns', // managed by the dedicated report-columns list
-  'objectName', // object binding rendered as a dedicated control
+  'dataset', // dataset binding rendered as a dedicated picker
+  'values', // managed by the dedicated measures list
+  'rows', // managed by the dedicated dimensions list
   'name', // record identity — not user-editable here
 ]);
 
@@ -57,20 +58,58 @@ let _reportForm: FormViewSpec | undefined;
 
 /**
  * The canonical authoring FormView, with the fields the curated inspector
- * owns directly (columns / objectName / name) pruned from every section so
+ * owns directly (dataset / values / rows / name) pruned from every section so
  * they are not double-rendered. Everything else — including the type-
  * conditional joined-blocks section — flows through verbatim from the spec.
+ *
+ * Two alignment passes on top of the verbatim clone:
+ *
+ * 1. Fields the form declares but the *schema* no longer carries are pruned.
+ *    The 9.0 single-form cutover removed the query-form fields (`objectName` /
+ *    `columns` / `groupingsDown` / `groupingsAcross` / `filter`) from
+ *    `ReportSchema`, but the bundled `reportForm` may still declare them (the
+ *    spec-side form fix ships separately) — rendering controls whose output
+ *    the schema strips at parse time. The schema is the source of truth; the
+ *    pass is a no-op once the bundled form catches up.
+ *
+ * 2. `runtimeFilter` (which replaced `filter` in 9.0) is appended when the
+ *    schema carries it and no section declares it, so the render-time scope
+ *    filter stays editable in the meantime.
  */
 export function getReportForm(): FormViewSpec | undefined {
   if (_reportForm) return _reportForm;
   if (!specReportForm || typeof specReportForm !== 'object') return undefined;
   try {
     const clone = JSON.parse(JSON.stringify(specReportForm)) as FormViewSpec;
+    const schemaProps = getReportSchema()?.properties as Record<string, unknown> | undefined;
     for (const section of clone.sections ?? []) {
       section.fields = (section.fields ?? []).filter((f: any) => {
         const name = typeof f === 'string' ? f : f?.field;
-        return !FORM_FIELDS_OWNED_ELSEWHERE.has(name);
+        if (FORM_FIELDS_OWNED_ELSEWHERE.has(name)) return false;
+        // Schema-subset pass: drop form fields the schema no longer carries.
+        if (schemaProps && !(name in schemaProps)) return false;
+        return true;
       });
+    }
+    if (schemaProps && 'runtimeFilter' in schemaProps) {
+      const declared = new Set<string>();
+      for (const s of clone.sections ?? []) {
+        for (const f of s.fields ?? []) {
+          declared.add(typeof f === 'string' ? f : (f as any)?.field);
+        }
+      }
+      if (!declared.has('runtimeFilter')) {
+        clone.sections = [
+          ...(clone.sections ?? []),
+          {
+            label: 'Filter',
+            description: 'Render-time scope filter, ANDed at query time.',
+            collapsible: true,
+            collapsed: true,
+            fields: [{ field: 'runtimeFilter', widget: 'json' }],
+          },
+        ];
+      }
     }
     // Drop now-empty sections so we don't render bare headers.
     clone.sections = (clone.sections ?? []).filter(

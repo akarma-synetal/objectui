@@ -126,7 +126,7 @@ ComponentRegistry.registerLazy('report', () => import('@object-ui/plugin-report'
   namespace: 'plugin-report',
   category: 'view',
 });
-for (const variant of ['report-viewer', 'report-builder', 'spec-report']) {
+for (const variant of ['report-viewer', 'spec-report']) {
   ComponentRegistry.registerLazy(variant, () => import('@object-ui/plugin-report'), {
     namespace: 'plugin-report',
     category: 'view',

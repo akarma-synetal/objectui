@@ -13,16 +13,18 @@
  * surfaces the right fields — adding a new report type or prop to
  * `@objectstack/spec` flows through with zero code changes here.
  *
- * The inspector keeps a thin curated layer for the cross-cutting concerns the
- * spec form can't express well on its own:
+ * ADR-0021 single-form: a 9.0 report is dataset-bound — it binds a
+ * semantic-layer `dataset` and selects its `values` (measure names) grouped
+ * by `rows` (dimension names). The inspector keeps a thin curated layer for
+ * the concerns the spec form can't express well on its own:
  *   1. the REPORT TYPE picker (options sourced from the spec `type` enum),
- *   2. the bound OBJECT (`objectName`, drives field loading), and
- *   3. the COLUMNS list — add / reorder / select drills into the scoped
- *      {@link ReportColumnInspector}. Those fields are therefore pruned from
- *      the spec form to avoid double-editing.
+ *   2. the DATASET binding (drives the measure/dimension catalogs), and
+ *   3. the VALUES / ROWS lists — add / remove / reorder from the bound
+ *      dataset's measures and dimensions.
+ * Those fields are pruned from the spec form to avoid double-editing.
  *
  * Unlike a View (a nested document with a variant BODY), a Report is FLAT:
- * label / objectName / type / columns all live at the draft top level, so
+ * label / dataset / type / values / rows all live at the draft top level, so
  * every write is a plain shallow `onPatch`.
  */
 
@@ -39,39 +41,39 @@ import {
 import { AddFieldPopover, FieldListRow } from '../previews/ViewColumnPanes';
 import type { MetadataDefaultInspectorProps } from '../default-inspector-registry';
 import { SchemaForm } from '../SchemaForm';
-import { useObjectFields, type ObjectFieldInfo } from '../previews/useObjectFields';
+import type { ObjectFieldInfo } from '../previews/useObjectFields';
+import {
+  useDatasetCatalog,
+  useDatasetSemantics,
+  type DatasetCatalogEntry,
+} from '../previews/useDatasetCatalog';
 import { getReportForm, getReportSchema } from '../report-schema';
 import { mergeServerFields } from '../mergeServerFields';
 import { t } from '../i18n';
 
 /**
  * Top-level report fields this inspector renders with its own dedicated
- * controls (type / object / columns + identity), so the spec-form graft
- * never double-renders them. Mirrors the `hiddenFields` passed to SchemaForm.
+ * controls (type / dataset / values / rows + identity), so the spec-form
+ * graft never double-renders them. Mirrors the `hiddenFields` passed to
+ * SchemaForm.
  */
 const REPORT_CURATED_FIELDS = new Set([
   'type',
-  'objectName',
   'label',
   'name',
-  'columns',
+  'dataset',
+  'values',
+  'rows',
 ]);
 
 export interface ReportDefaultInspectorProps extends MetadataDefaultInspectorProps {
   /**
-   * Pre-resolved field catalog for the bound object. When supplied, both this
-   * inspector and the columns list skip the network fetch (`useObjectFields`)
-   * and use this list instead. Hosts that already hold the object definition
-   * pass it to keep the inspector free of any network dependency.
+   * Pre-resolved dataset catalog. When supplied, the inspector skips the
+   * network fetches (`useDatasetCatalog`) and uses this list instead. Hosts
+   * that already hold the catalog pass it to keep the inspector free of any
+   * network dependency.
    */
-  objectFieldsOverride?: ObjectFieldInfo[];
-}
-
-interface ReportColumn {
-  field?: string;
-  label?: string;
-  aggregate?: string;
-  [k: string]: unknown;
+  datasetCatalogOverride?: DatasetCatalogEntry[];
 }
 
 /** i18n keys for the spec `type` enum (falls back to the raw value). */
@@ -104,13 +106,107 @@ function useTypeOptions(currentType: string, locale: MetadataDefaultInspectorPro
   }, [currentType, locale]);
 }
 
+/** Read a `string[]` draft field defensively. */
+function readNames(value: unknown): string[] {
+  return Array.isArray(value) ? value.filter((v): v is string => typeof v === 'string') : [];
+}
+
+/**
+ * A reorderable list of dataset member names (the report's `values` or
+ * `rows`) with an add-popover fed by the bound dataset's catalog.
+ */
+function DatasetNamesEditor({
+  label,
+  emptyText,
+  names,
+  options,
+  loading,
+  error,
+  readOnly,
+  onCommit,
+}: {
+  label: string;
+  emptyText: string;
+  names: string[];
+  /** Picker options from the dataset's semantic layer. */
+  options: ObjectFieldInfo[];
+  loading: boolean;
+  error: string | null;
+  readOnly?: boolean;
+  onCommit: (next: string[]) => void;
+}) {
+  const [dragIndex, setDragIndex] = React.useState<number | null>(null);
+  const [overIndex, setOverIndex] = React.useState<number | null>(null);
+  const used = React.useMemo(() => new Set(names), [names]);
+  const typeByName = React.useMemo(() => {
+    const m = new Map<string, string>();
+    for (const o of options) m.set(o.name, o.type);
+    return m;
+  }, [options]);
+
+  return (
+    <div className="border-t pt-3 space-y-1.5">
+      <div className="flex items-center justify-between">
+        <Label className="text-xs text-muted-foreground">{label}</Label>
+        <Badge variant="outline" className="text-[10px]">
+          {names.length}
+        </Badge>
+      </div>
+
+      {names.length === 0 ? (
+        <p className="rounded-md border border-dashed bg-muted/30 px-3 py-3 text-center text-[11px] text-muted-foreground">
+          {emptyText}
+        </p>
+      ) : (
+        <div className="space-y-1">
+          {names.map((name, i) => (
+            <FieldListRow
+              key={`${name}-${i}`}
+              index={i}
+              label={name}
+              fieldName={name}
+              fieldType={typeByName.get(name) ?? 'number'}
+              selected={false}
+              canEdit={!readOnly}
+              dragging={dragIndex !== null}
+              dropBefore={overIndex === i && dragIndex !== null && dragIndex !== i}
+              onSelect={() => {}}
+              onRemove={() => onCommit(spliceArray(names, i, null))}
+              onDragStart={() => setDragIndex(i)}
+              onDragEnd={() => {
+                setDragIndex(null);
+                setOverIndex(null);
+              }}
+              onDragOverRow={() => setOverIndex(i)}
+              onDropRow={() => {
+                if (dragIndex != null && dragIndex !== i) onCommit(moveArray(names, dragIndex, i));
+                setDragIndex(null);
+                setOverIndex(null);
+              }}
+            />
+          ))}
+        </div>
+      )}
+
+      {!readOnly && (
+        <AddFieldPopover
+          fields={options}
+          usedNames={used}
+          loading={loading}
+          error={error}
+          onAdd={(f) => onCommit(appendArray(names, f.name))}
+        />
+      )}
+    </div>
+  );
+}
+
 export function ReportDefaultInspector({
   draft,
   onPatch,
   readOnly,
   locale,
-  onSelectionChange,
-  objectFieldsOverride,
+  datasetCatalogOverride,
   serverSchema,
 }: ReportDefaultInspectorProps) {
   const tr = React.useCallback((key: string) => t(key, locale), [locale]);
@@ -120,80 +216,55 @@ export function ReportDefaultInspector({
   const typeOptions = useTypeOptions(reportType, locale);
 
   const labelValue = typeof draft.label === 'string' ? (draft.label as string) : '';
-  const objectName =
-    typeof draft.objectName === 'string' ? (draft.objectName as string) : '';
+  const datasetName =
+    typeof draft.dataset === 'string' ? (draft.dataset as string) : '';
+  const values = React.useMemo(() => readNames(draft.values), [draft.values]);
+  const rows = React.useMemo(() => readNames(draft.rows), [draft.rows]);
 
-  const columns: ReportColumn[] = React.useMemo(
-    () => (Array.isArray(draft.columns) ? (draft.columns as ReportColumn[]) : []),
-    [draft.columns],
-  );
+  // Dataset catalog (binding options) + the bound dataset's semantic layer
+  // (measure/dimension picker options).
+  const catalog = useDatasetCatalog(datasetCatalogOverride);
+  const semantics = useDatasetSemantics(datasetName || undefined, catalog);
 
-  // Load the bound object's field catalog so the columns picker and the
-  // spec form's field-reference props render as object-field pickers.
-  const { fields: objectFields, loading, error } = useObjectFields(
-    objectName || undefined,
-    objectFieldsOverride,
-  );
-  const fieldTypeByName = React.useMemo(() => {
-    const m = new Map<string, string>();
-    for (const f of objectFields) m.set(f.name, f.type);
-    return m;
-  }, [objectFields]);
-  const widgetContext = React.useMemo(
-    () => ({
-      objectFields: objectFields.map((f) => ({
-        name: f.name,
-        label: f.label,
-        type: f.type,
+  const datasetOptions = React.useMemo(() => {
+    const opts = catalog.datasets.map((d) => ({
+      value: d.name,
+      label: d.label && d.label !== d.name ? `${d.label} (${d.name})` : d.name,
+    }));
+    if (datasetName && !opts.some((o) => o.value === datasetName)) {
+      opts.push({ value: datasetName, label: datasetName });
+    }
+    return opts;
+  }, [catalog.datasets, datasetName]);
+
+  const measureOptions: ObjectFieldInfo[] = React.useMemo(
+    () =>
+      semantics.measures.map((m) => ({
+        name: m.name,
+        label: m.aggregate ? `${m.name} · ${m.aggregate}` : m.name,
+        type: 'number',
+        hidden: false,
       })),
-    }),
-    [objectFields],
+    [semantics.measures],
+  );
+  const dimensionOptions: ObjectFieldInfo[] = React.useMemo(
+    () =>
+      semantics.dimensions.map((d) => ({
+        name: d.name,
+        label: d.name,
+        type: d.type ?? 'text',
+        hidden: false,
+      })),
+    [semantics.dimensions],
   );
 
-  const usedNames = React.useMemo(() => {
-    const out = new Set<string>();
-    for (const c of columns) if (c?.field) out.add(c.field);
-    return out;
-  }, [columns]);
+  // A `joined` report carries its data on dataset-bound `blocks` (edited via
+  // the spec form's repeater) — the top-level binding only applies otherwise.
+  const datasetBound = reportType !== 'joined';
 
-  /* ─────────────── Column read / write / reorder / select ─────────────── */
-
-  const addColumn = (f: ObjectFieldInfo) => {
-    const col: ReportColumn = { field: f.name };
-    if (f.label && f.label !== f.name) col.label = f.label;
-    const next = appendArray(columns, col);
-    onPatch({ columns: next });
-    onSelectionChange?.({
-      kind: 'column',
-      id: `columns[${next.length - 1}]`,
-      label: f.label,
-    });
-  };
-
-  const removeColumn = (index: number) => {
-    onPatch({ columns: spliceArray(columns, index, null) });
-  };
-
-  const moveColumn = (from: number, to: number) => {
-    if (from === to) return;
-    onPatch({ columns: moveArray(columns, from, to) });
-  };
-
-  const selectColumn = (index: number) => {
-    const c = columns[index];
-    onSelectionChange?.({
-      kind: 'column',
-      id: `columns[${index}]`,
-      label: c?.label || c?.field || `columns[${index}]`,
-    });
-  };
-
-  const [dragIndex, setDragIndex] = React.useState<number | null>(null);
-  const [overIndex, setOverIndex] = React.useState<number | null>(null);
-
-  // Graft any server-only top-level fields (e.g. dataset/rows/values) onto
-  // the bundled-spec form so they are directly editable here even when the
-  // bundled `@objectstack/spec` lags the running server (skew root-cure).
+  // Graft any server-only top-level fields onto the bundled-spec form so they
+  // are directly editable here even when the bundled `@objectstack/spec` lags
+  // the running server (skew root-cure).
   const { schema, form } = React.useMemo(
     () =>
       mergeServerFields({
@@ -228,70 +299,51 @@ export function ReportDefaultInspector({
         onCommit={(v) => onPatch({ type: v })}
         disabled={readOnly}
       />
-      <InspectorTextField
-        label={tr('engine.inspector.report.object')}
-        value={objectName}
-        onCommit={(v) => onPatch({ objectName: v })}
-        placeholder={tr('engine.inspector.report.objectPlaceholder')}
-        disabled={readOnly}
-        mono
-      />
 
-      <div className="border-t pt-3 space-y-1.5">
-        <div className="flex items-center justify-between">
-          <Label className="text-xs text-muted-foreground">
-            {tr('engine.inspector.report.columns')}
-          </Label>
-          <Badge variant="outline" className="text-[10px]">
-            {columns.length}
-          </Badge>
-        </div>
+      {datasetBound && (
+        <>
+          {catalog.datasets.length > 0 || datasetName ? (
+            <InspectorSelectField
+              label={tr('engine.inspector.report.dataset')}
+              value={datasetName}
+              options={datasetOptions}
+              onCommit={(v) => onPatch({ dataset: v })}
+              disabled={readOnly}
+            />
+          ) : (
+            // No catalog (offline / older server) — fall back to manual entry.
+            <InspectorTextField
+              label={tr('engine.inspector.report.dataset')}
+              value={datasetName}
+              onCommit={(v) => onPatch({ dataset: v })}
+              placeholder={tr('engine.inspector.report.datasetPlaceholder')}
+              disabled={readOnly}
+              mono
+            />
+          )}
 
-        {columns.length === 0 ? (
-          <p className="rounded-md border border-dashed bg-muted/30 px-3 py-3 text-center text-[11px] text-muted-foreground">
-            {tr('engine.inspector.report.columnsEmpty')}
-          </p>
-        ) : (
-          <div className="space-y-1">
-            {columns.map((c, i) => (
-              <FieldListRow
-                key={i}
-                index={i}
-                label={c.label || c.field || `col ${i + 1}`}
-                fieldName={c.field}
-                fieldType={fieldTypeByName.get(c.field ?? '') ?? 'text'}
-                selected={false}
-                canEdit={!readOnly}
-                dragging={dragIndex !== null}
-                dropBefore={overIndex === i && dragIndex !== null && dragIndex !== i}
-                onSelect={() => selectColumn(i)}
-                onRemove={() => removeColumn(i)}
-                onDragStart={() => setDragIndex(i)}
-                onDragEnd={() => {
-                  setDragIndex(null);
-                  setOverIndex(null);
-                }}
-                onDragOverRow={() => setOverIndex(i)}
-                onDropRow={() => {
-                  if (dragIndex != null && dragIndex !== i) moveColumn(dragIndex, i);
-                  setDragIndex(null);
-                  setOverIndex(null);
-                }}
-              />
-            ))}
-          </div>
-        )}
-
-        {!readOnly && (
-          <AddFieldPopover
-            fields={objectFields}
-            usedNames={usedNames}
-            loading={loading}
-            error={error}
-            onAdd={addColumn}
+          <DatasetNamesEditor
+            label={tr('engine.inspector.report.values')}
+            emptyText={tr('engine.inspector.report.valuesEmpty')}
+            names={values}
+            options={measureOptions}
+            loading={semantics.loading}
+            error={semantics.error}
+            readOnly={readOnly}
+            onCommit={(next) => onPatch({ values: next })}
           />
-        )}
-      </div>
+          <DatasetNamesEditor
+            label={tr('engine.inspector.report.rows')}
+            emptyText={tr('engine.inspector.report.rowsEmpty')}
+            names={rows}
+            options={dimensionOptions}
+            loading={semantics.loading}
+            error={semantics.error}
+            readOnly={readOnly}
+            onCommit={(next) => onPatch({ rows: next })}
+          />
+        </>
+      )}
 
       <div className="border-t pt-3">
         {schema ? (
@@ -299,9 +351,8 @@ export function ReportDefaultInspector({
             schema={schema}
             form={form}
             value={draft}
-            hiddenFields={['type', 'objectName', 'label', 'name', 'columns']}
+            hiddenFields={['type', 'label', 'name', 'dataset', 'values', 'rows']}
             readOnly={readOnly}
-            widgetContext={widgetContext}
             onChange={(next) => onPatch(next)}
           />
         ) : (

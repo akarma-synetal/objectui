@@ -325,7 +325,8 @@ export interface JoinedReportBlock {
 
 /**
  * A `SpecReport` of `type: 'joined'` carrying its constituent blocks.
- * Use this as the schema input to `JoinedReportRenderer` / `ReportRenderer`.
+ * Use this as the schema input to `ReportRenderer` (dataset-bound blocks render
+ * through `DatasetReportRenderer`).
  */
 export type JoinedSpecReport = SpecReport & {
   type: 'joined';

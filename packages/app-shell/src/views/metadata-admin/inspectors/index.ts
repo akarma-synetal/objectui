@@ -13,7 +13,6 @@ import { FlowInspector } from './FlowInspector';
 import { AppNavInspector } from './AppNavInspector';
 import { ViewInspector, ViewDefaultInspector } from './ViewInspector';
 import { PageBlockInspector } from './PageBlockInspector';
-import { ReportColumnInspector } from './ReportColumnInspector';
 import { ReportDefaultInspector } from './ReportDefaultInspector';
 import { ObjectFieldInspector } from './ObjectFieldInspector';
 import { ObjectDefaultInspector } from './ObjectDefaultInspector';
@@ -33,7 +32,9 @@ export function registerBuiltinInspectors(): void {
   registerMetadataInspector('view', ViewInspector);
   registerMetadataDefaultInspector('view', ViewDefaultInspector);
   registerMetadataInspector('page', PageBlockInspector);
-  registerMetadataInspector('report', ReportColumnInspector);
+  // ADR-0021 single-form: a 9.0 report selects dataset measures/dimensions
+  // by NAME (no per-column config document), so there is no scoped column
+  // inspector — the default inspector owns the whole editing surface.
   registerMetadataDefaultInspector('report', ReportDefaultInspector);
   registerMetadataInspector('object', ObjectFieldInspector);
   registerMetadataDefaultInspector('object', ObjectDefaultInspector);

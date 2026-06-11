@@ -1,5 +1,5 @@
 /**
- * ReportRenderer dispatcher tests.
+ * ReportRenderer dispatcher tests (ADR-0021 single-form).
  */
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
@@ -7,105 +7,98 @@ import '@testing-library/jest-dom';
 import { ReportRenderer } from '../ReportRenderer';
 import type { SpecReport } from '@object-ui/types';
 
-vi.mock('../SpecReportGrid', () => ({
-  SpecReportGrid: (props: { report: SpecReport }) => (
-    <div data-testid="spec-report-grid-stub">{props.report.name}</div>
-  ),
-}));
-
-vi.mock('../MatrixRenderer', () => ({
-  MatrixRenderer: (props: { report: SpecReport }) => (
-    <div data-testid="matrix-renderer-stub">{props.report.name}</div>
-  ),
-}));
-
 vi.mock('../LegacyReportRenderer', () => ({
   LegacyReportRenderer: (props: { schema: { title?: string } }) => (
     <div data-testid="legacy-renderer-stub">{props.schema.title}</div>
   ),
 }));
 
-// Pre-9.0 ("query-form") report shape. Spec 9.0 reports are dataset-bound;
-// this object-bound shape survives only as a stored-JSON passthrough, routed
-// by the `type` heuristic in `isSpecReport`.
-const baseSpec = {
+vi.mock('../ReportViewer', () => ({
+  ReportViewer: (props: { schema: { report?: { title?: string } } }) => (
+    <div data-testid="report-viewer-stub">{props.schema.report?.title}</div>
+  ),
+}));
+
+// A 9.0 dataset-bound report — the live path.
+const datasetSpec = {
+  name: 'sales_by_region',
+  label: 'Sales by Region',
+  type: 'summary',
+  dataset: 'sales_metrics',
+  rows: ['region'],
+  values: ['total_amount'],
+} as unknown as SpecReport;
+
+// Stored pre-9.0 ("query-form") spec JSON — renders via the lossy
+// presentation bridge until migrated to a dataset binding.
+const legacySpec = {
   name: 'spec_report',
+  label: 'Spec Report',
   objectName: 'opportunity',
   type: 'tabular',
   columns: [{ field: 'amount' }],
 } as unknown as SpecReport;
 
 describe('ReportRenderer dispatcher', () => {
-  it('routes spec tabular reports to SpecReportGrid', () => {
-    render(<ReportRenderer schema={baseSpec} rows={[]} />);
-    expect(screen.getByTestId('spec-report-grid-stub')).toHaveTextContent('spec_report');
+  it('routes dataset-bound reports to DatasetReportRenderer', () => {
+    render(<ReportRenderer schema={datasetSpec} />);
+    expect(screen.getByTestId('dataset-report')).toBeInTheDocument();
   });
 
-  it('routes spec summary reports to SpecReportGrid', () => {
+  it('routes a typeless dataset-bound report (9.0 single form) to the dataset renderer', () => {
     render(
       <ReportRenderer
-        schema={{ ...baseSpec, type: 'summary', groupingsDown: [{ field: 'stage' }] }}
-        rows={[]}
+        schema={{ name: 'ds_report', dataset: 'sales_metrics', values: ['amount'] } as unknown as SpecReport}
       />,
     );
-    expect(screen.getByTestId('spec-report-grid-stub')).toBeInTheDocument();
+    expect(screen.getByTestId('dataset-report')).toBeInTheDocument();
   });
 
-  it('routes spec matrix reports to MatrixRenderer', () => {
-    render(<ReportRenderer schema={{ ...baseSpec, type: 'matrix', groupingsAcross: [{ field: 'q' }] }} rows={[]} />);
-    expect(screen.getByTestId('matrix-renderer-stub')).toBeInTheDocument();
-    expect(screen.queryByTestId('spec-report-grid-stub')).not.toBeInTheDocument();
-  });
-
-  it('shows joined placeholder for spec joined reports without blocks', () => {
-    render(<ReportRenderer schema={{ ...baseSpec, type: 'joined' }} rows={[]} />);
-    expect(screen.getByTestId('report-joined-placeholder')).toBeInTheDocument();
-  });
-
-  it('routes spec joined reports with blocks to JoinedReportRenderer', () => {
+  it('routes joined reports with dataset-bound blocks to the dataset renderer', () => {
     const joined = {
-      ...baseSpec,
       name: 'joined_demo',
-      type: 'joined' as const,
+      label: 'Joined',
+      type: 'joined',
       blocks: [
-        { name: 'block_one', columns: baseSpec.columns },
-        { name: 'block_two', type: 'matrix' as const, columns: baseSpec.columns, groupingsAcross: [{ field: 'q' }] },
+        { name: 'block_one', dataset: 'sales_metrics', values: ['total_amount'] },
+        { name: 'block_two', dataset: 'task_metrics', values: ['est_hours'], rows: ['status'] },
       ],
-    };
-    render(<ReportRenderer schema={joined as any} rows={[]} />);
-    expect(screen.getByTestId('joined-report')).toBeInTheDocument();
-    expect(screen.getAllByTestId('joined-report-block')).toHaveLength(2);
-    expect(screen.getByTestId('spec-report-grid-stub')).toHaveTextContent('block_one');
-    expect(screen.getByTestId('matrix-renderer-stub')).toHaveTextContent('block_two');
+    } as unknown as SpecReport;
+    render(<ReportRenderer schema={joined} />);
+    expect(screen.getByTestId('dataset-joined-report')).toBeInTheDocument();
+    expect(screen.getAllByTestId('dataset-report-block')).toHaveLength(2);
   });
 
-  it('falls back to LegacyReportRenderer for non-spec schemas', () => {
+  it('unwraps the SchemaRenderer spec-report wrapper before dispatching', () => {
+    render(
+      <ReportRenderer
+        schema={{ type: 'spec-report', report: datasetSpec } as unknown as SpecReport}
+      />,
+    );
+    expect(screen.getByTestId('dataset-report')).toBeInTheDocument();
+  });
+
+  it('bridges stored pre-9.0 spec reports to the presentation viewer', () => {
+    render(<ReportRenderer schema={legacySpec} rows={[]} />);
+    expect(screen.getByTestId('report-presentation-bridge')).toBeInTheDocument();
+    // specReportToPresentation maps label → title.
+    expect(screen.getByTestId('report-viewer-stub')).toHaveTextContent('Spec Report');
+  });
+
+  it('falls back to LegacyReportRenderer for presentation schemas', () => {
     render(
       <ReportRenderer
         schema={{ type: 'report', title: 'My Old Report', data: [], columns: [] }}
       />,
     );
     expect(screen.getByTestId('legacy-renderer-stub')).toHaveTextContent('My Old Report');
-    expect(screen.queryByTestId('spec-report-grid-stub')).not.toBeInTheDocument();
-  });
-
-  it('routes a typeless dataset-bound report (9.0 single form) to the dataset renderer', () => {
-    // `type` defaults to 'tabular' at parse time; an unparsed 9.0 report
-    // without it must still reach the dataset path, never the legacy box.
-    render(
-      <ReportRenderer
-        schema={{ name: 'ds_report', dataset: 'sales_metrics', values: ['amount'] } as unknown as SpecReport}
-        rows={[]}
-      />,
-    );
-    expect(screen.getByTestId('dataset-report')).toBeInTheDocument();
+    expect(screen.queryByTestId('dataset-report')).not.toBeInTheDocument();
   });
 
   it('typeless schemas without a dataset fall back to LegacyReportRenderer', () => {
-    const noType = { ...baseSpec } as Record<string, unknown>;
+    const noType = { ...(legacySpec as unknown as Record<string, unknown>) };
     delete noType.type;
-    render(<ReportRenderer schema={noType as unknown as SpecReport} rows={[]} />);
+    render(<ReportRenderer schema={noType as unknown as SpecReport} />);
     expect(screen.getByTestId('legacy-renderer-stub')).toBeInTheDocument();
-    expect(screen.queryByTestId('spec-report-grid-stub')).not.toBeInTheDocument();
   });
 });
