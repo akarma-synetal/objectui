@@ -45,6 +45,12 @@ export interface ApprovalRequestRow {
   record_title?: string;
   /** Display name of the submitter (`sys_user.name`), when resolvable. */
   submitter_name?: string;
+  /** Schema label of the target object (e.g. "Project"). */
+  object_label?: string;
+  /** Display names for user-id entries in `pending_approvers` (id → name). */
+  pending_approver_names?: Record<string, string>;
+  /** Display values for lookup fields in `payload` (field key → record title). */
+  payload_display?: Record<string, string>;
 }
 
 export interface ApprovalActionRow {
