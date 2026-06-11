@@ -5,18 +5,28 @@
  *
  * Renders a spec `Report` that binds to a semantic-layer `dataset` (ADR-0021
  * single-form) instead of an inline `objectName` + `columns` query. The report
- * selects dimensions (`rows`) and measures (`values`) BY NAME and runs them
- * through `dataSource.queryDataset` — the same governed path dataset-bound
- * dashboard widgets and the dataset preview use, so the numbers (and the
- * server-resolved dimension display labels) match everywhere.
+ * selects dimensions (`rows`, and for matrix also `columns`) and measures
+ * (`values`) BY NAME and runs them through `dataSource.queryDataset` — the
+ * same governed path dataset-bound dashboard widgets and the dataset preview
+ * use, so the numbers (and the server-resolved dimension display labels)
+ * match everywhere.
  *
- * - `summary` / `matrix` / `tabular` → one grouped table (`rows` + `values`).
+ * - `summary` / `tabular` → one grouped table (`rows` + `values`).
+ * - `matrix` → a true cross-tab (ADR-0021 D2): `rows` down × `columns`
+ *   across, measures in the cells. One dataset query over all dimensions,
+ *   pivoted client-side. (No totals row/column: measures like `avg` cannot
+ *   be re-aggregated from bucketed values without drifting from the semantic
+ *   layer — the governance red line. A matrix without `columns` degrades to
+ *   the flat grouped table.)
  * - `joined` → a vertical stack of blocks, each its own dataset-bound table,
  *   with the report-level `runtimeFilter` merged into every block.
  *
- * This is the report-side counterpart to plugin-dashboard's `DatasetWidget`;
- * it replaces the legacy `useReportData` (objectName + client aggregation) path
- * for reports authored against a dataset.
+ * Drill-down (ADR-0021 D2): when the report's `drilldown` flag is not `false`
+ * and the host supplies `onDrill`, every aggregated row / matrix cell is
+ * clickable and emits `{ dataset, groupKey, runtimeFilter }`. The HOST owns
+ * navigation — it resolves the dataset's `object` and dimension→field mapping
+ * (this renderer only knows dimension NAMES) and routes to the underlying
+ * records.
  */
 
 import * as React from 'react';
@@ -36,12 +46,26 @@ interface DatasetReportLike {
   type?: string;
   dataset?: string;
   rows?: string[];
+  /** Dimension names across — matrix pivots `rows` × `columns` (ADR-0021 D2). */
+  columns?: string[];
   values?: string[];
   runtimeFilter?: Record<string, unknown>;
   filter?: Record<string, unknown>;
+  /** Click-through to underlying records (default true). */
+  drilldown?: boolean;
   label?: unknown;
   description?: unknown;
   blocks?: DatasetReportLike[];
+}
+
+/** What a drill click means — the host resolves names to a navigation target. */
+export interface DatasetDrillArgs {
+  /** Dataset the clicked aggregate was computed over. */
+  dataset: string;
+  /** Dimension NAME → clicked bucket value (row dims, plus across dims for a matrix cell). */
+  groupKey: Record<string, unknown>;
+  /** The effective render-time scope filter, if any. */
+  runtimeFilter?: Record<string, unknown>;
 }
 
 export interface DatasetReportRendererProps {
@@ -49,6 +73,11 @@ export interface DatasetReportRendererProps {
   dataSource?: unknown;
   /** Filter merged into the report (and every joined block) as `runtimeFilter`. */
   runtimeFilter?: Record<string, unknown>;
+  /**
+   * Drill-down sink. Rows/cells become clickable when provided (and the
+   * report doesn't set `drilldown: false`).
+   */
+  onDrill?: (args: DatasetDrillArgs) => void;
   className?: string;
 }
 
@@ -78,34 +107,32 @@ function formatCell(v: unknown): string {
   return String(v);
 }
 
-/** One dataset-bound table: fetch via `queryDataset`, render `rows` + `values`. */
-function DatasetReportTable({
-  dataset,
-  rows,
-  values,
-  runtimeFilter,
-  dataSource,
-}: {
-  dataset: string;
-  rows: string[];
-  values: string[];
-  runtimeFilter?: Record<string, unknown>;
-  dataSource?: unknown;
-}) {
+function readNames(value: unknown): string[] {
+  return Array.isArray(value) ? (value as unknown[]).filter((v): v is string => typeof v === 'string' && !!v) : [];
+}
+
+/** Shared fetch for one dataset selection. */
+function useDatasetRows(
+  dataset: string,
+  dimensions: string[],
+  measures: string[],
+  runtimeFilter: Record<string, unknown> | undefined,
+  dataSource: unknown,
+) {
   const [state, setState] = React.useState<{ status: 'idle' | 'loading' | 'ok' | 'error'; rows: Row[]; error?: string }>({
     status: 'idle',
     rows: [],
   });
 
   const rfKey = JSON.stringify(runtimeFilter ?? null);
-  const signature = `${dataset}|${rows.join(',')}|${values.join(',')}|${rfKey}`;
+  const signature = `${dataset}|${dimensions.join(',')}|${measures.join(',')}|${rfKey}`;
   React.useEffect(() => {
     const src = dataSource as DatasetCapableSource | undefined;
     if (!src || typeof src.queryDataset !== 'function') {
       setState({ status: 'error', rows: [], error: 'This data source does not support dataset queries.' });
       return;
     }
-    if (!dataset || values.length === 0) {
+    if (!dataset || measures.length === 0) {
       setState({ status: 'idle', rows: [] });
       return;
     }
@@ -113,8 +140,8 @@ function DatasetReportTable({
     setState({ status: 'loading', rows: [] });
     src
       .queryDataset(dataset, {
-        dimensions: rows,
-        measures: values,
+        dimensions,
+        measures,
         ...(runtimeFilter && Object.keys(runtimeFilter).length > 0 ? { runtimeFilter } : {}),
       })
       .then((res) => {
@@ -129,35 +156,73 @@ function DatasetReportTable({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [signature]);
 
-  if (values.length === 0) {
-    return (
-      <div className="flex items-center justify-center rounded-md border border-dashed bg-muted/20 p-4 text-xs text-muted-foreground">
-        This report binds the “{dataset}” dataset — choose at least one measure (values) to render.
-      </div>
-    );
-  }
-  if (state.status === 'loading' || state.status === 'idle') {
-    return (
-      <div className="flex items-center gap-2 p-4 text-xs text-muted-foreground">
-        <Loader2 className="h-4 w-4 animate-spin" /> Running report…
-      </div>
-    );
-  }
-  if (state.status === 'error') {
+  return state;
+}
+
+function EmptyMeasures({ dataset }: { dataset: string }) {
+  return (
+    <div className="flex items-center justify-center rounded-md border border-dashed bg-muted/20 p-4 text-xs text-muted-foreground">
+      This report binds the “{dataset}” dataset — choose at least one measure (values) to render.
+    </div>
+  );
+}
+
+function FetchStates({ status, error }: { status: 'idle' | 'loading' | 'error'; error?: string }) {
+  if (status === 'error') {
     return (
       <div role="alert" className="flex items-start gap-2 rounded-md border border-destructive/40 bg-destructive/5 px-3 py-2 text-xs text-destructive">
         <AlertTriangle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
-        <span className="break-words">{state.error}</span>
+        <span className="break-words">{error}</span>
       </div>
     );
   }
-  if (state.rows.length === 0) {
-    return (
-      <div className="flex flex-col items-center justify-center gap-2 rounded-md border border-dashed bg-muted/20 p-6 text-xs text-muted-foreground">
-        <Table2 className="h-6 w-6" /> The dataset returned no rows for this report’s scope.
-      </div>
-    );
-  }
+  return (
+    <div className="flex items-center gap-2 p-4 text-xs text-muted-foreground">
+      <Loader2 className="h-4 w-4 animate-spin" /> Running report…
+    </div>
+  );
+}
+
+function NoRows() {
+  return (
+    <div className="flex flex-col items-center justify-center gap-2 rounded-md border border-dashed bg-muted/20 p-6 text-xs text-muted-foreground">
+      <Table2 className="h-6 w-6" /> The dataset returned no rows for this report’s scope.
+    </div>
+  );
+}
+
+const DRILL_CLASS = 'cursor-pointer hover:bg-accent/40';
+
+/** One dataset-bound table: fetch via `queryDataset`, render `rows` + `values`. */
+function DatasetReportTable({
+  dataset,
+  rows,
+  values,
+  runtimeFilter,
+  dataSource,
+  onDrill,
+}: {
+  dataset: string;
+  rows: string[];
+  values: string[];
+  runtimeFilter?: Record<string, unknown>;
+  dataSource?: unknown;
+  onDrill?: (args: DatasetDrillArgs) => void;
+}) {
+  const state = useDatasetRows(dataset, rows, values, runtimeFilter, dataSource);
+
+  if (values.length === 0) return <EmptyMeasures dataset={dataset} />;
+  if (state.status === 'loading' || state.status === 'idle') return <FetchStates status={state.status} />;
+  if (state.status === 'error') return <FetchStates status="error" error={state.error} />;
+  if (state.rows.length === 0) return <NoRows />;
+
+  // Drilling needs at least one dimension to scope by.
+  const canDrill = !!onDrill && rows.length > 0;
+  const drill = (row: Row) => {
+    const groupKey: Record<string, unknown> = {};
+    for (const dim of rows) groupKey[dim] = row[dim];
+    onDrill!({ dataset, groupKey, runtimeFilter });
+  };
 
   const columns = [...rows, ...values];
   return (
@@ -174,7 +239,12 @@ function DatasetReportTable({
         </thead>
         <tbody>
           {state.rows.map((row, i) => (
-            <tr key={i} className="border-t">
+            <tr
+              key={i}
+              className={`border-t${canDrill ? ` ${DRILL_CLASS}` : ''}`}
+              data-testid={canDrill ? 'dataset-drill-row' : undefined}
+              onClick={canDrill ? () => drill(row) : undefined}
+            >
               {columns.map((c) => (
                 <td key={c} className="px-2 py-1 tabular-nums whitespace-nowrap">
                   {formatCell(row[c])}
@@ -188,16 +258,147 @@ function DatasetReportTable({
   );
 }
 
+/** Stable bucket id for a dimension-value tuple. */
+function bucketId(dims: string[], row: Row): string {
+  return dims.map((d) => String(row[d] ?? '∅')).join('');
+}
+
+function bucketLabel(dims: string[], row: Row): string {
+  return dims.map((d) => formatCell(row[d])).join(' / ');
+}
+
+/**
+ * True cross-tab for `type: 'matrix'` — one dataset query over
+ * `[...rows, ...columns]`, pivoted client-side. Cells show every measure
+ * (single measure → one column per across-bucket; multiple → one column per
+ * across-bucket × measure).
+ */
+function DatasetMatrixTable({
+  dataset,
+  rows,
+  columnsAcross,
+  values,
+  runtimeFilter,
+  dataSource,
+  onDrill,
+}: {
+  dataset: string;
+  rows: string[];
+  columnsAcross: string[];
+  values: string[];
+  runtimeFilter?: Record<string, unknown>;
+  dataSource?: unknown;
+  onDrill?: (args: DatasetDrillArgs) => void;
+}) {
+  const state = useDatasetRows(dataset, [...rows, ...columnsAcross], values, runtimeFilter, dataSource);
+
+  const pivot = React.useMemo(() => {
+    if (state.status !== 'ok') return null;
+    const rowHeaders: Array<{ id: string; label: string; key: Row }> = [];
+    const colHeaders: Array<{ id: string; label: string; key: Row }> = [];
+    const seenRow = new Set<string>();
+    const seenCol = new Set<string>();
+    const cells = new Map<string, Row>();
+    for (const r of state.rows) {
+      const rid = bucketId(rows, r);
+      const cid = bucketId(columnsAcross, r);
+      if (!seenRow.has(rid)) {
+        seenRow.add(rid);
+        const key: Row = {};
+        for (const d of rows) key[d] = r[d];
+        rowHeaders.push({ id: rid, label: bucketLabel(rows, r), key });
+      }
+      if (!seenCol.has(cid)) {
+        seenCol.add(cid);
+        const key: Row = {};
+        for (const d of columnsAcross) key[d] = r[d];
+        colHeaders.push({ id: cid, label: bucketLabel(columnsAcross, r), key });
+      }
+      cells.set(`${rid} ${cid}`, r);
+    }
+    return { rowHeaders, colHeaders, cells };
+  }, [state, rows, columnsAcross]);
+
+  if (values.length === 0) return <EmptyMeasures dataset={dataset} />;
+  if (state.status === 'loading' || state.status === 'idle') return <FetchStates status={state.status} />;
+  if (state.status === 'error') return <FetchStates status="error" error={state.error} />;
+  if (!pivot || pivot.rowHeaders.length === 0) return <NoRows />;
+
+  const canDrill = !!onDrill;
+  const drillCell = (rowKey: Row, colKey: Row) => {
+    onDrill!({ dataset, groupKey: { ...rowKey, ...colKey }, runtimeFilter });
+  };
+
+  // Single measure → one column per across-bucket; multiple → bucket × measure.
+  const cellCols = pivot.colHeaders.flatMap((col) =>
+    values.map((measure) => ({
+      col,
+      measure,
+      header: values.length === 1 ? col.label : `${col.label} · ${measure}`,
+    })),
+  );
+
+  return (
+    <div className="overflow-auto max-h-[70vh] rounded-md border" data-testid="dataset-matrix">
+      <table className="w-full text-xs">
+        <thead className="bg-muted/40">
+          <tr>
+            {rows.map((d) => (
+              <th key={d} className="px-2 py-1.5 text-left font-medium whitespace-nowrap">
+                {d}
+              </th>
+            ))}
+            {cellCols.map((cc) => (
+              <th key={`${cc.col.id}-${cc.measure}`} className="px-2 py-1.5 text-right font-medium whitespace-nowrap">
+                {cc.header}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {pivot.rowHeaders.map((rh) => (
+            <tr key={rh.id} className="border-t">
+              {rows.map((d) => (
+                <td key={d} className="px-2 py-1 whitespace-nowrap font-medium">
+                  {formatCell(rh.key[d])}
+                </td>
+              ))}
+              {cellCols.map((cc) => {
+                const cell = pivot.cells.get(`${rh.id} ${cc.col.id}`);
+                const value = cell?.[cc.measure];
+                const clickable = canDrill && cell != null;
+                return (
+                  <td
+                    key={`${cc.col.id}-${cc.measure}`}
+                    className={`px-2 py-1 text-right tabular-nums whitespace-nowrap${clickable ? ` ${DRILL_CLASS}` : ''}`}
+                    data-testid={clickable ? 'dataset-drill-cell' : undefined}
+                    onClick={clickable ? () => drillCell(rh.key, cc.col.key) : undefined}
+                  >
+                    {formatCell(value)}
+                  </td>
+                );
+              })}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 export const DatasetReportRenderer: React.FC<DatasetReportRendererProps> = ({
   report,
   dataSource,
   runtimeFilter,
+  onDrill,
   className,
 }) => {
   const outerFilter = mergeFilters(
     (report.runtimeFilter ?? report.filter) as Record<string, unknown> | undefined,
     runtimeFilter,
   );
+  // ADR-0021 D2: `drilldown` defaults on; the host must still supply a sink.
+  const drillSink = report.drilldown === false ? undefined : onDrill;
 
   // Joined → a vertical stack of dataset-bound blocks.
   if (report.type === 'joined' && Array.isArray(report.blocks)) {
@@ -210,6 +411,27 @@ export const DatasetReportRenderer: React.FC<DatasetReportRendererProps> = ({
       >
         {report.blocks.map((block, index) => {
           const blockFilter = mergeFilters(outerFilter, (block.runtimeFilter ?? block.filter) as Record<string, unknown> | undefined);
+          const blockAcross = readNames(block.columns);
+          const blockTable = block.type === 'matrix' && blockAcross.length > 0 ? (
+            <DatasetMatrixTable
+              dataset={String(block.dataset ?? '')}
+              rows={readNames(block.rows)}
+              columnsAcross={blockAcross}
+              values={readNames(block.values)}
+              runtimeFilter={blockFilter}
+              dataSource={dataSource}
+              onDrill={drillSink}
+            />
+          ) : (
+            <DatasetReportTable
+              dataset={String(block.dataset ?? '')}
+              rows={readNames(block.rows)}
+              values={readNames(block.values)}
+              runtimeFilter={blockFilter}
+              dataSource={dataSource}
+              onDrill={drillSink}
+            />
+          );
           return (
             <section
               key={block.name ?? `block-${index}`}
@@ -223,13 +445,7 @@ export const DatasetReportRenderer: React.FC<DatasetReportRendererProps> = ({
                   <p className="text-xs text-muted-foreground">{resolveText(block.description, '')}</p>
                 ) : null}
               </header>
-              <DatasetReportTable
-                dataset={String(block.dataset ?? '')}
-                rows={Array.isArray(block.rows) ? block.rows.filter(Boolean) : []}
-                values={Array.isArray(block.values) ? block.values.filter(Boolean) : []}
-                runtimeFilter={blockFilter}
-                dataSource={dataSource}
-              />
+              {blockTable}
             </section>
           );
         })}
@@ -237,15 +453,35 @@ export const DatasetReportRenderer: React.FC<DatasetReportRendererProps> = ({
     );
   }
 
-  // summary / matrix / tabular → a single dataset-bound table.
+  const across = readNames(report.columns);
+  // Matrix with an across dimension → true cross-tab; without one it
+  // degrades to the flat grouped table (pre-`columns` stored JSON).
+  if (report.type === 'matrix' && across.length > 0) {
+    return (
+      <div className={className} data-testid="dataset-report" data-report-name={report.name}>
+        <DatasetMatrixTable
+          dataset={String(report.dataset ?? '')}
+          rows={readNames(report.rows)}
+          columnsAcross={across}
+          values={readNames(report.values)}
+          runtimeFilter={outerFilter}
+          dataSource={dataSource}
+          onDrill={drillSink}
+        />
+      </div>
+    );
+  }
+
+  // summary / tabular (and matrix without `columns`) → a single grouped table.
   return (
     <div className={className} data-testid="dataset-report" data-report-name={report.name}>
       <DatasetReportTable
         dataset={String(report.dataset ?? '')}
-        rows={Array.isArray(report.rows) ? report.rows.filter(Boolean) : []}
-        values={Array.isArray(report.values) ? report.values.filter(Boolean) : []}
+        rows={readNames(report.rows)}
+        values={readNames(report.values)}
         runtimeFilter={outerFilter}
         dataSource={dataSource}
+        onDrill={drillSink}
       />
     </div>
   );

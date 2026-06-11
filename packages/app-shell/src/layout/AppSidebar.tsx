@@ -289,7 +289,9 @@ export function AppSidebar({ activeAppName, onAppChange }: { activeAppName: stri
       { id: 'sys-orgs', label: t('layout.systemNav.organizations', { defaultValue: 'Organizations' }), type: 'url' as const, url: '/apps/setup/system/organizations', icon: 'building-2' },
       { id: 'sys-roles', label: t('layout.systemNav.roles', { defaultValue: 'Roles' }), type: 'url' as const, url: '/apps/setup/system/roles', icon: 'shield' },
       { id: 'sys-config', label: t('layout.systemNav.configuration', { defaultValue: 'Configuration' }), type: 'url' as const, url: '/apps/setup/system/settings', icon: 'sliders-horizontal' },
-      { id: 'sys-create-app', label: t('layout.systemNav.createApp', { defaultValue: 'Create App' }), type: 'url' as const, url: '/create-app', icon: 'plus' },
+      // Manual "Create App" is deprecated in favour of the AI-first builder
+      // (Build with AI on /home). Entry point removed; the /create-app route
+      // remains reachable directly for any legacy deep links.
     );
     return items;
   }, [isWorkspaceAdmin, t]);

@@ -10,7 +10,7 @@
 import { useNavigate } from 'react-router-dom';
 import { useObjectTranslation } from '@object-ui/i18n';
 import { Card, CardContent } from '@object-ui/components';
-import { Plus, Settings, Database, ArrowUpRight } from 'lucide-react';
+import { Settings, Database, ArrowUpRight } from 'lucide-react';
 import { cn } from '@object-ui/components';
 
 interface QuickAction {
@@ -28,17 +28,9 @@ export function QuickActions() {
   const navigate = useNavigate();
   const { t } = useObjectTranslation();
 
+  // Manual "Create App" deprecated — the AI-first builder (Build with AI on
+  // /home) is the path to a new application.
   const actions: QuickAction[] = [
-    {
-      id: 'create-app',
-      label: t('home.quickActions.createApp', { defaultValue: 'Create App' }),
-      description: t('home.quickActions.createAppDesc', { defaultValue: 'Start with a new application' }),
-      icon: Plus,
-      href: '/create-app',
-      iconBg: 'bg-gradient-to-br from-blue-500/15 to-indigo-500/10 ring-blue-500/20',
-      iconText: 'text-blue-600 dark:text-blue-400',
-      hoverBorder: 'hover:border-blue-500/40',
-    },
     {
       id: 'manage-objects',
       label: t('home.quickActions.manageObjects', { defaultValue: 'Manage Objects' }),

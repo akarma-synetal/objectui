@@ -422,6 +422,8 @@ const ENGINE_STRINGS_EN: Record<string, string> = {
   'engine.inspector.report.valuesEmpty': 'No measures yet. Add one from the dataset below.',
   'engine.inspector.report.rows': 'Rows (dimensions)',
   'engine.inspector.report.rowsEmpty': 'No dimensions yet. Add one from the dataset below.',
+  'engine.inspector.report.columnsAcross': 'Columns (across dimensions)',
+  'engine.inspector.report.columnsAcrossEmpty': 'No across dimensions yet — the matrix pivots rows × columns.',
   'engine.inspector.report.noSchema': 'Spec schema unavailable — basic properties only.',
   // Trailing section for fields the live server has but the bundled spec lacks.
   'engine.inspector.moreFields': 'More fields',
@@ -1063,6 +1065,8 @@ const ENGINE_STRINGS_ZH: Record<string, string> = {
   'engine.inspector.report.valuesEmpty': '还没有度量。从下方数据集中添加。',
   'engine.inspector.report.rows': '行（维度）',
   'engine.inspector.report.rowsEmpty': '还没有维度。从下方数据集中添加。',
+  'engine.inspector.report.columnsAcross': '列（横向维度）',
+  'engine.inspector.report.columnsAcrossEmpty': '还没有横向维度——矩阵按 行 × 列 透视。',
   'engine.inspector.report.noSchema': '规格 schema 不可用 —— 仅显示基础属性。',
   // Trailing section for fields the live server has but the bundled spec lacks.
   'engine.inspector.moreFields': '更多字段',

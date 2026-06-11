@@ -27,7 +27,7 @@ import { AppCard } from './AppCard';
 import { RecentApps } from './RecentApps';
 import { StarredApps } from './StarredApps';
 import { Empty, EmptyTitle, EmptyDescription, Button } from '@object-ui/components';
-import { Plus, Settings, Sparkles, Star, Clock, ArrowDown, Store, LayoutGrid, ShieldAlert, X, UploadCloud } from 'lucide-react';
+import { Sparkles, Star, Clock, ArrowDown, Store, LayoutGrid, ShieldAlert, X, UploadCloud } from 'lucide-react';
 import { useMetadataClient } from '../../views/metadata-admin/useMetadata';
 import { usePublishAllDrafts } from '../../preview/usePublishAllDrafts';
 import { toast } from 'sonner';
@@ -250,35 +250,42 @@ export function HomePage() {
         <PendingDraftsBanner t={t} />
         <RecoveryPasswordReminder t={t} />
         <div className="flex flex-1 items-center justify-center p-6">
-        <Empty>
-          <EmptyTitle>{t('home.welcome', { defaultValue: 'Welcome to ObjectUI' })}</EmptyTitle>
-          <EmptyDescription>
-            {t('home.welcomeDescription', {
-              defaultValue:
-                'Get started by creating your first application or configure your system settings.',
-            })}
-          </EmptyDescription>
-          <div className="mt-6 flex flex-col sm:flex-row items-center gap-3">
-            {/*
-              AI-first magic moment: the primary CTA deep-links into the AI
-              workspace preselecting the metadata-authoring agent, so a brand-new
-              user goes straight from "describe your business" to a generated
-              backend. Manual create / settings stay as secondary paths.
-            */}
-            <Button onClick={() => navigate('/ai?agent=metadata_assistant')} data-testid="build-with-ai-btn">
-              <Sparkles className="mr-2 h-4 w-4" />
-              {t('home.buildWithAI', { defaultValue: 'Build with AI' })}
-            </Button>
-            <Button variant="outline" onClick={() => navigate('/create-app')} data-testid="create-first-app-btn">
-              <Plus className="mr-2 h-4 w-4" />
-              {t('home.createFirstApp', { defaultValue: 'Create Your First App' })}
-            </Button>
-            <Button variant="outline" onClick={() => navigate('/apps/setup')} data-testid="go-to-settings-btn">
-              <Settings className="mr-2 h-4 w-4" />
-              {t('home.systemSettings', { defaultValue: 'System Settings' })}
-            </Button>
-          </div>
-        </Empty>
+        {/*
+          Role-aware empty state. ADMINS get the AI-first magic moment as the
+          single primary CTA — "describe your business" → generated backend.
+          System administration is one click away in the left "Administration"
+          nav (UnifiedSidebar), so we no longer crowd the center with a System
+          Settings button, and manual "Create App" is deprecated entirely.
+          NON-ADMINS can't author the workspace, so they get a quiet "no apps
+          yet — ask your admin" state instead of build CTAs they can't use.
+        */}
+        {isAdmin ? (
+          <Empty>
+            <EmptyTitle>{t('home.welcome', { defaultValue: 'Welcome to ObjectUI' })}</EmptyTitle>
+            <EmptyDescription>
+              {t('home.welcomeAdminDescription', {
+                defaultValue:
+                  'Describe your business in one sentence — AI generates the objects, screens, APIs and agent tools. Or set things up yourself from the Administration menu on the left.',
+              })}
+            </EmptyDescription>
+            <div className="mt-6 flex flex-col sm:flex-row items-center gap-3">
+              <Button onClick={() => navigate('/ai?agent=metadata_assistant')} data-testid="build-with-ai-btn">
+                <Sparkles className="mr-2 h-4 w-4" />
+                {t('home.buildWithAI', { defaultValue: 'Build with AI' })}
+              </Button>
+            </div>
+          </Empty>
+        ) : (
+          <Empty>
+            <EmptyTitle>{t('home.noAppsTitle', { defaultValue: 'No applications yet' })}</EmptyTitle>
+            <EmptyDescription>
+              {t('home.noAppsDescription', {
+                defaultValue:
+                  'There are no applications available to you yet. Please contact your workspace administrator.',
+              })}
+            </EmptyDescription>
+          </Empty>
+        )}
         </div>
       </div>
     );

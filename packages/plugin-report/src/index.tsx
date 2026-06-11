@@ -15,7 +15,7 @@ import { DatasetReportRenderer, isDatasetReport } from './DatasetReportRenderer'
 export { ReportRenderer, LegacyReportRenderer, ReportViewer, DatasetReportRenderer, isDatasetReport };
 export type { ReportRendererProps, ReportRendererSchema } from './ReportRenderer';
 export type { LegacyReportRendererProps } from './LegacyReportRenderer';
-export type { DatasetReportRendererProps } from './DatasetReportRenderer';
+export type { DatasetReportRendererProps, DatasetDrillArgs } from './DatasetReportRenderer';
 export { formatValue } from './formatValue';
 export { exportReport, exportAsCSV, exportAsJSON, exportAsHTML, exportAsPDF, exportAsExcel } from './ReportExportEngine';
 export {

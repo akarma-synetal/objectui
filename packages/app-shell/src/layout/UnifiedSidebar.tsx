@@ -43,7 +43,7 @@ import type { NavigationItem } from '@object-ui/types';
 import { useMetadata } from '../providers/MetadataProvider';
 import { useExpressionContext, evaluateVisibility } from '../providers/ExpressionProvider';
 import { usePermissions } from '@object-ui/permissions';
-import { useAuth } from '@object-ui/auth';
+import { useAuth, useIsWorkspaceAdmin } from '@object-ui/auth';
 import { useRecentItems } from '../hooks/useRecentItems';
 import { useFavorites } from '../hooks/useFavorites';
 import { useNavPins } from '../hooks/useNavPins';
@@ -151,6 +151,7 @@ export function UnifiedSidebar({ activeAppName }: UnifiedSidebarProps) {
   const { objectLabel: resolveNavObjectLabel, dashboardLabel: resolveNavDashboardLabel, navGroupLabel: resolveNavGroupLabel, viewLabel: resolveNavViewLabel } = useObjectLabel();
   const { context, currentAppName } = useNavigationContext();
   const { user } = useAuth();
+  const isWorkspaceAdmin = useIsWorkspaceAdmin();
 
   // Swipe-from-left-edge gesture to open sidebar on mobile
   React.useEffect(() => {
@@ -215,10 +216,37 @@ export function UnifiedSidebar({ activeAppName }: UnifiedSidebarProps) {
     t,
   );
 
-  // Home navigation items
-  const homeNavigation: NavigationItem[] = React.useMemo(() => [
-    { id: 'home-dashboard', label: t('home.nav', { defaultValue: 'Home' }), type: 'url' as const, url: '/home', icon: 'home' },
-  ], [t]);
+  // Home navigation items. For workspace admins we surface the full system
+  // ("Administration") nav right here on /home — previously the home context
+  // showed ONLY a "Home" link, so a fresh env (no apps yet) rendered a bare
+  // centered page with the real menu nowhere in sight. Mirrors AppSidebar's
+  // `systemFallbackNavigation` (sans the deprecated manual "Create App").
+  // Non-admins get just Home — system administration is owner/admin-gated.
+  const homeNavigation: NavigationItem[] = React.useMemo(() => {
+    const items: NavigationItem[] = [
+      { id: 'home-dashboard', label: t('home.nav', { defaultValue: 'Home' }), type: 'url' as const, url: '/home', icon: 'home' },
+    ];
+    if (isWorkspaceAdmin) {
+      const adminItems: NavigationItem[] = [
+        { id: 'sys-settings', label: t('layout.systemNav.systemSettings', { defaultValue: 'System Settings' }), type: 'url' as const, url: '/apps/setup', icon: 'settings' },
+        { id: 'sys-apps', label: t('layout.systemNav.applications', { defaultValue: 'Applications' }), type: 'url' as const, url: '/apps/setup/system/apps', icon: 'layout-grid' },
+        { id: 'sys-marketplace', label: t('layout.systemNav.appMarketplace', { defaultValue: 'App Marketplace' }), type: 'url' as const, url: '/apps/setup/system/marketplace', icon: 'store' },
+        { id: 'sys-objects', label: t('layout.systemNav.objectManager', { defaultValue: 'Object Manager' }), type: 'url' as const, url: '/apps/setup/system/metadata/object', icon: 'database' },
+        { id: 'sys-users', label: t('layout.systemNav.users', { defaultValue: 'Users' }), type: 'url' as const, url: '/apps/setup/system/users', icon: 'users' },
+        { id: 'sys-orgs', label: t('layout.systemNav.organizations', { defaultValue: 'Organizations' }), type: 'url' as const, url: '/apps/setup/system/organizations', icon: 'building-2' },
+        { id: 'sys-roles', label: t('layout.systemNav.roles', { defaultValue: 'Roles' }), type: 'url' as const, url: '/apps/setup/system/roles', icon: 'shield' },
+        { id: 'sys-config', label: t('layout.systemNav.configuration', { defaultValue: 'Configuration' }), type: 'url' as const, url: '/apps/setup/system/settings', icon: 'sliders-horizontal' },
+      ];
+      items.push({
+        id: 'sys-administration',
+        label: t('layout.systemNav.administration', { defaultValue: 'Administration' }),
+        type: 'group' as const,
+        icon: 'shield',
+        children: adminItems,
+      });
+    }
+    return items;
+  }, [t, isWorkspaceAdmin]);
 
   // Determine which navigation to show based on context
   const navigationItems = context === 'home' ? homeNavigation : appNavigation;

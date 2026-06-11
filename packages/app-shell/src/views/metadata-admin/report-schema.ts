@@ -34,6 +34,7 @@ const FORM_FIELDS_OWNED_ELSEWHERE = new Set([
   'dataset', // dataset binding rendered as a dedicated picker
   'values', // managed by the dedicated measures list
   'rows', // managed by the dedicated dimensions list
+  'columns', // matrix across-dimensions — dedicated list (ADR-0021 D2)
   'name', // record identity — not user-editable here
 ]);
 
