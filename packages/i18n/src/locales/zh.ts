@@ -228,6 +228,23 @@ const zh = {
     firstRunMessage: '创建第一条记录即可开始。',
     noMatches: '没有匹配的记录',
     noMatchesMessage: '没有符合当前筛选或搜索条件的记录，试试调整或清除它们。',
+    managedBy: {
+      system: {
+        title: '这里还没有数据',
+        message:
+          '当其来源操作运行时（例如提交审批、共享、邀请），记录会自动出现。请在来源记录上触发其中一个操作来创建数据。',
+      },
+      appendOnly: {
+        title: '暂无事件记录',
+        message:
+          '这是一份不可变更的审计日志。记录由平台在事件发生时写入——你可以导出历史，但无法在此处创建条目。',
+      },
+      betterAuth: {
+        title: '暂无身份记录',
+        message:
+          '身份记录由认证提供方管理。请使用专门的身份流程（邀请用户、重置密码……）来创建新条目。',
+      },
+    },
     showAll: '显示全部',
     pullToRefresh: '下拉刷新',
     refreshing: '刷新中…',

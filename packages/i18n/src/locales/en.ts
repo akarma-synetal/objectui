@@ -228,6 +228,23 @@ const en = {
     firstRunMessage: 'Create your first record to get started.',
     noMatches: 'No matching records',
     noMatchesMessage: 'No records match your current filters or search. Try adjusting or clearing them.',
+    managedBy: {
+      system: {
+        title: 'Nothing here yet',
+        message:
+          'Entries appear automatically when their source action runs (e.g. Submit for Approval, Share, Invite). Trigger one of those on a source record to create a row.',
+      },
+      appendOnly: {
+        title: 'No events recorded',
+        message:
+          'This is an immutable audit log. Rows are written by the platform when events occur — you can export the history but cannot create entries from here.',
+      },
+      betterAuth: {
+        title: 'No identity records',
+        message:
+          'Identity rows are managed by the authentication provider. Use the dedicated identity workflows (Invite User, Reset Password, …) to create new entries.',
+      },
+    },
     showAll: 'Show all',
     pullToRefresh: 'Pull to refresh',
     refreshing: 'Refreshing…',

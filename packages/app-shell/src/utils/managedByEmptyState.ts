@@ -27,30 +27,44 @@ export interface ManagedByEmptyState {
   icon: string;
 }
 
+/**
+ * Translator function, structurally compatible with the `t` returned by
+ * `useObjectTranslation()`. Accepts a key and optional options (including a
+ * `defaultValue` used as the English fallback when a locale lacks the key).
+ */
+type TranslateFn = (key: string, options?: Record<string, unknown>) => string;
+
 export function resolveManagedByEmptyState(
   managedBy: string | undefined | null,
+  t: TranslateFn,
 ): ManagedByEmptyState | undefined {
   switch (managedBy) {
     case 'system':
       return {
         icon: 'Lock',
-        title: 'Nothing here yet',
-        message:
-          'Entries appear automatically when their source action runs (e.g. Submit for Approval, Share, Invite). Trigger one of those on a source record to create a row.',
+        title: t('list.managedBy.system.title', { defaultValue: 'Nothing here yet' }),
+        message: t('list.managedBy.system.message', {
+          defaultValue:
+            'Entries appear automatically when their source action runs (e.g. Submit for Approval, Share, Invite). Trigger one of those on a source record to create a row.',
+        }),
       };
     case 'append-only':
       return {
         icon: 'Archive',
-        title: 'No events recorded',
-        message:
-          'This is an immutable audit log. Rows are written by the platform when events occur — you can export the history but cannot create entries from here.',
+        title: t('list.managedBy.appendOnly.title', { defaultValue: 'No events recorded' }),
+        message: t('list.managedBy.appendOnly.message', {
+          defaultValue:
+            'This is an immutable audit log. Rows are written by the platform when events occur — you can export the history but cannot create entries from here.',
+        }),
       };
     case 'better-auth':
       return {
         icon: 'ShieldAlert',
-        title: 'No identity records',
-        message:
-          'Identity rows are managed by the authentication provider. Use the dedicated identity workflows (Invite User, Reset Password, …) to create new entries.',
+        title: t('list.managedBy.betterAuth.title', { defaultValue: 'No identity records' }),
+        message: t('list.managedBy.betterAuth.message', {
+          defaultValue:
+            'Identity rows are managed by the authentication provider. Use the dedicated identity workflows (Invite User, Reset Password, …) to create new entries.',
+        }),
       };
     default:
       return undefined;

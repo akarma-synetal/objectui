@@ -1199,7 +1199,7 @@ function ObjectViewInner({ dataSource, objects, onEdit, externalRefreshKey }: an
                     viewDef.name || viewDef.id || '',
                     viewDef.emptyState
                         ?? listSchema.emptyState
-                        ?? resolveManagedByEmptyState((objectDef as any)?.managedBy),
+                        ?? resolveManagedByEmptyState((objectDef as any)?.managedBy, t),
                 ),
             aria: viewDef.aria ?? listSchema.aria,
             tabs: listSchema.tabs,
