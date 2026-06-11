@@ -1750,6 +1750,12 @@ const fr = {
     },
   },
   approvalsInbox: {
+    prevRequest: 'Précédente',
+    nextRequest: 'Suivante',
+    positionOf: '{{index}} sur {{total}}',
+    quickPhrase1: 'Approuvée — conforme aux exigences.',
+    quickPhrase2: 'Approuvée sous conditions — surveillez l\'exécution.',
+    quickPhrase3: 'Veuillez compléter le dossier et soumettre à nouveau.',
     title: 'Centre d\'approbations',
     subtitle: 'Consultez et traitez les demandes d\'approbation.',
     refresh: 'Actualiser',

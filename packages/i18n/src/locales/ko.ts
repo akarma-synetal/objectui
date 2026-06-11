@@ -1750,6 +1750,12 @@ const ko = {
     },
   },
   approvalsInbox: {
+    prevRequest: '이전',
+    nextRequest: '다음',
+    positionOf: '{{total}}개 중 {{index}}번째',
+    quickPhrase1: '승인합니다. 요건을 충족합니다.',
+    quickPhrase2: '조건부 승인합니다. 실행 상황을 확인해 주세요.',
+    quickPhrase3: '자료를 보완하여 다시 제출해 주세요.',
     title: '승인 센터',
     subtitle: '승인 요청을 확인하고 처리합니다.',
     refresh: '새로고침',

@@ -62,6 +62,8 @@ export interface ApprovalActionRow {
   action: 'submit' | 'approve' | 'reject' | 'recall' | string;
   comment?: string | null;
   created_at?: string;
+  /** Display name of the actor, resolved server-side. */
+  actor_name?: string;
 }
 
 async function call<T>(path: string, init?: RequestInit): Promise<T> {

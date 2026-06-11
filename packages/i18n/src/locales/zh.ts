@@ -1896,6 +1896,12 @@ const zh = {
       },
     },
   approvalsInbox: {
+    prevRequest: '上一条',
+    nextRequest: '下一条',
+    positionOf: '第 {{index}} / {{total}} 条',
+    quickPhrase1: '同意，符合要求。',
+    quickPhrase2: '有条件同意，请关注执行情况。',
+    quickPhrase3: '请补充相关材料后重新提交。',
     title: '审批中心',
     subtitle: '查看并处理审批请求。',
     refresh: '刷新',
