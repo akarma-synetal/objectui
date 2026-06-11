@@ -51,6 +51,10 @@ export interface ApprovalRequestRow {
   pending_approver_names?: Record<string, string>;
   /** Display values for lookup fields in `payload` (field key → record title). */
   payload_display?: Record<string, string>;
+  /** SLA deadline (`created_at + escalation.timeoutHours`), display-only. */
+  sla_due_at?: string;
+  /** Owning flow's approval steps for progress display (single reads only). */
+  flow_steps?: Array<{ id: string; label: string; state: 'done' | 'current' | 'upcoming' }>;
 }
 
 export interface ApprovalActionRow {
@@ -156,6 +160,42 @@ export const approvalsApi = {
       { method: 'POST', body: JSON.stringify(body) },
     );
     return { data: out.request, finalized: true };
+  },
+
+  /** Hand a pending-approver slot to someone else (server: slot holder only). */
+  async reassign(id: string, body: { actor_id?: string; to: string; comment?: string }) {
+    const out = await call<{ request: ApprovalRequestRow }>(
+      `/approvals/requests/${encodeURIComponent(id)}/reassign`,
+      { method: 'POST', body: JSON.stringify(body) },
+    );
+    return { data: out.request };
+  },
+
+  /** Submitter nudge — notifies pending approvers (throttled server-side). */
+  async remind(id: string, body: { actor_id?: string; comment?: string } = {}) {
+    const out = await call<{ request: ApprovalRequestRow; notified: number }>(
+      `/approvals/requests/${encodeURIComponent(id)}/remind`,
+      { method: 'POST', body: JSON.stringify(body) },
+    );
+    return { data: out.request, notified: out.notified };
+  },
+
+  /** Approver asks the submitter for more info; the request stays pending. */
+  async requestInfo(id: string, body: { actor_id?: string; comment: string }) {
+    const out = await call<{ request: ApprovalRequestRow }>(
+      `/approvals/requests/${encodeURIComponent(id)}/request-info`,
+      { method: 'POST', body: JSON.stringify(body) },
+    );
+    return { data: out.request };
+  },
+
+  /** Free-form reply on the request thread (submitter or pending approver). */
+  async comment(id: string, body: { actor_id?: string; comment: string }) {
+    const out = await call<{ request: ApprovalRequestRow }>(
+      `/approvals/requests/${encodeURIComponent(id)}/comment`,
+      { method: 'POST', body: JSON.stringify(body) },
+    );
+    return { data: out.request };
   },
 
   async submit(body: {
