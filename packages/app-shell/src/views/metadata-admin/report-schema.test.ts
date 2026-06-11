@@ -9,12 +9,15 @@ describe('report-schema — getReportSchema', () => {
     expect(schema).toBeDefined();
     expect(schema?.type).toBe('object');
     const props = schema?.properties ?? {};
-    // Core report properties flow through from the spec.
+    // Core report properties flow through from the spec. Since the 9.0
+    // single-form cutover a report is dataset-bound: `dataset` + `rows` /
+    // `values` replace the inline `objectName` + `columns` query.
     expect(props.name).toBeDefined();
     expect(props.label).toBeDefined();
-    expect(props.objectName).toBeDefined();
     expect(props.type).toBeDefined();
-    expect(props.columns).toBeDefined();
+    expect(props.dataset).toBeDefined();
+    expect(props.rows).toBeDefined();
+    expect(props.values).toBeDefined();
   });
 
   it('exposes the report `type` enum from the spec', () => {

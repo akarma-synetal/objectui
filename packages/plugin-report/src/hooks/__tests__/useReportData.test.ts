@@ -7,7 +7,7 @@
 
 import { describe, it, expect, vi } from 'vitest';
 import { renderHook, waitFor, act } from '@testing-library/react';
-import { SpecReport } from '@object-ui/types';
+import type { SpecReport } from '@object-ui/types';
 import {
   useReportData,
   columnKey,
@@ -20,6 +20,17 @@ import {
   mergeFilters,
   collectFields,
 } from '../useReportData';
+
+/**
+ * Pre-9.0 ("query-form") report fixture. Spec 9.0 reports are dataset-bound
+ * (`dataset` + `rows`/`values` name arrays), so the inline `objectName` /
+ * `columns` / `groupingsDown` shape can no longer pass `SpecReport.create` —
+ * but these code paths keep a passthrough for stored pre-9.0 JSON, which is
+ * exactly what these tests cover.
+ */
+function legacyReport(r: Record<string, unknown>): SpecReport {
+  return r as unknown as SpecReport;
+}
 
 const dataset = [
   { id: 1, region: 'East', quarter: '2024-Q1', amount: 100, owner: 'alice' },
@@ -177,7 +188,7 @@ describe('mergeFilters', () => {
 
 describe('collectFields', () => {
   it('unions fields from groupings + columns + sort', () => {
-    const r = SpecReport.create({
+    const r = legacyReport({
       name: 'demo',
       label: 'Demo',
       objectName: 'opportunity',
@@ -193,7 +204,7 @@ describe('collectFields', () => {
 });
 
 describe('useReportData', () => {
-  const baseReport = SpecReport.create({
+  const baseReport = legacyReport({
     name: 'sales_by_region',
     label: 'Sales by Region',
     objectName: 'opportunity',
@@ -235,10 +246,10 @@ describe('useReportData', () => {
   });
 
   it('merges report.filter + runtimeFilter via $and', async () => {
-    const reportWithFilter = SpecReport.create({
+    const reportWithFilter = legacyReport({
       ...baseReport,
       filter: { stage: 'closed' },
-    } as Parameters<typeof SpecReport.create>[0]);
+    });
     const find = vi.fn().mockResolvedValue({ data: [] });
     renderHook(() =>
       useReportData(reportWithFilter, { dataSource: { find }, runtimeFilter: { region: 'East' } }),
@@ -283,7 +294,7 @@ describe('useReportData', () => {
   });
 
   it('handles a matrix report: rows show down-only nesting, pivot exposes 2D matrix', async () => {
-    const matrix = SpecReport.create({
+    const matrix = legacyReport({
       name: 'matrix_demo',
       label: 'Matrix',
       objectName: 'opportunity',
@@ -353,7 +364,7 @@ describe('pivotRows', () => {
 });
 
 describe('buildAggregateQuery', () => {
-  const baseReport = SpecReport.create({
+  const baseReport = legacyReport({
     name: 'opp_funnel',
     label: 'Funnel',
     objectName: 'opportunity',
@@ -377,7 +388,7 @@ describe('buildAggregateQuery', () => {
   });
 
   it('encodes dateGranularity as a structured groupBy item', () => {
-    const r = SpecReport.create({
+    const r = legacyReport({
       name: 'opp_quarter',
       label: 'Quarter',
       objectName: 'opportunity',
@@ -390,7 +401,7 @@ describe('buildAggregateQuery', () => {
   });
 
   it('returns null when nothing to aggregate', () => {
-    const r = SpecReport.create({
+    const r = legacyReport({
       name: 'flat',
       label: 'Flat',
       objectName: 'opportunity',
@@ -418,7 +429,7 @@ describe('useReportData server-aggregation path', () => {
     ]);
     const find = vi.fn();
     const dataSource = { find, aggregate };
-    const report = SpecReport.create({
+    const report = legacyReport({
       name: 'rep',
       label: 'R',
       objectName: 'opp',
@@ -444,7 +455,7 @@ describe('useReportData server-aggregation path', () => {
       { stage: 'lost', amount: 50 },
     ]);
     const dataSource = { find };
-    const report = SpecReport.create({
+    const report = legacyReport({
       name: 'rep',
       label: 'R',
       objectName: 'opp',
@@ -463,7 +474,7 @@ describe('useReportData server-aggregation path', () => {
     const aggregate = vi.fn().mockResolvedValue([]);
     const find = vi.fn().mockResolvedValue([{ stage: 'won', amount: 1 }]);
     const dataSource = { find, aggregate };
-    const report = SpecReport.create({
+    const report = legacyReport({
       name: 'rep',
       label: 'R',
       objectName: 'opp',
@@ -486,7 +497,7 @@ describe('useReportData server-aggregation path', () => {
       { region: 'West', quarter: '2024-Q1', amount__sum: 300 },
     ]);
     const dataSource = { find: vi.fn(), aggregate };
-    const report = SpecReport.create({
+    const report = legacyReport({
       name: 'matrix_srv',
       label: 'MatrixSrv',
       objectName: 'opp',
