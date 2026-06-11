@@ -33,8 +33,18 @@ export interface ApprovalRequestRow {
   pending_approvers?: string[] | null;
   submitter_id?: string | null;
   submitted_at?: string;
+  created_at?: string;
   completed_at?: string | null;
   payload?: Record<string, unknown> | null;
+  // Display enrichment, resolved server-side (plugin-approvals).
+  /** Human label of the originating flow (e.g. "Project Budget Approval"). */
+  process_label?: string;
+  /** Human label of the approval step (e.g. "Manager Review"). */
+  step_label?: string;
+  /** Display name of the target record, when resolvable. */
+  record_title?: string;
+  /** Display name of the submitter (`sys_user.name`), when resolvable. */
+  submitter_name?: string;
 }
 
 export interface ApprovalActionRow {
@@ -81,14 +91,22 @@ export const approvalsApi = {
     status?: string;
     object?: string;
     recordId?: string;
-    approverId?: string;
+    /**
+     * One identity or a list. The server matches a request when ANY identity
+     * is a pending approver, so the caller resolves "my pending approvals"
+     * in a single request (comma-separated) instead of one per identity.
+     */
+    approverId?: string | string[];
     submitterId?: string;
   } = {}) {
     const qs = new URLSearchParams();
     if (params.status) qs.set('status', params.status);
     if (params.object) qs.set('object', params.object);
     if (params.recordId) qs.set('recordId', params.recordId);
-    if (params.approverId) qs.set('approverId', params.approverId);
+    const approver = Array.isArray(params.approverId)
+      ? params.approverId.filter(Boolean).join(',')
+      : params.approverId;
+    if (approver) qs.set('approverId', approver);
     if (params.submitterId) qs.set('submitterId', params.submitterId);
     const q = qs.toString();
     return call<{ data: ApprovalRequestRow[] }>(`/approvals/requests${q ? `?${q}` : ''}`);
@@ -124,11 +142,12 @@ export const approvalsApi = {
   },
 
   async recall(id: string, body: { actorId?: string; actor_id?: string; comment?: string }) {
-    const out = await call<{ request: ApprovalRequestRow; finalized: boolean }>(
+    // Server returns `{request, runId, resumed}` — a recall always finalizes.
+    const out = await call<{ request: ApprovalRequestRow; resumed?: boolean }>(
       `/approvals/requests/${encodeURIComponent(id)}/recall`,
       { method: 'POST', body: JSON.stringify(body) },
     );
-    return { data: out.request, finalized: out.finalized };
+    return { data: out.request, finalized: true };
   },
 
   async submit(body: {
@@ -154,14 +173,27 @@ export const approvalsApi = {
 export function buildApproverIdentities(user: {
   id?: string;
   email?: string;
+  /** Multi-role shape (some auth providers). */
   roles?: string[];
+  /**
+   * Single-role shape — better-auth sessions carry `role` as one string
+   * (possibly comma-separated for multiple roles), never a `roles` array.
+   * Both shapes must resolve, or role-addressed approvals (`role:<r>` in
+   * `pending_approvers`) silently vanish from "My Pending".
+   */
+  role?: string;
 } | null | undefined): string[] {
   if (!user) return [];
   const ids = new Set<string>();
   if (user.id) ids.add(user.id);
   if (user.email) ids.add(user.email);
-  for (const role of user.roles || []) {
-    if (role) ids.add(`role:${role}`);
+  const roleList = [
+    ...(user.roles || []),
+    ...(typeof user.role === 'string' ? user.role.split(',') : []),
+  ];
+  for (const role of roleList) {
+    const r = String(role).trim();
+    if (r) ids.add(`role:${r}`);
   }
   return Array.from(ids);
 }

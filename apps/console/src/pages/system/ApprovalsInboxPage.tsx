@@ -1,7 +1,7 @@
 /**
  * Approvals Inbox
  *
- * Front-end for `@objectstack/plugin-approvals` (M11.C15).
+ * Front-end for `@objectstack/plugin-approvals` (M11.C15 / ADR-0019).
  *
  * Tabs:
  *   • My Pending      — requests where the signed-in user is in
@@ -10,11 +10,20 @@
  *   • Submitted by me — requests where `submitter_id` is the user.
  *   • All             — every request (any status).
  *
- * Selecting a row opens a side sheet showing the action history and
- * Approve / Reject / Recall buttons (enabled based on actor + status).
+ * Business-first information architecture: rows lead with the flow's display
+ * label and the target record's title (server-enriched `process_label` /
+ * `record_title` / `submitter_name`), not machine names and opaque ids. The
+ * side sheet shows a structured summary of the record snapshot, the action
+ * timeline, and Approve / Reject / Recall (enabled based on actor + status,
+ * with the reason inline when disabled).
+ *
+ * Keyboard: j/k move row focus · Enter opens · x toggles selection ·
+ * a approves · r rejects (with confirm). Disabled while a dialog is open or
+ * an input is focused.
  */
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Link, useParams } from 'react-router-dom';
 import {
   Button,
   Badge,
@@ -60,9 +69,11 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
+  cn,
 } from '@object-ui/components';
 import { toast } from 'sonner';
-import { useAuth } from '@object-ui/auth';
+import { useAuth, useIsWorkspaceAdmin } from '@object-ui/auth';
+import { useObjectTranslation } from '@object-ui/i18n';
 import {
   CheckCircle2,
   XCircle,
@@ -74,6 +85,8 @@ import {
   Search,
   Copy,
   X,
+  ExternalLink,
+  User as UserIcon,
 } from 'lucide-react';
 import {
   approvalsApi,
@@ -84,39 +97,21 @@ import {
 
 type TabKey = 'pending' | 'submitted' | 'all';
 
-const STATUS_BADGE: Record<string, { variant: 'default' | 'secondary' | 'destructive' | 'outline'; label: string }> = {
-  pending:  { variant: 'secondary',   label: 'Pending'  },
-  approved: { variant: 'default',     label: 'Approved' },
-  rejected: { variant: 'destructive', label: 'Rejected' },
-  recalled: { variant: 'outline',     label: 'Recalled' },
+/**
+ * Semantic status colors (green = approved, amber = waiting, red = rejected,
+ * slate = recalled) — variant-based Badge colors read as monochrome chrome,
+ * not as state.
+ */
+const STATUS_CLASSES: Record<string, string> = {
+  pending:  'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-400',
+  approved: 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-400',
+  rejected: 'border-red-200 bg-red-50 text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-400',
+  recalled: 'border-border bg-muted text-muted-foreground',
 };
-
-function StatusBadge({ status }: { status: string }) {
-  const cfg = STATUS_BADGE[status] ?? { variant: 'outline' as const, label: status };
-  return <Badge variant={cfg.variant}>{cfg.label}</Badge>;
-}
 
 function formatDate(s: string | null | undefined): string {
   if (!s) return '—';
   try { return new Date(s).toLocaleString(); } catch { return s; }
-}
-
-/** Relative time, e.g. "2m ago", "3h ago", "5d ago", or absolute date for older. */
-function formatRelative(s: string | null | undefined): string {
-  if (!s) return '—';
-  const t = Date.parse(s);
-  if (Number.isNaN(t)) return s;
-  const diffMs = Date.now() - t;
-  const sec = Math.round(diffMs / 1000);
-  if (sec < 45) return 'just now';
-  const min = Math.round(sec / 60);
-  if (min < 60) return `${min}m ago`;
-  const hr = Math.round(min / 60);
-  if (hr < 24) return `${hr}h ago`;
-  const day = Math.round(hr / 24);
-  if (day < 30) return `${day}d ago`;
-  // > 30 days — fall back to short date
-  try { return new Date(s).toLocaleDateString(); } catch { return s; }
 }
 
 /**
@@ -133,14 +128,156 @@ function formatIdentity(id: string | null | undefined): string {
   return id;
 }
 
+/** `manager_review` → "Manager Review" (display fallback for legacy rows). */
+function prettifyMachineName(raw: string | null | undefined): string {
+  if (!raw) return '—';
+  const base = String(raw).replace(/^flow:/, '').trim();
+  return base.split(/[_\-\s]+/).filter(Boolean)
+    .map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ') || '—';
+}
+
+function processLabel(r: ApprovalRequestRow): string {
+  return r.process_label || prettifyMachineName(r.process_name);
+}
+function stepLabel(r: ApprovalRequestRow): string | null {
+  if (r.step_label) return r.step_label;
+  return r.current_step ? prettifyMachineName(r.current_step) : null;
+}
+function submitterDisplay(r: ApprovalRequestRow): string {
+  return r.submitter_name || formatIdentity(r.submitter_id);
+}
+function submittedAt(r: ApprovalRequestRow): string | undefined {
+  return r.submitted_at || r.created_at || undefined;
+}
+
+/** Hours a pending request has been waiting; null when no timestamp. */
+function waitingHours(r: ApprovalRequestRow): number | null {
+  const s = submittedAt(r);
+  if (!s) return null;
+  const t = Date.parse(s);
+  if (Number.isNaN(t)) return null;
+  return (Date.now() - t) / 36e5;
+}
+
+/** Aging tint: quiet under a day, amber 1–3 days, red beyond 3 days. */
+function agingClass(r: ApprovalRequestRow): string {
+  if (r.status !== 'pending') return 'text-muted-foreground';
+  const h = waitingHours(r);
+  if (h == null) return 'text-muted-foreground';
+  if (h > 72) return 'text-red-600 dark:text-red-400 font-medium';
+  if (h > 24) return 'text-amber-600 dark:text-amber-400';
+  return 'text-muted-foreground';
+}
+
+const PAYLOAD_SYSTEM_KEYS = new Set([
+  'id', 'created_at', 'updated_at', 'created_by', 'updated_by', 'organization_id',
+]);
+
+function prettifyKey(k: string): string {
+  return k.split('_').filter(Boolean).map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+}
+
+function formatPayloadValue(key: string, v: unknown): string {
+  if (typeof v === 'boolean') return v ? '✓' : '—';
+  if (typeof v === 'number') {
+    // Epoch-ms timestamps read as dates; everything else as a localized number.
+    if (v > 1e12 && /(_at$|_date$|^date_|_time$)/.test(key)) {
+      try { return new Date(v).toLocaleDateString(); } catch { /* fall through */ }
+    }
+    return v.toLocaleString();
+  }
+  const s = String(v);
+  if (/^\d{4}-\d{2}-\d{2}T\d{2}/.test(s)) {
+    try { return new Date(s).toLocaleString(); } catch { /* fall through */ }
+  }
+  return s;
+}
+
+/** First N scalar business fields of the record snapshot, for the summary card. */
+function payloadSummary(payload: unknown, max = 6): Array<[string, string]> {
+  if (!payload || typeof payload !== 'object' || Array.isArray(payload)) return [];
+  const out: Array<[string, string]> = [];
+  for (const [k, v] of Object.entries(payload as Record<string, unknown>)) {
+    if (PAYLOAD_SYSTEM_KEYS.has(k)) continue;
+    if (v == null || typeof v === 'object') continue;
+    if (String(v).trim() === '') continue;
+    out.push([prettifyKey(k), formatPayloadValue(k, v)]);
+    if (out.length >= max) break;
+  }
+  return out;
+}
+
 export function ApprovalsInboxPage() {
+  const { t, language } = useObjectTranslation();
   const { user } = useAuth();
+  const isAdmin = useIsWorkspaceAdmin();
+  const { appName } = useParams<{ appName?: string }>();
   const identities = useMemo(() => buildApproverIdentities(user as any), [user]);
+
+  const tr = useCallback(
+    (key: string, defaultValue: string, opts?: Record<string, unknown>) =>
+      String(t(`approvalsInbox.${key}`, { defaultValue, ...opts })),
+    [t],
+  );
+
+  /** Localized relative time, e.g. "5m ago" / "5 分钟前". */
+  const formatRelative = useCallback((s: string | null | undefined): string => {
+    if (!s) return '—';
+    const ts = Date.parse(s);
+    if (Number.isNaN(ts)) return s;
+    const sec = Math.round((Date.now() - ts) / 1000);
+    if (sec < 45) return tr('justNow', 'just now');
+    const min = Math.round(sec / 60);
+    if (min < 60) return tr('minutesAgo', '{{count}}m ago', { count: min });
+    const hr = Math.round(min / 60);
+    if (hr < 24) return tr('hoursAgo', '{{count}}h ago', { count: hr });
+    const day = Math.round(hr / 24);
+    if (day < 30) return tr('daysAgo', '{{count}}d ago', { count: day });
+    try { return new Date(s).toLocaleDateString(language); } catch { return s; }
+  }, [tr, language]);
+
+  const statusLabel = useCallback((status: string): string => {
+    switch (status) {
+      case 'pending': return tr('statusPending', 'Pending');
+      case 'approved': return tr('statusApproved', 'Approved');
+      case 'rejected': return tr('statusRejected', 'Rejected');
+      case 'recalled': return tr('statusRecalled', 'Recalled');
+      default: return status;
+    }
+  }, [tr]);
+
+  /** Map raw API errors to business-readable toasts (no `HTTP_404: Not found`). */
+  const humanizeError = useCallback((err: any, fallback: string): string => {
+    const code = err?.code ?? '';
+    const status = err?.status ?? 0;
+    if (code === 'NOT_IMPLEMENTED' || status === 501) {
+      return tr('recallUnavailable', 'Recall is not available on this deployment.');
+    }
+    if (status === 404) return tr('requestGone', 'This request no longer exists. Refresh the list.');
+    if (code === 'FORBIDDEN' || status === 403) return tr('notAllowed', 'You are not allowed to perform this action.');
+    if (code === 'INVALID_STATE' || status === 409) return tr('alreadyDecided', 'This request was already decided. Refresh the list.');
+    return err?.message || fallback;
+  }, [tr]);
+
+  function StatusBadge({ status }: { status: string }) {
+    return (
+      <Badge variant="outline" className={cn('font-medium', STATUS_CLASSES[status] ?? '')}>
+        {statusLabel(status)}
+      </Badge>
+    );
+  }
+
+  const recordHref = useCallback((r: ApprovalRequestRow): string => {
+    const app = appName || 'setup';
+    return `/apps/${app}/${encodeURIComponent(r.object_name)}/record/${encodeURIComponent(r.record_id)}`;
+  }, [appName]);
 
   const [tab, setTab] = useState<TabKey>('pending');
   const [rows, setRows] = useState<ApprovalRequestRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  /** "My pending" count, independent of the active tab (badge + bell parity). */
+  const [myPendingCount, setMyPendingCount] = useState(0);
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [selected, setSelected] = useState<ApprovalRequestRow | null>(null);
@@ -150,47 +287,52 @@ export function ApprovalsInboxPage() {
   const [actorOverride, setActorOverride] = useState('');
   const [submitting, setSubmitting] = useState<'approve' | 'reject' | 'recall' | null>(null);
 
-  // Search + filters (client-side; lists are typically small)
+  // Search + filters (client-side; lists are capped server-side)
   const [query, setQuery] = useState('');
   const [processFilter, setProcessFilter] = useState<string>('all');
   const [objectFilter, setObjectFilter] = useState<string>('all');
+  const [statusFilter, setStatusFilter] = useState<string>('all');
 
   // Bulk selection (only meaningful on "pending" tab where the user can act)
   const [selectedRowIds, setSelectedRowIds] = useState<Set<string>>(new Set());
   const [bulkRunning, setBulkRunning] = useState(false);
 
+  // Inline reject confirmation target (row-level quick action / keyboard)
+  const [rejectTarget, setRejectTarget] = useState<ApprovalRequestRow | null>(null);
+  const [inlineActing, setInlineActing] = useState<string | null>(null);
+
+  // Keyboard row focus
+  const [focusIndex, setFocusIndex] = useState<number>(-1);
+
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const requests: ApprovalRequestRow[] = [];
+      let requests: ApprovalRequestRow[] = [];
       if (tab === 'pending') {
-        // Union of "approverId substring matches" across all identities.
-        const seen = new Set<string>();
-        if (identities.length === 0) {
-          const res = await approvalsApi.listRequests({ status: 'pending' });
-          for (const r of res.data) requests.push(r);
-        } else {
-          for (const id of identities) {
-            const res = await approvalsApi.listRequests({ status: 'pending', approverId: id });
-            for (const r of res.data) {
-              if (!seen.has(r.id)) { seen.add(r.id); requests.push(r); }
-            }
-          }
-        }
-      } else if (tab === 'submitted') {
-        const submitterId = user?.id;
-        if (!submitterId) {
-          setRows([]); setLoading(false); return;
-        }
-        const res = await approvalsApi.listRequests({ submitterId });
-        requests.push(...res.data);
+        // ONE request with every identity — the server matches ANY of them.
+        requests = identities.length
+          ? (await approvalsApi.listRequests({ status: 'pending', approverId: identities })).data
+          : [];
+        setMyPendingCount(requests.length);
       } else {
-        const res = await approvalsApi.listRequests({});
-        requests.push(...res.data);
+        if (tab === 'submitted') {
+          const submitterId = user?.id;
+          requests = submitterId
+            ? (await approvalsApi.listRequests({ submitterId })).data
+            : [];
+        } else {
+          requests = (await approvalsApi.listRequests({})).data;
+        }
+        // Keep the badge honest while browsing other tabs.
+        if (identities.length) {
+          approvalsApi.listRequests({ status: 'pending', approverId: identities })
+            .then(res => setMyPendingCount(res.data.length))
+            .catch(() => { /* badge refresh is best-effort */ });
+        }
       }
-      // Newest first.
-      requests.sort((a, b) => (b.submitted_at || '').localeCompare(a.submitted_at || ''));
+      // Newest first — submitted_at falls back to created_at for legacy rows.
+      requests.sort((a, b) => (submittedAt(b) || '').localeCompare(submittedAt(a) || ''));
       setRows(requests);
     } catch (err: any) {
       setError(err?.message || String(err));
@@ -215,13 +357,13 @@ export function ApprovalsInboxPage() {
       setSelected(req.data);
       setActions(acts.data);
     } catch (err: any) {
-      toast.error(err?.message || 'Failed to load request');
+      toast.error(humanizeError(err, tr('loadFailed', 'Failed to load request')));
       setSelected(null);
       setActions([]);
     } finally {
       setDrawerLoading(false);
     }
-  }, []);
+  }, [humanizeError, tr]);
 
   const closeDrawer = () => {
     setSelectedId(null);
@@ -233,7 +375,7 @@ export function ApprovalsInboxPage() {
 
   /**
    * Pick the actor id to send with approve/reject.
-   *   1. Manual override (textbox), useful when impersonating a role
+   *   1. Manual override (admin-only textbox), useful when acting as a role
    *      like `role:sales_manager`.
    *   2. First identity that intersects `pending_approvers`.
    *   3. User id fallback.
@@ -246,11 +388,18 @@ export function ApprovalsInboxPage() {
     return user?.id || '';
   }, [actorOverride, identities, user?.id]);
 
+  const refreshBadge = useCallback(() => {
+    if (!identities.length) return;
+    approvalsApi.listRequests({ status: 'pending', approverId: identities })
+      .then(res => setMyPendingCount(res.data.length))
+      .catch(() => { /* best-effort */ });
+  }, [identities]);
+
   const doAction = useCallback(async (kind: 'approve' | 'reject' | 'recall') => {
     if (!selected) return;
-    const actor = resolveActor(selected);
+    const actor = kind === 'recall' ? (user?.id || resolveActor(selected)) : resolveActor(selected);
     if (!actor) {
-      toast.error('Cannot determine actor id');
+      toast.error(tr('noActor', 'Cannot determine the acting identity'));
       return;
     }
     setSubmitting(kind);
@@ -261,9 +410,10 @@ export function ApprovalsInboxPage() {
               : approvalsApi.recall;
       const res = await fn(selected.id, body);
       toast.success(
-        kind === 'approve' ? (res.finalized ? 'Approved (finalized)' : 'Approved — advanced to next step')
-        : kind === 'reject' ? (res.finalized ? 'Rejected' : 'Rejected — returned to previous step')
-        : 'Recalled',
+        kind === 'approve'
+          ? (res.finalized ? tr('approvedFinal', 'Approved') : tr('approvedWaiting', 'Approved — waiting on the remaining approvers'))
+          : kind === 'reject' ? tr('rejectedToast', 'Rejected')
+          : tr('recalledToast', 'Request recalled'),
       );
       setComment('');
       // Refresh drawer + list.
@@ -275,11 +425,11 @@ export function ApprovalsInboxPage() {
       setActions(acts.data);
       void load();
     } catch (err: any) {
-      toast.error(err?.message || `Failed to ${kind}`);
+      toast.error(humanizeError(err, tr('actionFailed', 'Action failed')));
     } finally {
       setSubmitting(null);
     }
-  }, [selected, resolveActor, comment, load]);
+  }, [selected, resolveActor, comment, load, user?.id, humanizeError, tr]);
 
   const canApproveReject = useMemo(() => {
     if (!selected || selected.status !== 'pending') return false;
@@ -292,12 +442,10 @@ export function ApprovalsInboxPage() {
     return selected.submitter_id === user?.id || actorOverride.trim().length > 0;
   }, [selected, user?.id, actorOverride]);
 
-  const pendingCount = useMemo(() => rows.filter(r => r.status === 'pending').length, [rows]);
-
-  /** Unique process names present in current rows (for filter dropdown). */
+  /** Unique process labels present in current rows (for filter dropdown). */
   const processOptions = useMemo(() => {
     const set = new Set<string>();
-    for (const r of rows) if (r.process_name) set.add(r.process_name);
+    for (const r of rows) set.add(processLabel(r));
     return Array.from(set).sort();
   }, [rows]);
 
@@ -312,16 +460,18 @@ export function ApprovalsInboxPage() {
   const filteredRows = useMemo(() => {
     const q = query.trim().toLowerCase();
     return rows.filter(r => {
-      if (processFilter !== 'all' && r.process_name !== processFilter) return false;
+      if (processFilter !== 'all' && processLabel(r) !== processFilter) return false;
       if (objectFilter !== 'all' && r.object_name !== objectFilter) return false;
+      if (statusFilter !== 'all' && r.status !== statusFilter) return false;
       if (!q) return true;
       const hay = [
-        r.process_name, r.object_name, r.record_id, r.submitter_id,
+        r.process_name, r.process_label, r.step_label, r.object_name,
+        r.record_id, r.record_title, r.submitter_id, r.submitter_name,
         ...(r.pending_approvers || []),
       ].filter(Boolean).join(' ').toLowerCase();
       return hay.includes(q);
     });
-  }, [rows, query, processFilter, objectFilter]);
+  }, [rows, query, processFilter, objectFilter, statusFilter]);
 
   // Reset selection when underlying filtered list changes (avoid acting on hidden rows).
   useEffect(() => {
@@ -336,18 +486,25 @@ export function ApprovalsInboxPage() {
     if (changed) setSelectedRowIds(next);
   }, [filteredRows, selectedRowIds]);
 
+  // Clamp keyboard focus to the visible list.
+  useEffect(() => {
+    if (focusIndex >= filteredRows.length) setFocusIndex(filteredRows.length - 1);
+  }, [filteredRows.length, focusIndex]);
+
+  const isActionable = useCallback((r: ApprovalRequestRow): boolean => {
+    if (r.status !== 'pending') return false;
+    const idSet = new Set(identities);
+    return (r.pending_approvers || []).some(a => idSet.has(a));
+  }, [identities]);
+
   /**
    * Rows the user is actually allowed to bulk-act on:
    * status=pending AND one of the user's identities is in pending_approvers.
    */
-  const actionableSelectedRows = useMemo(() => {
-    const idSet = new Set(identities);
-    return filteredRows.filter(r =>
-      selectedRowIds.has(r.id) &&
-      r.status === 'pending' &&
-      (r.pending_approvers || []).some(a => idSet.has(a)),
-    );
-  }, [filteredRows, selectedRowIds, identities]);
+  const actionableSelectedRows = useMemo(
+    () => filteredRows.filter(r => selectedRowIds.has(r.id) && isActionable(r)),
+    [filteredRows, selectedRowIds, isActionable],
+  );
 
   const allFilteredSelectable = filteredRows.filter(r => r.status === 'pending');
   const allSelected =
@@ -371,13 +528,16 @@ export function ApprovalsInboxPage() {
     });
   }, []);
 
-  /** Bulk approve / reject the actionable selection. Runs sequentially for clear progress. */
+  /**
+   * Bulk approve / reject the actionable selection. Runs sequentially for
+   * clear progress; failures are reported per record, not just as a count.
+   */
   const runBulk = useCallback(async (kind: 'approve' | 'reject') => {
     const targets = actionableSelectedRows;
     if (targets.length === 0) return;
     setBulkRunning(true);
     let ok = 0;
-    let fail = 0;
+    const failures: string[] = [];
     for (const r of targets) {
       const pending = new Set(r.pending_approvers || []);
       const actor = identities.find(i => pending.has(i)) || user?.id || '';
@@ -386,15 +546,178 @@ export function ApprovalsInboxPage() {
         await fn(r.id, { actor_id: actor });
         ok++;
       } catch {
-        fail++;
+        failures.push(r.record_title || formatIdentity(r.record_id));
       }
     }
     setBulkRunning(false);
     setSelectedRowIds(new Set());
-    if (fail === 0) toast.success(`${kind === 'approve' ? 'Approved' : 'Rejected'} ${ok} request${ok === 1 ? '' : 's'}`);
-    else toast.error(`${ok} succeeded, ${fail} failed`);
+    if (failures.length === 0) {
+      toast.success(kind === 'approve'
+        ? tr('bulkApproved', 'Approved {{count}} requests', { count: ok })
+        : tr('bulkRejected', 'Rejected {{count}} requests', { count: ok }));
+    } else {
+      const shown = failures.slice(0, 3).join(', ');
+      toast.error(tr('bulkPartial', '{{ok}} succeeded, {{fail}} failed: {{which}}', {
+        ok, fail: failures.length, which: shown + (failures.length > 3 ? '…' : ''),
+      }));
+    }
     void load();
-  }, [actionableSelectedRows, identities, user?.id, load]);
+    refreshBadge();
+  }, [actionableSelectedRows, identities, user?.id, load, refreshBadge, tr]);
+
+  /** Row-level quick approve (hover button / `a` key). */
+  const inlineApprove = useCallback(async (r: ApprovalRequestRow) => {
+    if (!isActionable(r) || inlineActing) return;
+    const pending = new Set(r.pending_approvers || []);
+    const actor = identities.find(i => pending.has(i)) || user?.id || '';
+    setInlineActing(r.id);
+    try {
+      const res = await approvalsApi.approve(r.id, { actor_id: actor });
+      toast.success(res.finalized
+        ? tr('inlineApproved', 'Approved "{{title}}"', { title: r.record_title || formatIdentity(r.record_id) })
+        : tr('approvedWaiting', 'Approved — waiting on the remaining approvers'));
+      void load();
+      refreshBadge();
+    } catch (err: any) {
+      toast.error(humanizeError(err, tr('actionFailed', 'Action failed')));
+    } finally {
+      setInlineActing(null);
+    }
+  }, [isActionable, inlineActing, identities, user?.id, load, refreshBadge, humanizeError, tr]);
+
+  /** Confirmed row-level reject (from the shared dialog). */
+  const inlineReject = useCallback(async () => {
+    const r = rejectTarget;
+    if (!r) return;
+    const pending = new Set(r.pending_approvers || []);
+    const actor = identities.find(i => pending.has(i)) || user?.id || '';
+    setInlineActing(r.id);
+    setRejectTarget(null);
+    try {
+      await approvalsApi.reject(r.id, { actor_id: actor });
+      toast.success(tr('inlineRejected', 'Rejected "{{title}}"', { title: r.record_title || formatIdentity(r.record_id) }));
+      void load();
+      refreshBadge();
+    } catch (err: any) {
+      toast.error(humanizeError(err, tr('actionFailed', 'Action failed')));
+    } finally {
+      setInlineActing(null);
+    }
+  }, [rejectTarget, identities, user?.id, load, refreshBadge, humanizeError, tr]);
+
+  // ── Keyboard flow: j/k move · Enter open · x select · a approve · r reject ──
+  const filteredRef = useRef(filteredRows);
+  filteredRef.current = filteredRows;
+  const focusRef = useRef(focusIndex);
+  focusRef.current = focusIndex;
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (selectedId || rejectTarget) return; // a sheet/dialog owns the keyboard
+      const el = e.target as HTMLElement | null;
+      const tag = el?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || el?.isContentEditable) return;
+      if (document.querySelector('[role="alertdialog"]')) return;
+      const list = filteredRef.current;
+      if (!list.length) return;
+      const idx = focusRef.current;
+
+      if (e.key === 'j' || e.key === 'ArrowDown') {
+        e.preventDefault();
+        setFocusIndex(Math.min(idx + 1, list.length - 1));
+      } else if (e.key === 'k' || e.key === 'ArrowUp') {
+        e.preventDefault();
+        setFocusIndex(Math.max(idx - 1, 0));
+      } else if (e.key === 'Enter' && idx >= 0 && list[idx]) {
+        e.preventDefault();
+        void openDrawer(list[idx].id);
+      } else if ((e.key === 'x' || e.key === ' ') && idx >= 0 && list[idx] && tab === 'pending') {
+        e.preventDefault();
+        toggleRow(list[idx].id);
+      } else if (e.key === 'a' && idx >= 0 && list[idx]) {
+        e.preventDefault();
+        void inlineApprove(list[idx]);
+      } else if (e.key === 'r' && idx >= 0 && list[idx] && isActionable(list[idx])) {
+        e.preventDefault();
+        setRejectTarget(list[idx]);
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [selectedId, rejectTarget, tab, openDrawer, toggleRow, inlineApprove, isActionable]);
+
+  const hasFilters = !!query || processFilter !== 'all' || objectFilter !== 'all' || statusFilter !== 'all';
+
+  const onTabChange = (v: string) => {
+    setTab(v as TabKey);
+    setStatusFilter('all');
+    setProcessFilter('all');
+    setObjectFilter('all');
+    setQuery('');
+    setFocusIndex(-1);
+  };
+
+  // ── Shared row fragments ─────────────────────────────────────────
+
+  function RequestCell({ r }: { r: ApprovalRequestRow }) {
+    return (
+      <div className="min-w-0">
+        <div className="font-medium truncate">{processLabel(r)}</div>
+        <div className="text-xs text-muted-foreground truncate">
+          {stepLabel(r) || '—'}
+        </div>
+      </div>
+    );
+  }
+
+  function RecordCell({ r }: { r: ApprovalRequestRow }) {
+    return (
+      <div className="min-w-0">
+        <Link
+          to={recordHref(r)}
+          onClick={(e) => e.stopPropagation()}
+          className="inline-flex items-center gap-1 text-sm hover:underline truncate max-w-full"
+          title={r.record_id}
+        >
+          <span className="truncate">{r.record_title || formatIdentity(r.record_id)}</span>
+          <ExternalLink className="h-3 w-3 shrink-0 text-muted-foreground" />
+        </Link>
+        <div className="text-xs text-muted-foreground truncate">{r.object_name}</div>
+      </div>
+    );
+  }
+
+  function InlineActions({ r }: { r: ApprovalRequestRow }) {
+    if (!isActionable(r)) return null;
+    const busy = inlineActing === r.id;
+    return (
+      <div
+        className="flex items-center gap-1 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <Button
+          size="sm"
+          variant="ghost"
+          className="h-7 px-2 text-emerald-700 hover:text-emerald-800 hover:bg-emerald-50 dark:text-emerald-400"
+          disabled={busy}
+          onClick={() => void inlineApprove(r)}
+          aria-label={tr('approve', 'Approve')}
+        >
+          <CheckCircle2 className="h-4 w-4" />
+        </Button>
+        <Button
+          size="sm"
+          variant="ghost"
+          className="h-7 px-2 text-red-600 hover:text-red-700 hover:bg-red-50 dark:text-red-400"
+          disabled={busy}
+          onClick={() => setRejectTarget(r)}
+          aria-label={tr('reject', 'Reject')}
+        >
+          <XCircle className="h-4 w-4" />
+        </Button>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col gap-4 sm:gap-6 p-4 sm:p-6 max-w-6xl">
@@ -402,15 +725,15 @@ export function ApprovalsInboxPage() {
         <div>
           <h1 className="text-2xl font-semibold flex items-center gap-2">
             <CheckSquare className="h-6 w-6" />
-            Approvals Inbox
+            {tr('title', 'Approvals Inbox')}
           </h1>
           <p className="text-sm text-muted-foreground">
-            Review and act on multi-step approval requests.
+            {tr('subtitle', 'Review and act on approval requests.')}
           </p>
         </div>
-        <Button variant="outline" size="sm" onClick={load} disabled={loading}>
+        <Button variant="outline" size="sm" onClick={load} disabled={loading} className="self-start sm:self-auto">
           <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
-          Refresh
+          {tr('refresh', 'Refresh')}
         </Button>
       </header>
 
@@ -421,16 +744,16 @@ export function ApprovalsInboxPage() {
         </Alert>
       )}
 
-      <Tabs value={tab} onValueChange={(v) => setTab(v as TabKey)}>
+      <Tabs value={tab} onValueChange={onTabChange}>
         <TabsList>
           <TabsTrigger value="pending">
-            My Pending
-            {pendingCount > 0 && (
-              <Badge variant="secondary" className="ml-2">{pendingCount}</Badge>
+            {tr('tabMyPending', 'My Pending')}
+            {myPendingCount > 0 && (
+              <Badge variant="secondary" className="ml-2">{myPendingCount}</Badge>
             )}
           </TabsTrigger>
-          <TabsTrigger value="submitted">Submitted by me</TabsTrigger>
-          <TabsTrigger value="all">All</TabsTrigger>
+          <TabsTrigger value="submitted">{tr('tabSubmitted', 'Submitted by me')}</TabsTrigger>
+          <TabsTrigger value="all">{tr('tabAll', 'All')}</TabsTrigger>
         </TabsList>
 
         <TabsContent value={tab} className="mt-4 space-y-3">
@@ -442,7 +765,7 @@ export function ApprovalsInboxPage() {
                 <Input
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
-                  placeholder="Search process, record, approver…"
+                  placeholder={tr('searchPlaceholder', 'Search record, process, requester…')}
                   className="pl-8 h-8 text-sm"
                 />
                 {query && (
@@ -450,19 +773,33 @@ export function ApprovalsInboxPage() {
                     type="button"
                     onClick={() => setQuery('')}
                     className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                    aria-label="Clear search"
+                    aria-label={tr('clearSearch', 'Clear search')}
                   >
                     <X className="h-3.5 w-3.5" />
                   </button>
                 )}
               </div>
+              {tab !== 'pending' && (
+                <Select value={statusFilter} onValueChange={setStatusFilter}>
+                  <SelectTrigger className="h-8 w-auto min-w-[130px] text-sm">
+                    <SelectValue placeholder={tr('statusFilter', 'Status')} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">{tr('allStatuses', 'All statuses')}</SelectItem>
+                    <SelectItem value="pending">{statusLabel('pending')}</SelectItem>
+                    <SelectItem value="approved">{statusLabel('approved')}</SelectItem>
+                    <SelectItem value="rejected">{statusLabel('rejected')}</SelectItem>
+                    <SelectItem value="recalled">{statusLabel('recalled')}</SelectItem>
+                  </SelectContent>
+                </Select>
+              )}
               {processOptions.length > 1 && (
                 <Select value={processFilter} onValueChange={setProcessFilter}>
                   <SelectTrigger className="h-8 w-auto min-w-[140px] text-sm">
-                    <SelectValue placeholder="Process" />
+                    <SelectValue placeholder={tr('processFilter', 'Process')} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">All processes</SelectItem>
+                    <SelectItem value="all">{tr('allProcesses', 'All processes')}</SelectItem>
                     {processOptions.map((p) => (
                       <SelectItem key={p} value={p}>{p}</SelectItem>
                     ))}
@@ -472,19 +809,19 @@ export function ApprovalsInboxPage() {
               {objectOptions.length > 1 && (
                 <Select value={objectFilter} onValueChange={setObjectFilter}>
                   <SelectTrigger className="h-8 w-auto min-w-[140px] text-sm">
-                    <SelectValue placeholder="Object" />
+                    <SelectValue placeholder={tr('objectFilter', 'Object')} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">All objects</SelectItem>
+                    <SelectItem value="all">{tr('allObjects', 'All objects')}</SelectItem>
                     {objectOptions.map((o) => (
                       <SelectItem key={o} value={o}>{o}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               )}
-              {(query || processFilter !== 'all' || objectFilter !== 'all') && (
+              {hasFilters && (
                 <span className="text-xs text-muted-foreground">
-                  {filteredRows.length} of {rows.length}
+                  {tr('filterCount', '{{shown}} of {{total}}', { shown: filteredRows.length, total: rows.length })}
                 </span>
               )}
             </div>
@@ -494,22 +831,38 @@ export function ApprovalsInboxPage() {
           {tab === 'pending' && selectedRowIds.size > 0 && (
             <div className="flex items-center justify-between gap-2 px-3 py-2 rounded-md border bg-accent/30 text-sm">
               <span>
-                <strong>{selectedRowIds.size}</strong> selected
+                <strong>{selectedRowIds.size}</strong> {tr('selected', 'selected')}
                 {actionableSelectedRows.length !== selectedRowIds.size && (
                   <span className="text-muted-foreground ml-1">
-                    ({actionableSelectedRows.length} actionable)
+                    {tr('actionableCount', '({{count}} actionable)', { count: actionableSelectedRows.length })}
                   </span>
                 )}
               </span>
               <div className="flex items-center gap-2">
-                <Button
-                  size="sm"
-                  onClick={() => runBulk('approve')}
-                  disabled={bulkRunning || actionableSelectedRows.length === 0}
-                >
-                  <CheckCircle2 className="h-3.5 w-3.5 mr-1" />
-                  Approve {actionableSelectedRows.length || ''}
-                </Button>
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button size="sm" disabled={bulkRunning || actionableSelectedRows.length === 0}>
+                      <CheckCircle2 className="h-3.5 w-3.5 mr-1" />
+                      {tr('approveN', 'Approve {{count}}', { count: actionableSelectedRows.length || '' })}
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>
+                        {tr('bulkApproveTitle', 'Approve {{count}} requests?', { count: actionableSelectedRows.length })}
+                      </AlertDialogTitle>
+                      <AlertDialogDescription>
+                        {tr('bulkApproveBody', 'Each request is approved with your identity and its flow continues down the approve branch.')}
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>{tr('cancel', 'Cancel')}</AlertDialogCancel>
+                      <AlertDialogAction onClick={() => runBulk('approve')}>
+                        {tr('approveN', 'Approve {{count}}', { count: actionableSelectedRows.length })}
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
                     <Button
@@ -519,23 +872,25 @@ export function ApprovalsInboxPage() {
                       className="border-destructive text-destructive hover:bg-destructive hover:text-destructive-foreground"
                     >
                       <XCircle className="h-3.5 w-3.5 mr-1" />
-                      Reject {actionableSelectedRows.length || ''}
+                      {tr('rejectN', 'Reject {{count}}', { count: actionableSelectedRows.length || '' })}
                     </Button>
                   </AlertDialogTrigger>
                   <AlertDialogContent>
                     <AlertDialogHeader>
-                      <AlertDialogTitle>Reject {actionableSelectedRows.length} requests?</AlertDialogTitle>
+                      <AlertDialogTitle>
+                        {tr('bulkRejectTitle', 'Reject {{count}} requests?', { count: actionableSelectedRows.length })}
+                      </AlertDialogTitle>
                       <AlertDialogDescription>
-                        This will reject the selected requests and notify their submitters.
+                        {tr('bulkRejectBody', 'This rejects the selected requests and notifies their submitters.')}
                       </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
-                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogCancel>{tr('cancel', 'Cancel')}</AlertDialogCancel>
                       <AlertDialogAction
                         onClick={() => runBulk('reject')}
                         className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                       >
-                        Reject {actionableSelectedRows.length}
+                        {tr('rejectN', 'Reject {{count}}', { count: actionableSelectedRows.length })}
                       </AlertDialogAction>
                     </AlertDialogFooter>
                   </AlertDialogContent>
@@ -546,7 +901,7 @@ export function ApprovalsInboxPage() {
                   onClick={() => setSelectedRowIds(new Set())}
                   disabled={bulkRunning}
                 >
-                  Clear
+                  {tr('clear', 'Clear')}
                 </Button>
               </div>
             </div>
@@ -561,106 +916,173 @@ export function ApprovalsInboxPage() {
           ) : rows.length === 0 ? (
             <div className="flex items-center justify-center min-h-[240px] rounded-md border border-dashed">
               <Empty>
-                <EmptyTitle>No requests</EmptyTitle>
+                <EmptyTitle>{tr('emptyTitle', 'No requests')}</EmptyTitle>
                 <EmptyDescription>
-                  {tab === 'pending' ? 'You have no pending approvals.' : 'Nothing here yet.'}
+                  {tab === 'pending'
+                    ? tr('emptyPending', "You're all caught up — nothing is waiting on you.")
+                    : tr('emptyOther', 'Nothing here yet.')}
                 </EmptyDescription>
+                {tab === 'pending' && (
+                  <Button variant="link" size="sm" className="mt-1" onClick={() => onTabChange('all')}>
+                    {tr('emptyViewAll', 'Browse all requests')}
+                  </Button>
+                )}
               </Empty>
             </div>
           ) : filteredRows.length === 0 ? (
             <div className="flex items-center justify-center min-h-[160px] rounded-md border border-dashed text-sm text-muted-foreground">
-              No matches for current filters.
+              {tr('noMatches', 'No matches for current filters.')}
             </div>
           ) : (
-            <Card>
-              <CardContent className="p-0">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      {tab === 'pending' && (
-                        <TableHead className="w-10">
-                          <Checkbox
-                            checked={allSelected}
-                            onCheckedChange={toggleAll}
-                            aria-label="Select all"
-                            disabled={allFilteredSelectable.length === 0}
-                          />
-                        </TableHead>
-                      )}
-                      <TableHead>Process</TableHead>
-                      <TableHead>Object</TableHead>
-                      <TableHead>Record</TableHead>
-                      <TableHead>Step</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Approvers</TableHead>
-                      <TableHead>Submitted</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredRows.map((r) => (
-                      <TableRow
-                        key={r.id}
-                        className="cursor-pointer hover:bg-accent/50"
-                        onClick={() => openDrawer(r.id)}
-                      >
+            <>
+              {/* Desktop table */}
+              <Card className="hidden md:block">
+                <CardContent className="p-0">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
                         {tab === 'pending' && (
-                          <TableCell
-                            className="w-10"
-                            onClick={(e) => e.stopPropagation()}
-                          >
+                          <TableHead className="w-10">
                             <Checkbox
-                              checked={selectedRowIds.has(r.id)}
-                              onCheckedChange={() => toggleRow(r.id)}
-                              disabled={r.status !== 'pending'}
-                              aria-label={`Select request ${r.id}`}
+                              checked={allSelected}
+                              onCheckedChange={toggleAll}
+                              aria-label={tr('selectAll', 'Select all')}
+                              disabled={allFilteredSelectable.length === 0}
                             />
-                          </TableCell>
+                          </TableHead>
                         )}
-                        <TableCell className="font-medium">{r.process_name}</TableCell>
-                        <TableCell>{r.object_name}</TableCell>
-                        <TableCell className="font-mono text-xs" title={r.record_id}>
-                          {formatIdentity(r.record_id)}
-                        </TableCell>
-                        <TableCell>
-                          {r.current_step ? (
-                            <span className="text-xs">
-                              {r.current_step}
-                              {typeof r.current_step_index === 'number' && (
-                                <span className="text-muted-foreground"> (#{r.current_step_index})</span>
-                              )}
-                            </span>
-                          ) : '—'}
-                        </TableCell>
-                        <TableCell><StatusBadge status={r.status} /></TableCell>
-                        <TableCell
-                          className="max-w-[220px] truncate text-xs text-muted-foreground"
-                          title={(r.pending_approvers || []).join(', ')}
-                        >
-                          {(r.pending_approvers || []).map(formatIdentity).join(', ') || '—'}
-                        </TableCell>
-                        <TableCell
-                          className="text-xs whitespace-nowrap text-muted-foreground"
-                          title={formatDate(r.submitted_at)}
-                        >
-                          <Clock className="h-3 w-3 inline mr-1" />
-                          {formatRelative(r.submitted_at)}
-                        </TableCell>
+                        <TableHead>{tr('colRequest', 'Request')}</TableHead>
+                        <TableHead>{tr('colRecord', 'Record')}</TableHead>
+                        <TableHead>{tr('colRequester', 'Requester')}</TableHead>
+                        <TableHead>{tr('colStatus', 'Status')}</TableHead>
+                        <TableHead>{tr('colWaiting', 'Submitted')}</TableHead>
+                        <TableHead className="w-20" aria-label={tr('colActions', 'Actions')} />
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </CardContent>
-            </Card>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredRows.map((r, i) => (
+                        <TableRow
+                          key={r.id}
+                          className={cn(
+                            'group cursor-pointer hover:bg-accent/50',
+                            focusIndex === i && 'ring-2 ring-inset ring-ring bg-accent/30',
+                          )}
+                          onClick={() => { setFocusIndex(i); void openDrawer(r.id); }}
+                        >
+                          {tab === 'pending' && (
+                            <TableCell className="w-10" onClick={(e) => e.stopPropagation()}>
+                              <Checkbox
+                                checked={selectedRowIds.has(r.id)}
+                                onCheckedChange={() => toggleRow(r.id)}
+                                disabled={r.status !== 'pending'}
+                                aria-label={tr('selectRow', 'Select request')}
+                              />
+                            </TableCell>
+                          )}
+                          <TableCell><RequestCell r={r} /></TableCell>
+                          <TableCell><RecordCell r={r} /></TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-1.5 text-sm">
+                              <UserIcon className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                              <span className="truncate" title={r.submitter_id || ''}>{submitterDisplay(r)}</span>
+                            </div>
+                          </TableCell>
+                          <TableCell><StatusBadge status={r.status} /></TableCell>
+                          <TableCell
+                            className={cn('text-xs whitespace-nowrap', agingClass(r))}
+                            title={formatDate(submittedAt(r))}
+                          >
+                            <Clock className="h-3 w-3 inline mr-1" />
+                            {formatRelative(submittedAt(r))}
+                          </TableCell>
+                          <TableCell className="w-20"><InlineActions r={r} /></TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </CardContent>
+              </Card>
+
+              {/* Mobile cards */}
+              <div className="md:hidden space-y-2">
+                {filteredRows.map((r) => (
+                  <Card key={r.id} className="cursor-pointer active:bg-accent/50" onClick={() => void openDrawer(r.id)}>
+                    <CardContent className="p-3 space-y-1.5">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="font-medium text-sm truncate">{processLabel(r)}</div>
+                        <StatusBadge status={r.status} />
+                      </div>
+                      <div className="text-sm truncate">
+                        {r.record_title || formatIdentity(r.record_id)}
+                        <span className="text-muted-foreground text-xs ml-1.5">{r.object_name}</span>
+                      </div>
+                      <div className="flex items-center justify-between text-xs text-muted-foreground">
+                        <span className="inline-flex items-center gap-1 truncate">
+                          <UserIcon className="h-3 w-3" />{submitterDisplay(r)}
+                        </span>
+                        <span className={cn('inline-flex items-center gap-1 whitespace-nowrap', agingClass(r))}>
+                          <Clock className="h-3 w-3" />{formatRelative(submittedAt(r))}
+                        </span>
+                      </div>
+                      {isActionable(r) && (
+                        <div className="flex gap-2 pt-1" onClick={(e) => e.stopPropagation()}>
+                          <Button size="sm" className="h-7 flex-1" disabled={inlineActing === r.id} onClick={() => void inlineApprove(r)}>
+                            <CheckCircle2 className="h-3.5 w-3.5 mr-1" />{tr('approve', 'Approve')}
+                          </Button>
+                          <Button
+                            size="sm" variant="outline" className="h-7 flex-1 border-destructive text-destructive"
+                            disabled={inlineActing === r.id} onClick={() => setRejectTarget(r)}
+                          >
+                            <XCircle className="h-3.5 w-3.5 mr-1" />{tr('reject', 'Reject')}
+                          </Button>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+
+              <div className="hidden md:block text-[11px] text-muted-foreground">
+                {tr('keyboardHint', 'Keyboard: j/k move · Enter open · x select · a approve · r reject')}
+              </div>
+            </>
           )}
         </TabsContent>
       </Tabs>
 
+      {/* Shared inline-reject confirmation */}
+      <AlertDialog open={!!rejectTarget} onOpenChange={(open) => !open && setRejectTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {tr('rejectOneTitle', 'Reject "{{title}}"?', {
+                title: rejectTarget ? (rejectTarget.record_title || formatIdentity(rejectTarget.record_id)) : '',
+              })}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {tr('rejectOneBody', 'This rejects the request and notifies the submitter.')}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{tr('cancel', 'Cancel')}</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => void inlineReject()}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {tr('reject', 'Reject')}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       <Sheet open={!!selectedId} onOpenChange={(open) => !open && closeDrawer()}>
         <SheetContent className="w-full sm:max-w-xl overflow-y-auto">
           <SheetHeader>
-            <SheetTitle>Approval Request</SheetTitle>
+            <SheetTitle>
+              {selected ? processLabel(selected) : tr('drawerTitle', 'Approval Request')}
+            </SheetTitle>
             <SheetDescription>
-              {selected ? `${selected.process_name} · ${selected.object_name}/${selected.record_id}` : ''}
+              {selected ? (stepLabel(selected) || selected.object_name) : ''}
             </SheetDescription>
           </SheetHeader>
 
@@ -672,63 +1094,85 @@ export function ApprovalsInboxPage() {
             </div>
           ) : selected ? (
             <div className="space-y-4 mt-6">
-              <div className="grid grid-cols-2 gap-3 text-sm">
-                <div><div className="text-muted-foreground text-xs">Status</div><StatusBadge status={selected.status} /></div>
-                <div><div className="text-muted-foreground text-xs">Current Step</div>{selected.current_step || '—'}</div>
-                <div><div className="text-muted-foreground text-xs">Step Index</div>{selected.current_step_index ?? '—'}</div>
-                <div><div className="text-muted-foreground text-xs">Submitter</div><span className="font-mono text-xs" title={selected.submitter_id || ''}>{formatIdentity(selected.submitter_id)}</span></div>
-                <div><div className="text-muted-foreground text-xs">Submitted</div>{formatDate(selected.submitted_at)}</div>
-                <div><div className="text-muted-foreground text-xs">Completed</div>{formatDate(selected.completed_at)}</div>
-                <div className="col-span-2">
-                  <div className="text-muted-foreground text-xs">Pending Approvers</div>
-                  <div className="flex flex-wrap gap-1 mt-1">
-                    {(selected.pending_approvers || []).length === 0 ? '—' :
-                      (selected.pending_approvers || []).map((a, i) => (
-                        <Badge key={i} variant="outline" className="font-mono text-[10px]" title={a}>{formatIdentity(a)}</Badge>
-                      ))}
-                  </div>
-                </div>
-                {selected.payload && (
-                  <div className="col-span-2">
-                    <div className="flex items-center justify-between">
-                      <div className="text-muted-foreground text-xs">Payload</div>
-                      <button
-                        type="button"
-                        onClick={async () => {
-                          try {
-                            await navigator.clipboard.writeText(JSON.stringify(selected.payload, null, 2));
-                            toast.success('Payload copied');
-                          } catch {
-                            toast.error('Copy failed');
-                          }
-                        }}
-                        className="text-[10px] text-muted-foreground hover:text-foreground inline-flex items-center gap-1"
-                      >
-                        <Copy className="h-3 w-3" />
-                        Copy
-                      </button>
-                    </div>
-                    <pre className="text-[11px] bg-muted/50 rounded p-2 overflow-auto max-h-32 mt-1">
-                      {JSON.stringify(selected.payload, null, 2)}
-                    </pre>
-                  </div>
+              {/* Status strip */}
+              <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                <StatusBadge status={selected.status} />
+                <span className="inline-flex items-center gap-1" title={formatDate(submittedAt(selected))}>
+                  <Clock className="h-3 w-3" />
+                  {tr('submittedAgo', 'Submitted {{when}}', { when: formatRelative(submittedAt(selected)) })}
+                </span>
+                {selected.completed_at && (
+                  <span>· {tr('completedAt', 'Completed {{when}}', { when: formatRelative(selected.completed_at) })}</span>
                 )}
               </div>
 
-              <Separator />
+              {/* Business summary card */}
+              <Card>
+                <CardContent className="p-4 space-y-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <Link
+                        to={recordHref(selected)}
+                        className="text-base font-semibold hover:underline inline-flex items-center gap-1.5"
+                      >
+                        <span className="truncate">{selected.record_title || formatIdentity(selected.record_id)}</span>
+                        <ExternalLink className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                      </Link>
+                      <div className="text-xs text-muted-foreground">{selected.object_name}</div>
+                    </div>
+                    <div className="text-right text-xs text-muted-foreground shrink-0">
+                      <div className="inline-flex items-center gap-1">
+                        <UserIcon className="h-3 w-3" />
+                        <span title={selected.submitter_id || ''}>{submitterDisplay(selected)}</span>
+                      </div>
+                    </div>
+                  </div>
+                  {payloadSummary(selected.payload).length > 0 && (
+                    <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm border-t pt-3">
+                      {payloadSummary(selected.payload).map(([k, v]) => (
+                        <div key={k} className="min-w-0">
+                          <div className="text-[11px] text-muted-foreground">{k}</div>
+                          <div className="truncate" title={v}>{v}</div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {selected.status === 'pending' && (selected.pending_approvers || []).length > 0 && (
+                    <div className="border-t pt-3">
+                      <div className="text-[11px] text-muted-foreground mb-1">
+                        {tr('waitingOn', 'Waiting on')}
+                      </div>
+                      <div className="flex flex-wrap gap-1">
+                        {(selected.pending_approvers || []).map((a, i) => (
+                          <Badge key={i} variant="outline" className="text-[11px]" title={a}>
+                            {formatIdentity(a)}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
 
               <div>
-                <h3 className="text-sm font-semibold mb-3">Action History</h3>
+                <h3 className="text-sm font-semibold mb-3">{tr('history', 'Activity')}</h3>
                 {actions.length === 0 ? (
-                  <div className="text-xs text-muted-foreground">No actions yet.</div>
+                  <div className="text-xs text-muted-foreground">{tr('noActions', 'No actions yet.')}</div>
                 ) : (
                   <ol className="relative space-y-3 pl-5 before:absolute before:left-[7px] before:top-1 before:bottom-1 before:w-px before:bg-border">
                     {actions.map((a) => {
                       const color = a.action === 'approve' ? 'bg-emerald-500'
                                   : a.action === 'reject'  ? 'bg-destructive'
                                   : a.action === 'submit'  ? 'bg-blue-500'
-                                  : a.action === 'recall'  ? 'bg-muted-foreground'
                                   : 'bg-muted-foreground';
+                      const actorName = a.actor_id && a.actor_id === selected.submitter_id
+                        ? submitterDisplay(selected)
+                        : formatIdentity(a.actor_id);
+                      const actionText = a.action === 'submit' ? tr('actSubmit', 'Submitted')
+                        : a.action === 'approve' ? tr('actApprove', 'Approved')
+                        : a.action === 'reject' ? tr('actReject', 'Rejected')
+                        : a.action === 'recall' ? tr('actRecall', 'Recalled')
+                        : a.action;
                       return (
                         <li key={a.id} className="relative text-xs">
                           <span
@@ -736,12 +1180,9 @@ export function ApprovalsInboxPage() {
                             aria-hidden
                           />
                           <div className="flex items-baseline gap-1.5 flex-wrap">
-                            <span className="font-medium capitalize">{a.action}</span>
-                            <span className="text-muted-foreground">by</span>
-                            <span className="font-mono" title={a.actor_id || ''}>{formatIdentity(a.actor_id)}</span>
-                            {a.step_name && (
-                              <span className="text-muted-foreground">· {a.step_name} (#{a.step_index})</span>
-                            )}
+                            <span className="font-medium">{actionText}</span>
+                            <span className="text-muted-foreground">·</span>
+                            <span title={a.actor_id || ''}>{actorName}</span>
                             <span
                               className="ml-auto text-muted-foreground text-[10px]"
                               title={formatDate(a.created_at)}
@@ -759,33 +1200,66 @@ export function ApprovalsInboxPage() {
                 )}
               </div>
 
+              {/* Raw snapshot, collapsed by default — for debugging, not the read path */}
+              {selected.payload != null && (
+                <details className="group">
+                  <summary className="cursor-pointer text-xs text-muted-foreground hover:text-foreground select-none">
+                    {tr('rawData', 'Raw data (JSON)')}
+                  </summary>
+                  <div className="mt-2">
+                    <div className="flex justify-end">
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          try {
+                            await navigator.clipboard.writeText(JSON.stringify(selected.payload, null, 2));
+                            toast.success(tr('copied', 'Copied'));
+                          } catch {
+                            toast.error(tr('copyFailed', 'Copy failed'));
+                          }
+                        }}
+                        className="text-[10px] text-muted-foreground hover:text-foreground inline-flex items-center gap-1"
+                      >
+                        <Copy className="h-3 w-3" />
+                        {tr('copy', 'Copy')}
+                      </button>
+                    </div>
+                    <pre className="text-[11px] bg-muted/50 rounded p-2 overflow-auto max-h-48 mt-1">
+                      {JSON.stringify(selected.payload, null, 2)}
+                    </pre>
+                  </div>
+                </details>
+              )}
+
               {selected.status === 'pending' && (
                 <>
                   <Separator />
                   <div className="space-y-3">
-                    <details className="group">
-                      <summary className="cursor-pointer text-xs text-muted-foreground hover:text-foreground select-none">
-                        Override actor (advanced)
-                      </summary>
-                      <div className="mt-2">
-                        <Label htmlFor="actor-override" className="text-xs">
-                          Actor
-                        </Label>
-                        <input
-                          id="actor-override"
-                          type="text"
-                          value={actorOverride}
-                          onChange={(e) => setActorOverride(e.target.value)}
-                          placeholder={`Auto: ${resolveActor(selected) || '(none)'}`}
-                          className="w-full mt-1 px-3 py-2 text-sm border rounded-md bg-background"
-                        />
-                        <div className="text-[10px] text-muted-foreground mt-1">
-                          e.g. <code>role:sales_manager</code>. Leave blank to use auto-detected.
+                    {isAdmin && (
+                      <details className="group">
+                        <summary className="cursor-pointer text-xs text-muted-foreground hover:text-foreground select-none">
+                          {tr('overrideActor', 'Act as another identity (admin)')}
+                        </summary>
+                        <div className="mt-2">
+                          <Label htmlFor="actor-override" className="text-xs">
+                            {tr('actor', 'Actor')}
+                          </Label>
+                          <input
+                            id="actor-override"
+                            type="text"
+                            value={actorOverride}
+                            onChange={(e) => setActorOverride(e.target.value)}
+                            placeholder={`${tr('auto', 'Auto')}: ${resolveActor(selected) || '—'}`}
+                            className="w-full mt-1 px-3 py-2 text-sm border rounded-md bg-background"
+                          />
+                          <div className="text-[10px] text-muted-foreground mt-1">
+                            {tr('overrideHint', 'e.g. role:sales_manager. Leave blank to use the auto-detected identity.')}
+                          </div>
                         </div>
-                      </div>
-                    </details>
+                      </details>
+                    )}
                     <div>
-                      <Label htmlFor="comment" className="text-xs">Comment (optional)</Label>
+                      <Label htmlFor="comment" className="text-xs">{tr('comment', 'Comment (optional)')}</Label>
                       <Textarea
                         id="comment"
                         value={comment}
@@ -801,7 +1275,7 @@ export function ApprovalsInboxPage() {
                         disabled={!canApproveReject || submitting !== null}
                       >
                         <CheckCircle2 className="h-4 w-4 mr-1" />
-                        {submitting === 'approve' ? 'Approving…' : 'Approve'}
+                        {submitting === 'approve' ? tr('approving', 'Approving…') : tr('approve', 'Approve')}
                       </Button>
                       <AlertDialog>
                         <AlertDialogTrigger asChild>
@@ -812,44 +1286,59 @@ export function ApprovalsInboxPage() {
                             className="border-destructive text-destructive hover:bg-destructive hover:text-destructive-foreground"
                           >
                             <XCircle className="h-4 w-4 mr-1" />
-                            {submitting === 'reject' ? 'Rejecting…' : 'Reject'}
+                            {submitting === 'reject' ? tr('rejecting', 'Rejecting…') : tr('reject', 'Reject')}
                           </Button>
                         </AlertDialogTrigger>
                         <AlertDialogContent>
                           <AlertDialogHeader>
-                            <AlertDialogTitle>Reject this request?</AlertDialogTitle>
+                            <AlertDialogTitle>{tr('rejectTitle', 'Reject this request?')}</AlertDialogTitle>
                             <AlertDialogDescription>
-                              This will mark the request as rejected and notify the submitter.
-                              {selected.current_step_index != null && selected.current_step_index > 0
-                                ? ' If the process is multi-step, it returns to the previous step.'
-                                : ''}
+                              {tr('rejectBody', 'This marks the request as rejected and notifies the submitter.')}
                             </AlertDialogDescription>
                           </AlertDialogHeader>
                           <AlertDialogFooter>
-                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogCancel>{tr('cancel', 'Cancel')}</AlertDialogCancel>
                             <AlertDialogAction
                               onClick={() => doAction('reject')}
                               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                             >
-                              Reject
+                              {tr('reject', 'Reject')}
                             </AlertDialogAction>
                           </AlertDialogFooter>
                         </AlertDialogContent>
                       </AlertDialog>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => doAction('recall')}
-                        disabled={!canRecall || submitting !== null}
-                      >
-                        <Undo2 className="h-4 w-4 mr-1" />
-                        {submitting === 'recall' ? 'Recalling…' : 'Recall'}
-                      </Button>
+                      {canRecall && (
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button size="sm" variant="outline" disabled={submitting !== null}>
+                              <Undo2 className="h-4 w-4 mr-1" />
+                              {submitting === 'recall' ? tr('recalling', 'Recalling…') : tr('recall', 'Recall')}
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>{tr('recallTitle', 'Recall this request?')}</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                {tr('recallBody', 'This withdraws your request. Approvers can no longer act on it, and the record is unlocked.')}
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>{tr('cancel', 'Cancel')}</AlertDialogCancel>
+                              <AlertDialogAction onClick={() => doAction('recall')}>
+                                {tr('recall', 'Recall')}
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      )}
                     </div>
-                    {!canApproveReject && !canRecall && (
+                    {!canApproveReject && (
                       <div className="text-xs text-muted-foreground">
-                        You are not in the pending approvers list and did not submit this request.
-                        Use the override above to act as another identity (e.g. <code>role:sales_manager</code>).
+                        {canRecall
+                          ? tr('whyDisabledSubmitter', 'You submitted this request, so you can recall it — but only the assigned approvers can approve or reject.')
+                          : tr('whyDisabled', 'Only the assigned approvers can act on this request. It is waiting on: {{who}}.', {
+                              who: (selected.pending_approvers || []).map(formatIdentity).join(', ') || '—',
+                            })}
                       </div>
                     )}
                   </div>
