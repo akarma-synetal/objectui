@@ -11,10 +11,21 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
-import { SpecReport } from '@object-ui/types';
+import type { SpecReport } from '@object-ui/types';
 import { ActionRunner } from '@object-ui/core';
 import { SpecReportGrid } from '../SpecReportGrid';
 import { registerDrillHandler } from '../drill';
+
+/**
+ * Pre-9.0 ("query-form") report fixture. Spec 9.0 reports are dataset-bound
+ * (`dataset` + `rows`/`values` name arrays), so the inline `objectName` /
+ * `columns` / `groupingsDown` shape can no longer pass `SpecReport.create` —
+ * but these code paths keep a passthrough for stored pre-9.0 JSON, which is
+ * exactly what these tests cover.
+ */
+function legacyReport(r: Record<string, unknown>): SpecReport {
+  return r as unknown as SpecReport;
+}
 
 const dataset = [
   { id: 1, region: 'East', amount: 100, owner: 'alice' },
@@ -24,7 +35,7 @@ const dataset = [
 
 describe('SpecReportGrid', () => {
   it('renders a summary report with totals strip', async () => {
-    const report = SpecReport.create({
+    const report = legacyReport({
       name: 'sales_by_region',
       label: 'Sales by Region',
       objectName: 'opportunity',
@@ -46,7 +57,7 @@ describe('SpecReportGrid', () => {
   });
 
   it('shows a placeholder banner for matrix reports (deferred to M2)', () => {
-    const report = SpecReport.create({
+    const report = legacyReport({
       name: 'matrix_demo',
       label: 'Matrix Demo',
       objectName: 'opportunity',
@@ -60,7 +71,7 @@ describe('SpecReportGrid', () => {
   });
 
   it('passes drill-down keys to the callback when a row is clicked', async () => {
-    const report = SpecReport.create({
+    const report = legacyReport({
       name: 'tabular_demo',
       label: 'Tabular Demo',
       objectName: 'opportunity',
@@ -85,7 +96,7 @@ describe('SpecReportGrid', () => {
   });
 
   it('dispatches a drill action via the ActionRunner when configured', async () => {
-    const report = SpecReport.create({
+    const report = legacyReport({
       name: 'sales_by_region',
       label: 'Sales by Region',
       objectName: 'opportunity',

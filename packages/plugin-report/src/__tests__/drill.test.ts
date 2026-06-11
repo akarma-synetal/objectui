@@ -6,7 +6,7 @@
  */
 
 import { describe, it, expect, vi } from 'vitest';
-import { SpecReport } from '@object-ui/types';
+import type { SpecReport } from '@object-ui/types';
 import { ActionRunner } from '@object-ui/core';
 import {
   buildDrillAction,
@@ -15,8 +15,19 @@ import {
   isDrillAction,
 } from '../drill';
 
+/**
+ * Pre-9.0 ("query-form") report fixture. Spec 9.0 reports are dataset-bound
+ * (`dataset` + `rows`/`values` name arrays), so the inline `objectName` /
+ * `columns` / `groupingsDown` shape can no longer pass `SpecReport.create` —
+ * but the drill helpers keep a passthrough path for stored pre-9.0 JSON,
+ * which is exactly what these tests cover.
+ */
+function legacyReport(r: Record<string, unknown>): SpecReport {
+  return r as unknown as SpecReport;
+}
+
 describe('buildDrillAction', () => {
-  const baseReport = SpecReport.create({
+  const baseReport = legacyReport({
     name: 'sales_by_region',
     label: 'Sales by Region',
     objectName: 'opportunity',
@@ -39,10 +50,10 @@ describe('buildDrillAction', () => {
   });
 
   it('merges report.filter + runtimeFilter + groupKey via $and', () => {
-    const report = SpecReport.create({
+    const report = legacyReport({
       ...baseReport,
       filter: { stage: 'closed' },
-    } as Parameters<typeof SpecReport.create>[0]);
+    });
     const drill = buildDrillAction(
       report,
       { region: 'East' },

@@ -25,12 +25,15 @@ vi.mock('../LegacyReportRenderer', () => ({
   ),
 }));
 
-const baseSpec: SpecReport = {
+// Pre-9.0 ("query-form") report shape. Spec 9.0 reports are dataset-bound;
+// this object-bound shape survives only as a stored-JSON passthrough, routed
+// by the `type` heuristic in `isSpecReport`.
+const baseSpec = {
   name: 'spec_report',
   objectName: 'opportunity',
   type: 'tabular',
   columns: [{ field: 'amount' }],
-};
+} as unknown as SpecReport;
 
 describe('ReportRenderer dispatcher', () => {
   it('routes spec tabular reports to SpecReportGrid', () => {
@@ -86,10 +89,23 @@ describe('ReportRenderer dispatcher', () => {
     expect(screen.queryByTestId('spec-report-grid-stub')).not.toBeInTheDocument();
   });
 
-  it('defaults missing report.type to tabular', () => {
-    const noType = { ...baseSpec };
-    delete (noType as Partial<SpecReport>).type;
-    render(<ReportRenderer schema={noType as SpecReport} rows={[]} />);
-    expect(screen.getByTestId('spec-report-grid-stub')).toBeInTheDocument();
+  it('routes a typeless dataset-bound report (9.0 single form) to the dataset renderer', () => {
+    // `type` defaults to 'tabular' at parse time; an unparsed 9.0 report
+    // without it must still reach the dataset path, never the legacy box.
+    render(
+      <ReportRenderer
+        schema={{ name: 'ds_report', dataset: 'sales_metrics', values: ['amount'] } as unknown as SpecReport}
+        rows={[]}
+      />,
+    );
+    expect(screen.getByTestId('dataset-report')).toBeInTheDocument();
+  });
+
+  it('typeless schemas without a dataset fall back to LegacyReportRenderer', () => {
+    const noType = { ...baseSpec } as Record<string, unknown>;
+    delete noType.type;
+    render(<ReportRenderer schema={noType as unknown as SpecReport} rows={[]} />);
+    expect(screen.getByTestId('legacy-renderer-stub')).toBeInTheDocument();
+    expect(screen.queryByTestId('spec-report-grid-stub')).not.toBeInTheDocument();
   });
 });
