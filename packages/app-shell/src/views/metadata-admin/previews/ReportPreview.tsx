@@ -1,117 +1,55 @@
 // Copyright (c) 2025 ObjectStack. Licensed under the Apache-2.0 license.
 
 /**
- * ReportPreview — runs the live Report draft through the dataset query path
- * (ADR-0021 single-form).
+ * ReportPreview — runs the live Report draft through the SAME dataset-bound
+ * renderer the runtime ReportView uses (ADR-0021 single-form).
  *
  * A 9.0 report binds a semantic-layer `dataset` and selects its measures
- * (`values`) grouped by dimensions (`rows`); the preview executes that
- * selection through `adapter.queryDataset`, so the numbers match every other
- * surface on the same dataset. A draft without a dataset binding (e.g. stored
- * pre-9.0 query-form JSON) gets an actionable empty state pointing at the
- * inspector's Dataset control instead of the retired legacy renderer.
+ * (`values`) grouped by dimensions (`rows`, plus `columns` across for a
+ * matrix); rendering through plugin-report's `ReportRenderer` keeps the
+ * studio preview pixel-equal with the runtime — including the matrix
+ * cross-tab — and the numbers consistent with every other surface on the
+ * same dataset (`adapter.queryDataset`). Drill-down stays inert here: the
+ * preview passes no `onDrill` sink.
  *
- * Uses the app-shell AdapterProvider's data source so previews see actual
- * rows.
+ * A draft without a dataset binding (e.g. stored pre-9.0 query-form JSON)
+ * gets an actionable empty state pointing at the inspector's Dataset control
+ * instead of the retired legacy renderer.
  */
 
 import * as React from 'react';
-import { Database, Loader2, Table2, AlertTriangle } from 'lucide-react';
+import { Database, Loader2 } from 'lucide-react';
 import { useAdapter } from '../../../providers/AdapterProvider';
 import type { MetadataPreviewProps } from '../preview-registry';
-import { PreviewShell, PreviewEmptyState } from './PreviewShell';
+import { PreviewShell, PreviewErrorBoundary, PreviewEmptyState } from './PreviewShell';
 
-/**
- * DatasetBoundReport — renders a report that binds to a semantic-layer
- * `dataset` (ADR-0021 single-form). The report
- * picks dimensions (`rows`) and measures (`values`) by NAME from the dataset;
- * we run them through the same `adapter.queryDataset` path the dataset preview
- * uses, so the numbers match every other surface on that dataset.
- */
-function DatasetBoundReport({ draft }: { draft: Record<string, unknown> }) {
-  const adapter = useAdapter();
-  const datasetName = String((draft as any).dataset);
-  const rows = React.useMemo(
-    () => (Array.isArray((draft as any).rows) ? ((draft as any).rows as string[]).filter(Boolean) : []),
-    [draft],
-  );
-  const values = React.useMemo(
-    () => (Array.isArray((draft as any).values) ? ((draft as any).values as string[]).filter(Boolean) : []),
-    [draft],
-  );
-  const runtimeFilter = (draft as any).runtimeFilter;
-
-  const [state, setState] = React.useState<{ status: 'idle' | 'loading' | 'ok' | 'error'; rows: Array<Record<string, unknown>>; error?: string }>({ status: 'idle', rows: [] });
-
-  const signature = `${datasetName}|${rows.join(',')}|${values.join(',')}`;
-  React.useEffect(() => {
-    if (values.length === 0) { setState({ status: 'idle', rows: [] }); return; }
-    let cancelled = false;
-    setState({ status: 'loading', rows: [] });
-    (adapter as unknown as { queryDataset: (d: string, s: unknown) => Promise<{ rows: Array<Record<string, unknown>> }> })
-      .queryDataset(datasetName, { dimensions: rows, measures: values, runtimeFilter })
-      .then((res) => { if (!cancelled) setState({ status: 'ok', rows: Array.isArray(res?.rows) ? res.rows : [] }); })
-      .catch((e) => { if (!cancelled) setState({ status: 'error', rows: [], error: String((e as Error)?.message ?? e) }); });
-    return () => { cancelled = true; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [signature]);
-
-  if (values.length === 0) {
-    return (
-      <PreviewShell>
-        <PreviewEmptyState
-          icon={<Table2 className="h-8 w-8" />}
-          title="Pick measures to show"
-          description={`This report binds the "${datasetName}" dataset — choose at least one measure (values) to render.`}
-        />
-      </PreviewShell>
-    );
-  }
-
-  const columns = [...rows, ...values];
-  return (
-    <PreviewShell hint={`report · dataset "${datasetName}"${rows.length ? ' · by ' + rows.join(', ') : ''}`}>
-      <div className="p-3">
-        {state.status === 'loading' && (
-          <div className="flex items-center gap-2 p-4 text-xs text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" /> Running report…</div>
-        )}
-        {state.status === 'error' && (
-          <div role="alert" className="flex items-start gap-2 rounded-md border border-destructive/40 bg-destructive/5 px-3 py-2 text-xs text-destructive">
-            <AlertTriangle className="h-3.5 w-3.5 mt-0.5 shrink-0" /><span className="break-words">{state.error}</span>
-          </div>
-        )}
-        {state.status === 'ok' && state.rows.length === 0 && (
-          <PreviewEmptyState icon={<Table2 className="h-8 w-8" />} title="No rows" description="The dataset returned no rows for this report's scope." />
-        )}
-        {state.rows.length > 0 && (
-          <div className="overflow-auto max-h-[70vh] rounded-md border">
-            <table className="w-full text-xs">
-              <thead className="bg-muted/40">
-                <tr>{columns.map((c) => <th key={c} className="px-2 py-1.5 text-left font-medium whitespace-nowrap">{c}</th>)}</tr>
-              </thead>
-              <tbody>
-                {state.rows.map((row, i) => (
-                  <tr key={i} className="border-t">
-                    {columns.map((c) => {
-                      const v = row[c];
-                      const text = v == null ? '—' : typeof v === 'number' ? (Number.isInteger(v) ? String(v) : v.toLocaleString(undefined, { maximumFractionDigits: 2 })) : String(v);
-                      return <td key={c} className="px-2 py-1 tabular-nums whitespace-nowrap">{text}</td>;
-                    })}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
-    </PreviewShell>
-  );
-}
+const ReportRenderer = React.lazy(() =>
+  import('@object-ui/plugin-report').then((m) => ({ default: m.ReportRenderer })),
+);
 
 export function ReportPreview({ draft }: MetadataPreviewProps) {
+  const adapter = useAdapter();
+
   // ADR-0021 single-form: a report binds a semantic-layer dataset.
   if (typeof (draft as any).dataset === 'string' && (draft as any).dataset) {
-    return <DatasetBoundReport draft={draft as Record<string, unknown>} />;
+    const rows = Array.isArray((draft as any).rows) ? ((draft as any).rows as string[]).filter(Boolean) : [];
+    return (
+      <PreviewShell hint={`report · dataset "${(draft as any).dataset}"${rows.length ? ' · by ' + rows.join(', ') : ''}`}>
+        <PreviewErrorBoundary fallbackHint="The Report references a dataset/measure that doesn't resolve, or its config is incomplete.">
+          <React.Suspense
+            fallback={
+              <div className="flex items-center gap-2 p-4 text-xs text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin" /> Loading report renderer…
+              </div>
+            }
+          >
+            <div className="p-3 min-h-[200px] max-h-[70vh] overflow-auto">
+              <ReportRenderer schema={draft as any} dataSource={adapter as any} />
+            </div>
+          </React.Suspense>
+        </PreviewErrorBoundary>
+      </PreviewShell>
+    );
   }
 
   // No dataset bound — either a fresh draft or stored pre-9.0 query-form

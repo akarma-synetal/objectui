@@ -31,7 +31,7 @@ import {
 import { SchemaRendererContext } from '@object-ui/react';
 import { LegacyReportRenderer, type LegacyReportRendererProps } from './LegacyReportRenderer';
 import { ReportViewer } from './ReportViewer';
-import { DatasetReportRenderer, isDatasetReport } from './DatasetReportRenderer';
+import { DatasetReportRenderer, isDatasetReport, type DatasetDrillArgs } from './DatasetReportRenderer';
 
 export type ReportRendererSchema = SpecReport | LegacyReportRendererProps['schema'];
 
@@ -44,6 +44,12 @@ export interface ReportRendererProps {
   rows?: Array<Record<string, unknown>>;
   /** Runtime filter merged on top of the report's own scope filter. */
   runtimeFilter?: Record<string, unknown>;
+  /**
+   * Drill-down sink for dataset-bound reports (ADR-0021 D2) — rows/cells
+   * become clickable when provided. The host resolves the dataset's object
+   * and dimension→field mapping and navigates to the underlying records.
+   */
+  onDrill?: (args: DatasetDrillArgs) => void;
   /** Optional class for the outer container. */
   className?: string;
 }
@@ -53,6 +59,7 @@ export const ReportRenderer: React.FC<ReportRendererProps> = (props) => {
     dataSource: propDataSource,
     rows,
     runtimeFilter,
+    onDrill,
     className,
   } = props;
   // Fall back to the SchemaRenderer context when no dataSource prop is
@@ -86,6 +93,7 @@ export const ReportRenderer: React.FC<ReportRendererProps> = (props) => {
         report={schema as Parameters<typeof DatasetReportRenderer>[0]['report']}
         dataSource={dataSource}
         runtimeFilter={runtimeFilter}
+        onDrill={onDrill}
         className={className}
       />
     );

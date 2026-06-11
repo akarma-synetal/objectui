@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo, lazy, Suspense } from 'react';
-import { useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 const ReportViewer = lazy(() =>
   import('@object-ui/plugin-report').then((m) => ({ default: m.ReportViewer })),
 );
@@ -19,6 +19,7 @@ import { useMetadataClient } from './metadata-admin/useMetadata';
 import { persistRuntimeMetadata } from './runtime-metadata-persistence';
 import { useAuth } from '@object-ui/auth';
 import type { DataSource } from '@object-ui/types';
+import type { DatasetDrillArgs } from '@object-ui/plugin-report';
 
 // Fallback fields when no schema is available
 const FALLBACK_FIELDS = [
@@ -34,7 +35,8 @@ const FALLBACK_FIELDS = [
 
 export function ReportView({ dataSource }: { dataSource?: DataSource }) {
   const { t } = useObjectTranslation();
-  const { reportName } = useParams<{ reportName: string }>();
+  const { appName, reportName } = useParams<{ appName?: string; reportName: string }>();
+  const navigate = useNavigate();
   const { showDebug } = useMetadataInspector();
   const adapter = useAdapter();
   // ADR-0034: report edits persist via the metadata draft/publish model.
@@ -79,6 +81,64 @@ export function ReportView({ dataSource }: { dataSource?: DataSource }) {
       }));
     },
     [objects],
+  );
+
+  // ADR-0021 D2 drill-down: a click on an aggregated row/cell emits dimension
+  // NAMES + bucket values; resolve them through the dataset definition
+  // (object + dimension→field) and open the object's list scoped by
+  // `?filter[<field>]=<value>` (the same equality-filter contract the
+  // related-list "View All" buttons use).
+  //
+  // The analytics service resolves dimension buckets to DISPLAY labels in
+  // place (select option label, lookup record name) — so the clicked value
+  // must be mapped back to the stored value before it can filter:
+  //   - select fields  → reverse-map label → option value
+  //   - lookup fields  → the label is a record name, not the FK id; skip the
+  //     dim (the drill lands on a superset rather than filtering wrongly)
+  //   - granularity-bucketed dates → need a range, not equality; skip too
+  const handleDatasetDrill = useCallback(
+    async ({ dataset, groupKey }: DatasetDrillArgs) => {
+      try {
+        const def = await metadataClient.get<Record<string, any>>('dataset', dataset);
+        const objectName = typeof def?.object === 'string' ? def.object : undefined;
+        if (!objectName) return;
+        const dims: Array<Record<string, any>> = Array.isArray(def?.dimensions) ? def.dimensions : [];
+        const dimByName = new Map(dims.filter((d) => d?.name).map((d) => [d.name as string, d]));
+
+        // Field defs of the dataset's object — the option value↔label source.
+        const objDef = objects?.find((o: any) => o.name === objectName);
+        const rawFields = objDef?.fields;
+        const fieldDef = (field: string): Record<string, any> | undefined => {
+          if (Array.isArray(rawFields)) return rawFields.find((f: any) => f?.name === field);
+          if (rawFields && typeof rawFields === 'object') return (rawFields as Record<string, any>)[field];
+          return undefined;
+        };
+
+        const params = new URLSearchParams();
+        for (const [dim, value] of Object.entries(groupKey)) {
+          if (value == null) continue;
+          const dimDef = dimByName.get(dim);
+          if (dimDef?.dateGranularity) continue;
+          const field = (dimDef?.field as string) || dim;
+          const fd = fieldDef(field);
+          if (fd?.type === 'lookup' || fd?.type === 'master_detail') continue;
+          let stored: unknown = value;
+          if (Array.isArray(fd?.options)) {
+            const opt = fd.options.find(
+              (o: any) => o?.label === value || o?.value === value,
+            );
+            if (opt && opt.value != null) stored = opt.value;
+          }
+          params.set(`filter[${field}]`, String(stored));
+        }
+        const qs = params.toString();
+        const base = appName ? `/apps/${appName}` : '';
+        navigate(`${base}/${objectName}${qs ? `?${qs}` : ''}`);
+      } catch (err) {
+        console.warn('ReportView: drill navigation failed', err);
+      }
+    },
+    [metadataClient, navigate, appName, objects],
   );
 
   // Derive available fields from object schema for filter/sort editors
@@ -471,7 +531,7 @@ export function ReportView({ dataSource }: { dataSource?: DataSource }) {
                  <Suspense fallback={<div className="p-8 text-sm text-muted-foreground">{t('common.loading', { defaultValue: 'Loading…' })}</div>}>
                    {useSpecRenderer ? (
                      <div className="p-4 sm:p-6">
-                       <ReportRenderer schema={previewReport} dataSource={dataSource as any} rows={reportRuntimeData} />
+                       <ReportRenderer schema={previewReport} dataSource={dataSource as any} rows={reportRuntimeData} onDrill={handleDatasetDrill} />
                      </div>
                    ) : (
                      <ReportViewer schema={viewerSchema} />

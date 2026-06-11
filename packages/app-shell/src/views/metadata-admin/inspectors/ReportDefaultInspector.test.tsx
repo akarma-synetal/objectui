@@ -112,6 +112,34 @@ describe('ReportDefaultInspector — dataset binding (9.0 single form)', () => {
     expect(onPatch).toHaveBeenCalledWith({ rows: [] });
   });
 
+  it('matrix reports get a Columns (across) editor fed by dataset dimensions', () => {
+    const onPatch = vi.fn();
+    render(
+      <ReportDefaultInspector
+        {...baseProps}
+        draft={{ ...datasetDraft, type: 'matrix', columns: ['close_quarter'] }}
+        onPatch={onPatch}
+        readOnly={false}
+      />,
+    );
+    expect(screen.getByText('Columns (across dimensions)')).toBeInTheDocument();
+    expect(screen.getByText('close_quarter')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Remove close_quarter' }));
+    expect(onPatch).toHaveBeenCalledWith({ columns: [] });
+  });
+
+  it('non-matrix reports hide the Columns (across) editor', () => {
+    render(
+      <ReportDefaultInspector
+        {...baseProps}
+        draft={{ ...datasetDraft }}
+        onPatch={vi.fn()}
+        readOnly={false}
+      />,
+    );
+    expect(screen.queryByText('Columns (across dimensions)')).not.toBeInTheDocument();
+  });
+
   it('falls back to a manual dataset input when the catalog is empty', () => {
     render(
       <ReportDefaultInspector

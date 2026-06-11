@@ -64,6 +64,7 @@ const REPORT_CURATED_FIELDS = new Set([
   'dataset',
   'values',
   'rows',
+  'columns', // matrix across-dimensions — dedicated list below
 ]);
 
 export interface ReportDefaultInspectorProps extends MetadataDefaultInspectorProps {
@@ -220,6 +221,7 @@ export function ReportDefaultInspector({
     typeof draft.dataset === 'string' ? (draft.dataset as string) : '';
   const values = React.useMemo(() => readNames(draft.values), [draft.values]);
   const rows = React.useMemo(() => readNames(draft.rows), [draft.rows]);
+  const columnsAcross = React.useMemo(() => readNames(draft.columns), [draft.columns]);
 
   // Dataset catalog (binding options) + the bound dataset's semantic layer
   // (measure/dimension picker options).
@@ -342,6 +344,19 @@ export function ReportDefaultInspector({
             readOnly={readOnly}
             onCommit={(next) => onPatch({ rows: next })}
           />
+          {reportType === 'matrix' && (
+            // ADR-0021 D2 — a matrix pivots rows × columns (across dimensions).
+            <DatasetNamesEditor
+              label={tr('engine.inspector.report.columnsAcross')}
+              emptyText={tr('engine.inspector.report.columnsAcrossEmpty')}
+              names={columnsAcross}
+              options={dimensionOptions}
+              loading={semantics.loading}
+              error={semantics.error}
+              readOnly={readOnly}
+              onCommit={(next) => onPatch({ columns: next })}
+            />
+          )}
         </>
       )}
 
@@ -351,7 +366,7 @@ export function ReportDefaultInspector({
             schema={schema}
             form={form}
             value={draft}
-            hiddenFields={['type', 'label', 'name', 'dataset', 'values', 'rows']}
+            hiddenFields={['type', 'label', 'name', 'dataset', 'values', 'rows', 'columns']}
             readOnly={readOnly}
             onChange={(next) => onPatch(next)}
           />
