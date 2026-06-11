@@ -246,6 +246,15 @@ const FLOW_NODE_CONFIG: Record<string, FlowConfigField[]> = {
     cfg('collection', 'Collection', 'expression', { placeholder: '{leadList}', help: 'Expression resolving to the items to iterate.' }),
     cfg('iteratorVariable', 'Item variable', 'text', { placeholder: 'currentItem' }),
   ],
+  // Sequential multi-instance (ADR-0037 A2): a per-item subflow, one at a time;
+  // each item may durably pause (e.g. a per-item approval).
+  map: [
+    cfg('collection', 'Collection', 'expression', { placeholder: '{items}', help: 'Expression resolving to the array to process, one item at a time.' }),
+    cfg('flowName', 'Per-item flow', 'reference', { ref: { kind: 'flow' }, placeholder: 'one_task_signoff', help: 'Subflow run for each item — it may pause (e.g. an approval).' }),
+    cfg('iteratorVariable', 'Item variable', 'text', { placeholder: 'item' }),
+    cfg('itemObject', 'Item object', 'reference', { ref: { kind: 'object' }, placeholder: 'showcase_task', help: 'When items are records, the object they belong to (exposes each item as the child’s record).' }),
+    cfg('outputVariable', 'Output variable', 'text', { placeholder: 'results', help: 'Each item’s subflow output, collected in order.' }),
+  ],
   create_record: [
     cfg('objectName', 'Object', 'reference', { ref: { kind: 'object' }, placeholder: 'contract' }),
     cfg('fields', 'Field values', 'keyValue', { help: 'Field values to write on the new record.' }),
@@ -603,6 +612,7 @@ export const FLOW_NODE_TYPE_OPTIONS = [
   'approval',
   'wait',
   'subflow',
+  'map',
   'connector_action',
   // ADR-0031: structured constructs replace the BPMN gateway/boundary types in
   // the picker — those remain import/export-only (no engine executor).

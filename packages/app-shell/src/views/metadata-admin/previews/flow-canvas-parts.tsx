@@ -18,6 +18,7 @@ import {
   FileX,
   GitFork,
   Globe,
+  ListChecks,
   MonitorSmartphone,
   Play,
   Plug,
@@ -81,6 +82,8 @@ export function nodeIcon(type: string): LucideIcon {
     case 'loop':
     case 'for_each':
       return Repeat;
+    case 'map':
+      return ListChecks;
     case 'parallel_gateway':
     case 'join_gateway':
     case 'parallel':
@@ -212,6 +215,7 @@ export function nodeTone(type: string): NodeTone {
       return TONES.approval;
     case 'loop':
     case 'for_each':
+    case 'map':
       return TONES.loop;
     case 'screen':
     case 'user_task':
@@ -275,6 +279,7 @@ export function nodeCategory(type: string): NodeCategory {
     case 'gateway':
     case 'loop':
     case 'for_each':
+    case 'map':
     case 'assignment':
     case 'parallel_gateway':
     case 'join_gateway':
