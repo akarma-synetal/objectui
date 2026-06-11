@@ -251,8 +251,8 @@ importers:
         specifier: ^9.0.0
         version: 9.0.0(ai@6.0.198(zod@4.4.3))
       '@objectstack/spec':
-        specifier: ^9.0.0
-        version: 9.0.0(ai@6.0.198(zod@4.4.3))
+        specifier: ^9.0.1
+        version: 9.0.1(ai@6.0.198(zod@4.4.3))
       '@tailwindcss/postcss':
         specifier: ^4.3.0
         version: 4.3.0
@@ -380,8 +380,8 @@ importers:
         specifier: workspace:*
         version: link:../../packages/types
       '@objectstack/spec':
-        specifier: ^9.0.0
-        version: 9.0.0(ai@6.0.198(zod@4.4.3))
+        specifier: ^9.0.1
+        version: 9.0.1(ai@6.0.198(zod@4.4.3))
       fumadocs-core:
         specifier: 16.9.3
         version: 16.9.3(@mdx-js/mdx@3.1.1)(@tanstack/react-router@1.170.8(react-dom@19.2.7(react@19.2.7))(react@19.2.7))(@types/estree-jsx@1.0.5)(@types/hast@3.0.4)(@types/mdast@4.0.4)(@types/react@19.2.17)(lucide-react@1.17.0(react@19.2.7))(next@16.2.7(@babel/core@7.29.7)(@opentelemetry/api@1.9.1)(@playwright/test@1.60.0)(react-dom@19.2.7(react@19.2.7))(react@19.2.7))(react-dom@19.2.7(react@19.2.7))(react-router@7.17.0(react-dom@19.2.7(react@19.2.7))(react@19.2.7))(react@19.2.7)(zod@4.4.3)
@@ -693,8 +693,8 @@ importers:
         specifier: workspace:*
         version: link:../types
       '@objectstack/spec':
-        specifier: ^9.0.0
-        version: 9.0.0(ai@6.0.198(zod@4.4.3))
+        specifier: ^9.0.1
+        version: 9.0.1(ai@6.0.198(zod@4.4.3))
       '@sentry/react':
         specifier: ^10.56.0
         version: 10.56.0(react@19.2.7)
@@ -780,7 +780,7 @@ importers:
         version: 9.0.0
       '@vitejs/plugin-react':
         specifier: ^6.0.2
-        version: 6.0.2(vite@8.0.16(@types/node@25.9.2)(esbuild@0.28.0)(jiti@2.7.0)(tsx@4.22.4)(yaml@2.9.0))
+        version: 6.0.2(vite@8.0.16(@types/node@25.9.2)(esbuild@0.27.7)(jiti@2.7.0)(tsx@4.22.4)(yaml@2.9.0))
       chalk:
         specifier: ^5.6.2
         version: 5.6.2
@@ -801,7 +801,7 @@ importers:
         version: 4.2.0
       vite:
         specifier: ^8.0.16
-        version: 8.0.16(@types/node@25.9.2)(esbuild@0.28.0)(jiti@2.7.0)(tsx@4.22.4)(yaml@2.9.0)
+        version: 8.0.16(@types/node@25.9.2)(esbuild@0.27.7)(jiti@2.7.0)(tsx@4.22.4)(yaml@2.9.0)
     devDependencies:
       '@types/express':
         specifier: ^4.17.25
@@ -820,7 +820,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: ^4.1.8
-        version: 4.1.8(@opentelemetry/api@1.9.1)(@types/node@25.9.2)(@vitest/coverage-v8@4.1.8)(@vitest/ui@4.1.8)(happy-dom@20.10.2)(jsdom@29.1.1(@noble/hashes@2.2.0))(msw@2.14.6(@types/node@25.9.2)(typescript@6.0.3))(vite@8.0.16(@types/node@25.9.2)(esbuild@0.28.0)(jiti@2.7.0)(tsx@4.22.4)(yaml@2.9.0))
+        version: 4.1.8(@opentelemetry/api@1.9.1)(@types/node@25.9.2)(@vitest/coverage-v8@4.1.8)(@vitest/ui@4.1.8)(happy-dom@20.10.2)(jsdom@29.1.1(@noble/hashes@2.2.0))(msw@2.14.6(@types/node@25.9.2)(typescript@6.0.3))(vite@8.0.16(@types/node@25.9.2)(esbuild@0.27.7)(jiti@2.7.0)(tsx@4.22.4)(yaml@2.9.0))
 
   packages/collaboration:
     dependencies:
@@ -1034,8 +1034,8 @@ importers:
         specifier: ^9.0.0
         version: 9.0.0(ai@6.0.198(zod@4.4.3))
       '@objectstack/spec':
-        specifier: ^9.0.0
-        version: 9.0.0(ai@6.0.198(zod@4.4.3))
+        specifier: ^9.0.1
+        version: 9.0.1(ai@6.0.198(zod@4.4.3))
       lodash:
         specifier: ^4.18.1
         version: 4.18.1
@@ -1082,7 +1082,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: ^4.1.8
-        version: 4.1.8(@opentelemetry/api@1.9.1)(@types/node@25.9.2)(@vitest/coverage-v8@4.1.8)(@vitest/ui@4.1.8)(happy-dom@20.10.2)(jsdom@29.1.1(@noble/hashes@2.2.0))(msw@2.14.6(@types/node@25.9.2)(typescript@6.0.3))(vite@8.0.16(@types/node@25.9.2)(esbuild@0.27.7)(jiti@2.7.0)(tsx@4.22.4)(yaml@2.9.0))
+        version: 4.1.8(@opentelemetry/api@1.9.1)(@types/node@25.9.2)(@vitest/coverage-v8@4.1.8)(@vitest/ui@4.1.8)(happy-dom@20.10.2)(jsdom@29.1.1(@noble/hashes@2.2.0))(msw@2.14.6(@types/node@25.9.2)(typescript@6.0.3))(vite@8.0.16(@types/node@25.9.2)(esbuild@0.28.0)(jiti@2.7.0)(tsx@4.22.4)(yaml@2.9.0))
 
   packages/data-objectstack:
     dependencies:
@@ -1837,8 +1837,8 @@ importers:
         specifier: workspace:*
         version: link:../types
       '@objectstack/spec':
-        specifier: ^9.0.0
-        version: 9.0.0(ai@6.0.198(zod@4.4.3))
+        specifier: ^9.0.1
+        version: 9.0.1(ai@6.0.198(zod@4.4.3))
       lucide-react:
         specifier: ^1.17.0
         version: 1.17.0(react@19.2.7)
@@ -2060,8 +2060,8 @@ importers:
         specifier: workspace:*
         version: link:../types
       '@objectstack/spec':
-        specifier: ^9.0.0
-        version: 9.0.0(ai@6.0.198(zod@4.4.3))
+        specifier: ^9.0.1
+        version: 9.0.1(ai@6.0.198(zod@4.4.3))
       lucide-react:
         specifier: ^1.17.0
         version: 1.17.0(react@19.2.7)
@@ -2231,8 +2231,8 @@ importers:
         specifier: workspace:*
         version: link:../types
       '@objectstack/spec':
-        specifier: ^9.0.0
-        version: 9.0.0(ai@6.0.198(zod@4.4.3))
+        specifier: ^9.0.1
+        version: 9.0.1(ai@6.0.198(zod@4.4.3))
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1
@@ -2360,8 +2360,8 @@ importers:
         specifier: workspace:*
         version: link:../types
       '@objectstack/spec':
-        specifier: ^9.0.0
-        version: 9.0.0(ai@6.0.198(zod@4.4.3))
+        specifier: ^9.0.1
+        version: 9.0.1(ai@6.0.198(zod@4.4.3))
       react:
         specifier: 19.2.7
         version: 19.2.7
@@ -2474,8 +2474,8 @@ importers:
   packages/types:
     dependencies:
       '@objectstack/spec':
-        specifier: ^9.0.0
-        version: 9.0.0(ai@6.0.198(zod@4.4.3))
+        specifier: ^9.0.1
+        version: 9.0.1(ai@6.0.198(zod@4.4.3))
       zod:
         specifier: ^4.4.3
         version: 4.4.3
@@ -13331,6 +13331,11 @@ snapshots:
       react-dom: 19.2.7(react@19.2.7)
     optionalDependencies:
       maplibre-gl: 5.24.0
+
+  '@vitejs/plugin-react@6.0.2(vite@8.0.16(@types/node@25.9.2)(esbuild@0.27.7)(jiti@2.7.0)(tsx@4.22.4)(yaml@2.9.0))':
+    dependencies:
+      '@rolldown/pluginutils': 1.0.1
+      vite: 8.0.16(@types/node@25.9.2)(esbuild@0.27.7)(jiti@2.7.0)(tsx@4.22.4)(yaml@2.9.0)
 
   '@vitejs/plugin-react@6.0.2(vite@8.0.16(@types/node@25.9.2)(esbuild@0.28.0)(jiti@2.7.0)(tsx@4.22.4)(yaml@2.9.0))':
     dependencies:
