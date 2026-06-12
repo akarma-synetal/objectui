@@ -1750,6 +1750,8 @@ const ru = {
     },
   },
   approvalsInbox: {
+    actEscalate: 'Эскалация SLA',
+    systemSlaActor: 'Система (SLA)',
     reassignBtn: 'Передать',
     reassignTitle: 'Передать согласование другому?',
     reassignBody: 'Ваше место согласующего перейдёт выбранному человеку — он получит уведомление и сможет действовать сразу.',

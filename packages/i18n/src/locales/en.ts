@@ -1905,6 +1905,8 @@ const en = {
       },
     },
   approvalsInbox: {
+    actEscalate: 'SLA escalated',
+    systemSlaActor: 'System (SLA)',
     reassignBtn: 'Reassign',
     reassignTitle: 'Hand this approval to someone else?',
     reassignBody: 'Your approver slot moves to the person you pick — they are notified and can act immediately.',

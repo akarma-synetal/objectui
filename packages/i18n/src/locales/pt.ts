@@ -1750,6 +1750,8 @@ const pt = {
     },
   },
   approvalsInbox: {
+    actEscalate: 'SLA escalonado',
+    systemSlaActor: 'Sistema (SLA)',
     reassignBtn: 'Reatribuir',
     reassignTitle: 'Passar esta aprovação para outra pessoa?',
     reassignBody: 'Sua vaga de aprovador passa para a pessoa escolhida — ela é notificada e pode agir imediatamente.',

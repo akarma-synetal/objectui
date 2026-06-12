@@ -1750,6 +1750,8 @@ const de = {
     },
   },
   approvalsInbox: {
+    actEscalate: 'SLA eskaliert',
+    systemSlaActor: 'System (SLA)',
     reassignBtn: 'Übergeben',
     reassignTitle: 'Diese Genehmigung an jemand anderen übergeben?',
     reassignBody: 'Ihr Genehmiger-Platz geht an die gewählte Person — sie wird benachrichtigt und kann sofort handeln.',
