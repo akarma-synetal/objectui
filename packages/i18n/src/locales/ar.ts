@@ -1750,6 +1750,8 @@ const ar = {
     },
   },
   approvalsInbox: {
+    actEscalate: 'تصعيد SLA',
+    systemSlaActor: 'النظام (SLA)',
     reassignBtn: 'إعادة إسناد',
     reassignTitle: 'تسليم هذه الموافقة لشخص آخر؟',
     reassignBody: 'ينتقل مقعدك كموافق إلى الشخص المختار — يتم إخطاره ويمكنه التصرف فورًا.',

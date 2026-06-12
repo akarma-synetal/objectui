@@ -1913,6 +1913,8 @@ const zh = {
       },
     },
   approvalsInbox: {
+    actEscalate: 'SLA 升级',
+    systemSlaActor: '系统（SLA）',
     reassignBtn: '转签',
     reassignTitle: '将该审批转签给其他人？',
     reassignBody: '你的审批席位将转移给所选人员，对方会收到通知并可立即处理。',

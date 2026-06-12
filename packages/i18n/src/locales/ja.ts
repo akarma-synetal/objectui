@@ -1750,6 +1750,8 @@ const ja = {
     },
   },
   approvalsInbox: {
+    actEscalate: 'SLAエスカレーション',
+    systemSlaActor: 'システム（SLA）',
     reassignBtn: '引き継ぎ',
     reassignTitle: 'この承認を他の人に引き継ぎますか？',
     reassignBody: 'あなたの承認枠は選択した相手に移ります。相手に通知され、すぐに対応できます。',

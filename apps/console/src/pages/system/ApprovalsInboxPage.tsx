@@ -1470,11 +1470,14 @@ export function ApprovalsInboxPage() {
                                   : a.action === 'remind' ? 'bg-amber-500'
                                   : a.action === 'request_info' ? 'bg-amber-500'
                                   : a.action === 'comment' ? 'bg-slate-400'
+                                  : a.action === 'escalate' ? 'bg-red-500'
                                   : 'bg-muted-foreground';
-                      const actorName = a.actor_name
-                        ?? (a.actor_id && a.actor_id === selected.submitter_id
-                          ? submitterDisplay(selected)
-                          : formatIdentity(a.actor_id));
+                      const actorName = a.actor_id === 'system:sla'
+                        ? tr('systemSlaActor', 'System (SLA)')
+                        : a.actor_name
+                          ?? (a.actor_id && a.actor_id === selected.submitter_id
+                            ? submitterDisplay(selected)
+                            : formatIdentity(a.actor_id));
                       const actionText = a.action === 'submit' ? tr('actSubmit', 'Submitted')
                         : a.action === 'approve' ? tr('actApprove', 'Approved')
                         : a.action === 'reject' ? tr('actReject', 'Rejected')
@@ -1483,6 +1486,7 @@ export function ApprovalsInboxPage() {
                         : a.action === 'remind' ? tr('actRemind', 'Reminder sent')
                         : a.action === 'request_info' ? tr('actRequestInfo', 'Requested more info')
                         : a.action === 'comment' ? tr('actComment', 'Commented')
+                        : a.action === 'escalate' ? tr('actEscalate', 'SLA escalated')
                         : a.action;
                       return (
                         <li key={a.id} className="relative text-xs">

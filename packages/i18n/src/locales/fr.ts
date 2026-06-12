@@ -1750,6 +1750,8 @@ const fr = {
     },
   },
   approvalsInbox: {
+    actEscalate: 'SLA escaladé',
+    systemSlaActor: 'Système (SLA)',
     reassignBtn: 'Réattribuer',
     reassignTitle: 'Confier cette approbation à quelqu\'un d\'autre ?',
     reassignBody: 'Votre place d\'approbateur passe à la personne choisie — elle est notifiée et peut agir immédiatement.',

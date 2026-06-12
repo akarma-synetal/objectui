@@ -1750,6 +1750,8 @@ const ko = {
     },
   },
   approvalsInbox: {
+    actEscalate: 'SLA 에스컬레이션',
+    systemSlaActor: '시스템(SLA)',
     reassignBtn: '재할당',
     reassignTitle: '이 승인을 다른 사람에게 넘길까요?',
     reassignBody: '승인 슬롯이 선택한 사람에게 이동하며, 상대는 알림을 받고 즉시 처리할 수 있습니다.',
