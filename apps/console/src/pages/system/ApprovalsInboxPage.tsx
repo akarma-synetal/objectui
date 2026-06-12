@@ -94,6 +94,7 @@ import {
   HelpCircle,
   Send,
   Check,
+  CornerUpLeft,
 } from 'lucide-react';
 import {
   approvalsApi,
@@ -109,14 +110,15 @@ const PAGE_SIZE = 50;
 
 /**
  * Semantic status colors (green = approved, amber = waiting, red = rejected,
- * slate = recalled) — variant-based Badge colors read as monochrome chrome,
- * not as state.
+ * slate = recalled, violet = returned for revision) — variant-based Badge
+ * colors read as monochrome chrome, not as state.
  */
 const STATUS_CLASSES: Record<string, string> = {
   pending:  'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-400',
   approved: 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-400',
   rejected: 'border-red-200 bg-red-50 text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-400',
   recalled: 'border-border bg-muted text-muted-foreground',
+  returned: 'border-violet-200 bg-violet-50 text-violet-700 dark:border-violet-500/30 dark:bg-violet-500/10 dark:text-violet-400',
 };
 
 function formatDate(s: string | null | undefined): string {
@@ -282,6 +284,7 @@ export function ApprovalsInboxPage() {
       case 'approved': return tr('statusApproved', 'Approved');
       case 'rejected': return tr('statusRejected', 'Rejected');
       case 'recalled': return tr('statusRecalled', 'Recalled');
+      case 'returned': return tr('statusReturned', 'Returned for revision');
       default: return status;
     }
   }, [tr]);
@@ -355,6 +358,10 @@ export function ApprovalsInboxPage() {
   const [reassignTo, setReassignTo] = useState('');
   const [requestInfoOpen, setRequestInfoOpen] = useState(false);
   const [requestInfoText, setRequestInfoText] = useState('');
+  // Send back for revision (ADR-0044) — a flow movement, unlike request-info.
+  const [sendBackOpen, setSendBackOpen] = useState(false);
+  const [sendBackText, setSendBackText] = useState('');
+  const [resubmitting, setResubmitting] = useState(false);
   const [reply, setReply] = useState('');
   const [threadBusy, setThreadBusy] = useState(false);
   const [userOptions, setUserOptions] = useState<Array<{ name: string; email: string }>>([]);
@@ -608,6 +615,54 @@ export function ApprovalsInboxPage() {
     }
   }, [selected, requestInfoText, resolveActor, refreshThread, humanizeError, tr]);
 
+  /**
+   * Send back for revision (ADR-0044): finalizes this round as `returned`,
+   * unlocks the record, and parks the flow until the submitter resubmits.
+   * Past the node's revision budget the server auto-rejects instead.
+   */
+  const doSendBack = useCallback(async () => {
+    if (!selected) return;
+    setThreadBusy(true);
+    try {
+      const res = await approvalsApi.sendBack(selected.id, {
+        actor_id: resolveActor(selected), comment: sendBackText.trim() || undefined,
+      });
+      toast.success(res.autoRejected
+        ? tr('sendBackAutoRejected', 'Revision limit reached — the request was auto-rejected')
+        : tr('sendBackSuccess', 'Sent back for revision — the requester can now edit and resubmit'));
+      setSendBackOpen(false);
+      setSendBackText('');
+      await refreshThread(selected.id);
+      refreshBadge();
+    } catch (err: any) {
+      toast.error(humanizeError(err, tr('actionFailed', 'Action failed')));
+    } finally {
+      setThreadBusy(false);
+    }
+  }, [selected, sendBackText, resolveActor, refreshThread, refreshBadge, humanizeError, tr]);
+
+  /**
+   * Resubmit after rework (ADR-0044, submitter): the flow re-enters the
+   * approval node and opens the next round's request.
+   */
+  const doResubmit = useCallback(async () => {
+    if (!selected) return;
+    setResubmitting(true);
+    try {
+      await approvalsApi.resubmit(selected.id, {
+        actor_id: user?.id, comment: comment.trim() || undefined,
+      });
+      toast.success(tr('resubmitSuccess', 'Resubmitted — a new approval round has opened'));
+      setComment('');
+      await refreshThread(selected.id);
+      refreshBadge();
+    } catch (err: any) {
+      toast.error(humanizeError(err, tr('actionFailed', 'Action failed')));
+    } finally {
+      setResubmitting(false);
+    }
+  }, [selected, comment, user?.id, refreshThread, refreshBadge, humanizeError, tr]);
+
   const doReply = useCallback(async () => {
     if (!selected || !reply.trim()) return;
     setThreadBusy(true);
@@ -643,6 +698,12 @@ export function ApprovalsInboxPage() {
 
   const canRecall = useMemo(() => {
     if (!selected || selected.status !== 'pending') return false;
+    return selected.submitter_id === user?.id || actorOverride.trim().length > 0;
+  }, [selected, user?.id, actorOverride]);
+
+  /** ADR-0044: the submitter may resubmit (or abandon) a returned request. */
+  const canResubmit = useMemo(() => {
+    if (!selected || selected.status !== 'returned') return false;
     return selected.submitter_id === user?.id || actorOverride.trim().length > 0;
   }, [selected, user?.id, actorOverride]);
 
@@ -898,6 +959,11 @@ export function ApprovalsInboxPage() {
         <div className="font-medium truncate">{processLabel(r)}</div>
         <div className="text-xs text-muted-foreground truncate">
           {stepLabel(r) || '—'}
+          {(r.round ?? 1) > 1 && (
+            <span className="ml-1.5 text-violet-600 dark:text-violet-400">
+              {tr('roundChip', 'Round {{n}}', { n: r.round })}
+            </span>
+          )}
         </div>
       </div>
     );
@@ -1023,6 +1089,7 @@ export function ApprovalsInboxPage() {
                     <SelectItem value="approved">{statusLabel('approved')}</SelectItem>
                     <SelectItem value="rejected">{statusLabel('rejected')}</SelectItem>
                     <SelectItem value="recalled">{statusLabel('recalled')}</SelectItem>
+                    <SelectItem value="returned">{statusLabel('returned')}</SelectItem>
                   </SelectContent>
                 </Select>
               )}
@@ -1364,6 +1431,30 @@ export function ApprovalsInboxPage() {
         </AlertDialogContent>
       </AlertDialog>
 
+      {/* Send back for revision dialog (ADR-0044) */}
+      <AlertDialog open={sendBackOpen} onOpenChange={(open) => { if (!open) { setSendBackOpen(false); setSendBackText(''); } }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{tr('sendBackTitle', 'Send this request back for revision?')}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {tr('sendBackBody', 'This round ends and the record unlocks so the requester can fix the data. When they resubmit, a fresh approval round opens for all approvers.')}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <Textarea
+            value={sendBackText}
+            onChange={(e) => setSendBackText(e.target.value)}
+            rows={3}
+            placeholder={tr('sendBackPlaceholder', 'What needs to be fixed before this can be approved?')}
+          />
+          <AlertDialogFooter>
+            <AlertDialogCancel>{tr('cancel', 'Cancel')}</AlertDialogCancel>
+            <AlertDialogAction disabled={threadBusy} onClick={() => void doSendBack()}>
+              {tr('sendBackBtn', 'Send back')}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       {/* Shared inline-reject confirmation */}
       <AlertDialog open={!!rejectTarget} onOpenChange={(open) => !open && setRejectTarget(null)}>
         <AlertDialogContent>
@@ -1433,6 +1524,11 @@ export function ApprovalsInboxPage() {
               {/* Status strip */}
               <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                 <StatusBadge status={selected.status} />
+                {(selected.round ?? 1) > 1 && (
+                  <Badge variant="outline" className="text-[10px] border-violet-200 text-violet-700 dark:border-violet-500/30 dark:text-violet-400">
+                    {tr('roundChip', 'Round {{n}}', { n: selected.round })}
+                  </Badge>
+                )}
                 <span className="inline-flex items-center gap-1" title={formatDate(submittedAt(selected))}>
                   <Clock className="h-3 w-3" />
                   {tr('submittedAgo', 'Submitted {{when}}', { when: formatRelative(submittedAt(selected)) })}
@@ -1541,6 +1637,8 @@ export function ApprovalsInboxPage() {
                                   : a.action === 'request_info' ? 'bg-amber-500'
                                   : a.action === 'comment' ? 'bg-slate-400'
                                   : a.action === 'escalate' ? 'bg-red-500'
+                                  : a.action === 'revise' ? 'bg-violet-500'
+                                  : a.action === 'resubmit' ? 'bg-blue-500'
                                   : 'bg-muted-foreground';
                       const actorName = a.actor_id === 'system:sla'
                         ? tr('systemSlaActor', 'System (SLA)')
@@ -1557,6 +1655,8 @@ export function ApprovalsInboxPage() {
                         : a.action === 'request_info' ? tr('actRequestInfo', 'Requested more info')
                         : a.action === 'comment' ? tr('actComment', 'Commented')
                         : a.action === 'escalate' ? tr('actEscalate', 'SLA escalated')
+                        : a.action === 'revise' ? tr('actRevise', 'Sent back for revision')
+                        : a.action === 'resubmit' ? tr('actResubmit', 'Resubmitted')
                         : a.action;
                       return (
                         <li key={a.id} className="relative text-xs">
@@ -1726,6 +1826,14 @@ export function ApprovalsInboxPage() {
                         <>
                           <Button
                             size="sm" variant="outline" disabled={submitting !== null || threadBusy}
+                            className="border-violet-300 text-violet-700 hover:bg-violet-50 dark:text-violet-400"
+                            onClick={() => setSendBackOpen(true)}
+                          >
+                            <CornerUpLeft className="h-4 w-4 mr-1" />
+                            {tr('sendBackBtn', 'Send back')}
+                          </Button>
+                          <Button
+                            size="sm" variant="outline" disabled={submitting !== null || threadBusy}
                             className="border-amber-300 text-amber-700 hover:bg-amber-50 dark:text-amber-400"
                             onClick={() => setRequestInfoOpen(true)}
                           >
@@ -1781,6 +1889,65 @@ export function ApprovalsInboxPage() {
                             })}
                       </div>
                     )}
+                  </div>
+                </>
+              )}
+
+              {/* ADR-0044 revision window: the request came back to the
+                  submitter — the record is unlocked for rework; resubmitting
+                  opens the next approval round, recalling abandons it. */}
+              {canResubmit && (
+                <>
+                  <Separator />
+                  <div className="space-y-3">
+                    <div className="text-xs text-muted-foreground">
+                      {tr('returnedHint', 'An approver sent this back to you. The record is unlocked — fix the data, then resubmit to start a new approval round.')}
+                    </div>
+                    <div>
+                      <Label htmlFor="resubmit-comment" className="text-xs">{tr('comment', 'Comment (optional)')}</Label>
+                      <Textarea
+                        id="resubmit-comment"
+                        value={comment}
+                        onChange={(e) => setComment(e.target.value)}
+                        rows={2}
+                        className="mt-1"
+                        placeholder={tr('resubmitPlaceholder', 'What did you change?')}
+                      />
+                    </div>
+                    <div className="flex gap-2 flex-wrap">
+                      <Button asChild size="sm" variant="outline">
+                        <Link to={recordHref(selected)}>
+                          <ExternalLink className="h-4 w-4 mr-1" />
+                          {tr('editRecordBtn', 'Edit record')}
+                        </Link>
+                      </Button>
+                      <Button size="sm" disabled={resubmitting} onClick={() => void doResubmit()}>
+                        <RefreshCw className={cn('h-4 w-4 mr-1', resubmitting && 'animate-spin')} />
+                        {resubmitting ? tr('resubmitting', 'Resubmitting…') : tr('resubmitBtn', 'Resubmit')}
+                      </Button>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button size="sm" variant="outline" disabled={resubmitting}>
+                            <Undo2 className="h-4 w-4 mr-1" />
+                            {tr('recall', 'Recall')}
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>{tr('abandonTitle', 'Abandon this revision?')}</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              {tr('abandonBody', 'This withdraws the request instead of resubmitting it. The approval ends here.')}
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>{tr('cancel', 'Cancel')}</AlertDialogCancel>
+                            <AlertDialogAction onClick={() => doAction('recall')}>
+                              {tr('recall', 'Recall')}
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </div>
                   </div>
                 </>
               )}
