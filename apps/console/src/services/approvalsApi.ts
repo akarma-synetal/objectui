@@ -27,7 +27,7 @@ export interface ApprovalRequestRow {
   process_name: string;
   object_name: string;
   record_id: string;
-  status: 'pending' | 'approved' | 'rejected' | 'recalled' | string;
+  status: 'pending' | 'approved' | 'rejected' | 'recalled' | 'returned' | string;
   current_step?: string | null;
   current_step_index?: number | null;
   pending_approvers?: string[] | null;
@@ -55,6 +55,8 @@ export interface ApprovalRequestRow {
   sla_due_at?: string;
   /** Owning flow's approval steps for progress display (single reads only). */
   flow_steps?: Array<{ id: string; label: string; state: 'done' | 'current' | 'upcoming' }>;
+  /** ADR-0044 revision round on this (run, node): absent/1 = first round. */
+  round?: number;
 }
 
 export interface ApprovalActionRow {
@@ -195,6 +197,32 @@ export const approvalsApi = {
       { method: 'POST', body: JSON.stringify(body) },
     );
     return { data: out.request };
+  },
+
+  /**
+   * Send back for revision (ADR-0044): the request finalizes `returned`, the
+   * record unlocks, and the flow parks at a wait point until the submitter
+   * resubmits. Past the node's `maxRevisions` budget the server auto-rejects
+   * (`autoRejected: true`).
+   */
+  async sendBack(id: string, body: { actor_id?: string; comment?: string }) {
+    const out = await call<{ request: ApprovalRequestRow; resumed?: boolean; autoRejected?: boolean }>(
+      `/approvals/requests/${encodeURIComponent(id)}/revise`,
+      { method: 'POST', body: JSON.stringify(body) },
+    );
+    return { data: out.request, autoRejected: out.autoRejected === true };
+  },
+
+  /**
+   * Resubmit a returned request after rework (ADR-0044, submitter only): the
+   * flow re-enters the approval node and opens the next round's request.
+   */
+  async resubmit(id: string, body: { actor_id?: string; comment?: string } = {}) {
+    const out = await call<{ request: ApprovalRequestRow; resumed?: boolean }>(
+      `/approvals/requests/${encodeURIComponent(id)}/resubmit`,
+      { method: 'POST', body: JSON.stringify(body) },
+    );
+    return { data: out.request, resumed: out.resumed === true };
   },
 
   /** Free-form reply on the request thread (submitter or pending approver). */
