@@ -31,7 +31,7 @@
 
 import * as React from 'react';
 import { Loader2, AlertTriangle, Table2 } from 'lucide-react';
-import { mergeFilters } from './hooks/useReportData';
+import { mergeFilters } from './mergeFilters';
 
 type Row = Record<string, unknown>;
 

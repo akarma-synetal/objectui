@@ -30,32 +30,12 @@ export type {
   ScheduleTriggerCallback,
 } from './LiveReportExporter';
 
-// Report execution helpers.
-//
-// `mergeFilters` is the shared scope-filter combinator used by the dataset
-// renderer. The `useReportData` hook and its aggregation helpers implement
-// the pre-9.0 CLIENT-SIDE pipeline (inline columns/groupings) — they are kept
-// exported for stored-JSON consumers during the migration window, but new
-// code should bind a dataset and let the semantic layer aggregate.
-export {
-  useReportData,
-  columnKey,
-  bucketDate,
-  groupingValue,
-  aggregateRows,
-  groupAndAggregate,
-  pivotRows,
-  buildAggregateQuery,
-  mergeFilters,
-  collectFields,
-} from './hooks/useReportData';
-export type {
-  ReportRow,
-  PivotHeader,
-  PivotMatrix,
-  UseReportDataResult,
-  UseReportDataOptions,
-} from './hooks/useReportData';
+// `mergeFilters` — the scope-filter combinator shared by the dataset report
+// path. The pre-9.0 client-side aggregation pipeline (`useReportData` + its
+// `buildAggregateQuery`/`groupAndAggregate`/`pivotRows`/… helpers) was removed
+// with ADR-0021: dataset-bound reports aggregate in the semantic layer via
+// `queryDataset`, so the client-side path had no remaining consumers.
+export { mergeFilters } from './mergeFilters';
 
 // Register report component (dispatches dataset-bound vs legacy automatically)
 ComponentRegistry.register(
