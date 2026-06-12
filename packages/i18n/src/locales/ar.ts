@@ -1750,6 +1750,9 @@ const ar = {
     },
   },
   approvalsInbox: {
+    loadMore: 'تحميل المزيد',
+    loadingMore: 'جارٍ التحميل…',
+    loadedOf: 'تم تحميل {{loaded}} من {{total}}',
     actEscalate: 'تصعيد SLA',
     systemSlaActor: 'النظام (SLA)',
     reassignBtn: 'إعادة إسناد',

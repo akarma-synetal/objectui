@@ -1750,6 +1750,9 @@ const ko = {
     },
   },
   approvalsInbox: {
+    loadMore: '더 보기',
+    loadingMore: '불러오는 중…',
+    loadedOf: '{{total}}개 중 {{loaded}}개 로드됨',
     actEscalate: 'SLA 에스컬레이션',
     systemSlaActor: '시스템(SLA)',
     reassignBtn: '재할당',

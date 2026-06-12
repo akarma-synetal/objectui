@@ -1905,6 +1905,9 @@ const en = {
       },
     },
   approvalsInbox: {
+    loadMore: 'Load more',
+    loadingMore: 'Loading…',
+    loadedOf: 'Loaded {{loaded}} of {{total}}',
     actEscalate: 'SLA escalated',
     systemSlaActor: 'System (SLA)',
     reassignBtn: 'Reassign',

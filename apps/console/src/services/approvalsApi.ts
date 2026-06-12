@@ -110,6 +110,11 @@ export const approvalsApi = {
      */
     approverId?: string | string[];
     submitterId?: string;
+    /** Free-text search, matched server-side (incl. record titles via the payload snapshot). */
+    q?: string;
+    /** Page window; when `limit` is set the response carries `total`. */
+    limit?: number;
+    offset?: number;
   } = {}) {
     const qs = new URLSearchParams();
     if (params.status) qs.set('status', params.status);
@@ -120,8 +125,11 @@ export const approvalsApi = {
       : params.approverId;
     if (approver) qs.set('approverId', approver);
     if (params.submitterId) qs.set('submitterId', params.submitterId);
+    if (params.q?.trim()) qs.set('q', params.q.trim());
+    if (params.limit != null) qs.set('limit', String(params.limit));
+    if (params.offset != null) qs.set('offset', String(params.offset));
     const q = qs.toString();
-    return call<{ data: ApprovalRequestRow[] }>(`/approvals/requests${q ? `?${q}` : ''}`);
+    return call<{ data: ApprovalRequestRow[]; total?: number }>(`/approvals/requests${q ? `?${q}` : ''}`);
   },
 
   async getRequest(id: string) {

@@ -1750,6 +1750,9 @@ const ja = {
     },
   },
   approvalsInbox: {
+    loadMore: 'さらに読み込む',
+    loadingMore: '読み込み中…',
+    loadedOf: '{{total}} 件中 {{loaded}} 件を表示',
     actEscalate: 'SLAエスカレーション',
     systemSlaActor: 'システム（SLA）',
     reassignBtn: '引き継ぎ',
