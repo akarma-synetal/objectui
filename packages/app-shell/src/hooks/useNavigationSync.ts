@@ -106,6 +106,54 @@ export function navigationEqual(a: NavigationItem[], b: NavigationItem[]): boole
   return JSON.stringify(a) === JSON.stringify(b);
 }
 
+/**
+ * `sys_` is the platform-reserved metadata namespace (sys_organization_detail,
+ * sys_user_detail, …). Fallback signal only — see isPlatformArtifact.
+ */
+export function isSystemArtifactName(name: unknown): boolean {
+  return typeof name === 'string' && name.startsWith('sys_');
+}
+
+/**
+ * Package/platform-shipped pages and dashboards are never "something the user
+ * just created", so they must not trigger navigation sync no matter when they
+ * appear in (or vanish from) the metadata lists — package install/uninstall
+ * mid-session looks exactly like user CRUD to a name-set diff. A package that
+ * ships pages also ships (or contributes to) the navigation that exposes
+ * them; auto-syncing on top of that would duplicate entries at best and write
+ * into apps the package never intended at worst.
+ *
+ * Provenance is the primary signal: ADR-0010's applyProtection stamps
+ * `_packageId` + `_provenance: 'package'` on artifacts registered with
+ * package coords (the engine manifest path passes them). The `sys_` name
+ * prefix is only a fallback for registration paths that don't stamp
+ * provenance yet — third-party plugin pages are NOT guaranteed to carry it,
+ * which is why the field check comes first.
+ */
+export function isPlatformArtifact(item: unknown): boolean {
+  if (!item || typeof item !== 'object') return false;
+  const a = item as { name?: unknown; _packageId?: unknown; _provenance?: unknown };
+  if (a._packageId != null || a._provenance === 'package') return true;
+  return isSystemArtifactName(a.name);
+}
+
+/**
+ * Whether an app may be targeted by automatic navigation writes.
+ *
+ * ADR-0010 metadata protection: the loader stamps a `_lock` envelope on
+ * packaged artifacts (translated from the author-facing `protection` block,
+ * e.g. the `setup` app ships `protection.lock = 'full'`). Locks 'full' and
+ * 'no-overlay' reject PUT with 403 — a navigation write into such an app can
+ * never succeed, so don't attempt it (each attempt surfaced as a red
+ * "Failed to update navigation" toast).
+ */
+export function isNavigationSyncableApp(app: unknown): boolean {
+  if (!app || typeof app !== 'object') return false;
+  const a = app as { _lock?: string; protection?: { lock?: string } };
+  const lock = a._lock ?? a.protection?.lock;
+  return lock !== 'full' && lock !== 'no-overlay';
+}
+
 // ============================================================================
 // React Hook
 // ============================================================================
@@ -411,7 +459,7 @@ export function useNavigationSync(): UseNavigationSyncReturn {
     async (pageName: string, label?: string) => {
       for (const app of apps) {
         const name = getAppName(app);
-        if (!name) continue;
+        if (!name || !isNavigationSyncableApp(app)) continue;
         await syncPageCreated(name, pageName, label);
       }
     },
@@ -423,7 +471,7 @@ export function useNavigationSync(): UseNavigationSyncReturn {
     async (dashboardName: string, label?: string) => {
       for (const app of apps) {
         const name = getAppName(app);
-        if (!name) continue;
+        if (!name || !isNavigationSyncableApp(app)) continue;
         await syncDashboardCreated(name, dashboardName, label);
       }
     },
@@ -435,7 +483,7 @@ export function useNavigationSync(): UseNavigationSyncReturn {
     async (pageName: string) => {
       for (const app of apps) {
         const name = getAppName(app);
-        if (!name) continue;
+        if (!name || !isNavigationSyncableApp(app)) continue;
         await syncPageDeleted(name, pageName);
       }
     },
@@ -447,7 +495,7 @@ export function useNavigationSync(): UseNavigationSyncReturn {
     async (dashboardName: string) => {
       for (const app of apps) {
         const name = getAppName(app);
-        if (!name) continue;
+        if (!name || !isNavigationSyncableApp(app)) continue;
         await syncDashboardDeleted(name, dashboardName);
       }
     },
@@ -459,7 +507,7 @@ export function useNavigationSync(): UseNavigationSyncReturn {
     async (oldName: string, newName: string) => {
       for (const app of apps) {
         const name = getAppName(app);
-        if (!name) continue;
+        if (!name || !isNavigationSyncableApp(app)) continue;
         await syncPageRenamed(name, oldName, newName);
       }
     },
@@ -471,7 +519,7 @@ export function useNavigationSync(): UseNavigationSyncReturn {
     async (oldName: string, newName: string) => {
       for (const app of apps) {
         const name = getAppName(app);
-        if (!name) continue;
+        if (!name || !isNavigationSyncableApp(app)) continue;
         await syncDashboardRenamed(name, oldName, newName);
       }
     },
@@ -510,7 +558,7 @@ export function useNavigationSync(): UseNavigationSyncReturn {
  * > should invoke `syncPageRenamed` / `syncDashboardRenamed` explicitly.
  */
 export function NavigationSyncEffect(): null {
-  const { pages, dashboards, apps } = useMetadata();
+  const { pages, dashboards, apps, getTypeStatus } = useMetadata();
   const adapter = useAdapter();
   const adapterRef = useRef(adapter);
   adapterRef.current = adapter;
@@ -553,12 +601,34 @@ export function NavigationSyncEffect(): null {
       return;
     }
 
-    const currentPageNames = new Set(
-      (pages ?? []).map((p: any) => p.name).filter(Boolean) as string[],
-    );
-    const currentDashNames = new Set(
-      (dashboards ?? []).map((d: any) => d.name).filter(Boolean) as string[],
-    );
+    // `page` and `dashboard` are lazily-loaded metadata types: their arrays
+    // are empty (or stale) until the fetch lands, and `invalidate()` empties
+    // them again mid-session (e.g. the New-record flow reloads meta). Diffing
+    // a not-ready snapshot misreads that dip as mass deletion / re-creation —
+    // notably flagging system pages as "user added" once the full list
+    // arrives. Only seed the baseline and diff while both types are 'ready'.
+    // (Contexts without getTypeStatus — hand-rolled test values — are
+    // treated as always ready.)
+    if (
+      getTypeStatus &&
+      (getTypeStatus('page') !== 'ready' || getTypeStatus('dashboard') !== 'ready')
+    ) {
+      return;
+    }
+
+    // Platform/package artifacts never participate in the diff: they ship
+    // with the platform or arrive via package install, not from user CRUD,
+    // so their appearance must not write them into app navigation (nor
+    // their disappearance delete nav entries). See isPlatformArtifact.
+    const userArtifactNames = (items: any[]): Set<string> =>
+      new Set(
+        items
+          .filter((it: any) => !isPlatformArtifact(it))
+          .map((it: any) => it?.name)
+          .filter((n: any): n is string => typeof n === 'string' && n.length > 0),
+      );
+    const currentPageNames = userArtifactNames(pages ?? []);
+    const currentDashNames = userArtifactNames(dashboards ?? []);
 
     const prevPages = prevPageNamesRef.current;
     const prevDash = prevDashNamesRef.current;
@@ -599,7 +669,9 @@ export function NavigationSyncEffect(): null {
         for (const app of apps) {
           if (cancelled || syncVersionRef.current !== version) break;
           const appName = getAppName(app);
-          if (!appName) continue;
+          // Write-protected apps (ADR-0010 `_lock`) would 403 every PUT —
+          // skip them instead of spraying failure toasts.
+          if (!appName || !isNavigationSyncableApp(app)) continue;
 
           for (const pageName of addedPages) {
             if (cancelled) break;
@@ -631,7 +703,7 @@ export function NavigationSyncEffect(): null {
     return () => {
       cancelled = true;
     };
-  }, [pages, dashboards, apps, previewDrafts, syncPageCreated, syncDashboardCreated, syncPageDeleted, syncDashboardDeleted]);
+  }, [pages, dashboards, apps, previewDrafts, getTypeStatus, syncPageCreated, syncDashboardCreated, syncPageDeleted, syncDashboardDeleted]);
 
   return null;
 }
