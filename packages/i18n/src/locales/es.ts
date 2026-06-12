@@ -1750,6 +1750,9 @@ const es = {
     },
   },
   approvalsInbox: {
+    loadMore: 'Cargar más',
+    loadingMore: 'Cargando…',
+    loadedOf: '{{loaded}} de {{total}} cargadas',
     actEscalate: 'SLA escalado',
     systemSlaActor: 'Sistema (SLA)',
     reassignBtn: 'Reasignar',

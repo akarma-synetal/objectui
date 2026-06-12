@@ -1913,6 +1913,9 @@ const zh = {
       },
     },
   approvalsInbox: {
+    loadMore: '加载更多',
+    loadingMore: '加载中…',
+    loadedOf: '已加载 {{loaded}} / 共 {{total}} 条',
     actEscalate: 'SLA 升级',
     systemSlaActor: '系统（SLA）',
     reassignBtn: '转签',

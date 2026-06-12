@@ -1750,6 +1750,9 @@ const ru = {
     },
   },
   approvalsInbox: {
+    loadMore: 'Загрузить ещё',
+    loadingMore: 'Загрузка…',
+    loadedOf: 'Загружено {{loaded}} из {{total}}',
     actEscalate: 'Эскалация SLA',
     systemSlaActor: 'Система (SLA)',
     reassignBtn: 'Передать',

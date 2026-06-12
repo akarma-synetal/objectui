@@ -104,6 +104,9 @@ import {
 
 type TabKey = 'pending' | 'submitted' | 'all';
 
+/** Server page size for the paginated tabs (submitted / all). */
+const PAGE_SIZE = 50;
+
 /**
  * Semantic status colors (green = approved, amber = waiting, red = rejected,
  * slate = recalled) — variant-based Badge colors read as monochrome chrome,
@@ -315,6 +318,9 @@ export function ApprovalsInboxPage() {
   const [tab, setTab] = useState<TabKey>('pending');
   const [rows, setRows] = useState<ApprovalRequestRow[]>([]);
   const [loading, setLoading] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  /** Unwindowed total on the paginated tabs (null = unpaginated tab). */
+  const [total, setTotal] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   /** "My pending" count, independent of the active tab (badge + bell parity). */
   const [myPendingCount, setMyPendingCount] = useState(0);
@@ -327,8 +333,11 @@ export function ApprovalsInboxPage() {
   const [actorOverride, setActorOverride] = useState('');
   const [submitting, setSubmitting] = useState<'approve' | 'reject' | 'recall' | null>(null);
 
-  // Search + filters (client-side; lists are capped server-side)
+  // Search + filters. On the paginated tabs (submitted/all) the free-text
+  // query is debounced and pushed to the server; the pending tab keeps
+  // instant client-side matching over its (bounded) personal queue.
   const [query, setQuery] = useState('');
+  const [serverQuery, setServerQuery] = useState('');
   const [processFilter, setProcessFilter] = useState<string>('all');
   const [objectFilter, setObjectFilter] = useState<string>('all');
   const [statusFilter, setStatusFilter] = useState<string>('all');
@@ -353,6 +362,12 @@ export function ApprovalsInboxPage() {
   // Keyboard row focus
   const [focusIndex, setFocusIndex] = useState<number>(-1);
 
+  useEffect(() => {
+    if (tab === 'pending') return;
+    const t = window.setTimeout(() => setServerQuery(query), 350);
+    return () => window.clearTimeout(t);
+  }, [query, tab]);
+
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -364,14 +379,28 @@ export function ApprovalsInboxPage() {
           ? (await approvalsApi.listRequests({ status: 'pending', approverId: identities })).data
           : [];
         setMyPendingCount(requests.length);
+        setTotal(null);
       } else {
+        const pageParams = {
+          q: serverQuery || undefined,
+          status: statusFilter !== 'all' ? statusFilter : undefined,
+          limit: PAGE_SIZE,
+          offset: 0,
+        };
         if (tab === 'submitted') {
           const submitterId = user?.id;
-          requests = submitterId
-            ? (await approvalsApi.listRequests({ submitterId })).data
-            : [];
+          if (submitterId) {
+            const res = await approvalsApi.listRequests({ submitterId, ...pageParams });
+            requests = res.data;
+            setTotal(res.total ?? res.data.length);
+          } else {
+            requests = [];
+            setTotal(0);
+          }
         } else {
-          requests = (await approvalsApi.listRequests({})).data;
+          const res = await approvalsApi.listRequests(pageParams);
+          requests = res.data;
+          setTotal(res.total ?? res.data.length);
         }
         // Keep the badge honest while browsing other tabs.
         if (identities.length) {
@@ -389,9 +418,33 @@ export function ApprovalsInboxPage() {
     } finally {
       setLoading(false);
     }
-  }, [tab, identities, user?.id]);
+  }, [tab, identities, user?.id, serverQuery, statusFilter]);
 
   useEffect(() => { void load(); }, [load]);
+
+  /** Append the next server page (paginated tabs only). */
+  const loadMore = useCallback(async () => {
+    if (tab === 'pending' || loadingMore) return;
+    setLoadingMore(true);
+    try {
+      const res = await approvalsApi.listRequests({
+        submitterId: tab === 'submitted' ? user?.id ?? undefined : undefined,
+        q: serverQuery || undefined,
+        status: statusFilter !== 'all' ? statusFilter : undefined,
+        limit: PAGE_SIZE,
+        offset: rows.length,
+      });
+      setRows(prev => {
+        const seen = new Set(prev.map(r => r.id));
+        return [...prev, ...res.data.filter(r => !seen.has(r.id))];
+      });
+      if (res.total != null) setTotal(res.total);
+    } catch (err: any) {
+      toast.error(humanizeError(err, tr('loadFailed', 'Failed to load request')));
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [tab, loadingMore, user?.id, serverQuery, statusFilter, rows.length, humanizeError, tr]);
 
   const openDrawer = useCallback(async (id: string) => {
     setSelectedId(id);
@@ -615,6 +668,10 @@ export function ApprovalsInboxPage() {
       if (processFilter !== 'all' && processLabel(r) !== processFilter) return false;
       if (objectFilter !== 'all' && r.object_name !== objectFilter) return false;
       if (statusFilter !== 'all' && r.status !== statusFilter) return false;
+      // Paginated tabs: the server already applied the free-text query
+      // (incl. record titles via the payload snapshot) — re-filtering here
+      // against a narrower client haystack would drop valid matches.
+      if (tab !== 'pending') return true;
       if (!q) return true;
       const hay = [
         r.process_name, r.process_label, r.step_label, r.object_name,
@@ -623,7 +680,7 @@ export function ApprovalsInboxPage() {
       ].filter(Boolean).join(' ').toLowerCase();
       return hay.includes(q);
     });
-  }, [rows, query, processFilter, objectFilter, statusFilter]);
+  }, [rows, query, processFilter, objectFilter, statusFilter, tab]);
   /** Position of the open request within the visible list (drawer prev/next). */
   const drawerIndex = useMemo(
     () => (selectedId ? filteredRows.findIndex(r => r.id === selectedId) : -1),
@@ -934,7 +991,7 @@ export function ApprovalsInboxPage() {
 
         <TabsContent value={tab} className="mt-4 space-y-3">
           {/* Toolbar: search + filters */}
-          {!loading && rows.length > 0 && (
+          {!loading && (rows.length > 0 || (tab !== 'pending' && (serverQuery || statusFilter !== 'all'))) && (
             <div className="flex flex-wrap items-center gap-2">
               <div className="relative flex-1 min-w-[200px] max-w-sm">
                 <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
@@ -1227,6 +1284,19 @@ export function ApprovalsInboxPage() {
                   </Card>
                 ))}
               </div>
+
+              {tab !== 'pending' && total != null && (
+                <div className="flex items-center justify-center gap-3 py-1">
+                  <span className="text-xs text-muted-foreground">
+                    {tr('loadedOf', 'Loaded {{loaded}} of {{total}}', { loaded: rows.length, total })}
+                  </span>
+                  {rows.length < total && (
+                    <Button size="sm" variant="outline" disabled={loadingMore} onClick={() => void loadMore()}>
+                      {loadingMore ? tr('loadingMore', 'Loading…') : tr('loadMore', 'Load more')}
+                    </Button>
+                  )}
+                </div>
+              )}
 
               <div className="hidden md:block text-[11px] text-muted-foreground">
                 {tr('keyboardHint', 'Keyboard: j/k move · Enter open · x select · a approve · r reject')}

@@ -1750,6 +1750,9 @@ const fr = {
     },
   },
   approvalsInbox: {
+    loadMore: 'Charger plus',
+    loadingMore: 'Chargement…',
+    loadedOf: '{{loaded}} sur {{total}} chargées',
     actEscalate: 'SLA escaladé',
     systemSlaActor: 'Système (SLA)',
     reassignBtn: 'Réattribuer',
