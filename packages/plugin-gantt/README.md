@@ -227,11 +227,20 @@ const schema = {
 
 ## View Modes
 
-The Gantt chart supports different time scales:
+The Gantt chart renders one timeline column per unit of the active scale:
 
-- **day** - Day-by-day view
-- **week** - Week-by-week view
-- **month** - Month-by-month view
+- **day** - one column per day (weekday + weekend shading)
+- **week** - one column per week (starting Monday)
+- **month** - one column per calendar month
+- **quarter** - one column per quarter (Q1–Q4)
+
+A two-row header shows the grouping above the units (months above days/weeks,
+years above months/quarters). The toolbar's segmented control switches scales
+interactively (`onViewChange` notifies you), and the zoom buttons step the
+column width — falling through to the next coarser/finer scale at the bounds.
+Drag snapping follows the active scale: bars snap to days in day view, weeks
+in week view, and whole calendar months/quarters (duration preserved) in the
+coarse views.
 
 ```typescript
 const schema = {
@@ -240,6 +249,79 @@ const schema = {
   tasks: [/* tasks */]
 };
 ```
+
+## Task Hierarchy, Summaries & Milestones
+
+Give a task a `parent` (or configure `parentField` on the data-source schema)
+to build a tree: child rows indent under their parent with expand/collapse
+chevrons in the task list. Any task with children renders as a **summary**
+bracket spanning its children's combined date range, with progress rolled up
+as the duration-weighted average of its descendants — summaries are read-only,
+their children drive them.
+
+Zero-duration tasks (`end <= start`) — or tasks whose `type` is
+`'milestone'` (via `typeField`: values like `milestone`, `summary`,
+`project`, `group` are recognized) — render as diamond markers. Milestones
+can be dragged to move but not resized; dependency arrows anchor at the
+diamond center.
+
+```typescript
+const tasks = [
+  { id: 'phase1', title: 'Phase 1', start: '…', end: '…', progress: 0 },        // summary (has children)
+  { id: 't1', title: 'Design', parent: 'phase1', start: '…', end: '…', progress: 80 },
+  { id: 't2', title: 'Build', parent: 'phase1', start: '…', end: '…', progress: 20 },
+  { id: 'launch', title: 'Launch', type: 'milestone', start: '2024-07-01', end: '2024-07-01', progress: 0 },
+];
+```
+
+## Interactions
+
+Beyond drag-to-reschedule, the timeline supports:
+
+- **Progress drag** — hover a bar and drag the round grip at the progress
+  boundary; the fill follows live and `onTaskUpdate(task, { progress })`
+  commits on release (snapped to whole percent, clamped 0–100).
+- **Hover tooltip** — bars, milestones and summaries show a tooltip with
+  title, date range, duration and progress.
+- **Context menu** — right-click a bar or list row for View details / Edit
+  inline / Delete (items appear only when the matching callback is wired).
+- **Keyboard navigation** — the chart body is focusable: ↑/↓ move the row
+  selection, Enter opens the task, Delete deletes it, ←/→ collapse/expand
+  summary rows. Rows carry `treeitem` roles with `aria-level`/`aria-selected`.
+- **Drag-to-create dependency** — drag the connector dot on a bar's right
+  edge onto another bar; a dashed rubber band previews the link and
+  `onDependencyCreate(source, target, 'fs')` fires on drop. Through
+  `ObjectGantt` the new predecessor is appended to the record's
+  `dependenciesField`, preserving the field's original shape (CSV or array).
+- **Row drag-to-reorder** — pass `onTaskReorder(task, before)` to enable
+  HTML5 drag reordering in the task list (sibling-scoped; persistence is up
+  to the host, e.g. via a sort field).
+
+## Scale & Performance
+
+Rows and timeline columns are **virtualized**: only what is in (or near) the
+viewport renders, so the chart stays responsive with thousands of tasks and
+multi-year day-scale ranges. No configuration needed — windowing follows the
+scroll position automatically, and dependency arrows keep their absolute
+positions while scrolling.
+
+Two more chrome features ship with it:
+
+- **Fullscreen** — the expand button in the toolbar puts the whole chart into
+  native fullscreen (and back).
+- **Custom markers** — vertical reference lines beyond the Today marker:
+
+```tsx
+<GanttView
+  tasks={tasks}
+  markers={[
+    { date: '2026-07-01', label: 'Code freeze', color: '#ef4444' },
+    { date: '2026-07-15', label: 'Release' }, // defaults to the primary theme color
+  ]}
+/>
+```
+
+Through the schema, pass the same array as `markers` on the gantt node.
 
 ## Task Dependencies
 
@@ -272,6 +354,28 @@ const tasks = [
   }
 ];
 ```
+
+Dependencies render as arrows from the predecessor bar to the dependent bar.
+Arrows follow bars live while dragging, and hovering a bar highlights its links.
+
+### Link Types
+
+Each dependency entry is either a predecessor id (`'task-1'`) or an object with
+an explicit link type:
+
+```typescript
+dependencies: [
+  { id: 'task-1', type: 'fs' },  // finish-to-start (default)
+  { id: 'task-2', type: 'ss' },  // start-to-start
+  { id: 'task-3', type: 'ff' },  // finish-to-finish
+  { id: 'task-4', type: 'sf' },  // start-to-finish
+]
+```
+
+When records come from a data source (`dependenciesField`), the field value may
+be a CSV string (`"task1, task2"`), an array of ids, or an array of objects —
+`task`/`target`/`_id` are accepted as id aliases, and long-form type names like
+`"finish_to_start"` / `"end-to-end"` map onto `fs`/`ss`/`ff`/`sf`.
 
 ## Integration with Data Sources
 

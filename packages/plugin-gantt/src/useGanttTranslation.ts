@@ -26,6 +26,20 @@ export const GANTT_DEFAULT_TRANSLATIONS: Record<string, string> = {
   'gantt.toolbar.today': 'Today',
   'gantt.toolbar.showTaskList': 'Show task list',
   'gantt.toolbar.hideTaskList': 'Hide task list',
+  'gantt.toolbar.viewMode': 'Timeline granularity',
+  'gantt.toolbar.enterFullscreen': 'Enter fullscreen',
+  'gantt.toolbar.exitFullscreen': 'Exit fullscreen',
+  'gantt.viewMode.day': 'Day',
+  'gantt.viewMode.week': 'Week',
+  'gantt.viewMode.month': 'Month',
+  'gantt.viewMode.quarter': 'Quarter',
+  'gantt.row.expand': 'Expand',
+  'gantt.row.collapse': 'Collapse',
+  'gantt.aria.taskList': 'Task list',
+  'gantt.tooltip.days': 'd',
+  'gantt.menu.view': 'View details',
+  'gantt.menu.edit': 'Edit inline',
+  'gantt.menu.delete': 'Delete',
 };
 
 const TEST_KEY = 'gantt.column.taskName';
