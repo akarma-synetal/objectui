@@ -315,6 +315,83 @@ When pages need heavy widgets (grids, forms, kanbans, charts), import the plugin
 }
 ```
 
+**Gantt plugin example:**
+```json
+{
+  "type": "gantt",
+  "props": {
+    "objectName": "project_task",
+    "gantt": {
+      "titleField": "name",
+      "startDateField": "start_date",
+      "endDateField": "end_date",
+      "progressField": "progress",
+      "parentField": "parent_id",
+      "dependenciesField": "depends_on",
+      "typeField": "item_type",
+      "colorField": "status",
+      "baselineStartField": "planned_start",
+      "baselineEndField": "planned_end",
+      "tooltipFields": [{ "field": "owner", "label": "Owner" }, "status", "effort"],
+      "groupByField": "owner",
+      "assigneeField": "owner",
+      "effortField": "effort"
+    },
+    "criticalPath": true,
+    "skipWeekends": true,
+    "holidays": ["2026-01-01", "2026-12-25"],
+    "quickFilters": [
+      { "field": "status", "label": "状态" },
+      { "field": "project", "label": "项目" },
+      { "field": "priority", "label": "优先级", "options": ["high", "medium", "low"] }
+    ],
+    "autoZoomToFilter": true,
+    "readOnly": false
+  },
+  "bind": "project_task"
+}
+```
+
+`titleField` / `startDateField` / `endDateField` are required; the rest are
+optional. `parentField` builds the summary tree (parents roll up their
+children's span + weighted progress), `typeField` distinguishes
+`task` / `summary` / `milestone`, `dependenciesField` draws the dependency
+arrows (accepts CSV, an id array, or `[{ id, type: 'fs'|'ss'|'ff'|'sf' }]`).
+Setting `dependenciesField` also makes links **editable** (unless `readOnly`):
+drag a bar's connector dot to create a FS link, right-click a link to switch its
+type (FS/SS/FF/SF) or remove it (移除依赖), or right-click a bar for
+添加紧前/添加紧后依赖 — every change is written back to the field (the field is
+auto-promoted to `[{ id, type }]` form the moment a non-FS link is stored).
+With links present, dragging a bar into a position that violates a dependency
+(拖拽冲突校验) raises a 顺延 confirmation: 自动顺延 reschedules the affected tasks
+via a topological forward pass (link-type aware, summaries stay fixed rollups),
+取消保留 keeps the manual placement. This is on by default whenever
+`dependenciesField` is set and suppressed in `readOnly`.
+`tooltipFields` configures the hover detail (悬浮详情) — each entry a
+field name or `{ field, label }`, formatted by field type.
+`baselineStartField` / `baselineEndField` draw a thin planned-vs-actual
+baseline strip under each bar. `groupByField` swimlanes the rows by any field
+(a select/lookup label or raw value; empty values fall into an "ungrouped"
+bucket). `assigneeField` / `effortField` configure the **resource / workload
+view** (see below). The gantt field config may also be hoisted to top-level
+`props` instead of nesting under `gantt`.
+
+**Top-level display / behavior options** (siblings of `gantt` on `props`, not
+field mappings):
+
+| Option | Effect |
+|--------|--------|
+| `criticalPath: true` | Start with the critical-path (zero-slack chain) highlight on; a toolbar toggle stays available. |
+| `showBaselines: false` | Hide the baseline strips even when baseline fields are mapped (default `true`). |
+| `skipWeekends: true` | Working-calendar math: auto-schedule + critical path count working days only, snapping reschedules off Sat/Sun. In **day mode** this also folds weekend columns out of the timeline (非线性工作时间轴) — Friday sits against Monday and a one-column drag advances one working day. Coarser scales stay linear. |
+| `holidays: ["yyyy-mm-dd", …]` | Extra non-working days for the working calendar (combine with or instead of `skipWeekends`). In day mode these columns fold out of the axis too. |
+| `resourceView: true` | Render the **resource / workload view** instead of the task grid: one row per resource with a per-column load histogram. Requires `assigneeField` to bucket tasks; each task adds `effortField` units (default 1) over its span, and any column whose summed load exceeds `capacity` is painted as over-allocated. |
+| `assigneeField` / `effortField` / `capacity` | Resource bucketing (required for `resourceView`), per-task workload weight (default `1`), and the per-resource capacity ceiling (default `1`; loads above it flag overload). Also usable as field mappings under `gantt`. |
+| `quickFilters: [{ field, label?, options? }]` | Render a **快速筛选 (quick filter)** bar above the grid — one multi-select dropdown per entry that narrows the visible task bars by that field (AND across dimensions). Option lists resolve in priority order: explicit `options` → the object schema's `select`/`enum` options (full domain) → a `lookup`/`master_detail`'s referenced records (pulled in full via the data source, so values with **no** tasks still appear) → distinct values from the loaded data. Lookup values match on the embedded record id. Selecting every option of a dimension collapses to "no constraint". |
+| `autoZoomToFilter: true` | When a quick filter narrows the set, re-derive the timeline range from the **remaining** tasks so the axis zooms to the filtered span (default `true`). Set `false` to pin the axis to the full task span so bars keep their absolute position while filtering. |
+| `markers: [{ date, label?, color? }]` | Extra vertical marker lines (like the Today line). |
+| `readOnly: true` | **Disable all editing** — no bar drag/resize/progress, no inline edit, no delete, no dependency-link drag, no reorder, no auto-schedule, and the Undo/Redo buttons are hidden. Task click + granularity switching still work. Use for dashboards / shared read-only views. |
+
 Import plugins in your app entry point to trigger registration:
 ```typescript
 import '@object-ui/plugin-grid';

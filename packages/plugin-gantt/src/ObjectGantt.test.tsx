@@ -9,18 +9,33 @@ import { DataSource } from '@object-ui/types';
 // for "Create", "View", and "Delete" so CRUD wiring can be unit-tested
 // without rendering the full timeline.
 vi.mock('./GanttView', () => ({
-  GanttView: ({ tasks, onTaskClick, onTaskUpdate, onTaskDelete }: any) => (
-    <div data-testid="gantt-view">
-      {tasks.map((t: any) => (
-        <div key={t.id} data-testid="gantt-task">
-          <span>{t.title}</span>
-          <button data-testid={`gv-view-${t.id}`} onClick={() => onTaskClick?.(t)}>view</button>
-          <button data-testid={`gv-update-${t.id}`} onClick={() => onTaskUpdate?.(t, { start: new Date('2024-02-01T00:00:00.000Z'), end: new Date('2024-02-05T00:00:00.000Z') })}>update</button>
-          <button data-testid={`gv-delete-${t.id}`} onClick={() => onTaskDelete?.(t)}>delete</button>
-        </div>
-      ))}
-    </div>
-  ),
+  GanttView: ({ tasks, onTaskClick, onTaskUpdate, onTaskDelete, onDependencyCreate, onDependencyDelete, rescheduleOnConflict }: any) => {
+    const byId = (id: any) => tasks.find((t: any) => String(t.id) === String(id));
+    return (
+      <div data-testid="gantt-view" data-reschedule-on-conflict={String(!!rescheduleOnConflict)}>
+        {tasks.map((t: any) => (
+          <div key={t.id} data-testid="gantt-task">
+            <span>{t.title}</span>
+            {t.fields ? (
+              <div data-testid={`gv-fields-${t.id}`}>
+                {t.fields.map((f: any, i: number) => (
+                  <span key={i} data-testid={`gv-field-${t.id}-${i}`}>{f.label}={f.value}</span>
+                ))}
+              </div>
+            ) : null}
+            <button data-testid={`gv-view-${t.id}`} onClick={() => onTaskClick?.(t)}>view</button>
+            <button data-testid={`gv-update-${t.id}`} onClick={() => onTaskUpdate?.(t, { start: new Date('2024-02-01T00:00:00.000Z'), end: new Date('2024-02-05T00:00:00.000Z') })}>update</button>
+            <button data-testid={`gv-delete-${t.id}`} onClick={() => onTaskDelete?.(t)}>delete</button>
+          </div>
+        ))}
+        {/* Dependency-edit harness: link <source> -> <target> with a chosen type,
+            or remove it. Encoded in the testid as `dep-<op>-<source>-<target>-<type>`. */}
+        <button data-testid="dep-create-1-2-fs" onClick={() => onDependencyCreate?.(byId('1'), byId('2'), 'fs')}>c-fs</button>
+        <button data-testid="dep-create-1-2-ss" onClick={() => onDependencyCreate?.(byId('1'), byId('2'), 'ss')}>c-ss</button>
+        <button data-testid="dep-delete-1-2" onClick={() => onDependencyDelete?.(byId('1'), byId('2'))}>d</button>
+      </div>
+    );
+  },
 }));
 
 const mockData = [
@@ -67,6 +82,73 @@ describe('ObjectGantt', () => {
     
     expect(screen.getAllByTestId('gantt-task')).toHaveLength(2);
     expect(screen.getByText('Task 1')).toBeDefined();
+  });
+
+  it('resolves and formats tooltipFields per record (label override, schema label, select option, date)', async () => {
+    const ttData = [
+      {
+        id: '1', name: 'Task 1', start_date: '2024-01-01', end_date: '2024-01-05',
+        owner: { name: 'Priya N.' }, status: 'in_progress', due_date: '2024-01-05', effort: 12,
+      },
+    ];
+    const ds: DataSource = {
+      ...mockDataSource,
+      find: vi.fn().mockResolvedValue({ data: ttData }),
+      getObjectSchema: vi.fn().mockResolvedValue({
+        fields: {
+          name: { type: 'text' },
+          start_date: { type: 'date' },
+          end_date: { type: 'date' },
+          owner: { type: 'lookup', label: 'Assignee' },
+          status: {
+            type: 'select', label: 'Status',
+            options: [
+              { value: 'todo', label: 'To Do' },
+              { value: 'in_progress', label: 'In Progress' },
+            ],
+          },
+          due_date: { type: 'date' },
+          effort: { type: 'number' },
+        },
+      }),
+    };
+    const schema: any = {
+      type: 'gantt',
+      gantt: {
+        titleField: 'name', startDateField: 'start_date', endDateField: 'end_date',
+        tooltipFields: [
+          { field: 'owner', label: 'Owner' }, // explicit label override
+          'status',                            // schema label + select option
+          'due_date',                          // date formatting
+          'effort',                            // number formatting
+        ],
+      },
+      data: { provider: 'object', object: 'tasks' },
+    };
+    render(<ObjectGantt schema={schema} dataSource={ds} />);
+
+    await waitFor(() => expect(screen.getByTestId('gv-fields-1')).toBeDefined());
+
+    // Explicit label wins; lookup resolves to the embedded record name.
+    expect(screen.getByTestId('gv-field-1-0').textContent).toBe('Owner=Priya N.');
+    // Schema label + select option label.
+    expect(screen.getByTestId('gv-field-1-1').textContent).toBe('Status=In Progress');
+    // Date field formatted (not the raw ISO string).
+    expect(screen.getByTestId('gv-field-1-2').textContent).not.toContain('2024-01-05');
+    // Number field formatted.
+    expect(screen.getByTestId('gv-field-1-3').textContent).toBe('Effort=12.00');
+  });
+
+  it('omits tooltip fields when none configured', async () => {
+    const ds: DataSource = { ...mockDataSource, find: vi.fn().mockResolvedValue({ data: mockData }) };
+    const schema: any = {
+      type: 'gantt',
+      gantt: { titleField: 'name', startDateField: 'start_date', endDateField: 'end_date' },
+      data: { provider: 'object', object: 'tasks' },
+    };
+    render(<ObjectGantt schema={schema} dataSource={ds} />);
+    await waitFor(() => expect(screen.getAllByTestId('gantt-task')).toHaveLength(2));
+    expect(screen.queryByTestId('gv-fields-1')).toBeNull();
   });
 
   it('renders with object provider', async () => {
@@ -151,6 +233,107 @@ describe('ObjectGantt', () => {
     await waitFor(() => expect(del).toHaveBeenCalledTimes(1));
     expect(del.mock.calls[0][0]).toBe('tasks');
     expect(del.mock.calls[0][1]).toBe('1');
+  });
+
+  // --- Dependency edit writeback (依赖增删 + 类型选择) -----------------------
+  const depData = [
+    { id: '1', name: 'Task 1', start_date: '2024-01-01', end_date: '2024-01-05', deps: '' },
+    { id: '2', name: 'Task 2', start_date: '2024-01-06', end_date: '2024-01-10', deps: '' },
+  ];
+  const depSchema = {
+    type: 'gantt',
+    gantt: { titleField: 'name', startDateField: 'start_date', endDateField: 'end_date', dependenciesField: 'deps' },
+    data: { provider: 'object', object: 'tasks' },
+  } as any;
+
+  it('create FS dependency appends the predecessor id (CSV shape preserved)', async () => {
+    const update = vi.fn().mockResolvedValue({});
+    const ds: DataSource = { ...mockDataSource, find: vi.fn().mockResolvedValue({ data: depData }), update };
+    render(<ObjectGantt schema={depSchema} dataSource={ds} />);
+    await waitFor(() => expect(screen.getAllByTestId('gantt-task')).toHaveLength(2));
+
+    fireEvent.click(screen.getByTestId('dep-create-1-2-fs'));
+    await waitFor(() => expect(update).toHaveBeenCalledTimes(1));
+    expect(update.mock.calls[0][0]).toBe('tasks');
+    expect(update.mock.calls[0][1]).toBe('2'); // target record carries the dep
+    expect(update.mock.calls[0][2]).toEqual({ deps: '1' }); // CSV, bare id
+  });
+
+  it('create a non-FS dependency promotes the field to object-array form', async () => {
+    const update = vi.fn().mockResolvedValue({});
+    const ds: DataSource = { ...mockDataSource, find: vi.fn().mockResolvedValue({ data: depData }), update };
+    render(<ObjectGantt schema={depSchema} dataSource={ds} />);
+    await waitFor(() => expect(screen.getAllByTestId('gantt-task')).toHaveLength(2));
+
+    fireEvent.click(screen.getByTestId('dep-create-1-2-ss'));
+    await waitFor(() => expect(update).toHaveBeenCalledTimes(1));
+    expect(update.mock.calls[0][2]).toEqual({ deps: [{ id: '1', type: 'ss' }] });
+  });
+
+  it('re-creating an existing link with a new type updates that link in place', async () => {
+    const update = vi.fn().mockResolvedValue({});
+    const seeded = [depData[0], { ...depData[1], deps: '1' }]; // 2 already depends on 1 (FS)
+    const ds: DataSource = { ...mockDataSource, find: vi.fn().mockResolvedValue({ data: seeded }), update };
+    render(<ObjectGantt schema={depSchema} dataSource={ds} />);
+    await waitFor(() => expect(screen.getAllByTestId('gantt-task')).toHaveLength(2));
+
+    fireEvent.click(screen.getByTestId('dep-create-1-2-ss')); // change FS -> SS
+    await waitFor(() => expect(update).toHaveBeenCalledTimes(1));
+    expect(update.mock.calls[0][2]).toEqual({ deps: [{ id: '1', type: 'ss' }] });
+  });
+
+  it('re-creating an existing FS link with FS is a no-op (no update call)', async () => {
+    const update = vi.fn().mockResolvedValue({});
+    const seeded = [depData[0], { ...depData[1], deps: '1' }];
+    const ds: DataSource = { ...mockDataSource, find: vi.fn().mockResolvedValue({ data: seeded }), update };
+    render(<ObjectGantt schema={depSchema} dataSource={ds} />);
+    await waitFor(() => expect(screen.getAllByTestId('gantt-task')).toHaveLength(2));
+
+    fireEvent.click(screen.getByTestId('dep-create-1-2-fs'));
+    await new Promise((r) => setTimeout(r, 0));
+    expect(update).not.toHaveBeenCalled();
+  });
+
+  it('delete dependency removes the predecessor id from the target', async () => {
+    const update = vi.fn().mockResolvedValue({});
+    const seeded = [depData[0], { ...depData[1], deps: '1' }];
+    const ds: DataSource = { ...mockDataSource, find: vi.fn().mockResolvedValue({ data: seeded }), update };
+    render(<ObjectGantt schema={depSchema} dataSource={ds} />);
+    await waitFor(() => expect(screen.getAllByTestId('gantt-task')).toHaveLength(2));
+
+    fireEvent.click(screen.getByTestId('dep-delete-1-2'));
+    await waitFor(() => expect(update).toHaveBeenCalledTimes(1));
+    expect(update.mock.calls[0][1]).toBe('2');
+    expect(update.mock.calls[0][2]).toEqual({ deps: '' }); // CSV emptied
+  });
+
+  it('delete reverts the optimistic patch when the update fails', async () => {
+    const update = vi.fn().mockRejectedValue(new Error('boom'));
+    const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const seeded = [depData[0], { ...depData[1], deps: '1' }];
+    const ds: DataSource = { ...mockDataSource, find: vi.fn().mockResolvedValue({ data: seeded }), update };
+    render(<ObjectGantt schema={depSchema} dataSource={ds} />);
+    await waitFor(() => expect(screen.getAllByTestId('gantt-task')).toHaveLength(2));
+
+    fireEvent.click(screen.getByTestId('dep-delete-1-2'));
+    await waitFor(() => expect(update).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(errSpy).toHaveBeenCalled());
+    errSpy.mockRestore();
+  });
+
+  it('enables rescheduleOnConflict (拖拽冲突校验) when dependenciesField is set', async () => {
+    const ds: DataSource = { ...mockDataSource, find: vi.fn().mockResolvedValue({ data: depData }) };
+    render(<ObjectGantt schema={depSchema} dataSource={ds} />);
+    await waitFor(() => expect(screen.getByTestId('gantt-view')).toBeDefined());
+    expect(screen.getByTestId('gantt-view').getAttribute('data-reschedule-on-conflict')).toBe('true');
+  });
+
+  it('leaves rescheduleOnConflict off when there is no dependenciesField', async () => {
+    const noDep = { ...depSchema, gantt: { ...depSchema.gantt, dependenciesField: undefined } } as any;
+    const ds: DataSource = { ...mockDataSource, find: vi.fn().mockResolvedValue({ data: depData }) };
+    render(<ObjectGantt schema={noDep} dataSource={ds} />);
+    await waitFor(() => expect(screen.getByTestId('gantt-view')).toBeDefined());
+    expect(screen.getByTestId('gantt-view').getAttribute('data-reschedule-on-conflict')).toBe('false');
   });
 });
 

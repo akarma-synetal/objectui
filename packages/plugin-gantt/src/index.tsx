@@ -10,10 +10,17 @@ import React from 'react';
 import { ComponentRegistry } from '@object-ui/core';
 import { useSchemaContext } from '@object-ui/react';
 import { ObjectGantt } from './ObjectGantt';
-import type { ObjectGanttProps } from './ObjectGantt';
 
 export { ObjectGantt };
-export type { ObjectGanttProps };
+export type { ObjectGanttProps, QuickFilterDef } from './ObjectGantt';
+
+export { QuickFilterBar } from './QuickFilterBar';
+export type {
+  QuickFilterBarProps,
+  QuickFilterField,
+  QuickFilterOption,
+  QuickFilterLabels,
+} from './QuickFilterBar';
 
 export { GanttView } from './GanttView';
 export type {
@@ -27,6 +34,16 @@ export type {
   GanttMarker,
 } from './GanttView';
 export { normalizeDependencies, normalizeTaskType } from './ObjectGantt';
+
+export { ResourceWorkload } from './ResourceWorkload';
+export type { ResourceWorkloadProps } from './ResourceWorkload';
+export { computeWorkload } from './workload';
+export type {
+  WorkloadColumn,
+  WorkloadOptions,
+  ResourceCell,
+  ResourceLoad,
+} from './workload';
 
 // Register component
 export const ObjectGanttRenderer: React.FC<{ schema: any }> = ({ schema }) => {

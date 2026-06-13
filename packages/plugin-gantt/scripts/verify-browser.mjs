@@ -49,7 +49,34 @@ try {
   // Week mode fits the whole project on one screen.
   await page.click('[data-testid="gantt-view-mode-week"]');
   await page.waitForTimeout(200);
+  // A short date span must still fill the timeline area, but WITHOUT padding the
+  // calendar with empty units. Instead the column width stretches ("zoom to
+  // fit") so the natural span reaches the right edge — so the grid fills the
+  // viewport AND keeps a tight column count (no years of blank columns).
+  const weekFill = await page.evaluate(() => {
+    const s = document.querySelector('[data-testid="gantt-timeline"]');
+    const units = document.querySelectorAll('[data-testid="gantt-header-units"] > div');
+    return { client: s.clientWidth, scroll: s.scrollWidth, cols: units.length };
+  });
+  assert(weekFill.scroll >= weekFill.client - 2, 'week grid fills the viewport (no right-side gap)',
+    `content ${weekFill.scroll}px ≥ viewport ${weekFill.client}px`);
+  assert(weekFill.cols <= 24, 'week grid stays tight (stretch, not pad)', `${weekFill.cols} week columns`);
   await shot('02-week-mode-all-links.png');
+
+  // Month mode: the ~2.5-month project must NOT pad out to years of empty
+  // months. Fit-to-width keeps a handful of columns that still fill the area.
+  await page.click('[data-testid="gantt-view-mode-month"]');
+  await page.waitForTimeout(200);
+  const monthFit = await page.evaluate(() => {
+    const s = document.querySelector('[data-testid="gantt-timeline"]');
+    const units = document.querySelectorAll('[data-testid="gantt-header-units"] > div');
+    return { client: s.clientWidth, scroll: s.scrollWidth, cols: units.length };
+  });
+  assert(monthFit.cols <= 8, 'month grid has no trailing empty months', `${monthFit.cols} month columns`);
+  assert(monthFit.scroll >= monthFit.client - 2, 'month grid still fills the viewport',
+    `content ${monthFit.scroll}px ≥ viewport ${monthFit.client}px`);
+  await page.click('[data-testid="gantt-view-mode-week"]');
+  await page.waitForTimeout(150);
 
   // ── 2. Collapse/expand ───────────────────────────────────────────────────
   console.log('\n[2] Hierarchy collapse/expand');
@@ -67,7 +94,13 @@ try {
   await page.hover('[data-testid="gantt-task-bar-t4"]');
   await page.waitForSelector('[data-testid="gantt-tooltip-t4"]');
   const tooltipText = await page.locator('[data-testid="gantt-tooltip-t4"]').innerText();
-  assert(tooltipText.includes('Backend services') && tooltipText.includes('30%'), 'tooltip content', JSON.stringify(tooltipText.replace(/\n/g, ' · ')));
+  // t4 carries configured tooltipFields (Owner/Status/Effort), which replace
+  // the default start→end·duration·progress line — so assert those, not '30%'.
+  assert(
+    tooltipText.includes('Backend services') && tooltipText.includes('Owner') && tooltipText.includes('Priya N.'),
+    'tooltip content (configured fields)',
+    JSON.stringify(tooltipText.replace(/\n/g, ' · ')),
+  );
   const activeLinks = await page.locator('[data-testid="gantt-links"] path[data-active="true"]').count();
   assert(activeLinks === 2, 'hover highlights its links', `${activeLinks}/2 active (t3→t4, t4→t6)`);
   await shot('04-tooltip-and-link-highlight.png');

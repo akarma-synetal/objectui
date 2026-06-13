@@ -38,8 +38,39 @@ import {
   AlertDialogTitle,
 } from '@object-ui/components';
 import { extractRecords, buildExpandFields } from '@object-ui/core';
-import { getSemanticColorName, getSemanticHex } from '@object-ui/fields';
-import { GanttView, type GanttTask, type GanttDependency, type GanttLinkType, type GanttTaskType } from './GanttView';
+import {
+  getSemanticColorName,
+  getSemanticHex,
+  humanizeLabel,
+  formatDate,
+  formatDateTime,
+  formatNumber,
+  formatPercent,
+  formatCurrency,
+} from '@object-ui/fields';
+import { GanttView, type GanttTask, type GanttDependency, type GanttLinkType, type GanttTaskType, type GanttViewMode } from './GanttView';
+import { ResourceWorkload } from './ResourceWorkload';
+import { QuickFilterBar, type QuickFilterField, type QuickFilterOption } from './QuickFilterBar';
+import type { WorkingCalendar } from './scheduling';
+
+/**
+ * One quick-filter dimension (快速筛选维度). Generic by design: the page configures
+ * which record fields become filter dropdowns; the plugin resolves each one's
+ * options from the object schema (select options / lookup reference records) so
+ * no business field names are baked into the (MIT) plugin.
+ */
+export interface QuickFilterDef {
+  /** Record field / dot-path the dimension filters on. */
+  field: string;
+  /** Trigger label (falls back to the schema field label / humanized name). */
+  label?: string;
+  /**
+   * Explicit option override. Highest priority — use for fixed enums that are
+   * not modeled as select options (e.g. 派工类别). Plain strings become
+   * value === label; objects allow a distinct display label.
+   */
+  options?: Array<string | { value: string | number; label?: string }>;
+}
 
 /**
  * Hierarchy/type fields are ObjectUI extensions on top of the spec's
@@ -48,6 +79,41 @@ import { GanttView, type GanttTask, type GanttDependency, type GanttLinkType, ty
 type GanttConfigEx = GanttConfig & {
   parentField?: string;
   typeField?: string;
+  /** Baseline (planned) start/end fields → planned-vs-actual reference bars. */
+  baselineStartField?: string;
+  baselineEndField?: string;
+  /**
+   * Dynamic Group by (动态 Group by). When set, leaf tasks are bucketed by this
+   * field and rendered under one synthesized summary row per distinct value
+   * (replacing the parent hierarchy). Select options / lookups resolve to their
+   * display label, matching list/kanban grouping.
+   */
+  groupByField?: string;
+  /**
+   * Resource / Workload view (资源/工作负载视图). When true, the chart renders a
+   * per-resource load histogram instead of the timeline grid: each task loads
+   * its `assigneeField` resource by `effortField` units (default 1) over its
+   * span, and any column whose summed load exceeds `capacity` is flagged as
+   * over-allocated. `assigneeField` is required for this view to bucket by.
+   */
+  resourceView?: boolean;
+  assigneeField?: string;
+  effortField?: string;
+  /** Per-resource capacity ceiling (default 1). Loads above this flag overload. */
+  capacity?: number;
+  /**
+   * Quick filters (快速筛选). A row of multi-select dropdowns rendered above the
+   * chart; each narrows the visible task bars by one dimension. Options resolve
+   * from the object schema (select options or lookup reference records) so the
+   * lists are the full domain, not just values present in the current data.
+   */
+  quickFilters?: QuickFilterDef[];
+  /**
+   * When true (default), filtering recomputes the timeline range so it zooms to
+   * the filtered tasks' interval. Set false to keep the range pinned to the full
+   * (unfiltered) task set while filtering only hides bars.
+   */
+  autoZoomToFilter?: boolean;
 };
 
 /** Map a record's type value onto a GanttTaskType (undefined = infer). */
@@ -177,6 +243,16 @@ function getGanttConfig(schema: ObjectGridSchema | any): GanttConfigEx | null {
           colorField: schema.colorField,
           parentField: schema.parentField,
           typeField: schema.typeField,
+          tooltipFields: schema.tooltipFields,
+          baselineStartField: schema.baselineStartField,
+          baselineEndField: schema.baselineEndField,
+          groupByField: schema.groupByField,
+          resourceView: schema.resourceView,
+          assigneeField: schema.assigneeField,
+          effortField: schema.effortField,
+          capacity: schema.capacity,
+          quickFilters: schema.quickFilters,
+          autoZoomToFilter: schema.autoZoomToFilter,
       };
       return config;
   }
@@ -298,7 +374,8 @@ export const ObjectGantt: React.FC<ObjectGanttProps> = ({
       return [];
     }
 
-    const { startDateField, endDateField, titleField, progressField, dependenciesField, colorField, parentField, typeField } = ganttConfig;
+    const { startDateField, endDateField, titleField, progressField, dependenciesField, colorField, parentField, typeField, tooltipFields, baselineStartField, baselineEndField } = ganttConfig;
+    const fieldDefs: Record<string, any> = objectSchema?.fields ?? {};
 
     // Resolve a value through nested paths like "account.name". Returns the
     // first non-empty string from the path (so lookups that resolve to either a
@@ -338,9 +415,76 @@ export const ObjectGantt: React.FC<ObjectGanttProps> = ({
       return 'Untitled';
     };
 
+    // Label for a tooltip field: explicit override → object schema label →
+    // humanized field name (so "due_date" reads as "Due Date").
+    const resolveFieldLabel = (fieldName: string, explicit?: string): string => {
+      if (explicit) return explicit;
+      const def = fieldDefs[fieldName] ?? fieldDefs[fieldName.split('.')[0]];
+      if (def?.label) return def.label;
+      return humanizeLabel(fieldName);
+    };
+
+    // Format a tooltip value by its field type, mirroring how list/grid cells
+    // render the same data: select options resolve to their label, lookups to
+    // the embedded record's name, dates/numbers/currency/percent through the
+    // shared @object-ui/fields formatters.
+    const formatFieldValue = (value: unknown, fieldName: string): string => {
+      if (value == null || value === '') return '—';
+      const def = fieldDefs[fieldName] ?? fieldDefs[fieldName.split('.')[0]];
+      const type: string | undefined = def?.type;
+      const options: Array<{ value: unknown; label: string }> | undefined = def?.options;
+      if (Array.isArray(options) && options.length) {
+        const opt = options.find((o) => String(o.value) === String(value));
+        if (opt) return opt.label;
+      }
+      switch (type) {
+        case 'date':
+          return formatDate(value as any);
+        case 'datetime':
+          return formatDateTime(value as any);
+        case 'number':
+        case 'integer':
+        case 'float':
+        case 'decimal':
+          return formatNumber(Number(value));
+        case 'currency':
+          return formatCurrency(Number(value));
+        case 'percent':
+          return formatPercent(Number(value));
+        case 'boolean':
+        case 'checkbox':
+          return value ? 'Yes' : 'No';
+        default:
+          if (typeof value === 'object') {
+            const o = value as any;
+            return String(o.name ?? o.label ?? o.title ?? o.id ?? '—');
+          }
+          return String(value);
+      }
+    };
+
+    const buildTooltipFields = (record: any): Array<{ label: string; value: string }> | undefined => {
+      if (!tooltipFields || !tooltipFields.length) return undefined;
+      const rows: Array<{ label: string; value: string }> = [];
+      for (const entry of tooltipFields) {
+        const fieldName = typeof entry === 'string' ? entry : entry?.field;
+        if (!fieldName) continue;
+        const explicitLabel = typeof entry === 'object' ? entry.label : undefined;
+        rows.push({
+          label: resolveFieldLabel(fieldName, explicitLabel),
+          value: formatFieldValue(resolvePath(record, fieldName), fieldName),
+        });
+      }
+      return rows.length ? rows : undefined;
+    };
+
     return data.map((record, index) => {
       const startDate = record[startDateField];
       const endDate = record[endDateField];
+      const baselineStartRaw = baselineStartField ? record[baselineStartField] : undefined;
+      const baselineEndRaw = baselineEndField ? record[baselineEndField] : undefined;
+      const baselineStart = baselineStartRaw ? new Date(baselineStartRaw) : undefined;
+      const baselineEnd = baselineEndRaw ? new Date(baselineEndRaw) : undefined;
       const title = resolveTitle(record);
       const progress = progressField ? record[progressField] : 0;
       const dependencies = dependenciesField ? record[dependenciesField] : [];
@@ -369,10 +513,261 @@ export const ObjectGantt: React.FC<ObjectGanttProps> = ({
         parent: parentField ? record[parentField] ?? null : undefined,
         type: typeField ? normalizeTaskType(record[typeField]) : undefined,
         color,
+        baselineStart: baselineStart && !isNaN(baselineStart.getTime()) ? baselineStart : undefined,
+        baselineEnd: baselineEnd && !isNaN(baselineEnd.getTime()) ? baselineEnd : undefined,
+        fields: buildTooltipFields(record),
         data: record,
       };
     }).filter(task => !isNaN(task.start.getTime()) && !isNaN(task.end.getTime()));
-  }, [data, ganttConfig]);
+  }, [data, ganttConfig, objectSchema]);
+
+  // Dynamic Group by accessor (动态 Group by). Resolves each task's grouping
+  // value off its backing record, mapping select options / lookups to their
+  // display label — the same value story as list/kanban grouping. Returns null
+  // for empty values so those tasks fall into GanttView's "ungrouped" bucket.
+  const groupByAccessor = useMemo(() => {
+    const field = ganttConfig?.groupByField;
+    if (!field) return undefined;
+    const fieldDefs: Record<string, any> = objectSchema?.fields ?? {};
+    const resolvePath = (record: any, path: string): unknown => {
+      if (!path) return undefined;
+      let cur: any = record;
+      for (const p of path.split('.')) {
+        if (cur == null) return undefined;
+        cur = cur[p];
+      }
+      return cur;
+    };
+    const labelFor = (value: unknown): string => {
+      const def = fieldDefs[field] ?? fieldDefs[field.split('.')[0]];
+      const options: Array<{ value: unknown; label: string }> | undefined = def?.options;
+      if (Array.isArray(options) && options.length) {
+        const opt = options.find((o) => String(o.value) === String(value));
+        if (opt) return opt.label;
+      }
+      if (typeof value === 'object' && value !== null) {
+        const o = value as any;
+        return String(o.name ?? o.label ?? o.title ?? o.id ?? value);
+      }
+      return String(value);
+    };
+    return (task: GanttTask): { key: string | number; label: string } | null => {
+      const raw = resolvePath((task as any).data, field);
+      if (raw == null || raw === '') return null;
+      // Group key uses the embedded record's id for lookups so two labels that
+      // collide still split correctly; otherwise the scalar value.
+      const key =
+        typeof raw === 'object' && raw !== null
+          ? String((raw as any).id ?? (raw as any)._id ?? labelFor(raw))
+          : (raw as string | number);
+      return { key, label: labelFor(raw) };
+    };
+  }, [ganttConfig?.groupByField, objectSchema]);
+
+  // Resource / Workload view (资源/工作负载视图). `assigneeAccessor` buckets each
+  // task by its resource field (select option / lookup → display label, same as
+  // grouping); `effortAccessor` reads the per-task load (default 1). Both read
+  // off the backing record so the histogram reflects the real assignment data.
+  const assigneeAccessor = useMemo(() => {
+    const field = ganttConfig?.assigneeField;
+    if (!field) return undefined;
+    const fieldDefs: Record<string, any> = objectSchema?.fields ?? {};
+    const resolvePath = (record: any, path: string): unknown => {
+      if (!path) return undefined;
+      let cur: any = record;
+      for (const p of path.split('.')) {
+        if (cur == null) return undefined;
+        cur = cur[p];
+      }
+      return cur;
+    };
+    const labelFor = (value: unknown): string => {
+      const def = fieldDefs[field] ?? fieldDefs[field.split('.')[0]];
+      const options: Array<{ value: unknown; label: string }> | undefined = def?.options;
+      if (Array.isArray(options) && options.length) {
+        const opt = options.find((o) => String(o.value) === String(value));
+        if (opt) return opt.label;
+      }
+      if (typeof value === 'object' && value !== null) {
+        const o = value as any;
+        return String(o.name ?? o.label ?? o.title ?? o.id ?? value);
+      }
+      return String(value);
+    };
+    return (task: GanttTask): { key: string | number; label: string } | null => {
+      const raw = resolvePath((task as any).data, field);
+      if (raw == null || raw === '') return null;
+      const key =
+        typeof raw === 'object' && raw !== null
+          ? String((raw as any).id ?? (raw as any)._id ?? labelFor(raw))
+          : (raw as string | number);
+      return { key, label: labelFor(raw) };
+    };
+  }, [ganttConfig?.assigneeField, objectSchema]);
+
+  const effortAccessor = useMemo(() => {
+    const field = ganttConfig?.effortField;
+    if (!field) return undefined;
+    return (task: GanttTask): number => {
+      const raw = (task as any).data?.[field];
+      const n = Number(raw);
+      return Number.isFinite(n) && n > 0 ? n : 1;
+    };
+  }, [ganttConfig?.effortField]);
+
+  // Working calendar: when the schema opts into weekend-skipping or supplies a
+  // holiday list, duration/reschedule math is measured in working days. The
+  // holidays array (ISO yyyy-mm-dd strings) becomes a Set for O(1) lookups.
+  const workingCalendar = useMemo<WorkingCalendar | undefined>(() => {
+    const sw = (schema as any).skipWeekends;
+    const hol = (schema as any).holidays as string[] | undefined;
+    if (!sw && (!hol || hol.length === 0)) return undefined;
+    return {
+      skipWeekends: !!sw,
+      holidays: hol && hol.length ? new Set(hol) : undefined,
+    };
+  }, [schema]);
+
+  // ── Quick filters (快速筛选) ─────────────────────────────────────────────
+  // Resolve each task's value for a filter dimension into a stable key. Lookups
+  // resolve to the embedded record's id (matching the lookup option values);
+  // scalars / select values use their string form. Mirrors the grouping key
+  // logic so a filter and a group-by on the same field agree.
+  const resolveFilterKey = useCallback((record: any, field: string): string | null => {
+    if (!record || !field) return null;
+    let cur: any = record;
+    for (const p of field.split('.')) {
+      if (cur == null) return null;
+      cur = cur[p];
+    }
+    if (cur == null || cur === '') return null;
+    if (typeof cur === 'object') {
+      const o = cur as any;
+      return String(o.id ?? o._id ?? o.value ?? o.name ?? '');
+    }
+    return String(cur);
+  }, []);
+
+  const quickFilterDefs = ganttConfig?.quickFilters;
+
+  // Lookup/master_detail dimensions pull their full option domain from the
+  // referenced object (reference_to) via the data source — so the dropdown
+  // shows every possible value, not only those present in the loaded rows.
+  const [lookupOptions, setLookupOptions] = useState<Record<string, QuickFilterOption[]>>({});
+  useEffect(() => {
+    if (!quickFilterDefs?.length || !dataSource || typeof dataSource.find !== 'function') return;
+    const fieldDefs: Record<string, any> = objectSchema?.fields ?? {};
+    let cancelled = false;
+    (async () => {
+      const next: Record<string, QuickFilterOption[]> = {};
+      for (const def of quickFilterDefs) {
+        if (def.options) continue; // explicit override — no fetch
+        const fd = fieldDefs[def.field] ?? fieldDefs[def.field.split('.')[0]];
+        const type: string | undefined = fd?.type;
+        if (type !== 'lookup' && type !== 'master_detail') continue;
+        const refObject: string | undefined = fd?.reference_to ?? fd?.referenceTo;
+        if (!refObject) continue;
+        try {
+          const result = await dataSource.find(refObject, { $top: 1000 });
+          const records = extractRecords(result);
+          next[def.field] = records.map((r: any) => ({
+            value: String(r.id ?? r._id ?? r.value ?? ''),
+            label: String(r.name ?? r.label ?? r.title ?? r.id ?? r._id ?? ''),
+          }));
+        } catch (err) {
+          console.warn(`[ObjectGantt] Failed to load quick-filter options for "${def.field}":`, err);
+        }
+      }
+      if (!cancelled) setLookupOptions((prev) => ({ ...prev, ...next }));
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [JSON.stringify(quickFilterDefs), dataSource, objectSchema]);
+
+  // Resolve the final option list per dimension, by priority:
+  //   1. explicit `options` on the def (fixed enums like 派工类别)
+  //   2. select/enum field options from the object schema (full domain)
+  //   3. fetched lookup reference records (full domain, async above)
+  //   4. distinct values present in the loaded data (fallback)
+  const resolvedQuickFilters = useMemo<QuickFilterField[]>(() => {
+    if (!quickFilterDefs?.length) return [];
+    const fieldDefs: Record<string, any> = objectSchema?.fields ?? {};
+    return quickFilterDefs.map((def) => {
+      const fd = fieldDefs[def.field] ?? fieldDefs[def.field.split('.')[0]];
+      const label = def.label ?? fd?.label ?? humanizeLabel(def.field);
+      let options: QuickFilterOption[] = [];
+
+      if (def.options?.length) {
+        options = def.options.map((o) =>
+          typeof o === 'object'
+            ? { value: String(o.value), label: String(o.label ?? o.value) }
+            : { value: String(o), label: String(o) },
+        );
+      } else if (Array.isArray(fd?.options) && fd.options.length) {
+        options = fd.options.map((o: any) => ({
+          value: String(o.value ?? o),
+          label: String(o.label ?? o.value ?? o),
+        }));
+      } else if (lookupOptions[def.field]?.length) {
+        options = lookupOptions[def.field];
+      } else {
+        // Distinct fallback: derive labels from the records themselves.
+        const seen = new Map<string, string>();
+        for (const record of data) {
+          const key = resolveFilterKey(record, def.field);
+          if (key == null) continue;
+          if (!seen.has(key)) {
+            // Pull a readable label off the raw value (embedded lookup name or scalar).
+            let cur: any = record;
+            for (const p of def.field.split('.')) cur = cur?.[p];
+            const lbl =
+              cur && typeof cur === 'object'
+                ? String((cur as any).name ?? (cur as any).label ?? (cur as any).title ?? key)
+                : key;
+            seen.set(key, lbl);
+          }
+        }
+        options = [...seen.entries()].map(([value, lbl]) => ({ value, label: lbl }));
+      }
+      return { field: def.field, label, options };
+    });
+  }, [quickFilterDefs, objectSchema, lookupOptions, data, resolveFilterKey]);
+
+  const [filterValues, setFilterValues] = useState<Record<string, string[]>>({});
+  const handleFilterChange = useCallback((field: string, values: string[]) => {
+    setFilterValues((prev) => ({ ...prev, [field]: values }));
+  }, []);
+  const clearFilters = useCallback(() => setFilterValues({}), []);
+
+  // Apply the active filters in memory: a task passes when, for every dimension
+  // with a non-empty selection, its resolved key is among the selected values.
+  const displayTasks = useMemo(() => {
+    const active = Object.entries(filterValues).filter(([, v]) => v.length > 0);
+    if (!active.length) return tasks;
+    return tasks.filter((t) =>
+      active.every(([field, vals]) => {
+        const key = resolveFilterKey((t as any).data, field);
+        return key != null && vals.includes(key);
+      }),
+    );
+  }, [tasks, filterValues, resolveFilterKey]);
+
+  // Auto-zoom is free: GanttView derives the timeline range from the tasks it
+  // receives, so passing the (smaller) filtered set rescales the axis. To pin
+  // the range instead (autoZoomToFilter === false), compute a fixed window from
+  // the FULL task set and hand it to GanttView so filtering only hides bars.
+  const lockedRange = useMemo<{ start: Date; end: Date } | null>(() => {
+    if (ganttConfig?.autoZoomToFilter !== false || !tasks.length) return null;
+    let min = tasks[0].start.getTime();
+    let max = tasks[0].end.getTime();
+    for (const t of tasks) {
+      min = Math.min(min, t.start.getTime());
+      max = Math.max(max, t.end.getTime());
+    }
+    return { start: new Date(min), end: new Date(max) };
+  }, [tasks, ganttConfig?.autoZoomToFilter]);
 
   // Default to a right-side drawer so clicking a task opens an editable
   // detail panel inline (no full-page navigation). Schema can override by
@@ -426,37 +821,34 @@ export const ObjectGantt: React.FC<ObjectGanttProps> = ({
     [ganttConfig, dataConfig, dataSource, schema.objectName, data],
   );
 
-  // Persist a drag-created dependency: append the source (predecessor) id to
-  // the target record's dependencies field, preserving the field's original
-  // shape (CSV string stays CSV, array stays array; null becomes an array).
-  const handleDependencyCreate = useCallback(
-    async (source: GanttTask, target: GanttTask) => {
+  // Re-serialize a normalized dependency list back onto a record field,
+  // preserving the field's original shape where possible: a CSV string stays
+  // CSV *as long as* no link carries a non-default (non-FS) type — types can't
+  // round-trip through CSV, so the moment one appears we promote to the object
+  // array form (`[{ id, type }, …]`). Plain FS links serialize as bare ids.
+  const serializeDependencies = (raw: unknown, deps: GanttDependency[]): unknown => {
+    const hasTypes = deps.some((d) => typeof d === 'object' && d.type && d.type !== 'fs');
+    if (!hasTypes && typeof raw === 'string') {
+      return deps.map((d) => String(typeof d === 'object' ? d.id : d)).join(',');
+    }
+    if (!hasTypes) {
+      return deps.map((d) => (typeof d === 'object' ? d.id : d));
+    }
+    return deps.map((d) =>
+      typeof d === 'object'
+        ? (d.type && d.type !== 'fs' ? { id: d.id, type: d.type } : d.id)
+        : d,
+    );
+  };
+
+  const persistDependencies = useCallback(
+    async (targetId: string | number, raw: unknown, nextDeps: GanttDependency[]) => {
       const depField = ganttConfig?.dependenciesField;
       if (!depField) return;
       const objectName =
         dataConfig?.provider === 'object' ? dataConfig.object : schema.objectName;
       if (!objectName || !dataSource || typeof dataSource.update !== 'function') return;
-
-      const sourceId = (source as any).data?.id ?? (source as any).data?._id ?? source.id;
-      const targetId = (target as any).data?.id ?? (target as any).data?._id ?? target.id;
-      if (sourceId == null || targetId == null) return;
-
-      const record = data.find((r) => String(r.id ?? r._id) === String(targetId));
-      const raw = record?.[depField];
-      const existing = normalizeDependencies(raw).map((d) =>
-        String(typeof d === 'object' ? d.id : d),
-      );
-      if (existing.includes(String(sourceId))) return; // already linked
-
-      let nextValue: unknown;
-      if (typeof raw === 'string') {
-        nextValue = raw.trim() ? `${raw.trim()},${sourceId}` : String(sourceId);
-      } else if (Array.isArray(raw)) {
-        nextValue = [...raw, sourceId];
-      } else {
-        nextValue = [sourceId];
-      }
-
+      const nextValue = serializeDependencies(raw, nextDeps);
       const prevSnapshot = data;
       setData((prev) =>
         prev.map((r) =>
@@ -471,6 +863,55 @@ export const ObjectGantt: React.FC<ObjectGanttProps> = ({
       }
     },
     [ganttConfig, dataConfig, dataSource, schema.objectName, data],
+  );
+
+  // Persist a created/updated dependency (依赖增 + 类型选择): upsert the source
+  // (predecessor) id onto the target record's dependencies field with the given
+  // link type. Re-invoking with a different type updates that link's type.
+  const handleDependencyCreate = useCallback(
+    async (source: GanttTask, target: GanttTask, type: GanttLinkType = 'fs') => {
+      const sourceId = (source as any).data?.id ?? (source as any).data?._id ?? source.id;
+      const targetId = (target as any).data?.id ?? (target as any).data?._id ?? target.id;
+      if (sourceId == null || targetId == null) return;
+      const depField = ganttConfig?.dependenciesField;
+      if (!depField) return;
+
+      const record = data.find((r) => String(r.id ?? r._id) === String(targetId));
+      const raw = record?.[depField];
+      const existing = normalizeDependencies(raw);
+      const idOf = (d: GanttDependency) => String(typeof d === 'object' ? d.id : d);
+      const cur = existing.find((d) => idOf(d) === String(sourceId));
+      const curType = cur && typeof cur === 'object' ? (cur.type ?? 'fs') : 'fs';
+      if (cur && curType === type) return; // already linked with this type — no-op
+
+      const entry: GanttDependency = type === 'fs' ? sourceId : { id: sourceId, type };
+      const nextDeps = cur
+        ? existing.map((d) => (idOf(d) === String(sourceId) ? entry : d))
+        : [...existing, entry];
+      await persistDependencies(targetId, raw, nextDeps);
+    },
+    [ganttConfig, data, persistDependencies],
+  );
+
+  // Persist a removed dependency (依赖删): drop the source id from the target
+  // record's dependencies field. Optimistic with revert, same as create.
+  const handleDependencyDelete = useCallback(
+    async (source: GanttTask, target: GanttTask) => {
+      const sourceId = (source as any).data?.id ?? (source as any).data?._id ?? source.id;
+      const targetId = (target as any).data?.id ?? (target as any).data?._id ?? target.id;
+      if (sourceId == null || targetId == null) return;
+      const depField = ganttConfig?.dependenciesField;
+      if (!depField) return;
+
+      const record = data.find((r) => String(r.id ?? r._id) === String(targetId));
+      const raw = record?.[depField];
+      const existing = normalizeDependencies(raw);
+      const idOf = (d: GanttDependency) => String(typeof d === 'object' ? d.id : d);
+      const nextDeps = existing.filter((d) => idOf(d) !== String(sourceId));
+      if (nextDeps.length === existing.length) return; // nothing to remove
+      await persistDependencies(targetId, raw, nextDeps);
+    },
+    [ganttConfig, data, persistDependencies],
   );
 
   // -- Quick-create dialog removed --
@@ -557,9 +998,36 @@ export const ObjectGantt: React.FC<ObjectGanttProps> = ({
 
   return (
     <div className={className}>
+      {resolvedQuickFilters.length > 0 && (
+        <QuickFilterBar
+          filters={resolvedQuickFilters}
+          value={filterValues}
+          onChange={handleFilterChange}
+          onClear={clearFilters}
+          resultCount={displayTasks.length}
+          totalCount={tasks.length}
+          labels={{
+            all: '全部',
+            clear: '清除筛选',
+            empty: '无可选项',
+            resultSummary: (shown, total) => `显示 ${shown} / ${total} 项任务`,
+          }}
+        />
+      )}
       <div className="h-[calc(100vh-200px)] min-h-[600px]">
-        <GanttView 
-          tasks={tasks}
+        {ganttConfig?.resourceView && assigneeAccessor ? (
+          <ResourceWorkload
+            tasks={displayTasks}
+            assignee={assigneeAccessor}
+            effort={effortAccessor}
+            capacity={ganttConfig?.capacity ?? 1}
+            viewMode={((schema as any).viewMode as GanttViewMode) || 'day'}
+          />
+        ) : (
+        <GanttView
+          tasks={displayTasks}
+          startDate={lockedRange?.start}
+          endDate={lockedRange?.end}
           onTaskClick={(task) => {
             navigation.handleClick(task.data);
             onTaskClick?.(task.data);
@@ -567,9 +1035,18 @@ export const ObjectGantt: React.FC<ObjectGanttProps> = ({
           onTaskUpdate={handleTaskUpdateDefault}
           onTaskDelete={requestDelete}
           onDependencyCreate={ganttConfig?.dependenciesField ? handleDependencyCreate : undefined}
+          onDependencyDelete={ganttConfig?.dependenciesField ? handleDependencyDelete : undefined}
           markers={(schema as any).markers}
+          autoSchedule={!!ganttConfig?.dependenciesField}
+          rescheduleOnConflict={!!ganttConfig?.dependenciesField}
+          criticalPathDefault={!!(schema as any).criticalPath}
+          workingCalendar={workingCalendar}
+          showBaselines={(schema as any).showBaselines !== false}
+          readOnly={!!(schema as any).readOnly}
+          groupBy={groupByAccessor}
           inlineEdit
         />
+        )}
       </div>
       {navigation.isOverlay && navigation.isOpen && navigation.selectedRecord && (() => {
         const objectName = dataConfig?.provider === 'object' ? dataConfig.object : schema.objectName;
