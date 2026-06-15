@@ -13,6 +13,45 @@ import { DefaultChatTransport } from 'ai';
 import { generateUniqueId } from './utils';
 import { uiMessagesToChatMessages } from './mapMessages';
 
+/**
+ * Stamp a stable per-turn idempotency key (ADR-0013 D1) onto the outgoing
+ * request body, derived from the id of the user message that triggered the
+ * turn. On Retry the AI SDK re-sends the SAME triggering user message
+ * (regenerate-message keeps the trailing user turn), so its id — and thus the
+ * turnId — is identical across the original send and the retry. The server
+ * dedups the inbound user message by (conversationId, turnId) and
+ * short-circuits a completed turn instead of re-running tools / replanning.
+ *
+ * Used as `DefaultChatTransport.prepareSendMessagesRequest`. IMPORTANT: when
+ * that hook returns a `body`, the SDK sends it VERBATIM — the default body
+ * (`id`/`messages`/`trigger`/`messageId`) is NOT merged in. So we must
+ * reconstruct exactly what the default transport would send and only ADD
+ * `turnId`; otherwise the server receives no `messages` array (400).
+ *
+ * Exported for unit testing.
+ */
+export function withTurnId(req: {
+  id?: string;
+  body?: Record<string, unknown>;
+  messages: Array<{ id: string; role: string }>;
+  trigger?: unknown;
+  messageId?: string;
+}): { body: Record<string, unknown> } {
+  const lastUser = [...req.messages].reverse().find((m) => m.role === 'user');
+  return {
+    body: {
+      // Replicate the transport's default body (see HttpChatTransport.sendMessages)…
+      ...(req.body ?? {}),
+      id: req.id,
+      messages: req.messages,
+      trigger: req.trigger,
+      messageId: req.messageId,
+      // …then add the per-turn idempotency key.
+      ...(lastUser ? { turnId: lastUser.id } : {}),
+    },
+  };
+}
+
 type InitialMessage = OuiChatMessage & {
   parts?: Array<Record<string, unknown>>;
   reasoning?: string;
@@ -231,6 +270,10 @@ export function useObjectChat(options: UseObjectChatOptions = {}): UseObjectChat
         ...(systemPrompt ? { systemPrompt } : {}),
         ...(streamingEnabled !== undefined ? { stream: streamingEnabled } : {}),
       },
+      // Stamp a stable per-turn idempotency key (ADR-0013 D1). See withTurnId —
+      // it reconstructs the full default body (incl. messages) + adds turnId.
+      prepareSendMessagesRequest: ({ id, body: reqBody, messages, trigger, messageId }) =>
+        withTurnId({ id, body: reqBody, messages, trigger, messageId }),
     });
   }, [isApiMode, api, headers, body, model, systemPrompt, streamingEnabled, conversationId]);
 
