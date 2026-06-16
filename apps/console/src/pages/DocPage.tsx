@@ -8,12 +8,15 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { AlertCircle, FileQuestion, Loader2 } from 'lucide-react';
+import { AlertCircle, ChevronDown, FileQuestion, Loader2, Menu } from 'lucide-react';
 import { useAdapter } from '@object-ui/app-shell';
 import { MarkdownRenderer, extractToc } from '@object-ui/plugin-markdown';
 import { useObjectTranslation } from '@object-ui/i18n';
 import { rewriteDocLinks } from './doc-links';
 import { DocShell } from './DocShell';
+import { BookSidebar } from './BookSidebar';
+import { useBookData } from './use-book-data';
+import { resolveBookTree, scopeDocsToBook, bookSlug, type ResolvedBook } from './book-nav';
 
 interface DocItem {
   name: string;
@@ -35,9 +38,9 @@ interface DocItem {
  * "not found" notice — never an install-time or hard failure.
  */
 export default function DocPage() {
-  // `appName` is the parent route's package-id segment
-  // (/apps/:appName/docs/:name); undefined on the legacy top-level /docs/:name.
-  const { name, appName } = useParams<{ name: string; appName?: string }>();
+  // Route is `/docs/:slug/:name` (`:slug` = book, `:name` = doc). `appName` is
+  // the parent route's package-id segment under `/apps/:appName/docs/:slug/:name`.
+  const { slug, name, appName } = useParams<{ slug?: string; name: string; appName?: string }>();
   const navigate = useNavigate();
   const adapter = useAdapter();
   const { t } = useObjectTranslation();
@@ -133,6 +136,18 @@ export default function DocPage() {
   const toc = useMemo(() => extractToc(doc?.content ?? ''), [doc?.content]);
   const tocLabel = t('help.onThisPage', { defaultValue: 'On this page' });
 
+  // Book context (ADR-0046 §6): the `:slug` segment names the book we're
+  // reading in, so its spine renders as a persistent left nav. Resolved from
+  // the portal book set; degrades to no sidebar if the slug is unknown (e.g.
+  // the backend serves no books yet).
+  const { books, docs: allDocs } = useBookData();
+  const base = appName ? `/apps/${appName}/docs` : '/docs';
+  const resolvedBook = useMemo<ResolvedBook | null>(() => {
+    const book = books.find((b) => bookSlug(b) === slug);
+    return book ? resolveBookTree(book, scopeDocsToBook(book, allDocs)) : null;
+  }, [books, allDocs, slug]);
+  const docHref = useCallback((docName: string) => `${base}/${slug}/${docName}`, [base, slug]);
+
   if (state === 'loading') {
     return (
       <div className="flex h-full items-center justify-center p-10 text-muted-foreground">
@@ -170,7 +185,28 @@ export default function DocPage() {
 
   return (
     <DocShell breadcrumb={doc?.label ?? name}>
-      <div className="mx-auto flex max-w-5xl gap-8 p-4 sm:p-6">
+      {/* Narrow screens: the persistent left sidebar is hidden, so the book
+        * nav collapses into a disclosure above the content instead of vanishing. */}
+      {resolvedBook ? (
+        <details className="group mx-auto max-w-6xl px-4 pt-4 sm:px-6 lg:hidden">
+          <summary className="flex cursor-pointer list-none items-center gap-2 rounded-md border bg-muted/30 px-3 py-2 text-sm font-medium [&::-webkit-details-marker]:hidden">
+            <Menu className="h-4 w-4 text-muted-foreground" />
+            <span className="truncate">{resolvedBook.label ?? 'Contents'}</span>
+            <ChevronDown className="ml-auto h-4 w-4 text-muted-foreground transition-transform group-open:rotate-180" />
+          </summary>
+          <div className="mt-2 rounded-md border p-3">
+            <BookSidebar book={resolvedBook} activeDoc={name} docHref={docHref} />
+          </div>
+        </details>
+      ) : null}
+      <div className={`mx-auto flex gap-8 p-4 sm:p-6 ${resolvedBook ? 'max-w-6xl' : 'max-w-5xl'}`}>
+        {resolvedBook ? (
+          <aside className="hidden w-56 shrink-0 lg:block">
+            <nav className="sticky top-20 max-h-[calc(100vh-6rem)] overflow-auto pr-1">
+              <BookSidebar book={resolvedBook} activeDoc={name} docHref={docHref} />
+            </nav>
+          </aside>
+        ) : null}
         <article
           className="min-w-0 max-w-3xl flex-1 [&_h1]:scroll-mt-24 [&_h2]:scroll-mt-24 [&_h3]:scroll-mt-24"
           onClick={onContentClick}
