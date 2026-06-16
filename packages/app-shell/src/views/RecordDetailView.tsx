@@ -1818,6 +1818,8 @@ export function RecordDetailView({ dataSource, objects, onEdit, objectNameOverri
           state={screenFlow}
           authFetch={authFetch}
           baseUrl={import.meta.env.VITE_SERVER_URL || ''}
+          dataSource={dataSource}
+          objects={objects}
           onClose={() => setScreenFlow(null)}
           onComplete={() => { setScreenFlow(null); setActionRefreshKey(k => k + 1); }}
         />
@@ -1927,6 +1929,8 @@ export function RecordDetailView({ dataSource, objects, onEdit, objectNameOverri
         state={screenFlow}
         authFetch={authFetch}
         baseUrl={import.meta.env.VITE_SERVER_URL || ''}
+        dataSource={dataSource}
+        objects={objects}
         onClose={() => setScreenFlow(null)}
         onComplete={() => { setScreenFlow(null); setActionRefreshKey(k => k + 1); }}
       />
