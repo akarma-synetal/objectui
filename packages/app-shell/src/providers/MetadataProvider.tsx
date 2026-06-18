@@ -10,7 +10,7 @@ import { MetadataClient, type ObjectStackAdapter } from '@object-ui/data-objects
 import { resolveInlineMode } from '@object-ui/plugin-form';
 import { MetadataCtx, useMetadata, type MetadataContextValue, type MetadataState } from '@object-ui/react';
 import { usePreviewDrafts } from '../preview/PreviewModeContext';
-import { subscribeCanvasInvalidate } from '../assistant/assistantBus';
+import { subscribeCanvasInvalidate, subscribeMetadataRefresh } from '../assistant/assistantBus';
 
 export type { MetadataState, MetadataContextValue };
 export { useMetadataItem } from '@object-ui/react';
@@ -534,6 +534,18 @@ export function MetadataProvider({ children, adapter, ttlMs = DEFAULT_TTL_MS }: 
       invalidate(type);
     });
   }, [previewDrafts, invalidate]);
+
+  // Live-metadata-changed refresh: a publish (drafts → live) or a marketplace
+  // install changed the registry out-of-band, so the schema this tree cached
+  // is stale. Refetch every loaded type — open forms/views/nav then reflect
+  // the new live world without a manual page reload (the chat-card "Publish"
+  // and Browse-page install paths do not reload, unlike the DraftPreviewBar).
+  // NOT gated to preview-drafts mode: the live world every tree reads changed.
+  useEffect(() => {
+    return subscribeMetadataRefresh(() => {
+      void refresh();
+    });
+  }, [refresh]);
 
   const [initialLoading, setInitialLoading] = useState(true);
   const [initialError, setInitialError] = useState<Error | null>(null);
