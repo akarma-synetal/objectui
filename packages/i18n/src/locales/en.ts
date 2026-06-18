@@ -471,6 +471,9 @@ const en = {
     minutesAgo: '{{count}}m ago',
     hoursAgo: '{{count}}h ago',
     daysAgo: '{{count}}d ago',
+    // Activity feed actors
+    systemActor: 'System',
+    unknownUser: 'Unknown',
     // Record meta footer (audit provenance)
     createdBy: 'Created by',
     updatedBy: 'Updated by',
