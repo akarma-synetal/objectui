@@ -64,7 +64,7 @@ export function AppCard({ app, onClick, isFavorite, index = 0 }: AppCardProps) {
     <Card
       className={cn(
         'group relative overflow-hidden border border-border/70 bg-card/80 backdrop-blur-sm',
-        'transition-[transform,box-shadow,border-color] duration-200 hover:-translate-y-0.5 hover:shadow-lg',
+        'transition-[transform,box-shadow,border-color] duration-200 hover:-translate-y-0.5 hover:shadow-lg active:scale-[0.985] active:-translate-y-0',
         'motion-reduce:transition-none motion-reduce:hover:transform-none',
         accent.ring,
       )}
@@ -87,7 +87,7 @@ export function AppCard({ app, onClick, isFavorite, index = 0 }: AppCardProps) {
         )}
       />
 
-      <CardContent className="relative p-5">
+      <CardContent className="relative flex h-full flex-col p-5">
         <Button
           variant="ghost"
           size="sm"
@@ -133,7 +133,7 @@ export function AppCard({ app, onClick, isFavorite, index = 0 }: AppCardProps) {
           </p>
         </div>
 
-        <div className="mt-4 flex items-center justify-between text-xs font-medium">
+        <div className="mt-auto pt-4 flex items-center justify-between text-xs font-medium">
           <span className="inline-flex items-center gap-1 text-muted-foreground transition-colors group-hover:text-foreground">
             {t('home.open', { defaultValue: 'Open' })}
             <ArrowUpRight className="h-3.5 w-3.5 transition-transform duration-200 group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
