@@ -406,6 +406,7 @@ const ENGINE_STRINGS_EN: Record<string, string> = {
   'engine.inspector.pageBlock.className': 'Class names',
   'engine.inspector.pageBlock.hidden': 'Hidden (CEL)',
   'engine.inspector.pageBlock.properties': 'Properties',
+  'engine.inspector.pageBlock.advanced': 'Advanced',
   'engine.inspector.pageBlock.remove': 'Remove block',
   'engine.inspector.pageBlock.outlineLabel': 'Blocks',
   // Report default ("home") inspector
@@ -429,6 +430,9 @@ const ENGINE_STRINGS_EN: Record<string, string> = {
   'engine.inspector.report.noSchema': 'Spec schema unavailable — basic properties only.',
   // Trailing section for fields the live server has but the bundled spec lacks.
   'engine.inspector.moreFields': 'More fields',
+  // Action default (home) inspector
+  'engine.inspector.action.kind': 'Action',
+  'engine.inspector.action.close': 'Close action',
   // Dashboard default (home) inspector
   'engine.inspector.dashboard.kind': 'Dashboard',
   'engine.inspector.dashboard.close': 'Close dashboard',
@@ -1053,6 +1057,7 @@ const ENGINE_STRINGS_ZH: Record<string, string> = {
   'engine.inspector.pageBlock.className': '类名',
   'engine.inspector.pageBlock.hidden': '隐藏条件（CEL）',
   'engine.inspector.pageBlock.properties': '属性',
+  'engine.inspector.pageBlock.advanced': '高级属性',
   'engine.inspector.pageBlock.remove': '删除区块',
   'engine.inspector.pageBlock.outlineLabel': '区块',
   // Report default ("home") inspector
@@ -1076,6 +1081,9 @@ const ENGINE_STRINGS_ZH: Record<string, string> = {
   'engine.inspector.report.noSchema': '规格 schema 不可用 —— 仅显示基础属性。',
   // Trailing section for fields the live server has but the bundled spec lacks.
   'engine.inspector.moreFields': '更多字段',
+  // Action default (home) inspector
+  'engine.inspector.action.kind': '动作',
+  'engine.inspector.action.close': '关闭动作',
   // Dashboard default (home) inspector
   'engine.inspector.dashboard.kind': '仪表盘',
   'engine.inspector.dashboard.close': '关闭仪表盘',

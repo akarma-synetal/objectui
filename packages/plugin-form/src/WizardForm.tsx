@@ -162,6 +162,22 @@ export const WizardForm: React.FC<WizardFormProps> = ({
   const [completedSteps, setCompletedSteps] = useState<Set<number>>(new Set());
   const [submitting, setSubmitting] = useState(false);
 
+  // Stable id for the *inner* step form's <form> element. The wizard's
+  // Next/Create buttons live in the footer, OUTSIDE that form, and submit it
+  // natively via `type="submit" form={stepFormId}`. Going through the real
+  // form submit (rather than calling handleStepSubmit with the wizard's stale
+  // `formData`) runs the step's validation and collects every entered value
+  // via RHF `getValues()` — selects, lookups and dates included — so the
+  // accumulated record actually reaches the server. Without this the create
+  // POST body was `{}` and the server rejected all required fields.
+  const stepFormId = React.useId();
+  // Seed `formData` only once. The data-loading effect below depends on
+  // `dataSource`/`objectSchema`, whose identity can churn across renders;
+  // re-running its create-mode branch would `setFormData({})` mid-wizard and
+  // wipe everything the user entered on earlier steps (the create POST then
+  // carried only the final step's fields). This guard makes the seed idempotent.
+  const seededRef = React.useRef(false);
+
   const totalSteps = schema.sections.length;
   const isFirstStep = currentStep === 0;
   const isLastStep = currentStep === totalSteps - 1;
@@ -189,7 +205,10 @@ export const WizardForm: React.FC<WizardFormProps> = ({
   React.useEffect(() => {
     const fetchData = async () => {
       if (schema.mode === 'create' || !schema.recordId || !dataSource) {
-        setFormData(schema.initialData || schema.initialValues || {});
+        if (!seededRef.current) {
+          setFormData(schema.initialData || schema.initialValues || {});
+          seededRef.current = true;
+        }
         setLoading(false);
         return;
       }
@@ -413,6 +432,7 @@ export const WizardForm: React.FC<WizardFormProps> = ({
               <SchemaRenderer
                 schema={{
                   type: 'form' as const,
+                  id: stepFormId,
                   fields: currentSectionFields,
                   layout: 'vertical' as const,
                   defaultValues: formData,
@@ -461,7 +481,8 @@ export const WizardForm: React.FC<WizardFormProps> = ({
           
           {isLastStep ? (
             <Button
-              onClick={() => handleStepSubmit(formData)}
+              type="submit"
+              form={stepFormId}
               disabled={submitting || schema.mode === 'view'}
             >
               {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden />}
@@ -469,7 +490,8 @@ export const WizardForm: React.FC<WizardFormProps> = ({
             </Button>
           ) : (
             <Button
-              onClick={() => handleStepSubmit(formData)}
+              type="submit"
+              form={stepFormId}
             >
               {schema.nextText || 'Next'}
               <ChevronRight className="h-4 w-4 ml-1" />
