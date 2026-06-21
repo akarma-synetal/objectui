@@ -150,11 +150,13 @@ const UNSUPPORTED_CHART_TYPES = new Set([
 /**
  * Chart sub-types that have a meaningful drill-down interaction.
  * Mirrors WidgetConfigPanel.DRILL_DOWN_TYPES and the click-handler wiring
- * in plugin-charts/AdvancedChartImpl. Scatter and funnel are excluded
- * because no onChartClick is wired for them today.
+ * in plugin-charts/AdvancedChartImpl. Radar is excluded because a polar
+ * polygon has no single clickable category point (the interaction would be
+ * ambiguous); every cartesian / part-to-whole / flow family is covered.
  */
 const DRILLABLE_CHART_TYPES = new Set([
   'bar', 'horizontal-bar', 'line', 'area', 'pie', 'donut', 'funnel',
+  'scatter', 'treemap', 'sankey',
 ]);
 
 /**
@@ -584,6 +586,14 @@ export const DashboardRenderer = forwardRef<HTMLDivElement, DashboardRendererPro
                 // Support data at widget level or nested inside options
                 const widgetData = (widget as any).data || options.data;
 
+                // Default-on drill-to-record for object-backed tables: clicking a
+                // row opens that record in a detail drawer. Static (data-array)
+                // tables stay opt-in (no object to fetch the record's schema from).
+                const isObjectTable = isObjectProvider(widgetData) || (!widgetData && !!widget.object);
+                const tableDrill = isObjectTable
+                    ? (options.drillDown ?? { enabled: true, mode: 'record' as const })
+                    : undefined;
+
                 // provider: 'object' — use ObjectDataTable for async data loading
                 if (isObjectProvider(widgetData)) {
                     const { data: _data, ...restOptions } = options;
@@ -595,6 +605,7 @@ export const DashboardRenderer = forwardRef<HTMLDivElement, DashboardRendererPro
                         filter: widgetData.filter || widget.filter,
                         searchable: widget.searchable ?? false,
                         pagination: widget.pagination ?? false,
+                        drillDown: tableDrill,
                         className: "border-0"
                     };
                 }
@@ -608,6 +619,7 @@ export const DashboardRenderer = forwardRef<HTMLDivElement, DashboardRendererPro
                         filter: widget.filter,
                         searchable: widget.searchable ?? false,
                         pagination: widget.pagination ?? false,
+                        drillDown: tableDrill,
                         className: "border-0"
                     };
                 }
@@ -686,6 +698,13 @@ export const DashboardRenderer = forwardRef<HTMLDivElement, DashboardRendererPro
             if (widgetType === 'list') {
                 const widgetData = (widget as any).data || options.data;
 
+                // Default-on drill-to-record for object-backed lists (same policy
+                // as the table widget — a list row is a record).
+                const isObjectList = isObjectProvider(widgetData) || (!widgetData && !!widget.object);
+                const listDrill = isObjectList
+                    ? (options.drillDown ?? { enabled: true, mode: 'record' as const })
+                    : undefined;
+
                 if (isObjectProvider(widgetData)) {
                     const { data: _data, ...restOptions } = options;
                     return {
@@ -696,6 +715,7 @@ export const DashboardRenderer = forwardRef<HTMLDivElement, DashboardRendererPro
                         filter: widgetData.filter || widget.filter,
                         searchable: false,
                         pagination: false,
+                        drillDown: listDrill,
                         className: "border-0",
                     };
                 }
@@ -708,6 +728,7 @@ export const DashboardRenderer = forwardRef<HTMLDivElement, DashboardRendererPro
                         filter: widget.filter,
                         searchable: false,
                         pagination: false,
+                        drillDown: listDrill,
                         className: "border-0",
                     };
                 }
