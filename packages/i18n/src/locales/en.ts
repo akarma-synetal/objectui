@@ -790,6 +790,7 @@ const en = {
     datasetUnsupported: 'This data source does not support dataset queries.',
     details: 'Details',
     exportCsv: 'Export CSV',
+    openInList: 'Open in list',
     trend: {
       vsLastQuarter: 'vs last quarter',
       vsLastMonth: 'vs last month',
