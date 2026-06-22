@@ -16,7 +16,7 @@ interface DataSource {
   findOne(objectName: string, id: string): Promise<any>;
   create(objectName: string, data: any): Promise<any>;
   update(objectName: string, id: string, data: any): Promise<any>;
-  delete(objectName: string, id: string): Promise<void>;
+  delete(objectName: string, id: string): Promise<boolean>;
   getObjectSchema(objectName: string): Promise<any>;
   getMetadata(): Promise<any>;
 }
@@ -127,6 +127,7 @@ export const mockDataSource: DataSource = {
     }
 
     mockData[objectName].splice(index, 1);
+    return true;
   },
 
   async getObjectSchema(objectName: string) {

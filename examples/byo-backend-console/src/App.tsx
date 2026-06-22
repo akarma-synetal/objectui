@@ -133,11 +133,11 @@ function ObjectPage() {
     <div className="h-full">
       <ObjectView
         schema={{
-          type: 'objectView',
+          type: 'object-view',
           objectName: objectName || '',
-          listViews: [
-            { id: 'default', label: 'All', type: 'grid' },
-          ],
+          listViews: {
+            default: { label: 'All', type: 'grid' },
+          },
         }}
         dataSource={mockDataSource}
       />
