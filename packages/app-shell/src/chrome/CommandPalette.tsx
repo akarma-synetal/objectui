@@ -35,6 +35,7 @@ import { useObjectTranslation } from '@object-ui/i18n';
 import { resolveI18nLabel, getRecordDisplayName, appRouteSegment } from '../utils';
 import { getIcon } from '../utils/getIcon';
 import { useRecentItems } from '../context/RecentItemsProvider';
+import { useCommandPalette } from '../context/CommandPaletteProvider';
 import { resolveHref } from '@object-ui/layout';
 import { useAuth } from '@object-ui/auth';
 
@@ -51,7 +52,7 @@ interface CommandPaletteProps {
 }
 
 export function CommandPalette({ apps, activeApp, objects, onAppChange, dataSource }: CommandPaletteProps) {
-  const [open, setOpen] = useState(false);
+  const { open, setOpen } = useCommandPalette();
   const [inputValue, setInputValue] = useState('');
   const navigate = useNavigate();
   const { appName } = useParams();
@@ -59,17 +60,9 @@ export function CommandPalette({ apps, activeApp, objects, onAppChange, dataSour
   const { evaluator } = useExpressionContext();
   const { t } = useObjectTranslation();
 
-  // ⌘+K / Ctrl+K shortcut
-  useEffect(() => {
-    const down = (e: KeyboardEvent) => {
-      if (e.key === 'k' && (e.metaKey || e.ctrlKey)) {
-        e.preventDefault();
-        setOpen(prev => !prev);
-      }
-    };
-    document.addEventListener('keydown', down);
-    return () => document.removeEventListener('keydown', down);
-  }, []);
+  // The ⌘K / Ctrl+K accelerator and the open-state source of truth now live in
+  // CommandPaletteProvider so the keyboard shortcut, the header button, and the
+  // ?palette=1 deep-link all drive the SAME idempotent open path (ADR-0054 C1/C3).
 
   // Reset query when the palette closes so reopening doesn't show stale state.
   useEffect(() => {
@@ -122,7 +115,19 @@ export function CommandPalette({ apps, activeApp, objects, onAppChange, dataSour
   const showRecentRecords = open && inputValue.trim().length === 0 && recentRecords.length > 0;
 
   return (
-    <CommandDialog open={open} onOpenChange={setOpen}>
+    <CommandDialog
+      open={open}
+      onOpenChange={setOpen}
+      // Accessible name/description (rendered visually-hidden as the required
+      // Radix DialogTitle/Description) — gives the dialog a stable ARIA name (C4).
+      title={t('console.commandPalette.title', { defaultValue: 'Command palette' })}
+      description={t('console.commandPalette.placeholder')}
+      contentProps={{
+        // Stable locator so the overlay is addressable by an automated driver
+        // without relying on i18n-fragile visible text (C4).
+        'data-testid': 'overlay:command-palette',
+      }}
+    >
       <CommandInput
         placeholder={t('console.commandPalette.placeholder')}
         value={inputValue}
