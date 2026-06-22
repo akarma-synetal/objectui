@@ -2321,7 +2321,7 @@ importers:
         version: link:../types
       '@objectstack/spec':
         specifier: ^9.5.1
-        version: 9.5.1(ai@6.0.205(zod@4.4.3))
+        version: 9.5.1(ai@6.0.208(zod@4.4.3))
       lucide-react:
         specifier: ^1.18.0
         version: 1.18.0(react@19.2.7)
