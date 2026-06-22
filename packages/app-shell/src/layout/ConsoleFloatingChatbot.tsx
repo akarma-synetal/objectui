@@ -49,13 +49,14 @@ import { getRuntimeConfig } from '../runtime-config';
 import { cloudPricingDeepLink } from '../console/marketplace/marketplaceApi';
 
 /**
- * Display names for the built-in platform agents. The backend ships English
- * labels ("Data Assistant" / "Metadata Assistant"); we localize the known
- * ones here so the whole surface reads natively. Custom app agents fall back
- * to whatever label the backend provides.
+ * Display names for the two built-in platform agents (ADR-0063: `ask` / `build`,
+ * bound by surface). The backend ships English labels ("Assistant" / "Builder");
+ * we localize the known ones here so the whole surface reads natively. Custom
+ * app agents fall back to whatever label the backend provides.
  *
- * Keyed by the FRIENDLY name (alias-group head) so the new id (`build`/`ask`)
- * and the legacy id (`metadata_assistant`/`data_chat`) both resolve.
+ * Keyed by the FRIENDLY name (alias-group head) so the canonical id
+ * (`ask`/`build`) and the legacy alias (`data_chat`/`metadata_assistant`) both
+ * resolve — independent of whatever label the backend record carries.
  */
 const PLATFORM_AGENT_LABELS: Record<string, { zh: string; en: string }> = {
   ask: { zh: '智能助手', en: 'Assistant' },
