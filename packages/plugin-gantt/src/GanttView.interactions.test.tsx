@@ -2,7 +2,7 @@
  * Phase 4 interaction tests: progress drag handle, hover tooltip, context
  * menu, keyboard navigation, drag-to-create dependency, row reorder.
  *
- * Conventions match the links/tree tests: innerWidth=1280 → columnWidth 60,
+ * Conventions match the links/tree tests: innerWidth=1280 → columnWidth 110,
  * rowHeight 40; geometry asserted via inline styles (timezone-safe); window
  * pointer events dispatched inside act().
  */
@@ -61,10 +61,10 @@ describe('GanttView progress drag handle', () => {
     const handle = container.querySelector('[data-testid="gantt-progress-handle-a"]') as HTMLElement;
     expect(handle).toBeTruthy();
 
-    // Bar is 10 days * 60px = 600px wide; +120px = +20% → 70.
+    // Bar is 10 days * 110px = 1100px wide; +220px = +20% → 70.
     fireEvent.pointerDown(handle, { button: 0, clientX: 300, clientY: 100 });
-    act(() => { window.dispatchEvent(pointer('pointermove', 420)); });
-    act(() => { window.dispatchEvent(pointer('pointerup', 420)); });
+    act(() => { window.dispatchEvent(pointer('pointermove', 520)); });
+    act(() => { window.dispatchEvent(pointer('pointerup', 520)); });
 
     expect(onTaskUpdate).toHaveBeenCalledTimes(1);
     const [task, changes] = onTaskUpdate.mock.calls[0];
@@ -185,7 +185,7 @@ describe('GanttView drag-to-create dependency', () => {
     const onDependencyCreate = vi.fn();
     const { container } = renderView([A(), B()], { onDependencyCreate });
 
-    const dot = container.querySelector('[data-testid="gantt-link-dot-a"]') as HTMLElement;
+    const dot = container.querySelector('[data-testid="gantt-link-dot-end-a"]') as HTMLElement;
     expect(dot).toBeTruthy();
     fireEvent.pointerDown(dot, { button: 0, clientX: 600, clientY: 20 });
 
@@ -206,10 +206,31 @@ describe('GanttView drag-to-create dependency', () => {
     expect(container.querySelector('[data-testid="gantt-link-draft"]')).toBeFalsy();
   });
 
+  it('dragging from the start dot derives a Start-anchored link type', () => {
+    const onDependencyCreate = vi.fn();
+    const { container } = renderView([A(), B()], { onDependencyCreate });
+
+    const dot = container.querySelector('[data-testid="gantt-link-dot-start-a"]') as HTMLElement;
+    expect(dot).toBeTruthy();
+    fireEvent.pointerDown(dot, { button: 0, clientX: 600, clientY: 20 });
+    act(() => { window.dispatchEvent(pointer('pointermove', 700, 60)); });
+
+    const barB = container.querySelector('[data-testid="gantt-task-bar-b"]') as HTMLElement;
+    fireEvent.pointerMove(barB, { clientX: 980, clientY: 60 });
+    act(() => { window.dispatchEvent(pointer('pointerup', 980, 60)); });
+
+    expect(onDependencyCreate).toHaveBeenCalledTimes(1);
+    const [source, target, type] = onDependencyCreate.mock.calls[0];
+    expect(source.id).toBe('a');
+    expect(target.id).toBe('b');
+    // start source + start target (jsdom rects collapse to zero-width → left half) = ss
+    expect(type).toBe('ss');
+  });
+
   it('releasing over empty space creates nothing', () => {
     const onDependencyCreate = vi.fn();
     const { container } = renderView([A(), B()], { onDependencyCreate });
-    const dot = container.querySelector('[data-testid="gantt-link-dot-a"]') as HTMLElement;
+    const dot = container.querySelector('[data-testid="gantt-link-dot-end-a"]') as HTMLElement;
 
     fireEvent.pointerDown(dot, { button: 0, clientX: 600, clientY: 20 });
     act(() => { window.dispatchEvent(pointer('pointermove', 1100, 30)); });
@@ -378,14 +399,14 @@ describe('GanttView drag conflict reschedule (拖拽冲突校验 + 顺延确认)
     }),
   ];
 
-  // Drag a task bar horizontally by whole day-columns (columnWidth=60 at
+  // Drag a task bar horizontally by whole day-columns (columnWidth=110 at
   // innerWidth=1280). Positive = later, negative = earlier.
   function dragBar(container: HTMLElement, id: string, deltaCols: number) {
     const bar = container.querySelector(`[data-testid="gantt-task-bar-${id}"]`) as HTMLElement;
     const originX = 800;
     fireEvent.pointerDown(bar, { button: 0, clientX: originX, clientY: 100 });
-    act(() => { window.dispatchEvent(pointer('pointermove', originX + deltaCols * 60, 100)); });
-    act(() => { window.dispatchEvent(pointer('pointerup', originX + deltaCols * 60, 100)); });
+    act(() => { window.dispatchEvent(pointer('pointermove', originX + deltaCols * 110, 100)); });
+    act(() => { window.dispatchEvent(pointer('pointerup', originX + deltaCols * 110, 100)); });
   }
 
   it('dragging a successor before its predecessor finishes prompts 顺延 confirmation', () => {

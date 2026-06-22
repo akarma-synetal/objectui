@@ -18,7 +18,6 @@ import {
   Calendar as CalendarIcon,
   PanelLeftClose,
   PanelLeft,
-  CalendarDays,
   Maximize2,
   Minimize2,
   Download,
@@ -48,9 +47,12 @@ const COLUMN_WIDTH = 100; // Time column width
  * checks so the Gantt adapts to whatever slot it sits in (cards, sidebars, popups…).
  */
 function columnWidthForContainer(width: number) {
-  if (width < 640) return 35;
-  if (width < 1024) return 50;
-  return 60;
+  // Day/week/month columns stay readable at a 110px floor — even in narrow
+  // embeds (user-specified minimum). A short project still fills a roomy
+  // timeline via the fit-stretch below; manual zoom can override either way.
+  if (width < 640) return 110;
+  if (width < 1024) return 110;
+  return 110;
 }
 
 function taskListWidthForContainer(width: number) {
@@ -109,6 +111,15 @@ export interface GanttTask {
    * Its children still render their own bars normally.
    */
   type?: GanttTaskType
+  /**
+   * Per-node lock (仅查看/跳转). When true this row is view-only: its bar can't be
+   * dragged/resized, progress can't be dragged, no dependency can be drawn from
+   * it, and inline-edit / context-menu edit+delete are hidden. Clicking the bar
+   * (onTaskClick — open drawer / jump) still works. Independent of the global
+   * `readOnly`; use to lock individual levels (e.g. 派工单) while others stay
+   * editable. Maps from the view's `lockField` in ObjectGantt.
+   */
+  locked?: boolean
   /**
    * Baseline (planned) start/end. When both are present a thin reference bar is
    * drawn beneath the live bar so planned-vs-actual drift is visible at a glance.
@@ -288,6 +299,17 @@ export interface GanttViewProps {
   /** Label for the bucket collecting tasks whose `groupBy` returns null. */
   ungroupedLabel?: string
   /**
+   * Auto-collapse tree nodes at or below this depth on first render (默认折叠).
+   * Depth is 0-indexed: roots are 0, their children 1, etc. Every node whose
+   * depth is `>= defaultCollapsedDepth` AND which has children is seeded into the
+   * collapsed set once, so its subtree starts hidden. The user can still expand
+   * any of them — this only sets the initial state. Example: a 项目→产品→排产计划→派工单
+   * tree where 排产计划 sits at depth 2 uses `defaultCollapsedDepth={2}` to start
+   * with every 排产计划 (and its 派工单 children) folded. Omit (or pass a depth past
+   * the deepest node) to start fully expanded.
+   */
+  defaultCollapsedDepth?: number
+  /**
    * Persist the user's layout tweaks (granularity + column/task-list widths)
    * to `localStorage` under this key. On mount the saved layout is restored;
    * the "保存布局" toolbar button writes the current layout. Omit to disable
@@ -308,6 +330,8 @@ export interface GanttLayout {
   /** Effective day-column width in px, or null when auto-fit. */
   columnWidth: number | null
   taskListCollapsed: boolean
+  /** User-dragged task-list (name column) width in px, or null when auto-sized. */
+  taskListWidth?: number | null
 }
 
 // --- Export helpers (导出 PNG / PDF) — module-level, no React deps. ---
@@ -408,7 +432,9 @@ function readSavedLayout(key: string | undefined): GanttLayout | null {
     if (!viewMode) return null;
     const columnWidth =
       typeof p.columnWidth === 'number' && isFinite(p.columnWidth) ? p.columnWidth : null;
-    return { viewMode, columnWidth, taskListCollapsed: !!p.taskListCollapsed };
+    const taskListWidth =
+      typeof p.taskListWidth === 'number' && isFinite(p.taskListWidth) ? p.taskListWidth : null;
+    return { viewMode, columnWidth, taskListCollapsed: !!p.taskListCollapsed, taskListWidth };
   } catch {
     return null;
   }
@@ -448,6 +474,7 @@ export function GanttView({
   mobileReadOnly = false,
   groupBy,
   ungroupedLabel = 'Ungrouped',
+  defaultCollapsedDepth,
   persistLayoutKey,
   onLayoutChange,
 }: GanttViewProps) {
@@ -491,6 +518,10 @@ export function GanttView({
   const [columnWidthOverride, setColumnWidthOverride] = React.useState<number | null>(
     restoredLayout ? restoredLayout.columnWidth : null
   );
+  // User-dragged task-list (name column) width. null → auto-size from container.
+  const [taskListWidthOverride, setTaskListWidthOverride] = React.useState<number | null>(
+    restoredLayout ? restoredLayout.taskListWidth ?? null : null
+  );
   // Timeline granularity. The prop seeds (and can later override) the state;
   // the toolbar segmented control switches it interactively. A persisted layout
   // seeds it when no explicit prop is given.
@@ -502,10 +533,31 @@ export function GanttView({
   React.useEffect(() => {
     if (viewModeProp && VIEW_MODES.includes(viewModeProp)) setViewMode(viewModeProp);
   }, [viewModeProp]);
-  const changeViewMode = React.useCallback((mode: GanttViewMode) => {
-    setViewMode(mode);
-    onViewChange?.(mode);
-  }, [onViewChange]);
+  // Date sitting at the viewport's left edge when the user switched granularity,
+  // captured so the post-switch layout effect can re-pin it to the left edge
+  // (see `changeViewMode` below, defined after the date↔px mappings it needs).
+  const pendingViewAnchorRef = React.useRef<Date | null>(null);
+  // The date the user actually wants pinned to the left edge, kept at full
+  // precision and updated ONLY by genuine user scrolling — never re-derived from
+  // a programmatic (and possibly clamped) scrollLeft. This is what survives a
+  // multi-step granularity change: switching to a coarser scale whose *entire*
+  // timeline fits the viewport clamps scrollLeft to 0, which would otherwise
+  // poison the next switch by capturing "0 → timeline start" as the new anchor.
+  // Holding the precise intent here means Day(Apr 9)→Week→Month→Day returns to
+  // Apr 9, not the timeline's left edge.
+  const viewAnchorDateRef = React.useRef<Date | null>(null);
+  // Gate that blocks scroll events from updating viewAnchorDateRef until the
+  // next *genuine* user-input scroll (wheel / touch / keyboard / scrollbar drag).
+  // A granularity change arms this. It's needed because switching into a
+  // narrower view makes the browser auto-clamp scrollLeft (e.g. 720 → 53) and
+  // fire a scroll event we never initiated — a one-shot "suppress the next
+  // event" flag can't catch that (the clamp may fire zero, one, or several
+  // events), and it would overwrite the precise anchor with the clamped
+  // position (→ Dec 17 → Day clamps to the timeline start). User-input
+  // listeners on the scroll container clear this gate, so only real scrolling
+  // re-captures the anchor. Starts armed so the mount scroll-to-today doesn't
+  // seed a bogus anchor before the user has touched anything.
+  const blockAnchorUntilUserScrollRef = React.useRef(true);
   const [taskListCollapsed, setTaskListCollapsed] = React.useState<boolean>(
     restoredLayout ? restoredLayout.taskListCollapsed : false
   );
@@ -517,7 +569,15 @@ export function GanttView({
       collapsedAutoSet.current = true;
     }
   }, [isNarrow]);
-  const taskListWidth = taskListCollapsed ? 0 : taskListWidthForContainer(effectiveWidth);
+  // Task-list pane width. A user drag (taskListWidthOverride) wins over the
+  // auto-size, clamped so it can't collapse to nothing or swallow the timeline.
+  const TASK_LIST_MIN_W = 160;
+  const taskListMaxW = Math.max(TASK_LIST_MIN_W, effectiveWidth - 200);
+  const taskListWidth = taskListCollapsed
+    ? 0
+    : taskListWidthOverride != null
+      ? Math.max(TASK_LIST_MIN_W, Math.min(taskListWidthOverride, taskListMaxW))
+      : taskListWidthForContainer(effectiveWidth);
   // Fit-to-width ("zoom to fit"): in coarse modes a short project's natural grid
   // (span × base px/day) is far narrower than the timeline area, leaving the
   // right side blank. Rather than pad the calendar with years of empty units, we
@@ -945,9 +1005,11 @@ export function GanttView({
   const contentRef = React.useRef<HTMLDivElement>(null);
   const [linkDrag, setLinkDrag] = React.useState<{
     sourceId: string | number;
+    sourceEnd: 'start' | 'end';
     x: number;
     y: number;
     targetId: string | number | null;
+    targetEnd: 'start' | 'end' | null;
   } | null>(null);
   const linkDragRef = React.useRef<typeof linkDrag>(null);
   React.useEffect(() => { linkDragRef.current = linkDrag; }, [linkDrag]);
@@ -966,7 +1028,13 @@ export function GanttView({
       if (cur && cur.targetId != null && String(cur.targetId) !== String(cur.sourceId) && onDependencyCreate) {
         const source = tasks.find((t) => String(t.id) === String(cur.sourceId));
         const target = tasks.find((t) => String(t.id) === String(cur.targetId));
-        if (source && target) onDependencyCreate(source, target, 'fs');
+        // Derive the link type from which endpoint we dragged FROM and which
+        // endpoint we dropped ONTO (dhtmlx-style): the source endpoint picks
+        // Finish (end) vs Start (start), the target endpoint picks the second
+        // letter. end→start = FS, end→end = FF, start→start = SS, start→end = SF.
+        const targetEnd = cur.targetEnd ?? 'start';
+        const type: GanttLinkType = `${cur.sourceEnd === 'end' ? 'f' : 's'}${targetEnd === 'end' ? 'f' : 's'}` as GanttLinkType;
+        if (source && target) onDependencyCreate(source, target, type);
       }
       suppressNextClickRef.current = true;
       window.setTimeout(() => { suppressNextClickRef.current = false; }, 0);
@@ -1107,6 +1175,40 @@ export function GanttView({
       return next;
     });
   }, []);
+  // Seed the collapsed set once from `defaultCollapsedDepth` (默认折叠). We walk
+  // the parent chain to derive each node's 0-indexed depth and fold every node
+  // at/below the threshold that actually has children. Runs a single time so the
+  // user's later expand/collapse is never clobbered by a data refresh.
+  const defaultCollapseSeeded = React.useRef(false);
+  React.useEffect(() => {
+    if (defaultCollapseSeeded.current) return;
+    if (defaultCollapsedDepth == null || displayTasks.length === 0) return;
+    defaultCollapseSeeded.current = true;
+    const byId = new Map(displayTasks.map((t) => [String(t.id), t]));
+    const hasChildren = new Set<string>();
+    for (const t of displayTasks) {
+      const p = t.parent != null && t.parent !== '' ? String(t.parent) : null;
+      if (p && p !== String(t.id) && byId.has(p)) hasChildren.add(p);
+    }
+    // Depth via parent walk, cycle-guarded.
+    const depthOf = (t: GanttTask): number => {
+      let depth = 0;
+      const seen = new Set<string>([String(t.id)]);
+      let cur = t.parent != null && t.parent !== '' ? byId.get(String(t.parent)) : undefined;
+      while (cur && !seen.has(String(cur.id))) {
+        depth += 1;
+        seen.add(String(cur.id));
+        cur = cur.parent != null && cur.parent !== '' ? byId.get(String(cur.parent)) : undefined;
+      }
+      return depth;
+    };
+    const seed = new Set<string>();
+    for (const t of displayTasks) {
+      const key = String(t.id);
+      if (hasChildren.has(key) && depthOf(t) >= defaultCollapsedDepth) seed.add(key);
+    }
+    if (seed.size) setCollapsedIds((prev) => (prev.size ? prev : seed));
+  }, [defaultCollapsedDepth, displayTasks]);
 
   const rows = React.useMemo<GanttRow[]>(() => {
     const ids = new Set(displayTasks.map((t) => String(t.id)));
@@ -1430,6 +1532,61 @@ export function GanttView({
     [timeColumns, colStartMs, colRealMs, colOffsets, timelineRange],
   );
 
+  // Switch granularity *without* the date window jumping. The scroll container
+  // keeps a raw pixel scrollLeft across a re-render, but a Day→Month switch
+  // shrinks the timeline ~5×, so that same pixel offset lands on a wildly
+  // different (usually clamped-to-edge) date — which is what users read as
+  // "乱". Instead we record the date sitting at the *left edge* of the viewport
+  // now (via the current xToDate) and pin that same date back to the left edge
+  // once the new layout is measured — so the leftmost visible date never moves.
+  const changeViewMode = React.useCallback(
+    (mode: GanttViewMode) => {
+      const el = scrollAreaRef.current;
+      // Seed the persistent anchor from the current left edge the first time (or
+      // if a programmatic scroll left it unset); afterwards user scrolls keep it
+      // fresh. Crucially we re-pin THIS precise date, not a freshly-read (and
+      // possibly clamped) scrollLeft — so a coarser intermediate view that can't
+      // scroll to it doesn't corrupt the anchor for the next switch.
+      if (viewAnchorDateRef.current == null && el && el.clientWidth > 0) {
+        viewAnchorDateRef.current = xToDate(el.scrollLeft);
+      }
+      pendingViewAnchorRef.current = viewAnchorDateRef.current;
+      // Freeze the anchor across the switch: ignore the programmatic re-pin AND
+      // any browser auto-clamp scroll the narrower layout triggers, until the
+      // user genuinely scrolls again.
+      blockAnchorUntilUserScrollRef.current = true;
+      setViewMode(mode);
+      onViewChange?.(mode);
+    },
+    [onViewChange, xToDate],
+  );
+  // Re-pin the captured anchor to the left edge after the granularity change has
+  // produced a new dateToX mapping and total width. useLayoutEffect runs
+  // post-DOM / pre-paint, so the scroll lands before the user sees the new view
+  // — no flash of the wrong window. The ref is null for any other dateToX change
+  // (zoom, fold toggle, task edits), so those are untouched.
+  React.useLayoutEffect(() => {
+    const anchor = pendingViewAnchorRef.current;
+    if (anchor == null) return;
+    pendingViewAnchorRef.current = null;
+    const el = scrollAreaRef.current;
+    if (!el || el.clientWidth === 0) return;
+    const maxLeft = Math.max(0, el.scrollWidth - el.clientWidth);
+    // Snap the left edge to the start of the period the anchor falls in (the
+    // week/month/quarter/year that contains it), so the leftmost column is a
+    // full, aligned cell instead of a partial slice with a mismatched header
+    // (e.g. Apr 9 in Week view would otherwise leave a stub of the Apr 6 week
+    // showing, labelled by the *next* full week). The precise anchor is still
+    // held in viewAnchorDateRef, so a later switch back to a finer scale lands
+    // on the exact day — snapping only affects what coarser views display.
+    const target = Math.max(0, Math.min(Math.round(dateToX(startOfUnit(anchor, viewMode))), maxLeft));
+    // The gate (armed in changeViewMode) already keeps this programmatic move —
+    // and any browser auto-clamp it triggers — from re-capturing the anchor.
+    if (el.scrollLeft !== target) {
+      el.scrollLeft = target;
+    }
+  }, [viewMode, dateToX]);
+
   // Shift a date by N visible columns honouring the fold: +1 column from a
   // Friday lands on Monday, skipping the dropped weekend. Used by drag/resize
   // when the axis is folded so a one-column drag = one working day.
@@ -1523,10 +1680,44 @@ export function GanttView({
   // and the "Today" button can target a stable node.
   const scrollAreaRef = React.useRef<HTMLDivElement>(null);
 
+  // Clear the anchor gate on genuine user-input scrolling. A scroll *event*
+  // alone can't tell a user wheel from a browser auto-clamp, so we key off the
+  // input events that precede a real scroll: wheel, touch, scrollbar drag
+  // (pointerdown), and keyboard (arrows/page/space/home/end). Once cleared,
+  // handleScroll resumes tracking the left-edge date as the anchor — until the
+  // next granularity switch re-arms the gate.
+  React.useEffect(() => {
+    const el = scrollAreaRef.current;
+    if (!el) return;
+    const unblock = () => {
+      blockAnchorUntilUserScrollRef.current = false;
+    };
+    const SCROLL_KEYS = new Set([
+      'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown',
+      'PageUp', 'PageDown', 'Home', 'End', ' ', 'Spacebar',
+    ]);
+    const onKey = (ev: KeyboardEvent) => {
+      if (SCROLL_KEYS.has(ev.key)) unblock();
+    };
+    el.addEventListener('wheel', unblock, { passive: true });
+    el.addEventListener('touchstart', unblock, { passive: true });
+    el.addEventListener('pointerdown', unblock, { passive: true });
+    el.addEventListener('keydown', onKey);
+    return () => {
+      el.removeEventListener('wheel', unblock);
+      el.removeEventListener('touchstart', unblock);
+      el.removeEventListener('pointerdown', unblock);
+      el.removeEventListener('keydown', onKey);
+    };
+  }, []);
+
   // 定位闪烁: id of the bar currently pulsing after a "locate" click, plus the
   // pending timers that toggle it on/off (cleared on re-trigger and unmount).
   const [flashTaskId, setFlashTaskId] = React.useState<string | number | null>(null);
   const flashTimerRef = React.useRef<number[]>([]);
+  // Tears down an in-flight "scroll then flash" wait (scrollend listener + rAF)
+  // when a new locate fires or the view unmounts.
+  const flashCleanupRef = React.useRef<(() => void) | null>(null);
 
   // --- Virtualization ------------------------------------------------------
   // Rows and timeline columns render only what's in (or near) the viewport,
@@ -1670,32 +1861,78 @@ export function GanttView({
     (start: Date, end: Date, taskId?: string | number) => {
       const el = scrollAreaRef.current;
       if (!el) return;
+      // Align to the bar's *start* (not its midpoint): a long bar centered on
+      // its middle pushes its beginning off the left edge, so the start — the
+      // part the user is looking for — is what we bring into view, with a small
+      // margin so it isn't jammed against the panel divider. When the whole bar
+      // fits this also shows it in full.
       const startX = dateToX(start);
       const endX = dateToX(end);
-      const mid = (startX + endX) / 2;
-      el.scrollTo({ left: Math.max(0, mid - el.clientWidth / 2), behavior: 'smooth' });
-      // 闪烁高亮: pulse the located bar so the eye can catch it after the scroll.
-      // Toggle off → on (rAF) restarts the CSS animation when the same row is
-      // clicked repeatedly; auto-clear once the animation has run its course.
-      if (taskId != null) {
-        flashTimerRef.current.forEach((id) => window.clearTimeout(id));
-        flashTimerRef.current = [];
-        setFlashTaskId(null);
-        flashTimerRef.current.push(
-          window.setTimeout(() => setFlashTaskId(taskId), 40),
-        );
-        flashTimerRef.current.push(
-          window.setTimeout(
-            () => setFlashTaskId((cur) => (cur === taskId ? null : cur)),
-            40 + 1400,
-          ),
-        );
+      const maxLeft = Math.max(0, el.scrollWidth - el.clientWidth);
+      const leftMargin = Math.min(96, el.clientWidth * 0.15);
+      // For a bar that already fits, prefer centering it; otherwise pin the
+      // start near the left so its beginning is always visible.
+      const fits = endX - startX <= el.clientWidth - leftMargin;
+      const desired = fits
+        ? (startX + endX) / 2 - el.clientWidth / 2
+        : startX - leftMargin;
+      const target = Math.max(0, Math.min(desired, maxLeft));
+
+      // Tear down any pending flash from a previous click before starting over.
+      flashTimerRef.current.forEach((id) => window.clearTimeout(id));
+      flashTimerRef.current = [];
+      flashCleanupRef.current?.();
+      flashCleanupRef.current = null;
+      setFlashTaskId(null);
+
+      // 闪烁高亮: pulse the bar *after* the scroll lands so the eye catches it
+      // where it settles, not mid-flight. rAF restarts the CSS animation cleanly
+      // even when the same row is located twice; auto-clears when it finishes.
+      const startFlash = () => {
+        if (taskId == null) return;
+        const raf = window.requestAnimationFrame(() => {
+          setFlashTaskId(taskId);
+          flashTimerRef.current.push(
+            window.setTimeout(
+              () => setFlashTaskId((cur) => (cur === taskId ? null : cur)),
+              1500, // matches the gantt-flash animation duration
+            ),
+          );
+        });
+        flashCleanupRef.current = () => window.cancelAnimationFrame(raf);
+      };
+
+      const needsScroll = Math.abs(el.scrollLeft - target) > 2;
+      el.scrollTo({ left: target, behavior: 'smooth' });
+      if (!needsScroll) {
+        startFlash();
+        return;
       }
+
+      // `scrollend` is the precise "smooth scroll finished" signal and drives
+      // the flash where supported; the timeout only backstops it. When the
+      // browser fires `scrollend` we give it a long leash (a wide chart can
+      // take ~1s to traverse) so the event — not the clock — wins; without it
+      // (older Safari) we fall back to a short, fixed delay.
+      const hasScrollEnd = 'onscrollend' in el;
+      let fired = false;
+      const onEnd = () => {
+        if (fired) return;
+        fired = true;
+        el.removeEventListener('scrollend', onEnd);
+        startFlash();
+      };
+      el.addEventListener('scrollend', onEnd);
+      flashTimerRef.current.push(window.setTimeout(onEnd, hasScrollEnd ? 1500 : 500));
+      flashCleanupRef.current = () => el.removeEventListener('scrollend', onEnd);
     },
     [dateToX],
   );
   React.useEffect(
-    () => () => flashTimerRef.current.forEach((id) => window.clearTimeout(id)),
+    () => () => {
+      flashTimerRef.current.forEach((id) => window.clearTimeout(id));
+      flashCleanupRef.current?.();
+    },
     [],
   );
   const jumpToWeek = React.useCallback(
@@ -1709,12 +1946,22 @@ export function GanttView({
 
   const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
     const el = e.currentTarget;
+    // Track the left-edge date as the user's anchor intent — but only for
+    // genuine user scrolling. The gate stays armed through a granularity switch
+    // (programmatic re-pin + browser auto-clamp of the narrower layout) and is
+    // cleared only by real user input, so those synthetic scrolls can't
+    // overwrite the precise date we're preserving.
+    if (!blockAnchorUntilUserScrollRef.current && el.clientWidth > 0) {
+      viewAnchorDateRef.current = xToDate(el.scrollLeft);
+    }
     // Sync horizontal scroll to header
     if (headerRef.current) {
         headerRef.current.scrollLeft = el.scrollLeft;
     }
-    // Sync vertical scroll to task list
-    if (listRef.current) {
+    // Sync vertical scroll to task list. Assign only when it differs so the
+    // browser fires no scroll event on the list (a no-op assignment is silent),
+    // which is what keeps the two-way sync below from looping.
+    if (listRef.current && listRef.current.scrollTop !== el.scrollTop) {
         listRef.current.scrollTop = el.scrollTop;
     }
     // Drive the virtualization windows.
@@ -1724,6 +1971,24 @@ export function GanttView({
         : { top: el.scrollTop, left: el.scrollLeft }
     );
     measureViewport();
+  };
+
+  // The task list is its own vertical scroller (so users can scroll the left
+  // pane directly with a wheel/trackpad/scrollbar, not only the timeline). Push
+  // its scrollTop onto the timeline — whose handleScroll then drives the shared
+  // virtualization window and mirrors back. The "assign only if different" guard
+  // on both sides makes this self-terminating: the mirror-back lands on an equal
+  // value, so the browser emits no further scroll event.
+  const handleListScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    const listEl = e.currentTarget;
+    const timeline = scrollAreaRef.current;
+    if (timeline && timeline.scrollTop !== listEl.scrollTop) {
+      timeline.scrollTop = listEl.scrollTop;
+    }
+    // Drive virtualization directly too: the timeline's scroll event is queued
+    // (async), so updating here avoids a one-frame blank in the left pane during
+    // a fast drag of its scrollbar.
+    setScrollPos((prev) => (prev.top === listEl.scrollTop ? prev : { ...prev, top: listEl.scrollTop }));
   };
 
   const styleFor = (start: Date, end: Date) => {
@@ -2094,11 +2359,12 @@ export function GanttView({
       viewMode,
       columnWidth: columnWidthOverride,
       taskListCollapsed,
+      taskListWidth: taskListWidthOverride,
     };
     if (persistLayoutKey) writeSavedLayout(persistLayoutKey, layout);
     onLayoutChange?.(layout);
     setLayoutSaved(true);
-  }, [viewMode, columnWidthOverride, taskListCollapsed, persistLayoutKey, onLayoutChange]);
+  }, [viewMode, columnWidthOverride, taskListCollapsed, taskListWidthOverride, persistLayoutKey, onLayoutChange]);
   // Briefly reflect a save in the button's aria-pressed for feedback/testability.
   React.useEffect(() => {
     if (!layoutSaved) return;
@@ -2122,24 +2388,78 @@ export function GanttView({
         .gantt-locate-btn { opacity: 0; transition: opacity 0.15s ease; }
         .group\\/task-row:hover .gantt-locate-btn { opacity: 0.6; }
         .gantt-locate-btn:hover, .gantt-locate-btn:focus-visible { opacity: 1; }
-        /* 定位闪烁: pulse the located bar with a ring. Outline (not box-shadow)
-           so it never clashes with the critical-path bar's inline box-shadow. */
+        /* 定位闪烁: blink the located bar 3× with a thick ring + colored glow so
+           it's hard to miss. The ring is an outline (not box-shadow) and the glow
+           is a drop-shadow *filter* — both stay clear of the critical-path bar's
+           inline box-shadow, which they'd otherwise clobber. */
         @keyframes gantt-flash {
-          0%, 100% { outline-color: rgba(59, 130, 246, 0); }
-          20% { outline-color: rgba(59, 130, 246, 0.95); }
-          45% { outline-color: rgba(59, 130, 246, 0.25); }
-          70% { outline-color: rgba(59, 130, 246, 0.95); }
+          0%, 25%, 50%, 100% {
+            outline-color: rgba(37, 99, 235, 0);
+            filter: drop-shadow(0 0 0 rgba(37, 99, 235, 0));
+          }
+          12%, 37%, 62% {
+            outline-color: rgba(37, 99, 235, 1);
+            filter: drop-shadow(0 0 9px rgba(37, 99, 235, 0.9));
+          }
         }
         .gantt-flash {
-          outline: 2px solid transparent;
-          outline-offset: 2px;
-          animation: gantt-flash 1.4s ease-in-out;
+          outline: 3px solid transparent;
+          outline-offset: 3px;
+          border-radius: 2px;
+          animation: gantt-flash 1.5s ease-in-out;
         }
         @media (min-width: 640px) {
           .gantt-sm-h50 { height: 50px; }
           .gantt-sm-w20 { width: 80px; }
           .gantt-sm-hidden { display: none; }
         }
+        /* Persistent, grabbable timeline scrollbars. macOS (and iOS) default to
+           overlay scrollbars that collapse to 0px and auto-hide, so the
+           timeline's vertical scrollbar was nearly impossible to find. Defining
+           ::-webkit-scrollbar opts this pane into a classic, always-visible bar
+           regardless of the OS overlay preference. The thumb gets a min size so
+           that with thousands of virtualized rows (scrollHeight in the hundreds
+           of thousands of px) it never shrinks to an un-grabbable sliver. Scoped
+           to the gantt pane so the host app's own scrollbars are untouched, and
+           themed with neutral rgba (not theme utilities, which don't always
+           reach a consuming app) so it's visible on any background. */
+        /* Firefox (and any engine without ::-webkit-scrollbar) only: the
+           standard props. We must NOT set these unconditionally — modern Chrome
+           now honors scrollbar-width and, when it's present, IGNORES the
+           ::-webkit-scrollbar rule below, falling back to the 0px auto-hiding
+           overlay bar we're trying to replace. */
+        @supports not selector(::-webkit-scrollbar) {
+          [data-testid="gantt-timeline"] {
+            scrollbar-width: thin;
+            scrollbar-color: rgba(130,130,130,0.55) transparent;
+          }
+        }
+        [data-testid="gantt-timeline"]::-webkit-scrollbar {
+          width: 14px;
+          height: 14px;
+        }
+        [data-testid="gantt-timeline"]::-webkit-scrollbar-track {
+          background: transparent;
+        }
+        [data-testid="gantt-timeline"]::-webkit-scrollbar-thumb {
+          background-color: rgba(130,130,130,0.55);
+          border-radius: 8px;
+          border: 3px solid transparent;
+          background-clip: padding-box;
+          min-height: 40px;
+          min-width: 40px;
+        }
+        [data-testid="gantt-timeline"]::-webkit-scrollbar-thumb:hover {
+          background-color: rgba(110,110,110,0.85);
+        }
+        [data-testid="gantt-timeline"]::-webkit-scrollbar-corner {
+          background: transparent;
+        }
+        /* The task-list pane scrolls in lockstep with the timeline, so its own
+           vertical scrollbar (butted against the divider) was a confusing second
+           bar. Hide it — the pane stays wheel/drag-scrollable and synced. */
+        .gantt-task-list::-webkit-scrollbar { width: 0; height: 0; }
+        .gantt-task-list { scrollbar-width: none; }
       `}</style>
       {/* Toolbar */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 p-2 border-b bg-card">
@@ -2244,14 +2564,14 @@ export function GanttView({
           </Button>
           <Button
             variant="ghost"
-            size="icon"
-            className="h-8 w-8"
+            size="sm"
+            className="h-8 px-2 text-xs"
             onClick={jumpToToday}
             disabled={todayLeftPx == null}
             aria-label={t('gantt.toolbar.jumpToToday')}
             data-testid="gantt-jump-today"
           >
-            <CalendarDays className="h-4 w-4" />
+            {t('gantt.toolbar.today')}
           </Button>
           <Button
             variant="ghost"
@@ -2373,11 +2693,48 @@ export function GanttView({
 
       {/* Gantt Body — focusable for keyboard row navigation */}
       <div
-        className="flex flex-col flex-1 overflow-hidden outline-none focus-visible:ring-1 focus-visible:ring-ring"
+        className="relative flex flex-col flex-1 overflow-hidden outline-none focus-visible:ring-1 focus-visible:ring-ring"
         tabIndex={0}
         onKeyDown={handleKeyDown}
         data-testid="gantt-body"
       >
+        {/* Task-list resize splitter — drag the divider between the name grid
+            and the timeline to widen/narrow the name column. Spans both the
+            header and content rows. Hidden while the list is collapsed. */}
+        {!taskListCollapsed && taskListWidth > 0 && (
+          <div
+            className="absolute top-0 bottom-0 z-30 group/splitter"
+            style={{ left: taskListWidth - 3, width: 7, cursor: 'col-resize' }}
+            data-testid="gantt-list-resize"
+            role="separator"
+            aria-orientation="vertical"
+            onPointerDown={(e) => {
+              if (e.button !== 0) return;
+              e.preventDefault();
+              const startX = e.clientX;
+              const startW = taskListWidth;
+              const maxW = Math.max(TASK_LIST_MIN_W, effectiveWidth - 200);
+              const onMove = (ev: PointerEvent) => {
+                const next = Math.max(TASK_LIST_MIN_W, Math.min(startW + (ev.clientX - startX), maxW));
+                setTaskListWidthOverride(next);
+              };
+              const onUp = () => {
+                window.removeEventListener('pointermove', onMove);
+                window.removeEventListener('pointerup', onUp);
+                window.removeEventListener('pointercancel', onUp);
+                document.body.style.cursor = '';
+              };
+              document.body.style.cursor = 'col-resize';
+              window.addEventListener('pointermove', onMove);
+              window.addEventListener('pointerup', onUp);
+              window.addEventListener('pointercancel', onUp);
+            }}
+            onDoubleClick={() => setTaskListWidthOverride(null)}
+          >
+            {/* Visible hairline that thickens on hover/drag for an easy grab. */}
+            <div className="absolute inset-y-0 left-1/2 -translate-x-1/2 w-px bg-border group-hover/splitter:w-[3px] group-hover/splitter:bg-primary transition-all" />
+          </div>
+        )}
         {/* Headers Row */}
         <div className="flex border-b bg-muted/30 shrink-0 h-10 gantt-sm-h50">
           {/* List Header */}
@@ -2436,8 +2793,9 @@ export function GanttView({
         <div className="flex flex-1 overflow-hidden">
           {/* Left Side: Task List (Grid) */}
           <div
-            className="overflow-hidden border-r bg-card z-10 shadow-sm"
+            className="gantt-task-list overflow-y-auto overflow-x-hidden border-r bg-card z-10 shadow-sm"
             ref={listRef}
+            onScroll={handleListScroll}
             style={{ width: taskListWidth, minWidth: taskListWidth }}
             role="tree"
             aria-label={t('gantt.aria.taskList')}
@@ -2454,7 +2812,7 @@ export function GanttView({
               <div
                 key={task.id}
                 className={cn(
-                  "group/task-row flex items-center border-b px-2 sm:px-4 hover:bg-accent/50 cursor-pointer transition-colors",
+                  "group/task-row relative flex items-center border-b px-2 sm:px-4 hover:bg-accent/50 cursor-pointer transition-colors",
                   isSelected && "bg-accent/50"
                 )}
                 style={{ height: rowHeight, touchAction: 'manipulation' }}
@@ -2462,7 +2820,7 @@ export function GanttView({
                 aria-level={row.depth + 1}
                 aria-selected={isSelected}
                 aria-expanded={row.hasChildren ? !isCollapsed : undefined}
-                draggable={!!onTaskReorder && !isEditing}
+                draggable={!!onTaskReorder && !isEditing && !task.locked}
                 onDragStart={onTaskReorder ? (e) => {
                   e.dataTransfer.setData('text/plain', String(task.id));
                   e.dataTransfer.effectAllowed = 'move';
@@ -2490,7 +2848,7 @@ export function GanttView({
                   if (!isEditing) onTaskClick?.(task);
                 }}
                 onDoubleClick={() => {
-                  if (inlineEdit && onTaskUpdate && !row.isSummary) {
+                  if (inlineEdit && onTaskUpdate && !row.isSummary && !task.locked) {
                     setEditingTask(task.id);
                     setEditValues({
                       title: task.title,
@@ -2582,24 +2940,29 @@ export function GanttView({
                       onClick={(e) => e.stopPropagation()}
                     />
                   ) : (
-                    <span className="inline-flex items-center justify-end gap-1">
-                      {row.end.toLocaleDateString(dateLocale, { month: 'numeric', day: 'numeric' })}
-                      {/* 定位到甘特图: scroll the timeline to center this row's bar. */}
-                      <button
-                        type="button"
-                        title={t('gantt.row.locate')}
-                        aria-label={t('gantt.row.locate')}
-                        className="gantt-locate-btn shrink-0"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          scrollToTask(row.start, row.end, row.task.id);
-                        }}
-                      >
-                        <Crosshair className="w-3 h-3" />
-                      </button>
-                    </span>
+                    row.end.toLocaleDateString(dateLocale, { month: 'numeric', day: 'numeric' })
                   )}
                 </div>
+                {/* 定位到甘特图: scroll the timeline to this row's bar. Pinned to
+                    the row's right edge (flush with the chart divider) so it sits
+                    in a stable slot and never shifts the date column on hover. The
+                    `right` offset is inline because Tailwind's fractional `right-*`
+                    utilities aren't in the prebuilt CSS shipped to consumers. */}
+                {!isEditing && (
+                  <button
+                    type="button"
+                    title={t('gantt.row.locate')}
+                    aria-label={t('gantt.row.locate')}
+                    className="gantt-locate-btn hidden sm:block absolute top-1/2 -translate-y-1/2"
+                    style={{ right: 1 }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      scrollToTask(row.start, row.end, row.task.id);
+                    }}
+                  >
+                    <Crosshair className="w-3 h-3" />
+                  </button>
+                )}
                 {/* Row actions removed: View / Edit / Delete are reachable
                     from the side drawer that opens on row click (DetailView
                     has inline-edit + a delete in its more-actions menu).
@@ -2711,7 +3074,10 @@ export function GanttView({
                    const inDragGroup = dragGroupIds?.has(String(task.id)) ?? false;
                    const inDragStretch = dragStretchAncestorIds?.has(String(task.id)) ?? false;
                    const liveStyle = isDragging || inDragGroup || inDragStretch ? getLiveRowStyle(row) : baseStyle;
-                   const canDrag = !!onTaskUpdate && !row.isSummary;
+                   // Per-node lock (仅查看): treat like read-only for this row —
+                   // no move/resize/progress/link, but onTaskClick still fires.
+                   const isLocked = !!task.locked;
+                   const canDrag = !!onTaskUpdate && !row.isSummary && !isLocked;
                    const isLinkTarget =
                      linkDrag != null &&
                      linkDrag.targetId != null &&
@@ -2720,16 +3086,23 @@ export function GanttView({
                    // While a connector drag is live, bars report themselves as
                    // the drop target on pointermove; the row clears it when the
                    // pointer is over empty row space (target === currentTarget).
-                   const captureLinkTarget = linkDrag ? () => {
+                   const captureLinkTarget = linkDrag ? (e: React.PointerEvent) => {
+                     // Which half of the target bar is the pointer over? The left
+                     // half snaps to the Start endpoint, the right half to Finish.
+                     // This is what makes the dropped-onto endpoint pick FS vs FF
+                     // (or SS vs SF) — the second letter of the link type.
+                     const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                     const half: 'start' | 'end' =
+                       r.width > 0 && e.clientX - r.left > r.width / 2 ? 'end' : 'start';
                      setLinkDrag((prev) =>
                        prev && String(prev.sourceId) !== String(task.id)
-                         ? { ...prev, targetId: task.id }
+                         ? { ...prev, targetId: task.id, targetEnd: half }
                          : prev
                      );
                    } : undefined;
                    const clearLinkTarget = linkDrag ? (e: React.PointerEvent) => {
                      if (e.target === e.currentTarget) {
-                       setLinkDrag((prev) => (prev ? { ...prev, targetId: null } : prev));
+                       setLinkDrag((prev) => (prev ? { ...prev, targetId: null, targetEnd: null } : prev));
                      }
                    } : undefined;
                    const durationDays = Math.max(1, Math.round(
@@ -2909,6 +3282,14 @@ export function GanttView({
                       className="relative border-b hover:bg-accent/50"
                       style={{ height: rowHeight }}
                       onPointerMove={clearLinkTarget}
+                      // Hover is tracked on the FULL-WIDTH row, not the narrow bar.
+                      // The connector dots float just outside the bar's ends, so a
+                      // bar-scoped hover would drop the moment the cursor crossed the
+                      // bar edge toward a dot — the dot would vanish before it could
+                      // be grabbed. The row spans the whole timeline, so moving from
+                      // bar → dot never leaves the hover zone (dhtmlx-style).
+                      onMouseEnter={() => setHoveredTaskId(task.id)}
+                      onMouseLeave={() => setHoveredTaskId((cur) => (cur === task.id ? null : cur))}
                     >
                       {/* Ghost: original position rendered faded while dragging */}
                       {isDragging && (
@@ -2942,8 +3323,6 @@ export function GanttView({
                         }}
                         data-critical={isCrit ? 'true' : undefined}
                         data-testid={`gantt-task-bar-${task.id}`}
-                        onMouseEnter={() => setHoveredTaskId(task.id)}
-                        onMouseLeave={() => setHoveredTaskId((cur) => (cur === task.id ? null : cur))}
                         onClick={() => {
                           if (suppressNextClickRef.current) return;
                           onTaskClick?.(task);
@@ -2993,11 +3372,15 @@ export function GanttView({
                           />
                         )}
 
-                        {/* Progress drag handle — grip at the progress boundary */}
+                        {/* Progress drag handle — a triangle hugging the bottom
+                            edge at the progress boundary (dhtmlx-style). It only
+                            shows on hover / while dragging, and its hit area lives
+                            in the bottom half so grabbing it never competes with a
+                            bar move (top) or a link drag (the centred end dots). */}
                         {canDrag && liveStyle.width >= 30 && (
                           <div
                             className={cn(
-                              "absolute top-0 bottom-0 w-3 -translate-x-1/2 cursor-col-resize flex items-center justify-center",
+                              "absolute bottom-0 h-1/2 w-4 -translate-x-1/2 cursor-col-resize flex items-end justify-center pb-px",
                               progressDrag?.taskId === task.id
                                 ? "opacity-100"
                                 : "opacity-0 group-hover:opacity-100 transition-opacity"
@@ -3018,44 +3401,103 @@ export function GanttView({
                             }}
                             onClick={(e) => e.stopPropagation()}
                           >
-                            {/* Explicit colors: bg-white / ring-black-30 aren't
-                                emitted in the prebuilt components CSS. */}
+                            {/* Up-pointing triangle. Built from borders (no asset);
+                                white fill + drop-shadow so it reads on any bar color. */}
                             <div
-                              className="h-2.5 w-2.5 rounded-full"
-                              style={{ backgroundColor: '#fff', boxShadow: '0 0 0 1px rgba(0, 0, 0, 0.3), 0 1px 2px rgba(0, 0, 0, 0.25)' }}
+                              style={{
+                                width: 0,
+                                height: 0,
+                                borderLeft: '5px solid transparent',
+                                borderRight: '5px solid transparent',
+                                borderBottom: '7px solid #fff',
+                                filter: 'drop-shadow(0 1px 1px rgba(0, 0, 0, 0.35))',
+                              }}
                             />
                           </div>
                         )}
 
-                        {/* Connector dot — drag onto another bar to create a dependency */}
-                        {onDependencyCreate && (
-                          <div
-                            className={cn(
-                              "absolute top-1/2 -translate-y-1/2 h-3 w-3 rounded-full bg-background z-10",
-                              linkDrag && String(linkDrag.sourceId) === String(task.id)
-                                ? "opacity-100"
-                                : "opacity-0 group-hover:opacity-100 transition-opacity"
-                            )}
-                            style={{ right: -8, cursor: 'crosshair', border: '2px solid hsl(var(--primary))' }}
-                            data-testid={`gantt-link-dot-${task.id}`}
-                            onPointerDown={(e) => {
-                              if (e.button !== 0) return;
-                              e.stopPropagation();
-                              e.preventDefault();
-                              const rect = contentRef.current?.getBoundingClientRect();
-                              setLinkDrag({
-                                sourceId: task.id,
-                                x: rect ? e.clientX - rect.left : 0,
-                                y: rect ? e.clientY - rect.top : 0,
-                                targetId: null,
-                              });
-                            }}
-                            onClick={(e) => e.stopPropagation()}
-                          />
-                        )}
+                        {/* Connector dots — a circle floating just OUTSIDE each end
+                            of the bar (dhtmlx-style). Sitting fully outside the bar
+                            body means grabbing one can never start a bar move or an
+                            edge resize. They appear on row hover (or while this bar
+                            is the link source) and have their own enlarged hit area
+                            so they're easy to grab. Drag one onto another bar to
+                            create a dependency; the endpoint you drag FROM picks the
+                            first letter of the link type (Finish vs Start). */}
+                        {onDependencyCreate && !isLocked && (['start', 'end'] as const).map((end) => {
+                          const isSource =
+                            linkDrag != null &&
+                            String(linkDrag.sourceId) === String(task.id) &&
+                            linkDrag.sourceEnd === end;
+                          const visible = isSource || hoveredTaskId === task.id;
+                          // Only grabbable when no drag is live yet — during a drag
+                          // the dots are pure visual hints, so the bar underneath
+                          // keeps reporting the hovered drop target.
+                          const grabbable = visible && linkDrag == null;
+                          return (
+                            <div
+                              key={end}
+                              // The visible circle sits OUT from the bar end with a
+                              // comfortable gap (dhtmlx-style) so it reads as its own
+                              // affordance, not crammed against the bar. But the
+                              // transparent hit area is wider and BRIDGES back to the
+                              // bar edge: it overlays z-20 above the dependency line's
+                              // hit-stroke (z-10) that can occupy that gap, and it
+                              // keeps the pointer inside the row's subtree the whole
+                              // way out — so crossing the gap never drops the hover and
+                              // the dot can be grabbed anywhere along the bridge.
+                              className="absolute top-1/2 -translate-y-1/2 z-20 flex items-center transition-opacity"
+                              style={{
+                                [end === 'start' ? 'left' : 'right']: -28,
+                                height: 24,
+                                width: 30,
+                                cursor: 'crosshair',
+                                opacity: visible ? 1 : 0,
+                                pointerEvents: grabbable ? 'auto' : 'none',
+                                justifyContent: end === 'start' ? 'flex-start' : 'flex-end',
+                                paddingLeft: end === 'start' ? 4 : 0,
+                                paddingRight: end === 'end' ? 4 : 0,
+                              }}
+                              data-testid={`gantt-link-dot-${end}-${task.id}`}
+                              onPointerDown={(e) => {
+                                if (e.button !== 0) return;
+                                e.stopPropagation();
+                                e.preventDefault();
+                                const rect = contentRef.current?.getBoundingClientRect();
+                                setLinkDrag({
+                                  sourceId: task.id,
+                                  sourceEnd: end,
+                                  x: rect ? e.clientX - rect.left : 0,
+                                  y: rect ? e.clientY - rect.top : 0,
+                                  targetId: null,
+                                  targetEnd: null,
+                                });
+                              }}
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <div
+                                className="rounded-full"
+                                style={{
+                                  height: 12,
+                                  width: 12,
+                                  backgroundColor: 'hsl(var(--background))',
+                                  border: '2px solid hsl(var(--primary))',
+                                  boxShadow: isSource ? '0 0 0 3px hsl(var(--primary) / 0.25)' : '0 1px 2px rgba(0,0,0,0.25)',
+                                }}
+                              />
+                            </div>
+                          );
+                        })}
 
-                        {/* Hover Details / drag tooltip */}
-                        <span className="text-[10px] text-white font-medium truncate opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                        {/* Bar label — the task title, shown like summary bars so
+                            leaf bars aren't blank. Fades out on hover to reveal the
+                            progress / drag overlay below. */}
+                        <span className="relative text-[10px] text-white font-medium truncate pointer-events-none group-hover:opacity-0 transition-opacity">
+                          {task.title}
+                        </span>
+                        {/* Hover Details / drag tooltip — overlays the title so the
+                            bar's text width never shifts on hover. */}
+                        <span className="absolute inset-0 flex items-center px-2 text-[10px] text-white font-medium truncate opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
                           {isDragging
                             ? `${computeDragChanges(dragState!).start.toLocaleDateString(dateLocale, { month: 'numeric', day: 'numeric' })} → ${computeDragChanges(dragState!).end.toLocaleDateString(dateLocale, { month: 'numeric', day: 'numeric' })}`
                             : `${Math.round(liveProgress)}%`}
@@ -3175,7 +3617,12 @@ export function GanttView({
                       const si = rows.findIndex((r) => String(r.task.id) === String(linkDrag.sourceId));
                       if (si < 0) return null;
                       const s = getLiveRowStyle(rows[si]);
-                      const sx = rows[si].isMilestone ? s.left + milestoneHalfTip : s.left + s.width;
+                      // Anchor the rubber band at the endpoint we dragged FROM:
+                      // the Start dot draws from the bar's left edge, the Finish
+                      // dot from its right edge (milestones collapse to the tip).
+                      const sx = rows[si].isMilestone
+                        ? s.left + (linkDrag.sourceEnd === 'start' ? -milestoneHalfTip : milestoneHalfTip)
+                        : linkDrag.sourceEnd === 'start' ? s.left : s.left + s.width;
                       const sy = si * rowHeight + rowHeight / 2;
                       return (
                         <path
@@ -3190,6 +3637,28 @@ export function GanttView({
                     })()}
                   </svg>
                 )}
+                {/* Drag hint — names the source/target endpoints so the user can
+                    see which link type (FS/FF/SS/SF) the drop will create. */}
+                {linkDrag && (() => {
+                  const source = tasks.find((tk) => String(tk.id) === String(linkDrag.sourceId));
+                  if (!source) return null;
+                  const target = linkDrag.targetId != null
+                    ? tasks.find((tk) => String(tk.id) === String(linkDrag.targetId))
+                    : null;
+                  const endLabel = (e: 'start' | 'end') => t(`gantt.linkEnd.${e}`);
+                  const label = target
+                    ? `${source.title} (${endLabel(linkDrag.sourceEnd)}) → ${target.title} (${endLabel(linkDrag.targetEnd ?? 'start')})`
+                    : `${source.title} (${endLabel(linkDrag.sourceEnd)})`;
+                  return (
+                    <div
+                      className="absolute z-30 pointer-events-none rounded-md border bg-popover text-popover-foreground px-2 py-1 text-[11px] font-medium shadow-md whitespace-nowrap"
+                      style={{ left: linkDrag.x + 12, top: linkDrag.y + 12 }}
+                      data-testid="gantt-link-draft-hint"
+                    >
+                      {label}
+                    </div>
+                  );
+                })()}
 
               </div>
             </div>
@@ -3222,7 +3691,7 @@ export function GanttView({
                 {t('gantt.menu.view')}
               </button>
             )}
-            {inlineEdit && onTaskUpdate && row && !row.isSummary && (
+            {inlineEdit && onTaskUpdate && row && !row.isSummary && !task.locked && (
               <button
                 type="button"
                 role="menuitem"
@@ -3242,7 +3711,7 @@ export function GanttView({
                 {t('gantt.menu.edit')}
               </button>
             )}
-            {onDependencyCreate && row && !row.isMilestone && (
+            {onDependencyCreate && row && !row.isMilestone && !task.locked && (
               <>
                 <button
                   type="button"
@@ -3272,7 +3741,7 @@ export function GanttView({
                 </button>
               </>
             )}
-            {onTaskDelete && (
+            {onTaskDelete && !task.locked && (
               <button
                 type="button"
                 role="menuitem"
