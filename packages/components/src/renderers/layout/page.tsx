@@ -424,6 +424,15 @@ export const PageRenderer: React.FC<{
     }
   }, [schema, pageType]);
 
+  // Full-bleed: a page whose `main` region is declared `width: 'full'` fills
+  // the viewport with NO centered max-width cap — for dashboards / 大屏 /
+  // kiosk screens that should use the whole width. Falls back to the
+  // page-type max-width otherwise.
+  const fullBleed = (schema.regions ?? []).some(
+    (r) => r.name?.toLowerCase() === 'main' && (r.width as string) === 'full',
+  );
+  const maxWidthClass = fullBleed ? 'max-w-none' : getPageMaxWidth(pageType);
+
   const pageContent = (
     <div
       className={cn(
@@ -436,7 +445,7 @@ export const PageRenderer: React.FC<{
       style={style}
       {...pageProps}
     >
-      <div className={cn('mx-auto space-y-6', getPageMaxWidth(pageType))}>
+      <div className={cn(fullBleed ? 'space-y-6' : 'mx-auto space-y-6', maxWidthClass)}>
         {/* Page header — suppressed on record pages (the page:header component
             in the header region renders the record-bound title instead). */}
         {pageType !== 'record' && (schema.title || schema.description) && (
