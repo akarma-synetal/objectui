@@ -272,7 +272,7 @@ export default function AdvancedChartImpl({
 
   // Pie and Donut charts
   if (chartType === 'pie' || chartType === 'donut') {
-    const innerRadius = chartType === 'donut' ? 60 : 0;
+    const innerRadius = chartType === 'donut' ? '52%' : 0;
     const palette = getPalette();
     // Augment the chart config with one entry per category value so that
     // `ChartLegendContent` (which resolves item labels via `config[key]`)
@@ -302,7 +302,7 @@ export default function AdvancedChartImpl({
             innerRadius={innerRadius}
             strokeWidth={5}
             paddingAngle={2}
-            outerRadius={80}
+            outerRadius="85%"
             {...pieClickProps}
           >
              {data.map((entry, index) => {
@@ -547,9 +547,33 @@ export default function AdvancedChartImpl({
   // Horizontal bar — swap X/Y axis types and orientation.
   const isHorizontal = chartType === 'horizontal-bar';
 
+  // Build vertical fill gradients (bar + area) for every colour in play, so
+  // fills read as a polished ramp instead of flat blocks (大屏 look). Inline
+  // `style` on the stops makes the `--chart-*` CSS vars resolve.
+  const _gpal = getPalette();
+  const gradColors = Array.from(new Set<string>([
+    ..._gpal,
+    ...series.map((s: any, i: number) => resolveColor(((config[s.dataKey] as any)?.color) || _gpal[i % _gpal.length] || DEFAULT_CHART_COLOR)),
+  ]));
+  const gslug = (c: string) => 'g' + c.replace(/[^a-zA-Z0-9]/g, '');
+
   return (
     <ChartContainer config={config} className={className}>
       <ChartComponent data={data} layout={isHorizontal ? 'vertical' : 'horizontal'} {...cartesianClickProps}>
+        <defs>
+          {gradColors.map((c) => (
+            <React.Fragment key={gslug(c)}>
+              <linearGradient id={`bg-${gslug(c)}`} x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" style={{ stopColor: c }} stopOpacity={0.95} />
+                <stop offset="100%" style={{ stopColor: c }} stopOpacity={0.5} />
+              </linearGradient>
+              <linearGradient id={`ag-${gslug(c)}`} x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" style={{ stopColor: c }} stopOpacity={0.5} />
+                <stop offset="95%" style={{ stopColor: c }} stopOpacity={0.05} />
+              </linearGradient>
+            </React.Fragment>
+          ))}
+        </defs>
         <CartesianGrid vertical={false} />
         {isHorizontal ? (
           <>
@@ -595,9 +619,9 @@ export default function AdvancedChartImpl({
             const colorPerCategory = primaryCount === 1 && !isComparison && series.length === 1 && data.length > 1;
             const cmp = comparisonStyle(s, 'bar');
             return (
-              <Bar key={s.dataKey} dataKey={s.dataKey} fill={seriesColor} radius={4} fillOpacity={cmp?.fillOpacity}>
+              <Bar key={s.dataKey} dataKey={s.dataKey} fill={`url(#bg-${gslug(seriesColor)})`} radius={4} fillOpacity={cmp?.fillOpacity}>
                 {colorPerCategory && data.map((_entry, idx) => (
-                  <Cell key={`cell-${idx}`} fill={resolveColor(palette[idx % palette.length])} />
+                  <Cell key={`cell-${idx}`} fill={`url(#bg-${gslug(resolveColor(palette[idx % palette.length]))})`} />
                 ))}
               </Bar>
             );
@@ -608,7 +632,7 @@ export default function AdvancedChartImpl({
           }
           if (chartType === 'area') {
             const cmp = comparisonStyle(s, 'area');
-            return <Area key={s.dataKey} type="monotone" dataKey={s.dataKey} fill={seriesColor} stroke={seriesColor} fillOpacity={cmp?.fillOpacity ?? 0.4} strokeOpacity={cmp?.strokeOpacity} strokeDasharray={cmp?.strokeDasharray} />;
+            return <Area key={s.dataKey} type="monotone" dataKey={s.dataKey} fill={`url(#ag-${gslug(seriesColor)})`} stroke={seriesColor} strokeWidth={2} fillOpacity={cmp?.fillOpacity ?? 1} strokeOpacity={cmp?.strokeOpacity} strokeDasharray={cmp?.strokeDasharray} />;
           }
           return null;
         })}
