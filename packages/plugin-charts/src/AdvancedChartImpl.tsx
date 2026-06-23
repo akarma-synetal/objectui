@@ -272,7 +272,7 @@ export default function AdvancedChartImpl({
 
   // Pie and Donut charts
   if (chartType === 'pie' || chartType === 'donut') {
-    const innerRadius = chartType === 'donut' ? 60 : 0;
+    const innerRadius = chartType === 'donut' ? '52%' : 0;
     const palette = getPalette();
     // Augment the chart config with one entry per category value so that
     // `ChartLegendContent` (which resolves item labels via `config[key]`)
@@ -302,7 +302,7 @@ export default function AdvancedChartImpl({
             innerRadius={innerRadius}
             strokeWidth={5}
             paddingAngle={2}
-            outerRadius={80}
+            outerRadius="85%"
             {...pieClickProps}
           >
              {data.map((entry, index) => {
