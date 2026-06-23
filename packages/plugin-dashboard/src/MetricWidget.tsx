@@ -80,6 +80,15 @@ function formatMetricValue(
   const decimalsMatch = trimmed.match(/0\.(0+)/);
   const decimals = decimalsMatch ? decimalsMatch[1].length : 0;
 
+  // Compact / abbreviated notation (numeral.js 'a' convention, e.g. '0.0a' →
+  // "1.1M", '$0a' → "$1M"). Keeps big KPI numbers from overflowing a tile.
+  const isCompact = /a/i.test(trimmed);
+  if (isCompact) {
+    const opts: Intl.NumberFormatOptions = { notation: 'compact', maximumFractionDigits: decimals || 1 };
+    if (isCurrency) { opts.style = 'currency'; opts.currency = currency || symbolMap[trimmed[0]] || 'USD'; }
+    try { return new Intl.NumberFormat('en-US', opts).format(value as number); } catch { /* fall through */ }
+  }
+
   if (isCurrency) {
     const code = currency || symbolMap[trimmed[0]] || 'USD';
     try {
@@ -133,6 +142,19 @@ const VARIANT_ICON_CLASSES: Record<MetricColorVariant, string> = {
   danger:  'bg-rose-500/10 text-rose-600 dark:text-rose-400',
 };
 
+/** Text-colour per variant — used by the `bare` layout to tint the big number
+ *  (data-screen KPIs) instead of an icon chip. */
+const VARIANT_TEXT_CLASSES: Record<MetricColorVariant, string> = {
+  default: 'text-foreground',
+  blue:    'text-blue-600 dark:text-blue-400',
+  teal:    'text-teal-600 dark:text-teal-400',
+  orange:  'text-orange-600 dark:text-orange-400',
+  purple:  'text-purple-600 dark:text-purple-400',
+  success: 'text-emerald-600 dark:text-emerald-400',
+  warning: 'text-amber-600 dark:text-amber-400',
+  danger:  'text-rose-600 dark:text-rose-400',
+};
+
 export interface MetricWidgetProps {
   label: string | { key?: string; defaultValue?: string };
   value: string | number;
@@ -160,6 +182,12 @@ export interface MetricWidgetProps {
   suffix?: string;
   /** When set, the entire card becomes clickable and emits this handler. */
   onClick?: () => void;
+  /**
+   * Layout variant. `'card'` (default) is the bordered KPI card; `'bare'` drops
+   * all card chrome and renders a large tinted number + label — the dense
+   * big-number look data-screens (大屏) want, while staying data-bound.
+   */
+  variant?: 'card' | 'bare';
 }
 
 export const MetricWidget = ({
@@ -177,6 +205,7 @@ export const MetricWidget = ({
   prefix,
   suffix,
   onClick,
+  variant = 'card',
   ...props
 }: MetricWidgetProps) => {
   const iconClasses = VARIANT_ICON_CLASSES[colorVariant] || VARIANT_ICON_CLASSES.default;
@@ -210,6 +239,34 @@ export const MetricWidget = ({
     }
     return icon;
   }, [icon]);
+
+  if (variant === 'bare') {
+    const textClasses = VARIANT_TEXT_CLASSES[colorVariant] || VARIANT_TEXT_CLASSES.default;
+    return (
+      <div
+        className={cn('flex flex-col gap-1 min-w-0', onClick && 'cursor-pointer', className)}
+        onClick={onClick}
+        role={onClick ? 'button' : undefined}
+        tabIndex={onClick ? 0 : undefined}
+        onKeyDown={onClick ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick(); } } : undefined}
+      >
+        {loading ? (
+          <div className="flex items-center gap-2 text-muted-foreground" data-testid="metric-loading">
+            <Loader2 className="h-4 w-4 animate-spin" /><span className="text-sm">Loading…</span>
+          </div>
+        ) : error ? (
+          <div className="flex items-center gap-2" data-testid="metric-error" role="alert">
+            <AlertCircle className="h-4 w-4 text-destructive shrink-0" /><span className="text-xs text-destructive truncate">{error}</span>
+          </div>
+        ) : (
+          <>
+            <div className={cn('text-[2rem] leading-none font-extrabold tabular-nums tracking-tight truncate', textClasses)}>{displayValue}</div>
+            <div className="text-xs font-medium text-muted-foreground truncate">{resolveLabel(label)}</div>
+          </>
+        )}
+      </div>
+    );
+  }
 
   return (
     <Card

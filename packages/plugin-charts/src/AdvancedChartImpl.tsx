@@ -97,6 +97,9 @@ export interface AdvancedChartImplProps {
   xAxisKey?: string;
   series?: Array<{ dataKey: string; chartType?: 'bar' | 'line' | 'area'; variant?: 'current' | 'comparison'; opacity?: number; dashArray?: string; label?: string }>;
   className?: string;
+  /** Categorical/series colour palette. Overrides the theme's `--chart-1..n`
+   *  defaults so a page/dashboard can brand its charts (data-screens). */
+  colors?: string[];
   /**
    * Optional drill-down click handler. Fires when a chart segment is clicked
    * with `{ category, series, value }`. Wired for bar/horizontal-bar/line/
@@ -116,6 +119,7 @@ export default function AdvancedChartImpl({
   xAxisKey = 'name',
   series = [],
   className = '',
+  colors,
   onChartClick,
 }: AdvancedChartImplProps) {
   // Normalize 'column' → 'bar' (Recharts BarChart is already vertical).
@@ -234,14 +238,15 @@ export default function AdvancedChartImpl({
     [data, xAxisKey],
   );
 
-  // Helper function to get color palette
-  const getPalette = () => [
-    'hsl(var(--chart-1))', 
-    'hsl(var(--chart-2))', 
-    'hsl(var(--chart-3))', 
+  // Helper function to get color palette. An explicit `colors` prop (set by the
+  // page/dashboard) wins; otherwise fall back to the theme's --chart-1..5 vars.
+  const getPalette = () => (Array.isArray(colors) && colors.length > 0 ? colors : [
+    'hsl(var(--chart-1))',
+    'hsl(var(--chart-2))',
+    'hsl(var(--chart-3))',
     'hsl(var(--chart-4))',
     'hsl(var(--chart-5))'
-  ];
+  ]);
 
   // Compact numeric formatter for Y-axis ticks (1,200,000 → 1.2M).
   // Keeps the axis readable when bar/area series have large values.

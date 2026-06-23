@@ -48,6 +48,7 @@ export interface ChartRendererProps {
     config?: Record<string, any>;
     xAxisKey?: string;
     series?: Array<{ dataKey: string; label?: string; variant?: 'current' | 'comparison'; opacity?: number; dashArray?: string; chartType?: 'bar' | 'line' | 'area' }>;
+    colors?: string[];
   };
   /** Drill-down click handler — wired by ObjectChart when drillDown is enabled. */
   onChartClick?: (event: { category?: string; series?: string; value?: number }) => void;
@@ -108,6 +109,7 @@ export const ChartRenderer: React.FC<ChartRendererProps> = ({ schema, onChartCli
         xAxisKey={props.xAxisKey}
         series={props.series}
         className={props.className}
+        colors={(schema as any).colors}
         onChartClick={onChartClick}
       />
     </Suspense>

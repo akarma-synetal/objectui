@@ -102,6 +102,8 @@ export interface ObjectMetricWidgetProps {
   compareTo?: CompareToConfig;
   /** Optional i18n translator used to localize the trend label. */
   t?: (key: string, defaultValue: string) => string;
+  /** Layout variant forwarded to MetricWidget: 'card' (default) or 'bare'. */
+  variant?: 'card' | 'bare';
 }
 
 export const ObjectMetricWidget: React.FC<ObjectMetricWidgetProps> = ({
@@ -125,6 +127,7 @@ export const ObjectMetricWidget: React.FC<ObjectMetricWidgetProps> = ({
   title,
   compareTo,
   t: tProp,
+  variant,
 }) => {
   const context = useContext(SchemaRendererContext);
   const dataSource = propDataSource || context?.dataSource;
@@ -432,6 +435,7 @@ export const ObjectMetricWidget: React.FC<ObjectMetricWidgetProps> = ({
         currency={inferredCurrency}
         prefix={prefix}
         suffix={suffix}
+        variant={variant}
         onClick={drillEnabled ? () => setDrillOpen(true) : undefined}
       />
       {drillOpen && drillDrawer}
