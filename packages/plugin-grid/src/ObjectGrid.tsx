@@ -1419,8 +1419,12 @@ export const ObjectGrid: React.FC<ObjectGridProps> = ({
             ? 'px-3 py-3.5 h-16 text-sm leading-relaxed'
             : 'px-3 py-1.5 h-11 text-[13px] leading-normal';
 
+  // Body cells get `px-3` from rowHeightCellClass; give the header the same
+  // horizontal padding so header labels line up exactly with the cell content
+  // below them (the primitive <th> default is px-4, which is 4px wider).
   const applyDensity = (col: any) => ({
     ...col,
+    className: ['px-3', col.className].filter(Boolean).join(' '),
     cellClassName: [rowHeightCellClass, col.cellClassName].filter(Boolean).join(' '),
   });
 
@@ -1430,7 +1434,7 @@ export const ObjectGrid: React.FC<ObjectGridProps> = ({
         ...unpinnedCols.map(applyDensity),
         ...pinnedRightCols.map((col: any) => ({
           ...applyDensity(col),
-          className: [col.className, rightPinnedClasses].filter(Boolean).join(' '),
+          className: ['px-3', col.className, rightPinnedClasses].filter(Boolean).join(' '),
           cellClassName: [rowHeightCellClass, col.cellClassName, rightPinnedClasses].filter(Boolean).join(' '),
         })),
       ]
@@ -1578,6 +1582,11 @@ export const ObjectGrid: React.FC<ObjectGridProps> = ({
     data,
     pagination: paginationEnabled,
     pageSize: manualPaginationOn ? manualPageSize : pageSize,
+    // Rows-per-page selector options sourced from view metadata
+    // (schema.pagination.pageSizeOptions). When absent the DataTable falls back
+    // to its built-in list. This is what makes the single, server-driven pager
+    // expose the configured 50/100/200/500 choices instead of a second control.
+    pageSizeOptions: schema.pagination?.pageSizeOptions,
     // In server mode `data` IS the current page; tell DataTable to render it
     // as-is and drive paging via the callbacks below using the real match total.
     manualPagination: manualPaginationOn,

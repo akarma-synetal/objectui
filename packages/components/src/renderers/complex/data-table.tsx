@@ -165,6 +165,7 @@ const DataTableRenderer = ({ schema }: { schema: DataTableSchema }) => {
     data: rawData = [],
     pagination = true,
     pageSize: initialPageSize = 10,
+    pageSizeOptions,
     manualPagination = false,
     rowCount,
     page: controlledPage,
@@ -342,6 +343,19 @@ const DataTableRenderer = ({ schema }: { schema: DataTableSchema }) => {
       setCurrentPage(1);
     }
   };
+
+  // Rows-per-page choices: caller-supplied options (e.g. view metadata's
+  // pagination.pageSizeOptions) or the built-in fallback. The active pageSize
+  // is always merged in and the list de-duplicated + sorted so the selector can
+  // display the current value even when it is not one of the configured steps.
+  const pageSizeChoices = React.useMemo(() => {
+    const base = pageSizeOptions && pageSizeOptions.length > 0
+      ? pageSizeOptions
+      : [5, 10, 20, 50, 100];
+    return Array.from(new Set([...base, pageSize]))
+      .filter((n) => Number.isFinite(n) && n > 0)
+      .sort((a, b) => a - b);
+  }, [pageSizeOptions, pageSize]);
 
   /**
    * Generates a unique identifier for each row to maintain stable selection state
@@ -803,7 +817,7 @@ const DataTableRenderer = ({ schema }: { schema: DataTableSchema }) => {
           <TableHeader className="sticky top-0 bg-background z-10">
             <TableRow>
               {selectable && (
-                <TableHead className={cn("w-10 bg-background", frozenColumns > 0 && "sticky left-0 z-20")}>
+                <TableHead className={cn("w-10 bg-background px-3", frozenColumns > 0 && "sticky left-0 z-20")}>
                   <Checkbox
                     checked={allPageRowsSelected ? true : somePageRowsSelected ? 'indeterminate' : false}
                     onCheckedChange={handleSelectAll}
@@ -811,7 +825,7 @@ const DataTableRenderer = ({ schema }: { schema: DataTableSchema }) => {
                 </TableHead>
               )}
               {showRowNumbers && (
-                <TableHead className={cn("w-10 bg-background text-center", frozenColumns > 0 && "sticky z-20")} style={frozenColumns > 0 ? { left: selectable ? 40 : 0 } : undefined}>
+                <TableHead className={cn("w-10 bg-background text-center px-3", frozenColumns > 0 && "sticky z-20")} style={frozenColumns > 0 ? { left: selectable ? 40 : 0 } : undefined}>
                   <span className="text-xs text-muted-foreground">#</span>
                 </TableHead>
               )}
@@ -973,7 +987,7 @@ const DataTableRenderer = ({ schema }: { schema: DataTableSchema }) => {
                       }}
                     >
                       {selectable && (
-                        <TableCell className={cn(cellClassName, frozenColumns > 0 && "sticky left-0 z-10 bg-background", selectionStyle === 'hover' && "relative")}>
+                        <TableCell className={cn(cellClassName, "px-3", frozenColumns > 0 && "sticky left-0 z-10 bg-background", selectionStyle === 'hover' && "relative")}>
                           {selectionStyle === 'hover' ? (
                             <div className={cn("transition-opacity", isSelected ? "opacity-100" : "opacity-0 group-hover/row:opacity-100")}>
                               <Checkbox
@@ -1166,7 +1180,7 @@ const DataTableRenderer = ({ schema }: { schema: DataTableSchema }) => {
 
       {/* Pagination — hidden when only one page (no controls would be actionable) */}
       {pagination && sortedData.length > 0 && totalPages > 1 && (
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-2">
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-2 px-3 sm:px-4 py-2">
           <div className="flex items-center gap-2">
             <span className="text-xs sm:text-sm text-muted-foreground">{t('table.rowsPerPage')}:</span>
             <Select
@@ -1177,11 +1191,9 @@ const DataTableRenderer = ({ schema }: { schema: DataTableSchema }) => {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="5">5</SelectItem>
-                <SelectItem value="10">10</SelectItem>
-                <SelectItem value="20">20</SelectItem>
-                <SelectItem value="50">50</SelectItem>
-                <SelectItem value="100">100</SelectItem>
+                {pageSizeChoices.map((n) => (
+                  <SelectItem key={n} value={n.toString()}>{n}</SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
