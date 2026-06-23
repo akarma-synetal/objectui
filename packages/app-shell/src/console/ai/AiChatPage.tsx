@@ -1097,6 +1097,9 @@ function ChatPane({
           toolRunning: t('console.ai.toolRunning'),
           toolAwaitingApproval: t('console.ai.toolAwaitingApproval'),
           toolFailed: t('console.ai.toolFailed'),
+          connectionWaiting: t('console.ai.connectionWaiting', { defaultValue: 'Waiting for server…' }),
+          connectionStalledLabel: t('console.ai.connectionStalled', { defaultValue: 'Still working…' }),
+          connectionOfflineLabel: t('console.ai.connectionOffline', { defaultValue: 'Connection lost — reconnecting…' }),
           toolDetailsHidden: t('console.ai.toolDetailsHidden'),
           copy: t('console.ai.copy'),
           copied: t('console.ai.copied'),
@@ -1192,6 +1195,7 @@ function ChatPane({
         })}
         planApproveLabel={t('console.ai.planApprove', { defaultValue: 'Build it' })}
         planAdjustLabel={t('console.ai.planAdjust', { defaultValue: 'Adjust' })}
+        planBuiltLabel={t('console.ai.planBuilt', { defaultValue: 'Built' })}
         planApproveMessage={t('console.ai.planApproveMessage', {
           defaultValue: 'Looks good — build it as proposed.',
         })}

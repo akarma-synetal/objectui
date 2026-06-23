@@ -109,6 +109,9 @@ function buildChatLocale(
         toolRunning: '运行中',
         toolAwaitingApproval: '等待确认',
         toolFailed: '失败',
+        connectionWaiting: '正在等待服务器响应…',
+        connectionStalledLabel: '仍在处理中…',
+        connectionOfflineLabel: '网络已断开，正在重连…',
         toolDetailsHidden: '已隐藏工具参数和原始结果，仅保留过程摘要。',
         copy: '复制',
         copied: '已复制',
@@ -135,6 +138,7 @@ function buildChatLocale(
       planApproveHint: '回复以确认或调整该方案。',
       planApprove: '开始搭建',
       planAdjust: '调整方案',
+      planBuilt: '已搭建',
       planApproveMessage: '就按这个方案搭建吧。',
       planApproveDefaultsMessage: '就按你的合理假设直接搭建，未决问题用默认即可。',
       planAnswer: (question: string, option: string) => `关于「${question}」，我选择「${option}」。`,
@@ -165,6 +169,9 @@ function buildChatLocale(
       toolRunning: 'Running',
       toolAwaitingApproval: 'Awaiting approval',
       toolFailed: 'Failed',
+      connectionWaiting: 'Waiting for server…',
+      connectionStalledLabel: 'Still working…',
+      connectionOfflineLabel: 'Connection lost — reconnecting…',
       toolDetailsHidden: 'Tool inputs and raw results are hidden in this view.',
       copy: 'Copy',
       copied: 'Copied',
@@ -191,6 +198,7 @@ function buildChatLocale(
     planApproveHint: 'Reply to approve or adjust this plan.',
     planApprove: 'Build it',
     planAdjust: 'Adjust',
+    planBuilt: 'Built',
     planApproveMessage: 'Looks good — build it as proposed.',
     planApproveDefaultsMessage: 'Build it with your best assumptions; use sensible defaults for the open questions.',
     planAnswer: (question: string, option: string) => `For "${question}", go with: ${option}.`,
@@ -692,6 +700,7 @@ function ChatbotInner({
         planApproveHintLabel={locale.planApproveHint}
         planApproveLabel={locale.planApprove}
         planAdjustLabel={locale.planAdjust}
+        planBuiltLabel={locale.planBuilt}
         planApproveMessage={locale.planApproveMessage}
         planApproveDefaultsMessage={locale.planApproveDefaultsMessage}
         planAnswerMessage={locale.planAnswer}
