@@ -2083,8 +2083,9 @@ export interface ObjectChartSchema extends BaseSchema {
   type: 'object-chart';
   /** ObjectQL object name (legacy inline path; optional under ADR-0021 dataset binding) */
   objectName?: string;
-  /** Chart type */
-  chartType: 'bar' | 'line' | 'pie' | 'area' | 'scatter';
+  /** Chart type. Includes donut / horizontal-bar / column — all rendered by
+   *  AdvancedChartImpl (previously only reachable by passing an untyped string). */
+  chartType: 'bar' | 'column' | 'horizontal-bar' | 'line' | 'area' | 'pie' | 'donut' | 'scatter';
   /** Field for X axis (categories) — legacy inline path */
   xAxisField?: string;
   /** Fields for Y axis (values) — legacy */
