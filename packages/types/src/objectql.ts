@@ -157,6 +157,39 @@ export type GanttConfig = {
    * tooltip falls back to the built-in start → end · duration · progress line.
    */
   tooltipFields?: Array<string | { field: string; label?: string }>;
+  /**
+   * Shift segmentation (班次/排班分段). ObjectUI display extension — not part of the
+   * upstream GanttConfigSchema. When set, the day-mode timeline splits each
+   * 排班日 (shift-day starting at `dayStart`, default '00:00') into the configured
+   * time bands (白班 | 夜班…): a two-tier header (date over band), per-band tints,
+   * and drag/resize snapping to band boundaries. No shift concept is hardcoded —
+   * bands are pure config. Off by default. Example:
+   * `{ dayStart: '08:00', bands: [
+   *     { key: 'day', label: '白班', start: '08:00', end: '20:00' },
+   *     { key: 'night', label: '夜班', start: '20:00', end: '08:00' } ] }`.
+   */
+  timeSegments?: {
+    /** Clock time the shift-day begins, 'HH:mm' (24h). Defaults to '00:00'. */
+    dayStart?: string;
+    /** Ordered bands covering the 24h shift-day, beginning at `dayStart`. */
+    bands: Array<{
+      /** Stable id (e.g. 'day'/'night'); defaults to `band{index}`. */
+      key?: string;
+      /** Display label (白班 / 夜班). */
+      label: string;
+      /** Band start, 'HH:mm'. */
+      start: string;
+      /** Band end, 'HH:mm'; when `end <= start` the band crosses midnight. */
+      end: string;
+      /** Optional accent color (any CSS color) for the column tint. */
+      color?: string;
+    }>;
+    /**
+     * Draw the dashed calendar-midnight (日历午夜 0:00) cue inside cross-midnight
+     * bands. Defaults to `true`; set `false` to hide it.
+     */
+    showMidnight?: boolean;
+  };
 };
 
 /**
