@@ -38,11 +38,14 @@ function getOrgInitials(name: string): string {
 export function OrganizationsPage() {
   const { t } = useObjectTranslation();
   const navigate = useNavigate();
-  // `?manage=1` (set by the avatar menu's "My Organizations" entry) means the
-  // user explicitly came to manage / create orgs — don't auto-skip the picker
-  // for a single-org user, or they could never reach "New organization".
+  // Two deliberate ways to reach this page (vs the auto-skipping post-login
+  // redirect): `?manage=1` (avatar menu "My Organizations") shows the picker;
+  // `?create=1` (avatar menu "Create workspace") additionally opens the create
+  // dialog directly. Both suppress the single-org auto-skip below so a
+  // single-org user can actually reach "New organization" / the dialog.
   const [searchParams] = useSearchParams();
   const manageMode = searchParams.get('manage') === '1';
+  const wantsCreate = searchParams.get('create') === '1';
   const {
     organizations,
     activeOrganization,
@@ -117,17 +120,28 @@ export function OrganizationsPage() {
   useEffect(() => {
     if (autoSelectedRef.current) return;
     if (isOrganizationsLoading) return;
-    if (manageMode) return;
+    if (manageMode || wantsCreate) return; // came to manage/create — don't bounce
     if (orgList.length !== 1) return;
     autoSelectedRef.current = true;
     void handleSelect(orgList[0]);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isOrganizationsLoading, orgList.length, manageMode]);
+  }, [isOrganizationsLoading, orgList.length, manageMode, wantsCreate]);
+
+  // Open the create dialog when arriving via the header "Create workspace"
+  // entry (`?create=1`). Guarded so closing the dialog doesn't re-open it.
+  const createOpenedRef = useRef(false);
+  useEffect(() => {
+    if (wantsCreate && !createOpenedRef.current) {
+      createOpenedRef.current = true;
+      setIsCreateOpen(true);
+    }
+  }, [wantsCreate]);
 
   // Show a spinner while we're either still loading, or about to auto-redirect
   // because there's only one org. This prevents the picker from briefly
   // flashing on screen for single-org users.
-  const willAutoSelect = !manageMode && !isOrganizationsLoading && orgList.length === 1;
+  const willAutoSelect =
+    !manageMode && !wantsCreate && !isOrganizationsLoading && orgList.length === 1;
   if (isOrganizationsLoading || willAutoSelect) {
     return (
       <div className="flex flex-1 items-center justify-center py-20">
