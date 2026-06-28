@@ -24,6 +24,9 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
+  Tabs,
+  TabsList,
+  TabsTrigger,
   Button,
   ShareDialog,
   Sheet,
@@ -832,41 +835,21 @@ export function AiChatPage({ apiBase: apiBaseProp, defaultAgent: defaultAgentPro
   return (
     <div className="flex h-svh w-full flex-col bg-background" data-testid="ai-chat-page">
       <header className="sticky top-0 z-30 flex h-14 w-full shrink-0 items-center gap-2 border-b bg-background/95 px-2 backdrop-blur sm:px-4">
-        {/* Chat-list toggles are meaningless with no agent/conversations, so
-            hide them in the graceful no-agents state. */}
+        {/* Mobile: open the chats list as a sheet. The DESKTOP collapse toggle
+            is NOT in the top nav — it lives at the bottom-left of the chats
+            column (see below), mirroring the app shell's sidebar toggle. Chat
+            controls are meaningless with no agent, so hide in that state. */}
         {!noAgents && (
-          <>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8 shrink-0 md:hidden"
-              onClick={() => setMobileChatsOpen(true)}
-              aria-label={t('console.ai.openChats')}
-              data-testid="ai-chat-mobile-sidebar-trigger"
-            >
-              <PanelLeft className="h-4 w-4" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="hidden h-8 w-8 shrink-0 md:inline-flex"
-              onClick={toggleChatsCollapsed}
-              aria-label={
-                chatsCollapsed
-                  ? t('console.ai.showChats', { defaultValue: 'Show chats' })
-                  : t('console.ai.hideChats', { defaultValue: 'Hide chats' })
-              }
-              title={
-                chatsCollapsed
-                  ? t('console.ai.showChats', { defaultValue: 'Show chats' })
-                  : t('console.ai.hideChats', { defaultValue: 'Hide chats' })
-              }
-              data-testid="ai-chat-collapse-sidebar-trigger"
-              aria-pressed={chatsCollapsed}
-            >
-              {chatsCollapsed ? <PanelLeftOpen className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
-            </Button>
-          </>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 shrink-0 md:hidden"
+            onClick={() => setMobileChatsOpen(true)}
+            aria-label={t('console.ai.openChats')}
+            data-testid="ai-chat-mobile-sidebar-trigger"
+          >
+            <PanelLeft className="h-4 w-4" />
+          </Button>
         )}
         <div className="min-w-0 flex-1">
           <AppHeader variant="home" />
@@ -917,17 +900,50 @@ export function AiChatPage({ apiBase: apiBaseProp, defaultAgent: defaultAgentPro
           onOpenChange={setDebugOpen}
         />
       )}
-      <div className="flex min-h-0 flex-1 w-full bg-muted/20">
-        {!chatsCollapsed && (
-          <ConversationsSidebar
-            userId={userId}
-            apiBase={apiBase}
-            activeAgent={activeAgent}
-            refreshKey={refreshKey}
-            titleHints={titleHints}
-            className="hidden w-72 shrink-0 border-r md:flex"
-          />
-        )}
+      {/* Uniform `bg-background` across the chat area: the centered chat column
+          is `bg-background`, so a `bg-muted` backdrop here produced a hard
+          seam between the column and its side gutters (read as accidental). The
+          conversations sidebar keeps its own `bg-muted/30` for hierarchy. */}
+      <div className="flex min-h-0 flex-1 w-full bg-background">
+        {/* Desktop chats column. The collapse/expand control sits at the
+            BOTTOM-LEFT (mirroring the app shell's sidebar toggle) rather than
+            intruding into the top navigation bar. Collapsed → a slim rail with
+            just the expand button; expanded → the list with the toggle in a
+            footer. */}
+        <div className="hidden shrink-0 flex-col border-r md:flex">
+          {!chatsCollapsed && (
+            <ConversationsSidebar
+              userId={userId}
+              apiBase={apiBase}
+              activeAgent={activeAgent}
+              refreshKey={refreshKey}
+              titleHints={titleHints}
+              className="w-72 min-h-0 flex-1 border-r-0"
+            />
+          )}
+          <div className={cn('mt-auto p-2', chatsCollapsed ? 'w-12' : 'w-72 border-t')}>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8"
+              onClick={toggleChatsCollapsed}
+              aria-label={
+                chatsCollapsed
+                  ? t('console.ai.showChats', { defaultValue: 'Show chats' })
+                  : t('console.ai.hideChats', { defaultValue: 'Hide chats' })
+              }
+              title={
+                chatsCollapsed
+                  ? t('console.ai.showChats', { defaultValue: 'Show chats' })
+                  : t('console.ai.hideChats', { defaultValue: 'Hide chats' })
+              }
+              data-testid="ai-chat-collapse-sidebar-trigger"
+              aria-pressed={chatsCollapsed}
+            >
+              {chatsCollapsed ? <PanelLeftOpen className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
+            </Button>
+          </div>
+        </div>
         <main className="flex min-w-0 flex-1 flex-col">
           <ChatPane
             key={`${chatApi ?? 'local'}:${conversationId ?? 'pending'}`}
@@ -1217,33 +1233,62 @@ function ChatPane({
     <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/50 px-4 pb-2 pt-3 sm:px-6">
       <div className="flex min-w-0 flex-1 items-center gap-2">
         {showAgentLauncher ? (
-          <Select
-            value={activeAgent}
-            onValueChange={(name) => navigate(`/ai/${agentRouteName(name)}`)}
-            disabled={agentsLoading}
-          >
-            <SelectTrigger
-              className="h-7 w-auto min-w-0 border-0 bg-transparent px-1.5 text-xs shadow-none hover:bg-accent focus:ring-0 focus:ring-offset-0 focus-visible:ring-1 focus-visible:ring-border/80 focus-visible:ring-offset-0 sm:min-w-[160px]"
-              data-testid="ai-chat-agent-picker"
-              aria-label={t('console.ai.switchAssistant', { defaultValue: 'Switch assistant' })}
+          agents.length <= 3 ? (
+            // Claude-Code-style segmented switcher (mirrors the floating
+            // assistant) so Ask/Build read as visible peer modes, not a hidden
+            // dropdown. Each tab navigates to that agent's surface. Falls back
+            // to the Select when many custom agents would overflow the header.
+            <Tabs
+              value={activeAgent}
+              onValueChange={(name) => navigate(`/ai/${agentRouteName(name)}`)}
             >
-              <SelectValue placeholder={t('console.ai.chooseAgent', { defaultValue: 'Choose assistant…' })} />
-            </SelectTrigger>
-            <SelectContent align="start">
-              {agents.map((agent) => (
-                <SelectItem key={agent.name} value={agent.name} className="text-xs">
-                  <span className="font-medium">
+              <TabsList
+                className="h-7 gap-0.5 p-0.5"
+                data-testid="ai-chat-agent-picker"
+                aria-label={t('console.ai.switchAssistant', { defaultValue: 'Switch assistant' })}
+              >
+                {agents.map((agent) => (
+                  <TabsTrigger
+                    key={agent.name}
+                    value={agent.name}
+                    disabled={agentsLoading}
+                    title={agent.description || undefined}
+                    className="h-6 px-2.5 text-xs"
+                  >
                     {localizeAgentLabel(t, agent.name, agent.label)}
-                  </span>
-                  {agent.description ? (
-                    <span className="block text-muted-foreground text-[10px] truncate max-w-[260px]">
-                      {agent.description}
+                  </TabsTrigger>
+                ))}
+              </TabsList>
+            </Tabs>
+          ) : (
+            <Select
+              value={activeAgent}
+              onValueChange={(name) => navigate(`/ai/${agentRouteName(name)}`)}
+              disabled={agentsLoading}
+            >
+              <SelectTrigger
+                className="h-7 w-auto min-w-0 border-0 bg-transparent px-1.5 text-xs shadow-none hover:bg-accent focus:ring-0 focus:ring-offset-0 focus-visible:ring-1 focus-visible:ring-border/80 focus-visible:ring-offset-0 sm:min-w-[160px]"
+                data-testid="ai-chat-agent-picker"
+                aria-label={t('console.ai.switchAssistant', { defaultValue: 'Switch assistant' })}
+              >
+                <SelectValue placeholder={t('console.ai.chooseAgent', { defaultValue: 'Choose assistant…' })} />
+              </SelectTrigger>
+              <SelectContent align="start">
+                {agents.map((agent) => (
+                  <SelectItem key={agent.name} value={agent.name} className="text-xs">
+                    <span className="font-medium">
+                      {localizeAgentLabel(t, agent.name, agent.label)}
                     </span>
-                  ) : null}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+                    {agent.description ? (
+                      <span className="block text-muted-foreground text-[10px] truncate max-w-[260px]">
+                        {agent.description}
+                      </span>
+                    ) : null}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )
         ) : (
           <span className="truncate text-xs font-medium text-foreground/85">
             {activeAgentLabel}

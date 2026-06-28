@@ -31,6 +31,9 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
+  Tabs,
+  TabsList,
+  TabsTrigger,
   Button,
   ShareDialog,
 } from '@object-ui/components';
@@ -406,6 +409,13 @@ interface ChatbotInnerProps {
    * instead of an empty "welcome" thread.
    */
   initialMessages?: HydratedUIMessage[];
+  /**
+   * Start a brand-new server conversation (the "New chat" button). Mints a
+   * fresh `ai_conversations` row and switches to it — the old thread stays in
+   * history. Without this the button only cleared the local message array while
+   * the next turn kept appending to the SAME conversation server-side.
+   */
+  onNewChat: () => void;
 }
 
 function ChatbotInner({
@@ -422,6 +432,7 @@ function ChatbotInner({
   defaultOpen = false,
   conversationId,
   initialMessages: persistedMessages,
+  onNewChat,
 }: ChatbotInnerProps) {
   const { language } = useObjectTranslation();
   const navigate = useNavigate();
@@ -556,33 +567,57 @@ function ChatbotInner({
   // design: end users bound to a single agent never see it. `showAgentPicker`
   // is true when AI development is unlocked (catalog serves both ask & build)
   // or forced on; it still needs more than one agent to be a real choice.
-  const headerExtra =
-    showAgentPicker && agents.length > 1 ? (
-      <Select
-        value={activeAgent}
-        onValueChange={onAgentChange}
-        disabled={agentsLoading}
+  //
+  // For the common 2–3 agent case (Ask/Build) render a Claude-Code-style
+  // segmented switcher so BOTH modes are visible at a glance — a dropdown hid
+  // the distinction. Fall back to the compact Select when an env exposes many
+  // custom agents and the inline pills would overflow the header.
+  const isZh = (language ?? '').toLowerCase().startsWith('zh');
+  const headerExtra = !(showAgentPicker && agents.length > 1) ? null : agents.length <= 3 ? (
+    <Tabs value={activeAgent} onValueChange={onAgentChange}>
+      <TabsList
+        className="h-7 gap-0.5 p-0.5"
+        data-testid="floating-chatbot-agent-picker"
       >
-        <SelectTrigger
-          className="h-7 w-[180px] text-xs"
-          data-testid="floating-chatbot-agent-picker"
-        >
-          <SelectValue placeholder="Choose agent..." />
-        </SelectTrigger>
-        <SelectContent align="end">
-          {agents.map((agent: AgentDescriptor) => (
-            <SelectItem key={agent.name} value={agent.name} className="text-xs">
-              <span className="font-medium">{agent.label}</span>
-              {agent.description ? (
-                <span className="block text-muted-foreground text-[10px] truncate max-w-[220px]">
-                  {agent.description}
-                </span>
-              ) : null}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-    ) : null;
+        {agents.map((agent: AgentDescriptor) => (
+          <TabsTrigger
+            key={agent.name}
+            value={agent.name}
+            disabled={agentsLoading}
+            title={agent.description || undefined}
+            className="h-6 px-2.5 text-xs"
+          >
+            {localizeAgentLabel(isZh, agent.name, agent.label)}
+          </TabsTrigger>
+        ))}
+      </TabsList>
+    </Tabs>
+  ) : (
+    <Select
+      value={activeAgent}
+      onValueChange={onAgentChange}
+      disabled={agentsLoading}
+    >
+      <SelectTrigger
+        className="h-7 w-[180px] text-xs"
+        data-testid="floating-chatbot-agent-picker"
+      >
+        <SelectValue placeholder="Choose agent..." />
+      </SelectTrigger>
+      <SelectContent align="end">
+        {agents.map((agent: AgentDescriptor) => (
+          <SelectItem key={agent.name} value={agent.name} className="text-xs">
+            <span className="font-medium">{agent.label}</span>
+            {agent.description ? (
+              <span className="block text-muted-foreground text-[10px] truncate max-w-[220px]">
+                {agent.description}
+              </span>
+            ) : null}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
 
   // Share-link control. Sits to the left of the panel's built-in
   // fullscreen / close buttons so users can mint a public link without
@@ -602,7 +637,7 @@ function ChatbotInner({
           aria-label={locale.newChat}
           title={locale.newChat}
           data-testid="floating-chatbot-new"
-          onClick={clear}
+          onClick={onNewChat}
         >
           <SquarePen className="h-4 w-4" />
         </Button>
@@ -831,15 +866,23 @@ export default function ConsoleFloatingChatbot({
     ? `${apiBase}/agents/${encodeURIComponent(activeAgent)}/chat`
     : undefined;
 
+  // The stateful BUILD surface resumes its in-progress conversation (staged
+  // drafts + the awaiting-confirm plan would otherwise be orphaned on reload);
+  // the ASK/data surface opens a fresh thread each visit (each question is
+  // largely self-contained, and resuming stale data answers is confusing). See
+  // `resumeMode` in useChatConversation.
+  const isBuildAgent = activeAgent ? agentRouteName(activeAgent) === 'build' : false;
+
   // Server-backed conversation. Scoped by agent so each agent gets its own
   // persistent history. Hook is inert until `userId` is provided; without it
   // the FAB continues to work in local-only mode (no persistence). Gate `userId`
   // on the agent being resolved so the conversation binds to the right scope
   // from the first resolve (not a scopeless one during the catalog load).
-  const { conversationId, initialMessages } = useChatConversation({
+  const { conversationId, initialMessages, startNew } = useChatConversation({
     userId: activeAgent ? userId : undefined,
     scope: activeAgent,
     apiBase,
+    resumeMode: isBuildAgent ? 'resume' : 'fresh',
   });
 
   // `key` forces a clean remount whenever the chat endpoint OR the resolved
@@ -862,6 +905,7 @@ export default function ConsoleFloatingChatbot({
       defaultOpen={defaultOpen}
       conversationId={conversationId}
       initialMessages={initialMessages}
+      onNewChat={startNew}
     />
   );
 }
