@@ -25,8 +25,8 @@
     "@dnd-kit/utilities": "^3.2.2",
     "@object-ui/components": "workspace:*",
     "@object-ui/core": "workspace:*",
-    "@object-ui/i18n": "workspace:*",
     "@object-ui/fields": "workspace:*",
+    "@object-ui/i18n": "workspace:*",
     "@object-ui/react": "workspace:*",
     "@object-ui/types": "workspace:*",
     "clsx": "^2.1.1",
@@ -46,7 +46,7 @@
     "react-grid-layout": "^2.2.3",
     "typescript": "^6.0.3",
     "vite": "^8.1.0",
-    "vite-plugin-dts": "^5.0.2"
+    "vite-plugin-dts": "^5.0.3"
   },
   "keywords": [
     "objectui",
