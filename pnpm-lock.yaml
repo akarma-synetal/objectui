@@ -256,8 +256,8 @@ importers:
         specifier: workspace:*
         version: link:../../packages/types
       '@objectstack/client':
-        specifier: ^11.0.0
-        version: 11.0.0(ai@6.0.208(zod@4.4.3))
+        specifier: ^11.2.0
+        version: 11.2.0(ai@6.0.208(zod@4.4.3))
       '@objectstack/spec':
         specifier: ^11.0.0
         version: 11.0.0(ai@6.0.208(zod@4.4.3))
@@ -1110,8 +1110,8 @@ importers:
         specifier: workspace:*
         version: link:../types
       '@objectstack/client':
-        specifier: ^11.0.0
-        version: 11.0.0(ai@6.0.208(zod@4.4.3))
+        specifier: ^11.2.0
+        version: 11.2.0(ai@6.0.208(zod@4.4.3))
     devDependencies:
       tsup:
         specifier: ^8.5.1
@@ -3915,12 +3915,12 @@ packages:
     resolution: {integrity: sha512-oGB+UxlgWcgQkgwo8GcEGwemoTFt3FIO9ababBmaGwXIoBKZ+GTy0pP185beGg7Llih/NSHSV2XAs1lnznocSg==}
     engines: {node: '>= 8'}
 
-  '@objectstack/client@11.0.0':
-    resolution: {integrity: sha512-hE/uYsma4HrcnfVG4LZ/udee6v+3LXUpTq0cxVqylk193rExs+jyat1KYcRvtTWTg/1oMxu5mCSVdGyzMZNyQg==}
+  '@objectstack/client@11.2.0':
+    resolution: {integrity: sha512-/xIsLcgkaid8TGo4ruiuisqccAKmmrSIK9jIf+K/VTkfrIeOGR+6ADJZhdbBzxnIuz+8JnHVMSRgX60s+/uckA==}
     engines: {node: '>=18.0.0'}
 
-  '@objectstack/core@11.0.0':
-    resolution: {integrity: sha512-GFJqspqLI3fB1bEeddf+yUqqnawi/Bhk/SEEDwK1iJxNwdWwwJ7ge5hKNk3Z513Qn+pzrLSVUOtMsoU6+VD9fg==}
+  '@objectstack/core@11.2.0':
+    resolution: {integrity: sha512-Gh1sKlMb+jUIuGpgQZgypTi2qM0VVUDVEKbTkbvP8qP1Sbf/0Yw1m7tnYqcmR1yPvznbLGLvGKxVA64qVxyFiw==}
     engines: {node: '>=18.0.0'}
 
   '@objectstack/formula@11.0.0':
@@ -3928,6 +3928,15 @@ packages:
 
   '@objectstack/spec@11.0.0':
     resolution: {integrity: sha512-m/pqF7CP4SZKruFQ2K9P1pEw2IF0Ab7LRFDEqKYKVBOvVdfuFH4BmEkPy3ktaO8fXUavPsySNr+RAsN70OVjYA==}
+    engines: {node: '>=18.0.0'}
+    peerDependencies:
+      ai: ^6.0.0
+    peerDependenciesMeta:
+      ai:
+        optional: true
+
+  '@objectstack/spec@11.2.0':
+    resolution: {integrity: sha512-FxqLrATMnY4nKYxzIe22U2HIXfe840BjkcqfDTL4IziQBgYmrNycHekFKL2SPwBt7JjfpZt31CrTNo5pKhLXAw==}
     engines: {node: '>=18.0.0'}
     peerDependencies:
       ai: ^6.0.0
@@ -12078,16 +12087,16 @@ snapshots:
       '@nodelib/fs.scandir': 2.1.5
       fastq: 1.20.1
 
-  '@objectstack/client@11.0.0(ai@6.0.208(zod@4.4.3))':
+  '@objectstack/client@11.2.0(ai@6.0.208(zod@4.4.3))':
     dependencies:
-      '@objectstack/core': 11.0.0(ai@6.0.208(zod@4.4.3))
-      '@objectstack/spec': 11.0.0(ai@6.0.208(zod@4.4.3))
+      '@objectstack/core': 11.2.0(ai@6.0.208(zod@4.4.3))
+      '@objectstack/spec': 11.2.0(ai@6.0.208(zod@4.4.3))
     transitivePeerDependencies:
       - ai
 
-  '@objectstack/core@11.0.0(ai@6.0.208(zod@4.4.3))':
+  '@objectstack/core@11.2.0(ai@6.0.208(zod@4.4.3))':
     dependencies:
-      '@objectstack/spec': 11.0.0(ai@6.0.208(zod@4.4.3))
+      '@objectstack/spec': 11.2.0(ai@6.0.208(zod@4.4.3))
       zod: 4.4.3
     transitivePeerDependencies:
       - ai
@@ -12100,6 +12109,12 @@ snapshots:
       - ai
 
   '@objectstack/spec@11.0.0(ai@6.0.208(zod@4.4.3))':
+    dependencies:
+      zod: 4.4.3
+    optionalDependencies:
+      ai: 6.0.208(zod@4.4.3)
+
+  '@objectstack/spec@11.2.0(ai@6.0.208(zod@4.4.3))':
     dependencies:
       zod: 4.4.3
     optionalDependencies:
