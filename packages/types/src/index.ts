@@ -279,6 +279,18 @@ export type {
   CreateExportJobRequest,
   CreateExportJobResult,
   ExportJobProgressInfo,
+  ImportWriteMode,
+  ImportFieldMappingEntry,
+  ImportRequestOptions,
+  ImportRowResult,
+  ImportRecordsResult,
+  ImportJobStatus,
+  CreateImportJobResult,
+  ImportJobProgressInfo,
+  ImportJobResultsInfo,
+  ImportJobSummaryInfo,
+  ImportJobUndoResult,
+  ListImportJobsOptions,
   ExportDownloadRequest,
 } from './data';
 

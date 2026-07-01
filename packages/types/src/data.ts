@@ -551,6 +551,314 @@ export interface DataSource<T = any> {
     resource: string,
     request: ExportDownloadRequest,
   ): Promise<Blob>;
+
+  /**
+   * Bulk-import rows into an object in a single server call.
+   *
+   * Callers send **raw** spreadsheet values (CSV text or JSON row objects) plus
+   * an optional `mapping` from source column → target field. The server coerces
+   * every cell to its storage value from the object's field metadata (booleans,
+   * numbers, dates→ISO, select label→code, lookup name→id), so the client does
+   * NOT pre-convert special values. `writeMode` selects insert / update /
+   * upsert (the latter two require `matchFields`); `dryRun` validates + previews
+   * without persisting. The result carries per-row outcomes for an import
+   * report + failed-row re-export.
+   *
+   * Optional — adapters without a server-side `/import` primitive may omit this
+   * (the wizard falls back to a per-row `create` loop).
+   *
+   * @param resource - Object/table name
+   * @param request - Import payload + options (see {@link ImportRequestOptions})
+   * @returns Promise resolving to the aggregate + per-row import result
+   */
+  importRecords?(
+    resource: string,
+    request: ImportRequestOptions,
+  ): Promise<ImportRecordsResult>;
+
+  /**
+   * Initiate an **asynchronous** import job — the large-file counterpart to
+   * {@link importRecords}. The whole payload is posted once; the server persists
+   * a job, returns immediately with a `jobId`, and processes rows in the
+   * background (up to its row ceiling, typically 50,000). Callers poll
+   * {@link getImportJobProgress} for live counters and
+   * {@link getImportJobResults} for the capped per-row report.
+   *
+   * Optional — adapters whose backend lacks async import jobs omit this (the
+   * wizard then keeps every file on the synchronous {@link importRecords} path).
+   * Feature-detect with `typeof dataSource.createImportJob === 'function'`.
+   *
+   * @param resource - Object/table name
+   * @param request - Same payload shape as {@link importRecords}
+   * @returns Promise resolving to job tracking info ({ jobId, status, total, … })
+   */
+  createImportJob?(
+    resource: string,
+    request: ImportRequestOptions,
+  ): Promise<CreateImportJobResult>;
+
+  /**
+   * Poll the progress of a previously-created import job.
+   * Optional — required only if {@link createImportJob} is implemented.
+   *
+   * @param jobId - The job identifier returned by {@link createImportJob}.
+   * @returns Promise resolving to current counters / terminal status.
+   */
+  getImportJobProgress?(jobId: string): Promise<ImportJobProgressInfo>;
+
+  /**
+   * Fetch the per-row results of an import job (server-capped; failures first).
+   * Optional — required only if {@link createImportJob} is implemented.
+   *
+   * @param jobId - The job identifier.
+   * @returns Progress fields plus `results` and a `resultsTruncated` flag.
+   */
+  getImportJobResults?(jobId: string): Promise<ImportJobResultsInfo>;
+
+  /**
+   * List recent import jobs (history), newest first.
+   * Optional — implementations without a history endpoint omit this.
+   *
+   * @param options - Optional filters (object, status) + pagination.
+   */
+  listImportJobs?(options?: ListImportJobsOptions): Promise<ImportJobSummaryInfo[]>;
+
+  /**
+   * Cancel a pending/running import job (cooperative — the worker stops at its
+   * next progress boundary). Optional; the UI hides Cancel when omitted.
+   *
+   * @param jobId - The job identifier to cancel.
+   */
+  cancelImportJob?(jobId: string): Promise<void>;
+
+  /**
+   * Logically roll back a finished import job: delete the records it created
+   * and restore the records it updated to their pre-import field values.
+   * Optional — only jobs the server captured an undo log for are undoable
+   * (see {@link ImportJobProgressInfo.undoable}). The UI hides Undo when this
+   * is omitted or the job reports `undoable: false`.
+   *
+   * @param jobId - The job identifier to undo.
+   * @returns Counts of deleted / restored / failed reversal operations.
+   */
+  undoImportJob?(jobId: string): Promise<ImportJobUndoResult>;
+}
+
+/**
+ * How each incoming import row is committed against existing data. Mirrors the
+ * server's `ImportWriteMode` (`@objectstack/spec`).
+ * - `insert` — always create a new record (default; ignores `matchFields`)
+ * - `update` — update the record matched by `matchFields`; skip when none match
+ * - `upsert` — update when matched, else create
+ */
+export type ImportWriteMode = 'insert' | 'update' | 'upsert';
+
+/**
+ * A single source-column → target-field mapping with optional per-column
+ * transform metadata. Mirrors the server's `FieldMappingEntry`.
+ */
+export interface ImportFieldMappingEntry {
+  sourceField: string;
+  targetField: string;
+  transform?: 'none' | 'uppercase' | 'lowercase' | 'trim' | 'date_format' | 'lookup';
+  defaultValue?: unknown;
+  required?: boolean;
+}
+
+/**
+ * Options + payload for {@link DataSource.importRecords}. Mirrors the server's
+ * `ImportRequest` (`POST /api/v1/data/:object/import`).
+ */
+export interface ImportRequestOptions {
+  /** Payload shape — inferred from `csv`/`rows` when omitted. */
+  format?: 'csv' | 'json';
+  /** CSV text (when `format = 'csv'`). */
+  csv?: string;
+  /** Row objects (when `format = 'json'`). */
+  rows?: Array<Record<string, unknown>>;
+  /** Source column → target field mapping (compact record or entry array). */
+  mapping?: Record<string, string> | ImportFieldMappingEntry[];
+  /** Validate + coerce every row without persisting. @default false */
+  dryRun?: boolean;
+  /** insert / update / upsert semantics. @default 'insert' */
+  writeMode?: ImportWriteMode;
+  /** Fields that identify an existing record (required for update/upsert). */
+  matchFields?: string[];
+  /** Fire triggers/hooks for each imported row (off by default for bulk). */
+  runAutomations?: boolean;
+  /** Trim leading/trailing whitespace from string cells. @default true */
+  trimWhitespace?: boolean;
+  /** Strings treated as null/blank besides the empty string. */
+  nullValues?: string[];
+  /** Keep unmatched select values instead of failing the row. @default false */
+  createMissingOptions?: boolean;
+  /** Skip rows whose `matchFields` are blank. @default false */
+  skipBlankMatchKey?: boolean;
+}
+
+/**
+ * Outcome of one imported row. Mirrors the server's `ImportRowResult`.
+ */
+export interface ImportRowResult {
+  /** 1-based row number in the source data. */
+  row: number;
+  /** Whether the row succeeded. */
+  ok: boolean;
+  /** What happened to the row. */
+  action?: 'created' | 'updated' | 'skipped' | 'failed';
+  /** Record id (created/updated rows). */
+  id?: string;
+  /** Field that caused a coercion/validation error (failed rows). */
+  field?: string;
+  /** Error code (failed rows). */
+  code?: string;
+  /** Human-readable error message (failed rows). */
+  error?: string;
+}
+
+/**
+ * Aggregate summary + per-row results from {@link DataSource.importRecords}.
+ * Mirrors the server's `ImportResponse`.
+ */
+export interface ImportRecordsResult {
+  object: string;
+  dryRun: boolean;
+  writeMode: ImportWriteMode;
+  total: number;
+  ok: number;
+  errors: number;
+  created: number;
+  updated: number;
+  skipped: number;
+  results: ImportRowResult[];
+}
+
+/**
+ * Lifecycle status of an asynchronous import job. Mirrors the server's
+ * `ImportJobStatus` enum (`@objectstack/spec`).
+ */
+export type ImportJobStatus =
+  | 'pending'
+  | 'running'
+  | 'succeeded'
+  | 'failed'
+  | 'cancelled';
+
+/**
+ * Result of {@link DataSource.createImportJob}. `jobId` is the polling key.
+ * Mirrors the server's `CreateImportJobResponse`.
+ */
+export interface CreateImportJobResult {
+  /** Server-assigned job identifier. */
+  jobId: string;
+  /** Object the job imports into. */
+  object: string;
+  /** Initial status (usually 'pending'). */
+  status: ImportJobStatus;
+  /** Total rows accepted for processing. */
+  total: number;
+  /** ISO-8601 creation timestamp. */
+  createdAt?: string;
+}
+
+/**
+ * Live progress of an import job, returned by
+ * {@link DataSource.getImportJobProgress}. Mirrors the server's
+ * `ImportJobProgress`.
+ */
+export interface ImportJobProgressInfo {
+  jobId: string;
+  object: string;
+  status: ImportJobStatus;
+  dryRun?: boolean;
+  writeMode?: ImportWriteMode;
+  /** Total rows in the job. */
+  total: number;
+  /** Rows processed so far. */
+  processed: number;
+  created: number;
+  updated: number;
+  skipped: number;
+  errors: number;
+  /** 0–100 completion. */
+  percentComplete: number;
+  /** Whether this job can still be logically rolled back (see {@link DataSource.undoImportJob}). */
+  undoable?: boolean;
+  /** ISO-8601 timestamp of when the job was undone / rolled back. */
+  revertedAt?: string;
+  /** Failure detail when `status === 'failed'`. */
+  error?: string;
+  /** ISO-8601 start timestamp. */
+  startedAt?: string;
+  /** ISO-8601 completion timestamp. */
+  completedAt?: string;
+  /** ISO-8601 creation timestamp. */
+  createdAt?: string;
+}
+
+/**
+ * Import-job progress plus the capped per-row report, returned by
+ * {@link DataSource.getImportJobResults}. Mirrors the server's
+ * `ImportJobResults`.
+ */
+export interface ImportJobResultsInfo extends ImportJobProgressInfo {
+  /** Per-row outcomes (server-capped; failures first). */
+  results: ImportRowResult[];
+  /** True when `results` omits rows because the cap was exceeded. */
+  resultsTruncated: boolean;
+}
+
+/**
+ * One row in the import-job history list, returned by
+ * {@link DataSource.listImportJobs}. Mirrors the server's `ImportJobSummary`.
+ */
+export interface ImportJobSummaryInfo {
+  jobId: string;
+  object: string;
+  status: ImportJobStatus;
+  total: number;
+  processed: number;
+  created: number;
+  updated: number;
+  skipped: number;
+  errors: number;
+  createdAt?: string;
+  completedAt?: string;
+  /** Whether this job can still be logically rolled back. */
+  undoable?: boolean;
+  /** ISO-8601 timestamp of when the job was undone / rolled back. */
+  revertedAt?: string;
+}
+
+/**
+ * Outcome of {@link DataSource.undoImportJob} — a logical rollback. Mirrors the
+ * server's `UndoImportJobResponse`.
+ */
+export interface ImportJobUndoResult {
+  /** Whether the undo completed. */
+  success: boolean;
+  jobId: string;
+  object: string;
+  /** Created records deleted. */
+  deleted: number;
+  /** Updated records restored to their pre-import values. */
+  restored: number;
+  /** Reversal operations that failed. */
+  failed: number;
+}
+
+/**
+ * Filters + pagination for {@link DataSource.listImportJobs}.
+ */
+export interface ListImportJobsOptions {
+  /** Only jobs importing into this object. */
+  object?: string;
+  /** Only jobs in this status. */
+  status?: ImportJobStatus;
+  /** Page size (server clamps; default 50). */
+  limit?: number;
+  /** Offset for pagination. */
+  offset?: number;
 }
 
 /**
