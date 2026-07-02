@@ -196,6 +196,32 @@ function getDataConfig(schema: ObjectGridSchema): ViewData | null {
 }
 
 /**
+ * Relational field metadata that a lookup / master_detail / user cell needs to
+ * (a) resolve a bare foreign-key id to a display name (LookupCellRenderer →
+ * `field.reference_to`) and (b) drive the inline picker's query (LookupField
+ * reads reference_to/reference, display_field, id_field, description_field,
+ * lookup_filters). These are dropped if we only copy the scalar-display props
+ * (label/currency/precision/…), which is why an inline-edited lookup showed the
+ * raw id after moving to another row. Copy them from the object-schema field
+ * definition onto the built `fieldMeta` for every column-building path.
+ */
+const RELATIONAL_META_KEYS = [
+  'reference_to', 'reference', 'reference_to_field',
+  'display_field', 'id_field', 'description_field',
+  'lookup_filters', 'lookupFilters', 'titleFormat',
+] as const;
+
+function applyRelationalMeta(
+  fieldMeta: Record<string, any>,
+  fieldDef: Record<string, any> | undefined | null,
+): void {
+  if (!fieldDef) return;
+  for (const key of RELATIONAL_META_KEYS) {
+    if (fieldDef[key] !== undefined) fieldMeta[key] = fieldDef[key];
+  }
+}
+
+/**
  * Helper to normalize columns configuration
  * Handles both string[] and ListColumn[] formats
  */
@@ -898,6 +924,9 @@ export const ObjectGrid: React.FC<ObjectGridProps> = ({
                 if (objectDefField.format) fieldMeta.format = objectDefField.format;
                 if (objectDefField.options) fieldMeta.options = translateOptions(schema.objectName, col.field, objectDefField.options);
               }
+              // Preserve relational metadata (reference_to, display_field, …) so
+              // lookup cells resolve ids to names and the inline picker can query.
+              applyRelationalMeta(fieldMeta, objectDefField as any);
               // Auto-generate options from data for inferred select without existing options
               if (inferredType === 'select' && !fieldMeta.options) {
                 const uniqueValues = Array.from(new Set(data.map(row => row[col.field]).filter(Boolean)));
@@ -1056,6 +1085,9 @@ export const ObjectGrid: React.FC<ObjectGridProps> = ({
             if (fieldDef.format) fieldMeta.format = fieldDef.format;
             if (fieldDef.options) fieldMeta.options = translateOptions(schema.objectName, fieldName, fieldDef.options);
           }
+          // Preserve relational metadata (reference_to, display_field, …) so
+          // lookup cells resolve ids to names and the inline picker can query.
+          applyRelationalMeta(fieldMeta, fieldDef as any);
           // Auto-generate select options from data when no options defined
           if (resolvedType === 'select' && !fieldMeta.options) {
             const uniqueValues = Array.from(new Set(data.map(row => row[fieldName]).filter(Boolean)));
@@ -1131,6 +1163,9 @@ export const ObjectGrid: React.FC<ObjectGridProps> = ({
             if (fieldDef.format) fieldMeta.format = fieldDef.format;
             if (fieldDef.options) fieldMeta.options = translateOptions(schema.objectName, fieldName, fieldDef.options);
           }
+          // Preserve relational metadata (reference_to, display_field, …) so
+          // lookup cells resolve ids to names and the inline picker can query.
+          applyRelationalMeta(fieldMeta, fieldDef as any);
           // Auto-generate select options from data when no options defined
           if (resolvedType === 'select' && !fieldMeta.options) {
             const uniqueValues = Array.from(new Set(data.map(row => row[fieldName]).filter(Boolean)));
@@ -1456,7 +1491,13 @@ export const ObjectGrid: React.FC<ObjectGridProps> = ({
           canDelete={canDelete}
           onEdit={onEdit}
           onDelete={onDelete}
-          onAction={(action, r) => executeAction({ type: action, params: { record: r } })}
+          onAction={(action, r) => {
+            void executeAction({ type: action, params: { record: r } }).then(res => {
+              // A successful row action typically mutated this record; refresh
+              // so the grid reflects the server state (same rationale as bulk).
+              if (res?.success) setRefreshKey(k => k + 1);
+            });
+          }}
           onActionDef={(def, r) => {
             // Dispatch schema-driven row action through the runner. We forward
             // the full action def so type/target/recordIdParam/bodyShape/etc.
@@ -1469,7 +1510,9 @@ export const ObjectGrid: React.FC<ObjectGridProps> = ({
               dispatch.actionParams = rawParams;
             }
             dispatch.params = { _rowRecord: r };
-            executeAction(dispatch);
+            void executeAction(dispatch).then(res => {
+              if (res?.success) setRefreshKey(k => k + 1);
+            });
           }}
         />
       ),
@@ -1591,7 +1634,17 @@ export const ObjectGrid: React.FC<ObjectGridProps> = ({
         setSelectAllMatching(false);
         return;
       }
-      executeAction({ type: action, params: { records: expanded } });
+      // A string bulk action (e.g. 下推 / 派工) mutated the selected records,
+      // usually through a custom API that never touches dataSource.update — so
+      // nothing else signals the grid to refetch. On success, reset the
+      // selection toolbar and refresh so the list reflects the server state
+      // (mirrors the delete branch and handleBulkDialogClose).
+      const res = await executeAction({ type: action, params: { records: expanded } });
+      if (res?.success) {
+        setSelectedRows([]);
+        setSelectAllMatching(false);
+        setRefreshKey(k => k + 1);
+      }
     })();
   };
 

@@ -363,6 +363,16 @@ const DataTableRenderer = ({ schema }: { schema: DataTableSchema }) => {
   const [draggedColumn, setDraggedColumn] = useState<number | null>(null);
   const [dragOverColumn, setDragOverColumn] = useState<number | null>(null);
   const [editingCell, setEditingCell] = useState<{ rowIndex: number; columnKey: string } | null>(null);
+  // Mirror of `editingCell` that is mutated synchronously, so the `startEdit`
+  // re-entry guard can't be defeated by a stale closure. A lookup/select option
+  // renders in a Portal; picking it fires the option's onChange (which stages
+  // the value) and — because React synthetic events still bubble through the
+  // component tree — the cell's onClick, re-invoking `startEdit` for the SAME
+  // cell within one event. Reading `editingCell` state there can observe a stale
+  // (pre-edit) value under batching/contention, so the guard misses and the
+  // just-picked value is reset from empty `pendingChanges`. The ref always
+  // reflects the latest edit target within the same tick, so re-entry is caught.
+  const editingCellRef = useRef<{ rowIndex: number; columnKey: string } | null>(null);
   const [editValue, setEditValue] = useState<any>('');
   // Track pending changes for multi-cell editing: rowIndex -> { columnKey -> newValue }
   const [pendingChanges, setPendingChanges] = useState<Map<number, Record<string, any>>>(new Map());
@@ -662,10 +672,22 @@ const DataTableRenderer = ({ schema }: { schema: DataTableSchema }) => {
   // Cell editing handlers
   const startEdit = (rowIndex: number, columnKey: string) => {
     if (!editable) return;
-    
+
+    // Already editing THIS cell — do nothing. Re-entering would reset `editValue`
+    // from `pendingChanges`, and when a widget-injected editor commits via an
+    // overlay (a lookup/select popover renders in a Portal, but React events
+    // still bubble through the component tree to this cell's onClick), that reset
+    // reads a stale `pendingChanges` — before the just-staged value has flushed —
+    // and clobbers the freshly picked value. Guard on the synchronous ref (not
+    // the `editingCell` state, which can read stale under batching/contention —
+    // the intermittent CI failure #2150) so the re-entrant call is always caught.
+    const active = editingCellRef.current;
+    if (active?.rowIndex === rowIndex && active?.columnKey === columnKey) return;
+
     const column = columns.find(col => col.accessorKey === columnKey);
     if (column?.editable === false) return;
-    
+
+    editingCellRef.current = { rowIndex, columnKey };
     setEditingCell({ rowIndex, columnKey });
     
     // Check if there's a pending change for this cell, otherwise use current data value
@@ -703,12 +725,14 @@ const DataTableRenderer = ({ schema }: { schema: DataTableSchema }) => {
       schema.onCellChange(globalIndex, columnKey, valueToStage, row);
     }
 
+    editingCellRef.current = null;
     setEditingCell(null);
     setEditValue('');
   };
 
   const cancelEdit = () => {
     skipBlurSaveRef.current = true;
+    editingCellRef.current = null;
     setEditingCell(null);
     setEditValue('');
   };
@@ -757,6 +781,14 @@ const DataTableRenderer = ({ schema }: { schema: DataTableSchema }) => {
       const newPendingChanges = new Map(pendingChanges);
       newPendingChanges.delete(rowIndex);
       setPendingChanges(newPendingChanges);
+      // A staged editor (e.g. a lookup picker, which keeps its widget open on
+      // pick rather than committing) must exit edit mode once its value is
+      // persisted — otherwise the saved cell stays stuck showing the editor.
+      if (editingCell?.rowIndex === rowIndex) {
+        editingCellRef.current = null;
+        setEditingCell(null);
+        setEditValue('');
+      }
       // Saved — drop any prior error for this row, and clear the banner once
       // no errored rows remain.
       setErroredRows((prev) => {
@@ -807,6 +839,12 @@ const DataTableRenderer = ({ schema }: { schema: DataTableSchema }) => {
       
       // Clear all pending changes
       setPendingChanges(new Map());
+      // Any staged editor left open (e.g. a lookup picker that keeps its widget
+      // open on pick) must exit edit mode now that every row is persisted —
+      // otherwise the edited cell stays stuck showing the editor after 全部保存.
+      editingCellRef.current = null;
+      setEditingCell(null);
+      setEditValue('');
       // Saved — clear any prior errors.
       setErroredRows(new Set());
       setSaveError(null);
