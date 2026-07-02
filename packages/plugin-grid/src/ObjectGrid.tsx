@@ -1725,6 +1725,11 @@ export const ObjectGrid: React.FC<ObjectGridProps> = ({
     onPageSizeChange: manualPaginationOn ? manualOnPageSizeChange : undefined,
     searchable: searchEnabled,
     selectable: selectionMode,
+    // ObjectGrid surfaces the selection via its own bottom BulkActionBar
+    // (count + Clear + bulk actions). Suppress the data-table's built-in
+    // "N selected" toolbar so it doesn't render a duplicate, orphaned row
+    // above the table when search/export are handled by the outer toolbar.
+    showSelectionCount: false,
     sortable: true,
     exportable: operations?.export,
     // Flat list view: drop the rounded outer frame so the table sits flush

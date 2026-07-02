@@ -257,6 +257,7 @@ const DataTableRenderer = ({ schema }: { schema: DataTableSchema }) => {
     onPageSizeChange,
     searchable = true,
     selectable = false,
+    showSelectionCount = true,
     sortable = true,
     exportable = false,
     rowActions = false,
@@ -895,7 +896,7 @@ const DataTableRenderer = ({ schema }: { schema: DataTableSchema }) => {
   }) && !allPageRowsSelected;
 
   const hasPendingChanges = pendingChanges.size > 0;
-  const showToolbar = searchable || exportable || (selectable && selectedRowIds.size > 0) || hasPendingChanges;
+  const showToolbar = searchable || exportable || (showSelectionCount && selectable && selectedRowIds.size > 0) || hasPendingChanges;
 
   return (
     <div className={`flex flex-col h-full gap-2 sm:gap-4 ${className || ''}`}>
@@ -969,7 +970,7 @@ const DataTableRenderer = ({ schema }: { schema: DataTableSchema }) => {
               </Button>
             )}
             
-            {selectable && selectedRowIds.size > 0 && (
+            {showSelectionCount && selectable && selectedRowIds.size > 0 && (
               <div className="text-sm text-muted-foreground">
                 {t('table.selected', { count: selectedRowIds.size })}
               </div>

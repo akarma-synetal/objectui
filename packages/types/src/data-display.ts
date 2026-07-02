@@ -399,6 +399,14 @@ export interface DataTableSchema extends BaseSchema {
    */
   selectionStyle?: 'always' | 'hover';
   /**
+   * Whether to render the built-in "N selected" count in the table toolbar.
+   * Set false when an outer container (e.g. ObjectGrid's BulkActionBar) already
+   * surfaces the selection, to avoid a duplicate — and otherwise orphaned —
+   * toolbar row.
+   * @default true
+   */
+  showSelectionCount?: boolean;
+  /**
    * Enable column sorting
    * @default true
    */

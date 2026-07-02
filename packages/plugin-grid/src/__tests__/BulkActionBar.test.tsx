@@ -8,32 +8,50 @@
 
 import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
+import React from 'react';
+import { I18nProvider } from '@object-ui/react';
 import { BulkActionBar } from '../components/BulkActionBar';
 
 const rows = (n: number) => Array.from({ length: n }, (_, i) => ({ id: String(i + 1) }));
 
-describe('BulkActionBar', () => {
-  it('renders nothing when no actions configured', () => {
-    const { container } = render(
-      <BulkActionBar selectedRows={rows(2)} actions={[]} />,
-    );
-    expect(container.firstChild).toBeNull();
-  });
+// BulkActionBar surfaces its strings via useObjectTranslation, so tests wrap in
+// an English i18n provider — otherwise `{{count}}` interpolation never runs and
+// the raw templates leak into the DOM.
+const renderBar = (ui: React.ReactElement) =>
+  render(
+    <I18nProvider config={{ defaultLanguage: 'en', detectBrowserLanguage: false }}>
+      {ui}
+    </I18nProvider>,
+  );
 
+describe('BulkActionBar', () => {
   it('renders nothing when selection empty', () => {
-    const { container } = render(
+    const { container } = renderBar(
       <BulkActionBar selectedRows={[]} actions={['delete']} />,
     );
-    expect(container.firstChild).toBeNull();
+    // I18nProvider adds no DOM of its own, so an empty bar means no bar.
+    expect(container.querySelector('[data-testid="bulk-actions-bar"]')).toBeNull();
+  });
+
+  it('shows count + Clear even with no bulk actions configured', () => {
+    // The bar is the single canonical selection indicator: with no actions it
+    // still surfaces "N selected / Clear" so the embedded table needn't draw
+    // its own (unstyled) selection toolbar.
+    renderBar(<BulkActionBar selectedRows={rows(2)} actions={[]} />);
+    expect(screen.getByTestId('bulk-actions-bar')).toBeTruthy();
+    expect(screen.getByText(/2 selected/)).toBeTruthy();
+    expect(screen.getByText('Clear')).toBeTruthy();
+    // …but no action buttons.
+    expect(screen.queryByTestId('bulk-action-delete')).toBeNull();
   });
 
   it('shows N selected for the current-page case', () => {
-    render(<BulkActionBar selectedRows={rows(3)} actions={['delete']} />);
-    expect(screen.getByText(/3 items selected/i)).toBeTruthy();
+    renderBar(<BulkActionBar selectedRows={rows(3)} actions={['delete']} />);
+    expect(screen.getByText(/3 selected/)).toBeTruthy();
   });
 
   it('does not show cross-page banner when total ≤ page', () => {
-    render(
+    renderBar(
       <BulkActionBar
         selectedRows={rows(5)}
         actions={['delete']}
@@ -46,7 +64,7 @@ describe('BulkActionBar', () => {
 
   it('offers "Select all N matching" when full page is selected and more exist', () => {
     const onSelectAll = vi.fn();
-    render(
+    renderBar(
       <BulkActionBar
         selectedRows={rows(10)}
         actions={['delete']}
@@ -64,7 +82,7 @@ describe('BulkActionBar', () => {
   });
 
   it('shows "all matches selected" summary once user opts in', () => {
-    render(
+    renderBar(
       <BulkActionBar
         selectedRows={rows(10)}
         actions={['delete']}
@@ -74,13 +92,13 @@ describe('BulkActionBar', () => {
       />,
     );
     expect(screen.getByText(/All 137 matching records are selected/)).toBeTruthy();
-    expect(screen.getByText(/137 items selected \(all matches\)/)).toBeTruthy();
+    expect(screen.getByText(/137 selected \(all matches\)/)).toBeTruthy();
     expect(screen.queryByTestId('bulk-select-all-matching')).toBeNull();
   });
 
   it('calls onClearSelection and clears cross-page when Clear is clicked', () => {
     const onClear = vi.fn();
-    render(
+    renderBar(
       <BulkActionBar
         selectedRows={rows(10)}
         actions={['delete']}
