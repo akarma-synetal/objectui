@@ -10,6 +10,7 @@ import React from 'react';
 import { Button } from '@object-ui/components';
 import { Trash2, CheckSquare, X } from 'lucide-react';
 import { LazyIcon, toKebabIconName } from '@object-ui/components';
+import { useObjectTranslation } from '@object-ui/react';
 import type { BulkActionDef } from '@object-ui/types';
 import { formatActionLabel } from './RowActionMenu';
 
@@ -52,9 +53,13 @@ export const BulkActionBar: React.FC<BulkActionBarProps> = ({
   allMatchingSelected,
   onSelectAllMatching,
 }) => {
+  const { t } = useObjectTranslation();
   const hasDefs = Array.isArray(actionDefs) && actionDefs.length > 0;
   const hasLegacy = Array.isArray(actions) && actions.length > 0;
-  if (!hasDefs && !hasLegacy) return null;
+  // Render whenever rows are selected — this bar is the single, canonical
+  // selection indicator (count + Clear). Bulk-action buttons are optional: with
+  // none configured it still surfaces "N selected / Clear", so the embedded
+  // data-table needn't draw its own (unstyled, orphaned) selection toolbar.
   if (selectedRows.length === 0) return null;
 
   // Cross-page affordance: show banner when the user has selected the
@@ -83,13 +88,19 @@ export const BulkActionBar: React.FC<BulkActionBarProps> = ({
             <>
               <CheckSquare className="h-3 w-3 text-primary shrink-0" />
               <span>
-                All {totalMatching} matching records are selected.
+                {t('grid.bulkAllMatchingSelected', {
+                  count: totalMatching,
+                  defaultValue: 'All {{count}} matching records are selected.',
+                })}
               </span>
             </>
           ) : (
             <>
               <span>
-                All {pageSize} on this page are selected.
+                {t('grid.bulkAllOnPage', {
+                  count: pageSize,
+                  defaultValue: 'All {{count}} on this page are selected.',
+                })}
               </span>
               <button
                 type="button"
@@ -97,7 +108,10 @@ export const BulkActionBar: React.FC<BulkActionBarProps> = ({
                 onClick={onSelectAllMatching}
                 data-testid="bulk-select-all-matching"
               >
-                Select all {totalMatching} matching
+                {t('grid.bulkSelectAllMatching', {
+                  count: totalMatching,
+                  defaultValue: 'Select all {{count}} matching',
+                })}
               </button>
             </>
           )}
@@ -111,8 +125,14 @@ export const BulkActionBar: React.FC<BulkActionBarProps> = ({
           className="inline-block motion-safe:animate-in motion-safe:zoom-in-90 motion-safe:duration-150"
         >
           {allMatchingSelected
-            ? `${totalMatching} items selected (all matches)`
-            : `${selectedRows.length} ${selectedRows.length === 1 ? 'item' : 'items'} selected`}
+            ? t('grid.bulkSelectedAllMatches', {
+                count: totalMatching,
+                defaultValue: '{{count}} selected (all matches)',
+              })
+            : t('grid.bulkSelected', {
+                count: selectedRows.length,
+                defaultValue: '{{count}} selected',
+              })}
         </span>
       </span>
       <div className="flex items-center gap-1.5 ml-3">
@@ -163,7 +183,7 @@ export const BulkActionBar: React.FC<BulkActionBarProps> = ({
         onClick={onClearSelection}
       >
         <X className="h-3 w-3" />
-        Clear
+        {t('grid.bulkClear', { defaultValue: 'Clear' })}
       </Button>
       </div>
     </div>

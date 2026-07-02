@@ -1725,6 +1725,11 @@ export const ObjectGrid: React.FC<ObjectGridProps> = ({
     onPageSizeChange: manualPaginationOn ? manualOnPageSizeChange : undefined,
     searchable: searchEnabled,
     selectable: selectionMode,
+    // ObjectGrid surfaces the selection via its own bottom BulkActionBar
+    // (count + Clear + bulk actions). Suppress the data-table's built-in
+    // "N selected" toolbar so it doesn't render a duplicate, orphaned row
+    // above the table when search/export are handled by the outer toolbar.
+    showSelectionCount: false,
     sortable: true,
     exportable: operations?.export,
     // Flat list view: drop the rounded outer frame so the table sits flush
@@ -2365,8 +2370,12 @@ export const ObjectGrid: React.FC<ObjectGridProps> = ({
     </div>
   ) : null;
 
+  // Both branches fill the remaining height (flex-1 + min-h-0) so the
+  // BulkActionBar rendered *after* gridContent stays inside the flex column
+  // and remains visible; otherwise an h-full table pushes the bar past the
+  // bottom of an overflow-hidden ancestor and clips it.
   const gridContent = isGrouped ? (
-    <div className="flex flex-col h-full min-h-0">
+    <div className="flex flex-col flex-1 min-h-0">
       {/* Single shared horizontal scroll container: every group's sub-table
           overflows into this one scroller (disableInnerScroll), so columns
           stay aligned and there is exactly one x-axis scrollbar. */}
@@ -2378,10 +2387,12 @@ export const ObjectGrid: React.FC<ObjectGridProps> = ({
       {groupedPager}
     </div>
   ) : (
-    <>
-      <SchemaRenderer schema={dataTableSchema} />
+    <div className="flex flex-col flex-1 min-h-0">
+      <div className="flex flex-col flex-1 min-h-0">
+        <SchemaRenderer schema={dataTableSchema} />
+      </div>
       {summaryFooter}
-    </>
+    </div>
   );
 
   // Rendered BulkActionDialog (shared across both render branches).
@@ -2404,7 +2415,7 @@ export const ObjectGrid: React.FC<ObjectGridProps> = ({
           {...navigation}
           title={detailTitle}
           mainContent={
-            <>
+            <div className="flex flex-col h-full">
               {gridToolbar}
               {gridContent}
               <BulkActionBar
@@ -2419,7 +2430,7 @@ export const ObjectGrid: React.FC<ObjectGridProps> = ({
                 allMatchingSelected={selectAllMatching}
                 onSelectAllMatching={() => setSelectAllMatching(true)}
               />
-            </>
+            </div>
           }
         >
           {(record) => renderRecordDetail(record)}
@@ -2430,7 +2441,7 @@ export const ObjectGrid: React.FC<ObjectGridProps> = ({
   }
 
   return (
-    <div ref={pullRef} className="relative h-full">
+    <div ref={pullRef} className="relative h-full flex flex-col">
       {/* Re-fetch indicator while existing rows remain visible (filter/sort
           change). The initial-load skeleton above handles the empty case. */}
       <RefreshIndicator active={loading && data.length > 0} />
