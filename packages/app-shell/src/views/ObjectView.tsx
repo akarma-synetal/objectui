@@ -49,6 +49,7 @@ import { RecordDetailView } from './RecordDetailView';
 import { resolveCrudAffordances } from '../utils/crudAffordances';
 import { resolveManagedByEmptyState } from '../utils/managedByEmptyState';
 import { resolveViewId } from '../utils/resolveViewId';
+import { warnSuppressedListNav } from '../utils/warnSuppressedListNav';
 import { useObjectActions } from '../hooks/useObjectActions';
 import { useObjectTranslation, useObjectLabel } from '@object-ui/i18n';
 import { usePermissions } from '@object-ui/permissions';
@@ -1182,6 +1183,12 @@ function ObjectViewInner({ dataSource, objects, onEdit, externalRefreshKey }: an
                 </Suspense>
             );
         }
+
+        // ADR-0053 wrong-context authoring: userFilters/quickFilters on an
+        // object list view are suppressed below — say so instead of letting
+        // the author stare at a toolbar with nothing where their filter
+        // controls should be (#2219).
+        warnSuppressedListNav(objectDef.name, viewDef.id || viewDef.name || '', viewDef as any, listSchema as any);
 
         const fullSchema: ListViewSchema = {
             ...listSchema,
