@@ -76,6 +76,7 @@ import { ObjectFormDesigner } from './ObjectFormDesigner';
 import { ObjectValidationsPanel } from './ObjectValidationsPanel';
 import { ObjectSettingsPanel } from './ObjectSettingsPanel';
 import { fetchPackages, createBasePackage, PACKAGE_ID_RE, type PkgEntry } from './packages-io';
+import { PackageIdInput, PackageIdSuggestionHint } from './PackageIdInput';
 import { DraftChangesPanel } from '../../preview/DraftChangesPanel';
 import { toast } from 'sonner';
 
@@ -286,18 +287,21 @@ function PackageSwitcher({ packageId, tab }: { packageId: string; tab: string })
                     placeholder={t('engine.studio.pkg.namePlaceholder', locale)}
                     className="h-7 w-full rounded-md border bg-background px-2 text-[11px] outline-none focus:ring-1 focus:ring-primary"
                   />
-                  <input
+                  <PackageIdSuggestionHint
+                    show={!idTouched && !!newName.trim() && !newId}
+                    locale={locale}
+                  />
+                  <PackageIdInput
                     value={newId}
-                    onChange={(e) => {
+                    onChange={(v) => {
                       setIdTouched(true);
-                      setNewId(e.target.value.toLowerCase().replace(/[^a-z0-9_.-]/g, ''));
+                      setNewId(v);
                     }}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') void doCreate();
-                      if (e.key === 'Escape') setCreating(false);
-                    }}
+                    onEnter={() => void doCreate()}
+                    onEscape={() => setCreating(false)}
                     placeholder={t('engine.studio.pkg.idPlaceholder', locale)}
-                    className="h-7 w-full rounded-md border bg-background px-2 font-mono text-[11px] outline-none focus:ring-1 focus:ring-primary"
+                    locale={locale}
+                    testId="pkg-switcher-id-input"
                   />
                   {err && <p className="text-[10px] text-destructive">{err}</p>}
                   <div className="flex items-center gap-1.5">
@@ -1483,6 +1487,10 @@ function DataPillar({
   const [dirty, setDirty] = React.useState(false);
   const [hasDraft, setHasDraft] = React.useState(false);
   const [saving, setSaving] = React.useState<false | 'draft' | 'publish'>(false);
+  // Timestamp of the last successful draft save — renders a "last saved HH:MM"
+  // hint next to the Save button (framework#2615 P3: nothing confirmed a draft
+  // save persisted, unlike the sibling pillars which toast).
+  const [savedAt, setSavedAt] = React.useState<Date | null>(null);
   const [gridVer, setGridVer] = React.useState(0);
   // Records grid ⇄ Form ⇄ Validations ⇄ Settings — four views of the SAME
   // object. Grid/Form are the runtime renderer (same-renderer principle);
@@ -1648,13 +1656,15 @@ function DataPillar({
       await client.save('object', current.name, objDraft, { mode: 'draft', packageId });
       setHasDraft(true);
       setDirty(false);
+      setSavedAt(new Date());
+      toast.success(tFormat('engine.studio.data.savedDraft', locale, { label: current.label }));
       onDraftSaved?.();
     } catch (e) {
       setError(formatMetadataError(e));
     } finally {
       setSaving(false);
     }
-  }, [client, current, objDraft, onDraftSaved]);
+  }, [client, current, objDraft, onDraftSaved, packageId, locale]);
 
   // Drag-reorder columns → reorder the object's `fields` metadata (field display
   // order follows metadata order), saved as a DRAFT. Published later via the
@@ -1709,11 +1719,21 @@ function DataPillar({
             {t('engine.studio.unpublishedDraft', locale)}
           </span>
         )}
+        {savedAt && !dirty && (
+          <span className="ml-auto text-[11px] text-muted-foreground" data-testid="data-saved-at">
+            {tFormat('engine.studio.data.lastSaved', locale, {
+              time: savedAt.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' }),
+            })}
+          </span>
+        )}
         <button
           onClick={doSave}
           disabled={!current || !dirty || !!saving || readOnly}
           title={readOnly ? t('engine.studio.pkg.readonlyHint', locale) : undefined}
-          className="ml-auto inline-flex items-center gap-1 rounded-md border px-2.5 py-1 text-xs hover:bg-muted disabled:opacity-50"
+          className={
+            (savedAt && !dirty ? '' : 'ml-auto ') +
+            'inline-flex items-center gap-1 rounded-md border px-2.5 py-1 text-xs hover:bg-muted disabled:opacity-50'
+          }
         >
           {saving === 'draft' ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
           {t('engine.studio.saveDraft', locale)}
@@ -1987,7 +2007,11 @@ function DataPillar({
                           table: {
                             fields: readFields(objDraft.fields)
                               .entries.map((e) => e.name)
-                              .filter((n) => !STUDIO_SYSTEM_FIELD_NAMES.has(n)),
+                              // Also drop a field named `actions`: the grid always pins
+                              // its own row-actions column headed "Actions", so a data
+                              // column of the same name reads as a duplicated column.
+                              // The field stays editable in the form designer.
+                              .filter((n) => !STUDIO_SYSTEM_FIELD_NAMES.has(n) && n !== 'actions'),
                           },
                         } as never
                       }
