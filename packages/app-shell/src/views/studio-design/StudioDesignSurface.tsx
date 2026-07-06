@@ -99,6 +99,10 @@ import {
 import { ObjectFormDesigner } from './ObjectFormDesigner';
 import { ObjectValidationsPanel } from './ObjectValidationsPanel';
 import { ObjectSettingsPanel } from './ObjectSettingsPanel';
+import { ObjectApiPanel } from './ObjectApiPanel';
+import { ObjectHooksPanel } from './ObjectHooksPanel';
+import { ObjectActionsPanel } from './ObjectActionsPanel';
+import { getIcon } from '../../utils/getIcon';
 import { fetchPackages, type PkgEntry } from './packages-io';
 import { DraftChangesPanel } from '../../preview/DraftChangesPanel';
 import { resolveConsoleUrl } from '../../console/organizations/resolveHomeUrl';
@@ -115,6 +119,8 @@ interface Surface {
   type: string;
   name: string;
   label: string;
+  /** Lucide icon name from the object's metadata (`icon` field); falls back per getIcon. */
+  icon?: string;
 }
 
 interface NavNode {
@@ -789,7 +795,7 @@ function NavTree({
             <Icon className="h-3.5 w-3.5 shrink-0" />
             <span className="flex-1 truncate">{node.label}</span>
             {surface && surface.type !== 'page' && (
-              <span className="rounded bg-muted px-1 py-px text-[9px] uppercase text-muted-foreground">
+              <span className="text-[9px] uppercase tracking-wide text-muted-foreground/60">
                 {surface.type}
               </span>
             )}
@@ -1682,7 +1688,7 @@ function DataPillar({
   // object. Grid/Form are the runtime renderer (same-renderer principle);
   // Validations edits `validations` rules; Settings edits object basics +
   // the ADR-0085 semantic roles. All patch the one `objDraft`.
-  const [viewMode, setViewMode] = React.useState<'grid' | 'form' | 'rules' | 'settings'>('grid');
+  const [viewMode, setViewMode] = React.useState<'grid' | 'form' | 'rules' | 'settings' | 'hooks' | 'actions' | 'api'>('grid');
   // Within the Form view: 布局 (WYSIWYG drag/section designer) ⇄ 预览 (live form).
   const [formMode, setFormMode] = React.useState<'layout' | 'preview'>('layout');
   // Tracks which object's baseline is currently loaded — so we (re)load exactly
@@ -1712,12 +1718,12 @@ function DataPillar({
         ]);
         if (cancelled) return;
         const items = (list || [])
-          .map((o) => ({ type: 'object', name: String(o.name ?? ''), label: String(o.label ?? o.name ?? '') }))
+          .map((o) => ({ type: 'object', name: String(o.name ?? ''), label: String(o.label ?? o.name ?? ''), icon: o.icon ? String(o.icon) : undefined }))
           .filter((o) => o.name);
         const known = new Set(items.map((o) => o.name));
         for (const d of draftHeaders) {
           if (d.name && !known.has(d.name)) {
-            items.push({ type: 'object', name: d.name, label: d.name });
+            items.push({ type: 'object', name: d.name, label: d.name, icon: undefined });
           }
         }
         setObjects(items);
@@ -1882,9 +1888,29 @@ function DataPillar({
 
   const inspector = getMetadataInspector('object');
 
+  // The object-level tabs (Data pillar). A shadcn/HIG segmented control: a
+  // recessed `bg-muted` track with an elevated `bg-background` pill on the
+  // active segment — the inverse of the old transparent-track/grey-active
+  // styling, which read as toolbar chrome rather than a distinct nav layer.
+  const dataTabs: ReadonlyArray<{ key: typeof viewMode; label: string }> = [
+    { key: 'grid', label: t('engine.studio.data.tab.records', locale) },
+    { key: 'form', label: t('engine.studio.data.tab.form', locale) },
+    { key: 'rules', label: t('engine.studio.data.tab.rules', locale) },
+    { key: 'hooks', label: t('engine.studio.data.tab.hooks', locale) },
+    { key: 'actions', label: t('engine.studio.data.tab.actions', locale) },
+    { key: 'api', label: t('engine.studio.data.tab.api', locale) },
+    { key: 'settings', label: t('engine.studio.data.tab.settings', locale) },
+  ];
+
+  // The selected object's own icon (from its metadata) — prefer the loaded
+  // draft body, fall back to the rail header. getIcon degrades to Database.
+  const HeaderIcon = getIcon(
+    typeof objDraft.icon === 'string' ? (objDraft.icon as string) : current?.icon,
+  );
+
   return (
     <div className="flex h-full flex-col">
-      <div className="flex items-center gap-2 border-b px-3 py-1.5">
+      <div className="flex items-center gap-3 border-b px-3 py-2">
         <button
           type="button"
           onClick={() => setRailOpen((v) => !v)}
@@ -1894,10 +1920,15 @@ function DataPillar({
           <Menu className="h-4 w-4" />
         </button>
         {current ? (
-          <span className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
-            <span className="text-[13px] font-medium text-foreground">{current.label}</span>
-            <span className="rounded bg-muted px-1.5 py-0.5">object · {current.name}</span>
-            <span>{tFormat('engine.studio.data.fieldCount', locale, { count: fieldCount })}</span>
+          <span className="flex min-w-0 items-center gap-2">
+            <HeaderIcon className="h-4 w-4 shrink-0 text-muted-foreground" />
+            <span className="truncate text-[15px] font-semibold leading-none text-foreground">{current.label}</span>
+            <span className="shrink-0 rounded bg-muted/70 px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">
+              {current.name}
+            </span>
+            <span className="shrink-0 text-[11px] text-muted-foreground">
+              {tFormat('engine.studio.data.fieldCount', locale, { count: fieldCount })}
+            </span>
           </span>
         ) : (
           <span className="text-[11px] text-muted-foreground">{t('engine.studio.data.pickObject', locale)}</span>
@@ -1965,22 +1996,25 @@ function DataPillar({
                   o.label.toLowerCase().includes(query.trim().toLowerCase()) ||
                   o.name.toLowerCase().includes(query.trim().toLowerCase()),
               )
-              .map((o) => (
-                <button
-                  key={o.name}
-                  onClick={() => {
-                    setCurrent(o);
-                    if (isMobile) setRailOpen(false);
-                  }}
-                  className={
-                    'flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs ' +
-                    (current?.name === o.name ? 'bg-muted font-medium' : 'text-foreground/90 hover:bg-muted/60')
-                  }
-                >
-                  <Database className="h-3.5 w-3.5 shrink-0" />
-                  <span className="flex-1 truncate">{o.label}</span>
-                </button>
-              ))}
+              .map((o) => {
+                const Icon = getIcon(o.icon);
+                return (
+                  <button
+                    key={o.name}
+                    onClick={() => {
+                      setCurrent(o);
+                      if (isMobile) setRailOpen(false);
+                    }}
+                    className={
+                      'flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs ' +
+                      (current?.name === o.name ? 'bg-muted font-medium' : 'text-foreground/90 hover:bg-muted/60')
+                    }
+                  >
+                    <Icon className="h-3.5 w-3.5 shrink-0" />
+                    <span className="flex-1 truncate">{o.label}</span>
+                  </button>
+                );
+              })}
           </div>
           <div className="shrink-0 border-t p-2">
             {readOnly ? (
@@ -2021,62 +2055,27 @@ function DataPillar({
             )
           ) : (
             <>
-              <div className="mb-3 flex shrink-0 items-center gap-2">
-                {/* view toggle — Records grid ⇄ Form, both the runtime renderer */}
-                <div className="inline-flex rounded-md border p-0.5 text-[11px]">
-                  <button
-                    type="button"
-                    onClick={() => setViewMode('grid')}
-                    className={
-                      'rounded px-2.5 py-0.5 ' +
-                      (viewMode === 'grid' ? 'bg-muted font-medium' : 'text-muted-foreground hover:text-foreground')
-                    }
-                  >
-                    {t('engine.studio.data.tab.records', locale)}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setViewMode('form')}
-                    className={
-                      'rounded px-2.5 py-0.5 ' +
-                      (viewMode === 'form' ? 'bg-muted font-medium' : 'text-muted-foreground hover:text-foreground')
-                    }
-                  >
-                    {t('engine.studio.data.tab.form', locale)}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setViewMode('rules')}
-                    className={
-                      'rounded px-2.5 py-0.5 ' +
-                      (viewMode === 'rules' ? 'bg-muted font-medium' : 'text-muted-foreground hover:text-foreground')
-                    }
-                  >
-                    {t('engine.studio.data.tab.rules', locale)}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setViewMode('settings')}
-                    className={
-                      'rounded px-2.5 py-0.5 ' +
-                      (viewMode === 'settings' ? 'bg-muted font-medium' : 'text-muted-foreground hover:text-foreground')
-                    }
-                  >
-                    {t('engine.studio.data.tab.settings', locale)}
-                  </button>
+              <div className="mb-4 flex shrink-0 items-center gap-3">
+                {/* Object-level segmented control — the primary nav layer for
+                    the selected object (recessed track, elevated active pill). */}
+                <div className="inline-flex items-center gap-0.5 rounded-lg bg-muted p-1">
+                  {dataTabs.map((tab) => (
+                    <button
+                      key={tab.key}
+                      type="button"
+                      onClick={() => setViewMode(tab.key)}
+                      aria-pressed={viewMode === tab.key}
+                      className={
+                        'rounded-md px-3 py-1 text-[13px] transition-all ' +
+                        (viewMode === tab.key
+                          ? 'bg-background font-medium text-foreground shadow-sm'
+                          : 'text-muted-foreground hover:text-foreground')
+                      }
+                    >
+                      {tab.label}
+                    </button>
+                  ))}
                 </div>
-                <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-[11px] text-primary">
-                  <Eye className="h-3 w-3" />{' '}
-                  {viewMode === 'grid'
-                    ? t('engine.studio.data.badge.grid', locale)
-                    : viewMode === 'rules'
-                      ? t('engine.studio.data.badge.rules', locale)
-                      : viewMode === 'settings'
-                        ? t('engine.studio.data.badge.settings', locale)
-                        : formMode === 'layout'
-                          ? t('engine.studio.data.badge.formLayout', locale)
-                          : t('engine.studio.data.badge.formPreview', locale)}
-                </span>
                 {(viewMode === 'grid' || viewMode === 'form') && !readOnly && (
                   <button
                     type="button"
@@ -2103,6 +2102,12 @@ function DataPillar({
                   locale={locale}
                   disabled={readOnly}
                 />
+              ) : viewMode === 'hooks' ? (
+                <ObjectHooksPanel objectName={current.name} packageId={packageId} />
+              ) : viewMode === 'actions' ? (
+                <ObjectActionsPanel draft={objDraft} onPatch={onPatch} disabled={readOnly} />
+              ) : viewMode === 'api' ? (
+                <ObjectApiPanel name={current.name} draft={objDraft} />
               ) : viewMode === 'grid' && !hasBaseline ? (
                 /* Draft-only object: no physical table until the package publish —
                  * rendering the runtime grid would fire data SQL against a table
@@ -2191,13 +2196,14 @@ function DataPillar({
               <>
               {/* form sub-mode: 布局 (WYSIWYG drag/section designer) ⇄ 预览 (live form) */}
               <div className="mb-3 flex items-center gap-2">
-                <div className="inline-flex rounded-md border p-0.5 text-[11px]">
+                <div className="inline-flex items-center gap-0.5 rounded-lg bg-muted p-0.5">
                   <button
                     type="button"
                     onClick={() => setFormMode('layout')}
+                    aria-pressed={formMode === 'layout'}
                     className={
-                      'rounded px-2.5 py-0.5 ' +
-                      (formMode === 'layout' ? 'bg-muted font-medium' : 'text-muted-foreground hover:text-foreground')
+                      'rounded-md px-2.5 py-0.5 text-[12px] transition-all ' +
+                      (formMode === 'layout' ? 'bg-background font-medium text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground')
                     }
                   >
                     {t('engine.studio.data.form.layout', locale)}
@@ -2205,9 +2211,10 @@ function DataPillar({
                   <button
                     type="button"
                     onClick={() => setFormMode('preview')}
+                    aria-pressed={formMode === 'preview'}
                     className={
-                      'rounded px-2.5 py-0.5 ' +
-                      (formMode === 'preview' ? 'bg-muted font-medium' : 'text-muted-foreground hover:text-foreground')
+                      'rounded-md px-2.5 py-0.5 text-[12px] transition-all ' +
+                      (formMode === 'preview' ? 'bg-background font-medium text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground')
                     }
                   >
                     {t('engine.studio.data.form.preview', locale)}
@@ -2966,7 +2973,7 @@ function AccessPillar({
                 <Shield className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
                 <span className="flex-1 truncate">{p.label}</span>
                 {p.isProfile && (
-                  <span className="rounded bg-muted px-1 py-px text-[9px] uppercase text-muted-foreground">
+                  <span className="text-[9px] uppercase tracking-wide text-muted-foreground/60">
                     profile
                   </span>
                 )}
