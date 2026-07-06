@@ -66,7 +66,18 @@ function SectionDivider({ label, collapsible, collapsed, onToggle, className }: 
 }
 
 const useSafeFormTranslation = createSafeTranslation(
-  { 'common.selectOption': 'Select an option' },
+  {
+    'common.selectOption': 'Select an option',
+    'validation.required': '{{field}} is required',
+    'validation.minLength': '{{field}} must be at least {{min}} characters',
+    'validation.maxLength': '{{field}} must be at most {{max}} characters',
+    'validation.min': '{{field}} must be at least {{min}}',
+    'validation.max': '{{field}} must be at most {{max}}',
+    'validation.pattern': '{{field}} format is invalid',
+    'validation.email': 'Please enter a valid email address',
+    'validation.url': 'Please enter a valid URL',
+    'validation.formInvalid': 'Please check the highlighted fields: {{fields}}',
+  },
   'common.selectOption',
 );
 
@@ -504,6 +515,18 @@ ComponentRegistry.register('form',
       } finally {
         setIsSubmitting(false);
       }
+    }, (validationErrors) => {
+      // Client-side (react-hook-form) validation blocked the submit. The
+      // per-field errors render inline, but in long forms the offending field
+      // is often scrolled out of view — the user clicks 创建 and sees nothing
+      // happen. Surface a toast naming the fields so the feedback is visible
+      // regardless of scroll position (mirrors the server-error toast above).
+      const names = Object.keys(validationErrors || {});
+      if (names.length === 0) return;
+      const labels = names.map((n) => fieldLabelByName[n] || n);
+      const MAX = 3;
+      const fieldsText = labels.slice(0, MAX).join('、') + (labels.length > MAX ? '…' : '');
+      toast.error(t('validation.formInvalid', { fields: fieldsText }));
     });
 
     // Handle cancel
@@ -675,8 +698,35 @@ ComponentRegistry.register('form',
                 if (required) {
                   rules.required = typeof validation.required === 'string'
                     ? validation.required
-                    : `${label || name} is required`;
+                    : t('validation.required', { field: label || name });
                 }
+
+                // Localize the standard validation messages emitted by
+                // buildValidationRules. Each such rule carries a `messageKey`
+                // and leaves `message` undefined for the auto-generated case
+                // (a field-authored message is a string and is left untouched);
+                // we fill the blanks through i18n so they track the label's
+                // language. A fresh object avoids mutating the shared rule.
+                const localizeRule = (
+                  rule: any,
+                  interp?: (r: any) => Record<string, unknown>,
+                ) => {
+                  if (
+                    rule && typeof rule === 'object' &&
+                    rule.message == null && typeof rule.messageKey === 'string'
+                  ) {
+                    return {
+                      ...rule,
+                      message: t(rule.messageKey, { field: label || name, ...(interp?.(rule)) }),
+                    };
+                  }
+                  return rule;
+                };
+                if (rules.minLength) rules.minLength = localizeRule(rules.minLength, r => ({ min: r.value }));
+                if (rules.maxLength) rules.maxLength = localizeRule(rules.maxLength, r => ({ max: r.value }));
+                if (rules.min) rules.min = localizeRule(rules.min, r => ({ min: r.value }));
+                if (rules.max) rules.max = localizeRule(rules.max, r => ({ max: r.value }));
+                if (rules.pattern) rules.pattern = localizeRule(rules.pattern);
 
                 // Use field.id or field.name for stable keys (never use index alone)
                 const fieldKey = field.id ?? name;
