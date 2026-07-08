@@ -26,6 +26,7 @@ import React from 'react';
 import { Webhook, Plus, Loader2, Save } from 'lucide-react';
 import { toast } from 'sonner';
 import { SchemaForm } from '../metadata-admin/SchemaForm';
+import { getMetadataDefaultInspector } from '../metadata-admin/default-inspector-registry';
 import { useMetadataClient } from '../metadata-admin/useMetadata';
 import { t, tFormat, useMetadataLocale } from '../metadata-admin/i18n';
 import { formatMetadataError } from './metadataError';
@@ -68,13 +69,23 @@ export function ObjectHooksPanel({
   objectName,
   packageId,
   disabled,
+  hookSchema,
 }: {
   objectName: string;
   packageId: string;
   disabled?: boolean;
+  /**
+   * The live server JSONSchema for the `hook` type (`/meta/types`). Drives the
+   * SchemaForm so the fields, enums and grouping come from the real hook
+   * metadata contract rather than being synthesised from the value shape.
+   */
+  hookSchema?: Record<string, unknown>;
 }) {
   const locale = useMetadataLocale();
   const client = useMetadataClient();
+  // Curated hook authoring surface (object picker + events + dedicated body
+  // editor); falls back to the generic SchemaForm if unregistered.
+  const HookInspector = getMetadataDefaultInspector('hook');
   const [hooks, setHooks] = React.useState<HookItem[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
@@ -247,16 +258,33 @@ export function ObjectHooksPanel({
                 </button>
               )}
             </div>
-            <div className="min-h-0 flex-1 overflow-auto p-3">
-              <SchemaForm
-                schema={undefined}
-                value={draft as Record<string, unknown>}
-                onChange={(next) => {
-                  setDraft(next as HookItem);
-                  setDirty(true);
-                }}
-                readOnly={!!disabled}
-              />
+            <div className="min-h-0 flex-1 overflow-auto">
+              {HookInspector ? (
+                <HookInspector
+                  type="hook"
+                  name={String(draft.name ?? '')}
+                  draft={draft as Record<string, unknown>}
+                  onPatch={(patch) => {
+                    setDraft((d) => ({ ...(d as HookItem), ...patch }));
+                    setDirty(true);
+                  }}
+                  readOnly={!!disabled}
+                  locale={locale}
+                  serverSchema={hookSchema}
+                />
+              ) : (
+                <div className="p-3">
+                  <SchemaForm
+                    schema={hookSchema}
+                    value={draft as Record<string, unknown>}
+                    onChange={(next) => {
+                      setDraft(next as HookItem);
+                      setDirty(true);
+                    }}
+                    readOnly={!!disabled}
+                  />
+                </div>
+              )}
             </div>
           </>
         )}
