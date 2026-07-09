@@ -91,13 +91,18 @@ export interface RelatedRecordActionsBridgeProps {
 }
 
 /**
- * Derive the child object's row actions (metadata `actions` filtered to the
- * `list_item` location), localized and shaped for the related-list row menu.
+ * Derive the child object's actions for a related-list location
+ * (`list_item` → row menu, `list_toolbar` → header buttons), localized and
+ * shaped for the related-list bridge.
  */
-function deriveRowActions(childDef: any, actionLabel: ActionLabelFn): RelatedRowActionDef[] {
+function deriveActions(
+  childDef: any,
+  actionLabel: ActionLabelFn,
+  location: 'list_item' | 'list_toolbar',
+): RelatedRowActionDef[] {
   const actions = Array.isArray(childDef?.actions) ? childDef.actions : [];
   return actions
-    .filter((a: any) => Array.isArray(a?.locations) && a.locations.includes('list_item'))
+    .filter((a: any) => Array.isArray(a?.locations) && a.locations.includes(location))
     .map((a: any) => ({
       ...a,
       label: actionLabel(childDef.name, a.name, a.label || a.name),
@@ -142,13 +147,24 @@ export function RelatedRecordActionsBridge({
   const runRowAction = useCallback(
     async (childObject: string, record: any, action: RelatedRowActionDef) => {
       const id = record?.id ?? record?._id;
-      const def = {
-        ...(action as unknown as ActionDef),
+      // Same dispatch shape as ObjectGrid.onActionDef: a metadata action's
+      // `params` is the ActionParam[] COLLECTION DEFINITION — surface it as
+      // `actionParams` (the runner's param-dialog input) and reserve `params`
+      // for the `_rowRecord` stash (apiHandler row-id injection +
+      // `defaultFromRow` prefill). Spreading the array into `params` used to
+      // produce `{0: {...}}`, which downstream consumers sent to the data API
+      // as a fields map → INVALID_FIELD: Unknown field '0'.
+      const { params: rawParams, ...rest } = action as unknown as ActionDef & { params?: unknown };
+      const def: any = {
+        ...rest,
         objectName: childObject,
         ...(id != null ? { recordId: String(id) } : {}),
-        params: { ...(action.params as Record<string, unknown> | undefined) },
-      } as ActionDef;
-      const res = await execute(def);
+        params: { _rowRecord: record },
+      };
+      if (Array.isArray(rawParams) && rawParams.length > 0) {
+        def.actionParams = rawParams;
+      }
+      const res = await execute(def as ActionDef);
       // Refresh open related lists for this child object after a successful
       // mutating action (the row menu handler is otherwise fire-and-forget).
       if (res?.success) notifyRelatedChanged(childObject);
@@ -210,11 +226,22 @@ export function RelatedRecordActionsBridge({
           };
         }
 
-        const rowActions = deriveRowActions(childDef, actionLabel);
+        const rowActions = deriveActions(childDef, actionLabel, 'list_item');
         if (rowActions.length > 0) {
           handlers.rowActions = rowActions;
           handlers.onRowAction = (action, record) =>
             runRowAction(objectName, record, action);
+        }
+
+        // List-level actions (e.g. sys_invitation's `invite_user`) render as
+        // header buttons — the related-list equivalent of the object list's
+        // toolbar. Executed through the same dispatch as row actions, just
+        // without a row record.
+        const toolbarActions = deriveActions(childDef, actionLabel, 'list_toolbar');
+        if (toolbarActions.length > 0) {
+          handlers.toolbarActions = toolbarActions;
+          handlers.onToolbarAction = (action) =>
+            runRowAction(objectName, undefined, action);
         }
 
         return handlers;
