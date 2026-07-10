@@ -17,10 +17,9 @@
  *  2. Record sharing (ADR-0056) — the object-level Org-Wide Default (OWD)
  *     `sharingModel` (private | public_read | public_read_write |
  *     controlled_by_parent). This is the baseline record-level visibility the
- *     runtime applies BEFORE roles and sharing rules: without it the platform
- *     treats records as fully public (every tenant user reads AND edits every
- *     record), so record isolation is invisible/unconfigurable at design time
- *     unless the builder exposes it.
+ *     runtime applies BEFORE positions and sharing rules. Since ADR-0090 D1
+ *     an unset value defaults to `private` (secure default) — the old
+ *     fully-public cliff is gone, so leaving it unset is safe.
  *  3. Semantic roles (ADR-0085) — the cross-surface presentation roles:
  *     `nameField`, `stageField` (string | false | unset), `highlightFields`.
  *     These are the ONLY presentation knobs the protocol carries, so the
@@ -62,16 +61,10 @@ export function ObjectSettingsPanel({
     (e) => e.def.hidden !== true && !highlightFields.includes(e.name),
   );
 
-  // Record sharing (OWD). The spec keeps legacy aliases (`read` → public_read,
-  // `read_write`/`full` → public_read_write) for back-compat; normalise them to
-  // the canonical value so the <select> reflects the real runtime behaviour.
-  const rawSharing = typeof draft.sharingModel === 'string' ? draft.sharingModel : '';
-  const sharingModel =
-    rawSharing === 'read'
-      ? 'public_read'
-      : rawSharing === 'read_write' || rawSharing === 'full'
-        ? 'public_read_write'
-        : rawSharing;
+  // Record sharing (OWD). Canonical values only — spec 13 (ADR-0090 D4)
+  // rejects the legacy `read`/`read_write`/`full` aliases at authoring time,
+  // and an unset value defaults to `private` (ADR-0090 D1).
+  const sharingModel = typeof draft.sharingModel === 'string' ? draft.sharingModel : '';
   const sharingDescKey =
     sharingModel === 'private'
       ? 'engine.studio.settings.sharingDescPrivate'
@@ -82,9 +75,18 @@ export function ObjectSettingsPanel({
           : sharingModel === 'controlled_by_parent'
             ? 'engine.studio.settings.sharingDescControlledByParent'
             : 'engine.studio.settings.sharingDescUnset';
-  // Unset falls through to the "fully public" runtime default — flag it so the
-  // designer doesn't silently ship org-wide read/write.
-  const sharingIsUnset = sharingModel === '';
+
+  // External OWD dial (ADR-0090 D11): baseline for portal/partner principals.
+  // Defaults to private when unset; must never be WIDER than the internal
+  // model (ordering: private < public_read < public_read_write — the D7
+  // security-posture linter rejects the wider shape at publish).
+  const externalSharingModel =
+    typeof draft.externalSharingModel === 'string' ? draft.externalSharingModel : '';
+  const OWD_WIDTH: Record<string, number> = { private: 0, public_read: 1, public_read_write: 2 };
+  const externalWider =
+    externalSharingModel in OWD_WIDTH &&
+    sharingModel in OWD_WIDTH &&
+    OWD_WIDTH[externalSharingModel] > OWD_WIDTH[sharingModel];
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-auto">
@@ -125,6 +127,7 @@ export function ObjectSettingsPanel({
             <select
               value={sharingModel}
               disabled={disabled}
+              data-testid="owd-internal-select"
               onChange={(e) =>
                 onPatch(e.target.value ? { sharingModel: e.target.value } : { sharingModel: undefined })
               }
@@ -139,14 +142,49 @@ export function ObjectSettingsPanel({
               </option>
             </select>
           </label>
+          <p className="text-[11px] text-muted-foreground">
+            {t(sharingDescKey, locale)}
+          </p>
+          <label className="block">
+            <span className="mb-1 block text-[11px] text-muted-foreground">
+              {t('engine.studio.settings.sharingExternal', locale)}
+            </span>
+            <select
+              value={externalSharingModel}
+              disabled={disabled}
+              data-testid="owd-external-select"
+              onChange={(e) =>
+                onPatch(
+                  e.target.value
+                    ? { externalSharingModel: e.target.value }
+                    : { externalSharingModel: undefined },
+                )
+              }
+              className="w-full rounded border bg-background px-2 py-1 text-[12px]"
+            >
+              <option value="">{t('engine.studio.settings.sharingExternalUnset', locale)}</option>
+              <option value="private">{t('engine.studio.settings.sharingPrivate', locale)}</option>
+              <option value="public_read">{t('engine.studio.settings.sharingPublicRead', locale)}</option>
+              <option value="public_read_write">{t('engine.studio.settings.sharingPublicReadWrite', locale)}</option>
+              <option value="controlled_by_parent">
+                {t('engine.studio.settings.sharingControlledByParent', locale)}
+              </option>
+            </select>
+          </label>
           <p
+            data-testid="owd-external-desc"
             className={
-              sharingIsUnset
+              externalWider
                 ? 'text-[11px] text-amber-600 dark:text-amber-500'
                 : 'text-[11px] text-muted-foreground'
             }
           >
-            {t(sharingDescKey, locale)}
+            {t(
+              externalWider
+                ? 'engine.studio.settings.sharingExternalWider'
+                : 'engine.studio.settings.sharingExternalDesc',
+              locale,
+            )}
           </p>
         </div>
       </section>

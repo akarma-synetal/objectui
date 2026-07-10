@@ -52,10 +52,9 @@ const TYPE_LABELS_EN: Record<string, string> = {
   service: 'Service',
   email_template: 'Email Template',
   book: 'Documentation Book',
-  // Security
+  // Security — ADR-0090: profile removed (D2), role renamed to position (D3).
   permission: 'Permission Set',
-  profile: 'Profile',
-  role: 'Role',
+  position: 'Position',
   // AI
   agent: 'AI Agent',
   tool: 'AI Tool',
@@ -99,8 +98,7 @@ const TYPE_LABELS_ZH: Record<string, string> = {
   email_template: '邮件模板',
   book: '文档手册',
   permission: '权限集',
-  profile: '配置文件',
-  role: '角色',
+  position: '岗位',
   agent: 'AI 智能体',
   tool: 'AI 工具',
   skill: 'AI 技能',
@@ -706,6 +704,13 @@ const ENGINE_STRINGS_EN: Record<string, string> = {
   'perm.col.bulk': 'Bulk',
   'perm.posture.private': 'Private',
   'perm.posture.private.tip': 'Secure-by-default object (access.default = private): a permission set’s “*” wildcard grant does NOT cover it. Access needs an explicit grant on this object (or View/Modify All Records). Grants you edit here apply normally.',
+  'perm.owd.tip': 'Org-wide default (sharingModel): the record-level visibility baseline for internal users, applied before positions and sharing rules. Object CRUD here gates the operation; the OWD decides which records it reaches (own vs org-wide).',
+  'perm.owd.ext.tip': 'External OWD (externalSharingModel): the baseline for portal / partner principals — never wider than the internal model (ADR-0090 D11).',
+  'perm.owd.defaultPrivate': 'Private (default)',
+  'perm.owd.private': 'Private',
+  'perm.owd.public_read': 'Public read',
+  'perm.owd.public_read_write': 'Public read/write',
+  'perm.owd.controlled_by_parent': 'By parent',
   'perm.bulk.read': 'R',
   'perm.bulk.crud': 'CRUD',
   'perm.bulk.all': 'All',
@@ -1049,23 +1054,30 @@ const ENGINE_STRINGS_EN: Record<string, string> = {
   'engine.studio.settings.addFieldOption': '+ Add field…',
   'engine.studio.settings.undeclared': '(not declared — surfaces pick heuristically)',
   'engine.studio.settings.sharing': 'Record sharing (OWD)',
-  'engine.studio.settings.sharingHint': 'Baseline record visibility applied before roles and sharing rules (ADR-0056)',
+  'engine.studio.settings.sharingHint': 'Baseline record visibility applied before positions and sharing rules (ADR-0056/0090)',
   'engine.studio.settings.sharingModel': 'Sharing model (sharingModel) — who can see and edit records another user owns',
-  'engine.studio.settings.sharingUnset': '(not set)',
+  'engine.studio.settings.sharingUnset': '(not set — defaults to Private)',
   'engine.studio.settings.sharingPrivate': 'Private — owner only',
   'engine.studio.settings.sharingPublicRead': 'Public read — everyone reads, only the owner writes',
   'engine.studio.settings.sharingPublicReadWrite': 'Public read/write — everyone reads and writes',
   'engine.studio.settings.sharingControlledByParent': 'Controlled by parent — inherited from the master record',
   'engine.studio.settings.sharingDescUnset':
-    'Not set — records are fully public: every user in the tenant can read AND edit all records. Choose Private to isolate records by owner.',
+    'Not set — the platform defaults to Private (ADR-0090): only the owner can access records. Pick an explicit model to widen visibility.',
   'engine.studio.settings.sharingDescPrivate':
-    'Only the owner (plus users granted via roles or sharing rules) can access a record. Read / Edit permissions then apply to owned records only.',
+    'Only the owner (plus users granted via positions or sharing rules) can access a record. Read / Edit permissions then apply to owned records only.',
   'engine.studio.settings.sharingDescPublicRead':
     'Every user in the tenant can read all records; only the owner can edit.',
   'engine.studio.settings.sharingDescPublicReadWrite':
     'Every user in the tenant can read and edit all records.',
   'engine.studio.settings.sharingDescControlledByParent':
     'Record visibility is inherited from the parent (master) record through its master-detail relationship.',
+  'engine.studio.settings.sharingExternal':
+    'External sharing (externalSharingModel) — baseline for portal / partner principals',
+  'engine.studio.settings.sharingExternalUnset': '(not set — defaults to Private)',
+  'engine.studio.settings.sharingExternalDesc':
+    'Applies to external principals only (ADR-0090 D11). Never wider than the internal model; unset falls back to Private.',
+  'engine.studio.settings.sharingExternalWider':
+    'External baseline is WIDER than the internal sharing model — publishing will be rejected (ADR-0090 D11). Narrow it to the internal model or below (private < public read < public read/write).',
   'engine.studio.pkg.writable': 'Writable',
   'engine.studio.pkg.heading': 'Packages (apps)',
   'engine.studio.pkg.none': 'No app packages yet',
@@ -1213,7 +1225,7 @@ const ENGINE_STRINGS_EN: Record<string, string> = {
   'engine.studio.access.bannerTitle':
     'This matrix lists only the objects this package declares, and “Save” merges just that slice — grants contributed by other packages are preserved. Edits are saved as package drafts and go live when you Publish the package (top bar), exactly like Data and Interfaces.',
   'engine.studio.access.banner': 'This package’s objects · saved as draft',
-  'engine.studio.access.heading': 'Permission sets / Profiles',
+  'engine.studio.access.heading': 'Permission sets',
   'engine.studio.access.search': 'Search permissions…',
   'engine.studio.access.none': 'No permission sets yet — create one below',
   'engine.studio.access.labelPlaceholder': 'Display name (e.g. Sales permissions)',
@@ -1791,6 +1803,13 @@ const ENGINE_STRINGS_ZH: Record<string, string> = {
   'perm.col.bulk': '批量',
   'perm.posture.private': '私有',
   'perm.posture.private.tip': '默认安全对象（access.default = private）：权限集的 “*” 通配授权不覆盖它，访问需要对此对象的显式授权（或查看/修改所有记录）。在此编辑的显式授权正常生效。',
+  'perm.owd.tip': '组织级默认（sharingModel）：内部用户的记录级可见性基线，先于岗位与共享规则生效。此处的对象 CRUD 决定能否执行操作，OWD 决定操作触达哪些记录（自己的还是全组织的）。',
+  'perm.owd.ext.tip': '外部 OWD（externalSharingModel）：门户 / 合作伙伴等外部主体的基线 —— 不得宽于内部模型（ADR-0090 D11）。',
+  'perm.owd.defaultPrivate': 'Private（默认）',
+  'perm.owd.private': 'Private 私有',
+  'perm.owd.public_read': 'Public read 公共只读',
+  'perm.owd.public_read_write': 'Public read/write 公共读写',
+  'perm.owd.controlled_by_parent': '受父级控制',
   'perm.bulk.read': '读',
   'perm.bulk.crud': '增改删',
   'perm.bulk.all': '全选',
@@ -2132,23 +2151,30 @@ const ENGINE_STRINGS_ZH: Record<string, string> = {
   'engine.studio.settings.addFieldOption': '+ 添加字段…',
   'engine.studio.settings.undeclared': '(未声明 —— 各处按启发式自动挑选)',
   'engine.studio.settings.sharing': '记录共享模型(OWD)',
-  'engine.studio.settings.sharingHint': '在角色与共享规则之前生效的记录可见性基线(ADR-0056)',
+  'engine.studio.settings.sharingHint': '在岗位与共享规则之前生效的记录可见性基线(ADR-0056/0090)',
   'engine.studio.settings.sharingModel': '共享模型(sharingModel)—— 谁能查看和编辑他人拥有的记录',
-  'engine.studio.settings.sharingUnset': '(未设置)',
+  'engine.studio.settings.sharingUnset': '(未设置 —— 默认 Private)',
   'engine.studio.settings.sharingPrivate': 'Private 私有 —— 仅记录所有者',
   'engine.studio.settings.sharingPublicRead': 'Public read 公共只读 —— 所有人可读,仅所有者可写',
   'engine.studio.settings.sharingPublicReadWrite': 'Public read/write 公共读写 —— 所有人可读可写',
   'engine.studio.settings.sharingControlledByParent': 'Controlled by parent 受父级控制 —— 继承自主记录',
   'engine.studio.settings.sharingDescUnset':
-    '未设置 —— 记录完全公开:租户内每个用户都能读取并编辑所有记录。选择 Private 可按所有者隔离记录。',
+    '未设置 —— 平台默认 Private(ADR-0090):仅所有者能访问记录。如需放宽可见性请显式选择模型。',
   'engine.studio.settings.sharingDescPrivate':
-    '只有所有者(以及经角色或共享规则授予的用户)能访问记录。此时读取 / 编辑权限仅作用于自己拥有的记录。',
+    '只有所有者(以及经岗位或共享规则授予的用户)能访问记录。此时读取 / 编辑权限仅作用于自己拥有的记录。',
   'engine.studio.settings.sharingDescPublicRead':
     '租户内每个用户都能读取所有记录;仅所有者可编辑。',
   'engine.studio.settings.sharingDescPublicReadWrite':
     '租户内每个用户都能读取并编辑所有记录。',
   'engine.studio.settings.sharingDescControlledByParent':
     '记录可见性通过主从(master-detail)关系继承自父级(主)记录。',
+  'engine.studio.settings.sharingExternal':
+    '外部共享模型(externalSharingModel)—— 门户 / 合作伙伴等外部主体的基线',
+  'engine.studio.settings.sharingExternalUnset': '(未设置 —— 默认 Private)',
+  'engine.studio.settings.sharingExternalDesc':
+    '仅作用于外部主体(ADR-0090 D11)。不得宽于内部模型;未设置时回落为 Private。',
+  'engine.studio.settings.sharingExternalWider':
+    '外部基线比内部共享模型更宽 —— 发布会被拒绝(ADR-0090 D11)。请收窄到不超过内部模型(private < public read < public read/write)。',
   'engine.studio.pkg.writable': '可写',
   'engine.studio.pkg.heading': '软件包(应用)',
   'engine.studio.pkg.none': '暂无应用软件包',
@@ -2296,7 +2322,7 @@ const ENGINE_STRINGS_ZH: Record<string, string> = {
   'engine.studio.access.bannerTitle':
     '此矩阵仅列出本包声明的对象,「Save」只合并本包切片 —— 其他包贡献的授权原样保留。编辑保存为软件包草稿,点击顶栏「发布」后随整个包一起生效(与数据、界面一致)。',
   'engine.studio.access.banner': '仅本包对象 · 保存为草稿',
-  'engine.studio.access.heading': '权限集 / Profile',
+  'engine.studio.access.heading': '权限集',
   'engine.studio.access.search': '搜索权限…',
   'engine.studio.access.none': '还没有权限集 — 在下方新建一个',
   'engine.studio.access.labelPlaceholder': '显示名(如:销售权限)',
