@@ -61,11 +61,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@object-ui/components';
+import { useAdapter } from '@object-ui/react';
+import { CapabilityMultiSelectField, parseCapabilityNames } from '@object-ui/fields';
 import { PageShell } from './PageShell';
 import { useMetadataClient, useMetadataTypes, type RichMetadataTypeEntry } from './useMetadata';
 import { resolveResourceConfig } from './registry';
 import { t as translate, detectLocale } from './i18n';
-import { AssignedUsersSection } from './AssignedUsersSection';
+import { PermissionAdvancedFacets } from './PermissionAdvancedFacets';
 import {
   mergePermissionSlice,
   scopePermissionSet,
@@ -160,6 +162,10 @@ export interface PermissionMatrixEditPageProps {
 export function PermissionMatrixEditPage({ type, name, packageId, onDraftSaved, publishNonce }: PermissionMatrixEditPageProps) {
   const navigate = useNavigate();
   const client = useMetadataClient();
+  // Data adapter (records) — the capability picker reads the live sys_capability
+  // registry (ADR-0056 P2). The metadata `client` handles the draft; capability
+  // rows are data, fetched like AssignedUsersSection does.
+  const adapter = useAdapter();
   const { entries } = useMetadataTypes(client);
   const entry: RichMetadataTypeEntry | undefined = entries.find((t) => t.type === type);
   const resolved = resolveResourceConfig(type, entry);
@@ -184,6 +190,24 @@ export function PermissionMatrixEditPage({ type, name, packageId, onDraftSaved, 
   >(null);
   const [filter, setFilter] = React.useState('');
   const [showOnlyEnabled, setShowOnlyEnabled] = React.useState(false);
+  // All permission-set api-names — the admin-scope editor's assignable
+  // allowlist picks from these (ADR-0056 P3).
+  const [allSetNames, setAllSetNames] = React.useState<string[]>([]);
+  React.useEffect(() => {
+    let cancelled = false;
+    client
+      .list<{ name?: string }>('permission', {})
+      .then((rows) => {
+        if (!cancelled)
+          setAllSetNames(
+            (rows || []).map((r) => r?.name).filter((n): n is string => !!n),
+          );
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [client]);
 
   /* ── Load draft + object catalog ───────────────────────────── */
   React.useEffect(() => {
@@ -519,6 +543,28 @@ export function PermissionMatrixEditPage({ type, name, packageId, onDraftSaved, 
           )}
         </div>
 
+        {/* System Capabilities (ADR-0056 P2) — set-level platform/org
+            capabilities (e.g. studio.access, manage_users). Designed here in
+            Studio; Setup renders them read-only (PermissionFacetLink). Stored
+            as PermissionSetDraft.systemPermissions (string[]); the picker
+            round-trips via a JSON string, so parse back into the array the
+            draft model uses. Persisted by the whole-record Save at env scope. */}
+        <div className="px-6 py-3 border-b">
+          <Label className="text-xs">{t('perm.field.systemCapabilities')}</Label>
+          <p className="text-xs text-muted-foreground mt-0.5 mb-2">
+            {t('perm.field.systemCapabilitiesHelp')}
+          </p>
+          <CapabilityMultiSelectField
+            value={JSON.stringify(draft.systemPermissions ?? [])}
+            onChange={(v: unknown) =>
+              setDraft((p) => ({ ...p, systemPermissions: parseCapabilityNames(v) }))
+            }
+            field={{ name: 'system_permissions' } as any}
+            dataSource={adapter as any}
+            readonly={!writable}
+          />
+        </div>
+
         {/* Filter bar */}
         <div className="px-6 py-3 border-b flex items-center gap-3">
           <Input
@@ -567,12 +613,21 @@ export function PermissionMatrixEditPage({ type, name, packageId, onDraftSaved, 
             onFieldPerm={updateFieldPerm}
             onBulkSet={bulkSetObject}
           />
+          {/* Advanced facets (ADR-0056 P3) — RLS / tab visibility / delegated
+              admin scope, structured editors instead of raw JSON. Collapsed by
+              default so they don't crowd the object matrix. */}
+          <PermissionAdvancedFacets
+            draft={draft}
+            setDraft={setDraft}
+            writable={writable}
+            allSetNames={allSetNames}
+            t={t}
+          />
         </div>
-        {/* Manage Assignments — generic "Assigned Users" via the related-list
-            primitive (works for every permission set; `ai_seat` is one of them). */}
-        <div className="shrink-0 border-t max-h-80 overflow-auto bg-background">
-          <AssignedUsersSection permissionSetName={name} />
-        </div>
+        {/* ADR-0056 P4 — user assignment MOVED to the Setup sys_permission_set
+            record page (RecordPermissionAssignmentsRenderer, P1b). In the pure
+            model this editor is the *design* surface (facets only); *assigning*
+            users is a Setup act, so it no longer lives here. */}
       </div>
 
       {/* Destructive-change dialog */}
