@@ -43,6 +43,35 @@ import { useGanttTranslation } from "./useGanttTranslation"
 const HEADER_HEIGHT = 50;
 const COLUMN_WIDTH = 100; // Time column width
 
+// Width, in px, of the resize "grab zone" at each end of a task bar. The visible
+// grip is only a few px, but pointer synthesis in headless browsers quantizes the
+// click coordinate, so a click aimed at the edge routinely lands a pixel or two
+// inside the bar body — starting a MOVE instead of a resize (命中不稳). Treating a
+// full-height band at each end as a resize edge makes the hit deterministic.
+const RESIZE_EDGE_PX = 8;
+
+/**
+ * Decide whether a pointerdown on a task bar should move it or resize an edge,
+ * from the pointer's horizontal offset within the bar's client rect.
+ *
+ * Kept a pure module function so it can be unit-tested without a layout engine.
+ * `rect.width <= 0` means the bar isn't laid out (jsdom, off-screen) — we can't
+ * tell the edges apart, so fall back to 'move'. The edge band is clamped to a
+ * third of the bar so a very short bar still keeps a grabbable middle and the
+ * two edges never overlap into an ambiguous center.
+ */
+export function resolveBarDragMode(
+  clientX: number,
+  rect: { left: number; width: number },
+): 'move' | 'resize-left' | 'resize-right' {
+  if (rect.width <= 0) return 'move';
+  const edge = Math.min(RESIZE_EDGE_PX, rect.width / 3);
+  const offset = clientX - rect.left;
+  if (offset <= edge) return 'resize-left';
+  if (offset >= rect.width - edge) return 'resize-right';
+  return 'move';
+}
+
 /**
  * Container-aware sizing helpers — replace the legacy viewport (`window.innerWidth`)
  * checks so the Gantt adapts to whatever slot it sits in (cards, sidebars, popups…).
@@ -1053,7 +1082,7 @@ export function GanttView({
         const source = tasks.find((t) => String(t.id) === String(cur.sourceId));
         const target = tasks.find((t) => String(t.id) === String(cur.targetId));
         // Derive the link type from which endpoint we dragged FROM and which
-        // endpoint we dropped ONTO (dhtmlx-style): the source endpoint picks
+        // endpoint we dropped ONTO: the source endpoint picks
         // Finish (end) vs Start (start), the target endpoint picks the second
         // letter. end→start = FS, end→end = FF, start→start = SS, start→end = SF.
         const targetEnd = cur.targetEnd ?? 'start';
@@ -2220,7 +2249,7 @@ export function GanttView({
 
   // Shared row geometry: bars/diamonds/brackets and link anchors must agree
   // on these or arrows visibly miss their targets.
-  // Task bar geometry. Target a ~27px-tall bar (dhtmlx-like) so its top edge can
+  // Task bar geometry. Target a ~27px-tall bar so its top edge can
   // host the length (resize) grips and its bottom edge the progress grip without
   // the two hit areas overlapping. `barTop` is kept an integer and `barHeight`
   // derived as `rowHeight - 2*barTop`, so the bar stays *exactly* centered
@@ -3231,6 +3260,12 @@ export function GanttView({
                    // no move/resize/progress/link, but onTaskClick still fires.
                    const isLocked = !!task.locked;
                    const canDrag = !!onTaskUpdate && !row.isSummary && !isLocked;
+                   // A bar that is explicitly non-editable — the whole view is
+                   // read-only, or this row is locked (仅查看) — gets a not-allowed
+                   // cursor so hovering signals "can't drag/resize here". A plain
+                   // display gantt (no edit handlers, not flagged read-only) keeps a
+                   // normal pointer instead.
+                   const barReadOnly = effectiveReadOnly || isLocked;
                    const isLinkTarget =
                      linkDrag != null &&
                      linkDrag.targetId != null &&
@@ -3322,7 +3357,7 @@ export function GanttView({
                         <div
                           className={cn(
                             'gantt-bar-hover absolute rounded-sm border shadow-sm flex items-center px-2 select-none',
-                            onTaskUpdate ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer',
+                            onTaskUpdate && 'cursor-grab active:cursor-grabbing',
                             isDragging && 'ring-2 ring-primary z-10',
                             flashTaskId === task.id && 'gantt-flash z-10'
                           )}
@@ -3333,6 +3368,10 @@ export function GanttView({
                             width: liveStyle.width,
                             top: summaryBarTop,
                             height: summaryBarHeight,
+                            // Inline not-allowed: the cursor-not-allowed utility isn't
+                            // emitted in the prebuilt components CSS, so drive the
+                            // read-only cursor from style rather than a class.
+                            cursor: onTaskUpdate ? undefined : barReadOnly ? 'not-allowed' : 'pointer',
                             backgroundColor: summaryColor,
                             borderColor: isCrit ? CRIT_COLOR : 'hsl(var(--primary-foreground) / 0.2)',
                             boxShadow: isCrit ? `0 0 0 2px ${CRIT_COLOR}` : undefined,
@@ -3395,7 +3434,7 @@ export function GanttView({
                         <div
                           className={cn(
                             "gantt-bar-hover absolute rotate-45 rounded-[2px] border shadow-sm select-none",
-                            canDrag ? "cursor-grab active:cursor-grabbing" : "cursor-pointer",
+                            canDrag && "cursor-grab active:cursor-grabbing",
                             isDragging && "ring-2 ring-primary z-10",
                             isLinkTarget && "ring-2 ring-primary",
                             flashTaskId === task.id && "gantt-flash z-10"
@@ -3405,6 +3444,10 @@ export function GanttView({
                             top: (rowHeight - size) / 2,
                             width: size,
                             height: size,
+                            // Inline not-allowed: the cursor-not-allowed utility isn't
+                            // emitted in the prebuilt components CSS, so drive the
+                            // read-only cursor from style rather than a class.
+                            cursor: canDrag ? undefined : barReadOnly ? 'not-allowed' : 'pointer',
                             backgroundColor: isCrit ? CRIT_COLOR : task.color || '#3b82f6',
                             borderColor: isCrit ? CRIT_COLOR : 'hsl(var(--primary-foreground) / 0.2)',
                             boxShadow: isCrit ? `0 0 0 2px ${CRIT_COLOR}` : undefined,
@@ -3448,7 +3491,7 @@ export function GanttView({
                       // bar-scoped hover would drop the moment the cursor crossed the
                       // bar edge toward a dot — the dot would vanish before it could
                       // be grabbed. The row spans the whole timeline, so moving from
-                      // bar → dot never leaves the hover zone (dhtmlx-style).
+                      // bar → dot never leaves the hover zone.
                       onMouseEnter={() => setHoveredTaskId(task.id)}
                       onMouseLeave={() => setHoveredTaskId((cur) => (cur === task.id ? null : cur))}
                     >
@@ -3468,7 +3511,7 @@ export function GanttView({
                       <div
                         className={cn(
                           "gantt-bar-hover absolute rounded-sm bg-primary border shadow-sm flex items-center px-2 group select-none",
-                          canDrag ? "cursor-grab active:cursor-grabbing" : "cursor-pointer",
+                          canDrag && "cursor-grab active:cursor-grabbing",
                           isDragging && "ring-2 ring-primary z-10",
                           isLinkTarget && "ring-2 ring-primary",
                           flashTaskId === task.id && "gantt-flash z-10"
@@ -3478,6 +3521,10 @@ export function GanttView({
                           width: liveStyle.width,
                           top: barTop,
                           height: barHeight,
+                          // Inline not-allowed: the cursor-not-allowed utility isn't
+                          // emitted in the prebuilt components CSS, so drive the
+                          // read-only cursor from style rather than a class.
+                          cursor: canDrag ? undefined : barReadOnly ? 'not-allowed' : 'pointer',
                           backgroundColor: task.color || '#3b82f6',
                           borderColor: isCrit ? CRIT_COLOR : 'hsl(var(--primary-foreground) / 0.2)',
                           boxShadow: isCrit ? `0 0 0 2px ${CRIT_COLOR}` : undefined,
@@ -3495,10 +3542,14 @@ export function GanttView({
                         onContextMenu={(e) => openContextMenu(task, e)}
                         onPointerMove={captureLinkTarget}
                         onPointerDown={canDrag ? (e) => {
-                          // Body of bar = move; resize handles get their own onPointerDown
-                          // and stopPropagation so they win.
+                          // The corner grips get their own onPointerDown + stopPropagation
+                          // so a direct hit still wins. But a click aimed at the edge often
+                          // lands just inside the bar (headless coordinate quantization), so
+                          // resolve the mode from the pointer's offset here too: the end
+                          // bands resize, the middle moves (edge-zone drag).
                           if (e.button !== 0) return;
-                          beginDrag(task, 'move', e);
+                          const mode = resolveBarDragMode(e.clientX, e.currentTarget.getBoundingClientRect());
+                          beginDrag(task, mode, e);
                         } : undefined}
                       >
                         {/* Resize handles — only when bar is wide enough to host them */}
@@ -3506,7 +3557,7 @@ export function GanttView({
                           <>
                             <div
                               className="gantt-resize-handle absolute left-0 top-0"
-                              style={{ width: 6, height: resizeHandleHeight, cursor: 'ew-resize' }}
+                              style={{ width: RESIZE_EDGE_PX, height: resizeHandleHeight, cursor: 'ew-resize' }}
                               data-testid={`gantt-task-resize-left-${task.id}`}
                               onPointerDown={(e) => {
                                 if (e.button !== 0) return;
@@ -3516,7 +3567,7 @@ export function GanttView({
                             />
                             <div
                               className="gantt-resize-handle absolute right-0 top-0"
-                              style={{ width: 6, height: resizeHandleHeight, cursor: 'ew-resize' }}
+                              style={{ width: RESIZE_EDGE_PX, height: resizeHandleHeight, cursor: 'ew-resize' }}
                               data-testid={`gantt-task-resize-right-${task.id}`}
                               onPointerDown={(e) => {
                                 if (e.button !== 0) return;
@@ -3538,7 +3589,7 @@ export function GanttView({
                         )}
 
                         {/* Progress drag handle — a triangle hugging the bottom
-                            edge at the progress boundary (dhtmlx-style). It only
+                            edge at the progress boundary. It only
                             shows on hover / while dragging, and its hit area lives
                             in the bottom half so grabbing it never competes with a
                             bar move (top) or a link drag (the centred end dots). */}
@@ -3582,7 +3633,7 @@ export function GanttView({
                         )}
 
                         {/* Connector dots — a circle floating just OUTSIDE each end
-                            of the bar (dhtmlx-style). Sitting fully outside the bar
+                            of the bar. Sitting fully outside the bar
                             body means grabbing one can never start a bar move or an
                             edge resize. They appear on row hover (or while this bar
                             is the link source) and have their own enlarged hit area
@@ -3603,7 +3654,7 @@ export function GanttView({
                             <div
                               key={end}
                               // The visible circle sits OUT from the bar end with a
-                              // comfortable gap (dhtmlx-style) so it reads as its own
+                              // comfortable gap so it reads as its own
                               // affordance, not crammed against the bar. But the
                               // transparent hit area is wider and BRIDGES back to the
                               // bar edge: it overlays z-20 above the dependency line's
