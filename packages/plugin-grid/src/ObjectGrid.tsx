@@ -34,7 +34,7 @@ import {
   RefreshIndicator,
 } from '@object-ui/components';
 import { usePullToRefresh } from '@object-ui/mobile';
-import { evaluatePlainCondition, buildExpandFields } from '@object-ui/core';
+import { evaluatePlainCondition, buildExpandFields, buildExportFileName } from '@object-ui/core';
 import { ChevronRight, ChevronDown, ChevronLeft, ChevronsLeft, ChevronsRight, Download, Rows2, Rows3, Rows4, AlignJustify, Type, Hash, Calendar, CheckSquare, User, Tag, Clock, Loader2 } from 'lucide-react';
 import { useRowColor } from './useRowColor';
 import { useGroupedData } from './useGroupedData';
@@ -1270,7 +1270,16 @@ export const ObjectGrid: React.FC<ObjectGridProps> = ({
     const exportConfig = schema.exportOptions;
     const maxRecords = exportConfig?.maxRecords || 0;
     const includeHeaders = exportConfig?.includeHeaders !== false;
-    const prefix = exportConfig?.fileNamePrefix || schema.objectName || 'export';
+    // Download filename: `<配置前缀|对象中文标签|API名>-<视图名>-<日期时间>.<ext>`,
+    // e.g. `合同-进行中-20260714-153045.xlsx`. The translated object label (when
+    // the schema has loaded) beats the raw API name; a configured
+    // exportOptions.fileNamePrefix beats both (and suppresses the view label).
+    const fileNameFor = (ext: string) => buildExportFileName(ext, {
+      prefix: exportConfig?.fileNamePrefix,
+      label: objectSchema?.label,
+      objectName: objectName || schema.objectName,
+      viewLabel: schema.label || schema.title,
+    });
 
     // Server-streamed path: csv / xlsx / json via dataSource.exportDownload.
     // XLSX is server-only; type-aware value formatting, field resolution and
@@ -1309,7 +1318,7 @@ export const ObjectGrid: React.FC<ObjectGridProps> = ({
           const url = URL.createObjectURL(blob);
           const a = document.createElement('a');
           a.href = url;
-          a.download = `${prefix}.${format}`;
+          a.download = fileNameFor(format);
           a.rel = 'noopener';
           document.body.appendChild(a);
           a.click();
@@ -1358,12 +1367,12 @@ export const ObjectGrid: React.FC<ObjectGridProps> = ({
       exportData.forEach(record => {
         rows.push(fields.map((f: string) => escapeCsvValue(record[f])).join(','));
       });
-      downloadFile(new Blob([rows.join('\n')], { type: 'text/csv;charset=utf-8;' }), `${prefix}.csv`);
+      downloadFile(new Blob([rows.join('\n')], { type: 'text/csv;charset=utf-8;' }), fileNameFor('csv'));
     } else if (format === 'json') {
-      downloadFile(new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' }), `${prefix}.json`);
+      downloadFile(new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' }), fileNameFor('json'));
     }
     setShowExport(false);
-  }, [data, schema.exportOptions, schema.operations?.export, schema.objectName, objectName, generateColumns, dataSource, hasInlineData, schemaFilter, schemaSort]);
+  }, [data, schema.exportOptions, schema.operations?.export, schema.objectName, objectName, objectSchema, generateColumns, dataSource, hasInlineData, schemaFilter, schemaSort]);
 
   if (error) {
     return (
