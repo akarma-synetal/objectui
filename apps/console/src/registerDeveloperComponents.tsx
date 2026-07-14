@@ -37,7 +37,7 @@ function DeveloperFallback({ label }: { label: string }) {
 registerAppComponent({
   ref: 'developer:api-console',
   label: 'API Console',
-  source: '@objectstack/console',
+  source: '@object-ui/console',
   component: (props: any) => (
     <Suspense fallback={<DeveloperFallback label="API console" />}>
       <ApiConsolePage {...props} />
@@ -48,7 +48,7 @@ registerAppComponent({
 registerAppComponent({
   ref: 'developer:flow-runs',
   label: 'Flow Runs',
-  source: '@objectstack/console',
+  source: '@object-ui/console',
   component: (props: any) => (
     <Suspense fallback={<DeveloperFallback label="flow runs" />}>
       <FlowRunsPage {...props} />
@@ -59,7 +59,7 @@ registerAppComponent({
 registerAppComponent({
   ref: 'developer:public-forms',
   label: 'Public Forms',
-  source: '@objectstack/console',
+  source: '@object-ui/console',
   component: (props: any) => (
     <Suspense fallback={<DeveloperFallback label="public forms" />}>
       <PublicFormsPage {...props} />

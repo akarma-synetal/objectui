@@ -46,7 +46,7 @@ function AccountFallback() {
 registerAppComponent({
   ref: 'account:profile_card',
   label: 'My Profile',
-  source: '@objectstack/console',
+  source: '@object-ui/console',
   component: (props: any) => (
     <Suspense fallback={<AccountFallback />}>
       <ProfilePage {...props} />

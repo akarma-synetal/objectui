@@ -1,5 +1,5 @@
 ---
-'@objectstack/console': patch
+'@object-ui/console': patch
 '@object-ui/i18n': patch
 '@object-ui/app-shell': patch
 '@object-ui/plugin-detail': patch

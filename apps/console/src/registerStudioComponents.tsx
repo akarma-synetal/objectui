@@ -25,7 +25,7 @@ const BuilderLandingLazy = lazy(() =>
 registerAppComponent({
   ref: 'studio:builder',
   label: '应用构建',
-  source: '@objectstack/console',
+  source: '@object-ui/console',
   component: (props: any) => (
     <Suspense fallback={<div className="p-6 text-sm text-muted-foreground">加载应用构建器…</div>}>
       <BuilderLandingLazy {...props} />
