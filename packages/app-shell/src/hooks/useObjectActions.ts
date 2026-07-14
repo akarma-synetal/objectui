@@ -35,8 +35,12 @@ interface ObjectActions {
   execute: (action: ActionDef) => Promise<ActionResult>;
   /** Create new record — opens the create dialog */
   create: () => void;
-  /** Delete a record by id */
-  deleteRecord: (recordId: string) => Promise<ActionResult>;
+  /**
+   * Delete a record by id. Pass the row (`record`) when available so a
+   * package-owned permission set can be recognised as a RESET rather than a
+   * delete (ADR-0094) without an extra fetch.
+   */
+  deleteRecord: (recordId: string, record?: Record<string, unknown>) => Promise<ActionResult>;
   /** Navigate to a view */
   navigateToView: (viewId: string) => void;
   /** Navigate to a record detail */
@@ -132,10 +136,33 @@ export function useObjectActions({
         action.recordId;
       if (!recordId) return { success: false, error: t('objectActions.noRecordId') };
 
+      // [ADR-0094] "Deleting" a PACKAGE-OWNED permission set doesn't remove
+      // the row — the backend drops the environment overlay and RESETS the
+      // set to its shipped baseline. Detect it BEFORE the delete (the row
+      // still exists) so the success toast tells the truth; a caller that
+      // passed the row spares the lookup.
+      let packagedSetReset = false;
+      if (objectName === 'sys_permission_set') {
+        try {
+          const row =
+            action.params?.record?.managed_by !== undefined
+              ? action.params.record
+              : await dataSource.findOne(objectName, recordId);
+          packagedSetReset = row?.managed_by === 'package';
+        } catch { /* best-effort — fall back to the generic delete copy */ }
+      }
+
       try {
         await dataSource.delete(objectName, recordId);
         onRefresh?.();
-        toast.success(t('objectActions.deleteSuccess', { label: objectLabel || objectName }));
+        toast.success(
+          packagedSetReset
+            ? t('objectActions.resetPackageSetSuccess', {
+                label: objectLabel || objectName,
+                defaultValue: 'Permission set reset to its shipped baseline',
+              })
+            : t('objectActions.deleteSuccess', { label: objectLabel || objectName }),
+        );
         // `silent`: handler owns the localized success toast above — suppress the
         // runner's generic duplicate (see the bulk branch).
         return { success: true, reload: true, silent: true };
@@ -171,14 +198,26 @@ export function useObjectActions({
   }, [onEdit]);
 
   const deleteRecord = useCallback(
-    async (recordId: string) => {
+    async (recordId: string, record?: Record<string, unknown>) => {
+      // [ADR-0094] A package-owned permission set is never removed by the data
+      // door — the backend drops the environment overlay and RESETS the set to
+      // its shipped baseline. Ask the honest question instead of promising an
+      // irreversible delete the user can see doesn't happen (the row stays).
+      const packagedSetReset =
+        objectName === 'sys_permission_set' && (record as any)?.managed_by === 'package';
       return execute({
         type: 'delete',
-        confirmText: t('objectActions.deleteConfirm'),
-        params: { recordId },
+        confirmText: packagedSetReset
+          ? t('objectActions.resetPackageSetConfirm', {
+              defaultValue:
+                'This permission set ships with an installed package and cannot be removed. ' +
+                'Deleting resets it to the shipped baseline and discards your environment customization. Continue?',
+            })
+          : t('objectActions.deleteConfirm'),
+        params: record ? { recordId, record } : { recordId },
       });
     },
-    [execute, t],
+    [execute, t, objectName],
   );
 
   const navigateToView = useCallback(
