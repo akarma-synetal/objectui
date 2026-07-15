@@ -9,6 +9,7 @@
 import * as React from 'react';
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
+import { I18nProvider } from '@object-ui/i18n';
 import { UserFilters } from '../UserFilters';
 
 const objectDef = {
@@ -137,5 +138,130 @@ describe('UserFilters — selection persistence (ADR-0047)', () => {
 
     fireEvent.click(screen.getByTestId('filter-tab-urgent'));
     expect(onSelectionsChange).toHaveBeenCalledWith({ _tab: ['urgent'] });
+  });
+});
+
+describe('UserFilters — dropdown chip label fallback', () => {
+  it('falls back to the objectDef field label when the view omits f.label', () => {
+    // Compile can strip `label` off userFilters.fields; the chip must not
+    // degrade to the raw snake_case key when the object still knows the label.
+    render(
+      <UserFilters
+        config={{ element: 'dropdown', fields: [{ field: 'status' }] }}
+        objectDef={objectDef}
+        data={[]}
+        onFilterChange={() => {}}
+      />,
+    );
+
+    expect(screen.getByTestId('filter-badge-status').textContent).toContain('Status');
+    expect(screen.getByTestId('filter-badge-status').textContent).not.toContain('status');
+  });
+
+  it('prefers an author-supplied f.label over the objectDef label', () => {
+    render(
+      <UserFilters
+        config={{ element: 'dropdown', fields: [{ field: 'status', label: 'Stage' }] }}
+        objectDef={objectDef}
+        data={[]}
+        onFilterChange={() => {}}
+      />,
+    );
+
+    expect(screen.getByTestId('filter-badge-status').textContent).toContain('Stage');
+  });
+
+  it('renders the author-supplied label verbatim (issue repro: explicit label must not degrade to key)', () => {
+    // Mirrors the reported config: fields carry an explicit Chinese label.
+    // The chip must show the label, never the snake_case field key.
+    render(
+      <UserFilters
+        config={{
+          element: 'dropdown',
+          fields: [
+            { field: 'project_type', label: '项目类型' },
+            { field: 'manager', label: '管理责任人' },
+          ],
+        }}
+        objectDef={{ name: 'projects', fields: { project_type: { type: 'select' }, manager: { type: 'lookup' } } }}
+        data={[]}
+        onFilterChange={() => {}}
+      />,
+    );
+
+    expect(screen.getByTestId('filter-badge-project_type').textContent).toContain('项目类型');
+    expect(screen.getByTestId('filter-badge-project_type').textContent).not.toContain('project_type');
+    expect(screen.getByTestId('filter-badge-manager').textContent).toContain('管理责任人');
+  });
+
+  it('falls back to the raw field key when neither a label nor an objectDef entry exists', () => {
+    render(
+      <UserFilters
+        config={{ element: 'dropdown', fields: [{ field: 'orphan_field', options: [{ label: 'X', value: 'x' }] }] }}
+        objectDef={objectDef}
+        data={[]}
+        onFilterChange={() => {}}
+      />,
+    );
+
+    expect(screen.getByTestId('filter-badge-orphan_field').textContent).toContain('orphan_field');
+  });
+});
+
+describe('UserFilters — i18n resolver overrides an explicit author label (regression)', () => {
+  // A tenant's translation bundle often carries auto-extracted skeleton entries
+  // where the value equals the field key (e.g. `os i18n extract` emits
+  // `fields.<obj>.<field> = "<field>"` when the field has no authored label).
+  // The dropdown chip runs the author-supplied `f.label` through the
+  // convention-based `fieldLabel` resolver as the *fallback*, but the resolver
+  // returns any matching bundle entry — including a key-valued skeleton — which
+  // then OVERRIDES the explicit label. This is the mechanism behind the reported
+  // symptom: chips render raw snake_case keys despite the config declaring
+  // Chinese labels.
+  const withBundle = (bundle: Record<string, unknown>) =>
+    function Wrapper({ children }: { children: React.ReactNode }) {
+      return (
+        <I18nProvider
+          config={{
+            defaultLanguage: 'en',
+            detectBrowserLanguage: false,
+            resources: { en: bundle },
+          }}
+        >
+          {children}
+        </I18nProvider>
+      );
+    };
+
+  it('keeps the explicit label when the bundle only holds a key-valued skeleton', () => {
+    render(
+      <UserFilters
+        config={{ element: 'dropdown', fields: [{ field: 'project_type', label: '项目类型' }] }}
+        objectDef={{ name: 'projects', fields: { project_type: { type: 'select' } } }}
+        data={[]}
+        onFilterChange={() => {}}
+      />,
+      // Bundle mirrors an extracted skeleton: value === field key. Before the fix
+      // this clobbered '项目类型' with 'project_type' (the reported symptom).
+      { wrapper: withBundle({ crm: { fields: { projects: { project_type: 'project_type' } } } }) },
+    );
+
+    const chip = screen.getByTestId('filter-badge-project_type').textContent;
+    expect(chip).toContain('项目类型');
+    expect(chip).not.toContain('project_type');
+  });
+
+  it('a real translation still wins (resolver working as intended)', () => {
+    render(
+      <UserFilters
+        config={{ element: 'dropdown', fields: [{ field: 'project_type', label: 'Project Type' }] }}
+        objectDef={{ name: 'projects', fields: { project_type: { type: 'select' } } }}
+        data={[]}
+        onFilterChange={() => {}}
+      />,
+      { wrapper: withBundle({ crm: { fields: { projects: { project_type: '项目类型' } } } }) },
+    );
+
+    expect(screen.getByTestId('filter-badge-project_type').textContent).toContain('项目类型');
   });
 });
