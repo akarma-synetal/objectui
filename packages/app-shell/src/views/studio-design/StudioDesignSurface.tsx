@@ -3433,6 +3433,7 @@ export function AccessPillar({
               packageId={packageId}
               publishNonce={publishNonce}
               onDraftSaved={onDraftSaved}
+              readOnly={readOnly}
               onDirtyChange={setMatrixDirty}
               onOpenOwd={(objectName) => {
                 // The badge deep-link swaps this page out for the OWD
