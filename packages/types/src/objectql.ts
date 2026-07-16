@@ -2208,9 +2208,9 @@ export interface ObjectKanbanSchema extends BaseSchema {
 }
 
 /**
- * Conditional formatting rule for Kanban cards
+ * Native (field/operator/value) conditional formatting rule for Kanban cards.
  */
-export interface KanbanConditionalFormattingRule {
+export interface KanbanNativeConditionalFormattingRule {
   /** Field name to check */
   field: string;
   /** Operator for comparison */
@@ -2222,6 +2222,18 @@ export interface KanbanConditionalFormattingRule {
   /** Border color to apply (Tailwind class or CSS color) */
   borderColor?: string;
 }
+
+/**
+ * Conditional formatting rule for Kanban cards.
+ *
+ * Since #1584, kanban card styling runs on the shared CEL evaluator, so a rule
+ * accepts BOTH the native `{ field, operator, value }` shape and the spec
+ * `{ condition, style }` shape (a CEL predicate + style map) — the same
+ * `record.*` predicates authors use on list/grid rows.
+ */
+export type KanbanConditionalFormattingRule =
+  | KanbanNativeConditionalFormattingRule
+  | SpecConditionalFormattingRule;
 
 /**
  * Object Chart Component Schema
