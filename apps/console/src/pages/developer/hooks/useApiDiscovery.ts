@@ -8,6 +8,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useAdapter } from '@object-ui/app-shell';
+import { isServiceUsable, type DiscoveryServiceStatus } from '@object-ui/react';
 
 export type HttpMethod = 'GET' | 'POST' | 'PATCH' | 'DELETE' | 'PUT';
 
@@ -204,15 +205,18 @@ export function useApiDiscovery() {
       const serviceEndpoints: EndpointDef[] = [];
       for (const [serviceName, catalog] of Object.entries(SERVICE_ENDPOINT_CATALOG)) {
         const serviceInfo = discoveredServices[serviceName] as
-          | { enabled: boolean; status?: string; handlerReady?: boolean; route?: string }
+          | (DiscoveryServiceStatus & { route?: string })
           | undefined;
-        const isEnabled = serviceInfo?.enabled ?? false;
-        const hasHandler = serviceInfo?.handlerReady
-          ?? (serviceInfo?.status === 'available' || serviceInfo?.status === 'degraded');
+        // ADR-0076 D12 (framework#2462): gate on the shared honest-capability
+        // check — `stub`/`unavailable`/`handlerReady:false` entries must not
+        // render endpoint groups (`degraded` still serves and stays visible).
+        // Services absent from discovery keep the historical fail-closed
+        // behavior of this page: no entry → no endpoint group.
+        const usable = serviceInfo ? isServiceUsable(serviceInfo) : false;
         const routePrefix = serviceInfo?.route
           ?? discoveredRoutes[serviceName]
           ?? catalog.defaultRoute;
-        if (isEnabled && hasHandler) {
+        if (usable) {
           serviceEndpoints.push(...buildServiceEndpoints(serviceName, routePrefix));
         }
       }
