@@ -23,7 +23,10 @@
  */
 
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useParams, useSearchParams } from 'react-router-dom';
+import { CommentAttachment, type Attachment } from '@object-ui/plugin-detail';
+import { createObjectStackUploadAdapter } from '@object-ui/providers';
+import { createAuthenticatedFetch } from '@object-ui/auth';
 import {
   Button,
   Badge,
@@ -95,6 +98,7 @@ import {
   Send,
   Check,
   CornerUpLeft,
+  Paperclip,
 } from 'lucide-react';
 import {
   approvalsApi,
@@ -254,6 +258,10 @@ export function ApprovalsInboxPage() {
   const { user } = useAuth();
   const isAdmin = useIsWorkspaceAdmin();
   const { appName } = useParams<{ appName?: string }>();
+  // Deep link (#2678 P1.5): notifications carry `/system/approvals?request=<id>`
+  // so landing here opens that request's drawer directly. Consumed once, then
+  // stripped from the URL so refresh/back doesn't re-open a dismissed drawer.
+  const [searchParams, setSearchParams] = useSearchParams();
   const identities = useMemo(() => buildApproverIdentities(user as any), [user]);
 
   const tr = useCallback(
@@ -335,6 +343,79 @@ export function ApprovalsInboxPage() {
   const [comment, setComment] = useState('');
   const [actorOverride, setActorOverride] = useState('');
   const [submitting, setSubmitting] = useState<'approve' | 'reject' | 'recall' | null>(null);
+  // Decision attachments (#3266): files staged in the composer, sent as
+  // `attachments: fileId[]` with the next approve/reject. Uploads go through
+  // the same presigned-storage adapter as RecordAttachmentsPanel.
+  const [pendingAttachments, setPendingAttachments] = useState<Attachment[]>([]);
+  const [attachmentError, setAttachmentError] = useState<string | null>(null);
+  const authFetch = useMemo(() => createAuthenticatedFetch(), []);
+  const uploadAdapter = useMemo(
+    () => createObjectStackUploadAdapter({
+      baseUrl: (import.meta.env.VITE_SERVER_URL || '').replace(/\/$/, ''),
+      scope: 'attachments',
+      fetchImpl: authFetch,
+    }),
+    [authFetch],
+  );
+  const handleAttachmentUpload = useCallback(async (files: FileList) => {
+    setAttachmentError(null);
+    for (const file of Array.from(files)) {
+      try {
+        const result = await uploadAdapter.upload(file);
+        const fileId = String((result.meta as { fileId?: string } | undefined)?.fileId ?? '');
+        if (!fileId) throw new Error('upload returned no fileId');
+        setPendingAttachments(prev => [...prev, {
+          id: fileId, name: result.name, size: result.size, type: result.mimeType, url: result.url,
+        }]);
+      } catch (err) {
+        setAttachmentError((err as Error)?.message ?? String(err));
+      }
+    }
+  }, [uploadAdapter]);
+  const handleAttachmentRemove = useCallback((attachmentId: string) => {
+    setPendingAttachments(prev => prev.filter(a => a.id !== attachmentId));
+  }, []);
+  // Resolve attachment fileIds → sys_file display names for the timeline chips
+  // (#2678 P1.5). Best-effort, cached per id; unresolved ids fall back to a
+  // generic "Attachment" label.
+  const [attachmentNames, setAttachmentNames] = useState<Record<string, string>>({});
+  useEffect(() => {
+    const ids = new Set<string>();
+    for (const a of actions) for (const id of (a.attachments ?? [])) {
+      if (id && attachmentNames[id] === undefined) ids.add(id);
+    }
+    if (!ids.size) return;
+    const base = (import.meta.env.VITE_SERVER_URL || '').replace(/\/$/, '');
+    let cancelled = false;
+    void (async () => {
+      const resolved: Record<string, string> = {};
+      await Promise.all(Array.from(ids).map(async (id) => {
+        try {
+          const res = await authFetch(`${base}/api/v1/data/sys_file/${encodeURIComponent(id)}`);
+          if (!res.ok) { resolved[id] = ''; return; }
+          const body = await res.json().catch(() => null);
+          resolved[id] = String(body?.record?.name ?? body?.data?.name ?? body?.name ?? '');
+        } catch { resolved[id] = ''; }
+      }));
+      if (!cancelled) setAttachmentNames(prev => ({ ...prev, ...resolved }));
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- keyed off actions; attachmentNames is the cache being filled
+  }, [actions, authFetch]);
+
+  /** Open an action's attachment via a short-lived signed URL (Bearer-authed fetch). */
+  const openAttachment = useCallback(async (fileId: string) => {
+    try {
+      const base = (import.meta.env.VITE_SERVER_URL || '').replace(/\/$/, '');
+      const res = await authFetch(`${base}/api/v1/storage/files/${encodeURIComponent(fileId)}/url`);
+      if (!res.ok) throw new Error(`HTTP_${res.status}`);
+      const body = await res.json().catch(() => null);
+      const url = body?.data?.url ?? body?.url;
+      if (url) window.open(url, '_blank', 'noopener');
+    } catch {
+      /* open failed — non-fatal; the chip stays visible */
+    }
+  }, [authFetch]);
 
   // Search + filters. On the paginated tabs (submitted/all) the free-text
   // query is debounced and pushed to the server; the pending tab keeps
@@ -458,6 +539,8 @@ export function ApprovalsInboxPage() {
     setDrawerLoading(true);
     setComment('');
     setActorOverride('');
+    setPendingAttachments([]);
+    setAttachmentError(null);
     try {
       const [req, acts] = await Promise.all([
         approvalsApi.getRequest(id),
@@ -480,7 +563,18 @@ export function ApprovalsInboxPage() {
     setActions([]);
     setComment('');
     setActorOverride('');
+    setPendingAttachments([]);
+    setAttachmentError(null);
   };
+
+  // Consume the notification deep link once (see useSearchParams above).
+  useEffect(() => {
+    const target = searchParams.get('request');
+    if (!target) return;
+    setSearchParams((prev) => { const next = new URLSearchParams(prev); next.delete('request'); return next; }, { replace: true });
+    void openDrawer(target);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- run once per deep link, not per openDrawer identity
+  }, [searchParams]);
 
   /**
    * Pick the actor id to send with approve/reject.
@@ -513,7 +607,14 @@ export function ApprovalsInboxPage() {
     }
     setSubmitting(kind);
     try {
-      const body = { actor_id: actor, comment: comment.trim() || undefined };
+      const body = {
+        actor_id: actor,
+        comment: comment.trim() || undefined,
+        // Decision attachments (#3266) ride approve/reject only — recall has no composer.
+        ...(kind !== 'recall' && pendingAttachments.length
+          ? { attachments: pendingAttachments.map(a => a.id) }
+          : {}),
+      };
       const fn = kind === 'approve' ? approvalsApi.approve
               : kind === 'reject'  ? approvalsApi.reject
               : approvalsApi.recall;
@@ -525,6 +626,8 @@ export function ApprovalsInboxPage() {
           : tr('recalledToast', 'Request recalled'),
       );
       setComment('');
+      setPendingAttachments([]);
+      setAttachmentError(null);
       // Queue processing (Fiori "My Inbox" pattern): a decision on the
       // pending tab advances straight to the next waiting item instead of
       // parking on the finished one. Recall keeps the drawer for review.
@@ -550,7 +653,7 @@ export function ApprovalsInboxPage() {
     } finally {
       setSubmitting(null);
     }
-  }, [selected, resolveActor, comment, load, user?.id, humanizeError, tr, tab, openDrawer]);
+  }, [selected, resolveActor, comment, pendingAttachments, load, user?.id, humanizeError, tr, tab, openDrawer]);
 
   /** Refresh the open drawer + list after a thread interaction. */
   const refreshThread = useCallback(async (id: string) => {
@@ -1581,6 +1684,41 @@ export function ApprovalsInboxPage() {
                       ))}
                     </div>
                   )}
+                  {/* Aggregation progress (#3266): server-computed — "2 of 3
+                      approved" for quorum/unanimous, per-group ticks for 会签. */}
+                  {selected.decision_progress && (
+                    <div className="border-t pt-3">
+                      <div className="text-[11px] text-muted-foreground mb-1">
+                        {selected.decision_progress.behavior === 'per_group'
+                          ? tr('progressGroups', 'Sign-off progress — {{got}} of {{need}} groups', {
+                              got: selected.decision_progress.got, need: selected.decision_progress.need,
+                            })
+                          : tr('progressApprovals', 'Approvals — {{got}} of {{need}}', {
+                              got: selected.decision_progress.got, need: selected.decision_progress.need,
+                            })}
+                      </div>
+                      {selected.decision_progress.groups && (
+                        <div className="flex flex-wrap gap-1">
+                          {selected.decision_progress.groups.map((g) => (
+                            <Badge
+                              key={g.group}
+                              variant="outline"
+                              className={cn(
+                                'text-[11px] gap-1',
+                                g.satisfied
+                                  ? 'border-emerald-300 text-emerald-700 dark:border-emerald-700 dark:text-emerald-400'
+                                  : 'text-muted-foreground',
+                              )}
+                              title={`${g.got}/${g.need}`}
+                            >
+                              {g.satisfied ? <Check className="h-3 w-3" /> : null}
+                              {g.group} {g.got}/{g.need}
+                            </Badge>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
                   {selected.status === 'pending' && (selected.pending_approvers || []).length > 0 && (
                     <div className="border-t pt-3">
                       <div className="text-[11px] text-muted-foreground mb-1">
@@ -1677,6 +1815,23 @@ export function ApprovalsInboxPage() {
                           </div>
                           {a.comment && (
                             <div className="text-muted-foreground italic mt-0.5">"{a.comment}"</div>
+                          )}
+                          {Array.isArray(a.attachments) && a.attachments.length > 0 && (
+                            <div className="flex flex-wrap gap-1.5 mt-1">
+                              {a.attachments.map((fileId, i) => (
+                                <button
+                                  key={fileId}
+                                  type="button"
+                                  onClick={() => void openAttachment(fileId)}
+                                  className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full border text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+                                  title={fileId}
+                                >
+                                  <Paperclip className="h-3 w-3" />
+                                  {attachmentNames[fileId]
+                                    || `${tr('attachmentChip', 'Attachment')}${a.attachments!.length > 1 ? ` ${i + 1}` : ''}`}
+                                </button>
+                              ))}
+                            </div>
                           )}
                         </li>
                       );
@@ -1782,6 +1937,16 @@ export function ApprovalsInboxPage() {
                         rows={2}
                         className="mt-1"
                       />
+                      {/* Decision attachments (#3266) — staged files ride the next approve/reject. */}
+                      <CommentAttachment
+                        className="mt-2"
+                        attachments={pendingAttachments}
+                        onUpload={handleAttachmentUpload}
+                        onRemove={handleAttachmentRemove}
+                      />
+                      {attachmentError && (
+                        <div className="text-xs text-destructive mt-1">{attachmentError}</div>
+                      )}
                     </div>
                     <div className="flex gap-2 flex-wrap">
                       <Button
