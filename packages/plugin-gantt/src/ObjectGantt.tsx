@@ -170,6 +170,21 @@ type GanttConfigEx = GanttConfig & {
    */
   autoZoomToFilter?: boolean;
   /**
+   * Business time zone (业务时区), IANA name like 'Asia/Shanghai'. Renders the
+   * chart's calendar — shift bands, day columns, snapping, today line, date
+   * labels — in this zone's wall time for every viewer, instead of the
+   * browser's zone (which misplaces 班次 for viewers elsewhere). Persisted
+   * data stays real instants. Forwarded to {@link GanttView}.
+   */
+  timeZone?: string;
+  /**
+   * Base name for exported PNG/PDF files (导出文件名), e.g. the view's display
+   * label — the host's view schema often reaches this component stripped of
+   * `label`, so views declare it here. Falls back to the object schema label,
+   * then the object API name. A timestamp suffix is always appended.
+   */
+  exportFileName?: string;
+  /**
    * Per-interaction switches (交互开关): `move` / `resize` / `progress` / `link`,
    * each defaulting to true. Metadata-drivable so a view can e.g. allow bar
    * moves but pin durations (`{ resize: false }`) or keep the dependency UI
@@ -369,6 +384,8 @@ function getGanttConfig(schema: ObjectGridSchema | any): GanttConfigEx | null {
           autoZoomToFilter: schema.autoZoomToFilter,
           timeSegments: schema.timeSegments,
           interactions: schema.interactions,
+          exportFileName: schema.exportFileName,
+          timeZone: schema.timeZone,
       };
       return config;
   }
@@ -1422,7 +1439,16 @@ export const ObjectGantt: React.FC<ObjectGanttProps> = ({
           defaultCollapsedDepth={ganttConfig?.defaultCollapsedDepth}
           summaryExtent={ganttConfig?.summaryExtent}
           interactions={ganttConfig?.interactions}
+          timeZone={ganttConfig?.timeZone}
           onBeforeTaskUpdate={onBeforeTaskUpdate}
+          exportFileName={
+            // Explicit view config first (排班计划甘特图) — the host strips
+            // `label` off the schema it hands us — then the bound object's
+            // label, then its API name.
+            String(
+              ganttConfig?.exportFileName ?? (schema as any).label ?? objectSchema?.label ?? schema.objectName ?? ''
+            ) || undefined
+          }
           inlineEdit
           onRefresh={
             // Only meaningful when there's a live source to re-read (object or

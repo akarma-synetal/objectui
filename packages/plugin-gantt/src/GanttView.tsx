@@ -41,7 +41,7 @@ import {
   Separator,
   useResizeObserver,
 } from "@object-ui/components"
-import { computeCriticalPath, computeProjectReschedule, wouldCreateDependencyCycle, type WorkingCalendar, type RescheduleChange } from "./scheduling"
+import { computeCriticalPath, computeProjectRescheduleDetailed, wouldCreateDependencyCycle, type WorkingCalendar, type RescheduleChange, type RescheduleOptions } from "./scheduling"
 import { shiftDayStart, type NormShiftSegments } from "./shifts"
 import { useGanttTranslation } from "./useGanttTranslation"
 
@@ -204,6 +204,53 @@ export const NOMINAL_DAYS: Record<GanttViewMode, number> = {
 };
 
 export const MS_PER_DAY = 1000 * 60 * 60 * 24;
+
+/** Offset (ms east of UTC) of an IANA time zone at a given instant. */
+function tzOffsetMs(timeZone: string, at: Date): number {
+  const dtf = new Intl.DateTimeFormat('en-US', {
+    timeZone,
+    hour12: false,
+    year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', second: '2-digit',
+  });
+  const get = (type: string) => Number(dtf.formatToParts(at).find((p) => p.type === type)?.value ?? 0);
+  const asUTC = Date.UTC(get('year'), get('month') - 1, get('day'), get('hour') % 24, get('minute'), get('second'));
+  return asUTC - Math.floor(at.getTime() / 1000) * 1000;
+}
+
+/**
+ * "Shifted clock" for business-time-zone rendering (业务时区渲染): translate
+ * real instants into a display space where the browser's local clock reads
+ * the CONFIGURED zone's wall time. All existing local-clock logic — shift
+ * bands, day columns, snapping, the today line, date labels — then renders
+ * that zone correctly for every viewer; writes translate back so persisted
+ * data stays real instants. Per-instant offsets keep DST zones close;
+ * fixed-offset zones (Asia/Shanghai) are exact.
+ */
+export function makeTzShift(timeZone?: string): {
+  delta: number;
+  to: (d: Date) => Date;
+  from: (d: Date) => Date;
+  now: () => Date;
+} {
+  const identity = { delta: 0, to: (d: Date) => d, from: (d: Date) => d, now: () => new Date() };
+  if (!timeZone) return identity;
+  try {
+    tzOffsetMs(timeZone, new Date()); // validate the IANA name early
+  } catch {
+    console.warn(`[GanttView] invalid timeZone "${timeZone}" — falling back to the browser zone`);
+    return identity;
+  }
+  const deltaAt = (d: Date) => tzOffsetMs(timeZone, d) - -d.getTimezoneOffset() * 60000;
+  const probe = deltaAt(new Date());
+  if (probe === 0) return identity;
+  return {
+    delta: probe,
+    to: (d: Date) => new Date(d.getTime() + deltaAt(d)),
+    from: (d: Date) => new Date(d.getTime() - deltaAt(d)),
+    now: () => new Date(Date.now() + deltaAt(new Date())),
+  };
+}
 
 /** Floor a date to the start of its column unit (Monday for weeks). */
 export function startOfUnit(date: Date, mode: GanttViewMode): Date {
@@ -432,6 +479,23 @@ export interface GanttViewProps {
   /** Disables the refresh button while a host-driven reload is in flight. */
   refreshing?: boolean
   /**
+   * Business time zone for rendering (业务时区), an IANA name like
+   * 'Asia/Shanghai'. The chart's calendar math — shift bands, day columns,
+   * drag snapping, the today line, start/end labels — renders this zone's
+   * wall time for EVERY viewer instead of the browser's; without it, a
+   * viewer in another zone sees bands and dates shifted (班次错位). Writes
+   * still persist real instants. Note: dates handed to `onBeforeTaskUpdate`
+   * are in this display space (durations/deltas are unaffected).
+   */
+  timeZone?: string
+  /**
+   * Base name for exported files (导出文件名), e.g. the view or object label —
+   * "排班计划甘特图" exports as `排班计划甘特图-20260719-1530.png`. Falls back
+   * to "gantt". The timestamp suffix keeps repeated exports from silently
+   * overwriting each other in the Downloads folder.
+   */
+  exportFileName?: string
+  /**
    * Per-interaction switches (交互开关). Omit for all-on. See
    * {@link GanttInteractions}: e.g. `{ resize: false }` keeps bars movable and
    * links drawable but pins every duration; `{ link: false }` removes the
@@ -590,11 +654,11 @@ function writeSavedLayout(key: string, layout: GanttLayout): void {
 }
 
 export function GanttView({
-  tasks,
+  tasks: tasksProp,
   viewMode: viewModeProp,
-  startDate,
-  endDate,
-  markers,
+  startDate: startDateProp,
+  endDate: endDateProp,
+  markers: markersProp,
   onTaskClick,
   taskUrl,
   onTaskUpdate: onTaskUpdateProp,
@@ -622,15 +686,45 @@ export function GanttView({
   onLayoutChange,
   onRefresh,
   refreshing = false,
+  timeZone,
+  exportFileName,
   interactions,
   onBeforeTaskUpdate,
 }: GanttViewProps) {
+  // Business-time-zone shim (业务时区): translate every incoming date into
+  // the display space where the browser clock reads the configured zone's
+  // wall time; translate emitted date changes back to real instants. All
+  // calendar logic below runs unchanged and becomes zone-correct.
+  const tzShift = React.useMemo(() => makeTzShift(timeZone), [timeZone]);
+  const tasks = React.useMemo(() => {
+    if (tzShift.delta === 0) return tasksProp;
+    return tasksProp.map((tk) => ({
+      ...tk,
+      start: tzShift.to(tk.start),
+      end: tzShift.to(tk.end),
+      baselineStart: tk.baselineStart ? tzShift.to(tk.baselineStart) : tk.baselineStart,
+      baselineEnd: tk.baselineEnd ? tzShift.to(tk.baselineEnd) : tk.baselineEnd,
+    }));
+  }, [tasksProp, tzShift]);
+  const startDate = React.useMemo(
+    () => (startDateProp && tzShift.delta !== 0 ? tzShift.to(startDateProp) : startDateProp),
+    [startDateProp, tzShift],
+  );
+  const endDate = React.useMemo(
+    () => (endDateProp && tzShift.delta !== 0 ? tzShift.to(endDateProp) : endDateProp),
+    [endDateProp, tzShift],
+  );
+  const markers = React.useMemo(() => {
+    if (!markersProp || tzShift.delta === 0) return markersProp;
+    return markersProp.map((m) => ({ ...m, date: tzShift.to(new Date(m.date)) }));
+  }, [markersProp, tzShift]);
+
   const { t, language } = useGanttTranslation();
   // Locale for every user-facing date label. Falls back to the runtime default
   // (browser locale) when no I18nProvider supplies a language, so standalone
   // embeds and tests behave exactly as before.
   const dateLocale = language || undefined;
-  const [currentDate, setCurrentDate] = React.useState(new Date());
+  const [currentDate, setCurrentDate] = React.useState(() => tzShift.now());
   const containerRef = React.useRef<HTMLDivElement>(null);
   const { width: containerWidth } = useResizeObserver(containerRef);
   const effectiveWidth = containerWidth || (typeof window !== 'undefined' ? window.innerWidth : 1024);
@@ -650,7 +744,18 @@ export function GanttView({
   const ixResize = interactions?.resize !== false;
   const ixProgress = interactions?.progress !== false;
   const ixLink = interactions?.link !== false;
-  const onTaskUpdate = effectiveReadOnly ? undefined : onTaskUpdateProp;
+  // Emitted date changes are display-space — translate back to real instants
+  // before they reach the host (writes must persist real time).
+  const onTaskUpdate = React.useMemo(() => {
+    if (effectiveReadOnly || !onTaskUpdateProp) return undefined;
+    if (tzShift.delta === 0) return onTaskUpdateProp;
+    return (task: GanttTask, changes: Partial<Pick<GanttTask, 'title' | 'start' | 'end' | 'progress'>>) => {
+      const out = { ...changes };
+      if (out.start instanceof Date) out.start = tzShift.from(out.start);
+      if (out.end instanceof Date) out.end = tzShift.from(out.end);
+      onTaskUpdateProp(task, out);
+    };
+  }, [effectiveReadOnly, onTaskUpdateProp, tzShift]);
   const onTaskDelete = effectiveReadOnly ? undefined : onTaskDeleteProp;
   const onDependencyCreate = effectiveReadOnly || !ixLink ? undefined : onDependencyCreateProp;
   const onDependencyDelete = effectiveReadOnly || !ixLink ? undefined : onDependencyDeleteProp;
@@ -987,6 +1092,38 @@ export function GanttView({
   // from what the drag itself applied — that delta is the conflict we surface.
   const [pendingConflict, setPendingConflict] = React.useState<RescheduleChange[] | null>(null);
 
+  // Snap a rescheduled start onto the next shift-band boundary (班次边界) so
+  // a pushed task never starts mid-band — the reschedule twin of the drag
+  // snapping. Only meaningful when shift segments are configured.
+  const snapToBandStart = React.useCallback(
+    (ms: number): number => {
+      if (!shiftSegments) return ms;
+      const base = new Date(ms);
+      base.setHours(0, 0, 0, 0);
+      // Walk band boundaries from the previous calendar day (a cross-midnight
+      // band's shift-day starts the day before) until one lands at/after ms.
+      for (let dayOff = -1; dayOff <= 1; dayOff++) {
+        let t = base.getTime() + dayOff * MS_PER_DAY + shiftSegments.dayStartMin * 60000;
+        for (const b of shiftSegments.bands) {
+          if (t >= ms) return t;
+          t += b.durMs;
+        }
+      }
+      return ms;
+    },
+    [shiftSegments],
+  );
+  // Reschedule semantics shared by BOTH cascade paths (toolbar auto-schedule
+  // and the post-drag conflict dialog): self-dated summaries participate, and
+  // pushed starts snap to shift bands.
+  const reschedOpts = React.useMemo<RescheduleOptions>(
+    () => ({
+      summaryExtent,
+      snapStart: shiftSegments ? snapToBandStart : undefined,
+    }),
+    [summaryExtent, shiftSegments, snapToBandStart],
+  );
+
   const maybeFlagConflict = React.useCallback(
     (applied: Array<{ task: GanttTask; changes: { start?: Date; end?: Date } }>) => {
       if (!rescheduleOnConflict) return;
@@ -1001,7 +1138,7 @@ export function GanttView({
         const o = overrides.get(String(t.id));
         return o ? { ...t, start: o.start, end: o.end } : t;
       });
-      const changes = computeProjectReschedule(candidate, workingCalendar);
+      const { changes } = computeProjectRescheduleDetailed(candidate, workingCalendar, reschedOpts);
       // A change that merely restates the drag override is not a conflict.
       const conflict = changes.filter((c) => {
         const o = overrides.get(c.id);
@@ -1009,7 +1146,7 @@ export function GanttView({
       });
       if (conflict.length) setPendingConflict(conflict);
     },
-    [rescheduleOnConflict, workingCalendar],
+    [rescheduleOnConflict, workingCalendar, reschedOpts],
   );
 
   const applyReschedule = React.useCallback(() => {
@@ -1629,8 +1766,8 @@ export function GanttView({
 
   // Calculate timeline range
   const timelineRange = React.useMemo(() => {
-    let start = startDate ? new Date(startDate) : new Date();
-    let end = endDate ? new Date(endDate) : new Date();
+    let start = startDate ? new Date(startDate) : tzShift.now();
+    let end = endDate ? new Date(endDate) : tzShift.now();
     
     if (!startDate && tasks.length > 0) {
       // Find min start date
@@ -1664,7 +1801,7 @@ export function GanttView({
     // and `fitColumnWidth` stretches the column width so a short project still
     // fills the area — the industry "zoom to fit" approach.
     return { start, end };
-  }, [startDate, endDate, tasks, viewMode, shiftSegments]);
+  }, [startDate, endDate, tasks, viewMode, shiftSegments, tzShift]);
 
   // Non-linear working-time axis (非线性工作时间轴). In day mode, when a working
   // calendar marks weekends/holidays as non-working, those columns are DROPPED
@@ -2161,10 +2298,10 @@ export function GanttView({
   // Compute the index (and pixel offset) of "today" within the timeline so
   // we can render a sticky marker AND scroll to it on demand.
   const todayLeftPx = React.useMemo(() => {
-    const now = new Date();
+    const now = tzShift.now();
     if (now < timelineRange.start || now > timelineRange.end) return null;
     return Math.round(dateToX(now));
-  }, [timelineRange, dateToX]);
+  }, [timelineRange, dateToX, tzShift]);
   const jumpToToday = React.useCallback(() => {
     if (todayLeftPx == null || !scrollAreaRef.current) return;
     const target = Math.max(0, todayLeftPx - scrollAreaRef.current.clientWidth / 2);
@@ -2288,12 +2425,12 @@ export function GanttView({
     [],
   );
   const jumpToWeek = React.useCallback(
-    () => scrollToDate(startOfUnit(new Date(), 'week')),
-    [scrollToDate],
+    () => scrollToDate(startOfUnit(tzShift.now(), 'week')),
+    [scrollToDate, tzShift],
   );
   const jumpToMonth = React.useCallback(
-    () => scrollToDate(startOfUnit(new Date(), 'month')),
-    [scrollToDate],
+    () => scrollToDate(startOfUnit(tzShift.now(), 'month')),
+    [scrollToDate, tzShift],
   );
 
   // --- Always-visible horizontal scrollbar (自绘水平滚动条) ----------------
@@ -2726,16 +2863,41 @@ export function GanttView({
   // One-shot dependency-driven reschedule (顺延): push successors later until
   // their link constraints hold, preserving durations, then persist each
   // changed task through onTaskUpdate (as one undoable batch).
+  // Toolbar auto-schedule is a bulk server write, so it CONFIRMS first (the
+  // same contract as the post-drag conflict dialog): compute → show "shift N
+  // tasks? (M locked skipped)" → apply only on confirm. A clean graph gets a
+  // transient "nothing to reschedule" notice instead of a silent no-op.
+  const [pendingAutoSchedule, setPendingAutoSchedule] = React.useState<{
+    changes: RescheduleChange[];
+    skipped: number;
+  } | null>(null);
+  const [autoScheduleClean, setAutoScheduleClean] = React.useState(false);
+  React.useEffect(() => {
+    if (!autoScheduleClean) return;
+    const timer = setTimeout(() => setAutoScheduleClean(false), 2500);
+    return () => clearTimeout(timer);
+  }, [autoScheduleClean]);
+
   const runAutoSchedule = React.useCallback(() => {
     if (!onTaskUpdate) return;
-    const changes = computeProjectReschedule(tasks, workingCalendar);
+    const { changes, skippedLocked } = computeProjectRescheduleDetailed(tasks, workingCalendar, reschedOpts);
+    if (!changes.length) {
+      setAutoScheduleClean(true);
+      return;
+    }
+    setPendingAutoSchedule({ changes, skipped: skippedLocked.length });
+  }, [tasks, onTaskUpdate, workingCalendar, reschedOpts]);
+
+  const applyAutoSchedule = React.useCallback(() => {
+    if (!pendingAutoSchedule) return;
     const updates: Array<{ task: GanttTask; changes: Partial<Pick<GanttTask, 'start' | 'end'>> }> = [];
-    for (const c of changes) {
+    for (const c of pendingAutoSchedule.changes) {
       const task = tasks.find((tk) => String(tk.id) === c.id);
       if (task) updates.push({ task, changes: { start: c.start, end: c.end } });
     }
-    commitTaskUpdates(updates);
-  }, [tasks, onTaskUpdate, workingCalendar, commitTaskUpdates]);
+    if (updates.length) commitTaskUpdates(updates);
+    setPendingAutoSchedule(null);
+  }, [pendingAutoSchedule, tasks, commitTaskUpdates]);
 
   // --- Export PNG (Phase 6) ---------------------------------------------
   // Self-contained: re-draw the WHOLE chart (every row, unaffected by row
@@ -2791,9 +2953,28 @@ export function GanttView({
     });
     parts.push(`</g>`);
 
+    // Fit a bar label into `w` px: per-char width estimate (CJK ≈ 9px, latin
+    // ≈ 5.5px at font-size 9) with an ellipsis; empty when nothing fits.
+    const fitText = (s: string, w: number): string => {
+      const budget = w - 12;
+      if (budget <= 9) return '';
+      let used = 0;
+      let out = '';
+      for (const ch of s) {
+        const cw = ch.charCodeAt(0) > 255 ? 9 : 5.5;
+        if (used + cw > budget) return out.length < s.length ? `${out.slice(0, -1)}…` : out;
+        used += cw;
+        out += ch;
+      }
+      return out;
+    };
+
     // Timeline: bars / milestones / links / today line.
     parts.push(`<g transform="translate(${nameW},${headerH})" font-family="sans-serif" font-size="9">`);
     rows.forEach((row, i) => {
+      // 分组层级 (项目/产品): a pure tree header — the live chart draws NO
+      // bar for these rows, so the export must not invent a rollup one.
+      if (row.task.type === 'group') return;
       const y = i * rowHeight;
       const { left, width } = styleFor(row.start, row.end);
       const crit = isCriticalTask(row.task.id);
@@ -2814,12 +2995,22 @@ export function GanttView({
         parts.push(`<rect x="${left.toFixed(1)}" y="${(y + summaryBarTop).toFixed(1)}" width="${width.toFixed(1)}" height="${summaryBarHeight}" rx="3" fill="${fill}"${stroke}/>`);
         const pw = (width * Math.min(100, Math.max(0, row.progress))) / 100;
         parts.push(`<rect x="${left.toFixed(1)}" y="${(y + summaryBarTop).toFixed(1)}" width="${pw.toFixed(1)}" height="${summaryBarHeight}" rx="3" fill="rgba(0,0,0,0.2)"/>`);
+        // In-bar title (条上标题), matching the live summary bar.
+        const label = fitText(row.task.title, width);
+        if (label) {
+          parts.push(`<text x="${(left + 6).toFixed(1)}" y="${(y + rowHeight / 2 + 3).toFixed(1)}" fill="#ffffff" font-weight="500">${esc(label)}</text>`);
+        }
       } else {
         const fill = row.task.color || '#3b82f6';
         parts.push(`<rect x="${left.toFixed(1)}" y="${(y + barTop).toFixed(1)}" width="${width.toFixed(1)}" height="${barHeight}" rx="3" fill="${fill}"${stroke}/>`);
         const pw = (width * Math.min(100, Math.max(0, row.progress))) / 100;
         parts.push(`<rect x="${left.toFixed(1)}" y="${(y + barTop).toFixed(1)}" width="${pw.toFixed(1)}" height="${barHeight}" rx="3" fill="rgba(0,0,0,0.18)"/>`);
-        if (width >= 24) {
+        // In-bar title like the live leaf bar (bar_label, e.g. the executor);
+        // narrow bars fall back to the bare progress number when it fits.
+        const label = fitText(row.task.title, width);
+        if (label) {
+          parts.push(`<text x="${(left + 6).toFixed(1)}" y="${(y + rowHeight / 2 + 3).toFixed(1)}" fill="#ffffff" font-weight="500">${esc(label)}</text>`);
+        } else if (width >= 24) {
           parts.push(`<text x="${(left + width / 2).toFixed(1)}" y="${(y + rowHeight / 2 + 3).toFixed(1)}" text-anchor="middle" fill="#ffffff">${Math.round(row.progress)}%</text>`);
         }
       }
@@ -2853,13 +3044,25 @@ export function GanttView({
     return { svg, W, H };
   }, [tasks, rows, links, linkPath, styleFor, isCriticalTask, critical, timeColumns, colOffsets, totalWidth, taskListWidth, rowHeight, barTop, barHeight, summaryBarTop, summaryBarHeight, milestoneSize, todayLeftPx, viewMode, showBaselines, baselineTop, baselineHeight, BASELINE_FILL, BASELINE_BORDER, resolvedMarkers, headerGroups]);
 
+  // 导出文件名: `<view/object label>-<yyyyMMdd-HHmm>.<ext>` — carries the
+  // business context instead of an opaque `gantt-week`, and the timestamp
+  // keeps repeated exports from overwriting each other. Filesystem-hostile
+  // characters are stripped from the label.
+  const exportFileBase = React.useCallback(() => {
+    const base = (exportFileName ?? '').replace(/[\\/:*?"<>|\s]+/g, ' ').trim() || 'gantt';
+    const d = new Date();
+    const p = (n: number) => String(n).padStart(2, '0');
+    const ts = `${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}`;
+    return `${base}-${ts}`;
+  }, [exportFileName]);
+
   const exportPng = React.useCallback(async () => {
     const built = buildExportSvg();
     if (!built) return;
     const canvas = await rasterizeSvg(built.svg, built.W, built.H);
     if (!canvas) return;
-    canvas.toBlob((png) => { if (png) downloadBlob(png, `gantt-${viewMode}.png`); }, 'image/png');
-  }, [buildExportSvg, viewMode]);
+    canvas.toBlob((png) => { if (png) downloadBlob(png, `${exportFileBase()}.png`); }, 'image/png');
+  }, [buildExportSvg, exportFileBase]);
 
   const exportPdf = React.useCallback(async () => {
     const built = buildExportSvg();
@@ -2869,8 +3072,8 @@ export function GanttView({
     // JPEG keeps the embedded image small and embeds directly via DCTDecode.
     const jpeg = dataUrlToBytes(canvas.toDataURL('image/jpeg', 0.92));
     const pdf = buildJpegPdf(jpeg, canvas.width, canvas.height);
-    downloadBlob(pdf, `gantt-${viewMode}.pdf`);
-  }, [buildExportSvg, viewMode]);
+    downloadBlob(pdf, `${exportFileBase()}.pdf`);
+  }, [buildExportSvg, exportFileBase]);
 
   // Snapshot the current layout (granularity + zoom + list state), persist it
   // under persistLayoutKey, and notify onLayoutChange. The persisted columnWidth
@@ -4788,6 +4991,68 @@ export function GanttView({
       {/* 拖拽冲突 → 顺延确认 (Group 2). A centered modal lists how many tasks
           would shift and offers to auto-reschedule (自动顺延) or keep the manual
           placement (取消保留). */}
+      {/* 自动排程确认 — the toolbar wand computes first, then asks before the
+          bulk write; mirrors the conflict dialog's interaction contract. */}
+      {pendingAutoSchedule && (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/30"
+          data-testid="gantt-autoschedule-overlay"
+          onClick={() => setPendingAutoSchedule(null)}
+        >
+          <div
+            className="min-w-[280px] max-w-[360px] rounded-lg border bg-popover text-popover-foreground shadow-lg p-4"
+            role="alertdialog"
+            aria-modal="true"
+            data-testid="gantt-autoschedule-dialog"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="text-sm font-semibold mb-1" data-testid="gantt-autoschedule-title">
+              {t('gantt.autoScheduleDlg.title')}
+            </div>
+            <div className="text-sm text-muted-foreground mb-3">
+              {t('gantt.autoScheduleDlg.body').replace('{count}', String(pendingAutoSchedule.changes.length))}
+              {pendingAutoSchedule.skipped > 0 && (
+                <>
+                  {' '}
+                  <span data-testid="gantt-autoschedule-skipped">
+                    {t('gantt.autoScheduleDlg.skipped').replace('{count}', String(pendingAutoSchedule.skipped))}
+                  </span>
+                </>
+              )}
+            </div>
+            <div className="flex justify-end gap-2">
+              <button
+                type="button"
+                className="px-3 py-1.5 text-sm rounded-md border hover:bg-accent outline-none"
+                data-testid="gantt-autoschedule-cancel"
+                onClick={() => setPendingAutoSchedule(null)}
+              >
+                {t('gantt.autoScheduleDlg.cancel')}
+              </button>
+              <button
+                type="button"
+                className="px-3 py-1.5 text-sm rounded-md bg-primary text-primary-foreground hover:opacity-90 outline-none"
+                data-testid="gantt-autoschedule-confirm"
+                onClick={applyAutoSchedule}
+              >
+                {t('gantt.autoScheduleDlg.confirm')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 无需排程 transient notice — every link already holds. */}
+      {autoScheduleClean && (
+        <div
+          className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[60] rounded-md border bg-popover text-popover-foreground px-3 py-1.5 text-sm shadow-md"
+          role="status"
+          data-testid="gantt-autoschedule-clean"
+        >
+          {t('gantt.autoScheduleDlg.none')}
+        </div>
+      )}
+
       {pendingConflict && (
         <div
           className="fixed inset-0 z-[60] flex items-center justify-center bg-black/30"
