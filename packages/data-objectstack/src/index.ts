@@ -2060,6 +2060,37 @@ export class ObjectStackAdapter<T = unknown> implements DataSource<T> {
       const items: any[] = Array.isArray(result?.items)
         ? result.items
         : Array.isArray(result) ? result : [];
+
+      // Also fetch draft-overlay views so runtime-created views are visible
+      // before they are published. getItems() only returns active overlays +
+      // package views; drafts require ?preview=draft on the server.
+      let draftItems: any[] = [];
+      try {
+        const metadataRoute = '/api/v1/meta';
+        const headers: Record<string, string> = {
+          'Content-Type': 'application/json',
+        };
+        if (this.token) {
+          headers['Authorization'] = `Bearer ${this.token}`;
+        }
+        const draftUrl = `${this.baseUrl.replace(/\/$/, '')}${metadataRoute}/view?preview=draft`;
+        const draftRes = await this.fetchImpl(draftUrl, { method: 'GET', headers });
+        if (draftRes.ok) {
+          const draftData = await draftRes.json();
+          const raw: any[] = Array.isArray(draftData?.items)
+            ? draftData.items
+            : Array.isArray(draftData) ? draftData : [];
+          // Keep only draft-provenance items so we don't duplicate active
+          // overlays that are already in the normal response.
+          draftItems = raw.filter(
+            (v: any) => v && v._draft === true,
+          );
+        }
+      } catch {
+        // Older servers without preview=draft quietly return no drafts.
+      }
+
+      const merged = [...items, ...draftItems];
       // This feeds the list-view switcher (ViewTabBar), so it must return
       // LIST-family views only. The backend now exposes each view as an
       // independent ViewItem carrying a `viewKind` discriminant (ADR-0017);
@@ -2068,7 +2099,7 @@ export class ObjectStackAdapter<T = unknown> implements DataSource<T> {
       // leaks in as a spurious switcher tab. Bare specs without `viewKind`
       // (legacy artifacts / saved views) are kept as list views.
       const FORM_FAMILY = new Set(['form', 'detail']);
-      return items.filter((v: any) => {
+      return merged.filter((v: any) => {
         if (!v) return false;
         // Handle both bare view spec and `{list: {...}}` artifact wrapper
         const spec = v.list ?? v;
