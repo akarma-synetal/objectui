@@ -448,10 +448,10 @@ export class ObjectStackAdapter<T = unknown> implements DataSource<T> {
   // failing requests on every record open / panel render.
   private missingResources = new Set<string>();
   // Set once the server has told us it can't do a cross-object transactional
-  // batch (POST /api/v1/batch answered 404/405/501). After that, batchTransaction
-  // stops probing the endpoint and serves every call via the client-side
-  // emulation — the non-atomic fallback lives HERE, isolated to the one adapter
-  // that has to cope with a backend lacking server atomicity (#2679).
+  // batch (the client SDK's data.batchTransaction threw HTTP 404/405/501). After
+  // that, batchTransaction skips the SDK call and serves every call via the
+  // client-side emulation — the non-atomic fallback lives HERE, isolated to the
+  // one adapter that has to cope with a backend lacking server atomicity (#2679).
   private batchUnsupported = false;
   // The server's declared cross-object atomic-batch capability, read from
   // discovery at connect() (framework #3298 / objectui #2693). `true` → the
@@ -996,20 +996,22 @@ export class ObjectStackAdapter<T = unknown> implements DataSource<T> {
    * created id, so a child can reference its parent created earlier in the same
    * batch (master-detail).
    *
-   * Transport preference: the published `@objectstack/client` SDK method when
-   * available (framework #3271), else a raw `POST /api/v1/batch`.
+   * Transport: the published `@objectstack/client` SDK method
+   * `data.batchTransaction` (framework #3271; shipped since client v16, our
+   * dependency floor). Per AGENTS.md §7 data always flows through the client —
+   * never a hand-rolled `fetch('/api/v1/batch')`.
    *
    * Fallback decision — declarative capability negotiation (framework #3298 /
    * objectui #2693). At connect() we read `capabilities.transactionalBatch`
    * from discovery:
    *   - Declared `true` → the backend GUARANTEES atomicity (declared ===
    *     enforced). We TRUST it: any batch failure — including 404/405/501 —
-   *     surfaces as a real error. No runtime probe, no non-atomic client-side
-   *     compensation. This is the path modern backends take.
+   *     surfaces as a real error. No non-atomic client-side compensation. This
+   *     is the path modern backends take.
    *   - Declared `false`, or ABSENT (backend predates #3298) → we can't rely on
-   *     server atomicity, so we keep the legacy behaviour: try `/batch`, and on
-   *     404/405 (no endpoint) or 501 (runtime without transactions) degrade to
-   *     the client-side, NON-atomic {@link emulateBatchTransaction} so a save is
+   *     server atomicity, so we keep the legacy behaviour: on 404/405 (no
+   *     endpoint) or 501 (runtime without transactions) degrade to the
+   *     client-side, NON-atomic {@link emulateBatchTransaction} so a save is
    *     still possible. Removing that here would regress older backends from
    *     "saves, less safe" to "no save path" (#2679 compatibility constraint).
    *     The non-atomic fallback stays isolated to THIS adapter.
@@ -1023,66 +1025,37 @@ export class ObjectStackAdapter<T = unknown> implements DataSource<T> {
 
     // When the backend declares atomic batch support we never degrade: a
     // failure is a real error, not a cue to fall back. Otherwise (declared
-    // false, or capability absent on a pre-#3298 backend) the runtime-probe +
-    // emulation fallback below stays active.
+    // false, or capability absent on a pre-#3298 backend) the emulation
+    // fallback below stays active.
     const guaranteed = this.atomicBatchCapability === true;
 
-    // Already probed-and-degraded on a non-declaring backend — skip the probe.
+    // Already degraded on a non-declaring backend — skip the SDK call.
     // (Unreachable once `guaranteed`: that path never sets `batchUnsupported`.)
     if (!guaranteed && this.batchUnsupported) {
       return emulateBatchTransaction(this, operations);
     }
 
-    // Prefer the typed SDK method when the installed client exposes it
-    // (feature-detect, same pattern as updateMany/import). Older clients that
-    // predate it fall through to the raw-fetch mainline below.
-    const sdkBatch = (this.client.data as any).batchTransaction;
-    if (typeof sdkBatch === 'function') {
-      try {
-        const payload: { results: any[] } = await sdkBatch.call(this.client.data, operations);
-        this.emitBatchMutations(operations, payload?.results);
-        return payload;
-      } catch (err) {
-        const status = this.errorStatusOf(err);
-        if (!guaranteed && this.batchStatusUnsupported(status)) {
-          return this.fallbackToEmulation(operations, status);
-        }
-        throw err;
+    try {
+      // Typed SDK method — guaranteed present by the `@objectstack/client@^16`
+      // dependency floor (framework #3271). No hand-rolled POST /api/v1/batch.
+      const payload = await this.client.data.batchTransaction(operations);
+      this.emitBatchMutations(operations, payload?.results);
+      return payload;
+    } catch (err) {
+      // On a non-declaring backend, endpoint missing (404/405) or a runtime that
+      // can't do transactions (the framework rest-server answers 501
+      // "Transactional batch not supported by this runtime") → degrade to the
+      // non-atomic client emulation so the save still goes through. When the
+      // backend DECLARED support (`guaranteed`), even these are hard errors — a
+      // server that advertised the capability must honour it. Every other status
+      // (400 validation, 401/403 auth, 409 conflict, 500 fault) is a real error
+      // the caller must see — never silently retried.
+      const status = this.errorStatusOf(err);
+      if (!guaranteed && this.batchStatusUnsupported(status)) {
+        return this.fallbackToEmulation(operations, status);
       }
+      throw err;
     }
-
-    const url = `${this.baseUrl}/api/v1/batch`;
-    const response = await this.fetchImpl(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', ...this.getAuthHeaders() },
-      // Send the session cookie too: in the browser console auth is cookie-based
-      // (no bearer `token`), so without `credentials: 'include'` this raw fetch
-      // is unauthenticated — every master-detail batch save would 401. Bearer
-      // (server-to-server) and cookie (console) auth now both work.
-      credentials: 'include',
-      body: JSON.stringify({ operations }),
-    });
-    if (!response.ok) {
-      // On a non-declaring backend, endpoint missing (404/405) or runtime can't
-      // do transactions (the framework rest-server answers 501 "Transactional
-      // batch not supported by this runtime") → degrade to the non-atomic client
-      // emulation. When the backend DECLARED support (`guaranteed`), even these
-      // are hard errors — a server that advertised the capability must honour it.
-      // Every other status (400 validation, 401/403 auth, 409 conflict, 500
-      // fault) is a real error the caller must see — never silently retried.
-      if (!guaranteed && this.batchStatusUnsupported(response.status)) {
-        return this.fallbackToEmulation(operations, response.status);
-      }
-      const error = await response.json().catch(() => ({ message: response.statusText }));
-      throw new ObjectStackError(
-        error.error || error.message || `Batch failed with status ${response.status}`,
-        'BATCH_ERROR',
-        response.status,
-      );
-    }
-    const payload: { results: any[] } = await response.json();
-    this.emitBatchMutations(operations, payload?.results);
-    return payload;
   }
 
   /** True for statuses that mean "this backend can't do a transactional batch". */
