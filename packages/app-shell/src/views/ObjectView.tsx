@@ -43,6 +43,8 @@ import { ViewConfigPanel } from './ViewConfigPanel';
 import { useMetadataClient } from './metadata-admin/useMetadata';
 import { persistRuntimeMetadata, createRuntimeMetadata } from './runtime-metadata-persistence';
 import { CreateViewDialog } from './CreateViewDialog';
+import { slugify } from './metadata-admin/createDerive';
+import { usePreviewDrafts } from '../preview/PreviewModeContext';
 import { PageHeader } from '../layout/PageHeader';
 import { useMobileViewSwitcherRegistration } from '../layout/MobileViewSwitcherContext';
 import type { MobileViewSwitcherItem } from '../layout/MobileViewSwitcherContext';
@@ -169,6 +171,11 @@ function ObjectViewInner({ dataSource, objects, onEdit, externalRefreshKey }: an
     // model (the `sys_view` table is retired).
     const metadataClient = useMetadataClient();
 
+    // ADR-0037: when in preview mode, listViews() also fetches draft views
+    // so runtime-created views appear before publish. Normal runtime mode
+    // sees only published views.
+    const previewDrafts = usePreviewDrafts();
+
     // Inline view config panel state (Airtable-style right sidebar)
     const [showViewConfigPanel, setShowViewConfigPanel] = useState(false);
     const [viewConfigPanelMode, setViewConfigPanelMode] = useState<'create' | 'edit'>('edit');
@@ -259,7 +266,16 @@ function ObjectViewInner({ dataSource, objects, onEdit, externalRefreshKey }: an
                 // `name` via the metadata customization API instead of into
                 // the physical `sys_view` table (whose columns no longer
                 // accommodate the spec shape: arrays, nested objects, etc.).
-                const spec: Record<string, any> = { ...config, columns: incomingColumns, object: objectName, data: { provider: "object", object: objectName } };
+                const spec: Record<string, any> = {
+                    ...config,
+                    columns: incomingColumns,
+                    // Stamp object identity so listViews() can match this view
+                    // to the object after publish. listViews filters on
+                    // data.object, object, or objectName — without this the
+                    // view never appears in the ViewTabBar.
+                    object: objectName,
+                    data: { provider: "object", ...((config as any)?.data ?? {}), object: objectName },
+                };
                 // Per @objectstack/spec, certain view types nest their card/field
                 // list inside their type-specific subconfig (e.g. kanban.columns,
                 // gallery.visibleFields). The CreateViewDialog only collects
@@ -277,21 +293,27 @@ function ObjectViewInner({ dataSource, objects, onEdit, externalRefreshKey }: an
                 // draft via the metadata seam; an explicit Publish promotes it.
                 // UI-layer concerns (default columns, kanban/gallery massaging
                 // above, and the auto-activation below) stay here.
-                let draftName = String(
-                    (config as any)?.name ?? (config as any)?.id ?? (spec as any)?.id ?? '',
-                ).trim();
-                // Guard: never send a PUT /meta/view/ (no name) to the server —
-                // the route PUT /meta/:type/:name requires a non-empty :name.
-                // Generate a unique fallback name when the dialog supplies none.
-                if (!draftName) {
-                    const viewType = String(config?.type ?? config?.viewType ?? 'list');
-                    const base = (objectName || 'view')
-                        .toLowerCase()
-                        .replace(/[^a-z0-9_]+/g, '_')
-                        .replace(/^_+|_+$/g, '');
-                    draftName = `${base}_${viewType}_${Date.now().toString(36)}`;
-                }
-                createdId = await createRuntimeMetadata('view', draftName, spec, {
+                // The CreateViewDialog always provides a non-empty label
+                // (required field, submit disabled until filled). Use it as
+                // the metadata `name`, sanitized via the canonical slugify
+                // utility (NFKD-normalised, lowercase, alphanumeric+underscore,
+                // ≤64 chars). Fallback generates a unique defense-in-depth key.
+                const draftLabel = String(config.label ?? config.name ?? '').trim();
+                const viewType = String(config.type ?? 'grid');
+                const draftName = slugify(draftLabel)
+                    || `${objectName}_${viewType}_${Date.now().toString(36)}`;
+                // Canonical ViewItem shape (ADR-0017) — the server validates
+                // against ViewItemSchema. Same shape as anchors.ts:createBuildBody.
+                // listViews() already handles both v.config flattening and
+                // v.list ?? v unwrapping.
+                const viewBody: Record<string, any> = {
+                    name: `${objectName}.${draftName}`,
+                    object: objectName,
+                    viewKind: 'list',
+                    label: config.label ?? draftLabel,
+                    config: { ...spec },
+                };
+                createdId = await createRuntimeMetadata('view', draftName, viewBody, {
                     metadataClient,
                 });
             }
@@ -429,7 +451,7 @@ function ObjectViewInner({ dataSource, objects, onEdit, externalRefreshKey }: an
         // Read saved views from the metadata overlay (`/meta/view`) via the
         // adapter's `listViews`. Adapters without it surface no saved views.
         if (typeof (dataSource as any)?.listViews === 'function') {
-            (dataSource as any).listViews(objectName)
+            (dataSource as any).listViews(objectName, { previewDrafts })
                 .then((rows: any[]) => {
                     if (cancelled) return;
                     // Normalize: ensure each view has an `id` for ViewTabBar
@@ -456,7 +478,7 @@ function ObjectViewInner({ dataSource, objects, onEdit, externalRefreshKey }: an
         // saved views. The retired `sys_view` table is no longer read.
         setSavedViews([]);
         return () => { cancelled = true; };
-    }, [dataSource, objectName, refreshKey]);
+    }, [dataSource, objectName, refreshKey, previewDrafts]);
 
     // Persisted per-view config overrides (e.g. density toggle). Saved
     // separately from `objectDef.listViews` (the embedded definition) via

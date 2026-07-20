@@ -60,6 +60,7 @@ import { getIcon } from '../utils/getIcon';
 import { useMetadataClient } from './metadata-admin/useMetadata';
 import { createRuntimeMetadata } from './runtime-metadata-persistence';
 import { CreateViewDialog } from './CreateViewDialog';
+import { slugify } from './metadata-admin/createDerive';
 
 /** Field types the auto-derived user-filter bar offers as dropdowns. */
 const USER_FILTER_TYPES = new Set(['select', 'multiselect', 'radio', 'enum', 'boolean']);
@@ -232,9 +233,24 @@ export function ObjectDataPage({ dataSource, objects }: any) {
           ...config,
           columns: Array.isArray(config.columns) && config.columns.length > 0 ? config.columns : columns,
           ...(urlFilters.length ? { filter: urlFilters } : {}),
+          // Stamp object identity so listViews() can match this view to the
+          // object after publish. listViews filters on data.object, object,
+          // or objectName — without this the view never appears in tab bars.
+          object: objectName,
+          data: { provider: "object", ...((config as any)?.data ?? {}), object: objectName },
         };
-        const draftName = String(config?.name ?? config?.id ?? '');
-        const createdId = await createRuntimeMetadata('view', draftName, spec, { metadataClient });
+        const draftLabel = String(config.label ?? config.name ?? '').trim();
+        const viewType = String(config.type ?? 'grid');
+        const draftName = slugify(draftLabel)
+            || `${objectName}_${viewType}_${Date.now().toString(36)}`;
+        const viewBody: Record<string, any> = {
+            name: `${objectName}.${draftName}`,
+            object: objectName,
+            viewKind: 'list',
+            label: config.label ?? draftLabel,
+            config: { ...spec },
+        };
+        const createdId = await createRuntimeMetadata('view', draftName, viewBody, { metadataClient });
         if (createdId) navigate(`../view/${createdId}`, { relative: 'path' });
       } catch (err) {
         console.error('[ObjectDataPage] Failed to save view:', err);

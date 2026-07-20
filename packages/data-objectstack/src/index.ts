@@ -2053,7 +2053,7 @@ export class ObjectStackAdapter<T = unknown> implements DataSource<T> {
    * Filters by `data.object === objectName` (or top-level `object`)
    * client-side because the metadata index is name-only, not field-typed.
    */
-  async listViews(objectName: string): Promise<any[]> {
+  async listViews(objectName: string, options?: { previewDrafts?: boolean }): Promise<any[]> {
     await this.connect();
     try {
       const result: any = await this.client.meta.getItems('view');
@@ -2061,33 +2061,36 @@ export class ObjectStackAdapter<T = unknown> implements DataSource<T> {
         ? result.items
         : Array.isArray(result) ? result : [];
 
-      // Also fetch draft-overlay views so runtime-created views are visible
-      // before they are published. getItems() only returns active overlays +
-      // package views; drafts require ?preview=draft on the server.
+      // ADR-0037: only fetch draft views when the caller is in preview mode
+      // (gated by ?preview=draft URL flag). Normal runtime sees only published
+      // views — drafts are invisible until Publish, preserving the publish
+      // gate (ADR-0033) and preventing draft leakage to all viewers.
       let draftItems: any[] = [];
-      try {
-        const metadataRoute = '/api/v1/meta';
-        const headers: Record<string, string> = {
-          'Content-Type': 'application/json',
-        };
-        if (this.token) {
-          headers['Authorization'] = `Bearer ${this.token}`;
+      if (options?.previewDrafts) {
+        try {
+          const metadataRoute = '/api/v1/meta';
+          const headers: Record<string, string> = {
+            'Content-Type': 'application/json',
+          };
+          if (this.token) {
+            headers['Authorization'] = `Bearer ${this.token}`;
+          }
+          const draftUrl = `${this.baseUrl.replace(/\/$/, '')}${metadataRoute}/view?preview=draft`;
+          const draftRes = await this.fetchImpl(draftUrl, { method: 'GET', headers });
+          if (draftRes.ok) {
+            const draftData = await draftRes.json();
+            const raw: any[] = Array.isArray(draftData?.items)
+              ? draftData.items
+              : Array.isArray(draftData) ? draftData : [];
+            // Keep only draft-provenance items so we don't duplicate active
+            // overlays that are already in the normal response.
+            draftItems = raw.filter(
+              (v: any) => v && v._draft === true,
+            );
+          }
+        } catch {
+          // Older servers without preview=draft quietly return no drafts.
         }
-        const draftUrl = `${this.baseUrl.replace(/\/$/, '')}${metadataRoute}/view?preview=draft`;
-        const draftRes = await this.fetchImpl(draftUrl, { method: 'GET', headers });
-        if (draftRes.ok) {
-          const draftData = await draftRes.json();
-          const raw: any[] = Array.isArray(draftData?.items)
-            ? draftData.items
-            : Array.isArray(draftData) ? draftData : [];
-          // Keep only draft-provenance items so we don't duplicate active
-          // overlays that are already in the normal response.
-          draftItems = raw.filter(
-            (v: any) => v && v._draft === true,
-          );
-        }
-      } catch {
-        // Older servers without preview=draft quietly return no drafts.
       }
 
       const merged = [...items, ...draftItems];

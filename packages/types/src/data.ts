@@ -422,7 +422,7 @@ export interface DataSource<T = any> {
    * records). Implementations route to
    * `GET /api/v1/meta/view` and filter client-side by `data.object`.
    */
-  listViews?(objectName: string): Promise<any[]>;
+  listViews?(objectName: string, options?: { previewDrafts?: boolean }): Promise<any[]>;
 
   /**
    * Create a new overlay view. The view's `name` field is the stable
