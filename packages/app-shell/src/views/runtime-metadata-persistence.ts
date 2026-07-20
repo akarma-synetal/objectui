@@ -109,6 +109,12 @@ export async function createRuntimeMetadata(
   body: any,
   ctx: RuntimePersistCtx,
 ): Promise<string | undefined> {
+  if (!name || !String(name).trim()) {
+    throw new Error(
+      `createRuntimeMetadata: name must be non-empty (type="${type}").` +
+      ' The server PUT /meta/:type/:name route requires a name segment.',
+    );
+  }
   await ctx.metadataClient.save(type, name, body, { mode: 'draft' });
   return name;
 }
