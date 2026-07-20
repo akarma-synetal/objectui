@@ -1667,6 +1667,192 @@ function ActionMultiWidget({ id, value, onChange, readOnly, context }: WidgetPro
 }
 
 /* -------------------------------------------------------------------------- */
+/* Operator lists match FilterBuilder exactly — same operator sets per field type.
+   Values are snake_case (spec protocol), labels are human-readable. */
+const OP_LABELS: Record<string, string> = {
+  equals: 'Equals', not_equals: 'Does not equal',
+  contains: 'Contains', not_contains: 'Does not contain',
+  starts_with: 'Starts with', ends_with: 'Ends with',
+  is_empty: 'Is empty', is_not_empty: 'Is not empty',
+  is_null: 'Is null', is_not_null: 'Is not null',
+  greater_than: 'Greater than', less_than: 'Less than',
+  greater_than_or_equal: 'Greater than or equal', less_than_or_equal: 'Less than or equal',
+  before: 'Before', after: 'After', between: 'Between',
+  in: 'In', not_in: 'Not in',
+};
+
+/** Per-type operator lists — match FilterBuilder textOperators / numberOperators / etc.
+ *  in snake_case (spec ViewFilterRuleSchema enum). starts_with / ends_with / is_null /
+ *  is_not_null are valid spec values but only shown when the current value uses them. */
+const TEXT_OPS = ['equals','not_equals','contains','not_contains','is_empty','is_not_empty'];
+const NUMBER_OPS = ['equals','not_equals','greater_than','less_than','greater_than_or_equal','less_than_or_equal','is_empty','is_not_empty'];
+const BOOLEAN_OPS = ['equals','not_equals'];
+const DATE_OPS = ['equals','not_equals','before','after','between','is_empty','is_not_empty'];
+const SELECT_OPS = ['equals','not_equals','in','not_in','is_empty','is_not_empty'];
+
+const OPS_BY_TYPE: Record<string,string[]> = {
+  text: TEXT_OPS, email: TEXT_OPS, url: TEXT_OPS, phone: TEXT_OPS, password: TEXT_OPS, textarea: TEXT_OPS, markdown: TEXT_OPS, html: TEXT_OPS, richtext: TEXT_OPS,
+  number: NUMBER_OPS, currency: NUMBER_OPS, percent: NUMBER_OPS, rating: NUMBER_OPS, integer: NUMBER_OPS,
+  boolean: BOOLEAN_OPS, toggle: BOOLEAN_OPS,
+  date: DATE_OPS, datetime: DATE_OPS, time: DATE_OPS,
+  select: SELECT_OPS, status: SELECT_OPS, multiselect: SELECT_OPS, radio: SELECT_OPS,
+  lookup: SELECT_OPS, master_detail: SELECT_OPS, user: SELECT_OPS, owner: SELECT_OPS,
+};
+
+function lbl(op: string) { return OP_LABELS[op] || op; }
+
+function OperatorWidget({ value, onChange, readOnly, context, formData, schema }: WidgetProps) {
+  const locale = useMetadataLocale();
+  const fieldName = formData?.field as string | undefined;
+  const objectFields = context?.objectFields ?? [];
+  const allOps: string[] = schema?.enum ?? [];
+
+  // If we can determine the field type, filter operators accordingly
+  let ops = allOps;
+  if (fieldName && objectFields.length) {
+    const fieldInfo = objectFields.find((f: any) => f.name === fieldName || f.field === fieldName);
+    if (fieldInfo?.type) {
+      ops = OPS_BY_TYPE[fieldInfo.type] ?? allOps;
+    }
+  }
+  // Always include the current value so it doesn't disappear
+  const current = value == null ? '' : String(value);
+  if (current && !ops.includes(current)) ops = [current, ...ops];
+
+  return (
+    <Select value={current} onValueChange={(v: string) => onChange(v)} disabled={readOnly}>
+      <SelectTrigger className="h-8 text-sm">
+        <SelectValue placeholder={t('engine.form.selectEllipsis', locale)} />
+      </SelectTrigger>
+      <SelectContent>
+        {ops.map((op: string) => (
+          <SelectItem key={op} value={op}>{lbl(op)}</SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
+}
+
+function ValueWidget({ value, onChange, readOnly, context, formData }: WidgetProps) {
+  const locale = useMetadataLocale();
+  const fieldName = formData?.field as string | undefined;
+  const operator = (formData?.operator as string | undefined) ?? '';
+  const objectFields = context?.objectFields ?? [];
+  const current = value == null ? '' : String(value);
+
+  // Unary operators that don't need a value
+  const UNARY = new Set(['is_empty','is_not_empty','is_null','is_not_null']);
+  if (UNARY.has(operator)) {
+    return (
+      <Input value="\u2014" disabled className="h-8 text-sm text-muted-foreground" />
+    );
+  }
+
+  // Determine the field type from the object field catalog
+  let fieldType = 'text';
+  if (fieldName && objectFields.length) {
+    const fi = objectFields.find((f: any) => f.name === fieldName || f.field === fieldName);
+    if (fi?.type) fieldType = fi.type;
+  }
+
+  // Boolean -> toggle
+  if (fieldType === 'boolean' || fieldType === 'toggle') {
+    return (
+      <div className="flex items-center gap-2 h-8">
+        <Switch
+          checked={current === 'true' || current === '1'}
+          disabled={readOnly}
+          onCheckedChange={(c) => onChange(String(c))}
+        />
+        <span className="text-xs text-muted-foreground">{current === 'true' || current === '1' ? 'true' : 'false'}</span>
+      </div>
+    );
+  }
+
+  // Number / Currency / Percent -> number input
+  const isNum = fieldType === 'number' || fieldType === 'currency' || fieldType === 'percent' || fieldType === 'integer' || fieldType === 'rating';
+  if (isNum) {
+    return (
+      <Input
+        type="number"
+        value={current}
+        disabled={readOnly}
+        placeholder={t('engine.form.valuePlaceholder', locale)}
+        className="h-8 text-sm"
+        onChange={(e) => {
+          const v = e.target.value;
+          onChange(v === '' ? undefined : Number(v));
+        }}
+      />
+    );
+  }
+
+  // Date / DateTime -> date input
+  if (fieldType === 'date' || fieldType === 'datetime') {
+    return (
+      <Input
+        type={fieldType === 'datetime' ? 'datetime-local' : 'date'}
+        value={current}
+        disabled={readOnly}
+        className="h-8 text-sm"
+        onChange={(e) => onChange(e.target.value || undefined)}
+      />
+    );
+  }
+
+  // Between operator -> two inputs (start + end)
+  if (operator === 'between') {
+    const arr = Array.isArray(value) ? value.map(String) : ['', ''];
+    return (
+      <div className="flex items-center gap-1">
+        <Input
+          type="text"
+          value={arr[0] ?? ''}
+          disabled={readOnly}
+          placeholder="from"
+          className="h-8 text-sm flex-1"
+          onChange={(e) => onChange([e.target.value || undefined, arr[1] || undefined])}
+        />
+        <span className="text-xs text-muted-foreground shrink-0">&ndash;</span>
+        <Input
+          type="text"
+          value={arr[1] ?? ''}
+          disabled={readOnly}
+          placeholder="to"
+          className="h-8 text-sm flex-1"
+          onChange={(e) => onChange([arr[0] || undefined, e.target.value || undefined])}
+        />
+      </div>
+    );
+  }
+
+  // In / NotIn -> comma-separated values
+  if (operator === 'in' || operator === 'not_in') {
+    return (
+      <Input
+        value={current}
+        disabled={readOnly}
+        placeholder="value1, value2, ..."
+        className="h-8 text-sm"
+        onChange={(e) => onChange(e.target.value || undefined)}
+      />
+    );
+  }
+
+  // Default: text input
+  return (
+    <Input
+      value={current}
+      disabled={readOnly}
+      placeholder={t('engine.form.valuePlaceholder', locale)}
+      className="h-8 text-sm"
+      onChange={(e) => onChange(e.target.value || undefined)}
+    />
+  );
+}
+
+
+
 /* filter-builder — the SAME runtime FilterBuilder used by the list toolbar,   */
 /* reused in Studio for tab presets and the page base filter (unified UX).     */
 /* Stored format stays spec ViewFilterRule[] ({field,operator,value}); the     */
@@ -1952,6 +2138,8 @@ export const WIDGETS: Record<string, WidgetRenderer> = {
   'field-multi': FieldRefMultiWidget,
   'action-multi': ActionMultiWidget,
   'filter-builder': FilterBuilderWidget,
+  'operator': OperatorWidget,
+  'filter-value': ValueWidget,
   'view-ref': ViewRefWidget,
   'icon': IconPickerWidget,
   'color-picker': ColorPickerWidget,

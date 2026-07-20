@@ -311,6 +311,29 @@ function detectColorWidget(name: string, schema: JsonSchema | undefined): string
   return undefined;
 }
 
+const OPERATOR_FIELD_NAMES = new Set(['operator', 'filterOperator']);
+/** Detect an operator field by NAME CONVENTION so it renders as a
+ * field-type-aware dropdown that narrows the operator list to what's
+ * valid for the selected field's type. */
+function detectOperatorWidget(name: string, schema: JsonSchema | undefined, formData?: Record<string, unknown>, widgetContext?: WidgetContext): string | undefined {
+  if (!OPERATOR_FIELD_NAMES.has(name) && !/Operator$/.test(name)) return undefined;
+  // Only intercept when the schema has an enum (operator choices) — if it's
+  // already a plain string we let the default string widget handle it.
+  if (!schema?.enum && !Array.isArray(schema?.anyOf)) return undefined;
+  return 'operator';
+}
+
+const VALUE_FIELD_NAMES = new Set(['value', 'filterValue']);
+/** Detect a filter value field by NAME CONVENTION — renders a field-type-aware
+ * input that changes based on the sibling {@code field} and {@code operator} values. */
+function detectValueWidget(name: string, schema: JsonSchema | undefined, formData?: Record<string, unknown>, widgetContext?: WidgetContext): string | undefined {
+  if (!VALUE_FIELD_NAMES.has(name) && !/Value$/.test(name)) return undefined;
+  // Only intercept when we have a sibling {@code field} in formData so we can
+  // determine what type of input to render (text, number, date, select...)
+  if (!formData || typeof formData.field !== 'string' || !formData.field) return undefined;
+  return 'filter-value';
+}
+
 const CONDITION_FIELD_NAMES = new Set(['visible', 'hidden', 'disabled', 'visibleOn', 'condition', 'predicate']);
 /**
  * Detect a CEL predicate field by NAME CONVENTION (`visible` / `hidden` /
@@ -833,6 +856,14 @@ function FieldRow({
           else {
             const condWidget = detectConditionWidget(name, schema);
             if (condWidget) widget = condWidget;
+            else {
+              const opWidget = detectOperatorWidget(name, schema, formData, widgetContext);
+              if (opWidget) widget = opWidget;
+              else {
+                const valWidget = detectValueWidget(name, schema, formData, widgetContext);
+                if (valWidget) widget = valWidget;
+              }
+            }
           }
         }
       }
