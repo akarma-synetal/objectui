@@ -259,7 +259,7 @@ function ObjectViewInner({ dataSource, objects, onEdit, externalRefreshKey }: an
                 // `name` via the metadata customization API instead of into
                 // the physical `sys_view` table (whose columns no longer
                 // accommodate the spec shape: arrays, nested objects, etc.).
-                const spec: Record<string, any> = { ...config, columns: incomingColumns };
+                const spec: Record<string, any> = { ...config, columns: incomingColumns, object: objectName, data: { provider: "object", object: objectName } };
                 // Per @objectstack/spec, certain view types nest their card/field
                 // list inside their type-specific subconfig (e.g. kanban.columns,
                 // gallery.visibleFields). The CreateViewDialog only collects
@@ -277,9 +277,20 @@ function ObjectViewInner({ dataSource, objects, onEdit, externalRefreshKey }: an
                 // draft via the metadata seam; an explicit Publish promotes it.
                 // UI-layer concerns (default columns, kanban/gallery massaging
                 // above, and the auto-activation below) stay here.
-                const draftName = String(
+                let draftName = String(
                     (config as any)?.name ?? (config as any)?.id ?? (spec as any)?.id ?? '',
-                );
+                ).trim();
+                // Guard: never send a PUT /meta/view/ (no name) to the server —
+                // the route PUT /meta/:type/:name requires a non-empty :name.
+                // Generate a unique fallback name when the dialog supplies none.
+                if (!draftName) {
+                    const viewType = String(config?.type ?? config?.viewType ?? 'list');
+                    const base = (objectName || 'view')
+                        .toLowerCase()
+                        .replace(/[^a-z0-9_]+/g, '_')
+                        .replace(/^_+|_+$/g, '');
+                    draftName = `${base}_${viewType}_${Date.now().toString(36)}`;
+                }
                 createdId = await createRuntimeMetadata('view', draftName, spec, {
                     metadataClient,
                 });
