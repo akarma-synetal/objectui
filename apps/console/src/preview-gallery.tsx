@@ -80,6 +80,21 @@ const ORDER = [
   'email_template',
 ];
 
+/**
+ * Dev-harness locale override — `?locale=zh-CN` (or `#locale=zh-CN`) renders the
+ * designers in that locale so i18n coverage can be eyeballed / browser-tested
+ * without wiring the full console LocaleSwitcher. Defaults to English.
+ */
+function galleryLocale(): 'en-US' | 'zh-CN' {
+  if (typeof window === 'undefined') return 'en-US';
+  const q = new URLSearchParams(window.location.search).get('locale');
+  const h = window.location.hash.match(/locale=([a-zA-Z-]+)/)?.[1];
+  const raw = q ?? h ?? '';
+  // Normalize to the metadata-admin SupportedLocale union so it satisfies the
+  // typed `locale` prop on the previews/inspectors.
+  return /^zh/i.test(raw) ? 'zh-CN' : 'en-US';
+}
+
 function DesignerCard({ type }: { type: string }) {
   const Preview = getMetadataPreview(type);
   const [draft, setDraft] = React.useState<Record<string, unknown>>(
@@ -93,6 +108,7 @@ function DesignerCard({ type }: { type: string }) {
     setDraft((d) => ({ ...d, ...patch }));
 
   const Inspector = selection ? getMetadataInspector(type) : undefined;
+  const locale = galleryLocale();
 
   return (
     <section className="scroll-mt-4" id={`designer-${type}`}>
@@ -127,7 +143,7 @@ function DesignerCard({ type }: { type: string }) {
               selection,
               onSelectionChange: setSelection,
               onPatch,
-              locale: 'en',
+              locale,
             })}
           </div>
           {Inspector && selection && (
@@ -141,7 +157,7 @@ function DesignerCard({ type }: { type: string }) {
                 onClearSelection: () => setSelection(null),
                 onSelectionChange: setSelection,
                 readOnly: false,
-                locale: 'en-US',
+                locale,
               })}
             </div>
           )}
