@@ -198,6 +198,7 @@ const fr = {
     },
     import: {
       title: "Importer {{object}}",
+      notAllowed: "Cet objet n'est pas ouvert à l'import.",
       stepUpload: "Télécharger",
       stepMapping: "Correspondance",
       stepPreview: "Aperçu",

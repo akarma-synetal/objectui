@@ -198,6 +198,7 @@ const de = {
     },
     import: {
       title: "{{object}} importieren",
+      notAllowed: "Dieses Objekt ist nicht für den Import freigegeben.",
       stepUpload: "Hochladen",
       stepMapping: "Zuordnung",
       stepPreview: "Vorschau",

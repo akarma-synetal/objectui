@@ -198,6 +198,7 @@ const ja = {
     },
     import: {
       title: "{{object}}をインポート",
+      notAllowed: "このオブジェクトはインポートに対応していません。",
       stepUpload: "アップロード",
       stepMapping: "マッピング",
       stepPreview: "プレビュー",

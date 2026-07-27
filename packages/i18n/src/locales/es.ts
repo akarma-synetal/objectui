@@ -198,6 +198,7 @@ const es = {
     },
     import: {
       title: "Importar {{object}}",
+      notAllowed: "Este objeto no está habilitado para la importación.",
       stepUpload: "Cargar",
       stepMapping: "Asignación",
       stepPreview: "Vista previa",

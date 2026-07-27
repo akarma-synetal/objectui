@@ -198,6 +198,7 @@ const ru = {
     },
     import: {
       title: "Импорт {{object}}",
+      notAllowed: "Этот объект не открыт для импорта.",
       stepUpload: "Загрузка",
       stepMapping: "Сопоставление",
       stepPreview: "Предпросмотр",
