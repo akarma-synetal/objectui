@@ -10,7 +10,7 @@
 
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useParams, useNavigate, useLocation, useSearchParams, Link } from 'react-router-dom';
-import { RecordChatterPanel, InlineEditSaveBar, buildDefaultPageSchema, deriveFieldGroupDetailSections, extractMentions, resolveTitleField } from '@object-ui/plugin-detail';
+import { RecordChatterPanel, InlineEditSaveBar, buildDefaultPageSchema, deriveFieldGroupDetailSections, extractMentions, resolveTitleField, useRecordEditable } from '@object-ui/plugin-detail';
 import { Empty, EmptyTitle, EmptyDescription } from '@object-ui/components';
 import { useAuth, createAuthenticatedFetch } from '@object-ui/auth';
 import { usePermissions } from '@object-ui/permissions';
@@ -959,6 +959,26 @@ export function RecordDetailView({ dataSource, objects, onEdit, objectNameOverri
     [objectDef, objects, canOnObject, permissionsLoaded],
   );
 
+  // [objectstack#3821] RECORD-level write gate. Everything above is object
+  // scoped — it cannot express "this one record is read-only", which is
+  // exactly what a read-only sharing grant is. So the header offered Edit on
+  // a record the user may only read: the form opened, the user retyped a
+  // field, and the server rejected the save with a 403. Ask the explain
+  // engine for the row-level verdict (fail-open; the server stays the
+  // authority per ADR-0057 D10) and fold it into the same affordance gates.
+  const recordWriteAllowed = useRecordEditable(
+    objectDef?.name,
+    pureRecordId,
+    'update',
+    !!objectDef?.name && !!pureRecordId,
+  );
+  const recordDeleteAllowed = useRecordEditable(
+    objectDef?.name,
+    pureRecordId,
+    'delete',
+    !!objectDef?.name && !!pureRecordId,
+  );
+
   // ── Audit history fetch ────────────────────────────────────────────
   // Loads recent sys_audit_log entries for this record so the record page can
   // render a read-only "History" tab (`record:history`). Gated on three preconditions to keep
@@ -1794,7 +1814,12 @@ export function RecordDetailView({ dataSource, objects, onEdit, objectNameOverri
   // menu permanently — Delete must never surface as an inline red button
   // just because an object has few actions.
   const synthSystemActions: ActionDef[] = (() => {
-    const affordances = resolveRecordHeaderActionGates(objectDef, effectiveApiOperations);
+    const objectAffordances = resolveRecordHeaderActionGates(objectDef, effectiveApiOperations);
+    // Object-level gate AND the record-level verdict (objectstack#3821).
+    const affordances = {
+      edit: objectAffordances.edit && recordWriteAllowed,
+      delete: objectAffordances.delete && recordDeleteAllowed,
+    };
     const items: ActionDef[] = [];
     if (affordances.edit) {
       // Single primary Edit CTA → opens the full record form. Inline editing
@@ -1942,7 +1967,7 @@ export function RecordDetailView({ dataSource, objects, onEdit, objectNameOverri
             `lockRecord: false` still shows its band and recall button while
             leaving the record editable (objectui#2902). */}
         <InlineEditProvider
-          canEdit={resolveRecordHeaderActionGates(objectDef, effectiveApiOperations).edit && !approvalLocked}
+          canEdit={resolveRecordHeaderActionGates(objectDef, effectiveApiOperations).edit && recordWriteAllowed && !approvalLocked}
           locked={approvalLocked}
           approvalPending={approvalPending}
           lockedReason={t('detail.lockedTooltip', {
