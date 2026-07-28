@@ -11,15 +11,106 @@ import type { ListColumn } from '@object-ui/types';
 import { useLocalization, resolveFieldCurrency } from '@object-ui/i18n';
 
 /**
- * Summary configuration for a column.
- * Can be a string shorthand (e.g. 'sum') or a full config object.
+ * Aggregation functions for the column footer — the full `ColumnSummarySchema`
+ * vocabulary from `@objectstack/spec`. Every value here is computed; a name the
+ * schema accepts but the renderer ignores would validate and then render a
+ * blank footer cell, so this union is kept in lockstep with the spec enum
+ * rather than being a renderer-local subset of it.
  */
-export type ColumnSummaryConfig = string | { type: 'count' | 'sum' | 'avg' | 'min' | 'max'; field?: string };
+export type ColumnSummaryType =
+  | 'none'
+  | 'count'
+  | 'count_empty'
+  | 'count_filled'
+  | 'count_unique'
+  | 'percent_empty'
+  | 'percent_filled'
+  | 'sum'
+  | 'avg'
+  | 'min'
+  | 'max';
+
+/**
+ * Summary configuration for a column.
+ * Can be a string shorthand (e.g. 'sum') or a full config object carrying a
+ * per-column `field` override.
+ */
+export type ColumnSummaryConfig = ColumnSummaryType | { type: ColumnSummaryType; field?: string };
 
 export interface ColumnSummaryResult {
   field: string;
   value: number | null;
   label: string;
+}
+
+/** A data row as the aggregations read it — cells are untyped until inspected. */
+type SummaryRow = Record<string, unknown>;
+
+/**
+ * Aggregations that read raw cell values instead of parsed numbers, so they
+ * work on text, select and lookup columns rather than numeric ones only.
+ */
+const NON_NUMERIC_TYPES = new Set<string>([
+  'count',
+  'count_empty',
+  'count_filled',
+  'count_unique',
+  'percent_empty',
+  'percent_filled',
+]);
+
+/** Aggregations whose result is a percentage (0-100), not a value in the column's unit. */
+const PERCENT_TYPES = new Set<string>(['percent_empty', 'percent_filled']);
+
+const TYPE_LABELS: Record<ColumnSummaryType, string> = {
+  none: '',
+  count: 'Count',
+  count_empty: 'Empty',
+  count_filled: 'Filled',
+  count_unique: 'Unique',
+  // The trailing `%` is what distinguishes these from the count-family pair.
+  percent_empty: 'Empty',
+  percent_filled: 'Filled',
+  sum: 'Sum',
+  avg: 'Avg',
+  min: 'Min',
+  max: 'Max',
+};
+
+/**
+ * Every aggregation name the renderer computes. A Set rather than an `in` check
+ * against TYPE_LABELS, because `in` also matches inherited keys — a column
+ * configured with `summary: 'toString'` would otherwise read as supported.
+ *
+ * Exported so a test can assert it covers the spec's `ColumnSummarySchema`
+ * exactly: a name the schema accepts but this set omits validates at authoring
+ * time and then renders a blank footer cell.
+ */
+export const SUPPORTED_SUMMARY_TYPES: ReadonlySet<string> = new Set<string>(Object.keys(TYPE_LABELS));
+
+/**
+ * Emptiness test for the count/percent aggregations. Matches the convention
+ * used elsewhere in the codebase (audit history display, form dirty-checking):
+ * null/undefined/empty-string, plus empty arrays so an unset multi-select or
+ * lookup column counts as empty instead of as a filled `[]`.
+ */
+const isEmptyValue = (v: unknown): boolean =>
+  v === null || v === undefined || v === '' || (Array.isArray(v) && v.length === 0);
+
+/**
+ * Stable identity for `count_unique`. Object and array cells (lookup and
+ * multi-select columns) compare by value — a raw `Set` compares by reference
+ * and would report every row as unique.
+ */
+function uniqueKey(v: unknown): unknown {
+  if (typeof v === 'object') {
+    try {
+      return JSON.stringify(v) ?? String(v);
+    } catch {
+      return String(v);
+    }
+  }
+  return v;
 }
 
 /**
@@ -33,14 +124,66 @@ function normalizeSummary(summary: ColumnSummaryConfig): { type: string; field?:
 }
 
 /**
- * Compute a single aggregation over data values.
+ * Collect the numeric values of a field, parsing numeric strings so a column
+ * backed by string-encoded decimals still aggregates.
  */
-function computeAggregation(type: string, values: number[]): number | null {
+function numericValues(rows: SummaryRow[], field: string): number[] {
+  const values: number[] = [];
+  for (const row of rows) {
+    const v = row[field];
+    if (typeof v === 'number' && !isNaN(v)) {
+      values.push(v);
+    } else if (typeof v === 'string') {
+      const parsed = parseFloat(v);
+      if (!isNaN(parsed)) values.push(parsed);
+    }
+  }
+  return values;
+}
+
+/**
+ * Compute a single aggregation over the rows.
+ *
+ * The count and percent families are cardinalities over *raw* cell values, so
+ * they are computed before the numeric parse — `count_unique` on a text column
+ * has to work, and a row whose value does not parse as a number is still a
+ * filled row.
+ */
+function computeAggregation(type: string, rows: SummaryRow[], field: string): number | null {
+  if (NON_NUMERIC_TYPES.has(type)) {
+    const total = rows.length;
+    if (total === 0) return null;
+
+    switch (type) {
+      case 'count':
+        // Every row, filled or not — `count_filled` is the non-empty variant.
+        return total;
+      case 'count_filled':
+        return rows.filter((r) => !isEmptyValue(r[field])).length;
+      case 'count_empty':
+        return rows.filter((r) => isEmptyValue(r[field])).length;
+      case 'count_unique': {
+        // An empty cell is not a distinct value, it is the absence of one.
+        const seen = new Set<unknown>();
+        for (const row of rows) {
+          const v = row[field];
+          if (!isEmptyValue(v)) seen.add(uniqueKey(v));
+        }
+        return seen.size;
+      }
+      case 'percent_filled':
+        return (rows.filter((r) => !isEmptyValue(r[field])).length / total) * 100;
+      case 'percent_empty':
+        return (rows.filter((r) => isEmptyValue(r[field])).length / total) * 100;
+      default:
+        return null;
+    }
+  }
+
+  const values = numericValues(rows, field);
   if (values.length === 0) return null;
 
   switch (type) {
-    case 'count':
-      return values.length;
     case 'sum':
       return values.reduce((a, b) => a + b, 0);
     case 'avg':
@@ -64,6 +207,11 @@ function computeAggregation(type: string, values: number[]): number | null {
  * Currency code defaults to USD when neither `currency` nor
  * `defaultCurrency` is supplied — mirrors the CurrencyCellRenderer
  * behavior so cells and footer agree.
+ *
+ * That column formatting applies to the numeric family only. Count
+ * aggregations are plain cardinalities and percent aggregations carry their own
+ * unit, so neither may inherit the column's currency or percent formatting —
+ * `count_unique` on a currency column reads "3", not "$3.00".
  */
 function formatSummaryLabel(
   type: string,
@@ -72,18 +220,18 @@ function formatSummaryLabel(
   tenantDefault?: string,
 ): string {
   if (value === null) return '';
-  const typeLabels: Record<string, string> = {
-    count: 'Count',
-    sum: 'Sum',
-    avg: 'Avg',
-    min: 'Min',
-    max: 'Max',
-  };
-  const label = typeLabels[type] || type;
+  const label = TYPE_LABELS[type as ColumnSummaryType] || type;
+
+  if (PERCENT_TYPES.has(type)) {
+    return `${label}: ${value.toLocaleString(undefined, { maximumFractionDigits: 1 })}%`;
+  }
+  if (NON_NUMERIC_TYPES.has(type)) {
+    return `${label}: ${value.toLocaleString()}`;
+  }
 
   const colType = column?.type;
   let formatted: string;
-  if (type !== 'count' && colType === 'currency') {
+  if (colType === 'currency') {
     const currency = resolveFieldCurrency(column, tenantDefault);
     // Decimal places come from `scale`, not `precision` (the total digit count
     // of a decimal(p, s) column) — see #2131. Reading `precision` padded a
@@ -104,7 +252,7 @@ function formatSummaryLabel(
     } catch {
       formatted = value.toLocaleString();
     }
-  } else if (type !== 'count' && colType === 'percent') {
+  } else if (colType === 'percent') {
     const decimals = column?.precision ?? 0;
     const pct = (value > -1 && value < 1) ? value * 100 : value;
     formatted = `${pct.toFixed(decimals)}%`;
@@ -145,28 +293,15 @@ export function useColumnSummary(
       if (!col.summary) continue;
 
       const config = normalizeSummary(col.summary as ColumnSummaryConfig);
+
+      // `none` is the spec's explicit opt-out, and an unrecognized name has no
+      // value to show. Both skip the entry entirely rather than registering a
+      // blank one — otherwise a view whose columns all say `none` would render
+      // an empty footer row.
+      if (config.type === 'none' || !SUPPORTED_SUMMARY_TYPES.has(config.type)) continue;
+
       const targetField = config.field || col.field;
-
-      // Extract numeric values from data
-      const values: number[] = [];
-      for (const row of data) {
-        const v = row[targetField];
-        if (v != null && typeof v === 'number' && !isNaN(v)) {
-          values.push(v);
-        } else if (v != null && typeof v === 'string') {
-          const parsed = parseFloat(v);
-          if (!isNaN(parsed)) values.push(parsed);
-        }
-      }
-
-      // For 'count', count all non-null values (not just numeric)
-      let result: number | null;
-      if (config.type === 'count') {
-        const count = data.filter(row => row[targetField] != null && row[targetField] !== '').length;
-        result = count > 0 ? count : null;
-      } else {
-        result = computeAggregation(config.type, values);
-      }
+      const result = computeAggregation(config.type, data, targetField);
 
       // Merge column-level hints (`col.currency`, `col.precision`, etc.) with
       // any matching fieldMetadata entry so authors get correct currency/

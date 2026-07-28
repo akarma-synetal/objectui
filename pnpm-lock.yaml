@@ -1975,6 +1975,9 @@ importers:
       '@object-ui/data-objectstack':
         specifier: workspace:*
         version: link:../data-objectstack
+      '@objectstack/spec':
+        specifier: ^16.0.0-rc.0
+        version: 16.1.0(ai@7.0.37(zod@4.4.3))
       '@vitejs/plugin-react':
         specifier: ^6.0.4
         version: 6.0.4(vite@8.1.5(@types/node@26.1.1)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.23.1)(yaml@2.9.0))

@@ -62,7 +62,11 @@ export const ViewDataSchema = SpecViewDataSchema;
  *    `{ type, field }` object form the grid renderer supports (per-column field
  *    override — see `useColumnSummary` in `@object-ui/plugin-grid`). The old
  *    mirror's free-string arm is gone: unknown aggregation names now fail
- *    validation instead of silently rendering nothing.
+ *    validation instead of silently rendering nothing. Both arms take their
+ *    vocabulary from `SpecColumnSummarySchema` by reference, so the shorthand
+ *    and the object form can never accept different aggregation names —
+ *    matching the object form promoted into the spec by objectstack#3761,
+ *    which this extension collapses into once that release lands.
  *  - `prefix` is objectui-only compound-cell rendering (read by `ObjectGrid`);
  *    promote it into the spec rather than growing this extension.
  */
@@ -70,7 +74,7 @@ export const ListColumnSchema = SpecListColumnSchema.extend({
   summary: z.union([
     SpecColumnSummarySchema,
     z.object({
-      type: z.enum(['count', 'sum', 'avg', 'min', 'max']).describe('Aggregation type'),
+      type: SpecColumnSummarySchema,
       field: z.string().optional().describe('Field to aggregate (defaults to column field)'),
     }),
   ]).optional().describe('Column footer summary/aggregation'),

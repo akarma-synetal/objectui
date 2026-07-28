@@ -72,3 +72,52 @@ describe('useColumnSummary tenant-default currency', () => {
     expect(label).toMatch(/1,234\.00/);
   });
 });
+
+/**
+ * A column's currency/percent formatting describes values *in that column's
+ * unit*. The count family produces cardinalities and the percent family
+ * produces percentages, so neither may inherit it — "3 distinct customers" is
+ * not "$3.00", and "75% filled" is not "75% of a percent column".
+ */
+describe('useColumnSummary formatting stays with the numeric family', () => {
+  const CURRENCY_DATA = [{ amount: 1000 }, { amount: 234 }, { amount: 1000 }];
+
+  it('does not apply currency formatting to a count on a currency column', () => {
+    const cols: any[] = [{ field: 'amount', summary: 'count_unique', type: 'currency', currency: 'USD' }];
+    const { result } = renderHook(() => useColumnSummary(cols, CURRENCY_DATA), {
+      wrapper: wrapper('USD'),
+    });
+    const label = result.current.summaries.get('amount')?.label ?? '';
+    expect(label).toBe('Unique: 2');
+    expect(label).not.toMatch(/[¥$€£]/);
+  });
+
+  it('does not apply currency formatting to a percent aggregation', () => {
+    const cols: any[] = [{ field: 'amount', summary: 'percent_filled', type: 'currency', currency: 'USD' }];
+    const { result } = renderHook(() => useColumnSummary(cols, CURRENCY_DATA), {
+      wrapper: wrapper('USD'),
+    });
+    const label = result.current.summaries.get('amount')?.label ?? '';
+    expect(label).toBe('Filled: 100%');
+    expect(label).not.toMatch(/[¥$€£]/);
+  });
+
+  it('does not route a count through the percent column formatter', () => {
+    // The percent-column branch scales a fraction to 0-100; a count of 2 must
+    // not be reinterpreted as a ratio.
+    const cols: any[] = [{ field: 'rate', summary: 'count_unique', type: 'percent' }];
+    const { result } = renderHook(() => useColumnSummary(cols, [{ rate: 0.5 }, { rate: 0.25 }]), {
+      wrapper: wrapper('USD'),
+    });
+    expect(result.current.summaries.get('rate')?.label).toBe('Unique: 2');
+  });
+
+  it('still applies currency formatting to the numeric family', () => {
+    // Guard against over-correcting: sum/avg/min/max keep column formatting.
+    const cols: any[] = [{ field: 'amount', summary: 'sum', type: 'currency', currency: 'USD' }];
+    const { result } = renderHook(() => useColumnSummary(cols, CURRENCY_DATA), {
+      wrapper: wrapper('USD'),
+    });
+    expect(result.current.summaries.get('amount')?.label).toMatch(/\$|US\$/);
+  });
+});
