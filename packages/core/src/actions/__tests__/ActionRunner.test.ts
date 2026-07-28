@@ -200,10 +200,23 @@ describe('ActionRunner', () => {
       expect(result.data).toBe(101);
     });
 
-    it('should evaluate script with string target fallback', async () => {
+    it('should evaluate script from the canonical target field', async () => {
       const result = await runner.execute({
         type: 'script',
         target: 'data.name',
+      });
+      expect(result.success).toBe(true);
+      expect(result.data).toBe('Test');
+    });
+
+    it('should prefer canonical target over the deprecated execute alias', async () => {
+      // Spec >=16.1 folds `execute` into `target` at parse, so the two keys only
+      // coexist on raw metadata. When they do, canonical wins — the same
+      // precedence ActionPreview and the spec's own fold already use.
+      const result = await runner.execute({
+        type: 'script',
+        target: 'data.name',
+        execute: 'record.id + 100',
       });
       expect(result.success).toBe(true);
       expect(result.data).toBe('Test');
@@ -213,6 +226,39 @@ describe('ActionRunner', () => {
       const result = await runner.execute({ type: 'script' });
       expect(result.success).toBe(false);
       expect(result.error).toContain('No script provided');
+    });
+
+    it('should report a server-side body rather than claiming no script was provided', async () => {
+      // Spec-valid action: `body` IS the script, but bodies run server-side.
+      // The old message sent authors hunting for a field they had written.
+      const result = await runner.execute({
+        type: 'script',
+        body: { language: 'expression', source: 'input.amount > 1000' },
+      });
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('server-side');
+      expect(result.error).not.toContain('No script provided');
+    });
+
+    it('should not interpret a js body client-side', async () => {
+      // L2 needs an isolated VM enforcing capabilities/timeout/memory — the
+      // browser has none, so this must refuse rather than approximate.
+      const result = await runner.execute({
+        type: 'script',
+        body: { language: 'js', source: 'return 1 + 1;', capabilities: [] },
+      });
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('server-side');
+    });
+
+    it('should still evaluate a client-side target when a body is also present', async () => {
+      const result = await runner.execute({
+        type: 'script',
+        target: 'data.name',
+        body: { language: 'expression', source: 'input.amount > 1000' },
+      });
+      expect(result.success).toBe(true);
+      expect(result.data).toBe('Test');
     });
 
     it('should return data as undefined for expressions referencing missing vars', async () => {
