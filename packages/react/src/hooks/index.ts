@@ -22,7 +22,6 @@ export * from './useKeyboardShortcuts';
 export * from './useCrudShortcuts';
 export * from './useReducedMotion';
 export * from './useAnimation';
-export * from './useColumnSummary';
 export * from './useDensityMode';
 export * from './useViewSharing';
 export * from './useClientNotifications';

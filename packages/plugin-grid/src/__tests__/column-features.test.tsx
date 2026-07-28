@@ -174,6 +174,129 @@ describe('useColumnSummary', () => {
 });
 
 // =========================================================================
+// Count and percent aggregation families
+//
+// `ColumnSummarySchema` accepts eleven aggregation names. The renderer used to
+// compute five of them, so a view configured with e.g. `count_unique` passed
+// validation and then rendered a blank footer cell. These cover the six that
+// were missing, on raw (non-numeric) cell values.
+// =========================================================================
+describe('useColumnSummary count/percent families', () => {
+  // 4 rows with deliberate holes: an empty string, a null, an empty array and
+  // a missing key — every shape the emptiness test has to recognize.
+  const sparseData = [
+    { id: '1', name: 'Alice', dept: 'Eng', tags: ['a'] },
+    { id: '2', name: 'Bob', dept: 'Eng', tags: [] },
+    { id: '3', name: '', dept: 'Sales', tags: ['a'] },
+    { id: '4', name: 'Dave', dept: null },
+  ];
+  const summaryFor = (field: string, type: string, data: any[] = sparseData) => {
+    const columns = [{ field, label: field, summary: { type } }] as any[];
+    const { result } = renderHook(() => useColumnSummary(columns, data));
+    return result.current.summaries.get(field);
+  };
+
+  it('counts every row for `count`, filled or not', () => {
+    // Distinct from count_filled: `dept` has one null, but count is all rows.
+    const summary = summaryFor('dept', 'count');
+    expect(summary!.value).toBe(4);
+    expect(summary!.label).toBe('Count: 4');
+  });
+
+  it('counts only non-empty cells for `count_filled`', () => {
+    expect(summaryFor('dept', 'count_filled')!.value).toBe(3);
+    expect(summaryFor('name', 'count_filled')!.value).toBe(3);
+  });
+
+  it('counts empty cells for `count_empty`, including missing keys', () => {
+    expect(summaryFor('dept', 'count_empty')!.value).toBe(1);
+    // `name` holds an empty string; `tags` has an empty array plus a row that
+    // omits the key entirely.
+    expect(summaryFor('name', 'count_empty')!.value).toBe(1);
+    expect(summaryFor('tags', 'count_empty')!.value).toBe(2);
+  });
+
+  it('reports a zero count rather than a blank cell', () => {
+    // 0 is a meaningful answer — "no empty cells" — and must not be swallowed
+    // into an empty label the way a null result is.
+    const summary = summaryFor('name', 'count_empty', [{ name: 'Alice' }, { name: 'Bob' }]);
+    expect(summary!.value).toBe(0);
+    expect(summary!.label).toBe('Empty: 0');
+  });
+
+  it('counts distinct non-empty values for `count_unique`', () => {
+    // 'Eng' twice, 'Sales' once, one null → 2.
+    expect(summaryFor('dept', 'count_unique')!.value).toBe(2);
+  });
+
+  it('compares array cells by value for `count_unique`', () => {
+    // Two rows hold a *different* ['a'] array instance. A raw Set would key on
+    // reference and report 2 distinct values for what an author sees as one.
+    expect(summaryFor('tags', 'count_unique')!.value).toBe(1);
+  });
+
+  it('computes `percent_filled` and `percent_empty` over all rows', () => {
+    expect(summaryFor('dept', 'percent_filled')!.value).toBe(75);
+    expect(summaryFor('dept', 'percent_empty')!.value).toBe(25);
+  });
+
+  it('renders percent aggregations with a percent sign', () => {
+    expect(summaryFor('dept', 'percent_filled')!.label).toBe('Filled: 75%');
+    expect(summaryFor('dept', 'percent_empty')!.label).toBe('Empty: 25%');
+  });
+
+  it('rounds a repeating percentage to one decimal', () => {
+    const data = [{ v: 1 }, { v: null }, { v: null }];
+    expect(summaryFor('v', 'percent_filled', data)!.label).toBe('Filled: 33.3%');
+  });
+
+  it('counts non-numeric text values, which the numeric family cannot', () => {
+    // The whole point of the count family: `sum` over a text column has nothing
+    // to aggregate, but "how many are filled" is still a valid question.
+    expect(summaryFor('name', 'count_filled')!.value).toBe(3);
+    expect(summaryFor('name', 'sum')!.value).toBeNull();
+  });
+
+  it('skips a column whose summary is `none`', () => {
+    const columns = [{ field: 'dept', label: 'Dept', summary: 'none' }] as any[];
+    const { result } = renderHook(() => useColumnSummary(columns, sparseData));
+    // No entry at all, so a view with only `none` columns renders no footer row
+    // rather than an empty one.
+    expect(result.current.summaries.size).toBe(0);
+    expect(result.current.hasSummary).toBe(false);
+  });
+
+  it('keeps other columns when one is `none`', () => {
+    const columns = [
+      { field: 'dept', label: 'Dept', summary: 'none' },
+      { field: 'name', label: 'Name', summary: 'count_filled' },
+    ] as any[];
+    const { result } = renderHook(() => useColumnSummary(columns, sparseData));
+    expect(result.current.summaries.size).toBe(1);
+    expect(result.current.summaries.get('name')!.value).toBe(3);
+  });
+
+  it('skips an unrecognized aggregation name instead of rendering a blank cell', () => {
+    const columns = [{ field: 'dept', label: 'Dept', summary: 'median' }] as any[];
+    const { result } = renderHook(() => useColumnSummary(columns, sparseData));
+    expect(result.current.hasSummary).toBe(false);
+  });
+
+  it('does not mistake an inherited Object key for an aggregation name', () => {
+    // The supported-name check must not be an `in` test against the label map.
+    const columns = [{ field: 'dept', label: 'Dept', summary: 'toString' }] as any[];
+    const { result } = renderHook(() => useColumnSummary(columns, sparseData));
+    expect(result.current.hasSummary).toBe(false);
+  });
+
+  it('honours the per-column field override for the count family', () => {
+    const columns = [{ field: 'name', label: 'Name', summary: { type: 'count_unique', field: 'dept' } }] as any[];
+    const { result } = renderHook(() => useColumnSummary(columns, sparseData));
+    expect(result.current.summaries.get('name')!.value).toBe(2);
+  });
+});
+
+// =========================================================================
 // Summary footer rendering in ObjectGrid
 // =========================================================================
 describe('Summary footer rendering', () => {

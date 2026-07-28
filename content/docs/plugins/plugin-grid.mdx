@@ -62,6 +62,51 @@ interface GridColumn {
 }
 ```
 
+### Column Summaries
+
+A column can declare a footer aggregation with `summary`, either as a shorthand
+string or as an object that aggregates a different field than the one displayed:
+
+```json
+{
+  "columns": [
+    { "field": "name", "summary": "count_filled" },
+    { "field": "amount", "type": "currency", "summary": "sum" },
+    { "field": "owner", "summary": { "type": "count_unique", "field": "owner_id" } }
+  ]
+}
+```
+
+The accepted values are `ColumnSummarySchema` from `@objectstack/spec`:
+
+| `summary` | Footer shows | Reads |
+|---|---|---|
+| `none` | nothing — the column opts out | — |
+| `count` | number of rows | every row |
+| `count_filled` | rows whose cell is non-empty | raw values |
+| `count_empty` | rows whose cell is empty | raw values |
+| `count_unique` | distinct non-empty values | raw values |
+| `percent_filled` | share of rows that are non-empty | raw values |
+| `percent_empty` | share of rows that are empty | raw values |
+| `sum` | total | numeric values |
+| `avg` | mean | numeric values |
+| `min` | smallest | numeric values |
+| `max` | largest | numeric values |
+
+A cell counts as empty when it is `null`, `undefined`, `""` or an empty array,
+so an unset multi-select or lookup reads as empty rather than as a filled `[]`.
+
+The count and percent families read raw cell values, so they work on text,
+select and lookup columns. `sum`/`avg`/`min`/`max` need numeric values (numeric
+strings are parsed) and render nothing when the column has none.
+
+A `currency` or `percent` column formats its `sum`/`avg`/`min`/`max` in that
+unit. Counts stay plain cardinalities and percentages carry their own `%`, so
+`count_unique` on a currency column reads `Unique: 3`, not `$3.00`.
+
+The footer row renders only when at least one column resolves to a summary — a
+view whose columns are all `none` (or carry no `summary`) has no footer.
+
 ## Usage
 
 ### Auto-registration (Side-effect Import)

@@ -147,6 +147,19 @@ describe('ListColumnSchema derives from the spec (extend, not fork)', () => {
     );
   });
 
+  it('the object arm draws its aggregation names from the same spec enum', () => {
+    // Both arms must accept the same vocabulary: a name valid as the string
+    // shorthand but rejected in the `{ type, field }` form (or vice versa)
+    // means the per-column `field` override is unavailable for that
+    // aggregation for no reason the author can see.
+    const summary = ouiShape.summary as { unwrap(): { def: { options: unknown[] } } };
+    const objectArm = summary.unwrap().def.options[1] as { shape: Record<string, unknown> };
+    expect(
+      objectArm.shape.type,
+      'summary object arm `type` must be the spec ColumnSummarySchema by reference',
+    ).toBe(SpecColumnSummarySchema);
+  });
+
   it('summary accepts every spec aggregation and the renderer object form', () => {
     for (const agg of ['none', 'count', 'count_unique', 'percent_filled', 'sum', 'avg', 'min', 'max']) {
       expect(ListColumnSchema.shape.summary.safeParse(agg).success, `summary "${agg}"`).toBe(true);
