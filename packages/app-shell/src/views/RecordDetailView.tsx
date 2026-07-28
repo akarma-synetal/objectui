@@ -1839,6 +1839,14 @@ export function RecordDetailView({ dataSource, objects, onEdit, objectNameOverri
         // can't be stacked on top of the draft (two competing edit sessions
         // with no reconciliation).
         disableDuringInlineEdit: true,
+        // framework#3794 — an approval-LOCKED record refuses every write (the
+        // server answers RECORD_LOCKED), so opening the form only to be
+        // rejected on Save after filling a screen is wasted work. Disabled
+        // rather than hidden: the user should see the affordance exists and is
+        // off, with the lock band next to it saying why. Note this is the
+        // LOCK, not the mere presence of an approval — a `lockRecord: false`
+        // node keeps Edit live, which is the point of that setting.
+        disabled: approvalLocked,
         onClick: () => onEdit({ id: pureRecordId }),
       } as any);
     }

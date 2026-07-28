@@ -1073,18 +1073,39 @@ export const DetailView: React.FC<DetailViewProps> = ({
         // the user "locked" on a record they could freely edit, and the
         // approver — the very person the flag exists to let edit — never tried.
         //
-        // Prefer the host-supplied signals: the record-level session resolves
-        // the pending node's policy from the approvals API (objectui#2618 for
-        // why the record field alone is not enough). The record's own
-        // `approval_status` remains the fallback for bare/legacy DetailView
-        // usage with no host threading the state; it carries no node
+        // The record's own `approval_status` is the fallback for bare/legacy
+        // DetailView usage where no host threads the state (objectui#2618 for
+        // why the record field alone is not enough). It carries no node
         // granularity, so it can only mean "locked" — the safe read, since a
         // wrongly-offered edit dies on the server with RECORD_LOCKED.
+        //
+        // But it must NOT be OR-ed in unconditionally, because the two sources
+        // genuinely disagree in a shipping configuration: a flow configuring an
+        // `approvalStatusField` mirrors `approval_status: 'pending'` onto the
+        // record on submit *regardless of* `lockRecord` (framework
+        // `mirrorStatusField`), so the mirror would drag the band back to
+        // "Locked for approval" on exactly the `lockRecord: false` node this
+        // feature exists to free — pencils live and saves landing underneath it.
+        //
+        // `approvalPending && !locked` is the tell that the host has an actual
+        // opinion. `InlineEditProvider` defaults `approvalPending` to `locked`,
+        // so a host threading only `locked` (pre-#2902) always reports the two
+        // equal and can never produce that combination; a host that resolved
+        // the pending node's `lock_record` is the only thing that can. When it
+        // speaks, it wins — it read the same snapshot the server's lock hook
+        // enforces.
         const approvalStatus = data?.approval_status;
         const statusPending =
           approvalStatus === 'pending' || approvalStatus === 'in_approval';
-        const isLocked = (inline?.locked ?? false) || statusPending;
-        const isPending = (inline?.approvalPending ?? false) || isLocked;
+        const hostPending = inline?.approvalPending ?? false;
+        const hostSaysEditable = hostPending && !(inline?.locked ?? false);
+        const isLocked = hostSaysEditable
+          ? false
+          : ((inline?.locked ?? false) || statusPending);
+        // A lock always implies an in-flight approval, so a host that threads
+        // only `locked` (objectui#2618, before `approvalPending` existed) keeps
+        // its band.
+        const isPending = isLocked || hostPending || statusPending;
         // Nothing to surface (no approval, no approval-cancel error): no band.
         if (!isPending && !saveError) return null;
         return (
@@ -1126,7 +1147,12 @@ export const DetailView: React.FC<DetailViewProps> = ({
                       ? 'gap-2 border-amber-300 text-amber-800 hover:bg-amber-50'
                       : 'gap-2 border-sky-300 text-sky-800 hover:bg-sky-50'
                   }
-                  title={t('detail.cancelApprovalTooltip')}
+                  // The locked variant's tooltip promises to UNLOCK the record;
+                  // on a node that never locked it, that sentence describes an
+                  // effect the click does not have.
+                  title={isLocked
+                    ? t('detail.cancelApprovalTooltip')
+                    : t('detail.cancelApprovalTooltipUnlocked')}
                 >
                   <X className="h-4 w-4" />
                   <span>

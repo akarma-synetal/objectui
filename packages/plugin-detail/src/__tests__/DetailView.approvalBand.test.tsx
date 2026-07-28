@@ -114,4 +114,19 @@ describe('DetailView – approval band, editable vs locked (objectui#2902)', () 
     renderBand({ locked: false, approvalPending: false }, { approval_status: 'draft' });
     expect(screen.queryByRole('status')).not.toBeInTheDocument();
   });
+
+  it('lets the host verdict beat the approval_status mirror on an unlocked node', () => {
+    // The configuration where the two sources genuinely disagree: a flow with
+    // an `approvalStatusField` mirrors `approval_status: 'pending'` onto the
+    // record on submit no matter what `lockRecord` says, so a `lockRecord:
+    // false` node has BOTH the mirror reading "pending" and a host verdict of
+    // "not locked". OR-ing the mirror in would re-lock the band on exactly the
+    // node this feature exists to free — pencils live and saves landing under
+    // a band that says "Locked for approval". The host resolved its verdict
+    // from the request's `lock_record`, which is the same snapshot the
+    // server's lock hook reads, so it wins.
+    renderBand({ locked: false, approvalPending: true }, { approval_status: 'pending' });
+    expect(screen.getByText('In approval · editable')).toBeInTheDocument();
+    expect(screen.queryByText('Locked for approval')).not.toBeInTheDocument();
+  });
 });

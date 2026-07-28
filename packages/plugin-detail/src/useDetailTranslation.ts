@@ -172,11 +172,14 @@ export const DETAIL_DEFAULT_TRANSLATIONS: Record<string, string> = {
   // Approval band (objectui#2618; two-state since #2902)
   'detail.lockedByApproval': 'Locked for approval',
   'detail.lockedTooltip': 'This record has a pending approval request; editing is locked',
+  // …and the pending-but-writable variant: the approval node declares
+  // `lockRecord: false`, so the record stays editable while the request is open.
   'detail.approvalPendingEditable': 'In approval · editable',
   'detail.approvalPendingTooltip': 'This record has a pending approval request; this step still allows editing',
   'detail.cancelApproval': 'Recall approval',
   'detail.cancelApprovalInFlight': 'Recalling…',
   'detail.cancelApprovalTooltip': 'Recall the pending approval request to unlock this record',
+  'detail.cancelApprovalTooltipUnlocked': 'Recall the pending approval request',
   'detail.cancelApprovalFailed': 'Failed to recall approval',
   'detail.cancelApprovalUnavailable': 'Recalling approvals is not supported on this data source',
 };
