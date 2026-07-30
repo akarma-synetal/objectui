@@ -745,6 +745,28 @@ export const ListView = React.forwardRef<ListViewHandle, ListViewProps>(({
     return schema.exportOptions;
   }, [schema.exportOptions]);
 
+  // Formats this list can actually deliver (objectui#2942): the server stream
+  // handles csv/xlsx/json, the client fallback only csv/json, and pdf exists
+  // nowhere (declined platform-side — objectstack#1301). Declared-but-dead
+  // formats used to render as menu items whose click did nothing; now they're
+  // dropped from the menu (with a one-time warning for the app author).
+  const exportableFormats = React.useMemo(() => {
+    const declared = resolvedExportOptions?.formats || ['csv', 'json'];
+    const serverAvailable = typeof dataSource?.exportDownload === 'function'
+      && !!schema.objectName
+      && (resolvedExportOptions as any)?.streaming !== false;
+    const supported = serverAvailable ? ['csv', 'xlsx', 'json'] : ['csv', 'json'];
+    return declared.filter((f: string) => supported.includes(f));
+  }, [resolvedExportOptions, dataSource, schema.objectName]);
+  React.useEffect(() => {
+    const declared = resolvedExportOptions?.formats;
+    if (!declared) return;
+    const dropped = declared.filter((f: string) => !exportableFormats.includes(f));
+    if (dropped.length > 0) {
+      console.warn(`[ObjectUI] ListView export: unsupported format(s) hidden from the menu: ${dropped.join(', ')}`);
+    }
+  }, [resolvedExportOptions, exportableFormats]);
+
   // Toolbar density, resolved from the spec-canonical `rowHeight` (#2890). The
   // legacy `densityMode` is folded into it by `normalizeListViewSchema` above —
   // it used to be read FIRST here, so a view carrying both rendered the legacy
@@ -2237,7 +2259,7 @@ export const ListView = React.forwardRef<ListViewHandle, ListViewProps>(({
           )}
 
           {/* --- Separator: Appearance | Export --- */}
-          {(toolbarFlags.showColor || toolbarFlags.showDensity || toolbarFlags.compactToolbar) && resolvedExportOptions && exportPermitted && (
+          {(toolbarFlags.showColor || toolbarFlags.showDensity || toolbarFlags.compactToolbar) && resolvedExportOptions && exportPermitted && exportableFormats.length > 0 && (
             <div className="h-5 w-px bg-border/50 mx-1 shrink-0" />
           )}
 
@@ -2261,7 +2283,7 @@ export const ListView = React.forwardRef<ListViewHandle, ListViewProps>(({
           )}
 
           {/* Export */}
-          {resolvedExportOptions && exportPermitted && (
+          {resolvedExportOptions && exportPermitted && exportableFormats.length > 0 && (
             <Popover open={showExport} onOpenChange={setShowExport}>
               <PopoverTrigger asChild>
                 <Button
@@ -2275,7 +2297,7 @@ export const ListView = React.forwardRef<ListViewHandle, ListViewProps>(({
               </PopoverTrigger>
               <PopoverContent align="start" className="w-48 p-2">
                 <div className="space-y-1">
-                  {(resolvedExportOptions.formats || ['csv', 'json']).map((format: any) => (
+                  {exportableFormats.map((format: any) => (
                     <Button
                       key={format}
                       variant="ghost"
@@ -2334,7 +2356,7 @@ export const ListView = React.forwardRef<ListViewHandle, ListViewProps>(({
 
           {/* --- Separator: Print/Share/Export | Search --- */}
           {(() => {
-            const hasLeftSideItems = schema.allowPrinting || !!schema.sharing?.type || (resolvedExportOptions && exportPermitted);
+            const hasLeftSideItems = schema.allowPrinting || !!schema.sharing?.type || (resolvedExportOptions && exportPermitted && exportableFormats.length > 0);
             return toolbarFlags.showSearch && hasLeftSideItems ? (
               <div className="h-5 w-px bg-border/50 mx-1 shrink-0" />
             ) : null;
