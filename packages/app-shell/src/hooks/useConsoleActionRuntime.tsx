@@ -494,9 +494,18 @@ export function useConsoleActionRuntime(opts: ConsoleActionRuntimeOptions): Cons
   // `context` is the shared ActionRunner context (registered handlers are
   // invoked as `handler(action, runnerContext)`).
   const serverActionHandler = useCallback(async (action: ActionDef, context?: ActionContext): Promise<ActionResult> => {
-    const targetName = action.target || action.name;
-    if (!targetName) {
-      return { success: false, error: 'No action target provided' };
+    // [ADR-0110 D1] The URL identifies the action by its declarative `name`,
+    // never by `target`. `target` is a BINDING EXPRESSION — the handler's
+    // registration key here, but a URL / flow id / FormView name for other
+    // types, `${param.X}`-interpolatable, and legitimately non-unique — so it
+    // cannot identify a declaration. Posting it (the old `target || name`)
+    // meant the server resolved NO declaration for a target-bound action and
+    // silently skipped both the ADR-0066 D4 capability gate and the ADR-0104
+    // param contract (#3935). The server derives the handler key from the
+    // declaration it resolves by name.
+    const actionName = action.name;
+    if (!actionName) {
+      return { success: false, error: 'Action has no name — a server action must declare one' };
     }
     const params = (action.params && !Array.isArray(action.params))
       ? { ...(action.params as Record<string, unknown>) }
@@ -523,7 +532,7 @@ export function useConsoleActionRuntime(opts: ConsoleActionRuntimeOptions): Cons
     }
 
     // Re-entrancy guard.
-    const inflightKey = `${targetName}:${resolvedRecordId ?? ''}`;
+    const inflightKey = `${actionName}:${resolvedRecordId ?? ''}`;
     if (serverActionInFlight.current.has(inflightKey)) {
       return { success: false, error: 'Action already in progress' };
     }
@@ -580,7 +589,7 @@ export function useConsoleActionRuntime(opts: ConsoleActionRuntimeOptions): Cons
       }
       const obj = action.objectName || objApiName || 'global';
       const res = await authFetch(
-        `${baseUrl}/api/v1/actions/${encodeURIComponent(obj)}/${encodeURIComponent(targetName)}`,
+        `${baseUrl}/api/v1/actions/${encodeURIComponent(obj)}/${encodeURIComponent(actionName)}`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -591,7 +600,7 @@ export function useConsoleActionRuntime(opts: ConsoleActionRuntimeOptions): Cons
       // Single source for the `/actions` envelope rule — shared with
       // RecordDetailView, whose copy of this handler drifted from it and caused
       // objectstack#3913's console symptom. See utils/actionResponse.
-      const outcome = interpretActionResponse(res, json, `Action "${targetName}"`);
+      const outcome = interpretActionResponse(res, json, `Action "${actionName}"`);
       if (!outcome.ok) {
         if (preOpenedTab) { try { preOpenedTab.close(); } catch { /* ignore */ } }
         // Don't toast here — the ActionRunner's post-execution hook surfaces
