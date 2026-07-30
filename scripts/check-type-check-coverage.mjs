@@ -39,9 +39,9 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 // `"type-check": "tsc --noEmit"`, then delete the entry. Counts are from the
 // #2911 sweep (bare `tsc --noEmit` with the `paths` override its type-checked
 // peers already carry, so the TS6059 rootDir noise is excluded).
-const DEBT = {
-  "@object-ui/plugin-view": { errors: 3, issue: 2916, note: "Record<ViewType,...> missing the 'chart' key" },
-};
+// Empty, and worth keeping that way: every workspace package now either carries
+// a `type-check` script or is declared in one of the exemption lists below.
+const DEBT = {};
 
 // Packages that are not compiled at all: documentation snippets with no build
 // script and no tsconfig, whose sources are read rather than run. Re-validated
