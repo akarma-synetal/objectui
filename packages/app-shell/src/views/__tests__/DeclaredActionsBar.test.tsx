@@ -269,6 +269,74 @@ describe('DeclaredActionsBar chrome localization (objectui#2762)', () => {
     expect(screen.getByRole('toolbar')).toHaveAttribute('aria-label', '决策');
   });
 
+  it.each([
+    ['/api/v1/approvals/requests/{id}/approve', true],
+    ['/api/v1/approvals/requests/{id}/reject', false],
+  ])('marks a required output required on %s → %s', async (target, expected) => {
+    // The server enforces `required` on approve and never on reject; the two
+    // dialogs must differ in exactly that flag (objectui#2955).
+    render(
+      <DeclaredActionsBar
+        objectName="sys_approval_request"
+        record={{
+          ...REQUEST,
+          decision_output_defs: [{ key: 'parallel_positions', type: 'position', required: true }],
+        }}
+        location="record_section"
+        actions={[{
+          name: 'decide', type: 'api', label: 'Decide', target, locations: ['record_section'],
+        }] as any}
+      />,
+    );
+    fireEvent.click(screen.getByText('Decide'));
+    await waitFor(() => expect(executeSpy).toHaveBeenCalled());
+    const params = executeSpy.mock.calls[0][0].actionParams as Array<Record<string, unknown>>;
+    expect(params[0].required).toBe(expected);
+  });
+
+  it('hands the picker target under `reference`, the key that survives resolution', async () => {
+    // objectui#2955: the params are spelled for `resolveActionParams`, which
+    // rebuilds an inline param from a fixed key list and reads the target from
+    // `reference`. Spelled `referenceTo` the target was dropped, and the
+    // Approval Center rendered a "paste a record id" text box where a
+    // sys_position multi-select belonged. The full round trip is pinned in
+    // `utils/decisionOutputParams.test.ts`; this pins what the BAR emits.
+    const decideAction = {
+      name: 'approval_approve',
+      type: 'api',
+      label: 'Approve',
+      target: '/api/v1/approvals/requests/{id}/approve',
+      locations: ['record_section'],
+    };
+    render(
+      <DeclaredActionsBar
+        objectName="sys_approval_request"
+        record={{
+          ...REQUEST,
+          decision_output_defs: [
+            { key: 'parallel_positions', label: '并行会审岗位', type: 'position', multiple: true },
+          ],
+        }}
+        location="record_section"
+        actions={[decideAction] as any}
+      />,
+    );
+
+    fireEvent.click(screen.getByText('Approve'));
+    await waitFor(() => expect(executeSpy).toHaveBeenCalled());
+
+    const params = executeSpy.mock.calls[0][0].actionParams as Array<Record<string, unknown>>;
+    expect(params).toHaveLength(1);
+    expect(params[0]).toMatchObject({
+      name: 'outputs.parallel_positions',
+      label: '并行会审岗位',
+      type: 'lookup',
+      reference: 'sys_position',
+      multiple: true,
+    });
+    expect(params[0].referenceTo).toBeUndefined();
+  });
+
   it('localizes the decision-output help text', async () => {
     const decideAction = {
       name: 'approval_approve',

@@ -44,6 +44,7 @@ import { Loader2 } from 'lucide-react';
 import { useConsoleActionRuntime } from '../hooks/useConsoleActionRuntime';
 import { useAdapter } from '../providers/AdapterProvider';
 import { useMetadataItem } from '../providers/MetadataProvider';
+import { decisionOutputDefs, decisionOutputParams } from '../utils/decisionOutputParams';
 import { getIcon } from '../utils/getIcon';
 
 export interface DeclaredActionsBarProps {
@@ -138,50 +139,26 @@ const DeclaredActionButton: React.FC<{
       const { params: rawParams, ...rest } = action as ActionDef & { params?: unknown };
       // #3447: an approval decision may carry author-declared structured
       // outputs. The key set is PER-REQUEST (each approval node declares its
-      // own `decisionOutputs`, surfaced on the row as `decision_outputs`), so
-      // it cannot be a static action param — synthesize one text param per key
+      // own `decisionOutputs`, surfaced on the row as `decision_output_defs`),
+      // so it cannot be a static action param — synthesize one param per key
       // for the decide actions. Params are named `outputs.<key>`; the api
       // handler folds them into the nested `outputs` body the decide route
-      // expects. Comma-separated values are legal (the service accepts CSV for
-      // multi-id outputs).
-      const isDecideAction = /\/(approve|reject)$/.test(String((action as any).target ?? ''));
-      // Prefer the typed declarations (framework#3447 follow-up); fall back to
-      // the bare key list from an older backend.
-      const declaredOutputs: Array<{ key: string; label?: string; type?: string; multiple?: boolean }> =
-        isDecideAction && Array.isArray(recordData.decision_output_defs) && recordData.decision_output_defs.length
-          ? (recordData.decision_output_defs as Array<{ key: string; label?: string; type?: string; multiple?: boolean }>)
-          : isDecideAction && Array.isArray(recordData.decision_outputs)
-            ? (recordData.decision_outputs as unknown[]).map((k) => ({ key: String(k) }))
-            : [];
-      // Widget mapping: `user` has a dedicated sys_user picker widget; the
-      // other record kinds ride a lookup param pointed at the system object.
-      const OUTPUT_LOOKUP_OBJECTS: Record<string, string> = {
-        department: 'sys_business_unit',
-        position: 'sys_position',
-        team: 'sys_team',
-      };
-      const outputParams = declaredOutputs.filter((d) => d.key).map((d) => {
-        const label = d.label
-          ?? d.key.split(/[_-]+/).filter(Boolean).map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
-        const base = { name: `outputs.${d.key}`, label, required: false } as Record<string, unknown>;
-        if (d.type === 'user') {
-          return {
-            ...base, type: 'user', multiple: d.multiple === true,
-            helpText: t('actions.decisionOutput.help'),
-          };
-        }
-        const lookupObject = d.type ? OUTPUT_LOOKUP_OBJECTS[d.type] : undefined;
-        if (lookupObject) {
-          return {
-            ...base, type: 'lookup', referenceTo: lookupObject, multiple: d.multiple === true,
-            helpText: t('actions.decisionOutput.help'),
-          };
-        }
-        return {
-          ...base, type: 'text',
-          helpText: t('actions.decisionOutput.helpMultiValue'),
-        };
-      });
+      // expects. A free-text output accepts comma-separated values (the
+      // service accepts CSV for multi-id outputs).
+      // Which decision this action records — `required` outputs are enforced
+      // on approve only (server and dialog agree), so the reject dialog offers
+      // the same fields without blocking on them.
+      const decision = /\/approve$/.test(String((action as any).target ?? ''))
+        ? 'approve' as const
+        : /\/reject$/.test(String((action as any).target ?? ''))
+          ? 'reject' as const
+          : undefined;
+      // Widget mapping (typed picker vs free text) lives in the shared helper,
+      // so the record header's Approve/Reject renders the same controls
+      // (objectui#2955).
+      const outputParams = decision
+        ? decisionOutputParams(decisionOutputDefs(recordData), t, { decision })
+        : [];
       const dispatch: any = {
         ...rest,
         // Localized copies ride the dispatch: the runner reads `label` for the

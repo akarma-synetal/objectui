@@ -33,6 +33,7 @@ import { RelatedRecordActionsBridge } from './RelatedRecordActionsBridge';
 import { withPageTabsUrlSync } from '../utils/pageTabsUrlSync';
 import { RECORD_DETAIL_TAB_PARAM, RECORD_TRAIL_PARAM, decodeRecordTrail, buildRecordTrailHref } from '../urlParams';
 import { resolveActionParams } from '../utils/resolveActionParams';
+import { decisionOutputDefs, decisionOutputParams, foldDecisionOutputs } from '../utils/decisionOutputParams';
 import { interpretActionResponse } from '../utils/actionResponse';
 import { useRecordBreadcrumbTitle } from '../context/NavigationContext';
 import type { FeedItem } from '@object-ui/types';
@@ -171,6 +172,83 @@ export function resolveRecordHeaderActionGates(
 ): { edit: boolean; delete: boolean } {
   const affordances = resolveCrudAffordances(objectDef as any, effectiveApiOperations);
   return { edit: affordances.edit, delete: affordances.delete };
+}
+
+/**
+ * The record header's Approve / Reject actions for the pending request.
+ *
+ * Pure and exported so the param contract is testable without the detail
+ * render tree — that contract is where objectui#2955 bit:
+ *
+ *  • the collected inputs must ride **`actionParams`**, the key `ActionRunner`
+ *    reads (the header dispatches the action object verbatim). They shipped as
+ *    `collectParams`, which nothing in the codebase consumes, so no dialog ever
+ *    opened: the comment was silently dropped on every record-page decision,
+ *    and the node's declared decision outputs with it;
+ *  • a node that declares `decisionOutputs` contributes one `outputs.<key>`
+ *    param each, through the same helper the Approval Center uses — so the
+ *    approver gets the same typed picker on both surfaces instead of the
+ *    record page quietly deciding without them.
+ *
+ * `t` is the object-translation function; params are localized here because
+ * synthesized `outputs.<key>` names can never match an `_actions.*` bundle key.
+ */
+export function buildApprovalDecisionActions(
+  pendingRequest: unknown,
+  t: (key: string, opts?: any) => string,
+): ActionDef[] {
+  const commentParam = {
+    name: 'comment',
+    label: t('approvals.comment', { defaultValue: 'Comment (optional)' }),
+    // `textarea`, not `text` + `multiline`: the param resolver rebuilds inline
+    // params from a fixed key list and drops `multiline`, so the long-form
+    // intent has to ride the type.
+    type: 'textarea',
+  };
+  // `required` outputs are enforced on approve only — the server rejects a
+  // blank one there and never on reject, so the two dialogs differ in exactly
+  // that flag and nothing else.
+  const defs = decisionOutputDefs(pendingRequest);
+  const decisionParams = (decision: 'approve' | 'reject') => [
+    commentParam,
+    ...decisionOutputParams(defs, (key: string) => t(key), { decision }),
+  ];
+  // A pending approval is THE decision the approver came to make, so the
+  // decision buttons must outrank app `record_header` actions rather than being
+  // appended after them (and buried in overflow). A strongly negative `order`
+  // floats them into the primary slot; the action:bar stable-sorts by `order`,
+  // so app actions keep their relative order just after the decision. Approve
+  // gets the highlighted `primary` variant; Reject stays `destructive`.
+  // (#2670 / objectui#2339)
+  return [
+    {
+      name: 'approve_request',
+      type: 'approval',
+      target: 'approve_request',
+      label: t('approvals.approve', { defaultValue: 'Approve' }),
+      icon: 'check',
+      variant: 'primary',
+      order: -100,
+      locations: ['record_header'],
+      refreshAfter: true,
+      actionParams: decisionParams('approve'),
+      successMessage: t('approvals.approveSuccess', { defaultValue: 'Approved' }),
+    },
+    {
+      name: 'reject_request',
+      type: 'approval',
+      target: 'reject_request',
+      label: t('approvals.reject', { defaultValue: 'Reject' }),
+      icon: 'x',
+      variant: 'destructive',
+      order: -99,
+      locations: ['record_header'],
+      refreshAfter: true,
+      confirmText: t('approvals.rejectConfirm', { defaultValue: 'Reject this approval request?' }),
+      actionParams: decisionParams('reject'),
+      successMessage: t('approvals.rejectSuccess', { defaultValue: 'Rejected' }),
+    },
+  ] as unknown as ActionDef[];
 }
 
 export function RecordDetailView({ dataSource, objects, onEdit, objectNameOverride, recordIdOverride, embedded }: RecordDetailViewProps) {
@@ -934,11 +1012,15 @@ export function RecordDetailView({ dataSource, objects, onEdit, objectNameOverri
     const params = (action.params && !Array.isArray(action.params))
       ? (action.params as Record<string, any>)
       : {};
+    // The node's declared decision outputs arrive as `outputs.<key>` params
+    // (objectui#2955) — fold them back into the nested object the decide route
+    // expects, exactly like the Approval Center's api handler does.
+    const { outputs } = foldDecisionOutputs(params);
     try {
       if (target === 'approve_request') {
-        await approvalsRef.current.approve({ comment: params.comment });
+        await approvalsRef.current.approve({ comment: params.comment, outputs });
       } else if (target === 'reject_request') {
-        await approvalsRef.current.reject({ comment: params.comment });
+        await approvalsRef.current.reject({ comment: params.comment, outputs });
       } else {
         return { success: false, error: `Unknown approval target: ${target}` };
       }
@@ -1671,48 +1753,7 @@ export function RecordDetailView({ dataSource, objects, onEdit, objectNameOverri
       // node, so there is no manual submit/recall; an approver records a
       // decision that resumes the flow down its approve/reject edge).
       if (approvals.available && approvals.canDecide) {
-        const commentParam = {
-          name: 'comment',
-          label: t('approvals.comment', { defaultValue: 'Comment (optional)' }),
-          type: 'text',
-          multiline: true,
-        };
-        // A pending approval is THE decision the approver came to make, so the
-        // decision buttons must outrank app `record_header` actions rather than
-        // being appended after them (and buried in overflow). A strongly
-        // negative `order` floats them into the primary slot; the action:bar
-        // stable-sorts by `order`, so app actions keep their relative order
-        // just after the decision. Approve gets the highlighted `primary`
-        // variant; Reject stays `destructive`. (#2670 / objectui#2339)
-        base.push({
-          name: 'approve_request',
-          type: 'approval',
-          target: 'approve_request',
-          label: t('approvals.approve', { defaultValue: 'Approve' }),
-          icon: 'check',
-          variant: 'primary',
-          order: -100,
-          locations: ['record_header'],
-          refreshAfter: true,
-          collectParams: [commentParam],
-          successMessage: t('approvals.approveSuccess', { defaultValue: 'Approved' }),
-        });
-        base.push({
-          name: 'reject_request',
-          type: 'approval',
-          target: 'reject_request',
-          label: t('approvals.reject', { defaultValue: 'Reject' }),
-          icon: 'x',
-          variant: 'destructive',
-          order: -99,
-          locations: ['record_header'],
-          refreshAfter: true,
-          confirmText: t('approvals.rejectConfirm', {
-            defaultValue: 'Reject this approval request?',
-          }),
-          collectParams: [commentParam],
-          successMessage: t('approvals.rejectSuccess', { defaultValue: 'Rejected' }),
-        });
+        base.push(...buildApprovalDecisionActions(approvals.pendingRequest, t));
       }
 
       return base;
@@ -1781,7 +1822,11 @@ export function RecordDetailView({ dataSource, objects, onEdit, objectNameOverri
       }),
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [objectDef?.name, childRelations, t, objectLabel, objects, historyEnabled, historyEntries, historyLoading, approvals.available, approvals.canDecide]);
+  // `approvals.pendingRequest` is in the deps for its `decision_output_defs`:
+  // the header's decision params are synthesized from the pending node's
+  // declaration, so they must be rebuilt when the request (and therefore the
+  // node) changes (objectui#2955).
+  }, [objectDef?.name, childRelations, t, objectLabel, objects, historyEnabled, historyEntries, historyLoading, approvals.available, approvals.canDecide, approvals.pendingRequest]);
 
   if (isLoading) {
     return <SkeletonDetail />;
