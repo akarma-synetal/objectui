@@ -33,6 +33,11 @@ slotted pages are the right tool.
 | `tabs` | The entire `page:tabs` node — use to add or reorder tabs (wins over `details`) |
 | `discussion` | `record:discussion` (the inline conversation footer) |
 
+Objects with `enable.files: true` also get a synthesized **Attachments** tab
+(`record:attachments`, with a count badge) beside Details/Related. It is not a
+slot of its own — override `tabs` to reshape it, or pass
+`hideAttachments: true` to the synthesizer to drop it.
+
 Each slot accepts a single component schema or an array (arrays are
 flattened in place). Each slot is a **full replacement at the slot
 boundary** — there is no deep-merge or JSON-Patch in v1.

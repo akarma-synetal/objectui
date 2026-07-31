@@ -14,6 +14,7 @@ import {
   buildDefaultHighlights,
   buildDefaultTabs,
   buildDefaultDiscussion,
+  buildDefaultAttachments,
   detectStatusField,
   deriveStages,
   deriveHighlightFields,
@@ -720,6 +721,64 @@ describe('buildDefaultPageSchema', () => {
 
     it('buildDefaultDiscussion returns the record:discussion node', () => {
       expect(buildDefaultDiscussion()).toEqual({ type: 'record:discussion' });
+    });
+
+    it('buildDefaultAttachments returns the record:attachments node', () => {
+      expect(buildDefaultAttachments()).toEqual({ type: 'record:attachments' });
+    });
+  });
+
+  // objectstack#4358 — `enable.files` objects get a peer Attachments tab
+  // (with a count badge derived by PageTabsRenderer) instead of the legacy
+  // below-the-feed append that a growing timeline buried.
+  describe('attachments tab (enable.files, objectstack#4358)', () => {
+    const filesDef: ObjectDefLike = { ...leadDef, enable: { files: true } };
+
+    it('no enable.files → no record:attachments anywhere', () => {
+      const page = buildDefaultPageSchema(leadDef);
+      expect(JSON.stringify(page)).not.toContain('record:attachments');
+    });
+
+    it('enable.files → tabs carry an Attachments tab wrapping record:attachments', () => {
+      const page = buildDefaultPageSchema(filesDef);
+      const tabs = page.regions[0].components.find((c: any) => c.type === 'page:tabs');
+      const tab = tabs.items.find((t: any) => t.value === 'attachments');
+      expect(tab).toBeDefined();
+      expect(tab.label).toBe('Attachments');
+      expect(tab.children).toEqual([{ type: 'record:attachments' }]);
+      // The discussion footer is untouched — attachments are a tab, not a
+      // footer widget.
+      const components = page.regions[0].components;
+      expect(components[components.length - 1].type).toBe('record:discussion');
+    });
+
+    it('the Attachments tab sits after Related and before Activity/History', () => {
+      const tabs = buildDefaultTabs(filesDef, {
+        related: [{ objectName: 'task', relationshipField: 'lead_id' }],
+        showActivity: true,
+        history: { entries: [], loading: false },
+      });
+      expect(tabs.items.map((t: any) => t.value)).toEqual([
+        'details',
+        'related',
+        'attachments',
+        'activity',
+        'history',
+      ]);
+    });
+
+    it('hideAttachments suppresses the tab', () => {
+      const page = buildDefaultPageSchema(filesDef, { hideAttachments: true });
+      expect(JSON.stringify(page)).not.toContain('record:attachments');
+    });
+
+    it('a details slot override keeps the Attachments tab', () => {
+      const page = buildDefaultPageSchema(filesDef, {
+        slots: { details: { type: 'div', id: 'custom-details' } },
+      });
+      const tabs = page.regions[0].components.find((c: any) => c.type === 'page:tabs');
+      expect(tabs.items.some((t: any) => t.value === 'attachments')).toBe(true);
+      expect(tabs.items[0].children[0].id).toBe('custom-details');
     });
   });
 });

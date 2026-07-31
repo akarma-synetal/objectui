@@ -62,6 +62,12 @@ export interface ObjectDefLike {
     /** @deprecated pre-ADR-0085 pair; honoured by the shared derivation. */
     collapsed?: boolean;
   }>;
+  /**
+   * Spec `enable` capability toggles. Only `files` is read here:
+   * `enable.files === true` (opt-in, #2727) makes the synthesizer emit an
+   * Attachments tab beside Details/Related (objectstack#4358).
+   */
+  enable?: { files?: boolean; [key: string]: any };
   // NOTE: the per-surface `detail` hints block was REMOVED from the spec by
   // ADR-0085 — presentation intent is declared via the top-level semantic
   // roles above (stageField / highlightFields / fieldGroups). Per-page
@@ -89,6 +95,8 @@ export interface BuildPageOptions {
   sections?: Array<{ title?: string; columns?: number; fields?: any[] }>;
   /** Suppress the auto-appended `record:discussion` slot. */
   hideDiscussion?: boolean;
+  /** Suppress the auto-emitted Attachments tab (`enable.files`, objectstack#4358). */
+  hideAttachments?: boolean;
   /** Suppress the auto-prepended `record:highlights` strip. */
   hideHighlights?: boolean;
   /** Suppress the auto-prepended `record:path` stepper. */
@@ -540,7 +548,7 @@ export function buildDefaultDetails(
 export function buildDefaultTabs(
   def: ObjectDefLike | undefined,
   options: Pick<BuildPageOptions,
-    'sections' | 'related' | 'showActivity' | 'history' | 'highlightFields' | 'statusField' | 'hideRelatedTab' | 'relatedLayout'
+    'sections' | 'related' | 'showActivity' | 'history' | 'highlightFields' | 'statusField' | 'hideRelatedTab' | 'relatedLayout' | 'hideAttachments'
   > = {},
 ): any {
   const statusField = options.statusField ?? detectStatusField(def);
@@ -593,6 +601,15 @@ export function buildDefaultTabs(
       }
     }
   }
+  // Attachments tab (objectstack#4358) — emitted for `enable.files: true`
+  // objects so the panel is a peer of Details/Related instead of a footer
+  // widget buried under the discussion feed. `PageTabsRenderer` derives the
+  // count badge from the `record:attachments` node the same way it counts
+  // `record:related_list` tabs. The English label goes through the tab
+  // strip's KNOWN_LABEL_DICT (→ 附件 etc.), matching its sibling tabs.
+  if (def?.enable?.files === true && !options.hideAttachments) {
+    items.push({ label: 'Attachments', value: 'attachments', children: [buildDefaultAttachments()] });
+  }
   if (options.showActivity) {
     items.push({ label: 'Activity', value: 'activity', children: [{ type: 'record:activity' }] });
   }
@@ -622,6 +639,15 @@ export function buildDefaultDiscussion(): any {
 }
 
 /**
+ * Sub-builder: the `record:attachments` panel (#2727). Emitted only when the
+ * object opts in via `enable.files: true` — the same gate the server enforces
+ * on `sys_attachment` rows (403 FILES_DISABLED otherwise).
+ */
+export function buildDefaultAttachments(): any {
+  return { type: 'record:attachments' };
+}
+
+/**
  * Synthesize the canonical Page schema for an object's default detail
  * page.
  *
@@ -629,6 +655,8 @@ export function buildDefaultDiscussion(): any {
  *   { type:'record', template:'full-width', regions:[ { name:'main',
  *     components: [page:header, record:highlights?, record:path?,
  *     page:tabs, record:discussion?] } ] }
+ *   For `enable.files: true` objects the tabs node carries a peer
+ *   Attachments tab (`record:attachments` — objectstack#4358).
  *
  * Notes:
  *   - The `record:details` tab content is registered separately and
@@ -723,6 +751,7 @@ export function buildDefaultPageSchema(
       statusField: options.statusField,
       hideRelatedTab,
       relatedLayout: options.relatedLayout,
+      hideAttachments: options.hideAttachments,
     });
     // Replace the first tab's children (Details) with the override.
     if (Array.isArray(tabsNode.items) && tabsNode.items.length > 0) {
@@ -739,10 +768,13 @@ export function buildDefaultPageSchema(
       statusField: options.statusField,
       hideRelatedTab,
       relatedLayout: options.relatedLayout,
+      hideAttachments: options.hideAttachments,
     }));
   }
 
-  // 5) Discussion footer.
+  // 5) Discussion footer. (Attachments are NOT part of this footer: for
+  //    `enable.files` objects buildDefaultTabs emits a peer Attachments tab
+  //    instead — objectstack#4358.)
   if ('discussion' in slots && slots.discussion !== undefined) {
     components.push(...toNodeArray(slots.discussion));
   } else if (!options.hideDiscussion) {
