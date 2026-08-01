@@ -37,6 +37,7 @@ import { Loader2 } from 'lucide-react';
 import { Button } from '@object-ui/components';
 import { createAuthenticatedFetch } from '@object-ui/auth';
 import type { ActionParamDef } from '@object-ui/core';
+import { actionRendersAt, type ActionLocation } from '@object-ui/types';
 import { getIcon } from '../../utils/getIcon';
 import { ActionParamDialog, type ParamDialogState } from '../ActionParamDialog';
 import { ActionResultDialog, type ResultDialogState } from '../ActionResultDialog';
@@ -74,8 +75,12 @@ function interpolateTarget(
 export interface MetadataTypeActionsProps {
   /** The rich type entry whose `actions` to render. */
   entry?: Pick<RichMetadataTypeEntry, 'actions'> | undefined;
-  /** Which chrome slot is asking — actions are filtered by their `locations`. */
-  location: string;
+  /**
+   * Which chrome slot is asking — actions are filtered by their `locations`.
+   * Typed as the spec vocabulary rather than `string` so a typo cannot quietly
+   * match nothing: both call sites pass a literal, so this costs them nothing.
+   */
+  location: ActionLocation;
   /** Current item name, exposed to actions as `${ctx.recordId}`. */
   recordId?: string;
   /** Called after a successful action when `refreshAfter` is set. */
@@ -93,11 +98,12 @@ export function MetadataTypeActions({ entry, location, recordId, onAfter }: Meta
   const [resultState, setResultState] = React.useState<ResultDialogState>({ open: false });
   const authFetch = React.useMemo(() => createAuthenticatedFetch(), []);
 
+  // Placement is `actionRendersAt`'s call (objectui#3142). These actions come
+  // from the server's `/meta/types` feed, so a type shipping an action with no
+  // `locations` used to get a button on BOTH the list toolbar and the record
+  // header; now it must declare where it belongs, like every other surface.
   const actions = React.useMemo(
-    () =>
-      (entry?.actions ?? []).filter(
-        (a) => !a.locations || a.locations.length === 0 || a.locations.includes(location),
-      ),
+    () => (entry?.actions ?? []).filter((a) => actionRendersAt(a, location)),
     [entry?.actions, location],
   );
 
