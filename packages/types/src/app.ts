@@ -44,6 +44,7 @@
 // `spec-derived-unions.test.ts` pins the three blockers above, each written so
 // it fails the day the spec closes it.
 import type {
+  NavigationArea as SpecNavigationArea,
   NavigationItem as SpecNavigationItem,
   ObjectNavItem as SpecObjectNavItem,
   UrlNavItem as SpecUrlNavItem,
@@ -277,38 +278,45 @@ export interface NavigationItem {
 
 /**
  * Navigation Area — a business-domain partition of navigation items.
- * 
+ *
  * Inspired by Salesforce Lightning App → Area → Tab model and
  * Microsoft Power Apps Area → Group → Subarea pattern.
- * 
+ *
  * Each area contains an independent navigation tree, allowing large
  * enterprise applications to organise navigation by domain (e.g.
  * Sales, Service, Marketing).
+ *
+ * DERIVED from `@objectstack/spec/ui` (objectstack#4115): `id`, `label`,
+ * `icon`, `order`, `description` and `requiredPermissions` flow in **by
+ * reference**, so a key the spec adds or retypes cannot silently diverge here.
+ * The hand copy this replaces had already lost `order` and `description` once
+ * (objectui#3088).
+ *
+ * Two keys are pinned locally, each for a reason that outlives a spec release:
+ *
+ *  - `navigation` — objectui's own {@link NavigationItem}, not the spec's.
+ *    Spec 17.0.0-rc.1 gave the spec's item a real type, so this is no longer
+ *    the `any` erasure objectstack#4171 was filed about — and it is still not
+ *    bindable, for the three reasons the module header above records
+ *    (`visible: boolean`, `pinned` / `defaultOpen`, a separator carrying a
+ *    `label`). Precision is not equivalence: this is case 2c in the guard's
+ *    header, and the umbrella verdict lives with the element type in
+ *    `__tests__/spec-derived-unions.test.ts`, which is where the blockers are
+ *    pinned one by one.
+ *  - `visible` — objectui's wire contract is the bare predicate
+ *    (`boolean | string`), while the spec's parsed shape is the
+ *    `ExpressionInput` envelope (`{ dialect, source }`). Same divergence, and
+ *    the same reason, as `SelectOption.visibleWhen` (objectui#3090).
+ *
+ * Drift guard: `__tests__/page-nav-misc-spec-parity.test.ts`.
  */
-export interface NavigationArea {
-  /** Unique identifier */
-  id: string;
-
-  /** Display label (plain string per @objectstack/spec v4 protocol) */
-  label: string;
-
-  /** Icon name (Lucide) */
-  icon?: string;
-
-  /** Sort order weight among areas (lower first) — spec field (objectstack#4115). */
-  order?: number;
-
-  /** Longer description of the area — spec field (objectstack#4115). */
-  description?: string;
-
-  /** Navigation items within this area */
+export interface NavigationArea
+  extends Omit<SpecNavigationArea, 'navigation' | 'visible'> {
+  /** Navigation items within this area (see the `navigation` note above). */
   navigation: NavigationItem[];
 
-  /** Visibility expression */
+  /** Visibility expression (see the `visible` note above). */
   visible?: boolean | string;
-
-  /** Required permissions to see this area */
-  requiredPermissions?: string[];
 }
 
 // ============================================================================

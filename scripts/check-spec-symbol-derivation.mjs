@@ -256,27 +256,6 @@ const ALLOW = {
 // Compare `_input` too before touching a schema const.
 const DEBT_ISSUE = 4115;
 const DEBT = {
-  "@object-ui/types": [
-    "ActionParam",
-    "CreateExportJobRequest",
-    "CreateExportJobResult",
-    "FileMetadata",
-    "GestureConfig",
-    "GestureType",
-    "ImportRowResult",
-    "JoinedReportBlock",
-    "NavigationArea",
-    "NavigationAreaSchema",
-    "NavigationItem",
-    "NavigationItemSchema",
-    "OfflineConfig",
-    "PageRegion",
-    "PageRegionSchema",
-    "ResponsiveConfig",
-    "Theme",
-    "WidgetManifest",
-    "WidgetSource",
-  ],
   "@object-ui/data-objectstack": [
     "CacheStats",
     "DroppedFieldsEvent",
@@ -294,6 +273,11 @@ const DEBT = {
     "ListView",
     "UserFilters",
     "ViewTab",
+  ],
+  "@object-ui/types": [
+    "JoinedReportBlock",
+    "NavigationItem",
+    "NavigationItemSchema",
   ],
   "@object-ui/fields": [
     "FieldWidgetProps",

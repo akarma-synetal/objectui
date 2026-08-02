@@ -22,6 +22,7 @@ import type { z } from 'zod';
 import type {
   Action as SpecAction,
   ActionLocation,
+  ActionParamSchema as SpecActionParamSchema,
   ActionType as SpecActionType,
   I18nLabel,
 } from '@objectstack/spec/ui';
@@ -235,36 +236,51 @@ export type ResolvableParamFieldType = ActionParamFieldType | ObjectUiLocalParam
  *
  * This is the AUTHORING shape, aligned with the spec's `ActionParamSchema`
  * input (#4074 steps 2–3): `name` / `label` / `type` are optional because the
- * `field` reference form supplies them from an existing object field, and
- * labels take the spec's `I18nLabel` (a string or a per-locale record). The
+ * `field` reference form supplies them from an existing object field. The
  * RESOLVED shape the dialog consumes — after `resolveActionParams()` in
  * `@object-ui/app-shell` inlines the field reference — is `@object-ui/core`'s
  * `ActionParamDef`, which keeps `name`/`label`/`type` required. Authoring and
  * resolved are different types on purpose; conflating them is what made a
  * spec-valid `{ field: 'status' }` param a type error here for as long as this
  * interface required all three.
+ *
+ * DERIVED from the spec's `ActionParamSchema` (objectstack#4115): every spec
+ * key — `name`, `field`, `objectOverride`, `required`, `placeholder`,
+ * `helpText`, `defaultValue`, `multiple`, `accept`, `maxSize`, `reference`,
+ * `defaultFromRow`, `visible`, `requiresFeature` — flows in **by reference**
+ * from `z.input<typeof ActionParamSchema>`, so a key the spec adds cannot go
+ * undeclared here again.
+ *
+ * `z.input`, not `z.infer`: `required` carries a `.default(false)` and `visible`
+ * a canonicalizing pipe, so the parsed shape makes `required` mandatory and
+ * `visible` an `{ dialect, source }` envelope. This is the authoring side —
+ * metadata as written, before the server parses it — which is the `z.input` rule
+ * from objectui#3169.
+ *
+ * The hand copy this replaces omitted three spec keys the authoring surface
+ * really uses: `reference` (the inline lookup target `resolveActionParams()`
+ * reads), `defaultFromRow` (which the metadata designer's own inspector writes)
+ * and `requiresFeature`; and it narrowed `visible` to a bare string even though
+ * the resolver has always accepted the envelope form too.
+ *
+ * ONE key is pinned locally: `type` takes {@link ResolvableParamFieldType} —
+ * the spec vocabulary plus objectui's declared legacy spellings
+ * (`checkbox` / `reference` / `datetime-local`), which the dialog resolves.
+ *
+ * `label` and `options[].label` are NOT pinned, though the comment above used
+ * to justify them as a widening: "labels take the spec's `I18nLabel` (a string
+ * or a per-locale record)". In spec 17 `I18nLabelSchema` is `z.ZodString` —
+ * inline per-locale objects were dropped in favour of translation files — so
+ * the local override had become an exact restatement of the spec's own type
+ * while still claiming to be wider than it. Both keys are now inherited.
+ * (`__tests__/page-nav-misc-spec-parity.test.ts` pins that reading, so the day
+ * the spec re-widens `I18nLabel` this decision gets re-made rather than
+ * inherited.)
+ *
+ * Drift guard: `__tests__/page-nav-misc-spec-parity.test.ts`.
  */
-export interface ActionParam {
-  /**
-   * Parameter name (snake_case) — the request-body key. Optional: defaults to
-   * {@link field} when the param is field-backed.
-   */
-  name?: string;
-
-  /**
-   * Reference an existing object field to inherit its label / type /
-   * validation / options (the spec's primary way to declare a param). The
-   * resolver inlines the referenced config; explicit properties here override
-   * the inherited ones.
-   */
-  field?: string;
-
-  /** Object that owns {@link field} (defaults to the action's parent object). */
-  objectOverride?: string;
-
-  /** Display label. Overrides the resolved field label for field-backed params. */
-  label?: I18nLabel;
-
+export interface ActionParam
+  extends Omit<z.input<typeof SpecActionParamSchema>, 'type'> {
   /**
    * Field type for input. Optional: field-backed params inherit the referenced
    * field's type.
@@ -275,46 +291,25 @@ export interface ActionParam {
    */
   type?: ResolvableParamFieldType;
 
-  /** Whether parameter is required */
-  required?: boolean;
-
-  /** Options for select/picklist types */
-  options?: Array<{ label: I18nLabel; value: string }>;
-
-  /** Default value */
-  defaultValue?: unknown;
-
-  /** Help text */
-  helpText?: string;
-
-  /** Placeholder text */
-  placeholder?: string;
-
   /** Validation expression */
   validation?: string;
 
-  /**
-   * Visibility predicate (CEL) evaluated against the same scope as action
-   * `visible` (`current_user` / `app` / `data` / `features`). When it evaluates
-   * false the dialog omits this param. Absent = always visible.
-   */
-  visible?: string;
-
-  // ── Widget config (shared form field-widget renderer, ADR-0059) ────────
+  // ── Resolved-side picker config (shared form field-widget renderer,
+  // ADR-0059) ───────────────────────────────────────────────────────────
   // `ActionParamDialog` renders every param through the same field widgets the
-  // object form uses, so params carry the widget-relevant config for their type.
-  // Mirrors `ActionParamSchema` in @objectstack/spec.
+  // object form uses. These keys are the picker config `paramToField.ts` reads
+  // off `@object-ui/core`'s RESOLVED `ActionParamDef`; `resolveActionParams()`
+  // fills them from the referenced object field (or, for `referenceTo`, from
+  // the spec's inline `reference` above). They are declared here for parity
+  // with the resolved shape — an authored param that sets them directly is not
+  // read today, which is objectui#3174.
 
-  /** Accepted upload types (MIME types / extensions) for `file`/`image` params. */
-  accept?: string[];
-
-  /** Max upload size in bytes for `file`/`image` params. */
-  maxSize?: number;
-
-  /** Allow multiple values (array value shape); mirrors `FieldSchema.multiple`. */
-  multiple?: boolean;
-
-  /** Reference target object for `lookup`/`master_detail` params. */
+  /**
+   * Reference target object for `lookup`/`master_detail` params.
+   *
+   * Authoring an inline picker target uses the spec's `reference` (above);
+   * this is the resolved spelling `ActionParamDef` carries (objectui#3174).
+   */
   referenceTo?: string;
 
   /** Field on the referenced object to display in the picker. */
