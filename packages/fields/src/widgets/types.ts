@@ -2,6 +2,49 @@ import type { AriaAttributes, FocusEventHandler, MouseEventHandler } from 'react
 import type { DependsOnInput, FieldMetadata } from '@object-ui/types';
 
 /**
+ * DOM pass-through: what a widget's `...props` spread may legitimately put on
+ * the element it renders.
+ *
+ * A NAMED type rather than an inline block of {@link FieldWidgetComponentProps}
+ * so the compiler can bind it to its runtime executor in BOTH directions
+ * (objectui#3291). `toDomProps` asserts:
+ *
+ *  - every key it forwards is declared on the widget contract — deleting one
+ *    here without deleting it there is a compile error;
+ *  - every key of THIS type is one it forwards — adding one here without
+ *    adding it to `DOM_PASS_THROUGH_KEYS` is a compile error too.
+ *
+ * The second direction is the one that matters for the failure mode this repo
+ * treats as first-class: DECLARED BUT NOT DELIVERED (objectui#3290's
+ * `aria-required` that never reached a control, objectui#3222's validation slot
+ * nobody produced). Without it, a key added here would type-check, read as
+ * supported, and silently never reach the DOM — and the leak test cannot see
+ * that class of bug, because it looks for attributes that ARRIVE, not for ones
+ * that go missing.
+ *
+ * `className` and `disabled` are deliberately NOT here. They are DOM-legal and
+ * `toDomProps` does forward them, but they are declared on the controlled-input
+ * block of {@link FieldWidgetComponentProps} because widgets also INTERPRET
+ * them (className is composed with the widget's own classes; disabled is OR-ed
+ * with readonly). They are therefore bound in the forward direction only.
+ *
+ * `AriaAttributes` and the `data-${string}` family are matched by prefix at
+ * runtime rather than key-by-key, so they are intersected in separately.
+ *
+ * Adding a key here is a contract change: say who produces it and who reads it.
+ */
+export type FieldWidgetDomProps = {
+  id?: string;
+  /** react-hook-form's field name, spread in by the form renderer. */
+  name?: string;
+  autoFocus?: boolean;
+  tabIndex?: number;
+  onBlur?: FocusEventHandler<HTMLElement>;
+  onFocus?: FocusEventHandler<HTMLElement>;
+  onClick?: MouseEventHandler<HTMLElement>;
+};
+
+/**
  * Props every field widget in this package receives at RUNTIME.
  *
  * Named `FieldWidgetComponentProps`, not `FieldWidgetProps` (objectui#3161,
@@ -168,17 +211,13 @@ export type FieldWidgetComponentProps<T = any> = {
    */
   onCreateNew?: (searchQuery: string) => void;
 
-  /* ── DOM pass-through: what `...props` may legitimately reach an input ──── */
-
-  id?: string;
-  /** react-hook-form's field name, spread in by the form renderer. */
-  name?: string;
-  autoFocus?: boolean;
-  tabIndex?: number;
-  onBlur?: FocusEventHandler<HTMLElement>;
-  onFocus?: FocusEventHandler<HTMLElement>;
-  onClick?: MouseEventHandler<HTMLElement>;
-} & AriaAttributes & {
+  /* ── DOM pass-through ───────────────────────────────────────────────────── */
+  //
+  // Lives in the named {@link FieldWidgetDomProps} above, because that is what
+  // lets the compiler bind the declaration to `toDomProps` — its runtime
+  // executor — in BOTH directions (objectui#3291). Add a DOM key THERE, not
+  // here, and the compiler will make you add it to the whitelist too.
+} & FieldWidgetDomProps & AriaAttributes & {
   /**
    * Arbitrary `data-*` attributes (test ids, analytics hooks). Open by design,
    * but a template-literal key — `keyof` stays finite, so this does NOT
