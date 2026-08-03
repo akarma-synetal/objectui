@@ -287,12 +287,23 @@ export interface NavigationItem {
  * Sales, Service, Marketing).
  *
  * DERIVED from `@objectstack/spec/ui` (objectstack#4115): `id`, `label`,
- * `icon`, `order`, `description` and `requiredPermissions` flow in **by
- * reference**, so a key the spec adds or retypes cannot silently diverge here.
- * The hand copy this replaces had already lost `order` and `description` once
- * (objectui#3088).
+ * `icon` and `description` flow in **by reference**, so a key the spec adds or
+ * retypes cannot silently diverge here. The hand copy this replaces had already
+ * lost `order` and `description` once (objectui#3088).
  *
- * Two keys are pinned locally, each for a reason that outlives a spec release:
+ * `order`, `visible` and `requiredPermissions` were area-level keys until spec
+ * 17.0.0 retired them (`AREA_VISIBLE_RETIRED` /
+ * `AREA_REQUIRED_PERMISSIONS_RETIRED`): an area is a layout grouping, not an
+ * access boundary — gate the navigation ITEM or the app instead.
+ *
+ * Worth stating plainly, because the retirement's own rationale says an area
+ * "carries no gate of its own": objectui DID gate on them —
+ * `AppSchemaRenderer`'s area switcher filtered areas by `visible` and
+ * `requiredPermissions`. That filter is gone, and the gating it did now happens
+ * one level down in `NavigationRenderer`, which is where the spec moved it.
+ * The premise mismatch is recorded in objectui#3311.
+ *
+ * One key is pinned locally, for a reason that outlives a spec release:
  *
  *  - `navigation` — objectui's own {@link NavigationItem}, not the spec's.
  *    Spec 17.0.0-rc.1 gave the spec's item a real type, so this is no longer
@@ -303,20 +314,12 @@ export interface NavigationItem {
  *    header, and the umbrella verdict lives with the element type in
  *    `__tests__/spec-derived-unions.test.ts`, which is where the blockers are
  *    pinned one by one.
- *  - `visible` — objectui's wire contract is the bare predicate
- *    (`boolean | string`), while the spec's parsed shape is the
- *    `ExpressionInput` envelope (`{ dialect, source }`). Same divergence, and
- *    the same reason, as `SelectOption.visibleWhen` (objectui#3090).
  *
  * Drift guard: `__tests__/page-nav-misc-spec-parity.test.ts`.
  */
-export interface NavigationArea
-  extends Omit<SpecNavigationArea, 'navigation' | 'visible'> {
+export interface NavigationArea extends Omit<SpecNavigationArea, 'navigation'> {
   /** Navigation items within this area (see the `navigation` note above). */
   navigation: NavigationItem[];
-
-  /** Visibility expression (see the `visible` note above). */
-  visible?: boolean | string;
 }
 
 // ============================================================================
@@ -407,12 +410,6 @@ export interface AppComponentSchema extends BaseSchema {
    * Global Actions (User Profile, Settings, etc)
    */
   actions?: AppAction[];
-
-  /**
-   * Home page ID (ObjectStack Spec v2.0.1)
-   * Default page to navigate to after login
-   */
-  homePageId?: string;
 
   /**
    * Required permissions (ObjectStack Spec v2.0.1)
