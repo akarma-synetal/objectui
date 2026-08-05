@@ -155,16 +155,27 @@ describe('object-chart — drillDown is a declared input (framework#5022)', () =
 
   it('describes the SIX keys the spec declares — not the wider renderer union', () => {
     // objectui's own `DrillDownConfig` is shared with the table/pivot/metric
-    // widgets and carries `mode` / `report` / `view` / `sort` and a `navigate`
-    // target. ObjectChart reads none of them, and two are read by no renderer
-    // at all (objectui#3354), so advertising them here would re-open the gap
-    // framework#5022 closed — one layer down, in the designer palette.
+    // widgets and also carries `mode` / `report`. ObjectChart reads neither, so
+    // advertising them here would re-open the gap framework#5022 closed — one
+    // layer down, in the designer palette.
+    //
+    // `navigate` stays on the withheld side, and after objectui#3354 that is no
+    // longer because the chart ignores it — it honours it now. It is withheld
+    // because `ChartDrillDownSchema` declares the chart drill target as
+    // `'drawer' | 'dialog'`, strictly, and `validate-react-page-props` PARSES
+    // that schema against the authored literal at publish time. Advertising
+    // `'navigate'` here would hand an author a value the publish gate rejects.
+    // The protocol union has to move first; this palette tracks the spec.
+    //
+    // `view` / `sort` are not listed on either side any more — objectui#3354
+    // deleted them from `DrillDownConfig`, so there is no key left to advertise
+    // or withhold.
     const d = String(inputs().find((i: any) => i.name === 'drillDown')?.description ?? '');
     for (const key of ['enabled', 'filter', 'title', 'target', 'columns', 'maxRows']) {
       expect(d, `the declared key ${key} must be described`).toContain(key);
     }
     for (const key of ['mode', 'report', 'navigate']) {
-      expect(d, `${key} is another widget's key — it must not be advertised here`).not.toContain(key);
+      expect(d, `${key} is not in the spec's chart subset — it must not be advertised here`).not.toContain(key);
     }
   });
 });

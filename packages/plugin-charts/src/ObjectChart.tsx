@@ -618,7 +618,24 @@ export const ObjectChart = (props: any) => {
   // until the bump. Note the two are not the same set on purpose: the spec type
   // is the CHART subset (`enabled`/`filter`/`title`/`target`/`columns`/
   // `maxRows`), while this one also carries the table/pivot/metric keys
-  // (`mode`, `report`, the `navigate` target) that this component does not read.
+  // (`mode`, `report`) that this component does not read.
+  //
+  // objectui#3354 shrank the gap from the other side: the whole `target` union
+  // — including `'navigate'` — is honoured below, and the two keys no renderer
+  // read at all (`view`, `sort`) are gone from `DrillDownConfig`.
+  //
+  // That leaves ONE asymmetry, deliberately not papered over here. The spec's
+  // `ChartDrillDownSchema` declares `target: 'drawer' | 'dialog'`, and its
+  // stated rationale was a measurement — every key has an `ObjectChart` read
+  // site, and at the time this component ignored `'navigate'`. That measurement
+  // changed with this issue, so the protocol's union is now narrower than what
+  // the renderer delivers. The fix belongs in the spec (extend the union), not
+  // here (objectstack#5435): widening the union renderer-side is free, but
+  // ADVERTISING it before
+  // the protocol does would collide with the publish gate that parses the
+  // strict schema. Until the spec moves, `'navigate'` works for any host that
+  // composes an `object-chart` schema directly, and stays absent from the
+  // registry `inputs` below.
   const drillDown = (schema as { drillDown?: DrillDownConfig }).drillDown;
   const groupByField = schema.aggregate?.groupBy || schema.xAxisKey;
 
@@ -640,6 +657,51 @@ export const ObjectChart = (props: any) => {
     }
     return map;
   }, [finalData, groupByField]);
+
+  // The filter the drilled list is scoped by: the widget's own filter narrowed
+  // by the click context. Hoisted out of the drawer block below (which runs
+  // after this component's conditional early returns) because the `'navigate'`
+  // target needs it from an effect, and effects may not live after an early
+  // return. The drawer reads the same value, so both targets drill by exactly
+  // one filter.
+  const drillFilter = useMemo(() => {
+    if (!drillEvent) return undefined;
+    return {
+      ...(schema.filter || {}),
+      ...computeDrillFilter(drillDown, drillEvent, { groupByField }),
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [drillEvent, drillDown, groupByField, filterKey]);
+
+  // `target: 'navigate'` — skip the in-place peek and send the user straight to
+  // the object's full list page, scoped by the same filter (objectui#3354).
+  //
+  // This mirrors `DrillDownDrawer`'s `navigateOnly` (plugin-dashboard), which
+  // the table / pivot / metric widgets already honour. ObjectChart draws its own
+  // drawer instead of using that component, and had only a `'dialog'` branch and
+  // a default Sheet — so `'navigate'` silently rendered a Sheet, contradicting
+  // the shared `DrillDownConfig.target` JSDoc for the one widget that did not
+  // route through the drawer.
+  //
+  // Documented fallback, same as the drawer's: when the host wired no
+  // `DrillNavigationContext.openRecordList` there is nowhere to navigate, so the
+  // drill degrades to the in-place drawer exactly as the JSDoc promises. The
+  // header's "Open in list" escape hatch stays independent of `target`.
+  const navigateOnly =
+    !onSegmentClick &&
+    !!drillEvent &&
+    !!schema.objectName &&
+    drillDown?.target === 'navigate' &&
+    !!openRecordList;
+  useEffect(() => {
+    if (!navigateOnly) return;
+    openRecordList!(schema.objectName as string, drillFilter);
+    setDrillEvent(null);
+    // Fires on the transition into `navigateOnly` only — the drawer does the
+    // same. Widening the deps would re-navigate on every unrelated re-render
+    // that happens before `setDrillEvent(null)` lands.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [navigateOnly]);
 
   // Merge data if not provided in schema. When `compareTo` is configured
   // for a supported chart type, also synthesize a second series so the
@@ -768,9 +830,10 @@ export const ObjectChart = (props: any) => {
   // Host-owned click (dataset drill-through) wins over the widget's own object-drill.
   const onChartClick = onSegmentClick ?? internalChartClick;
 
-  const drillDrawer = !onSegmentClick && drillEvent && schema.objectName ? (() => {
-    const baseFilter = computeDrillFilter(drillDown, drillEvent, { groupByField });
-    const merged = { ...(schema.filter || {}), ...baseFilter };
+  // `navigateOnly` renders nothing: the effect above has already handed the
+  // drill to the host's list page, so the in-place drawer must not flash.
+  const drillDrawer = !onSegmentClick && drillEvent && schema.objectName && !navigateOnly ? (() => {
+    const merged = drillFilter ?? {};
     const title = resolveDrillTitle(drillDown, drillEvent, schema.title || 'Details');
     const target = drillDown?.target ?? 'drawer';
     const tableSchema = {
@@ -855,10 +918,26 @@ ComponentRegistry.register('object-chart', ObjectChart, {
         // spec now declares the shape (`ChartDrillDownSchema`), and this entry
         // is the half that makes the gate agree.
         //
-        // Only the six keys the spec declares are honoured here; the wider
-        // renderer-side `DrillDownConfig` (mode / report / view / sort, and the
-        // `navigate` target) belongs to the table/pivot/metric widgets, and two
-        // of its keys are read by nothing at all — objectui#3354.
+        // Only the six keys the spec declares are advertised here; the wider
+        // renderer-side `DrillDownConfig` (`mode`, `report`) belongs to the
+        // table/pivot/metric widgets, and advertising it would re-open the gap
+        // framework#5022 closed — one layer down, in the designer palette.
+        //
+        // `target: 'navigate'` is DELIVERED by this component since
+        // objectui#3354 but is deliberately NOT advertised here yet, and the
+        // asymmetry is on purpose. `ChartDrillDownSchema` (`@objectstack/spec`)
+        // landed the chart drill as `target: 'drawer' | 'dialog'` — strict, and
+        // enforced at publish by `validate-react-page-props`, which PARSES it
+        // against the authored `drillDown={{…}}` literal. Listing `'navigate'`
+        // in this palette would therefore hand an author a value the publish
+        // gate then rejects: the platform's authority for a key its own gate
+        // refuses, which is precisely the failure framework#5022 was opened to
+        // stop. The protocol's union is the thing that has to move first; until
+        // it does, this description tracks the spec, not the renderer.
+        //
+        // `view` / `sort` are gone from `DrillDownConfig` entirely
+        // (objectui#3354) — no renderer ever read them, so there is no longer a
+        // key to advertise or withhold.
         { name: 'drillDown', type: 'object', label: 'Drill-down', description: "Segment drill config: { enabled?, filter?, title?, target?: 'drawer' | 'dialog', columns?, maxRows? }. Present = on; {} is enough. Clicking a segment opens the underlying records filtered by the clicked category." },
     ]
 });
