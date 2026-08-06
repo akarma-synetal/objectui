@@ -876,6 +876,7 @@ const ru = {
     approvalProgress: "Согласования — {{got}} из {{need}}",
     approvalProgressGroups: "Подписи — {{got}} из {{need}} групп",
     approvalProgressLabel: "Ход согласования",
+    approvalsPanelTitle: "Согласования",
     cancelApproval: "Отменить согласование",
     cancelApprovalInFlight: "Отмена…",
     cancelApprovalTooltip: "Отмените ожидающий запрос на согласование, чтобы разблокировать запись",
