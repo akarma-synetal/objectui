@@ -1,5 +1,144 @@
 # @object-ui/collaboration
 
+## 17.3.0
+
+### Patch Changes
+
+- 94c5b7c: Localize `@object-ui/collaboration` — `CommentThread` no longer hardcodes English (objectstack#5506)
+
+  `@object-ui/collaboration` depended only on `@object-ui/types` and carried every
+  user-visible string as an English literal, so a `zh` console rendered a Chinese
+  shell around an English comment thread: "3 comments", "Reply", "Resolve",
+  "just now", "Add a comment... (use @ to mention)".
+
+  The package now takes `@object-ui/i18n` as a dependency and exposes one
+  translation seam, `useCollaborationTranslation` /
+  `COLLAB_DEFAULT_TRANSLATIONS`, built on `createSafeTranslation` — the same
+  factory `data-table`, `form` and `filter-builder` use. Under an `I18nProvider`
+  it resolves the session locale; with no provider it resolves the English
+  defaults map, which is what keeps `CommentThread` usable standalone. There is
+  deliberately no `formatter`/label prop escape hatch: a host that wants
+  different copy overrides the locale keys, so one thread can never end up half
+  translated by the bundle and half by props.
+
+  The issue listed 13 sites. A site-by-site sweep of the file found **20** — the
+  seven the original sweep missed are `{n}h ago`, `{n}d ago`, `(edited)`, the
+  thread's own comment count, the `Oldest`/`Newest` sort options,
+  `Replying to {name}...`, and the composer's `Send` button. All 20 are keyed
+  here; leaving any behind would have shipped a thread that is 90% translated.
+
+  Two of them carry a second defect on top of being untranslated: the plural
+  **rule** was compiled into the component, not just the words.
+
+  - the header read `` `${n} comment${n !== 1 ? 's' : ''}` ``;
+  - the reaction chip tooltip read `` n === 1 ? '1 reaction' : `${n} reactions` ``.
+
+  Both produced correct _English_ — this is not the "1 items" bug objectui#3423
+  fixed on the tab badge — but the choice between the two forms was English
+  grammar hardwired into the render path. No locale could apply its own: ru needs
+  three forms and ja needs none, and neither could ever be expressed no matter
+  what the packs said.
+
+  Both now use the repo's **two-key** plural convention
+  (`collaboration.commentCount`/`commentCountOne`,
+  `collaboration.reactionCount`/`reactionCountOne`) rather than an i18next
+  `_one`/`_other` pair: zh/ja/ko have no separate singular form, so those packs
+  would legitimately omit the `_one` half and `all-locales-key-parity` reads a
+  legitimately-absent half as a lost key. Counts are interpolated as strings, so
+  i18next skips its own plural resolution and the two-key scheme stays in charge.
+
+  The reaction tooltip gets a **dedicated** key pair rather than reusing
+  `detail.reactionCount`: that one interpolates `{{emoji}}`, and at this call
+  site the emoji is the chip's visible label with nothing to hand the
+  placeholder — reuse would have left a literal `{{emoji}}` in the accessible
+  name under every locale.
+
+  Relative timestamps stayed word-level: the existing minute/hour/day buckets are
+  untouched and no date library was introduced. The `>= 7d` branch still uses the
+  runtime's own `toLocaleDateString()` — that is not a hardcoded English literal,
+  and pinning it to the session language has its own failure mode (an
+  unrecognised tag throws into the surrounding `catch`, which would render a raw
+  ISO string), so it is tracked separately.
+
+  `Save` / `Cancel` / `Edit` / `Delete` read from the shared `common` namespace
+  instead of being re-spelled under `collaboration` — they are the generic action
+  words, already translated in all ten packs, and a second spelling would only be
+  a second thing to keep in sync. The 21 genuinely new keys are added to all ten
+  locale packs with real translations.
+
+- ca0fa8f: Localize `PresenceAvatars` — the avatar stack's accessible name and tooltips follow the session language (objectui#3440)
+
+  objectui#3424 wired `@object-ui/collaboration` up to `@object-ui/i18n` but only
+  converted `CommentThread`. `PresenceAvatars` in the same package kept three
+  English literals, and it is not a dormant export — the console renders it in
+  two places: `app-shell/src/layout/AppHeader.tsx` (tenant presence beside the
+  lifecycle badge) and `app-shell/src/views/RecordDetailView.tsx` (who else is on
+  this record). A `zh` session got them in English.
+
+  The three sites:
+
+  - the group's `aria-label`, `` `${n} user${n !== 1 ? 's' : ''} present` ``;
+  - the overflow badge's tooltip, `` `${n} more user${n !== 1 ? 's' : ''}` ``;
+  - each avatar's tooltip, `` `${name} (${status})` ``.
+
+  The first one is the whole control as far as a screen reader is concerned: the
+  stack renders images and initials and nothing else, so there was no other
+  accessible name to fall back on.
+
+  As with the comment count in #3424, the first two carried a second defect on
+  top of being untranslated — the plural **rule** was compiled into the component.
+  Both produced correct _English_ (each has a real singular branch, so this is
+  not the "1 items" defect objectui#3423 fixed on the tab badge), but
+  `n !== 1 ? 's' : ''` is English grammar in a render path and no locale could
+  apply its own. Both now use the repo's **two-key** plural convention
+  (`collaboration.presentUserCount`/`presentUserCountOne`,
+  `collaboration.moreUserCount`/`moreUserCountOne`) rather than an i18next
+  `_one`/`_other` pair, with the count interpolated as a string so i18next skips
+  its own plural resolution. German is what witnesses the move: "1 anwesender
+  Benutzer" vs "2 anwesende Benutzer" inflects the adjective, which the deleted
+  ternary could not have produced for any pack.
+
+  The avatar tooltip becomes a single `collaboration.userStatusTitle` key
+  (`{{name}} ({{status}})`) so the parentheses and their spacing belong to the
+  translation — the CJK packs drop the space English puts before `(`, matching
+  their existing `edited: '(已编辑)'`.
+
+  Its `status` is a **display-layer** translation
+  (`collaboration.statusActive` / `statusIdle` / `statusAway`): the
+  `PresenceUser['status']` enum value stays raw data everywhere it is stored,
+  compared or passed around — including the `statusColors` lookup — and is
+  translated only at this render exit. A status outside the declared union
+  renders as itself, the raw string: presence users arrive from a host-supplied
+  `PresenceSource` transport, so an unmapped value is reachable at runtime
+  whatever the type says, and the fallback invents nothing rather than leaving an
+  empty bracket pair.
+
+  Eight new keys, added to all ten locale packs with real translations.
+
+- Updated dependencies [b71fc92]
+- Updated dependencies [94c5b7c]
+- Updated dependencies [ca0fa8f]
+- Updated dependencies [3889ffb]
+- Updated dependencies [9e9e9a9]
+- Updated dependencies [4eeb932]
+- Updated dependencies [5c856ec]
+- Updated dependencies [23018cc]
+- Updated dependencies [68b6a28]
+- Updated dependencies [0554e88]
+- Updated dependencies [f44d872]
+- Updated dependencies [28b2e65]
+- Updated dependencies [825bbe3]
+- Updated dependencies [6195841]
+- Updated dependencies [5dd0127]
+- Updated dependencies [a415684]
+- Updated dependencies [f833d3a]
+- Updated dependencies [d22ae31]
+- Updated dependencies [c7ed4c3]
+- Updated dependencies [2409e1d]
+- Updated dependencies [789fe3e]
+  - @object-ui/i18n@17.3.0
+  - @object-ui/types@17.3.0
+
 ## 17.2.0
 
 ### Minor Changes
