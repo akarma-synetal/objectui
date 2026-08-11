@@ -191,7 +191,11 @@ describe('Complex & Relationship Widgets', () => {
                 expect(mockDataSource.find).toHaveBeenCalledTimes(1);
             });
 
-            // Type in search
+            // Type in search. ASCII "..." and NOT U+2026, deliberately:
+            // `LookupField.tsx:1085` builds this placeholder as
+            // `t('common.search') + '...'`, so the ellipsis is a literal
+            // concatenated in code and objectui#3878's pack convergence does not
+            // reach it. Filed as objectui#4375 — when that lands, this moves.
             await act(async () => {
                 fireEvent.change(screen.getByPlaceholderText('Search...'), {
                     target: { value: 'acme' },

@@ -33,10 +33,10 @@ vi.mock('../../../hooks/useConversationList', () => ({
 vi.mock('@object-ui/i18n', () => ({
   useObjectTranslation: () => ({
     t: (key: string) => ({
-      'common.loading': 'Loading...',
+      'common.loading': 'Loading…',
       'console.ai.chats': 'Chats',
       'console.ai.newChat': 'New',
-      'console.ai.searchChats': 'Search chats...',
+      'console.ai.searchChats': 'Search chats…',
       'console.ai.noChatsYet': 'No chats yet',
       'console.ai.noChatsDescription': 'Start a new conversation to see it here.',
       'console.ai.noMatchingChats': 'No matching chats.',
@@ -93,7 +93,7 @@ describe('ConversationsSidebar', () => {
 
   it('filters by query and highlights the matched substring', () => {
     renderSidebar();
-    fireEvent.change(screen.getByPlaceholderText('Search chats...'), {
+    fireEvent.change(screen.getByPlaceholderText('Search chats…'), {
       target: { value: 'pipe' },
     });
     // Non-matching conversation is filtered out.
