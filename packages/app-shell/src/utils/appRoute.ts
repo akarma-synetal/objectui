@@ -45,6 +45,17 @@ const SETUP_APP_SEGMENT = 'setup';
  *
  * One definition, because "an app the user can open" has to mean the same thing
  * to Home's launcher and to every producer that builds a link into an app.
+ *
+ * ⛔ Do NOT add `_unpublished` to this predicate (objectstack#6955 / #4829 A1).
+ * It is the machine-managed ADR-0045 publish gate, and it is enforced
+ * SERVER-SIDE — the REST metadata gate withholds unpublished apps from
+ * non-builders, so any that reach this function belong to a builder entitled to
+ * open them. Filtering here would hide a builder's own in-progress app from the
+ * builder (and strand every link this module builds into it) while buying no
+ * protection the server was not already providing. `hidden` is the opposite
+ * case: it has no other enforcement point anywhere, so this filter IS its whole
+ * implementation. Two keys, two layers; this reads exactly one of them. Pinned
+ * by `__tests__/appRoute.test.ts`.
  */
 export function filterActiveApps<T extends AppLike>(apps: readonly T[] | null | undefined): T[] {
   if (!apps) return [];

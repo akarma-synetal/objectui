@@ -57,6 +57,21 @@ describe('filterActiveApps', () => {
     ];
     expect(filterActiveApps(apps).map((a) => a.name)).toEqual(['crm']);
   });
+  it('⛔ keeps an UNPUBLISHED app — `_unpublished` is a server-side gate, not a launcher filter', () => {
+    // objectstack#6955 (#4829 A1). `_unpublished` is the ADR-0045 publish gate
+    // and the REST metadata gate already withholds those apps from non-builders,
+    // so one that reaches this predicate belongs to a builder entitled to open
+    // it. Adding an `_unpublished !== true` clause would hide a builder's own
+    // in-progress app from the builder and break every link the module builds
+    // into it. `hidden` is the opposite: no other enforcement point exists, so
+    // the clause above is its whole implementation.
+    const apps = [
+      { name: 'crm' },
+      { name: 'draft_app', _unpublished: true },
+      { name: 'account', hidden: true, _unpublished: true },
+    ];
+    expect(filterActiveApps(apps).map((a) => a.name)).toEqual(['crm', 'draft_app']);
+  });
   it('is idempotent, so a caller that already filtered can pass its list through', () => {
     const apps = [{ name: 'crm' }, { name: 'old', active: false }];
     expect(filterActiveApps(filterActiveApps(apps))).toEqual(filterActiveApps(apps));
