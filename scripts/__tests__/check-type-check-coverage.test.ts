@@ -534,6 +534,7 @@ describe('every surviving narrow project is a package still in debt, in this rep
       '@object-ui/plugin-list',
       // objectui#4040 tranche 4 — retired in the same PR that graduated the
       // package, which is what #4291's ratchet now requires.
+      '@object-ui/components',
       '@object-ui/react',
     ];
     for (const name of retired) {

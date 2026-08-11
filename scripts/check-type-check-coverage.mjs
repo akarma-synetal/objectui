@@ -115,14 +115,13 @@ export const TEST_DEBT = {
   // compile-time type assertions (objectui#3181), listed one by one so the rest
   // of the debt tree stays out. Both entries stay because that REST is still
   // unchecked — each number below is that remainder, not the whole package.
-  //
-  // ⚠️ These counts are the #2911-era measurement and have proven unreliable in
-  // BOTH directions — `@object-ui/react` declared 27 and measured 43, i18n
-  // declared 13 and measured 103. Remeasure before planning against a number
-  // here; do not treat it as the size of the job.
-  "@object-ui/core": { errors: 72, issue: 4118, note: "TS2741x32, TS2322x17 — mostly the input-vs-output fixture confusion" },
-  "@object-ui/app-shell": { errors: 53, issue: 4118, note: "TS2339x24 — implementation wider than the type" },
-  "@object-ui/components": { errors: 31, issue: 4118, note: "TS7006x12, TS7031x12 — untyped test callback params" },
+  // Counts REMEASURED at objectui#4040 tranche 4 against the template config
+  // these packages will graduate with (config-tier errors excluded). The old
+  // numbers were the #2911-era sweep and were unreliable in both directions —
+  // i18n declared 13 and measured 103, react declared 27 and measured 43 — so
+  // remeasure before planning against any number here.
+  "@object-ui/core": { errors: 56, issue: 4118, note: "TS2322x17, TS7006x10 — mostly the input-vs-output fixture confusion (was declared 72)" },
+  "@object-ui/app-shell": { errors: 62, issue: 4118, note: "TS2339x8, TS2698x8, TS2739x7 — implementation wider than the type; needs lib ES2022 (was declared 53)" },
   "@object-ui/plugin-dashboard": { errors: 6, issue: 4118 },
 };
 

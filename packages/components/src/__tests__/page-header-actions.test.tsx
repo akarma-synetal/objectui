@@ -10,6 +10,12 @@ import { describe, it, expect, vi } from 'vitest';
 import { useEffect } from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { ComponentRegistry } from '@object-ui/core';
+import type {
+  ActionContext,
+  ActionDef,
+  ActionResult,
+  ParamCollectionHandler,
+} from '@object-ui/core';
 import {
   ActionProvider,
   RecordContextProvider,
@@ -437,7 +443,13 @@ describe('PageHeaderRenderer — record dispatch shape (objectui#3391)', () => {
     record?: any;
     onParamCollection?: (params: any[], action?: any) => Promise<Record<string, any> | null>;
   }) {
-    const api = vi.fn(async () => ({ success: true }));
+    // Typed with the signature the `handlers` prop declares: a bare zero-arity
+    // `vi.fn` makes `api.mock.calls[0]` the empty tuple, so every
+    // `api.mock.calls[0][0]` below — the dispatched ActionDef, which is what
+    // these cases are about — was unchecked (objectui#4040).
+    const api = vi.fn<
+      (action: ActionDef, ctx: ActionContext) => Promise<ActionResult>
+    >(async () => ({ success: true }));
     const header = <PageHeader schema={{ type: 'page:header', title: 'Plan', actions: [opts.action] }} />;
     render(
       <ActionProvider handlers={{ api }} onParamCollection={opts.onParamCollection}>
@@ -483,7 +495,13 @@ describe('PageHeaderRenderer — record dispatch shape (objectui#3391)', () => {
   it('surfaces a spec-shaped params ARRAY as actionParams and keeps the stash through collection', async () => {
     const record = { id: 'rec-2' };
     const paramDefs = [{ name: 'copy_ovr_start', type: 'date', required: true }];
-    const onParamCollection = vi.fn(async () => ({ copy_ovr_start: '2026-01-01' }));
+    // Typed for the same reason as `api` above: the assertion below reads
+    // `onParamCollection.mock.calls[0][0]` — the param DEFINITIONS the runner
+    // handed the collector — which a zero-arity mock types as element 0 of the
+    // empty tuple (objectui#4040).
+    const onParamCollection = vi.fn<ParamCollectionHandler>(async () => ({
+      copy_ovr_start: '2026-01-01',
+    }));
     const action = {
       name: 'copy_plan_params_3391',
       type: 'api',
