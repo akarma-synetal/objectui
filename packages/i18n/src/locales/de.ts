@@ -964,6 +964,7 @@ const de = {
   chart: {
     noData: "Keine Diagrammdaten verfügbar",
     loading: "Diagramm wird geladen…",
+    nullCategory: "(Ohne Angabe)",
   },
   map: {
     searchLocations: "Orte suchen…",

@@ -1047,6 +1047,7 @@ const en = {
   chart: {
     noData: 'No chart data available',
     loading: 'Loading chart…',
+    nullCategory: '(None)',
   },
   report: {
     total: 'Total',

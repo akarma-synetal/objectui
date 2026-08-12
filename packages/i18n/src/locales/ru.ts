@@ -974,6 +974,7 @@ const ru = {
   chart: {
     noData: "Нет данных для графика",
     loading: "Загрузка графика…",
+    nullCategory: "(Не указано)",
   },
   map: {
     searchLocations: "Поиск местоположений…",

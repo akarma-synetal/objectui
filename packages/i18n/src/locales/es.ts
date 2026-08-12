@@ -968,6 +968,7 @@ const es = {
   chart: {
     noData: "No hay datos de gráfico disponibles",
     loading: "Cargando gráfico…",
+    nullCategory: "(Sin especificar)",
   },
   map: {
     searchLocations: "Buscar ubicaciones…",
