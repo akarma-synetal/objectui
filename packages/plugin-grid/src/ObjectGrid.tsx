@@ -2384,7 +2384,29 @@ export const ObjectGrid: React.FC<ObjectGridProps> = ({
     ? schema.searchableFields.length > 0
     : (schema.showSearch !== undefined ? schema.showSearch : true);
 
-  const manualRowCount = externalManualPagination ? hostRowCount : totalMatching;
+  // The real match total, from whichever side owns the fetch — ONE derived
+  // value with ONE answer (objectui#4464). The pager has always read it this
+  // way; the cross-page "Select all N matching" affordance read the raw
+  // `totalMatching` STATE instead, whose only writer is this component's own
+  // data loader. Under a host that fetches the rows itself (ListView passing
+  // `manualPagination` + `rowCount`, i.e. the console) that loader never runs,
+  // so the state stayed `undefined` and `BulkActionBar`'s gate was permanently
+  // false while the pager, two lines away, showed the correct page count off
+  // the very number the bar needed.
+  //
+  // All three consumers now read this const — the pager's `rowCount` and both
+  // `BulkActionBar` sites. Do NOT re-spell the conditional at a second
+  // consumption site: two copies of the fallback is exactly how one of them
+  // gets missed again (this defect, and #4138 before it).
+  //
+  // This answers HOW MANY match, and `canOfferSelectAllMatching` (objectui#4501)
+  // independently answers WHETHER the escalation may be offered at all. The two
+  // compose and neither substitutes for the other: the bar sites read this total
+  // only *through* that floor, so a host with a real `rowCount` but no
+  // `findParams` still gets no offer — a number to display is not a query to
+  // replay. The floor also subsumes the `singleSelection` suppression that used
+  // to be spelled at these sites (`!singleSelection` is its first conjunct).
+  const resolvedTotalMatching = externalManualPagination ? hostRowCount : totalMatching;
   const manualPage = externalManualPagination ? hostPage : serverPage;
   const manualPageSize = externalManualPagination
     ? (hostPageSize ?? serverPageSize)
@@ -2444,7 +2466,7 @@ export const ObjectGrid: React.FC<ObjectGridProps> = ({
     // In server mode `data` IS the current page; tell DataTable to render it
     // as-is and drive paging via the callbacks below using the real match total.
     manualPagination: manualPaginationOn,
-    rowCount: manualPaginationOn ? manualRowCount : undefined,
+    rowCount: manualPaginationOn ? resolvedTotalMatching : undefined,
     page: manualPaginationOn ? manualPage : undefined,
     onPageChange: manualPaginationOn ? manualOnPageChange : undefined,
     onPageSizeChange: manualPaginationOn ? manualOnPageSizeChange : undefined,
@@ -3187,7 +3209,7 @@ export const ObjectGrid: React.FC<ObjectGridProps> = ({
                 onActionDef={dispatchBulkActionDef}
                 onClearSelection={resetSelection}
                 pageSize={data.length}
-                totalMatching={canOfferSelectAllMatching ? totalMatching : undefined}
+                totalMatching={canOfferSelectAllMatching ? resolvedTotalMatching : undefined}
                 allMatchingSelected={selectAllMatching}
                 onSelectAllMatching={canOfferSelectAllMatching ? () => setSelectAllMatching(true) : undefined}
               />
@@ -3225,7 +3247,7 @@ export const ObjectGrid: React.FC<ObjectGridProps> = ({
         onActionDef={dispatchBulkActionDef}
         onClearSelection={resetSelection}
         pageSize={data.length}
-        totalMatching={canOfferSelectAllMatching ? totalMatching : undefined}
+        totalMatching={canOfferSelectAllMatching ? resolvedTotalMatching : undefined}
         allMatchingSelected={selectAllMatching}
         onSelectAllMatching={canOfferSelectAllMatching ? () => setSelectAllMatching(true) : undefined}
       />
