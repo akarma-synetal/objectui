@@ -596,6 +596,54 @@ function resolveSelectionMode(selectable: DataTableSchema['selectable'] | 'none'
 }
 
 /**
+ * Shared empty fallbacks for the `columns` / `data` props (objectui#4618).
+ *
+ * A destructuring default (`columns: rawColumns = []`) or an inline fallback
+ * (`Array.isArray(raw) ? raw : []`) evaluates a FRESH array on every render, so
+ * an absent prop churns identity on a schema that never changed. Downstream
+ * that identity is a `useMemo` key and — for `columns` — a `useEffect` key whose
+ * body writes state, which closes a self-sustaining render loop: the table's own
+ * re-render regenerates the literal that scheduled it. Hoisting the empties to
+ * module scope makes "absent" a stable value, so the memo and the effect see
+ * what is actually true — nothing changed.
+ *
+ * Frozen so a consumer that mutates the array it was handed cannot corrupt the
+ * shared instance for every other table on the page.
+ */
+const EMPTY_COLUMNS = Object.freeze([]) as unknown as DataTableSchema['columns'];
+const EMPTY_ROWS = Object.freeze([]) as unknown as DataTableSchema['data'];
+
+/**
+ * Value-equality over two normalized column lists (objectui#4618).
+ *
+ * The prop→state sync below re-seeds `columns` whenever `initialColumns` is a
+ * new object. That is the right trigger for a real change and the wrong one for
+ * identity churn, which every consumer that derives its columns per render
+ * produces — `ObjectDataTable` and both dashboard surfaces build the node fresh
+ * on each of their renders. Comparing the values instead lets the sync stay
+ * exactly as eager as before for genuine edits (a renamed header, an added
+ * column, a hidden one) while a re-derived-but-identical list costs nothing.
+ *
+ * Shallow per column, on purpose: column entries carry render functions
+ * (`cell`, `render`), and comparing those by identity is what the sync already
+ * did — deep-comparing them is neither possible nor wanted.
+ */
+function columnsAreEquivalent(a: readonly unknown[], b: readonly unknown[]): boolean {
+  if (a === b) return true;
+  if (a.length !== b.length) return false;
+  return a.every((col, i) => {
+    const other = b[i];
+    if (col === other) return true;
+    if (!col || !other || typeof col !== 'object' || typeof other !== 'object') return false;
+    const left = col as Record<string, unknown>;
+    const right = other as Record<string, unknown>;
+    const keys = Object.keys(left);
+    if (keys.length !== Object.keys(right).length) return false;
+    return keys.every((k) => Object.is(left[k], right[k]));
+  });
+}
+
+/**
  * Enterprise-level data table component with Airtable-like features.
  *
  * Provides comprehensive table functionality including:
@@ -634,8 +682,9 @@ function resolveSelectionMode(selectable: DataTableSchema['selectable'] | 'none'
 const DataTableRenderer = ({ schema }: { schema: DataTableSchema }) => {
   const {
     caption,
-    columns: rawColumns = [],
-    data: rawData = [],
+    // Module-scope empties, never `[]` literals — see EMPTY_COLUMNS/EMPTY_ROWS.
+    columns: rawColumns = EMPTY_COLUMNS,
+    data: rawData = EMPTY_ROWS,
     pagination = true,
     pageSize: initialPageSize = 10,
     pageSizeOptions,
@@ -715,8 +764,10 @@ const DataTableRenderer = ({ schema }: { schema: DataTableSchema }) => {
   }, [language]);
 
   // Ensure data is always an array – provider config objects or null/undefined
-  // must not reach array operations like .filter() / .some()
-  const data = Array.isArray(rawData) ? rawData : [];
+  // must not reach array operations like .filter() / .some(). The non-array
+  // fallback is the shared empty, so a provider-config schema does not re-key
+  // every downstream memo on each render (objectui#4618).
+  const data = Array.isArray(rawData) ? rawData : EMPTY_ROWS;
 
   // Normalize columns to support legacy keys (label/name) from existing JSONs
   const initialColumns = useMemo(() => {
@@ -862,9 +913,15 @@ const DataTableRenderer = ({ schema }: { schema: DataTableSchema }) => {
   // pending change existed" from "the pending value was undefined".
   const editRevertRef = useRef<{ had: boolean; value: any } | null>(null);
 
-  // Update columns when schema changes
+  // Update columns when schema changes.
+  //
+  // Re-seed only on a real change: `initialColumns` is a fresh array whenever
+  // its memo recomputes, and every consumer that derives columns per render
+  // hands us one. Writing state for a value-identical list re-renders the whole
+  // table for nothing, and — when the churn originates inside this component —
+  // schedules the render that regenerates the churn (objectui#4618).
   useEffect(() => {
-    setColumns(initialColumns);
+    setColumns((prev) => (columnsAreEquivalent(prev, initialColumns) ? prev : initialColumns));
   }, [initialColumns]);
 
   // Clear the internal checkbox selection when the host bumps selectionResetKey.
