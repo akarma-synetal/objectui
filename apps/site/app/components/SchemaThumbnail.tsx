@@ -20,9 +20,22 @@ import { SchemaRenderer, SchemaRendererContext, toRenderableSchema } from '@obje
 import { SidebarProvider } from '@object-ui/components';
 import type { SchemaNode } from '@object-ui/core';
 // Registers `page-header` & friends — see the module header (objectui#3787).
+// Named directly, not reached through the module below: `scripts/__tests__/
+// site-playground-layout-registration-3904.test.ts` discovers every
+// `SchemaRenderer` host and requires it to import THIS module, and a host that
+// pulled it in transitively would read to that guard as a host that registers
+// nothing (measured — it went red on exactly that).
 import './registerLayoutBlocks';
+// Registers the dashboard + chart blocks the gallery draws (objectui#4600).
+import './registerCatalogBlocks';
+import { galleryDataSource } from './galleryDataSource';
 
-const defaultCtx = { dataSource: {} };
+// The gallery's data source. It is handed to `SchemaRenderer` BOTH ways on
+// purpose: the context is what nested blocks read, while `DashboardRenderer`
+// takes `dataSource` as a React prop — a context-only value never reaches it,
+// which is why its dataset-bound widgets rendered "This data source does not
+// support dataset queries." while the context already held one (objectui#4600).
+const defaultCtx = { dataSource: galleryDataSource };
 
 /**
  * Tiny class-based error boundary so a single bad schema doesn't take down
@@ -135,7 +148,10 @@ export function SchemaThumbnail({
             <SchemaRendererContext.Provider value={ctx}>
               <SidebarProvider className="min-h-0 w-full" defaultOpen={false}>
                 <div className="w-full p-4">
-                  <SchemaRenderer schema={toRenderableSchema(schema)} />
+                  <SchemaRenderer
+                    schema={toRenderableSchema(schema)}
+                    dataSource={galleryDataSource}
+                  />
                 </div>
               </SidebarProvider>
             </SchemaRendererContext.Provider>
