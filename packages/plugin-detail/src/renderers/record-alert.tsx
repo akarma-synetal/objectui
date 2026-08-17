@@ -56,15 +56,38 @@ import {
 import { Alert, AlertTitle, AlertDescription, Button, cn, LazyIcon } from '@object-ui/components';
 import { useObjectTranslation, pickLocalized } from '@object-ui/i18n';
 import type { ActionDef } from '@object-ui/core';
+// The spec's INLINE locale-map form (`string | Record< string, string >`), bound
+// by reference rather than re-spelled — same import and same spelling as
+// `BaseSchema.label` / `.description` in `packages/types/src/base.ts`, which
+// carry this identical fact. NOT the KEYED `{ key, defaultValue }` vocabulary:
+// the read sites below resolve through `pickLocalized`, whose input is the
+// inline map.
+import type { I18nLabel } from '@objectstack/spec/ui';
 
 type Severity = 'info' | 'warning' | 'error' | 'success';
 
+/**
+ * Local (unexported) prop shape for the renderer below.
+ *
+ * `title` / `body` accept the inline locale map as well as a plain string
+ * (objectui#4970): both are read through `pickLocalized` further down, and the
+ * block's published authoring surface declares the two arms
+ * (`plugin-detail/src/index.tsx`, `type: ['string', 'object']` since
+ * objectui#3832), so while these two said `string` they were narrower than both
+ * the renderer and this block's own published surface — the
+ * declaration-narrower-than-the-renderer family of objectui#4581.
+ *
+ * The CTA's `action.label` below is the same slot one level down and is
+ * deliberately NOT widened here (objectui#4998): its published surface declares
+ * `action` as a bare `object` with the member shape in prose only, so the arms it
+ * would be aligned against do not exist yet.
+ */
 interface RecordAlertProps {
   schema?: {
     properties?: {
       severity?: Severity;
-      title?: string;
-      body?: string;
+      title?: string | I18nLabel;
+      body?: string | I18nLabel;
       visible?: any;
       icon?: string;
       action?: { actionName: string; label?: string; variant?: string };
@@ -73,8 +96,8 @@ interface RecordAlertProps {
     };
     // Legacy: support flat properties too (mirrors element:text convention).
     severity?: Severity;
-    title?: string;
-    body?: string;
+    title?: string | I18nLabel;
+    body?: string | I18nLabel;
     visible?: any;
     icon?: string;
     action?: { actionName: string; label?: string; variant?: string };
