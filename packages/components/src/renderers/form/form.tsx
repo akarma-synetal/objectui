@@ -24,6 +24,7 @@ import {
 } from '../../ui/select';
 import { renderChildren } from '../../lib/utils';
 import { toControlValue, matchOptionValue, type OptionValue } from './option-value';
+import { RHF_RECOGNIZED_RULE_KEYS } from './validationRuleKeys';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../ui/tabs';
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '../../custom/resizable';
 import { Alert, AlertDescription } from '../../ui/alert';
@@ -233,6 +234,46 @@ const BOOLEAN_WIDGET_TYPES = new Set([
 const resolveWidgetType = (f: any): string => f?.widget || f?.field?.widget || f?.type;
 
 const BUILTIN_FIELD_TYPES = new Set(['input', 'textarea', 'checkbox', 'switch', 'select']);
+
+/**
+ * Fields whose unrecognized validation-rule names were already reported, keyed
+ * by field name + the sorted offending keys. Module-level for the same reason
+ * as `basic/div.tsx`'s `_warnedDeprecations`: `rawFields` is a caller-owned
+ * prop, and a schema-driven caller that rebuilds the array per render re-runs
+ * the reporting effect every render — a diagnostic that repeats forever gets
+ * muted by the very reader the message is written for (objectui#3965 measured
+ * ~190 identical notices burying the real errors).
+ */
+const _reportedUnrecognizedRules = new Set<string>();
+
+/**
+ * Report a field's unrecognized validation-rule names ONCE per module load,
+ * dev builds only (#5099's "dev-time error" limb — a customer's production
+ * console is not the audience).
+ *
+ * Same shape as `warnDeprecatedOnce` in `basic/div.tsx` / `basic/span.tsx`,
+ * and order matters the same way there and here: the production check returns
+ * BEFORE the seen-set is marked, so a production render never suppresses the
+ * dev notice. The memo includes the offending keys, not just the field name —
+ * metadata that grows a NEW bad rule after the first report must still shout.
+ */
+function reportUnrecognizedRulesOnce(fieldName: string, unrecognized: string[]): void {
+  if (process.env.NODE_ENV === 'production') return;
+  const memo = `${fieldName}::${[...unrecognized].sort().join(',')}`;
+  if (_reportedUnrecognizedRules.has(memo)) return;
+  _reportedUnrecognizedRules.add(memo);
+  // The message doubles as the fix instruction — it is what an agent
+  // iterating on the metadata will read and follow.
+  console.error(
+    `[object-ui] form field '${fieldName}': validation rule(s) ${unrecognized
+      .map((k) => `'${k}'`)
+      .join(', ')} are not rules react-hook-form runs — the field renders, but these rules ` +
+      `validate NOTHING. Recognized rules: ${[...RHF_RECOGNIZED_RULE_KEYS].join(', ')}. ` +
+      `Check the spelling (\`minLength\`, not \`minlength\`); express email/url checks as a ` +
+      `\`pattern\` whose \`value\` is a RegExp; and declare \`validation\` as an OBJECT — ` +
+      `spreading an array leaves numeric keys that run nothing.`,
+  );
+}
 /**
  * Widget-hint pickers that resolve records / object catalogs and read sibling
  * field values — they need `dataSource` and `dependentValues` threaded exactly
@@ -799,6 +840,28 @@ ComponentRegistry.register('form',
         }
       }
     }, [rawFields, specVocabularyFields]);
+
+    // ── Unrecognized validation-rule names fail LOUDLY (#5099) ────────────
+    // react-hook-form's field validator destructures a FIXED rule set (see
+    // validationRuleKeys.ts, pinned against the installed bundle) and drops
+    // every other key without a trace — a misspelled `minlength`, an invented
+    // `email`, or the numeric keys left by spreading an ARRAY into
+    // `validation` all yield a form that LOOKS validated and runs nothing.
+    // `FieldValidationRules` already rejects these at compile time; this
+    // catches the metadata that reaches the renderer as plain JSON, where
+    // TypeScript never ran. Report-only by design: the maintainer ruling on
+    // #5099 explicitly rejected normalizing/compiling at this read point
+    // (consumer tolerance, AGENTS.md #0.1) — the fix belongs at the producer.
+    // Dev-only and once per field+rule-set: see reportUnrecognizedRulesOnce.
+    React.useEffect(() => {
+      for (const f of rawFields as any[]) {
+        const v = f?.validation;
+        if (v == null || typeof v !== 'object') continue;
+        const unrecognized = Object.keys(v).filter((k) => !RHF_RECOGNIZED_RULE_KEYS.has(k));
+        if (unrecognized.length === 0) continue;
+        reportUnrecognizedRulesOnce(String(f?.name), unrecognized);
+      }
+    }, [rawFields]);
 
     // A two-state control has no third state, so a boolean field that nobody
     // supplied a value for starts at `false` — not `undefined`. Without this
