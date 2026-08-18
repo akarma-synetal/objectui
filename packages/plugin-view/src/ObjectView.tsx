@@ -32,6 +32,7 @@ import type {
   ViewType,
   NamedListView,
   ViewNavigationConfig,
+  ObjectMapConfig,
 } from '@object-ui/types';
 import { ObjectGrid } from '@object-ui/plugin-grid';
 import { ObjectForm } from '@object-ui/plugin-form';
@@ -65,6 +66,53 @@ import { deriveRecordSurface } from './recordSurface';
  * SchemaRenderer from @object-ui/react, used to render sub-view schemas.
  */
 const SchemaRendererComponent: React.FC<any> = ImportedSchemaRenderer;
+
+/**
+ * The `case 'map'` branch below builds an `object-map` schema by flattening
+ * `viewOptions.map`'s CONTENTS to the top level. Whitelisted to these keys —
+ * `ObjectMapConfigSchema`'s shape minus `style` — rather than the whole bag:
+ * `style` is ALSO `BaseSchema.style` (inline CSS, legal on every node), and
+ * spreading the raw `map` block collapsed the two namespaces onto one key
+ * (objectui#5177).
+ *
+ * HAND-LISTED, not derived at runtime — deliberately, and only here (`plugin-
+ * map`'s own `FLAT_MAP_CONFIG_KEYS` in `ObjectMap.tsx` DOES derive from
+ * `ObjectMapConfigSchema.shape`, and should stay that way): this file is
+ * reachable from `examples/console-starter`'s own `src/`, so it is part of the
+ * import graph `vite-alias-closure.test.ts` walks. That walker resolves a bare
+ * `@object-ui/*` specifier with plain `index.<ext>` conventions and cannot find
+ * `@object-ui/types/zod`'s actual barrel file (`zod/index.zod.ts` — a
+ * non-standard name) — a REAL runtime import of it here reproducibly fails
+ * that gate (measured on objectui#5177's first PR, PR #5231, CI run
+ * 32160288416), even though Vite's own alias table already resolves the
+ * specifier correctly (`examples/console-starter/vite.config.ts` has carried
+ * an explicit `@object-ui/types/zod` entry since PR #5156). `ObjectMap.tsx`
+ * gets away with the runtime import only because nothing in
+ * console-starter's graph reaches `@object-ui/plugin-map` today.
+ *
+ * Anti-drift is a TEST, not this comment: `ObjectView.mapFlatten.test.tsx`
+ * pins this exact list against `ObjectMapConfigSchema.shape` — imported only
+ * from that TEST file, which the alias-closure walker explicitly excludes
+ * from traversal — so a key added to or removed from the declaration still
+ * fails here, loudly and by name, without reintroducing the runtime edge that
+ * breaks the walker.
+ */
+export const FLAT_MAP_CONFIG_KEYS = [
+  'latitudeField',
+  'longitudeField',
+  'locationField',
+  'titleField',
+  'descriptionField',
+  'zoom',
+  'center',
+] as const satisfies readonly (keyof Omit<ObjectMapConfig, 'style'>)[];
+
+/** Pick only the declared flat map keys present on an authored `map` block. */
+function pickFlatMapConfig(mapConfig: unknown): Record<string, unknown> {
+  if (!mapConfig || typeof mapConfig !== 'object') return {};
+  const source = mapConfig as Record<string, unknown>;
+  return Object.fromEntries(FLAT_MAP_CONFIG_KEYS.filter((key) => key in source).map((key) => [key, source[key]]));
+}
 
 /**
  * Record-create verb, shared with the runtime object pages: both surfaces
@@ -768,11 +816,15 @@ export const ObjectView: React.FC<ObjectViewProps> = ({
           ...(viewOptions.gantt || {}),
         };
       case 'map':
+        // Whitelisted flatten (objectui#5177) — see `FLAT_MAP_CONFIG_KEYS`.
+        // `viewOptions.map` is an untyped bag (`NamedListView.options`); a raw
+        // spread here forwarded every key the author wrote, including `style`,
+        // which `ObjectMap`'s `FlatMapConfigKeys` declares OUT of this flat form.
         return {
           type: 'object-map',
           ...baseProps,
           locationField: viewOptions.map?.locationField || 'location',
-          ...(viewOptions.map || {}),
+          ...pickFlatMapConfig(viewOptions.map),
         };
       case 'tree':
         return {
