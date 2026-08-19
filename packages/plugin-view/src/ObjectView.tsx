@@ -57,7 +57,7 @@ import {
 } from '@object-ui/components';
 import { Plus } from 'lucide-react';
 import { useObjectTranslation, createSafeTranslation } from '@object-ui/i18n';
-import { buildExpandFields, normalizeListViewSchema, mergeFilterNodes } from '@object-ui/core';
+import { buildExpandFields, normalizeListViewSchema, mergeFilterNodes, columnIdentity } from '@object-ui/core';
 import { SchemaRenderer as ImportedSchemaRenderer } from '@object-ui/react';
 import { ViewSwitcher } from './ViewSwitcher';
 import { deriveRecordSurface } from './recordSurface';
@@ -112,6 +112,40 @@ function pickFlatMapConfig(mapConfig: unknown): Record<string, unknown> {
   if (!mapConfig || typeof mapConfig !== 'object') return {};
   const source = mapConfig as Record<string, unknown>;
   return Object.fromEntries(FLAT_MAP_CONFIG_KEYS.filter((key) => key in source).map((key) => [key, source[key]]));
+}
+
+/**
+ * `table.columns` as a FIELD-NAME list — the shape the non-grid field slot
+ * declares (objectui#5269).
+ *
+ * `ObjectGridSchema.columns` is `string[] | ListColumn[]`, but the slot the
+ * non-grid branch forwards into is a names slot: both segments ahead of the
+ * `table` one declare `string[]` (`NamedListView.columns`, the `views` prop),
+ * and its consumers treat every entry as a field name — `ObjectKanban` indexes
+ * the record by it (`resolveKanbanCardFields` casts straight to `string[]`).
+ * Handing a `ListColumn[]` down raw would therefore arrive as a non-empty card
+ * field list naming nothing, which renders WORSE than the empty one this card
+ * fixes: `ObjectKanban` skips its `highlightFields` fallback whenever the list
+ * is non-empty. That is the objectui#5270 failure again — a value forwarded
+ * into a slot whose declared shape it does not have — and it is answered the
+ * same way, at the boundary.
+ *
+ * `columnIdentity` is the repo's single converged reader for "which field does
+ * this column entry name" (objectui#3104), and it is what `ObjectGrid` already
+ * applies to the SAME `table.columns` value on the grid path (its `$select`
+ * derivation) and what `ObjectTree` applies downstream. So this narrows a
+ * declared union to the branch this slot can hold; it does not widen the set
+ * of accepted spellings, and it keeps the two paths resolving one value the
+ * same way.
+ *
+ * `undefined` — never `[]` — when nothing resolves, so the `||` chain falls
+ * through to the deprecated `table.fields` instead of stopping on a truthy
+ * empty array.
+ */
+function tableColumnFieldNames(columns: unknown): string[] | undefined {
+  if (!Array.isArray(columns) || columns.length === 0) return undefined;
+  const names = columns.map(columnIdentity).filter((n): n is string => !!n);
+  return names.length > 0 ? names : undefined;
 }
 
 /**
@@ -839,7 +873,39 @@ export const ObjectView: React.FC<ObjectViewProps> = ({
   const generateViewSchema = useCallback((viewType: string): any => {
     const baseProps: Record<string, any> = {
       objectName: schema.objectName,
-      fields: currentNamedViewConfig?.columns || activeView?.columns || schema.table?.fields,
+      // objectui#5269 — the `table` segment reads the CANONICAL key first.
+      //
+      // `ObjectGridSchema.columns` is the canonical spelling and `fields` is
+      // its `@deprecated` alias ("@deprecated Use columns instead"), and
+      // `ObjectViewSchema.table` is `Partial< Omit< ObjectGridSchema, … > >`,
+      // so `table: { columns: [...] }` is the shape the type recommends. It
+      // reached the grid path (which forwards `table.columns` into its own
+      // `columns` slot) and stopped here: this line read the deprecated half
+      // alone, so an author who wrote the canonical key on a non-grid view got
+      // an empty field list from a compile-clean, semantically correct schema.
+      // Same user-visible shape as objectui#5102, different mechanism — not a
+      // whitelist that knows only legacy spellings, but one that disagreed
+      // with itself between two rendering paths.
+      //
+      // Forwarding, not translation, exactly as objectui#5102 settled it: the
+      // value is handed on unchanged and the two segments ahead of `table`
+      // keep their precedence. Both spellings stay working; only the ORDER
+      // between them is stated, canonical first.
+      //
+      // Reach, measured rather than assumed: of the surfaces this `baseProps`
+      // feeds, `object-kanban` consumes it (via `cardFields`, below) and
+      // `object-tree` consumes it (as its own `fields`). `object-gallery` /
+      // `object-calendar` / `object-timeline` / `object-gantt` / `object-map`
+      // read NO field list off their schema at all, so the value is inert
+      // there — before this change and after it.
+      //
+      // The `table` segment arrives through `tableColumnFieldNames` because
+      // THIS slot is a names slot and `table.columns` is a union — see that
+      // function for why raw forwarding would regress the `ListColumn[]` half.
+      // The delegated `list-view` slot below declares the same union, so it
+      // takes the value raw; each site gets the shape its slot declares.
+      fields: currentNamedViewConfig?.columns || activeView?.columns
+        || tableColumnFieldNames(schema.table?.columns) || schema.table?.fields,
       className: 'h-full w-full',
       showSearch: activeView?.showSearch ?? schema.showSearch ?? false,
       showSort: activeView?.showSort ?? schema.showSort ?? false,
@@ -1018,7 +1084,10 @@ export const ObjectView: React.FC<ObjectViewProps> = ({
       default:
         return null;
     }
-  }, [schema.objectName, schema.table?.fields, currentNamedViewConfig, activeView]);
+    // `schema.table?.columns` joins the list with the read added for
+    // objectui#5269: a memo that reads a key but does not depend on it keeps
+    // serving the field list the author has already replaced.
+  }, [schema.objectName, schema.table?.columns, schema.table?.fields, currentNamedViewConfig, activeView]);
 
   // Build grid schema (default content renderer)
   //
@@ -1281,7 +1350,15 @@ export const ObjectView: React.FC<ObjectViewProps> = ({
           // Spec-canonical key (#2890) — the view configs this reads from are
           // already `columns`-keyed, so emitting `fields` here was a pure
           // canonical→legacy downgrade.
-          columns: currentNamedViewConfig?.columns || activeView?.columns || schema.table?.fields,
+          //
+          // objectui#5269: the `table` segment reads the canonical key first
+          // here too. This slot is `list-view`'s `columns`, declared
+          // `string[] | ListColumn[]` — the same union `table.columns` carries
+          // — so the canonical value arrives in a slot already shaped to hold
+          // it, and `ListView` reads it (`schema.columns`, its whole column
+          // set). The deprecated `table.fields` stays a working alias.
+          columns: currentNamedViewConfig?.columns || activeView?.columns
+            || schema.table?.columns || schema.table?.fields,
           filter: mergedFilters,
           sort: mergedSort,
           // Propagate appearance/view-config properties for live preview
