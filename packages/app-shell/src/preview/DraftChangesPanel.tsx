@@ -33,9 +33,32 @@ import {
   SheetTitle,
 } from '@object-ui/components';
 import { useObjectTranslation } from '@object-ui/i18n';
+// The `/meta` URL-spelling fold (objectstack#7894, #8424), applied once in
+// `listPendingDrafts` below. Measured cost of this import on the console's
+// EAGER graph — the panel is reached statically from ConsoleLayout through
+// DraftPreviewBar — is +213.4 KB minified / +60.1 KB gzipped, on a graph that
+// already holds the spec entries app-shell imports statically (`/ui`,
+// `/kernel`): each published spec subpath is a self-contained bundle and
+// nothing tree-shakes it (`@objectstack/spec` declares no `sideEffects`).
+// Lazy-loading it here would NOT move those bytes — the console's
+// `vendor-objectstack` chunk group claims every `@objectstack/*` module except
+// `@objectstack/lint`, and that group's chunk is a static import of the app
+// entry (objectui#5266). Tracked in objectui#5359.
+//
+// ⛔ Do not "optimize" this into a local copy of the spelling table: a
+// spec-named local declaration is what `scripts/check-spec-symbol-derivation.mjs`
+// refuses, and a faithful copy is exactly the fork that guard exists to prevent.
+import { canonicalMetaUrlType } from '@objectstack/spec/shared';
 import { diffFields } from '../views/metadata-admin/previews/object-fields-io';
 
 export interface DraftChangeEntry {
+  /**
+   * The CANONICAL SINGULAR metadata type (objectstack#9180). The `_drafts`
+   * feed returns whatever spelling each row was stored under, so the spelling
+   * is folded once — at the boundary that builds these entries — and every
+   * consumer below (both `/meta` item routes, the grouping, the heading) reads
+   * this one value. Nothing downstream ever sees the raw stored spelling.
+   */
   type: string;
   name: string;
   packageId: string | null;
@@ -59,7 +82,25 @@ async function listPendingDrafts(packageId?: string | null): Promise<DraftChange
   return list
     .filter((d) => typeof d?.type === 'string' && typeof d?.name === 'string')
     .map((d) => ({
-      type: d.type as string,
+      // The one fold, at the one boundary where a stored spelling enters this
+      // module: the `/meta` type segment is singular, always (objectstack#9180).
+      // Everything below — both `/meta` item routes, the grouping and the
+      // heading — reads the folded value, so a route added later has no raw
+      // spelling in scope to interpolate.
+      //
+      // `canonicalMetaUrlType` and not `pluralToSingular`: that map's keys are
+      // `defineStack()` collection properties, and `field`, `seed`,
+      // `external_catalog` and `translation` are absent from it because none is
+      // a stack-level collection. That absence is also how the residue folded
+      // here got written — `PUT /meta/fields/…` fell through to the permissive
+      // plugin-type path and minted rows under `type='fields'` while
+      // `PUT /meta/field/…` was refused (objectstack#7894).
+      //
+      // Fold, never strip: `capabilities` folds to `capability`, where a
+      // `replace(/s$/, '')` emits `capabilitie`. And this is EMIT-side only —
+      // residue stored under a plural type stays exactly as it is on the
+      // server; nothing here writes, migrates or re-keys anything.
+      type: canonicalMetaUrlType(d.type as string),
       name: d.name as string,
       packageId: typeof d.packageId === 'string' && d.packageId ? (d.packageId as string) : null,
     }));
@@ -73,6 +114,7 @@ async function listPendingDrafts(packageId?: string | null): Promise<DraftChange
  * tree has no such sub-route — the generic :name handler answers anything.)
  */
 async function publishedNamesOf(type: string): Promise<Set<string>> {
+  // `type` is already the canonical singular — folded in `listPendingDrafts`.
   const res = await fetch(`/api/v1/meta/${encodeURIComponent(type)}`, {
     credentials: 'include',
     headers: { Accept: 'application/json' },
@@ -104,6 +146,7 @@ async function fetchItemBody(
   name: string,
   opts: { draft?: boolean; packageId?: string | null } = {},
 ): Promise<Record<string, unknown> | null> {
+  // `type` is already the canonical singular — folded in `listPendingDrafts`.
   const params: string[] = [];
   if (opts.draft) params.push('state=draft');
   if (opts.packageId) params.push(`package=${encodeURIComponent(opts.packageId)}`);
