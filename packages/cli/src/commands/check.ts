@@ -15,6 +15,102 @@ import { parse as parseJsonc, printParseErrorCode, type ParseError } from 'jsonc
 import { isKnownSchemaType } from '../utils/known-schema-types.js';
 
 /**
+ * Root keys that positively identify a file as an ObjectUI schema node.
+ *
+ * Every entry is a property DECLARED on `BaseSchema`
+ * (`packages/types/src/base.ts`) — this set is read out of the protocol's own
+ * node contract, not invented here, and it is closed: it grows only when
+ * `BaseSchema` grows.
+ *
+ * `BaseSchema`'s remaining properties are deliberately absent because their
+ * NAMES are generic enough to head foreign root vocabularies, and a marker
+ * that matches a foreign file re-creates the exact defect this gate exists to
+ * remove. Measured over this repository (objectui#5127): `name` appears at the
+ * root of 45 of the 46 foreign judged files and `description` at 44 — both are
+ * `package.json` keys — so admitting `BaseSchema` wholesale takes the foreign
+ * retention from 0 files to all 46. `id`, `label`, `data` and `type` itself are
+ * held out on the same reasoning.
+ */
+const OBJECTUI_STRUCTURAL_KEYS: readonly string[] = [
+  // Composition — the `children`/`body`-class keys the ruling names.
+  'body',
+  'children',
+  // Presentation.
+  'className',
+  'style',
+  'placeholder',
+  // Conditional rendering and interaction state.
+  'visible',
+  'visibleWhen',
+  'visibleOn',
+  'hidden',
+  'hiddenOn',
+  'disabled',
+  'disabledOn',
+  // Test and accessibility handles.
+  'testId',
+  'ariaLabel',
+];
+
+/**
+ * ⛔ There is deliberately NO `$schema` arm, and no ObjectUI `$schema` URL
+ * exists to declare.
+ *
+ * An earlier revision of this file admitted a file whose root `$schema` had an
+ * `objectui.org` host, completed by a canonical URL proposed for the
+ * maintainer to confirm. The maintainer ruled against minting that identifier
+ * (2026-08-20, objectui#5127, verbatim 「C」), superseding the `$schema` half of
+ * the 2026-08-19 ruling. The structural arm below is unaffected and stands.
+ *
+ * - A `$schema` URL is a permanent public identifier that lives in USERS'
+ *   files, which no sweep can ever reach. Minting the address before the
+ *   document it names exists is backwards.
+ * - The only consumer that needs a URL rather than any agreed marker is an
+ *   editor resolving `$schema` over HTTP. An agent authoring schemas instead
+ *   needs a contract it can read BEFORE writing — a file, and `node_modules`
+ *   is right there — and a good error AFTER writing, which is this command,
+ *   already version-correct from the installed packages.
+ * - The value would be untyped, unchecked and host-matched, so an agent that
+ *   mis-remembered the path would be silently accepted: a version-fossil
+ *   generator, in files we cannot fix.
+ * - Zero files declared it, in this repository or anywhere else, so the arm
+ *   matched nothing. Dropping it gives up no coverage that was being
+ *   delivered.
+ *
+ * Because that matching was host-based rather than literal, the arm can be
+ * added later without invalidating a single file — most soundly once
+ * `@object-ui/types` ships a generated JSON Schema, which is filed separately.
+ */
+
+/**
+ * Does this parsed file positively read as an ObjectUI schema (objectui#5127)?
+ *
+ * `type` carries at least seven unrelated vocabularies in JSON — the most
+ * common of them being `package.json`'s `"type": "module"` — so the presence
+ * of a root `type` is not evidence that a file is a UI schema. Before this
+ * gate, `objectui check` judged every root `type` against the component-key
+ * universe and the FIRST line a user saw in their own project was a warning
+ * about their own `package.json`: 45 of the 46 warnings this repository
+ * produced were exactly that.
+ *
+ * The fix is a positive marker, not a consumer-side skip list: a file is
+ * judged when it is structurally recognisable as an ObjectUI node. A list of
+ * filenames to exclude was
+ * considered and rejected — it is a second hand-maintained list of the shape
+ * objectui#5115 had just finished deleting, and it can only ever enumerate the
+ * foreign vocabularies someone already thought of.
+ *
+ * ⚠️ The structural arm is a TRANSITIONAL fallback, not the contract. It is
+ * drawn for precision over recall on purpose: a foreign file wrongly judged is
+ * this card's defect reappearing in a user's project, while a real schema
+ * wrongly skipped is a coverage debt that the corpus migration repays and that
+ * the skipped-file count below keeps visible in the meantime.
+ */
+function isObjectUiSchemaFile(content: Record<string, unknown>): boolean {
+  return OBJECTUI_STRUCTURAL_KEYS.some((key) => key in content);
+}
+
+/**
  * Render a `jsonc-parser` error the way `JSON.parse` renders its own: a reason,
  * then where it happened. The parser reports a byte offset; the line/column is
  * derived here because a bare offset is not actionable in an editor.
@@ -44,6 +140,12 @@ export async function check(cwd: string = process.cwd()) {
   console.log(`Analyzing ${files.length} files...`);
   
   let errors = 0;
+  // Files that a root `type` string made ELIGIBLE for type judgement and that
+  // no ObjectUI marker admitted. Reported below so the narrowed judgement
+  // surface is never silent (objectui#5127) — a check that quietly stops
+  // checking is worse than one that warns too loudly, because nothing prompts
+  // a re-read.
+  let skipped = 0;
   
   for (const file of files) {
     try {
@@ -82,12 +184,24 @@ export async function check(cwd: string = process.cwd()) {
 
         // Schema validation: check for ObjectUI schema patterns
         if (content && typeof content === 'object' && content.type) {
-          // The known-type universe is DERIVED from the repository's
-          // registration calls (see `packages/cli/src/utils/known-schema-types.ts`
-          // and the script that writes it), not typed by hand. The array that
-          // used to sit here had drifted both ways at once — objectui#5115.
-          if (typeof content.type === 'string' && !isKnownSchemaType(content.type)) {
-            console.log(chalk.yellow(`⚠️ Unknown schema type "${content.type}" in ${file}`));
+          if (typeof content.type === 'string') {
+            // The marker gate (objectui#5127). Only a file that positively
+            // reads as an ObjectUI schema enters type judgement; every other
+            // root-`type` vocabulary — `package.json`'s `"module"`,
+            // JSON Schema's `"object"`, and the rest — is simply not judged.
+            //
+            // Note this arm is reached for `.json` only, as the parse above
+            // is. The glob also matches `.yaml`/`.yml`, and those files are
+            // read by neither arm, before this change or after it.
+            if (!isObjectUiSchemaFile(content as Record<string, unknown>)) {
+              skipped++;
+            } else if (!isKnownSchemaType(content.type)) {
+              // The known-type universe is DERIVED from the repository's
+              // registration calls (see `packages/cli/src/utils/known-schema-types.ts`
+              // and the script that writes it), not typed by hand. The array that
+              // used to sit here had drifted both ways at once — objectui#5115.
+              console.log(chalk.yellow(`⚠️ Unknown schema type "${content.type}" in ${file}`));
+            }
           }
         }
       }
@@ -95,6 +209,26 @@ export async function check(cwd: string = process.cwd()) {
       console.log(chalk.red(`x Invalid JSON in ${file}: ${(e as Error).message}`));
       errors++;
     }
+  }
+
+  if (skipped > 0) {
+    console.log(
+      chalk.dim(
+        `Skipped ${skipped} file${skipped === 1 ? '' : 's'} with a root "type" and no ObjectUI schema marker.`
+      )
+    );
+    // The hint names the marker keys by rendering the gate's OWN array, never
+    // a sentence written alongside it. A hint that describes a way in that the
+    // build does not honour is worse than no hint: the reader follows it,
+    // nothing changes, and the command looks broken rather than narrow. The
+    // previous revision of this line advised declaring a `$schema` URL — an
+    // arm the 2026-08-20 ruling removed — which is exactly that failure had it
+    // outlived the code it described.
+    console.log(
+      chalk.dim(
+        `  A file is checked when its root carries an ObjectUI structural key: ${OBJECTUI_STRUCTURAL_KEYS.join(', ')}.`
+      )
+    );
   }
   
   if (errors === 0) {
