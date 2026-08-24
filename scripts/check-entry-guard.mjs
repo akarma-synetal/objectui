@@ -604,31 +604,34 @@ export function importUnsafeStatements(source) {
  * never a line in here. An entry whose file has since been fixed fails as STALE
  * and names itself, which is what stops this from rotting into an allowlist.
  *
- * ONE entry, and that is the point: this rule recognises a hand-typed guard AS
- * a guard (see `guardAliases`), so the 29 badly-spelled files are rule 1's
- * business and do not appear here. `check-lucide-icon-record-names.mjs` builds
- * two lookup maps in top-level `for` loops at :243 and :245, outside any guard,
- * and really does run them inside an importer.
+ * EMPTY, and that is now the point. It stays as an empty set rather than being
+ * deleted: an empty debt list is the state this rule exists to reach, and the
+ * set still has to be here for a re-added line to be reconciled — FRESH and
+ * STALE are both pinned by the self-test in exactly that state. Nothing appears
+ * here because this rule recognises a hand-typed guard AS a guard (see
+ * `guardAliases`), so a badly-spelled guard is rule 1's business, not this
+ * list's.
  *
- * ⚠️ Its remedy is NOT "move the loops behind the guard". Those maps are read by
- * the exported `liveSpellingFor` / `describeName`, which importers really call,
- * so guarding them empties the maps for every importer. Measured on objectui#6092's
- * branch rather than reasoned: with the two loops moved inside the guard, rule 2
- * goes green and reports the entry as STALE -- and
- * `scripts/__tests__/check-lucide-icon-record-names.test.ts` fails 5 of 25.
- * The failure is not merely a red test. `describeName('BarChart3')` stops saying
- * "write `chart-column`" and says "no live key names the same glyph" instead:
- * a WRONG diagnosis for a real violation, printed by a gate that still exits 1,
- * which is a worse outcome than the unguarded loops.
+ * Its one entry was `check-lucide-icon-record-names.mjs`, whose two lookup maps
+ * ran in top-level `for` loops. They are now built LAZILY on first read inside
+ * `liveSpellingFor`, memoised (objectui#6147), so the line is gone.
  *
- * So objectui#6092 ruled the restructuring out of scope rather than trade a
- * working import for a baseline line. The entry stays, and its remedy is a
- * judgement someone still has to make -- which is exactly what the rest of this
- * comment says a debt line must not be. It is the one line here that owes a
- * card, not a one-liner. A lazy build of the two maps inside `liveSpellingFor`
- * would satisfy both, and is the shape that card should consider.
+ * ⚠️ WHICH remedy emptied it is the load-bearing part, and it is why that line
+ * owed a card instead of a one-liner. Moving those loops behind that file's
+ * ENTRY GUARD empties this list too. Measured on objectui#6092's branch rather
+ * than reasoned: rule 2 goes green and reports the entry as STALE, and
+ * `scripts/__tests__/check-lucide-icon-record-names.test.ts` fails 5 of 25 —
+ * and the failure is not merely a red test. With the maps empty for importers,
+ * `describeName('BarChart3')` stops saying "write `chart-column`" and says "no
+ * live key names the same glyph" instead: a WRONG diagnosis for a real
+ * violation, printed by a gate that still exits 1, which is a worse outcome
+ * than the unguarded loops. So an empty list is not by itself evidence that
+ * anything improved — the remedy has to preserve what every importer already
+ * got. That file's own comment carries the measurement.
+ *
+ * @type {Set<string>}
  */
-const KNOWN_IMPORT_UNSAFE = new Set(['scripts/check-lucide-icon-record-names.mjs']);
+const KNOWN_IMPORT_UNSAFE = new Set();
 
 /** Every exporting file, with the statements that would run on import. */
 function importSafetyCensus(files) {
