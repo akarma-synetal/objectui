@@ -126,6 +126,7 @@ import { isEntrypoint } from './invoked-as.mjs';
  *   doc-component-types.yml  Doc Component Type Check
  *   doc-snippet-types.yml    Doc Snippet Type Check
  *   doc-fence-languages.yml  Doc Fence Language Check
+ *   pre-install-import-graph.yml  Pre-Install Import Graph Check
  *
  * The four shards are spelled out individually on purpose. A single `Test`
  * entry, or any pattern match, would be satisfied by whichever shard happened
@@ -148,6 +149,7 @@ export const REQUIRED_CONTEXTS = Object.freeze([
   'Doc Component Type Check',
   'Doc Snippet Type Check',
   'Doc Fence Language Check',
+  'Pre-Install Import Graph Check',
 ]);
 
 /**
