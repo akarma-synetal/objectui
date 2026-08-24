@@ -948,11 +948,13 @@ const en = {
     // visually-hidden text inside it computes to an EMPTY name; these compose
     // the stage's own (already picklist-localized) label with its state into the
     // `aria-label`. The ✓/✗ glyphs stay `aria-hidden` decoration.
+    pathLabel: 'Record path',
     pathStageCompleted: '{{stage}}, completed',
     pathStageCurrent: '{{stage}}, current stage',
     pathStageUpcoming: '{{stage}}, upcoming',
     pathStageLostCurrent: '{{stage}}, closed lost, current stage',
     pathStageLostUpcoming: '{{stage}}, closed lost, not reached',
+    pathStageWonUpcoming: '{{stage}}, goal stage, not reached',
     linkCopied: 'Link copied to clipboard',
     linkCopyFailed: 'Failed to copy link',
     cancel: 'Cancel',
