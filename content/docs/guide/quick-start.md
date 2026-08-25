@@ -9,8 +9,7 @@ Get up and running with ObjectUI in a small Vite app. This guide installs the co
 
 ## Prerequisites
 
-- **Node.js** 20+
-- **pnpm** 9+ or npm/yarn
+- **Node.js** and **pnpm** (or npm/yarn) — ObjectUI is tested on Node 22.x with pnpm 10.x.
 - Basic knowledge of **React** and **TypeScript**
 
 ## Step 1: Create a React Project
