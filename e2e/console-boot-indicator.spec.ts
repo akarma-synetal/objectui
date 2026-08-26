@@ -223,6 +223,45 @@ test.describe('Console boot indicator', () => {
  * transition, so the destination tree renders while the commit that dropped the
  * splash is already on screen. Measured on the production bundle: 41–147 ms of
  * empty `#root`.
+ *
+ * ## What this boot reaches, and what it does not (objectui#6507)
+ *
+ * The mocked boot below is SIGNED OUT, which is what makes it short enough to
+ * be deterministic: `/console/` takes the catch-all redirect, then the auth
+ * gate's redirect to `/login`. Those are two of the three sites #6506 fixed.
+ *
+ * #6507 converted seven further gates, and every one of them decides only AFTER
+ * a session exists — `RequireOrganization` (no active org), `RequireAiSurface`
+ * (a runtime serving no agent), `SetupRedirect` (the `/setup` deep link) and
+ * `AppContent`'s no-accessible-app bounce all sit behind `ProtectedRoute`, so a
+ * signed-out boot bounces to `/login` before reaching any of them. Two more —
+ * `RootRedirect` and `AuthenticatedRoute` — are published by
+ * `@object-ui/app-shell` for consumers and are not mounted by `apps/console` at
+ * all (it uses its own `RootLandingRedirect` and `ProtectedRoute`), so no boot
+ * of THIS bundle can reach them at any session state.
+ *
+ * A signed-in mock boot for the first four WAS built and run, and the result is
+ * the reason no per-site case was added here: those scenarios stay GREEN against
+ * a bundle rebuilt from ablated source — with the fix removed — and they stay
+ * green under 20x CPU throttling too. They do not bind to the defect, so
+ * committing them would have added a gate that cannot fail.
+ *
+ * The diagnosis is not a missing browser. A browser is available and this file
+ * runs against the production bundle; the acceptance spec passes. What is
+ * missing is a reproducible WINDOW: the pre-React `#boot-splash` counts as
+ * covering, and on those mocked boots the redirect chain resolves before the
+ * indicator is torn down, so at the moment the gate decides there is no blank
+ * for a sampler to catch. Making a per-site e2e gate that CAN fail therefore
+ * needs the window reproduced with the indicator already gone — not more
+ * endpoints, and not a browser.
+ *
+ * Until such a gate exists, those sites are pinned at the DOM level, one file
+ * per population, with an explicit control arm that must read "covered" so an
+ * "empty" reading stays falsifiable:
+ * `packages/app-shell/src/console/__tests__/bootRedirectCoverage.test.tsx` and
+ * `…/AppContent.bootRedirectCoverage.test.tsx`. Those measure the deciding
+ * COMMIT rather than the milliseconds, and under the ablation above they turn
+ * red where the e2e scenarios did not.
  */
 interface CoverProbe {
   reactMountAt?: number;
