@@ -1565,6 +1565,7 @@ type ObjectGridSlotKey =
   | 'aggregations'
   | 'ariaLabel'
   | 'batchActions'
+  | 'bind'
   | 'body'
   | 'bulkActionDefs'
   | 'bulkActions'
@@ -1635,6 +1636,7 @@ type ObjectGridSlotKey =
 type ObjectFormSlotKey =
   | 'allowSkip'
   | 'ariaLabel'
+  | 'bind'
   | 'body'
   | 'buttons'
   | 'cancelText'
