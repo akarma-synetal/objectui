@@ -1843,7 +1843,36 @@ export const ListView = React.forwardRef<ListViewHandle, ListViewProps>(({
     fetchData();
 
     return () => { isMounted = false; };
-  }, [schema.objectName, schema.data, dataSource, schema.filter, effectivePageSize, currentSort, currentFilters, userFilterConditions, refreshKey, searchTerm, schema.searchableFields, expandFields, objectDefLoaded, schema.refreshTrigger, perms, serverPage, currentView, groupingConfig, ganttOwnsData]); // Re-fetch on filter/sort/search/refreshTrigger/perms/page change
+    // objectui#6697 — this effect names the `expandFields` memo's INPUTS, not
+    // the memo's OUTPUT. `useMemo` is a pure optimisation, not a correctness
+    // dependency: React may discard the cache and recompute even when the
+    // deps compare equal, and `buildExpandFields` hands back a FRESH array on
+    // every call, so naming `expandFields` here re-issued the whole
+    // `dataSource.find` on a discard alone. Its inputs are all props and
+    // state, which a discard cannot move — so the effect is discard-immune
+    // WITHOUT losing a single re-run it used to have.
+    //
+    // ⚠️ A value key over `expandFields` (`JSON.stringify(...)`) is NOT the
+    // route here, and this is the measured reason: `buildExpandFields`
+    // collapses the whole collected set down to the relation roots, so the
+    // key it produces is not content-equivalent to what this effect reads —
+    // the body builds `$select` from `schema.columns` and the view bindings
+    // too. It also DEFEATS objectui#4567's live-dependency pin, which drives
+    // "+ Add field" on the Studio grid: that appends an unpublished field, so
+    // the producer's `gridColumns` rebuilds with EQUAL content and only a new
+    // identity, and a value key cannot see it. objectui#4567 ruled that
+    // "ListView's by-identity dependency is correct for a real column change"
+    // and put the stabilisation at the PRODUCER; naming the props keeps that
+    // ruling intact.
+    //
+    // The sibling re-keys in this fix take the other route on purpose:
+    // `RelatedList`'s memos are keyed on exactly one primitive each, and
+    // `PageTabsRenderer`'s probe memo is keyed on another MEMO's output
+    // (`items`), which is not discard-immune. Key on the nearest
+    // discard-immune thing — props/state where they are the memo's inputs, a
+    // value key where they are not.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [schema.objectName, schema.data, dataSource, schema.filter, effectivePageSize, currentSort, currentFilters, userFilterConditions, refreshKey, searchTerm, schema.searchableFields, schema.columns, (schema as any).kanban, (schema as any).calendar, (schema as any).gallery, (schema as any).timeline, (schema as any).gantt, (schema as any).options, objectDef?.fields, objectDefLoaded, schema.refreshTrigger, perms, serverPage, currentView, groupingConfig, ganttOwnsData]); // Re-fetch on filter/sort/search/refreshTrigger/perms/page change
 
   // Any change to the result-defining inputs (object, filters, sort, search,
   // grouping, page size) invalidates the current page number — snap back to
