@@ -43,9 +43,23 @@ interface DataTableSchema {
   // Advanced features
   resizableColumns?: boolean;            // Allow column resizing (default: true)
   reorderableColumns?: boolean;          // Allow column reordering (default: true)
-  
+
+  // Inline editing
+  editable?: boolean;                    // Enable inline cell editing (default: false)
+  singleClickEdit?: boolean;             // Enter edit mode on single click (default: false)
+  renderCellEditor?: (ctx: {             // Host-supplied editor widget; null -> built-in input
+    column: any;
+    row: any;
+    value: any;
+    stage: (v: any) => void;
+    commit: (v?: any) => void;
+    cancel: () => void;
+  }) => ReactNode;
+
   // Styling
-  className?: string;                    // Tailwind CSS classes
+  className?: string;                    // Tailwind CSS classes on the table wrapper
+  cellClassName?: string;                // Tailwind CSS classes on the utility cells only
+                                         // (select / row number / row actions)
   
   // Base properties
   id?: string;
@@ -53,6 +67,62 @@ interface DataTableSchema {
   testId?: string;
 }
 ```
+
+## Cell styling
+
+`className` styles the table wrapper. Body cells have **two** class slots, and they
+reach **disjoint** cells — neither is a superset of the other, and no cell gets both:
+
+- `TableColumn.cellClassName` — the **data** cells of that one column.
+- `DataTableSchema.cellClassName` — the table's **utility** cells only: the leading
+  selection-checkbox cell (`selectable`), the row-number cell (`showRowNumbers`), and
+  the trailing row-actions cell (`rowActions`). It never reaches a data cell.
+
+(The empty-state cell and the add-record row take neither.)
+
+Row density is therefore a **pair** of settings, not one. Per-cell padding is where
+row height has to be expressed — height is a property of the cells, not of the row
+element, so `rowClassName` cannot express it — so a compact table sets the same
+density class on every column *and* on the schema, the second so the checkbox and
+row-number cells stay the same height as the data beside them. That is exactly what
+`object-grid` does for its `rowHeight` modes:
+
+```json
+{
+  "type": "data-table",
+  "selectable": true,
+  "showRowNumbers": true,
+  "cellClassName": "px-2 py-1 text-sm",
+  "columns": [
+    { "header": "Name", "accessorKey": "name", "cellClassName": "px-2 py-1 text-sm" },
+    { "header": "Amount", "accessorKey": "amount", "cellClassName": "px-2 py-1 text-sm text-right" }
+  ],
+  "data": [
+    { "name": "Ada Lovelace", "amount": 120 },
+    { "name": "Grace Hopper", "amount": 340 }
+  ]
+}
+```
+
+Drop the per-column half and the data cells stay at the table primitive's default
+`p-4` — the schema-level key alone does not compact a row.
+
+## Inline editing
+
+With `editable: true` a cell enters edit mode on double-click (or on single click
+with `singleClickEdit: true`) and the table renders one of its built-in editors —
+text, number, date — chosen from the column's `type`.
+
+`renderCellEditor` lets the host supply a widget instead. The table calls it first
+for every cell it is about to edit; return a node to use it, or `null` to fall
+through to the built-in editor for that column. This is how `object-grid` gives a
+`select` or `lookup` cell the same dedicated control the form uses, without the
+component layer having to re-implement it.
+
+The returned node is wrapped by the table so it inherits the exit-edit
+affordances the built-in editors have: Enter commits from a single-line input,
+Escape cancels, and a click outside commits. Use `stage` to record a value while
+staying in edit mode, `commit` to save, and `cancel` to discard.
 
 ## Examples
 

@@ -920,6 +920,36 @@ export interface DataTableSchema extends BaseSchema {
    */
   singleClickEdit?: boolean;
   /**
+   * Host-supplied cell editor for inline editing (objectui#6882).
+   *
+   * When a cell enters edit mode the table calls this FIRST and renders what it
+   * returns; returning `null` means "no widget for this column" and the table
+   * falls through to its built-in text / number / date inputs. It exists so a
+   * higher layer (e.g. `ObjectGrid`) can hand a cell the SAME dedicated widget
+   * the form uses for that field type — select, lookup, boolean — without the
+   * component layer, which is deliberately `@object-ui/fields`-free, having to
+   * re-implement any of them.
+   *
+   * The returned node is wrapped by the table so it gains the exit-edit
+   * affordances the built-in editors have (Enter commits from a single-line
+   * input, Escape cancels, click-outside commits); `stage` records a value
+   * without leaving edit mode, `commit` saves, `cancel` discards.
+   *
+   * ⚠️ Declared as of objectui#6882 (maintainer ruling 2026-08-30). `data-table`
+   * has read this key on the production path since inline editing landed — it
+   * did so through a `(schema as any)` cast, which existed for no reason other
+   * than this declaration's absence and is gone with it. Nothing new runs; a
+   * misspelling is now caught at authoring time instead of failing silently.
+   */
+  renderCellEditor?: (ctx: {
+    column: any;
+    row: any;
+    value: any;
+    stage: (v: any) => void;
+    commit: (v?: any) => void;
+    cancel: () => void;
+  }) => React.ReactNode;
+  /**
    * Cell value change handler
    * Called when a cell value is edited
    */
@@ -949,6 +979,38 @@ export interface DataTableSchema extends BaseSchema {
    * Function that returns CSSProperties for each row (e.g., from conditionalFormatting).
    */
   rowStyle?: (row: any, index: number) => React.CSSProperties | undefined;
+  /**
+   * Extra CSS classes folded into the table's UTILITY body cells
+   * (objectui#6882) — and ONLY those three, each rendered only when its
+   * feature is on: the leading selection-checkbox cell (`selectable`), the
+   * row-number cell (`showRowNumbers`), and the trailing row-actions cell
+   * (`rowActions`).
+   *
+   * ⚠️ It does NOT reach a data cell. A data cell folds
+   * {@link TableColumn.cellClassName} — the per-column key — and nothing else,
+   * so the two class slots style DISJOINT cells and never combine on one cell.
+   * (The empty-state cell and the add-record row cell take neither.) The
+   * population is checkable: `data-table.tsx` folds this key at exactly three
+   * `cn(cellClassName, …)` call sites, and the data-cell one folds
+   * `col.cellClassName`.
+   *
+   * Its live use is row density, and it is only half of that. Row height is a
+   * property of the cells, not of the `<tr>` — `rowClassName` cannot express
+   * it — so a host that renders compact / short / tall rows sets the per-cell
+   * padding on BOTH slots: `ObjectGrid` folds its density class into every
+   * column's `cellClassName` and passes the same class here, which is what
+   * keeps the checkbox and row-number cells the same height as the data beside
+   * them. Setting only this key leaves every data cell at the table
+   * primitive's default `p-4`.
+   *
+   * ⚠️ Declared as of objectui#6882 (maintainer ruling 2026-08-30). `data-table`
+   * has destructured this key off the schema and folded it into those three
+   * cells all along; only the declaration was missing. `string` matches
+   * {@link BaseSchema.className} and {@link TableColumn.cellClassName} — the
+   * renderer passes it through `cn()`, which would also swallow an array or an
+   * object, but one authored spelling for a class slot is the contract.
+   */
+  cellClassName?: string;
   /**
    * Number of columns to freeze (left-pin)
    * When set, the first N columns remain fixed while the rest scroll horizontally.
