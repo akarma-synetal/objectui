@@ -69,10 +69,12 @@
  *   - 73 render no children and correctly keep the diagnostic;
  *   - 0 failed to render, so nothing was scored on an exception.
  *
- * The 45 are the stock. `button` is excluded by the ruling and pinned separately;
- * the other 44 are `scripts/container-declaration-baseline.json`, which is a
- * RATCHET TO ZERO and not an exemption list: red when an unlisted tag violates,
- * and red again when a listed tag stops violating, so the file can only shrink.
+ * The 45 are the stock. `button` is excluded by ruling and pinned separately — that
+ * exclusion was made PERMANENT and reasoned by objectui#6804 (2026-08-30); see the
+ * `button` block below. The other 44 are `scripts/container-declaration-baseline.json`,
+ * which is a RATCHET TO ZERO and not an exemption list: red when an unlisted tag
+ * violates, and red again when a listed tag stops violating, so the file can only
+ * shrink.
  */
 
 import { describe, it, expect } from 'vitest';
@@ -324,28 +326,46 @@ describe('the ratchet: no NEW undeclared container (objectui#6779)', () => {
   );
 });
 
-describe('`button` is EXCLUDED by ruling, not fixed and not forgotten (objectui#6779)', () => {
+describe('`button` is EXCLUDED by ruling — permanently, and with its ground (objectui#6804)', () => {
   it(
-    'still renders children, still undeclared, still the only public one',
+    'still renders children, still undeclared, still the only public one of the 45',
     async () => {
       const rows = await census();
       const baseline = readBaseline();
       const button = rows.find((r) => r.type === 'button');
 
-      // The 2026-08-29 ruling excluded `button` from the ratchet list and
-      // ordered a separate card: it is the ONLY public-tier member of the 45, so
-      // declaring the flag would delete `Button` from the JSX scope of every
-      // `kind:'react'` page, and it reads `children` as a LABEL FALLBACK rather
-      // than as layout containment — a public-tier product decision, not a
-      // mechanical fix.
+      // objectui#6779's ruling (2026-08-29) carved `button` out of the ratchet
+      // list and ordered a separate card. objectui#6804 IS that card, and its
+      // 2026-08-30 ruling SETTLED the question: `button` does not declare
+      // `isContainer`, permanently. The ground — recorded in full in the
+      // baseline's `reason` field, which is where a reader who opens the ledger
+      // will look — is that `isContainer` means LAYOUT CONTAINMENT, while
+      // `button` reads `children` only as a fallback for `schema.label`, so
+      // declaring it would make one predicate mean two different things; that it
+      // is the only public-tier member of the 45, so the declaration would also
+      // delete `Button` from the JSX scope of every `kind:'react'` page; and
+      // that the pull the other way measured zero.
+      //
+      // ⇒ The `issue` field points at the card that RULED it (#6804), not at the
+      // one that deferred it (#6779, named in the reason as provenance): a
+      // reader following this pointer wants the decision, not the deferral.
+      //
+      // The ruling covers 14 tags — `button` plus the 13 `schema.body` readers —
+      // but only `button` is LISTED here, and that is not an omission: the other
+      // 13 do not violate today, and listing a non-violator trips the OTHER
+      // direction of the baseline's red. They are pinned as non-violators by the
+      // `schema.body` readers block below instead.
       expect(Object.keys(baseline.excluded)).toEqual(['button']);
-      expect(baseline.excluded.button.issue).toBe('objectui#6779');
+      expect(baseline.excluded.button.issue).toBe('objectui#6804');
 
       // Pinned as a live description rather than as prose, so the exclusion
-      // cannot outlive its reason: when that separate card lands and `button`
-      // is either declared or made non-rendering, this goes RED and the entry
-      // must be resolved instead of standing forever. That indefinite standing
-      // is the tail risk the triage seat recorded against option B.
+      // cannot outlive its reason. These three are exactly the facts the ruling
+      // rests on; if any one of them stops being true, this goes RED and the
+      // exception must be RE-RULED rather than quietly re-based on a premise
+      // that no longer holds. That is what keeps a REASONED exception
+      // distinguishable from an oversight — and their indistinguishability is
+      // the mechanism behind this class's three independent rediscoveries
+      // (objectui#3900 / objectui#6740 / objectui#6764).
       expect(button?.rendersChildren, '`button` no longer renders children').toBe(true);
       expect(button?.isContainer, '`button` now declares `isContainer` — resolve the exclusion').toBe(
         false,
@@ -388,9 +408,17 @@ describe('the predicate is RUNTIME, so the exception shapes need no skip-list (o
   });
 
   it('the `schema.body` readers stay non-containers — `body` is a key the check never inspects', async () => {
-    // The population the ruling assigns to objectui#6771's separate B ruling,
-    // and the one a "children or body" predicate would collapse: these render
-    // `renderChildren(schema.body)` and never touch `schema.children`.
+    // The other 13 of objectui#6804's 14, and the population a "children or
+    // body" predicate would collapse: these render `renderChildren(schema.body)`
+    // and never touch `schema.children`. That 2026-08-30 ruling gives them the
+    // SAME answer as `button` — no `isContainer` — but they get no baseline
+    // entry while they do not violate, because listing a non-violator is the
+    // other direction of that file's red. If objectui#6771's retirement of the
+    // `body` dialect gives one of them a `children` read, that is when it earns
+    // a reasoned entry of its own. ⚠️ Two of them are PUBLIC — `badge` and
+    // `alert` — so that change would be moving published contract, not a
+    // mechanical fix. That is a measurement, so it is pinned rather than
+    // asserted in prose: see the block below.
     // `validateTree`'s containment branch is guarded by `node.children?.length`
     // ALONE, so no author writing `body` on them has ever drawn a false
     // diagnostic. Measured: 13 bare keys, not the 10 objectui#6779 estimated —
@@ -401,6 +429,68 @@ describe('the predicate is RUNTIME, so the exception shapes need no skip-list (o
       expect(await rendersChildren(type), `\`${type}\` started rendering children`).toBe(false);
       expect(diagnose(withChildren(type)).map((d) => d.code), type).toContain(CONTAINMENT);
     }
+  }, CENSUS_TIMEOUT);
+});
+
+describe('the public tier of the ruled 14 is THREE, not one (objectui#6804)', () => {
+  // The baseline's ⚠️ paragraph tells whoever implements objectui#6771 that two of
+  // the 13 tags they are about to give a `children` read are PUBLISHED CONTRACT.
+  // That is a measurement, and this file's convention — set by the 44's own
+  // paragraph, "measured; the pin asserts it" — is that a measured claim in the
+  // ledger names the pin holding it. Unpinned, the warning goes quietly false the
+  // day `badge` or `alert` leaves the public tier, in the one sentence written to
+  // stop an unmeasured public-tier change. That is this card's own defect shape one
+  // level up: a claim nothing can distinguish from a stale one.
+  //
+  // Read off the LIVE REGISTRY rather than off `PUBLIC_BLOCKS`, because the list is
+  // the INPUT and the registry is the FACT, and this is precisely a population
+  // where the two differ: `getPublicConfigs()` keys the contract by the curated tag
+  // it was listed under, so the namespaced `page:sidebar` enters the public set
+  // under THAT spelling while the bare `sidebar` registration never does. Grepping
+  // the list would score all 12 sidebar keys off one entry that belongs to none of
+  // them.
+  it('`badge` and `alert` are public; the 11 bare `sidebar-*` keys are not', async () => {
+    const rows = await census();
+    const byType = new Map(rows.map((r) => [r.type, r]));
+    const isPublic = publicTags();
+
+    // DIRECTION CONTROL, first and for the same reason the 44's block carries one:
+    // without it, "the sidebar keys are not public" is indistinguishable from "this
+    // reader returned nothing", and every absence below would pass vacuously.
+    // `button` is the known positive — it is the fact the exclusion above rests on.
+    expect(isPublic.size).toBeGreaterThan(0);
+    expect(isPublic.has('button'), 'the public reader resolved nothing — every absence below is vacuous').toBe(
+      true,
+    );
+
+    // (1) The two public body readers. `button` is the only public tag among the 45
+    // VIOLATIONS, but not the only public tag among the ruled 14 — that is the
+    // distinction the baseline note now draws and this holds it.
+    for (const type of ['badge', 'alert']) {
+      expect(
+        byType.get(type)?.isPublic,
+        `\`${type}\` left the public tier — the baseline's ⚠️ public-tier paragraph is now false, fix it`,
+      ).toBe(true);
+    }
+
+    // (2) …and the eleven that are not, so "three" is a count and not a guess.
+    const sidebars = bareTags().filter((t) => t.startsWith('sidebar'));
+    expect(sidebars.length, 'the `sidebar-*` family changed size — re-measure the note').toBe(11);
+    expect(
+      sidebars.filter((t) => byType.get(t)?.isPublic),
+      'a bare `sidebar-*` key became public — declaring it would now delete a react-page identifier',
+    ).toEqual([]);
+    expect(['button', 'badge', 'alert'].filter((t) => byType.get(t)?.isPublic).length).toBe(3);
+
+    // (3) And why that is not the whole sidebar story: the sidebar that IS public is
+    // the namespaced registration, and it already declares the flag — so it is not
+    // in this containment story at all, and a reader who finds `page:sidebar` in
+    // `PUBLIC_BLOCKS` must not conclude the bare family is public too.
+    expect(isPublic.has('page:sidebar')).toBe(true);
+    expect(
+      ComponentRegistry.getMeta('page:sidebar')?.isContainer,
+      '`page:sidebar` stopped declaring containment — it is now part of this story',
+    ).toBe(true);
   }, CENSUS_TIMEOUT);
 });
 
