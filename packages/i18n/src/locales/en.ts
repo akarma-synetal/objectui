@@ -2622,6 +2622,7 @@ const en = {
       typeUpdate: 'Update',
       typeDelete: 'Delete',
       typeComment: 'Comment',
+      typeSystem: 'System',
       relativeJustNow: 'just now',
       relativeSecondsAgo: '{{count}}s ago',
       relativeMinutesAgo: '{{count}}m ago',

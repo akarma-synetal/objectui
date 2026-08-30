@@ -2440,6 +2440,7 @@ const zh = {
       typeUpdate: '更新',
       typeDelete: '删除',
       typeComment: '评论',
+      typeSystem: '系统',
       relativeJustNow: '刚刚',
       relativeSecondsAgo: '{{count}} 秒前',
       relativeMinutesAgo: '{{count}} 分钟前',

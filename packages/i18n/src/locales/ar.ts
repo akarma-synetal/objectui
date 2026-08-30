@@ -2357,6 +2357,7 @@ const ar = {
       typeUpdate: "تحديث",
       typeDelete: "حذف",
       typeComment: "تعليق",
+      typeSystem: "النظام",
       relativeJustNow: "الآن",
       relativeSecondsAgo: "منذ {{count}} ث",
       relativeMinutesAgo: "منذ {{count}} د",
