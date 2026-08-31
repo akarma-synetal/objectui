@@ -41,7 +41,7 @@ export {
   tombstonedShapeKeys,
 } from './spec-tombstones';
 
-export { shapeEnumOptions } from './spec-enum-options';
+export { enumOptions, shapeEnumOptions } from './spec-enum-options';
 
 /**
  * The Zod wrapper-key vocabulary (objectui#6923). The DATA lives in
