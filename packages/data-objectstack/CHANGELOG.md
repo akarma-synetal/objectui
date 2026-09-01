@@ -1,5 +1,170 @@
 # @object-ui/data-objectstack
 
+## 17.7.0
+
+### Minor Changes
+
+- 8e00bfd: **Breaking (published surface):** remove `options.actor` from `MetadataClient`'s
+  `save`, `reset`, `publish` and `rollback`, and stop emitting the `X-Actor`
+  request header.
+  
+  The server stopped honouring that header. objectstack#7941 ruled that the
+  recorded actor is the identity the request was authorized as, and removed the
+  header limb from the `/meta` write resolver — attribution cannot drift from
+  authorization. The option therefore typed cleanly, sent a header, and could not
+  influence the audit or history row it appeared to address: a false affordance
+  that promised attribution and silently failed to deliver it.
+  
+  Three declarations go: `MetadataClientSaveOptions.actor` (inherited by
+  `MetadataDeleteOptions` via `extends`, so it served both `save` and `reset`),
+  and the inline `{ actor?: string }` on each of `publish` and `rollback`.
+  `MetadataAuditEntry.actor` is unaffected — that is the server's read-back of
+  who acted, and it remains the way to see attribution.
+  
+  Marked `minor` rather than `major` per this repo's version-alignment policy
+  (the fixed group's major tracks `@objectstack`, and `major` in a changeset
+  would drag all 39 packages off that cadence).
+  
+  No caller in this repo passed `actor`; the census found the only in-repo
+  occurrence was the client's own unit test. Callers outside this repo that still
+  pass it are unaffected at runtime beyond losing a header the server already
+  ignored — the property is dropped rather than forwarded, pinned by
+  `metadata-actor-retired-4834.pin.test.ts`.
+- 2d36552: Pins `@objectstack/spec`, `@objectstack/client`, `@objectstack/formula` and `@objectstack/lint` to `17.1.0`, and adapts the two consumer surfaces the new build moves.
+  
+  The pin itself is a lockfile refresh — every manifest already declared `^17.0.0`, which admits `17.1.0`, so no dependency range changed. All four move together: a split resolution is what produced the dual-version spec graph that reddened `check:spec-symbols` in this repo's history.
+  
+  **A `icontains` filter now reaches the driver as a filter.** `icontains` is a canonical `VIEW_FILTER_OPERATORS` member as of `17.1.0`, so an author can declare it on a `ViewFilterRule` and the spec validates it — but `@object-ui/data-objectstack`'s alias table had no row for it, and an unmapped operator is how this adapter shipped an unfiltered query before (objectstack#3948). It is an identity row like `contains`: `icontains` is itself a member of `VALID_AST_OPERATORS`, so the spelling the author writes is the spelling the AST takes, and no case-sensitivity is translated away. Declared rather than left to the table's `?? op` fall-through, on the rule its own parity test states — the AST gate accepting a spelling is not the driver compiling it into a `WHERE` clause.
+  
+  The same operator reaches the list view's own bridge: `@object-ui/plugin-list`'s `mapOperator` gains an explicit `icontains` arm. The emitted spelling is identical to the input, but the arm is written out rather than left to the `default` passthrough — `icontains` is its own member of `VALID_AST_OPERATORS`, so a raw passthrough is accepted *today*, and depending on that coincidence is what the bridge's own parity test records as how it once stopped discriminating.
+  
+  `@object-ui/core` adds `onSuccess` to its spec key inventory, so an author writing the key `17.1.0` now declares is no longer warned that it is unknown. That is a diagnostic statement only — the four declared action surfaces still drop the key before it reaches the runner, which is tracked separately.
+  
+  **A stored view filtering case-insensitively still shows that operator when it is reopened.** `@object-ui/plugin-view`'s canonical-to-builder table is keyed by `ViewFilterOperator`, so `17.1.0` adding `icontains` failed to compile rather than letting the operator reach the FilterBuilder as a raw spelling its dropdown cannot select. It maps to the builder's `containsCaseInsensitive` — the id that authors the spec's `$icontains` — and deliberately not to `contains`, which would quietly rewrite a case-insensitive filter into a case-sensitive one the next time the view was saved.
+  
+  **The page-editor palette keeps one entry per renderer.** `17.1.0` retires `element:filter` from `PageComponentType` and adds `record:discussion`, leaving the member count at 34 either side — so the swap is invisible to any count-based reading. The stale `element:filter` exclusion is dropped, and `record:discussion` is excluded because it is the *same renderer* as the already-offered `record:chatter`, not because it is unauthorable. Nothing the palette offers changes.
+  
+  **The console eager-closure ceiling is re-baselined, by maintainer ruling.** The release is roughly 930 KB larger uncompressed and nearly all of it lands in `vendor-objectstack-*.js`, which put the closure past a ceiling that was deliberately sized to catch a 89 KiB regression — the gate refused the bump, correctly. Raising it was escalated rather than taken locally, because gate-strength policy had been ruled the maintainer's; the ruling on objectui#5531 authorised the raise. `MAX_EAGER_CLOSURE_GZIP_BYTES` and the `BASELINE` it is derived from move together in one commit, keeping headroom at 2.00% and below the 91,136-byte regression size the gate must still catch. The gate's *sensitivity* is untouched: a repeat of that regression from the new baseline still fails. No behaviour ships from this file — it is CI policy, recorded here because the version it governs is the one this changeset publishes.
+
+### Patch Changes
+
+- b2e85a9: `ObjectStackAdapter.getApp` and `getPage` now address the `app` / `page` metadata
+  types in the singular, matching the other twelve `client.meta.*` call sites in this
+  file (objectui#4940).
+  
+  `getApp` (`getItem('apps', …)`) and `probeAppAccess` (`getItem('app', …)`) addressed
+  the same metadata type sixty lines apart, and only `probeAppAccess`'s comment argued
+  its singular spelling was deliberate — the plural site was silent. Both plural sites
+  resolved today only because the server folds plural → singular
+  (`RestServer.metaTypeSingular` via `PLURAL_TO_SINGULAR` from `@objectstack/spec/shared`,
+  confirmed by reading both the mapping and the by-name route handler that calls it), so
+  this is consistency restoration rather than a behavior change — nothing a user hits was
+  broken, and nothing a user hits changes.
+  
+  `appAccessProbe.test.ts` (objectui#4252's local pin for this same spelling) is extended
+  with two new cases asserting `getApp`/`getPage` pass the singular type to
+  `client.meta.getItem`, so a future revert to the plural spelling fails a test instead of
+  depending on the server-side fold staying in place.
+- c7cd2b6: `ObjectStackAdapter.queryDataset` now maps a failed dataset query by the server's
+  ADR-0112 error `code`, not by the HTTP status, so an unknown dataset and an
+  unauthenticated session stop being reported as a missing analytics capability
+  (objectui#5663).
+  
+  Two unrelated conditions answer **404** on `POST /api/v1/analytics/dataset/query`:
+  the runtime dispatcher's `ROUTE_NOT_FOUND` when the route was never mounted, and
+  the route's own `NOT_FOUND` when `body.datasetName` matches no saved dataset. The
+  mapping tested `res.status === 501 || res.status === 404` and called all of it
+  "the analytics capability is not installed", so every unknown dataset produced a
+  banner telling the operator to install `@objectstack/service-analytics` and mount
+  `AnalyticsServicePlugin`. Measured live on a prod tenant, that banner was shown on
+  four HotCRM Executive Overview widgets while the analytics service was installed
+  and answering — the real condition was an installed `app.objectstack.hotcrm` at
+  1.3.0 whose datasets ship in 2.2.2, i.e. a package upgrade, the opposite corner of
+  the system from the remedy the banner named.
+  
+  Three conditions now get three answers, each keyed on the code the framework
+  declares for it:
+  
+  - `NOT_IMPLEMENTED` (501, route mounted with no analytics service) and
+    `ROUTE_NOT_FOUND` (404, route not mounted) keep the existing
+    `AnalyticsNotInstalledError` and its copy — one remedy, one message.
+  - `NOT_FOUND` (404, unknown `datasetName`) throws the new
+    `AnalyticsDatasetNotFoundError` (`ANALYTICS_DATASET_NOT_FOUND`), naming the
+    dataset and pointing at the installed app's version rather than at the server.
+  - `UNAUTHENTICATED` (401, `enforceAuth`) throws the new
+    `AnalyticsUnauthenticatedError` (`ANALYTICS_UNAUTHENTICATED`), which says the
+    request was refused before it ran and therefore says nothing about the
+    capability.
+  
+  The banner also used to print the server's own message in a parenthetical while
+  contradicting it in the headline — it quoted `Dataset "opportunity_metrics" not
+  found.` under a headline claiming a missing capability. That is now structurally
+  impossible rather than merely fixed: the headline is a pure function of `code` and
+  the parenthetical is a verbatim quote of `message`, both read off the same
+  response, and a test walks every branch asserting each message carries its own
+  headline and none of the others'.
+  
+  Additive only. `AnalyticsNotInstalledError` keeps its `code`, its copy and its
+  constructor signature (it gains an optional third `serverCode` argument and a
+  `serverCode` field), so consumers matching `ANALYTICS_NOT_INSTALLED` — including
+  the metadata-admin dataset preview — are unaffected. A 404 carrying a code this
+  client does not recognise, such as the analytics cube gate's `CUBE_NOT_FOUND`, now
+  keeps its server detail instead of being relabelled as a missing capability; a 404
+  or 501 carrying no code at all is still read as the capability being absent, since
+  the route's own `NOT_FOUND` always ships a code.
+- 8d37efb: The metadata lock banner can no longer render an amber, padlocked box with no
+  title, and the ADR-0010 §3.6 lock vocabulary is declared once instead of three
+  times (objectui#5024).
+  
+  `MetadataLayered.lock` and `MetadataAuditEntry.lockState` each spelled the four
+  states out by hand, 42 lines apart in one file, compared by no gate. They are now
+  one exported `MetadataLockState` — derived from `GetMetaItemLayeredResponseSchema`'s
+  `z.enum` in `@objectstack/spec`, which already owns this vocabulary, so the copies
+  were restating a schema rather than filling a gap.
+  
+  The user-visible half is the banner. Its title was three independent `&&` branches
+  with no fallback, while the switch that opens the banner is true for any non-`none`
+  value — so a lock state outside the four opened the box and left the headline
+  empty. That is reachable without a fifth state ever being added here:
+  `MetadataClient.layered()` casts the wire value through unchecked, so a newer
+  server reaches this banner as-is. Measured, not assumed — feeding `no-publish`
+  through the page rendered the padlock, the border and an empty title. The title is
+  now a keyed lookup with a loud fallback that names the unrecognised token, so a
+  fifth state fails `type-check` here and, if one arrives from a server anyway, the
+  operator reads a sentence instead of a blank box.
+- Updated dependencies [b55a346]
+- Updated dependencies [065bba7]
+- Updated dependencies [100547e]
+- Updated dependencies [d7573b3]
+- Updated dependencies [bf3edfe]
+- Updated dependencies [0e05aac]
+- Updated dependencies [e719ebd]
+- Updated dependencies [f9e4f91]
+- Updated dependencies [fa429cf]
+- Updated dependencies [ed8df3e]
+- Updated dependencies [8ebd57f]
+- Updated dependencies [199d31b]
+- Updated dependencies [7138bc1]
+- Updated dependencies [cef27e2]
+- Updated dependencies [4e8622b]
+- Updated dependencies [dffd752]
+- Updated dependencies [3ccd9e8]
+- Updated dependencies [a691c0b]
+- Updated dependencies [af3861f]
+- Updated dependencies [f2158ec]
+- Updated dependencies [78cbdb5]
+- Updated dependencies [b7543a9]
+- Updated dependencies [6c6cee7]
+- Updated dependencies [d1ab06f]
+- Updated dependencies [91783c4]
+- Updated dependencies [2d36552]
+- Updated dependencies [c9327c9]
+- Updated dependencies [920165d]
+- Updated dependencies [3c73d99]
+- Updated dependencies [4d73b07]
+  - @object-ui/types@17.7.0
+  - @object-ui/core@17.7.0
+
 ## 17.6.0
 
 ### Minor Changes

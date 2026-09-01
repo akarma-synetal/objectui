@@ -1,5 +1,575 @@
 # @object-ui/types
 
+## 17.7.0
+
+### Minor Changes
+
+- b55a346: `'agenda'` leaves `CalendarViewMode` and the zod `CalendarViewModeSchema`
+  (objectui#5740 — the value-level residue of objectui#5667's key-level
+  convergence of `CalendarViewSchema` on the registered `calendar-view`
+  renderer's measured read set; ADR-0049 enforce-or-remove).
+  
+  The union declared a value nothing enforced: the registered renderer's `view`
+  input declares `enum: ['month','week','day']`, `resolveAuthoredView` resolves
+  any off-enum value — `'agenda'` included — to `undefined` (the component's
+  `'month'` default), and `CalendarView` renders no agenda view. An author
+  writing the type-legal, zod-valid `view: 'agenda'` got a month calendar with
+  no error or warning. No in-repo, example, or catalog app authors
+  `view: 'agenda'` (measured during objectui#5667's sweep and re-measured for
+  this change, including the objectstack tree).
+  
+  **This narrows the accept set — unlike #5667's key retirements, which created
+  no new rejections.** `view` is a declared key, and declared keys are validated
+  even under `.passthrough()`, so `view: 'agenda'` is now a **validation error
+  that previously parsed green** (an `invalid_value` issue on the `view` path,
+  offering `month`/`week`/`day`). Undeclared keys still pass through unchanged.
+  Breaking on the published zod surface; ships as `minor` per this repo's
+  version-alignment policy (majors track `@objectstack`).
+  
+  The runtime boundary is unchanged: an off-union `view` in raw metadata still
+  falls back to the component's `'month'` default at the renderer, and the
+  registry input already declared the three-value enum. Docblocks, the schema
+  reference table, and the zod `describe` no longer teach an `'agenda'`
+  fallback.
+- 065bba7: `CalendarViewSchema` (TS interface and zod mirror) converges on the registered
+  `calendar-view` renderer's measured read set (objectui#5667, maintainer ruling
+  option A — the renderer is authoritative).
+  
+  **Breaking for consumers of the published type** (deliberate; per-repo policy
+  breaking changes ship as `minor` — the fixed group's `major` tracks
+  `@objectstack`):
+  
+  - Nine inert keys are retired: `events` (the interface's only required key,
+    which the renderer deliberately drops — objectui#4433), `defaultView`,
+    `defaultDate`, `date`, `views`, `editable`, `onEventCreate`,
+    `onEventUpdate`, `onDateChange`. None had a read site on the authored-node
+    path and no measured app authors them (ADR-0049 enforce-or-remove).
+  - The type now declares what the renderer actually reads: `data`, `titleField`,
+    `startDateField`, `endDateField`, `allDayField`, `colorField`, `view`,
+    `currentDate`, `allowCreate`, `className`, plus the two host-only function
+    hatches it forwards (`onEventClick`, `onViewChange`).
+  - Practical radius, measured: `BaseSchema` carries an index signature and the
+    zod `BaseSchema` is `.passthrough()`, so nodes still authoring retired keys
+    neither fail to compile nor get rejected at validation — they are simply no
+    longer declared, documented, or type-checked. The material accept change is
+    that zod no longer **requires** `events`: a `{ "type": "calendar-view" }`
+    node without it now validates (previously the one key validation demanded
+    was the one key guaranteed to do nothing).
+  
+  Runtime renderer behaviour is unchanged. `@object-ui/plugin-calendar`'s README
+  and `content/docs/api/schema-reference.md` are repaired to the converged
+  surface in the same change, so no copy of the old contradiction survives.
+- d7573b3: `ComponentInput` is now declared once and re-exported, instead of restated in three
+  places (objectui#4972).
+  
+  `@object-ui/core`'s `ComponentInput` (`registry/Registry.ts`) and `@object-ui/types`'
+  plugin-scoped `ComponentInput` (`plugin-scope.ts`, published as `PluginComponentInput`)
+  were structural copies of the interface in `@object-ui/types`' `base.ts`. Both are now
+  re-exports of that one declaration, which is the disposition objectui#4580 ruled for the
+  identical shape — *a structural copy would reproduce the defect the moment either side
+  moved* — and the way `core/src/types/index.ts` already handles `SchemaNode`.
+  
+  Either side had already moved. `base.ts` declared thirteen keys; both copies declared
+  nine, so `min` / `max` / `step` / `placeholder` were missing from **the copy every
+  component registration actually imports**. Those four keys were unwritable at any real
+  registration — a plain TypeScript error at the call site — while `ComponentInputSchema`
+  (the zod schema) and `ComponentMeta.inputs` both accepted them. The publication face
+  advertised four keys the authoring face rejected. Measured over the repository, no
+  registration had tried to write one yet, so nothing a user hits was broken today; what
+  changes is that the four keys become writable, and there is no longer a second
+  declaration for the next widening to miss.
+  
+  `ComponentInput`'s arm vocabulary (`ComponentInputControlType`) was already a single
+  declaration imported by all three sites (objectui#3832); this converges the rest of the
+  interface.
+  
+  Measured, not assumed: `@object-ui/core`'s published entry `dist/index.d.ts` is
+  byte-identical across the change (sha256 `f6494f80…`, both legs). That gauge is reported
+  here only with its control — a probe that added a *required* key to `ComponentInput` left
+  the same file byte-identical, because `dist/index.d.ts` is a 63-line barrel of
+  `export *` lines that names `ComponentInput` zero times. The gauge that can actually fail
+  is the emitted declaration file: `dist/registry/Registry.d.ts` changes, as does
+  `@object-ui/types`' `dist/plugin-scope.d.ts`, and those two files are the *only* emitted
+  declarations that change in either package.
+  
+  `WidgetInput`'s union-arm capability is deliberately untouched — a different gate path
+  and a separate judgment.
+- fa429cf: The register-meta key `defaultChildren` is retired (objectui#5051).
+  
+  It was declared in four places, produced in eleven, and read in **none**. The designer's
+  drop path builds a new node from its twin key only — `PageDesigner.tsx`,
+  `props: paletteItem?.defaultProps ?? {}` — with no `children:` line, so a palette item
+  that declared `defaultChildren` dropped an **empty** node and the declared children never
+  materialised. Nothing rendered the wrong thing; an entire declaration surface was simply
+  inert, which is the declared-but-unenforced shape ADR-0049 targets. Per the maintainer
+  ruling of 2026-08-19, the key is removed rather than wired up; if designer
+  default-children UX is ever product-wanted it returns as its own designed card.
+  
+  **If you author plugins against the published register-meta table, drop the key.** It is
+  gone from `skills/objectui/guides/plugin-development.md`, which had been teaching it. A
+  meta that still declares it stays *valid*: `ComponentMetaSchema` is a plain `z.object`,
+  and measured on zod 4.4.3 that STRIPS unknown keys rather than rejecting them — so the
+  key is silently dropped from the parse output instead of failing validation. TypeScript
+  authors get the loud signal instead: all three `ComponentMeta` declarations
+  (`@object-ui/types` `base.ts` and `plugin-scope.ts`, `@object-ui/core` `Registry.ts`) no
+  longer offer it, so re-declaring it is now a compile error.
+  
+  **No runtime behaviour changes in either direction.** No code path read the key before
+  this change, and the eleven producers that set it (`sidebar.tsx` x10, `span.tsx`) were
+  feeding a reader that did not exist. Dropping a `span` or any of the ten sidebar types
+  into the designer produces exactly the node it produced yesterday.
+  
+  Two suites keep it retired, one per package: `packages/types` pins the zod twin (the key
+  is absent from the parse output, with a surviving sibling asserted present through the
+  same parse as the control) plus the two TS twins with `@ts-expect-error`, and
+  `packages/core` pins the registration surface the eleven producers were written against.
+  Both are compile-time-enforced through each package's chained `tsconfig.test.json`.
+- ed8df3e: `'agenda'` leaves `defaultView` on all three of its declaration faces
+  (objectui#5784 — the `defaultView` sibling of objectui#5740's retirement on
+  `CalendarViewSchema.view`; ADR-0049 enforce-or-remove): the
+  `ObjectCalendarSchema` TS interface (an inline union `#5740`'s
+  `CalendarViewMode` narrowing could not reach), the zod `ObjectCalendarSchema`,
+  and the list-view `calendar` config's objectui-only `defaultView` extension.
+  All three are now `['month', 'week', 'day']`.
+  
+  The declarations admitted a value nothing enforced: `ObjectCalendar`'s props
+  declare `defaultView?: 'month' | 'week' | 'day'`, its schema read casts to the
+  same three values, and `CalendarView` renders no agenda view. An author
+  writing the type-legal, zod-valid `defaultView: 'agenda'` on an
+  `object-calendar` node or in a list view's `calendar` config got a month
+  calendar with no error or warning. The spec side already agrees:
+  `@objectstack/spec`'s `ObjectCalendarProps.defaultView` is
+  `['month', 'week', 'day']`. No in-repo, example, or catalog app authors
+  `defaultView: 'agenda'` (measured for objectui#5784 with positive controls,
+  including the objectstack tree — its only `agenda` token is the Agenda
+  job-scheduler library).
+  
+  **This narrows the accept set: an author who writes `defaultView: 'agenda'`
+  will now be refused at validation.** `defaultView` is a declared key, and
+  declared keys are validated even under `.passthrough()`, so
+  `defaultView: 'agenda'` is a **validation error that previously parsed
+  green** (an `invalid_value` issue on the `defaultView` /
+  `calendar.defaultView` path, offering `month`/`week`/`day`). Undeclared keys
+  still pass through unchanged. Breaking on the published zod surface; ships as
+  `minor` per this repo's version-alignment policy (majors track
+  `@objectstack`).
+  
+  The runtime boundary is unchanged: `ObjectCalendar` still resolves an
+  off-union raw `defaultView` away to its `'month'` default. Docblocks and both
+  zod `describe` strings now teach the three-value set.
+- 199d31b: **`viewMode` is now declared authoring surface on `ObjectGanttSchema`, and both
+  gantt renderer branches honour it** (objectui#5074, maintainer ruling
+  2026-08-19: declare-and-wire; the spec half landed first upstream).
+  
+  - `ObjectGanttSchema` (TS interface and zod mirror) declares `viewMode`,
+    DERIVED from the pinned `@objectstack/spec` `GanttConfigSchema.viewMode`
+    enum by reference, so the member list cannot drift. Deliberately no
+    default: an omitted `viewMode` keeps letting a persisted layout
+    (`persistLayoutKey`) seed the timeline granularity before the renderer's
+    `'day'` fallback.
+  - The timeline branch (`GanttView`) now receives an authored `viewMode`.
+    Previously only the resource-workload branch (`resourceView` +
+    `assigneeField`) honoured it, so `viewMode: 'month'` on an ordinary gantt
+    view was silently ignored.
+  - The `(schema as any).viewMode` cast in `ObjectGantt` is retired; both
+    branches read the declared `ganttConfig.viewMode`, which also honours the
+    key when authored inside the spec's `gantt` config block.
+  - Accept-set note: `viewMode` is now a DECLARED key, so an off-enum value
+    (e.g. `viewMode: 'hour'`) becomes a zod validation error where it
+    previously passed through unvalidated. Values on the published spec enum
+    are unaffected.
+- 3ccd9e8: Split the static `table` column type off the rich shared `TableColumn`
+  (objectui#5474, maintainer ruling 2026-08-22: Option C), so declared =
+  enforced holds per renderer.
+  
+  `TableColumn` is unchanged and remains the rich shape `data-table`,
+  `CRUDSchema` and detail-view relations honour. The static `table` renderer's
+  `TableSchema.columns` now declares the new narrow `StaticTableColumn`
+  (`header`, `accessorKey`, `className`, `cellClassName`, `width` — exactly the
+  keys that renderer reads). The eleven keys the static renderer never read are
+  retired from its surface as ADR-0049 tombstones: `hoverable` / `striped` on
+  `TableSchema`, and `minWidth` / `align` / `fixed` / `type` / `sortable` /
+  `filterable` / `resizable` / `editable` / `cell` on its columns.
+  
+  Breaking for authored metadata that wrote those keys on a `type: 'table'`
+  node: they were silently inert before and are now refused loudly — a tsc
+  error on the interface (`?: never`) and a parse rejection naming the key in
+  `@object-ui/types/zod`. That loud refusal is the ruled outcome. Migration:
+  nodes that wanted the interactive behaviour move to `type: 'data-table'`
+  (whose columns keep the rich `TableColumn`); right-aligned columns on the
+  static table use `cellClassName: 'text-right'`; alternate-row styling uses
+  Tailwind on `className`.
+- 78cbdb5: Retire `ThemeComponentSchema` (`type: 'theme'`) — a component kind no renderer
+  implemented (objectui#5489).
+  
+  `packages/types/src/theme.ts` declared a theme-manager **component** carrying
+  `themes[]`, `activeTheme`, `allowSwitching`, `persistPreference` and
+  `storageKey`, and `packages/types/src/zod/theme.zod.ts` published the matching
+  Zod object as a member of `ThemeUnionSchema` and therefore of
+  `AnyComponentSchema`. Nothing rendered it: `'theme'` appears at no
+  `ComponentRegistry.register(...)` / `registerLazy(...)` site in `packages/*/src`,
+  and in neither `PROTOCOL_COMPONENTS` nor `PALETTE_PLACEHOLDER_BLOCKS`
+  (`packages/components/src/renderers/placeholders.tsx`), so it did not even
+  resolve to a placeholder — a page declaring one got the registry's "Unknown
+  component type" panel (OBJUI-001) instead of a theme manager. Declared-but-
+  unenforced, removed under the maintainer ruling of 2026-08-21 on
+  objectstack#10485 (option B).
+  
+  Removed from the published surface: the `ThemeComponentSchema` type
+  (`@object-ui/types`), the `ThemeComponentSchema` Zod object
+  (`@object-ui/types/zod`), the `ThemeComponentSchemaType` inference alias, and the
+  `'theme'` member of `ThemeUnionSchema` / `AnyComponentSchema`. A schema spelling
+  `type: 'theme'` is now REFUSED by `AnyComponentSchema.safeParse` rather than
+  accepted and then rendered as an error panel, which is pinned by a test.
+  
+  **The theme system is unchanged.** `Theme` (the spec's authoring theme
+  document), `ThemeDefinitionSchema`, `ThemeModeSchema`, `ThemeEngine`
+  (`@object-ui/core`) and `ThemeProvider` (`@object-ui/react`) are all retained and
+  untouched — the same ruling retains them explicitly. Author a theme as a
+  document handed to `ThemeProvider`; that path never went through the removed
+  component kind.
+- b7543a9: Retire `ThemeSwitcherSchema` (`type: 'theme-switcher'`) and
+  `ThemePreviewSchema` (`type: 'theme-preview'`) — the two remaining theme
+  component kinds, which no renderer implemented — together with
+  `ThemeUnionSchema`, the union that after objectui#5489 held only these two
+  members (objectui#5647).
+  
+  `packages/types/src/theme.ts` declared a theme-switcher control (`variant`,
+  `showMode`, `showThemes`, `lightIcon`, `darkIcon`) and a theme-preview panel
+  (`showColors`, `showTypography`, `showComponents`), and
+  `packages/types/src/zod/theme.zod.ts` published the matching Zod objects as
+  the two members of `ThemeUnionSchema` and therefore of `AnyComponentSchema`.
+  Nothing rendered either: neither literal appears at any
+  `ComponentRegistry.register(...)` / `registerLazy(...)` site in
+  `packages/*/src` (202 registered keys enumerated; positive control on the same
+  pipeline: `tooltip` → 1), nor in `PROTOCOL_COMPONENTS` /
+  `PALETTE_PLACEHOLDER_BLOCKS`
+  (`packages/components/src/renderers/placeholders.tsx`), and no fixture
+  declares either kind (control: `"type": "form"` → 81) — so a page declaring
+  one got the registry's "Unknown component type" panel (OBJUI-001), never a
+  switcher or a preview. Declared-but-unenforced, removed under the 2026-08-21
+  maintainer ruling (option B) on objectstack#10485, extended to these siblings
+  by inheritance on identical evidence (objectui#5647).
+  
+  Removed from the published surface: the `ThemeSwitcherSchema` /
+  `ThemePreviewSchema` types (`@object-ui/types`), the matching Zod objects and
+  `ThemeUnionSchema` (`@object-ui/types/zod`), and the `ThemeSwitcherSchemaType`
+  / `ThemePreviewSchemaType` inference aliases. `zod/theme.zod.ts` now exports
+  nothing and stands as the tombstone module. A schema spelling
+  `type: 'theme-switcher'` or `type: 'theme-preview'` is now REFUSED by
+  `AnyComponentSchema.safeParse` rather than accepted and then rendered as an
+  error panel, which is pinned by a test.
+  
+  **The theme system is unchanged.** `Theme` (the theme document vocabulary,
+  owned by `@object-ui/types` since objectui#5716), `ThemeEngine`
+  (`@object-ui/core`) and `ThemeProvider` (`@object-ui/react`) are retained and
+  untouched — the rulings retain them explicitly. Author a theme as a document
+  handed to `ThemeProvider`; that path never went through the removed component
+  kinds.
+- c9327c9: Localize the theme document types: `@object-ui/types` now owns `Theme`, `ThemeMode` and `ColorPalette` (objectui#5716 ruling, 2026-08-23). The spec retired its theme module (objectstack#10485) while ObjectUI retained the theme system, so the types are hand-written from the last-published `@objectstack/spec` 17.1.0 shapes instead of re-exported — a spec dependency refresh past the retirement no longer breaks these packages.
+  
+  Published-name REMOVALS from `@object-ui/types` (zero in-repo readers, deleted under the same ruling's rider):
+  
+  - `Typography` — the shape lives on as the inline `Theme['typography']` member.
+  - `BorderRadius` — lives on as inline `Theme['borderRadius']`.
+  - `Shadow` — lives on as inline `Theme['shadows']`.
+  - `ThemeDefinition` — the deprecated alias of `Theme`; use `Theme`.
+  
+  Also added: `THEME_MODES`, a runtime tuple witness of the theme mode vocabulary (`['auto', 'light', 'dark']`).
+  
+  The `UI` protocol namespace (`import { UI } from '@object-ui/types'`) now resolves `UI.Theme` / `UI.ThemeMode` / `UI.ColorPalette` to the local owners, so they survive the upcoming spec refresh; the rest of the namespace continues to track `@objectstack/spec/ui`. After that refresh, retired spec/ui members (`UI.ThemeSchema`, `UI.ThemeModeSchema`, `UI.ThemeParsed`, `UI.Typography`, `UI.BorderRadius`, `UI.Shadow`, `UI.defineTheme`) drop out of the namespace.
+  
+  `@object-ui/providers`: `ThemePreference` is now derived from `@object-ui/types`' `ThemeMode` instead of the retired spec `ThemeModeSchema` (same union: `'auto' | 'light' | 'dark' | 'system'`).
+- 920165d: Remove the six retired `@objectstack/spec/ui` theme-schema re-exports from `@object-ui/types/zod` — `ColorPaletteSchema`, `TypographySchema`, `BorderRadiusSchema`, `ShadowSchema`, `ThemeModeSchema`, `ThemeDefinitionSchema` (the spec's `ThemeSchema`) — plus their `…SchemaType` inference helpers, and the `theme` / `mode` props of `ThemePreviewSchema` (zod and interface) that consumed them.
+  
+  objectstack#10485 (ADR-0049 enforce-or-remove, PR objectstack#10695) retired the spec's whole `ui/theme.zod.ts` module, and the maintainer's ruling on objectstack#10856 (Options A + C) has objectui remove the dangling imports first so the Console Pin Gate can build objectui against the framework tree; restoring the spec exports (Option B) was explicitly not taken. Breaking in effect for anyone importing those six names from `@object-ui/types/zod`: there is no replacement — the validators retired upstream with no successor. The theme TYPE surface (`Theme`, `ThemeMode`, `ColorPalette`, … re-exported from `@object-ui/types`) and the ThemeEngine/ThemeProvider runtime are unchanged.
+- 4d73b07: The zod `BaseSchema` mirror now accepts everything its TypeScript declaration
+  declares — five keys had drifted narrower (objectui#4605).
+  
+  `@object-ui/types/zod` is a published runtime validator hand-written to mirror the
+  `BaseSchema` interface. As the interface widened, the mirror did not, so five keys
+  refused at parse time a spelling the published types invite and the renderer
+  implements — "declared = enforced" inverted. `.passthrough()` rescued none of them:
+  passthrough admits UNDECLARED keys, and all five are explicitly declared, so the
+  narrow declaration won.
+  
+  Measured against the unmodified mirror before the change, these were the refusals:
+  
+  | key | authored input | old mirror said |
+  |---|---|---|
+  | `visible` | `'${data.status === "open"}'` | `expected boolean, received string` |
+  | `disabled` | `'${data.status === "locked"}'` | `expected boolean, received string` |
+  | `ariaLabel` | `{ key, defaultValue }` | `expected string, received object` |
+  | `label` | `{ en: 'Owner', 'zh-CN': '负责人' }` | `expected string, received object` |
+  | `description` | `{ en: 'The record owner' }` | `expected string, received object` |
+  
+  `visible`/`disabled` now take `boolean | string` — what `evaluateCondition` accepts,
+  no wider. `ariaLabel` takes the KEYED reference through a new exported
+  `KeyedI18nLabelSchema`; `label`/`description` take the spec's own `I18nLabelSchema`
+  BY REFERENCE, so a change to the spec's label contract is picked up rather than
+  re-typed. Every spelling that parsed before still parses.
+  
+  The two i18n vocabularies are kept apart rather than merged into "some object".
+  `label`/`description` are the spec's INLINE locale map (resolved by
+  `resolveI18nLabel(label, locale)`); `ariaLabel` is the KEYED reference (resolved by
+  `resolveKeyedI18nLabel`, which returns `undefined` for a locale map and would render
+  an EMPTY aria-label). Widening both slots to accept either shape would have
+  reproduced objectui#4167's confusability hazard inside the validator that exists to
+  catch it, so each slot admits only its own vocabulary and both cross pairings are
+  pinned as rejections.
+  
+  The new pin is DERIVED rather than a hand-written key list: it reads the mirror's own
+  `.shape` and compares each key against the declaration, so the next widening of
+  `base.ts` that forgets this file turns it red with no list to maintain. It reads
+  `.shape` and not `keyof z.input<…>` because that spelling was measured vacuous —
+  `.passthrough()` collapses the inferred key union to bare `string`, and a pin written
+  over it resolved `never` while five keys were demonstrably narrow. Two guards pin the
+  derivation against both degenerations (`never` and `string`).
+
+### Patch Changes
+
+- 100547e: `objectui validate` now refuses a form field whose widget id names a namespace
+  other than `field:`, matching the verdict `@object-ui/core`'s `validateSchema`
+  has given since objectui#5375 (objectui#5449).
+  
+  The CLI reaches `FormFieldSchema` through `safeValidateSchema`, and that schema
+  declared `type` and `widget` as bare optional strings — so a field typed
+  `ui:password` validated clean while the runtime validator rejected the same
+  document with `UNRESOLVABLE_FIELD_WIDGET_NAMESPACE`. The CLI is the surface an
+  author actually runs before shipping, so it was the one handing out the false
+  green: an author did exactly the diligence objectui#5375 asks for and still
+  shipped metadata that renders a secret into a plain text box.
+  
+  A `superRefine` on `FormFieldSchema` now states the rule, mirroring core's
+  precedence (`widget` before `type`), the key it blames, its error code and its
+  message verbatim, so the two entry points cannot describe one defect two ways.
+  
+  **This rejects documents that previously validated.** Only colon-qualified
+  field widget ids outside the `field:` namespace are affected — `field:`-prefixed
+  ids and bare names such as `password` still pass, registered or not. A field
+  carrying, say, `type: 'ui:password'` must be rewritten as `password` or
+  `field:password`; it never rendered as a password box in any case.
+  
+  Which of the repo's authoring-time validators is canonical remains open
+  (objectui#4631) — this states the rule on the zod side rather than unifying
+  them.
+- 0e05aac: The console's cold load no longer asks `/api/v1/runtime/config` or
+  `/auth/me/localization` twice (objectui#5544).
+  
+  Two pairs of boot callers were racing each other for the same URL, with no shared
+  provider between them, so no guard inside either component could see the other:
+  
+  - `GET /api/v1/runtime/config` — the pre-React branding script inlined in
+    `apps/console/index.html` (it runs during HTML parse so the tab title and
+    favicon are the operator's before the bundle is fetched) and
+    `initRuntimeConfig()`. Measured ×2 on prod and on staging. This is the
+    expensive one: the console `await`s `initRuntimeConfig()` before
+    `createRoot().render()`, so the duplicate sat on the critical path to first
+    paint, and at the control plane's ~0.5–1.4 s for this endpoint it also pushed
+    boot concurrency further past the server's pool knee.
+  - `GET /api/v1/auth/me/localization` — `seedTenantLanguage()` on a device's true
+    first visit and `LocalizationFetchProvider` on every boot. The seed keeps
+    running past its 500 ms race by design and the provider mounts the moment that
+    race resolves, so on a first visit the two overlap. Measured ×2 on staging.
+  
+  `@object-ui/types` gains `sharedGetJson()`: callers that ask for the same GET
+  while one is already in flight join that request instead of starting another. It
+  shares the in-flight promise and nothing else — the entry is deleted the instant
+  the request settles, so there is no cache, no TTL and no stale window, and a
+  caller arriving after settle fetches fresh exactly as before. Rejections fan out
+  to every sharer with the status intact (`LocalizationFetchProvider`'s retry
+  policy still sees its own 503), each caller receives its own copy of the parsed
+  body, and only GETs are eligible — a non-GET is refused rather than quietly
+  rewritten.
+  
+  Requests that differ in credentials mode or headers keep separate identities, so
+  the console's two deliberate `auth/get-session` calls — one Bearer-only with the
+  cookie omitted to detect a stale token, then one through the cookie — stay two
+  requests. Collapsing those would have destroyed the signal the first one exists
+  to read.
+  
+  No component receives anything different: same payloads, same errors, one fewer
+  round trip.
+- f9e4f91: `DashboardComponentSchema.dateRange.defaultRange` is now bound to
+  `DateRangeDefaultRange` from `@objectstack/spec/ui` instead of restating it as a
+  hand-written 14-member union (objectui#4984).
+  
+  The union was byte-faithful to the spec — all 14 members, same order — so nothing
+  a user hits changes today. What was missing is the tie that keeps it faithful:
+  `resolveDashboardFilterDefs` takes `Pick<DashboardComponentSchema, 'globalFilters' |
+  'dateRange'>`, so this union is what typechecks every TS-constructed dashboard, and
+  a preset the spec ADDS would have been a legal document that objectui's own types
+  said could not exist — the "narrower than the contract it implements" shape whose
+  consequence in objectui#4163 was that the bad reads were invisible to `tsc`.
+  
+  No gate reported it: `check:spec-symbols` rule 1 matches by NAME and an inline union
+  on an interface member has no symbol to collide with, while rule 2's claim heuristic
+  was waved through by the `SpecGlobalFilter` reference a few lines above. Binding makes
+  the file's existing "Aligned with @objectstack/spec" comment structural rather than
+  prose.
+  
+  The emitted `.d.ts` collapses the inline union to the imported alias; the published
+  type surface is unchanged — measured with the TypeScript checker over the emitted
+  declarations (679 reachable exports from `dist/index.d.ts`, 22 from `dist/complex.d.ts`,
+  and `defaultRange` resolving to the same 14 string-literal members before and after).
+- 4e8622b: `ActionParam`'s doc block no longer claims that spec 17 narrowed `I18nLabel` to a
+  plain string (objectui#4611).
+  
+  The paragraph explaining why `label` / `options[].label` are inherited rather than
+  locally overridden justified itself with a claim about `@objectstack/spec` that was
+  never true: "in spec 17 `I18nLabelSchema` is `z.ZodString` — inline per-locale objects
+  were dropped in favour of translation files". Measured against the installed GA pin
+  `@objectstack/spec@17.0.0` (`dist/ui/index.d.ts:614`), `I18nLabelSchema` is a union of
+  a string and a string-to-string record, and the schema's own doc block states two
+  authorized forms with "Both are real; neither is deprecated by this schema". Executed
+  against `dist/ui/index.mjs`: plain string accepted, inline locale map accepted,
+  `{ key, defaultValue }` rejected. A reader who believed the comment would have taken a
+  widening to `string | I18nLabel` for a no-op — which is what the finding recorded, one
+  seat having nearly done exactly that.
+  
+  The replacement describes what `I18nLabel` admits and cites the spec's own doc block
+  rather than restating a zod expression; where today's spelling is named it is scoped as
+  a measurement against 17.0.0 with its file and line, so it ages as a reading rather than
+  as a standing fact. The decision itself is unchanged and never depended on the false
+  premise — `label` flows in by reference through the spec's schema, and a local
+  `string | I18nLabel` collapses to `I18nLabel` whichever forms the union holds.
+  
+  Documentation only, and the release-visible surface is the declaration file: measured
+  with the package's real `tsc` build (`removeComments: false`, per `tsconfig.base.json`),
+  108 emitted files on both sides, `dist/ui-action.d.ts` 29,176 → 31,026 bytes, and every
+  other file byte-identical — including `dist/ui-action.js` (3,480 bytes, unchanged sha),
+  because the comment documents an `interface`, which is erased at emit along with its
+  leading comment. No behaviour changes; hover text and the shipped `.d.ts` do.
+- dffd752: The `I18nLabel` "inverted pin" now watches the premise it claims to watch, and
+  `ui-action.ts` no longer imports a symbol it never uses (objectui#5612, objectui#5613).
+  
+  Both are residue of the same removed local `label` / `options[].label` override.
+  
+  The `it(...)` case in `packages/types/src/__tests__/page-nav-misc-spec-parity.test.ts`
+  that called itself an inverted pin on the spec's `I18nLabel` rested on one assertion,
+  `const label: SpecI18nLabel = 'Priority'`, under a comment claiming spec 17 had narrowed
+  `I18nLabel` to a plain string and that a re-widening would stop it compiling. A plain
+  string is assignable under the narrow shape *and* under the wide one, so that assignment
+  could only ever fail if the plain-string form were removed — the opposite of the event it
+  was written to catch. The widening had already landed: `@objectstack/spec@17.0.0`
+  declares `I18nLabelSchema` as a union of a string and a string-to-string record
+  (`dist/ui/index.d.ts:614`), and the pin stayed green through it. It reported protection
+  it did not provide, and asserted a false premise in its own name.
+  
+  It is retargeted at what actually holds the decision up — not which single form the spec
+  has, but that **both** authorized forms stay assignable, on the spec type and on the
+  inherited `ActionParam['label']` and `options[].label`. It now fails when either form is
+  withdrawn, and deliberately does not fail on a further widening, since inheriting by
+  reference is exactly what stays correct as the authorized set moves. The comment is
+  rewritten against the schema's own doc block (two authorized forms, "Both are real;
+  neither is deprecated by this schema") instead of the false premise. Verified by
+  construction: against a locally built narrow `type I18nLabel = string` the new assertions
+  fail with `TS2344` and `TS2322`, where the old assignment compiles clean under both
+  shapes.
+  
+  `ui-action.ts`'s `I18nLabel` type import is deleted — no type position had used it since
+  the override was removed, and nothing re-exported it — and the doc paragraph that
+  recorded the pin as `NOT guarded` is corrected, since the same change makes it a guard.
+  
+  No behaviour changes; the release-visible surface is the declaration file. Measured with
+  the package's real `tsc` build, both legs building from a cleared `dist/` and cleared
+  composite build info: 108 emitted files on both sides, exactly one differing —
+  `dist/ui-action.d.ts`, 31,026 → 31,117 bytes, JSDoc prose only, no declaration changed.
+  Every other file is byte-identical, including `dist/ui-action.js` (3,480 bytes, unchanged
+  sha), because the comment documents an `interface`, which is erased at emit along with
+  its leading comment. The deleted type import contributes no emitted delta at all, and the
+  rewritten test file is not part of the build.
+- a691c0b: `PageSchema.kind`'s TSDoc names the real per-tier styling primitive for source-authored pages instead of the "HTML + Tailwind" framing ADR-0080's own amendment retracted.
+  
+  This is a published type surface: the TSDoc ships in `@object-ui/types`'s built
+  `.d.ts` and is what an author reads on hover over `kind`. It said a `kind:'html'`
+  page is "constrained JSX/HTML + Tailwind" — and it links
+  `content/docs/guide/react-pages.md`, which objectui#5413 has already corrected to
+  say the opposite. Shipped type documentation was contradicting the guide it points
+  readers to.
+  
+  ADR-0080's header amendment (2026-06-30, under ADR-0065, Accepted) supersedes that
+  framing on styling: a page's `source` is *runtime metadata*, the console's Tailwind
+  is compiled at build time by scanning the console's own `src`, and there is no
+  safelist — so an authored utility class produces CSS only by coincidence, when
+  objectui already ships that exact class, and otherwise produces nothing with no
+  error anywhere. That is the ADR-0065 failure mode verbatim ("works only by
+  coincidence"), and it is how a modal's `bg-black/50` backdrop reached production
+  fully transparent.
+  
+  The tiers themselves are unchanged, and every load-bearing claim in the TSDoc
+  survives verbatim — parse-never-execute and untrusted-author safety for `html`,
+  the deprecated `'jsx'` alias, EVALUATED-in-the-main-tree with no sandbox behind the
+  `react-pages` host capability for `react`, the ADR-0080 citation and the guide
+  link. Only the styling conclusion changes, to the primitive each tier actually has:
+  
+  | `kind` | Style with |
+  |---|---|
+  | `"html"` | The blocks' own structured props (`` `<flex direction gap>` ``, `` `<grid columns>` ``) plus a JSON `style` object. |
+  | `"react"` | Inline `style` objects. |
+  
+  Colors on both tiers come from the theme as `hsl(var(--token))`, so a page follows
+  light/dark and whatever theme the deployment installs. The TSDoc now also names the
+  rule that reports a violation — `page-source-className-tailwind`, shipped in
+  `@objectstack/lint@11.5.0` as `validatePageSourceStyling` and reported by
+  `os validate` as a warning on both tiers.
+  
+  No behaviour change, and the accepted `kind` set is untouched.
+  
+  `packages/components/src/renderers/layout/react-page.tsx` carries the same
+  correction on its two source comments (the injected-scope note and
+  `buildComponentScope`), and gains the styling note the file was missing. Those are
+  internal comments — they do not project into any `.d.ts` and change no export — so
+  they get no entry of their own; there is nothing an `@object-ui/components`
+  consumer could read in a CHANGELOG and act on.
+- 3c73d99: Corrects the `@deprecated` prescription on `UniquenessValidation` in
+  `packages/types/src/data-protocol.ts`, which pointed authors at spellings the platform
+  no longer accepts (objectui#4765).
+  
+  Comment-only — no runtime behaviour changes. `patch` rather than an empty frontmatter
+  because the JSDoc sits on an **exported** declaration and therefore ships to consumers:
+  measured with the package's own build (`tsc`, and `tsconfig.base.json` deliberately sets
+  `removeComments: false`), `dist/data-protocol.d.ts` goes 40218 → 41781 bytes and the new
+  prose is present in the emitted `.d.ts`. What a consumer reads on hover changes, so it
+  is declared. The emitted `dist/data-protocol.js` is byte-identical (sha256
+  `a3de34c5…`, 207 bytes both ways) — that file is a types-only module whose entire JS
+  output is the license banner plus `export {}`, so a comment on an erased `interface`
+  reaches the declaration file and nothing else.
+  
+  Two of the three spellings it prescribed were wrong, measured against the installed
+  `@objectstack/spec@17.0.0` (the report was written against `17.0.0-rc.6`):
+  
+  - **`indexes[].partial`** was retired in spec 17.0.0 under ADR-0049. It is a tombstone
+    (`z.never()`) that the parse rejects at any value, so "`partial` for a scoped
+    constraint" named a key that cannot be declared. A predicated unique constraint is
+    built at the database layer by a runtime migration issuing
+    `CREATE UNIQUE INDEX … WHERE`; the prescription now says so.
+  - **`{ fields, unique: true }`** on `ObjectSchema.indexes` is the deprecated positional
+    spelling of `unique: 'global'` under ADR-0120 — lint `unique/unscoped-declared-index`
+    warns in 17.x and protocol 18 rejects it. The prescription now states the scope:
+    `unique: 'global' | 'organization'`.
+  
+  The measurement also refined the report, and the refinement is the reason the rewrite is
+  not a uniform find-and-replace. The third spelling — **field-level** `unique: true` — is
+  NOT deprecated. `unique` is scope vocabulary shared by two surfaces on which the same
+  bare `true` means different things: at index level it stays verbatim (`isGlobalUnique`
+  and `isOrganizationUnique` both return `false`), which is why it is the positional
+  spelling of `'global'` and is being retired; at field level it is the positional spelling
+  of `'organization'` and, in the spec's own words, "stays valid indefinitely … no trap".
+  Rewriting both occurrences the same way would have replaced one piece of false guidance
+  with another, so the comment now names the per-surface difference explicitly.
+  
+  The interface's own deprecation is untouched and remains correct: `ValidationRuleSchema`
+  rejects `type: 'unique'` at the discriminator (accepted discriminants are `script`,
+  `state_machine`, `format`, `cross_field`, `json_schema`, `conditional`), so a rule in
+  this shape cannot reach the server.
+  
+  The replacement closes with what would falsify it — `UniqueScopeSchema` and
+  `IndexSchema` in `@objectstack/spec` — so the next reader checks the schemas rather than
+  trusting the paragraph. This is the fourth piece of false guidance found in this
+  campaign (strictness ledger finding 18), and prose that cannot be checked is how the
+  first three survived.
+
 ## 17.6.0
 
 ### Minor Changes

@@ -1,5 +1,320 @@
 # @object-ui/i18n
 
+## 17.7.0
+
+### Minor Changes
+
+- 77f846a: The approval panel identifies the pending approver by name, not by a truncated raw id.
+  
+  A record waiting on a position rendered its approver as `positi…ager` — the
+  engine reference `position:sales_manager`, 22 characters, past the identity
+  formatter's 14-character truncation arm and middle-truncated to fit its chip. The
+  step names beside it were human prose; the one line answering *who is holding
+  this record* was an internal identifier, and not even a complete one. The same
+  reference reached the admin-override confirm dialog un-truncated, so a paragraph
+  of plain governance prose ended `— position:sales_manager` (objectui#5414).
+  
+  Both surfaces now resolve the reference before rendering, in three tiers, most
+  authoritative first. The server's own `pending_approver_names` wins whenever it
+  answers, and a backend that resolves its own slate costs the record page no extra
+  request. Otherwise the console reads the directory row the spec's approver
+  binding names — `sys_position.label` gives `Sales Manager` / `销售经理` — and,
+  for a position, who fills the seat (`Sales Manager · Zhang Wei, Li Na`). With no
+  adapter and no row, the machine name still prettifies into prose rather than
+  truncating. The raw reference stays on hover, which is where an internal
+  identifier belongs.
+  
+  An unstaffed position is surfaced rather than hidden: `销售经理（暂无在岗人员）`
+  is actionable where `positi…ager` is not, and it is the motivating rescue case
+  for the admin-override path. Staffing is deliberately tri-state — a
+  `sys_user_position` read the viewer is not permitted to make leaves the seat's
+  staffing UNKNOWN and says nothing, because "I could not look" is a different
+  claim from "nobody holds it" and only one of them is safe to print on a
+  governance surface.
+  
+  Two locale keys are added across all ten packs: `approvalsInbox.approverUnstaffed`
+  and `approvalsInbox.approverNameSeparator`. The separator is a translated
+  punctuation key rather than `Intl.ListFormat`, which was measured on this tree
+  joining `['张伟','李娜']` into `张伟李娜` for `zh` — two names run together with
+  no separator, reading as one person's name.
+  
+  The directory-backed kinds and their value columns are read from
+  `@objectstack/spec`'s `APPROVER_VALUE_SOURCES` rather than restated, so a new
+  approver type is covered the day the spec publishes it. Id-valued kinds
+  (`user` / `team` / `department`) keep the existing middle-truncation: a row id
+  has no prose to recover, and that arm is objectui#3461's answer, not this card's
+  defect.
+- c40f3b8: A screen flow's resume result reaches the user — on both outcomes (objectui#5417).
+  
+  A dogfood walkthrough reported that a refused `resume` and a successful one
+  "render identically: the dialog closes and the page is unchanged", leaving no
+  gesture that distinguishes "created" from "rejected". Re-measured against `main`
+  before any change, one half of that was already fixed — `interpretFlowResponse`
+  reads the ADR-0112 envelope, and `FlowRunner`'s `toast.error` has carried its
+  prose since the `400 FLOW_FAILED` classification landed in `17.6.0`, five minors
+  after the version the report was measured on. There was no interpreter bug and
+  no un-consolidated fourth call site. Three gaps in the RUNNER's disposition were
+  real, and they are what changed:
+  
+  - **A terminal failure no longer closes the dialog.** The reason it closed is
+    unchanged and is not reversed: on a `FLOW_FAILED` the engine has already
+    consumed the suspension, so a resubmit can only reach "No suspended run" and
+    must not be offered. Closing was one way to withhold that dead retry and the
+    expensive one — the user had just typed a form they could no longer see, and
+    the engine's sentence names a value that left the screen with it. The dialog
+    now stays open with the submit affordance withdrawn: the flat footer swaps
+    Submit for Close, and an `object-form` step drops its Save (which also stops a
+    second click from duplicating the record it had already persisted).
+  - **The refusal has a second, non-expiring carrier.** The toast stays — it is
+    viewport-fixed, so it still reaches a user scrolled past a tall step's header
+    — and an inline destructive `Alert` (`role="alert"`) now holds the same
+    sentence inside the dialog, beside the values that produced it. A retryable
+    refusal (`INVALID_SCREEN_INPUT`, transport, 5xx) keeps Submit live as before,
+    and its banner clears as soon as the user starts editing.
+  - **A successful run invalidates what the flow WROTE, not just what the user is
+    looking at.** Both hosts answered `onComplete` with
+    `notifyDataChanged({ objectName: <this page's object> })`, so a flow that
+    created a quote from an Opportunity page never told the related list that
+    would now contain it — the record did not appear until a manual reload. The
+    runner cannot know which objects a flow touched, so it emits
+    `{ objectName: '*' }`: the same scope, for the same stated reason, that the
+    record page's manual ⟳ already uses. Everything mounted refetches in place
+    over the invalidation bus, with no remount.
+  
+  The runner's copy now goes through `@object-ui/i18n` instead of being hardcoded
+  English: a new `flowRunner` namespace (`title`, `submitting`, `saveAndContinue`,
+  `nextStep`, `completed`) in all ten packs, plus reuse of
+  `common.{loading,cancel,close,submit}` and `wizard.missingRequired`. The
+  server's own refusal sentence is still passed through untranslated — it is prose
+  the automation engine composed for a human, not copy with a key.
+- 20e317c: Marketplace-less runtimes now say so instead of erroring: `OS_CLOUD_URL=off` is a
+  first-class disabled state, and the load-failure hint describes the control plane
+  the runtime was actually pointed at (objectui#5504).
+  
+  `apps/objectos-ee/deploy/.env.example` ships `OS_CLOUD_URL=off` as its factory
+  default, so a stock self-hosted stack has no marketplace at all. The Console still
+  recommended one: Home led with "Start with a template" and "Browse App
+  Marketplace", and the click landed on a red **Failed to load marketplace / Not
+  found** card whose hint claimed this runtime "points at the public ObjectStack
+  cloud by default" and advised setting `OS_CLOUD_URL`. Both claims were false for
+  exactly the deployment reading them — the operator had not left the default, and
+  the advice pointed back at the template that told them to set `off`. "Marketplace
+  disabled by configuration" is a configuration conclusion, not a load failure.
+  
+  - `isMarketplaceEnabled()` (`runtime-config`) reads the server's own
+    `features.marketplace`, which `RuntimeConfigPlugin` derives per request from the
+    serving app's route table (objectstack#8356). It is never inferred from the shape
+    of a failed request: a control plane that is merely DOWN leaves the flag `true`,
+    so an outage still renders as an outage. Unknown fails OPEN.
+  - The marketplace page renders an informational "App Marketplace is turned off"
+    state — muted, not `destructive` — and issues no request it knows will 404.
+  - Home's "Start with a template" cover greys out with a visible localized reason,
+    and the "Browse App Marketplace" shortcut is withheld, exactly as they already
+    are for the `manage_metadata` capability gate.
+  - `marketplace.load.failedHint` is replaced by `failedHintConfigured` (naming the
+    configured control plane) and `failedHintSameOrigin`. The "points at the public
+    cloud by default" sentence is gone: it was rendered unconditionally, including on
+    every runtime whose operator had overridden `OS_CLOUD_URL`.
+  
+  All ten locale packs carry the new keys.
+- 7a90afd: Studio's `新建对象` asks for the record-sharing baseline, and an unauthored one is reported before Publish rather than by it.
+  
+  Creating an object through Studio collected exactly two things — display name and
+  identifier — and saved a draft that declared no `sharingModel`. The draft saved
+  happily, the form designer worked, and the object was then refused at 发布 →
+  全部发布 by `security-owd-unset`: a required decision the surface never asked
+  for, delivered by failing, as English ADR prose in a toast that then vanished on
+  a timer. The one actionable word in it named a control three clicks away that
+  nothing routed to.
+  
+  The publish gate is correct and is unchanged — an org-wide default has to be an
+  authored decision, not an accident. What changes is when the console asks and
+  when it answers:
+  
+  - **The create dialog asks.** A third field collects the baseline, pre-selected
+    to `private` and glossed with the Settings tab's own strings, so a new object
+    is publishable by construction. `buildObjectSkeleton` now takes the value as a
+    required parameter — a future create path cannot omit the baseline without
+    failing to type-check. `controlled_by_parent` is deliberately not offered at
+    creation: it derives access from a master relation a brand-new object does not
+    have yet, so offering it would trade one publish refusal for another.
+  - **The review sheet reports it.** The pending-changes panel now runs the
+    framework's own `validateSecurityPosture` over the pending object drafts and
+    names any blocking finding, with its fix-it hint, next to the Publish button.
+    It mirrors the producer's rule rather than re-deriving it, and it reports
+    without blocking — the server door stays the authority.
+  - **The Settings tab stops calling an unset baseline safe.** It described unset
+    as "defaults to Private", which answers what the runtime does and not whether
+    the object can ship. It now reads as the publish-blocking problem it is,
+    styled like the external-wider warning beside it.
+- fb96ecb: `WidgetConfigPanel` reads an inline-locale-map title, and a save no longer destroys the other locales.
+  
+  The dashboard widget config panel carried a private `resolveLabel` documented as
+  resolving an `I18nLabel` while reading `defaultValue || key` — the key-reference
+  form `@objectstack/spec` retired at 17.0.0-rc.6 (objectstack#5055). The inline
+  per-locale map `I18nLabelSchema` actually admits has neither limb, so
+  `{ en: 'Revenue', zh: '收入' }` resolved to `''`. It was the fourth private copy
+  of that resolver; objectui#4032 swept the other three out of `DashboardRenderer`,
+  `MetricWidget` and `MetricCard`.
+  
+  This was not a display bug. The resolved value seeds the panel's editable draft,
+  so a widget whose stored title was a map opened with an **empty** Title field and
+  the next save wrote `''` over the author's map — on the ordinary path, not an
+  exotic one: open the widget, change anything, save.
+  
+  Both halves are fixed, per the maintainer's 2026-08-20 ruling on objectui#5301:
+  
+  - **Reading** goes through `pickLocalized(value, language)`, so the panel shows
+    the active locale like every sibling surface post-objectui#4032.
+  - **Writing** replaces only the active locale's entry and carries every other
+    locale across. A title the author never touched round-trips the stored object
+    itself through an unrelated config edit; an edited one merges into the entry
+    that was displayed. The live-update callback (`onFieldChange`) forwards the
+    merged map for the same reason — hosts feed it back into the widget the panel
+    re-opens from, so a bare string there dropped the map before a save ever ran.
+  
+  `@object-ui/i18n` gains `setLocalized(value, language, next)`, the write-side
+  inverse of `pickLocalized`, so the rule is stated once instead of re-derived per
+  panel. It follows `pickLocalized`'s first three limbs — exact tag, base language,
+  region-qualified sibling — and deliberately stops there: the `default` / `en` /
+  first-value limbs are display fallbacks that hand back *another* locale's string,
+  and writing to one would let an author editing in `fr` overwrite English. With no
+  entry for the active locale the edit adds one. The pairing
+  `pickLocalized(setLocalized(map, lang, s), lang) === s` is pinned, because a
+  write that lands where the read does not look is how a "saved" string disappears.
+  
+  A full multi-locale editing UI remains out of scope (objectui#4163).
+
+### Patch Changes
+
+- 3a58149: A cloud-connection bind failure now reads in the user's language whichever clock
+  noticed it (objectui#5054).
+  
+  One abandoned device approval could be noticed by either of two clocks, and the
+  Cloud Connection panel had a different answer for each. When the panel's own
+  `expires_in` deadline fired first it rendered `cloudConnection.errors.expired` —
+  translated in all ten packs. When the SERVER noticed first, `/bind/poll` answered
+  HTTP 400 with `message: 'Device authorization failed: expired_token'`; `getJson`
+  threw a bare `Error` carrying only that sentence, and the catch rendered it
+  verbatim. Same user, same failure, two languages, decided by which clock got
+  there first — visible on a zh console as the same abandoned approval reading
+  Chinese or English depending on whether the tab sat open past `expires_in`.
+  
+  `getJson` now carries the envelope's `declaredCode` and `code` across its throw,
+  and a single closed map turns the two RFC 8628 outcomes a user can actually cause
+  into console copy: `expired_token` → the existing `cloudConnection.errors.expired`,
+  `access_denied` → a new `cloudConnection.errors.accessDenied` added to all ten
+  locale packs. `declaredCode` is read first, because ADR-0112 keeps the upstream
+  spelling there — `code` is `DEVICE_CODE_FAILED` for both.
+  
+  Every other code is unchanged: `invalid_grant`, and anything upstream invents
+  next, still render the wire `message`, which stays the single source of truth for
+  failures this console has no copy for. No API, export or resolver was widened.
+- 6ce89da: The 确认修改 (confirm changes) card now carries a UI-owned terminal state after approval (#5695): `detectReplayOutcome` lifts the confirm-replay envelope (`replay_*` tool results) into 应用中 / 已生效 / 已暂存为草稿（含内联发布）/ 未生效（含 publishError 首行）, rendered on the original card across the live, hydration/share, and localStorage-cache converters. A failed in-turn publish no longer rehydrates as an ordinary draft card with a live Publish button — the UI-rendered refusal is the layer a model cannot narrate over. New `console.ai.changesApplying/Applied/Drafted/Failed` keys in all ten locale packs.
+- 1e66879: `console.ai.pendingDrafts` — the standing unpublished-changes bar's five strings —
+  now exists in all ten locale packs. It previously existed only in `en` and `zh`, so
+  `ar`, `ru`, `pt`, `es`, `fr`, `de`, `ko` and `ja` rendered the English defaults and
+  `all-locales-key-parity` failed on `main` (objectui#5705).
+  
+  The feature landed `en`-only in objectui#5696; the follow-up in objectui#5697 was
+  titled for the locale packs but reached only `zh`, so eight packs × five keys stayed
+  missing and the parity assertion — which carries no allowlist — was red on `main` and
+  on every PR whose diff touched source. Source-free diffs skip the shard that runs it,
+  which is why the breakage survived several merges.
+  
+  Each pack keeps its own conventions rather than `en`'s: the eight all quote with `"`,
+  `ru` puts the number last (`…: {{count}}`) as it already does for the sibling
+  `home.pendingDrafts` counts, and `ja` uses the full-width `：` before `{{detail}}`
+  because that value is a runtime message rather than a single token — both choices
+  carry an in-pack note. Terminology is taken from each pack's existing publish-bar
+  vocabulary (`home.pendingDrafts`, `console.ai.seedWarn`) so the two banners read
+  alike.
+  
+  Both interpolations survive verbatim in every pack — `{{count}}` in `count` and
+  `{{detail}}` in `publishedWithFindings` — asserted mechanically against the evaluated
+  packs, not by eye. The unrelated `home.pendingDrafts` block (`message` / `cta`) is a
+  different node and is untouched.
+- c5200f0: Follow-up to #5696: the pending-drafts bar's strings live at `console.ai.pendingDrafts.*` with en+zh locale entries — the i18n call-site key gate and ratchet flagged the original root-level keys that existed nowhere.
+- 38a9568: `useObjectLabel` now keeps a stable identity when no i18next instance is bound,
+  so the memoization it advertises holds on the no-provider path too
+  (objectui#5564).
+  
+  react-i18next's `useTranslation` builds its return value out of a fresh `{}` on
+  every render when it has nothing to bind to (`const finalI18n = i18n || {}`,
+  which then feeds that hook's own `useMemo` deps), so the `i18n` object arrived
+  with a new identity each render. `useObjectLabel` keyed its memo on `[t, i18n]`,
+  so the memo never held: measured 4 distinct returned objects across 4 renders
+  with no instance, against 1 with one. That is the wrong way round — the memo
+  exists to stop downstream `useMemo`/`useCallback` deps from being re-keyed in
+  heavy consumers, and `useSafeFieldLabel`'s docstring names the no-provider case
+  as the one it exists to serve.
+  
+  Both memo dependencies are now pinned to module-level constants while no
+  instance is bound. The substitution is unobservable rather than merely
+  convenient: every `t()` call in the module sits inside a
+  `for (… of getAppNamespaces())` loop, and `getAppNamespaces()` returns `[]`
+  under exactly the same "is there a usable instance" predicate — so while the
+  substitution is in effect, the closures cannot read either value. When an
+  instance appears the dependencies become the live values again, so a provider
+  mounting after first render recomputes the object exactly once and resolves
+  real translations from then on.
+  
+  No API change: no new exports, no signature changes, and the returned surface is
+  identical on both paths. Direct `useObjectLabel()` consumers are fixed alongside
+  `useSafeFieldLabel()` ones, including `ListView.filterFields` — the consumer the
+  memo's own docstring names.
+- b2437a7: `setLocalized`'s published docblock states the single-locale write rule that is
+  actually in force, instead of deferring the multi-locale-authoring question to a
+  closed card (objectui#5591).
+  
+  The docblock read "is not a multi-locale authoring UI (objectui#4163)". objectui#4163
+  closed as completed on 2026-08-15 with that product question still unanswered, so the
+  parenthetical pointed at nothing — and it read as though the question had been settled
+  somewhere a reader could go and check. This is the failure mode objectui#5428
+  demonstrated is not harmless: there, a dangling deferral of exactly this shape let an
+  expired justification sit unread for a release cycle at two surfaces.
+  
+  The remedy is objectui#5428's, not a re-pointing at a successor card: state the rule in
+  force (`setLocalized` reaches only the entry for the locale the author is in), keep the
+  open product question open **in place**, and record why there is deliberately no tracker
+  reference — so the next reader cannot restore one. Re-pointing is how the class
+  regenerates, because the next card closes too. The same wording form already landed in
+  `plugin-designer`'s `writeWidgetTitle` and `DashboardWidgetInspector`.
+  
+  Prose only. No behaviour, no signature, no test changes — `setLocalized`'s pairing with
+  `pickLocalized` is unchanged and still pinned by `src/__tests__/setLocalized.test.ts`.
+  
+  Declared as a `patch` for `@object-ui/i18n` alone because the emit was measured per
+  package rather than assumed, and the two packages this change touches differ:
+  
+  - `@object-ui/i18n` — the docblock sits on the **exported** `setLocalized`, so it reaches
+    the published artifacts. Rebuilt with `tsconfig.tsbuildinfo` cleared first (the build is
+    `composite`, which otherwise skips emit), and compared by SHA-256 rather than byte count:
+    `dist/pickLocalized.d.ts` `1e2170ad…` -> `124a1c07…` and `dist/pickLocalized.js`
+    `06eb88bd…` -> `568cb703…`. A consumer reads this text on hover and in the API docs, so
+    it publishes something.
+  - `@object-ui/plugin-dashboard` — the two comments changed there are a `//` banner between
+    declarations and a test docblock, neither attached to an exported declaration.
+    `dist/WidgetConfigPanel.d.ts` is **byte-identical** across the rebuild
+    (`93252e8cdf5a6faa…` both sides). The only artifact that moved is
+    `dist/WidgetConfigPanel.d.ts.map`, whose mappings shift because lines were added above
+    the declarations; no declaration text changed. Nothing user-visible publishes from that
+    package, so it is not named here.
+- Updated dependencies [d7573b3]
+- Updated dependencies [bf3edfe]
+- Updated dependencies [e719ebd]
+- Updated dependencies [fa429cf]
+- Updated dependencies [8ebd57f]
+- Updated dependencies [7138bc1]
+- Updated dependencies [cef27e2]
+- Updated dependencies [af3861f]
+- Updated dependencies [f2158ec]
+- Updated dependencies [6c6cee7]
+- Updated dependencies [d1ab06f]
+- Updated dependencies [91783c4]
+- Updated dependencies [2d36552]
+  - @object-ui/core@17.7.0
+
 ## 17.6.0
 
 ### Minor Changes

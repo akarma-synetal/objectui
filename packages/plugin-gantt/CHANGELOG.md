@@ -1,5 +1,110 @@
 # @object-ui/plugin-gantt
 
+## 17.7.0
+
+### Minor Changes
+
+- 199d31b: **`viewMode` is now declared authoring surface on `ObjectGanttSchema`, and both
+  gantt renderer branches honour it** (objectui#5074, maintainer ruling
+  2026-08-19: declare-and-wire; the spec half landed first upstream).
+  
+  - `ObjectGanttSchema` (TS interface and zod mirror) declares `viewMode`,
+    DERIVED from the pinned `@objectstack/spec` `GanttConfigSchema.viewMode`
+    enum by reference, so the member list cannot drift. Deliberately no
+    default: an omitted `viewMode` keeps letting a persisted layout
+    (`persistLayoutKey`) seed the timeline granularity before the renderer's
+    `'day'` fallback.
+  - The timeline branch (`GanttView`) now receives an authored `viewMode`.
+    Previously only the resource-workload branch (`resourceView` +
+    `assigneeField`) honoured it, so `viewMode: 'month'` on an ordinary gantt
+    view was silently ignored.
+  - The `(schema as any).viewMode` cast in `ObjectGantt` is retired; both
+    branches read the declared `ganttConfig.viewMode`, which also honours the
+    key when authored inside the spec's `gantt` config block.
+  - Accept-set note: `viewMode` is now a DECLARED key, so an off-enum value
+    (e.g. `viewMode: 'hour'`) becomes a zod validation error where it
+    previously passed through unvalidated. Values on the published spec enum
+    are unaffected.
+
+### Patch Changes
+
+- Updated dependencies [77f846a]
+- Updated dependencies [b55a346]
+- Updated dependencies [065bba7]
+- Updated dependencies [dd19463]
+- Updated dependencies [100547e]
+- Updated dependencies [3a58149]
+- Updated dependencies [d7573b3]
+- Updated dependencies [bf3edfe]
+- Updated dependencies [6ce89da]
+- Updated dependencies [0e05aac]
+- Updated dependencies [e719ebd]
+- Updated dependencies [f9e4f91]
+- Updated dependencies [fa429cf]
+- Updated dependencies [ed8df3e]
+- Updated dependencies [fe76ece]
+- Updated dependencies [8ebd57f]
+- Updated dependencies [9a1fb41]
+- Updated dependencies [c40f3b8]
+- Updated dependencies [485f096]
+- Updated dependencies [199d31b]
+- Updated dependencies [b655a9d]
+- Updated dependencies [a865c73]
+- Updated dependencies [7138bc1]
+- Updated dependencies [cef27e2]
+- Updated dependencies [4e8622b]
+- Updated dependencies [dffd752]
+- Updated dependencies [3ccd9e8]
+- Updated dependencies [7a28e1e]
+- Updated dependencies [ebce5a3]
+- Updated dependencies [20e317c]
+- Updated dependencies [9850c6e]
+- Updated dependencies [a691c0b]
+- Updated dependencies [0b1326d]
+- Updated dependencies [1e66879]
+- Updated dependencies [c5200f0]
+- Updated dependencies [af3861f]
+- Updated dependencies [4f14ad7]
+- Updated dependencies [4bb940b]
+- Updated dependencies [0068348]
+- Updated dependencies [641543f]
+- Updated dependencies [8a44390]
+- Updated dependencies [fa140b8]
+- Updated dependencies [71cba28]
+- Updated dependencies [190fbd0]
+- Updated dependencies [23705b7]
+- Updated dependencies [f2158ec]
+- Updated dependencies [72ffc34]
+- Updated dependencies [78cbdb5]
+- Updated dependencies [b7543a9]
+- Updated dependencies [6c6cee7]
+- Updated dependencies [42887e0]
+- Updated dependencies [f1690d4]
+- Updated dependencies [d1ab06f]
+- Updated dependencies [38a9568]
+- Updated dependencies [f90b8fb]
+- Updated dependencies [91783c4]
+- Updated dependencies [5a07e67]
+- Updated dependencies [2d36552]
+- Updated dependencies [b2437a7]
+- Updated dependencies [7a90afd]
+- Updated dependencies [490f482]
+- Updated dependencies [27308c5]
+- Updated dependencies [8689166]
+- Updated dependencies [c9327c9]
+- Updated dependencies [920165d]
+- Updated dependencies [3c73d99]
+- Updated dependencies [c86185e]
+- Updated dependencies [fb96ecb]
+- Updated dependencies [4d73b07]
+  - @object-ui/i18n@17.7.0
+  - @object-ui/types@17.7.0
+  - @object-ui/components@17.7.0
+  - @object-ui/core@17.7.0
+  - @object-ui/plugin-detail@17.7.0
+  - @object-ui/fields@17.7.0
+  - @object-ui/react@17.7.0
+
 ## 17.6.0
 
 ### Patch Changes

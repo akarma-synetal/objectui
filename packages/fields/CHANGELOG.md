@@ -1,5 +1,289 @@
 # @object-ui/fields
 
+## 17.7.0
+
+### Minor Changes
+
+- 9a1fb41: **API addition (public-surface widening):** `FileCell` — the compact upload
+  control `@object-ui/fields` exports for line-item grid cells — gains the
+  published optional `error?: string` slot, mirroring `LookupField` and
+  `FileField`: the same validation slot `@objectstack/spec/ui`'s
+  `FieldWidgetPropsSchema` declares and `FieldWidgetComponentProps` names
+  (objectui#3222). When set, `FileCell` puts `aria-invalid` on its own focusable
+  picker button; the message text stays with the host (objectui#5431).
+  
+  `GridField` now passes that slot for a required-but-empty `file` cell — the one
+  cell type objectui#3318's per-cell `aria-invalid` delivery left out. Before
+  this, a required `file` cell flagged only the visual ring and `title` on the
+  `td`; no element in the cell subtree announced the state, so assistive tech was
+  told nothing (a wrapper-only mark is exactly what objectui#5223 forbids). Text,
+  number, select, and lookup cells were wired in PR #5429; `file` cells now
+  behave identically.
+
+### Patch Changes
+
+- a865c73: Grid field widget: announce a form-level validation failure to assistive tech.
+  
+  A required `grid` submitted while still empty rendered its "is required" message
+  but marked nothing — every row was a ghost row, and ghost rows were skipped by
+  the widget's per-cell validity channel. A sighted user saw the red message; a
+  screen-reader user was told nothing at all.
+  
+  The host failure now drives the per-cell channel the widget already owns: when
+  the `error` slot is set on an empty grid, the ghost entry row's required cells
+  flag, and the mark sits on each cell's own control rather than on the `td`
+  wrapper (a `td` is not focusable, and assistive tech reads validity from the
+  control). Populated grids are unaffected — they already marked their own empty
+  required cells inline.
+- cef27e2: The value-fallback label prettifier `humanizeLabel` has one implementation instead of two byte-identical copies.
+  
+  `humanizeLabel` turns a stored value into a display string when nothing else
+  resolves it — an option with no declared label, an object name, a chart axis
+  member. It existed twice, byte for byte: once in `@object-ui/fields` (read by
+  `plugin-grid`, `plugin-gantt`, `plugin-detail` and by that package's own
+  renderers) and once as a deliberate local copy in `plugin-charts`'
+  `ObjectChart.tsx`, whose comment said it was there "to avoid a dependency on
+  `@object-ui/fields`".
+  
+  Two copies of one convention is a live hazard rather than tidiness: one
+  dashboard can hold a chart and a grid over the same stored value, so a change
+  landing on one copy alone would put that value on screen under two spellings at
+  once. The single implementation now lives in `@object-ui/core` — the shared
+  ancestor both packages already depend on, so the dependency the copy existed to
+  avoid is still avoided and no new edge is created, and core takes no React
+  (objectui#4389: core-canonical logic, plugins consume). Both former sites
+  re-export it, so `import { humanizeLabel } from '@object-ui/fields'` keeps
+  working unchanged.
+  
+  **Nothing rendered changes.** The surviving implementation is byte-identical to
+  both deleted copies, and each former call site is pinned by identity against the
+  core function — not by a copied output table that someone would have to remember
+  to edit in two places.
+  
+  The core module also writes down, for the first time, why this convention stays
+  distinct from `humanizeFieldKey` (the KEY fallback, in `@object-ui/plugin-dashboard`),
+  which additionally splits camelCase:
+  
+  ```
+  input                humanizeFieldKey     humanizeLabel
+  needs_analysis       Needs Analysis       Needs Analysis
+  NeedsAnalysis        Needs Analysis       NeedsAnalysis        <- differ
+  unitPrice            Unit Price           UnitPrice            <- differ
+  BestCase             Best Case            BestCase             <- differ
+  lost-to-competitor   Lost-To-Competitor   Lost To Competitor   <- differ
+  ```
+  
+  A field KEY is authored in the codebase and carries a machine spelling, so
+  splitting camelCase recovers words its author meant. A stored VALUE is arbitrary
+  tenant data, where a mid-token capital is not reliably a word boundary and
+  splitting it rewrites what the tenant wrote (`McDonald` to `Mc Donald`). The two
+  conventions also do not nest — on the last row each leaves alone the separator
+  the other rewrites. Whether they should ever converge is a separate decision
+  that would move rendered output in four packages at once; it is deliberately not
+  made here.
+- 7a28e1e: A lookup's inline dropdown renders its columns through the same cell renderer the browse-all picker uses, so one `lookup_columns` declaration cannot produce two answers.
+  
+  A form's lookup field offers two ways to pick a related record, and both read
+  the same declaration: the inline dropdown under the field, and the
+  "browse all records" picker behind it. The picker resolved every cell through
+  the type-aware cell renderer. The dropdown did not — it printed
+  `record[descriptionField]` verbatim into the option subtitle and concatenated
+  `label: String(rawValue)` into the row's `title` attribute. Measured on the
+  same declaration, on a real 17.1.0 deployment:
+  
+  ```
+  column          inline dropdown (before)          browse-all picker
+  lookup          T5MsMCuwP4t_yUHq (bare FK id)     the related record's name
+  date            2026-08-20T00:00:00.000Z (ISO)    a formatted date
+  select          pending (enum code)               the authored option label
+  ```
+  
+  Both surfaces now call one shared module — `widgets/lookupColumnDisplay.tsx`,
+  which owns column normalisation, the field-descriptor enrichment from the
+  referenced object's schema, and the render itself. The picker's own
+  `renderCellContent` and `columnFieldDescriptors` are now thin calls into it, so
+  there is a single renderer left to drift from. The dropdown's extra columns are
+  rendered into the option row itself; the row's `title` keeps the full option
+  label, which is what a truncated label needs, instead of a raw-value dump.
+  
+  No query changed and no contract widened. `lookupColumns` entries stay bare
+  field names — no dot paths, no populate/expand semantics — because neither
+  surface's request carries populate to begin with: the picker resolves a
+  foreign-key id to a name client-side, in the lookup cell renderer, and the
+  dropdown now inherits exactly that. An unresolved reference therefore renders
+  what the picker renders for it, and keeps its column: a slot is dropped only
+  when the record holds no value for the field, decided on the raw value and
+  never on what the renderer makes of it, so an unresolved id can never degrade
+  into a silently empty column.
+- 4bb940b: A readonly `markdown` / `html` / `richtext` form field now renders its content
+  FORMATTED instead of showing the user its markup source (objectui#5498).
+  
+  `RichTextField`'s readonly early return rendered `{value}` as a React text child,
+  so a readonly field of any of those three types displayed the stored markup as
+  literal characters — a markdown field's asterisks and hashes, a richtext field's
+  tags. The `prose` classes on that wrapper were the tell: they style rendered rich
+  content, and there was none to style. Every other read surface — grid, kanban
+  card, gallery, related list, dashboard record panel and the record detail page's
+  read mode — dispatches through `getCellRenderer` and rendered the same stored
+  bytes formatted, so one field disagreed with itself depending on which surface it
+  was read on.
+  
+  The readonly branch now renders through the same components `getCellRenderer`
+  resolves: `markdown` through the GFM renderer, `html` and `richtext` through the
+  sanitizing HTML renderer. The two renderers moved out of the package barrel into
+  `widgets/richTextDisplay.tsx` so the widget can reach them without importing the
+  barrel back, and both sides now read one shared type-to-renderer table rather
+  than two that can drift apart.
+  
+  The editor header's format label is fixed with it: it was computed as
+  `field.format || 'markdown'`, and `format` is declared on `date` / `datetime` /
+  `time` / `phone` / `auto_number` and on no rich-content type — so it read
+  `undefined` for every real field and labelled an `html` field "Format: markdown".
+  The label is now derived from the field type's display pipeline, so it names the
+  syntax the value is actually stored in.
+- 6c6cee7: A RETIRED field-type spelling is now refused — out loud, once — by every
+  field-type predicate in the renderer, not just by the widget road
+  (objectui#4914, maintainer ruling B of 2026-08-18).
+  
+  `@object-ui/fields` exports a single `isRetiredFieldType(t)` gate, and it runs
+  ahead of six predicate faces that previously granted a retired spelling
+  first-class treatment: the filter builder's operator buckets and its value
+  control (`@object-ui/components`), the detail page's highlight-strip picker
+  (`@object-ui/plugin-detail`), `normalizeFieldType` (`@object-ui/plugin-view`),
+  the dashboard's `$expand` whitelist and `isLookupType`
+  (`@object-ui/plugin-dashboard`), and the list toolbar's lookup-like filter
+  control (`@object-ui/plugin-list`). Each one now fires the migration
+  prescription on the console — once per spelling across all of them, never once
+  per predicate — and then answers as it would for a spelling it does not
+  recognise.
+  
+  This closes the whole CLASS rather than one word: the gate is quantified over
+  `RETIRED_FIELD_TYPES`, so the next retirement covers all seven consumers on the
+  day it lands. It is the shape objectui#4932 and objectui#4942 already
+  established for the form and inline-edit roads.
+  
+  Measured before the change, and the reason the fix is a gate rather than a
+  deletion: `owner` was not dead in these faces. `operatorsForFieldType('owner')`
+  equalled the `user` bucket item for item, `computeLookupExpand` actively
+  requested `$expand` for it, `isLookupType('owner')` was `true` alongside
+  `reference`, and `normalizeFieldType('owner')` answered `'select'` exactly as
+  `picklist` does. Deleting the members alone would have traded a visible
+  contradiction for a SILENT degradation — a filter picker collapsing to a bare id
+  box, `$expand` quietly stopping so cells show raw foreign-key ids — which is
+  verbatim the failure mode `RETIRED_FIELD_TYPES`' own docblock exists to prevent.
+  The gate keeps that fallback and adds the half that was missing: the author is
+  told.
+  
+  The boundary question is answered on record: `owner` arriving through a
+  backend-vocabulary normalizer is an authoring error to refuse loudly, not
+  legitimate foreign input to tolerate. The open backend vocabulary those
+  normalizers exist for is untouched — `reference`, `picklist`, `money`, `int`,
+  `datetime_tz` and the rest are equally absent from the spec's closed `FieldType`
+  and are equally unretired, so they classify exactly as before.
+  
+  `RETIRED_FIELD_TYPES`, `reportRetiredFieldType` and `resetRetiredFieldTypeReports`
+  move to `@object-ui/core` and are re-exported from `@object-ui/fields`, so that
+  package's published surface is unchanged apart from the newly ruled gate.
+  `@object-ui/components` is a consumer of the gate and `@object-ui/fields`
+  depends on it, so a single shared table could not live in `fields` — and a
+  second copy would have meant a second dedupe set and two console lines for one
+  spelling. No package gained a new dependency.
+  
+  A retired spelling never loses a stored value: `retypeFilterValue` is
+  deliberately not gated, and the refused filter row stays operable rather than
+  drawing a blank operator trigger.
+- f1690d4: A populated `richtext` field no longer renders as a blank cell (objectui#5452).
+  
+  `richtext` stores HTML — the spec documents the type as "Formatted content with
+  HTML/WYSIWYG", the showcase seed's own specimen is `<p>Rich <strong>text</strong></p>`,
+  and this repo's designer bridge already maps `richtext` onto its `html` type. The
+  display registry nevertheless dispatched it to `MarkdownCellRenderer`, whose
+  sanitizing GFM pipeline runs react-markdown with no `rehype-raw` and therefore drops
+  raw HTML. Because a richtext value is *entirely* HTML, everything was dropped and the
+  cell body came out empty — with no error, no fallback and no console warning, so a
+  populated field read as an empty field and anyone auditing data through a grid
+  concluded the records were blank. Measured on the same stored bytes, a neighbouring
+  `html`-typed column rendered them correctly, which is what ruled out "the value never
+  arrived".
+  
+  `richtext` now resolves to `HtmlCellRenderer`, which sanitizes with `sanitizeHtml`
+  (script/style/iframe/object/embed blocks, inline event handlers and `javascript:`
+  URLs removed) and keeps everything a rich-text editor legitimately emits — headings,
+  paragraphs, emphasis, lists, links, quotes. One map entry fixes every read surface at
+  once: the grid, the kanban card, the gallery, the related list, the dashboard record
+  panel and the record detail page all resolve their read-mode cells through this same
+  `getCellRenderer`.
+  
+  The markdown pipeline is untouched. Passing raw HTML through it would have "fixed"
+  one type by moving every `markdown` cell's trust boundary, so `markdown` still drops
+  raw HTML — pinned alongside the fix, on the same bytes `richtext` must now render.
+- Updated dependencies [77f846a]
+- Updated dependencies [b55a346]
+- Updated dependencies [065bba7]
+- Updated dependencies [dd19463]
+- Updated dependencies [100547e]
+- Updated dependencies [3a58149]
+- Updated dependencies [d7573b3]
+- Updated dependencies [bf3edfe]
+- Updated dependencies [6ce89da]
+- Updated dependencies [0e05aac]
+- Updated dependencies [e719ebd]
+- Updated dependencies [f9e4f91]
+- Updated dependencies [fa429cf]
+- Updated dependencies [ed8df3e]
+- Updated dependencies [fe76ece]
+- Updated dependencies [8ebd57f]
+- Updated dependencies [c40f3b8]
+- Updated dependencies [485f096]
+- Updated dependencies [199d31b]
+- Updated dependencies [b655a9d]
+- Updated dependencies [7138bc1]
+- Updated dependencies [cef27e2]
+- Updated dependencies [4e8622b]
+- Updated dependencies [dffd752]
+- Updated dependencies [3ccd9e8]
+- Updated dependencies [ebce5a3]
+- Updated dependencies [20e317c]
+- Updated dependencies [9850c6e]
+- Updated dependencies [a691c0b]
+- Updated dependencies [0b1326d]
+- Updated dependencies [1e66879]
+- Updated dependencies [c5200f0]
+- Updated dependencies [af3861f]
+- Updated dependencies [4f14ad7]
+- Updated dependencies [fa140b8]
+- Updated dependencies [71cba28]
+- Updated dependencies [190fbd0]
+- Updated dependencies [f2158ec]
+- Updated dependencies [72ffc34]
+- Updated dependencies [78cbdb5]
+- Updated dependencies [b7543a9]
+- Updated dependencies [6c6cee7]
+- Updated dependencies [42887e0]
+- Updated dependencies [d1ab06f]
+- Updated dependencies [38a9568]
+- Updated dependencies [f90b8fb]
+- Updated dependencies [91783c4]
+- Updated dependencies [5a07e67]
+- Updated dependencies [2d36552]
+- Updated dependencies [b2437a7]
+- Updated dependencies [7a90afd]
+- Updated dependencies [490f482]
+- Updated dependencies [27308c5]
+- Updated dependencies [8689166]
+- Updated dependencies [c9327c9]
+- Updated dependencies [920165d]
+- Updated dependencies [3c73d99]
+- Updated dependencies [c86185e]
+- Updated dependencies [fb96ecb]
+- Updated dependencies [4d73b07]
+  - @object-ui/i18n@17.7.0
+  - @object-ui/types@17.7.0
+  - @object-ui/components@17.7.0
+  - @object-ui/core@17.7.0
+  - @object-ui/react@17.7.0
+  - @object-ui/providers@17.7.0
+
 ## 17.6.0
 
 ### Minor Changes

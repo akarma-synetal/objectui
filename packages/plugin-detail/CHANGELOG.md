@@ -1,5 +1,311 @@
 # @object-ui/plugin-detail
 
+## 17.7.0
+
+### Minor Changes
+
+- e719ebd: `data-table` reads the declared `header`; the producers translate `label` into it.
+  
+  `TableColumn` declares `header: string` and does not declare `label`. The
+  renderer's column normalization nonetheless read `header: col.header || col.label`,
+  so the same key had one spelling the type admits and one only the runtime did.
+  That alias is gone (objectui#5351), and the translation it used to perform happens
+  once at each producer instead: metadata vocabulary in, adapter vocabulary out.
+  
+  **This narrows what `data-table` accepts, so read this if you author `data-table`
+  nodes by hand.** A column spelled `{ label: 'Stage', accessorKey: 'stage' }` on a
+  directly authored `data-table` now renders a **headerless** column over live
+  cells. Spell it `header` — the key `TableColumn` has always declared. Columns
+  reaching `data-table` through `object-data-table`, `object-grid` or a related
+  list are unaffected: those producers resolve `header` for you from the spec's
+  `ListColumnSchema.label`, so every spelling they accepted before they still
+  accept.
+  
+  `@object-ui/core` gains `columnHeader()` alongside `columnIdentity()` — the reader
+  producers use to cross that boundary. It is adapter-first (`header` wins over
+  `label`), so an author who addressed the table directly is never overwritten.
+  
+  `object-data-table` also gains a fix from the same move: a column carrying a
+  `label` used to render a **blank** header there even while the alias existed,
+  because the widget's field-meta enrichment overwrote the authored `label` before
+  the adapter ever saw it. `{ field: 'stage', label: 'Stage' }` now renders "Stage".
+  
+  The sibling `accessorKey: col.accessorKey || col.name` alias is **unchanged** here
+  and still resolves. Retiring it is objectui#5120's remaining step, which is
+  gated on two published skill guides that teach that spelling.
+- ebce5a3: `object-grid` / `object-form` / `detail-view` resolve their data source the same way, and a block that resolves none says so
+  
+  The three object-bound blocks disagreed about how the data-source adapter reached
+  them. `object-grid` and `object-form` were registered through wrappers that read
+  it from `SchemaRendererProvider` context; `detail-view` was registered as the raw
+  component, which reads a React `dataSource` prop. `SchemaRenderer` itself reads
+  only context, so the two wirings were mutually exclusive: measured with correct
+  keys in every cell, provider wiring gave the grid `find` 1 and the detail view
+  `findOne` 0, and prop wiring gave exactly the reverse. Neither reported anything.
+  
+  All three now resolve the adapter through one rule — an explicit `dataSource`
+  prop first, the provider context second. This is additive: `detail-view` keeps
+  its prop form (and direct `<DetailView dataSource={…} />` callers are untouched),
+  `object-form` gains a prop form it did not have, and `object-grid` no longer
+  throws `useSchemaContext must be used within a SchemaRendererProvider` when a
+  page has no provider.
+  
+  And the silence is over. A block in this family that resolves no adapter renders
+  a **No data source resolved** panel naming the block, the object it was about to
+  read, and the ancestor that injects the adapter — instead of a header-only grid,
+  a field-less form card, or nothing at all. The check is opt-in per block, so a
+  placement with inline rows, inline `customFields`, an inline record or an `api`
+  endpoint is untouched.
+  
+  New from `@object-ui/react`: `useResolvedDataSource`, `NoDataSourcePanel`,
+  `noDataSourceMessage`, and a `requiresDataSource` prop on `ElementDataSourceGate`.
+- 8a44390: `record:alert` binds the row through `usePredicateRecordContext`, so an
+  author-declared `properties.visible` is actually consulted.
+  
+  `renderers/record-alert.tsx` was the last predicate face in the repo still
+  handing `useCondition` a root-only `{ record }` bag. Every other row-scoped
+  predicate — the four generic action renderers (objectui#4075) and app-shell's
+  `DeclaredActionsBar` (objectui#4077) — binds the row through the shared
+  `usePredicateRecordContext(record)` helper, which resolves the three spellings
+  objectui#5330 ruled on: canonical `record.status`, the deprecated row-action
+  shorthand `status`, and deprecated legacy `data.status`.
+  
+  Under the root-only bag only the canonical spelling worked, and the two others
+  failed in **opposite** directions — both of them silently, because this call
+  site is fail-soft:
+  
+  - **row-action shorthand** (`status == 'x'`) resolved nothing, so the evaluator
+    threw. The legacy `${…}` path answers a throw with its own source text, a
+    non-empty and therefore truthy string, so the verdict was **SHOWN on every
+    row**. A banner the author had gated was permanently on screen.
+  - **legacy `data.*`** (`data.status == 'x'`) did not throw at all. App-shell's
+    ambient predicate scope (`providers/ExpressionProvider.tsx`) carries
+    `data: {}`, so the predicate read that object instead of the row, compared
+    `undefined`, and the verdict was a constant false — **never shown**.
+  
+  **Behaviour change, stated plainly:** a shipped `record:alert` whose `visible`
+  was written in either deprecated spelling was inert and is now live. A banner
+  that was permanently visible may begin to hide, and one that never appeared may
+  begin to show — that is the point of the fix, but it is a verdict change rather
+  than a no-op. Canonical `record.*` predicates are unaffected in verdict: they
+  resolved before and resolve now, pinned on both polarities. An in-tree census
+  found no `record:alert` `visible` predicate outside this package's own tests.
+  
+  A node-level `visibleWhen` is a separate gate one tier up in `SchemaRenderer`,
+  with its own deliberate bindings (`data` is the data-source adapter there, not
+  the row). This change does not touch it; the two still compose as AND.
+  
+  The renderer's header comment described the shared-scope behaviour it did not
+  have. It now describes what the file does, including the fail-soft policy and
+  the two-gate composition.
+- 23705b7: **`ReferenceRailEntry` is now the spec's type, and the reference-rail `icon` key retires** (objectui#5494, maintainer ruling 2026-08-22).
+  
+  `ReferenceRailEntry` is owned by `@objectstack/spec` as of 17.1.0. The hand-written interface in `record-reference-rail.tsx` is replaced by a re-export of the spec's `ReferenceRailEntry` (derived from `ReferenceRailEntrySchema`, `$strict` over `{ objectName, relationshipField, title?, limit?, displayField? }`), and `buildDefaultPageSchema` no longer emits `icon` on the reference-rail entries it synthesizes.
+  
+  **Migration — if you write `icon` on `record:reference_rail` entries, remove it.** Be aware of what this does and does not change:
+  
+  - **Runtime validation does not move.** The spec's strict schema already refused `icon` at save — that refusal is unchanged. What was broken was objectui's declaration: the TS type advertised a key that could never be saved.
+  - **Nothing ever rendered `icon`.** No render path in `RecordReferenceRailRenderer` has ever read the key (measured back to the file's first commit, and independently by the spec's `ui-reference-rail-unknown-keys-refused` migration entry). An authored `icon` that survived in unsaved/preview metadata was already a silent no-op — after this change the TS type says so instead of suggesting otherwise.
+  - **The published TS surface narrows.** Code that imported `ReferenceRailEntry` from `@object-ui/plugin-detail` internals and set `icon` will now get a type error. That error is the contract speaking: remove the key.
+  
+  The reference-rail icon affordance is retired rather than proposed upstream: a stock scan of this repo, its examples and schema-catalog corpus, and the objectstack tree (examples, templates, docs) found no reachable authored usage of `icon` on reference-rail entries. Stored customer metadata is not reachable from this seat and was not scanned.
+
+### Patch Changes
+
+- 0068348: `record:alert`'s renderer-local `RecordAlertProps` CTA slot (`action.label`) is
+  widened to `string | I18nLabel` in both copies (`properties.*` and the flat
+  compat mirror) in `packages/plugin-detail/src/renderers/record-alert.tsx`.
+  
+  The renderer already resolves `action.label` through the same inline-locale-map
+  `pickLocalized` call as `title` / `body` (`const ctaLabel =
+  pickLocalized(props.action?.label, language)`), so a bare `string` declaration
+  was narrower than the renderer's own runtime behavior — the same
+  declaration-narrower-than-the-renderer contradiction objectui#4970 fixed for
+  `title` / `body` one level up in the same interface (objectui#4998).
+  
+  Type-only: the block's published authoring surface still declares `action` as
+  a bare `object` with the member shape in prose only
+  (`plugin-detail/src/index.tsx`), so there is no manifest arm to align yet —
+  that half stays parked on the `ComponentInput` member-shape question (PR
+  #3795) and is out of scope here.
+- 641543f: `record:alert`'s `visible` predicate no longer logs a spurious `record is not
+  defined` evaluation-failure warning during the record-detail loading frame.
+  
+  The predicate is evaluated on every render (Rules of Hooks), including the
+  frame before `useRecordContext().data` has loaded. In that frame `record` is
+  unset, `usePredicateRecordContext` binds an empty context bag by design (no
+  `record` key at all), and a bare/`${…}` predicate referencing `record.*`
+  faulted with `record is not defined` — logged via `console.warn` on every
+  page load, even the correct, working ones, because the SAME predicate
+  resolved fine one frame later once `record` populated. The banner's own
+  visibility was never wrong (it already hides unconditionally while unloaded);
+  only the diagnostic was permanently misleading on the happy path.
+  
+  The predicate is now skipped while `record` hasn't loaded — the same
+  condition the banner's own "hide while unloaded" early return already used —
+  since its verdict in that frame was never consulted anyway. A predicate that
+  is genuinely broken (bad field, bad syntax) still faults, and still logs, on
+  every frame once `record` is populated (objectui#5776).
+- 6c6cee7: A RETIRED field-type spelling is now refused — out loud, once — by every
+  field-type predicate in the renderer, not just by the widget road
+  (objectui#4914, maintainer ruling B of 2026-08-18).
+  
+  `@object-ui/fields` exports a single `isRetiredFieldType(t)` gate, and it runs
+  ahead of six predicate faces that previously granted a retired spelling
+  first-class treatment: the filter builder's operator buckets and its value
+  control (`@object-ui/components`), the detail page's highlight-strip picker
+  (`@object-ui/plugin-detail`), `normalizeFieldType` (`@object-ui/plugin-view`),
+  the dashboard's `$expand` whitelist and `isLookupType`
+  (`@object-ui/plugin-dashboard`), and the list toolbar's lookup-like filter
+  control (`@object-ui/plugin-list`). Each one now fires the migration
+  prescription on the console — once per spelling across all of them, never once
+  per predicate — and then answers as it would for a spelling it does not
+  recognise.
+  
+  This closes the whole CLASS rather than one word: the gate is quantified over
+  `RETIRED_FIELD_TYPES`, so the next retirement covers all seven consumers on the
+  day it lands. It is the shape objectui#4932 and objectui#4942 already
+  established for the form and inline-edit roads.
+  
+  Measured before the change, and the reason the fix is a gate rather than a
+  deletion: `owner` was not dead in these faces. `operatorsForFieldType('owner')`
+  equalled the `user` bucket item for item, `computeLookupExpand` actively
+  requested `$expand` for it, `isLookupType('owner')` was `true` alongside
+  `reference`, and `normalizeFieldType('owner')` answered `'select'` exactly as
+  `picklist` does. Deleting the members alone would have traded a visible
+  contradiction for a SILENT degradation — a filter picker collapsing to a bare id
+  box, `$expand` quietly stopping so cells show raw foreign-key ids — which is
+  verbatim the failure mode `RETIRED_FIELD_TYPES`' own docblock exists to prevent.
+  The gate keeps that fallback and adds the half that was missing: the author is
+  told.
+  
+  The boundary question is answered on record: `owner` arriving through a
+  backend-vocabulary normalizer is an authoring error to refuse loudly, not
+  legitimate foreign input to tolerate. The open backend vocabulary those
+  normalizers exist for is untouched — `reference`, `picklist`, `money`, `int`,
+  `datetime_tz` and the rest are equally absent from the spec's closed `FieldType`
+  and are equally unretired, so they classify exactly as before.
+  
+  `RETIRED_FIELD_TYPES`, `reportRetiredFieldType` and `resetRetiredFieldTypeReports`
+  move to `@object-ui/core` and are re-exported from `@object-ui/fields`, so that
+  package's published surface is unchanged apart from the newly ruled gate.
+  `@object-ui/components` is a consumer of the gate and `@object-ui/fields`
+  depends on it, so a single shared table could not live in `fields` — and a
+  second copy would have meant a second dedupe set and two console lines for one
+  spelling. No package gained a new dependency.
+  
+  A retired spelling never loses a stored value: `retypeFilterValue` is
+  deliberately not gated, and the refused filter row stays operable rather than
+  drawing a blank operator trigger.
+- 42887e0: Repair five retired lucide icon spellings that reach a record-reading resolver, and pin
+  the names against the runtime `icons` record so the next lucide bump goes red instead of
+  silently blanking a glyph (objectui#5622).
+  
+  lucide retires a spelling by dropping it from its runtime `icons` record while KEEPING it
+  as a deprecated named export. A retired name therefore still imports, still type-checks,
+  and still renders wherever it is used as a COMPONENT — and resolves to `null` wherever it
+  is used as a STRING, because every string lookup here reads that record. Nothing goes red
+  either way. Measured against the installed `lucide-react@1.31.0` (1767 record entries) at
+  implementation time.
+  
+  What a user sees change:
+  
+  - `DetailView`'s mobile Edit action (`icon: 'edit'` → `'square-pen'`) draws its icon
+    again. Its items become an `action:bar` schema whose renderers resolve `icon` through
+    `renderers/action/resolve-icon.ts`, so the touch-breakpoint edit affordance had been
+    drawing a label with nothing beside it. `Edit === SquarePen`, so the glyph is unchanged.
+  - The `ui:icon` renderer's own declared default (`'smile'` → `'face-slightly-smiling'`, in
+    both the registration `icon` and the `name` input's `defaultValue`) resolves again: the
+    designer palette entry's glyph was blank, and an `icon` dropped from that palette
+    rendered nothing plus a `console.warn`. `Smile === FaceSlightlySmiling`, so the palette
+    looks exactly as it did.
+  - `plugin-list`'s `ViewSwitcher` moves `Grid` → `Grid3x3`, `BarChart3` → `ChartColumn`
+    (both identical objects, no visual change) and `GanttChartSquare` → `ChartGantt`. The
+    gantt one IS a glyph change: it matches the spelling the sibling `plugin-view` switcher
+    landed in objectui#5586, so one view type no longer draws two different icons depending
+    on which switcher is on screen.
+  
+  Four resolvability pins are added — in `plugin-detail`, `plugin-list`, `components` and
+  alongside the `DeclaredActionsBar` fixtures. Each asserts `icons`-record MEMBERSHIP rather
+  than resolvability, because every retired spelling repaired here is the SAME component
+  object as its replacement (`Edit === SquarePen`, `Smile === FaceSlightlySmiling`,
+  `Grid === Grid3x3`, `BarChart3 === ChartColumn`, `CheckCircle === CircleCheckBig`,
+  `XCircle === CircleX` are all true): a pin that rendered the glyph, or reached for the
+  export, would pass on the broken name. That is the blindness that let this ship.
+- Updated dependencies [77f846a]
+- Updated dependencies [b55a346]
+- Updated dependencies [065bba7]
+- Updated dependencies [dd19463]
+- Updated dependencies [100547e]
+- Updated dependencies [3a58149]
+- Updated dependencies [d7573b3]
+- Updated dependencies [bf3edfe]
+- Updated dependencies [6ce89da]
+- Updated dependencies [0e05aac]
+- Updated dependencies [3c9fca3]
+- Updated dependencies [e719ebd]
+- Updated dependencies [f9e4f91]
+- Updated dependencies [fa429cf]
+- Updated dependencies [ed8df3e]
+- Updated dependencies [fe76ece]
+- Updated dependencies [8ebd57f]
+- Updated dependencies [9a1fb41]
+- Updated dependencies [c40f3b8]
+- Updated dependencies [485f096]
+- Updated dependencies [199d31b]
+- Updated dependencies [b655a9d]
+- Updated dependencies [a865c73]
+- Updated dependencies [7138bc1]
+- Updated dependencies [cef27e2]
+- Updated dependencies [4e8622b]
+- Updated dependencies [dffd752]
+- Updated dependencies [3ccd9e8]
+- Updated dependencies [7a28e1e]
+- Updated dependencies [ebce5a3]
+- Updated dependencies [20e317c]
+- Updated dependencies [9850c6e]
+- Updated dependencies [a691c0b]
+- Updated dependencies [0b1326d]
+- Updated dependencies [1e66879]
+- Updated dependencies [c5200f0]
+- Updated dependencies [af3861f]
+- Updated dependencies [4f14ad7]
+- Updated dependencies [4bb940b]
+- Updated dependencies [fa140b8]
+- Updated dependencies [71cba28]
+- Updated dependencies [190fbd0]
+- Updated dependencies [f2158ec]
+- Updated dependencies [72ffc34]
+- Updated dependencies [78cbdb5]
+- Updated dependencies [b7543a9]
+- Updated dependencies [6c6cee7]
+- Updated dependencies [42887e0]
+- Updated dependencies [f1690d4]
+- Updated dependencies [d1ab06f]
+- Updated dependencies [38a9568]
+- Updated dependencies [f90b8fb]
+- Updated dependencies [91783c4]
+- Updated dependencies [5a07e67]
+- Updated dependencies [2d36552]
+- Updated dependencies [b2437a7]
+- Updated dependencies [7a90afd]
+- Updated dependencies [490f482]
+- Updated dependencies [27308c5]
+- Updated dependencies [8689166]
+- Updated dependencies [c9327c9]
+- Updated dependencies [920165d]
+- Updated dependencies [3c73d99]
+- Updated dependencies [c86185e]
+- Updated dependencies [fb96ecb]
+- Updated dependencies [4d73b07]
+  - @object-ui/i18n@17.7.0
+  - @object-ui/types@17.7.0
+  - @object-ui/components@17.7.0
+  - @object-ui/core@17.7.0
+  - @object-ui/permissions@17.7.0
+  - @object-ui/fields@17.7.0
+  - @object-ui/react@17.7.0
+
 ## 17.6.0
 
 ### Minor Changes

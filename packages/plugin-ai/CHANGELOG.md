@@ -1,5 +1,63 @@
 # @object-ui/plugin-ai
 
+## 17.7.0
+
+### Patch Changes
+
+- Updated dependencies [b55a346]
+- Updated dependencies [065bba7]
+- Updated dependencies [dd19463]
+- Updated dependencies [100547e]
+- Updated dependencies [d7573b3]
+- Updated dependencies [bf3edfe]
+- Updated dependencies [0e05aac]
+- Updated dependencies [e719ebd]
+- Updated dependencies [f9e4f91]
+- Updated dependencies [fa429cf]
+- Updated dependencies [ed8df3e]
+- Updated dependencies [fe76ece]
+- Updated dependencies [8ebd57f]
+- Updated dependencies [485f096]
+- Updated dependencies [199d31b]
+- Updated dependencies [b655a9d]
+- Updated dependencies [7138bc1]
+- Updated dependencies [cef27e2]
+- Updated dependencies [4e8622b]
+- Updated dependencies [dffd752]
+- Updated dependencies [3ccd9e8]
+- Updated dependencies [ebce5a3]
+- Updated dependencies [9850c6e]
+- Updated dependencies [a691c0b]
+- Updated dependencies [0b1326d]
+- Updated dependencies [af3861f]
+- Updated dependencies [4f14ad7]
+- Updated dependencies [fa140b8]
+- Updated dependencies [71cba28]
+- Updated dependencies [190fbd0]
+- Updated dependencies [f2158ec]
+- Updated dependencies [72ffc34]
+- Updated dependencies [78cbdb5]
+- Updated dependencies [b7543a9]
+- Updated dependencies [6c6cee7]
+- Updated dependencies [42887e0]
+- Updated dependencies [d1ab06f]
+- Updated dependencies [f90b8fb]
+- Updated dependencies [91783c4]
+- Updated dependencies [5a07e67]
+- Updated dependencies [2d36552]
+- Updated dependencies [490f482]
+- Updated dependencies [27308c5]
+- Updated dependencies [8689166]
+- Updated dependencies [c9327c9]
+- Updated dependencies [920165d]
+- Updated dependencies [3c73d99]
+- Updated dependencies [c86185e]
+- Updated dependencies [4d73b07]
+  - @object-ui/types@17.7.0
+  - @object-ui/components@17.7.0
+  - @object-ui/core@17.7.0
+  - @object-ui/react@17.7.0
+
 ## 17.6.0
 
 ### Patch Changes

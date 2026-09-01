@@ -1,5 +1,470 @@
 # @object-ui/core
 
+## 17.7.0
+
+### Minor Changes
+
+- d7573b3: `ComponentInput` is now declared once and re-exported, instead of restated in three
+  places (objectui#4972).
+  
+  `@object-ui/core`'s `ComponentInput` (`registry/Registry.ts`) and `@object-ui/types`'
+  plugin-scoped `ComponentInput` (`plugin-scope.ts`, published as `PluginComponentInput`)
+  were structural copies of the interface in `@object-ui/types`' `base.ts`. Both are now
+  re-exports of that one declaration, which is the disposition objectui#4580 ruled for the
+  identical shape — *a structural copy would reproduce the defect the moment either side
+  moved* — and the way `core/src/types/index.ts` already handles `SchemaNode`.
+  
+  Either side had already moved. `base.ts` declared thirteen keys; both copies declared
+  nine, so `min` / `max` / `step` / `placeholder` were missing from **the copy every
+  component registration actually imports**. Those four keys were unwritable at any real
+  registration — a plain TypeScript error at the call site — while `ComponentInputSchema`
+  (the zod schema) and `ComponentMeta.inputs` both accepted them. The publication face
+  advertised four keys the authoring face rejected. Measured over the repository, no
+  registration had tried to write one yet, so nothing a user hits was broken today; what
+  changes is that the four keys become writable, and there is no longer a second
+  declaration for the next widening to miss.
+  
+  `ComponentInput`'s arm vocabulary (`ComponentInputControlType`) was already a single
+  declaration imported by all three sites (objectui#3832); this converges the rest of the
+  interface.
+  
+  Measured, not assumed: `@object-ui/core`'s published entry `dist/index.d.ts` is
+  byte-identical across the change (sha256 `f6494f80…`, both legs). That gauge is reported
+  here only with its control — a probe that added a *required* key to `ComponentInput` left
+  the same file byte-identical, because `dist/index.d.ts` is a 63-line barrel of
+  `export *` lines that names `ComponentInput` zero times. The gauge that can actually fail
+  is the emitted declaration file: `dist/registry/Registry.d.ts` changes, as does
+  `@object-ui/types`' `dist/plugin-scope.d.ts`, and those two files are the *only* emitted
+  declarations that change in either package.
+  
+  `WidgetInput`'s union-arm capability is deliberately untouched — a different gate path
+  and a separate judgment.
+- bf3edfe: `ComponentRendererProps` is now declared once and re-exported, instead of
+  hand-declared a second time in `@object-ui/core` (objectui#4594).
+  
+  `@object-ui/core`'s `ComponentRendererProps` (`src/types/index.ts`) was a
+  non-generic interface typing `schema` as `SchemaNode`, while
+  `@object-ui/types`' declaration of the same name is generic —
+  `ComponentRendererProps< TSchema extends BaseSchema = BaseSchema >` with
+  `schema: TSchema`. Same name, both exported from their package entry, from two
+  packages the same consumers import together: which declaration a call site got
+  depended on which package it reached for, and the two disagree about whether a
+  primitive node is admissible. Core's is now a re-export of types', which is the
+  disposition objectui#4580 ruled for `SchemaNode` two lines above it in the same
+  file, and objectui#4972 for `ComponentInput` — *a structural copy would
+  reproduce the defect the moment either side moved*.
+  
+  **Published-surface effect, and the reason it is not neutral.** Resolved
+  through the TypeScript checker from `core/dist/index.d.ts` over a clean rebuild
+  of both legs, `ComponentRendererProps` as reached through `@object-ui/core`
+  moves from non-generic with
+  `schema: BaseSchema | string | number | boolean | null | undefined` to
+  `ComponentRendererProps<TSchema>` with `schema: TSchema`, defaulting to
+  `BaseSchema`. `schema` therefore **narrows** back to the object form — core's
+  copy had silently widened when objectui#4608 made core's `SchemaNode` a
+  re-export of types' union — and the type gains a parameter. **Nothing imported
+  it**, on either side, re-verified repo-wide on the merged ref, so no call site
+  can observe either move; the narrowing is recorded here because it is a change
+  to a published type, not because a consumer is affected.
+  
+  A compile-time pin now holds the reconciliation from
+  `@object-ui/react` — the only position that resolves both packages through
+  `node_modules` — alongside the existing `SchemaNode` one. It is a test-only
+  addition and emits nothing, so `@object-ui/react` takes no bump of its own.
+- e719ebd: `data-table` reads the declared `header`; the producers translate `label` into it.
+  
+  `TableColumn` declares `header: string` and does not declare `label`. The
+  renderer's column normalization nonetheless read `header: col.header || col.label`,
+  so the same key had one spelling the type admits and one only the runtime did.
+  That alias is gone (objectui#5351), and the translation it used to perform happens
+  once at each producer instead: metadata vocabulary in, adapter vocabulary out.
+  
+  **This narrows what `data-table` accepts, so read this if you author `data-table`
+  nodes by hand.** A column spelled `{ label: 'Stage', accessorKey: 'stage' }` on a
+  directly authored `data-table` now renders a **headerless** column over live
+  cells. Spell it `header` — the key `TableColumn` has always declared. Columns
+  reaching `data-table` through `object-data-table`, `object-grid` or a related
+  list are unaffected: those producers resolve `header` for you from the spec's
+  `ListColumnSchema.label`, so every spelling they accepted before they still
+  accept.
+  
+  `@object-ui/core` gains `columnHeader()` alongside `columnIdentity()` — the reader
+  producers use to cross that boundary. It is adapter-first (`header` wins over
+  `label`), so an author who addressed the table directly is never overwritten.
+  
+  `object-data-table` also gains a fix from the same move: a column carrying a
+  `label` used to render a **blank** header there even while the alias existed,
+  because the widget's field-meta enrichment overwrote the authored `label` before
+  the adapter ever saw it. `{ field: 'stage', label: 'Stage' }` now renders "Stage".
+  
+  The sibling `accessorKey: col.accessorKey || col.name` alias is **unchanged** here
+  and still resolves. Retiring it is objectui#5120's remaining step, which is
+  gated on two published skill guides that teach that spelling.
+- fa429cf: The register-meta key `defaultChildren` is retired (objectui#5051).
+  
+  It was declared in four places, produced in eleven, and read in **none**. The designer's
+  drop path builds a new node from its twin key only — `PageDesigner.tsx`,
+  `props: paletteItem?.defaultProps ?? {}` — with no `children:` line, so a palette item
+  that declared `defaultChildren` dropped an **empty** node and the declared children never
+  materialised. Nothing rendered the wrong thing; an entire declaration surface was simply
+  inert, which is the declared-but-unenforced shape ADR-0049 targets. Per the maintainer
+  ruling of 2026-08-19, the key is removed rather than wired up; if designer
+  default-children UX is ever product-wanted it returns as its own designed card.
+  
+  **If you author plugins against the published register-meta table, drop the key.** It is
+  gone from `skills/objectui/guides/plugin-development.md`, which had been teaching it. A
+  meta that still declares it stays *valid*: `ComponentMetaSchema` is a plain `z.object`,
+  and measured on zod 4.4.3 that STRIPS unknown keys rather than rejecting them — so the
+  key is silently dropped from the parse output instead of failing validation. TypeScript
+  authors get the loud signal instead: all three `ComponentMeta` declarations
+  (`@object-ui/types` `base.ts` and `plugin-scope.ts`, `@object-ui/core` `Registry.ts`) no
+  longer offer it, so re-declaring it is now a compile error.
+  
+  **No runtime behaviour changes in either direction.** No code path read the key before
+  this change, and the eleven producers that set it (`sidebar.tsx` x10, `span.tsx`) were
+  feeding a reader that did not exist. Dropping a `span` or any of the ten sidebar types
+  into the designer produces exactly the node it produced yesterday.
+  
+  Two suites keep it retired, one per package: `packages/types` pins the zod twin (the key
+  is absent from the parse output, with a surviving sibling asserted present through the
+  same parse as the control) plus the two TS twins with `@ts-expect-error`, and
+  `packages/core` pins the registration surface the eleven producers were written against.
+  Both are compile-time-enforced through each package's chained `tsconfig.test.json`.
+- d1ab06f: Row predicates declare a canon: `record.*`. The bare shorthand and `data.*` now
+  warn once, and are unchanged otherwise.
+  
+  A row predicate (`visible` / `disabled` / `enabled` on an action renderer, a row
+  scope, a `record:alert`) has bound the row three ways since objectui#4075 —
+  `record.status`, bare `status`, and `data.status` — without any of them being
+  declared the contract. The maintainer ruled that question on 2026-08-20
+  (objectui#5330, option B), mirroring the objectstack#7917 option-② precedent for
+  the identical renderer-tolerance shape: **the canon is `record.*`**, and the
+  other two enter a deprecation window.
+  
+  The canon states the **server's** accept set, which was this card's first
+  measurement and turns out to be strictly narrower than the renderer's. Measured
+  against `@objectstack/formula@17.1.0`, the engine the server evaluates with:
+  
+  | spelling | server runtime | server authoring oracle |
+  |---|---|---|
+  | `record.status` | `{ ok: true, value: true }` | accepted |
+  | bare `status` | `Unknown variable: status` | refused |
+  | `data.status` | `Unknown variable: data` | **silently accepted** |
+  
+  `buildScope({ record })` mounts exactly `['record']` — `data` is never bound and
+  the row's fields are never flattened to top level. The three-way binding is a
+  client tolerance with no server counterpart, which is why the warning belongs on
+  this side.
+  
+  `data.*` is the dangerous one, and the reason the warning exists. `data` is in
+  `@objectstack/formula`'s `SCOPE_ROOTS`, so the server's bare-identifier oracle
+  waves it through — that list is a deliberately generous "never faults" lint
+  baseline, not the runtime accept set. A `data.*` row predicate therefore passes
+  every authoring gate the platform has and then binds nothing at runtime: not an
+  error, a constant `false`. A `visible` that is constantly false is a button that
+  silently never appears — the objectui#4075 fail-closed signature.
+  
+  What ships:
+  
+  - `@object-ui/core` exports `detectNonCanonicalRowSpelling`,
+    `warnNonCanonicalRowSpelling`, `resetRowPredicateCanonWarnings` and
+    `ROW_PREDICATE_CANONICAL_ROOT` from a new `evaluator/rowPredicateCanon.ts`,
+    which carries the canon statement and the measurement.
+  - Both evaluation tiers report once, in dev: `evalRowPredicate` (core) and
+    `useCondition` (react, for bags bound by `usePredicateRecordContext`).
+  - Detection reuses the server's own oracles (`collectCelRootIdentifiers`,
+    `firstUndeclaredReference`) rather than a regex, so no second dialect
+    judgement is invented client-side.
+  
+  **No spelling is removed and no behaviour changes.** Every predicate that
+  resolved before resolves now — the ruling defers removal behind a stored-metadata
+  survey, and the warning is what makes that survey possible (ADR-0078: a
+  tolerance nothing ever reports can never be retired).
+  
+  The deprecation is scoped to the **runtime record layer**. `data` remains the
+  canonical root one layer over, in a metadata-editing form (ADR-0089 D3
+  `CANONICAL_ROOT_BY_LAYER`), and the detector stands down there.
+- 91783c4: Three more secret-field spellings no longer render a secret in clear text on the form's unregistered-widget branch.
+  
+  Measured on `main` at `f2e11ae6f`, the real `form` renderer on the built-in path
+  (no `registerAllFields()`), before and after objectui#5322's fix:
+  
+  ```
+  type            registry hit   rendered type
+  ui:password     true           text
+  secret          false          text
+  field:secret    false          text
+  ```
+  
+  Two halves, per the maintainer ruling of 2026-08-20:
+  
+  - **`@object-ui/core` — an unresolvable namespaced widget id is now an authoring
+    ERROR.** A form field's widget id (`widget`, else `type`) may name the
+    `field:` namespace or a bare name; any other namespace resolves no field
+    widget (objectui#5254) and used to degrade silently to a plain text box.
+    `validateSchema` now reports `UNRESOLVABLE_FIELD_WIDGET_NAMESPACE` and
+    `assertValidSchema` throws. Behaviour change: a schema that previously
+    validated with e.g. `type: 'ui:password'` is now invalid — inventing a
+    plausible-looking widget id fails loudly instead of rendering clear text.
+    `field:` ids stay valid whether or not the widget is registered, since
+    registration is a runtime fact an authoring-time validator cannot see.
+  - **`@object-ui/components` — the known secret types cover the remaining
+    spellings.** Bare `secret` and `ui:password` render the native masked input,
+    and `field:secret` is refused outright like `field:password`. Existing authors
+    need no migration.
+  
+  `ui:password` **is** registered — as an SDUI node renderer for a top-level
+  `{ type: 'email' }`-style node — so an author who checked whether it resolved
+  got a yes and still got a clear-text box on the field path. No producer emits
+  any of the three; all are reachable only through a hand-authored standalone
+  form schema, which is exactly the surface where the author is the producer and
+  no normalizer sits in between.
+- 2d36552: Pins `@objectstack/spec`, `@objectstack/client`, `@objectstack/formula` and `@objectstack/lint` to `17.1.0`, and adapts the two consumer surfaces the new build moves.
+  
+  The pin itself is a lockfile refresh — every manifest already declared `^17.0.0`, which admits `17.1.0`, so no dependency range changed. All four move together: a split resolution is what produced the dual-version spec graph that reddened `check:spec-symbols` in this repo's history.
+  
+  **A `icontains` filter now reaches the driver as a filter.** `icontains` is a canonical `VIEW_FILTER_OPERATORS` member as of `17.1.0`, so an author can declare it on a `ViewFilterRule` and the spec validates it — but `@object-ui/data-objectstack`'s alias table had no row for it, and an unmapped operator is how this adapter shipped an unfiltered query before (objectstack#3948). It is an identity row like `contains`: `icontains` is itself a member of `VALID_AST_OPERATORS`, so the spelling the author writes is the spelling the AST takes, and no case-sensitivity is translated away. Declared rather than left to the table's `?? op` fall-through, on the rule its own parity test states — the AST gate accepting a spelling is not the driver compiling it into a `WHERE` clause.
+  
+  The same operator reaches the list view's own bridge: `@object-ui/plugin-list`'s `mapOperator` gains an explicit `icontains` arm. The emitted spelling is identical to the input, but the arm is written out rather than left to the `default` passthrough — `icontains` is its own member of `VALID_AST_OPERATORS`, so a raw passthrough is accepted *today*, and depending on that coincidence is what the bridge's own parity test records as how it once stopped discriminating.
+  
+  `@object-ui/core` adds `onSuccess` to its spec key inventory, so an author writing the key `17.1.0` now declares is no longer warned that it is unknown. That is a diagnostic statement only — the four declared action surfaces still drop the key before it reaches the runner, which is tracked separately.
+  
+  **A stored view filtering case-insensitively still shows that operator when it is reopened.** `@object-ui/plugin-view`'s canonical-to-builder table is keyed by `ViewFilterOperator`, so `17.1.0` adding `icontains` failed to compile rather than letting the operator reach the FilterBuilder as a raw spelling its dropdown cannot select. It maps to the builder's `containsCaseInsensitive` — the id that authors the spec's `$icontains` — and deliberately not to `contains`, which would quietly rewrite a case-insensitive filter into a case-sensitive one the next time the view was saved.
+  
+  **The page-editor palette keeps one entry per renderer.** `17.1.0` retires `element:filter` from `PageComponentType` and adds `record:discussion`, leaving the member count at 34 either side — so the swap is invisible to any count-based reading. The stale `element:filter` exclusion is dropped, and `record:discussion` is excluded because it is the *same renderer* as the already-offered `record:chatter`, not because it is unauthorable. Nothing the palette offers changes.
+  
+  **The console eager-closure ceiling is re-baselined, by maintainer ruling.** The release is roughly 930 KB larger uncompressed and nearly all of it lands in `vendor-objectstack-*.js`, which put the closure past a ceiling that was deliberately sized to catch a 89 KiB regression — the gate refused the bump, correctly. Raising it was escalated rather than taken locally, because gate-strength policy had been ruled the maintainer's; the ruling on objectui#5531 authorised the raise. `MAX_EAGER_CLOSURE_GZIP_BYTES` and the `BASELINE` it is derived from move together in one commit, keeping headroom at 2.00% and below the 91,136-byte regression size the gate must still catch. The gate's *sensitivity* is untouched: a repeat of that regression from the new baseline still fails. No behaviour ships from this file — it is CI policy, recorded here because the version it governs is the one this changeset publishes.
+
+### Patch Changes
+
+- 8ebd57f: Both `evaluateExpression` references in the `ExpressionEvaluator.registerFunction`
+  JSDoc are now qualified, so each resolves to the entity it means (objectui#5580).
+  
+  `ExpressionEvaluator.ts` declares two things spelled `evaluateExpression`: the method
+  on `ExpressionEvaluator` (bare expression, throws) and the module-level export
+  (context bag, fail-soft, delegating to `evaluate`). The `registerFunction` block
+  referred to both under the one spelling, four lines apart.
+  
+  The prose link was not merely ambiguous, it was bound wrong. Measured with
+  `checker.getSymbolAtLocation` on the pre-fix source, `{@link evaluateExpression}`
+  resolved to the module-level `FunctionDeclaration` — the fail-soft one — inside the
+  sentence that calls it *"the throwing sibling"*. The neighbouring `{@link evaluate}`
+  binds to the method, but only because no module-level `evaluate` exists to outrank
+  it, so the rule "an unqualified link resolves to the enclosing class's member" does
+  not hold here. The link is now `{@link ExpressionEvaluator.evaluateExpression}`,
+  which the checker resolves to the `MethodDeclaration`.
+  
+  The `@example`'s final line is the module-level export — its second parameter is a
+  context bag and the `${...}` wrapper only resolves on the `evaluate` path — but it sat
+  two lines below calls that establish `evaluator.` as the receiver, and a `.d.ts` hover
+  carries no import to disambiguate. It now names the module-level export and shows the
+  import it needs.
+  
+  This is prose only: the diff is confined to a block comment and no declaration moves.
+  It is scored `patch` rather than the empty-frontmatter form because the block is
+  emitted into what npm ships — measured, this edit moves both
+  `dist/evaluator/ExpressionEvaluator.d.ts` and `dist/evaluator/ExpressionEvaluator.js`
+  (this package builds with a bare `tsc`, which preserves comments in the JS emit), and
+  the ten changed lines in that JS are all comment lines.
+  
+  `registerFunction-jsdoc-links.test.ts` pins the binding against the checker rather
+  than asserting it in prose, since a `{@link}` that binds to the wrong entity is
+  indistinguishable in source from one that binds right.
+- 7138bc1: The dev-mode unknown-key warning stops flagging `overrideNotice`, the console's
+  privileged-override safety copy (objectui#5611).
+  
+  `ActionRunner.execute` classifies the object it was HANDED, and a console host
+  hands it a DISPATCH, not a stored metadata row. `DeclaredActionsBar` composes
+  `overrideNotice` on that dispatch and two param-collection handlers read it —
+  yet the key inventory only mirrored AUTHORED surfaces, so the runner reported a
+  key two files read as one "no reader recognizes", and prescribed promoting it to
+  an explicit field on `ActionDef`. That prescription is the one shape the
+  2026-08-22 maintainer ruling forbids for this key, so acting on the diagnostic
+  walked an author into a rejected design. A false warning on the product's own
+  privileged path — the branch that finalises an approval over approvers who have
+  not acted — is how a dev console gets muted.
+  
+  Adds an exported `HOST_DISPATCH_ACTION_KEYS` (sole member `overrideNotice`) to
+  `actions/actionKeys.ts` and unions it into `KNOWN_ACTION_KEYS`, which is the
+  fourth input to that set and the first one that is not an authored-surface
+  mirror. Measured before and after on the exact dispatch the bar composes: the
+  warning went from one call naming `overrideNotice` to none, `KNOWN_ACTION_KEYS`
+  grew by exactly one member, and an action carrying a real typo alongside it
+  still warns — naming `targt` only.
+  
+  The authored surface does not move. `overrideNotice` is still NOT declared on
+  `ActionDef` and still NOT in `ACTION_DEF_KEYS`; writing it in an action literal
+  remains a compile error, and the AST-derived pin over the interface is unchanged.
+  Membership in `KNOWN_ACTION_KEYS` widens what the WARNING tolerates, never what
+  an author may write — `actionKeys.pin.test.ts` now pins both halves, including
+  the new list's exact contents so a second member cannot arrive quietly.
+- cef27e2: The value-fallback label prettifier `humanizeLabel` has one implementation instead of two byte-identical copies.
+  
+  `humanizeLabel` turns a stored value into a display string when nothing else
+  resolves it — an option with no declared label, an object name, a chart axis
+  member. It existed twice, byte for byte: once in `@object-ui/fields` (read by
+  `plugin-grid`, `plugin-gantt`, `plugin-detail` and by that package's own
+  renderers) and once as a deliberate local copy in `plugin-charts`'
+  `ObjectChart.tsx`, whose comment said it was there "to avoid a dependency on
+  `@object-ui/fields`".
+  
+  Two copies of one convention is a live hazard rather than tidiness: one
+  dashboard can hold a chart and a grid over the same stored value, so a change
+  landing on one copy alone would put that value on screen under two spellings at
+  once. The single implementation now lives in `@object-ui/core` — the shared
+  ancestor both packages already depend on, so the dependency the copy existed to
+  avoid is still avoided and no new edge is created, and core takes no React
+  (objectui#4389: core-canonical logic, plugins consume). Both former sites
+  re-export it, so `import { humanizeLabel } from '@object-ui/fields'` keeps
+  working unchanged.
+  
+  **Nothing rendered changes.** The surviving implementation is byte-identical to
+  both deleted copies, and each former call site is pinned by identity against the
+  core function — not by a copied output table that someone would have to remember
+  to edit in two places.
+  
+  The core module also writes down, for the first time, why this convention stays
+  distinct from `humanizeFieldKey` (the KEY fallback, in `@object-ui/plugin-dashboard`),
+  which additionally splits camelCase:
+  
+  ```
+  input                humanizeFieldKey     humanizeLabel
+  needs_analysis       Needs Analysis       Needs Analysis
+  NeedsAnalysis        Needs Analysis       NeedsAnalysis        <- differ
+  unitPrice            Unit Price           UnitPrice            <- differ
+  BestCase             Best Case            BestCase             <- differ
+  lost-to-competitor   Lost-To-Competitor   Lost To Competitor   <- differ
+  ```
+  
+  A field KEY is authored in the codebase and carries a machine spelling, so
+  splitting camelCase recovers words its author meant. A stored VALUE is arbitrary
+  tenant data, where a mid-token capital is not reliably a word boundary and
+  splitting it rewrites what the tenant wrote (`McDonald` to `Mc Donald`). The two
+  conventions also do not nest — on the last row each leaves alone the separator
+  the other rewrites. Whether they should ever converge is a separate decision
+  that would move rendered output in four packages at once; it is deliberately not
+  made here.
+- af3861f: `normalizeListViewSchema` now folds the four per-view-type config aliases phase 3
+  carried over — `kanban.groupField` → `groupByField`, `kanban.cardFields` →
+  `columns`, `gallery.imageField` → `coverField`, `timeline.dateField` →
+  `startDateField` (objectui#2890).
+  
+  These are the pre-#2231 objectui spellings, kept declared alongside the spec keys
+  so stored view metadata would keep validating. They now fold at the same
+  component boundary as the A1–A5 vocabulary folds, in the same one-directional
+  shape: the canonical key wins when a config carries both, and the legacy key is
+  removed from the result so a missed read-site fails loudly instead of quietly
+  taking the legacy path.
+  
+  One rendering behaviour changes, and it is a correction of the same inverted
+  precedence the `densityMode` fold fixed: `ListView`'s kanban adapter resolves the
+  card field list as `cardFields || columns` — legacy over canonical — so a kanban
+  config carrying **both** rendered the legacy `cardFields` value and silently
+  ignored the spec-canonical `columns`. After the fold the authored `columns` is
+  what reaches it. Configs carrying only one of the two are unaffected, and every
+  other reader of these four keys was already canonical-first.
+  
+  `calendar.defaultView` is deliberately **not** folded: it aliases nothing and has
+  no spec counterpart, so it wants promotion upstream rather than a rename.
+- f2158ec: `ExpressionEvaluator.registerFunction` now documents the case-fold it has always
+  performed: the name is stored — and must be called — in UPPER CASE
+  (objectui#5363).
+  
+  `registerFunction('formatCurrency', fn)` registers `FORMATCURRENCY`, because the
+  method delegates to `FormulaFunctions.register`, which stores under
+  `name.toUpperCase()`. That fold is correct for the spreadsheet-style built-in
+  vocabulary (`SUM`, `IF`, `UPPER`) and is unchanged here — but nothing declared
+  it on the public method, and two things keep it from being self-evident at the
+  call site. The registry API stays case-insensitive, so `getFormulas().has()` and
+  `.get()` both answer to the original spelling and never reveal the fold; only
+  expressions see the stored key, because the evaluation scope is built from
+  `FormulaFunctions.toObject()`, a plain object whose identifiers are matched
+  case-sensitively. And a wrong-case call site does not raise: `evaluate()`
+  catches, warns, and returns `defaultValue ?? expression`, so the template
+  renders its own `${...}` source as literal text on screen rather than erroring.
+  
+  Behavior is untouched — this is the declaration catching up with what the code
+  enforces. It ships as a patch rather than as an empty changeset because the
+  JSDoc is emitted into the published `dist/evaluator/ExpressionEvaluator.d.ts`,
+  so it is what consumers see on hover.
+  
+  `ExpressionEvaluator.test.ts` gains three cases pinning the half that was
+  uncovered — that the given spelling does *not* resolve in an expression, that
+  the failure renders the raw template source instead of throwing, and that the
+  registry API stays case-insensitive underneath — so making registration
+  case-preserving fails a test instead of silently invalidating the new JSDoc.
+- 6c6cee7: A RETIRED field-type spelling is now refused — out loud, once — by every
+  field-type predicate in the renderer, not just by the widget road
+  (objectui#4914, maintainer ruling B of 2026-08-18).
+  
+  `@object-ui/fields` exports a single `isRetiredFieldType(t)` gate, and it runs
+  ahead of six predicate faces that previously granted a retired spelling
+  first-class treatment: the filter builder's operator buckets and its value
+  control (`@object-ui/components`), the detail page's highlight-strip picker
+  (`@object-ui/plugin-detail`), `normalizeFieldType` (`@object-ui/plugin-view`),
+  the dashboard's `$expand` whitelist and `isLookupType`
+  (`@object-ui/plugin-dashboard`), and the list toolbar's lookup-like filter
+  control (`@object-ui/plugin-list`). Each one now fires the migration
+  prescription on the console — once per spelling across all of them, never once
+  per predicate — and then answers as it would for a spelling it does not
+  recognise.
+  
+  This closes the whole CLASS rather than one word: the gate is quantified over
+  `RETIRED_FIELD_TYPES`, so the next retirement covers all seven consumers on the
+  day it lands. It is the shape objectui#4932 and objectui#4942 already
+  established for the form and inline-edit roads.
+  
+  Measured before the change, and the reason the fix is a gate rather than a
+  deletion: `owner` was not dead in these faces. `operatorsForFieldType('owner')`
+  equalled the `user` bucket item for item, `computeLookupExpand` actively
+  requested `$expand` for it, `isLookupType('owner')` was `true` alongside
+  `reference`, and `normalizeFieldType('owner')` answered `'select'` exactly as
+  `picklist` does. Deleting the members alone would have traded a visible
+  contradiction for a SILENT degradation — a filter picker collapsing to a bare id
+  box, `$expand` quietly stopping so cells show raw foreign-key ids — which is
+  verbatim the failure mode `RETIRED_FIELD_TYPES`' own docblock exists to prevent.
+  The gate keeps that fallback and adds the half that was missing: the author is
+  told.
+  
+  The boundary question is answered on record: `owner` arriving through a
+  backend-vocabulary normalizer is an authoring error to refuse loudly, not
+  legitimate foreign input to tolerate. The open backend vocabulary those
+  normalizers exist for is untouched — `reference`, `picklist`, `money`, `int`,
+  `datetime_tz` and the rest are equally absent from the spec's closed `FieldType`
+  and are equally unretired, so they classify exactly as before.
+  
+  `RETIRED_FIELD_TYPES`, `reportRetiredFieldType` and `resetRetiredFieldTypeReports`
+  move to `@object-ui/core` and are re-exported from `@object-ui/fields`, so that
+  package's published surface is unchanged apart from the newly ruled gate.
+  `@object-ui/components` is a consumer of the gate and `@object-ui/fields`
+  depends on it, so a single shared table could not live in `fields` — and a
+  second copy would have meant a second dedupe set and two console lines for one
+  spelling. No package gained a new dependency.
+  
+  A retired spelling never loses a stored value: `retypeFilterValue` is
+  deliberately not gated, and the refused filter row stays operable rather than
+  drawing a blank operator trigger.
+- Updated dependencies [b55a346]
+- Updated dependencies [065bba7]
+- Updated dependencies [100547e]
+- Updated dependencies [d7573b3]
+- Updated dependencies [0e05aac]
+- Updated dependencies [f9e4f91]
+- Updated dependencies [fa429cf]
+- Updated dependencies [ed8df3e]
+- Updated dependencies [199d31b]
+- Updated dependencies [4e8622b]
+- Updated dependencies [dffd752]
+- Updated dependencies [3ccd9e8]
+- Updated dependencies [a691c0b]
+- Updated dependencies [78cbdb5]
+- Updated dependencies [b7543a9]
+- Updated dependencies [c9327c9]
+- Updated dependencies [920165d]
+- Updated dependencies [3c73d99]
+- Updated dependencies [4d73b07]
+  - @object-ui/types@17.7.0
+
 ## 17.6.0
 
 ### Minor Changes

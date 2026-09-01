@@ -1,5 +1,278 @@
 # @object-ui/react
 
+## 17.7.0
+
+### Minor Changes
+
+- ebce5a3: `object-grid` / `object-form` / `detail-view` resolve their data source the same way, and a block that resolves none says so
+  
+  The three object-bound blocks disagreed about how the data-source adapter reached
+  them. `object-grid` and `object-form` were registered through wrappers that read
+  it from `SchemaRendererProvider` context; `detail-view` was registered as the raw
+  component, which reads a React `dataSource` prop. `SchemaRenderer` itself reads
+  only context, so the two wirings were mutually exclusive: measured with correct
+  keys in every cell, provider wiring gave the grid `find` 1 and the detail view
+  `findOne` 0, and prop wiring gave exactly the reverse. Neither reported anything.
+  
+  All three now resolve the adapter through one rule — an explicit `dataSource`
+  prop first, the provider context second. This is additive: `detail-view` keeps
+  its prop form (and direct `<DetailView dataSource={…} />` callers are untouched),
+  `object-form` gains a prop form it did not have, and `object-grid` no longer
+  throws `useSchemaContext must be used within a SchemaRendererProvider` when a
+  page has no provider.
+  
+  And the silence is over. A block in this family that resolves no adapter renders
+  a **No data source resolved** panel naming the block, the object it was about to
+  read, and the ancestor that injects the adapter — instead of a header-only grid,
+  a field-less form card, or nothing at all. The check is opt-in per block, so a
+  placement with inline rows, inline `customFields`, an inline record or an `api`
+  endpoint is untouched.
+  
+  New from `@object-ui/react`: `useResolvedDataSource`, `NoDataSourcePanel`,
+  `noDataSourceMessage`, and a `requiresDataSource` prop on `ElementDataSourceGate`.
+- d1ab06f: Row predicates declare a canon: `record.*`. The bare shorthand and `data.*` now
+  warn once, and are unchanged otherwise.
+  
+  A row predicate (`visible` / `disabled` / `enabled` on an action renderer, a row
+  scope, a `record:alert`) has bound the row three ways since objectui#4075 —
+  `record.status`, bare `status`, and `data.status` — without any of them being
+  declared the contract. The maintainer ruled that question on 2026-08-20
+  (objectui#5330, option B), mirroring the objectstack#7917 option-② precedent for
+  the identical renderer-tolerance shape: **the canon is `record.*`**, and the
+  other two enter a deprecation window.
+  
+  The canon states the **server's** accept set, which was this card's first
+  measurement and turns out to be strictly narrower than the renderer's. Measured
+  against `@objectstack/formula@17.1.0`, the engine the server evaluates with:
+  
+  | spelling | server runtime | server authoring oracle |
+  |---|---|---|
+  | `record.status` | `{ ok: true, value: true }` | accepted |
+  | bare `status` | `Unknown variable: status` | refused |
+  | `data.status` | `Unknown variable: data` | **silently accepted** |
+  
+  `buildScope({ record })` mounts exactly `['record']` — `data` is never bound and
+  the row's fields are never flattened to top level. The three-way binding is a
+  client tolerance with no server counterpart, which is why the warning belongs on
+  this side.
+  
+  `data.*` is the dangerous one, and the reason the warning exists. `data` is in
+  `@objectstack/formula`'s `SCOPE_ROOTS`, so the server's bare-identifier oracle
+  waves it through — that list is a deliberately generous "never faults" lint
+  baseline, not the runtime accept set. A `data.*` row predicate therefore passes
+  every authoring gate the platform has and then binds nothing at runtime: not an
+  error, a constant `false`. A `visible` that is constantly false is a button that
+  silently never appears — the objectui#4075 fail-closed signature.
+  
+  What ships:
+  
+  - `@object-ui/core` exports `detectNonCanonicalRowSpelling`,
+    `warnNonCanonicalRowSpelling`, `resetRowPredicateCanonWarnings` and
+    `ROW_PREDICATE_CANONICAL_ROOT` from a new `evaluator/rowPredicateCanon.ts`,
+    which carries the canon statement and the measurement.
+  - Both evaluation tiers report once, in dev: `evalRowPredicate` (core) and
+    `useCondition` (react, for bags bound by `usePredicateRecordContext`).
+  - Detection reuses the server's own oracles (`collectCelRootIdentifiers`,
+    `firstUndeclaredReference`) rather than a regex, so no second dialect
+    judgement is invented client-side.
+  
+  **No spelling is removed and no behaviour changes.** Every predicate that
+  resolved before resolves now — the ruling defers removal behind a stored-metadata
+  survey, and the warning is what makes that survey possible (ADR-0078: a
+  tolerance nothing ever reports can never be retired).
+  
+  The deprecation is scoped to the **runtime record layer**. `data` remains the
+  canonical root one layer over, in a metadata-editing form (ADR-0089 D3
+  `CANONICAL_ROOT_BY_LAYER`), and the detector stands down there.
+- c86185e: Bind `record` into the node-level visibility evaluator, and stop a hoisted
+  `properties.visible` swallowing a declared `visibleWhen`.
+  
+  `@objectstack/spec` has declared since ADR-0089 that a page component's
+  `visibleWhen` binds the row — `ui/page.zod.ts`: *"Binds `record`,
+  `current_user`, `page.<var>`"*. `SchemaRenderer` bound no `record` at all. Its
+  evaluator was built from the ambient predicate scope, `data: dataSource` (the
+  connector **adapter**, not the row) and `page: pageVariables`; the row lives in
+  `RecordContext`, which that evaluator never read.
+  
+  Because the surface is fail-soft, a `record.*` predicate did not misfire — it
+  resolved to **shown**. Both polarities of the same predicate returned the same
+  verdict, so a visibility gate silently did not gate, on every block on every
+  record page. Measured on `record:alert`, `record:path`, `page:card` and
+  `element:text`.
+  
+  Three changes, all in `SchemaRenderer`'s evaluation memo:
+  
+  - **`record` is bound**, as the `record` root only — the three roots the
+    describe promises and nothing more. Not as bare fields, and never over
+    `data`, which is what `${data.*}` in a props bag resolves against. Bound
+    conditionally, so "no row" binds nothing rather than shadowing a `record` a
+    host supplied through the ambient scope.
+  - **`visibleWhen` is tested before `visible`.** The memo hoists `properties.*`
+    onto the node, so a node carrying `properties.visible` short-circuited the
+    declared node predicate — the one key the spec tells authors to write was the
+    one key that could be silently ignored. The two deprecated aliases
+    (`visibleOn` / `visibility`) deliberately keep their rank: they normalize into
+    `visibleWhen` at parse, so a spec-parsed page never reaches them.
+  - **An unresolvable predicate is loud** (dev builds). Fail-soft answered "this
+    predicate is broken" and "this predicate said yes" with the same word. The
+    verdict is unchanged on every path — `evaluateCondition` already returned
+    `true` for every unevaluable predicate, including the non-negated `hidden` /
+    `hiddenOn` legs where that `true` means HIDE — so only the silence moved.
+  
+  **Behaviour change, stated plainly:** a shipped page whose node-level
+  `record.*` predicate was previously inert now evaluates. A block that was
+  permanently visible may begin to hide — which is the point, but it is a verdict
+  change, not a no-op. `properties.visible` is unaffected in verdict: an
+  in-tree census found **zero** node-level `record.*` predicates on page
+  components, so nothing in this repository changes verdict.
+
+### Patch Changes
+
+- 9850c6e: `SchemaRenderer`'s node visibility gate now emits a dev-only warning when a
+  predicate reads `data.*` and the data-source adapter cannot answer that read, so
+  an author who wrote `properties: { visible: "data.status == 'draft'" }` sees the
+  constant they authored instead of shipping it (objectui#5687).
+  
+  At the node tier `data` is the data-source **adapter** — the object `${data.total}`
+  in a props bag resolves against — and it has never been the row. A predicate
+  written with the deprecated `data.*` spelling therefore resolves `undefined ==
+  'draft'`, which is a perfectly good `false`: the block is hidden on every row, and
+  because it does not throw, the unresolvable-predicate reporter added for
+  objectui#5454 never fired. Measured on this base, the same predicate written as a
+  `{ dialect: 'cel' }` envelope *does* throw and *was* already reported — so whether
+  an author heard about the identical mistake depended on which dialect they happened
+  to write it in, which is the arbitrariness objectui#5454 existed to remove.
+  
+  **No verdict changes and no interpolation changes** (maintainer ruling,
+  2026-08-22, option A). The node tier keeps its documented `data` = adapter
+  semantics; objectui#5330's row binding does not extend here. The evaluator's answer
+  is returned exactly as computed and `${data.*}` interpolation is untouched — only
+  the silence moved.
+  
+  The report fires on a `data.*` read the bound adapter answers with `undefined`, not
+  on the spelling. A genuine adapter read stays silent (`data.total > 0` against an
+  adapter carrying `total`), a canonical `record.*` predicate stays silent, and a
+  correctly-hiding gate stays silent. Dev builds only, `console.warn`, deduped per
+  node type + key + predicate source — the same module, Set and lifecycle as the
+  objectui#5454 reporter.
+  
+  This loudness is temporary by design: it dissolves when objectui#5330's deprecation
+  window for the `data.*` row spelling closes.
+- 4f14ad7: `SchemaRenderer`'s node visibility gate now also catches the `${…}`-templated
+  spelling of the objectui#5454/#5687 diagnostics when it is written inside
+  `properties`, e.g. `properties: { visible: "${data.status == 'draft'}" }`
+  (objectui#5756).
+  
+  The `properties.*` evaluation loop runs, and interpolates every `${…}` template it
+  finds, **before** the visibility gate ever sees the value — so by the time the
+  existing diagnostics ran, a template-spelled predicate had already collapsed into a
+  plain boolean and there was no predicate text left to inspect. The bare-string
+  spelling of the exact same gate (`properties: { visible: "data.status == 'draft'"
+  }`) was unaffected — nothing interpolates a string with no `${` in it — and was
+  already reported; only the template spelling was structurally invisible.
+  
+  Reached by moving the diagnostic check to inside the `properties` evaluation loop,
+  on the predicate's raw (pre-interpolation) text, gated on the key being one of the
+  six visibility keys the render chain consults (`visibleWhen` / `visible` /
+  `visibleOn` / `visibility` / `hidden` / `hiddenOn`) — a `properties.content`
+  interpolation, or any other non-visibility key, is untouched and stays silent.
+  
+  Reports only the key that actually **decides** the node's visibility, mirroring
+  objectui#5454's own leg semantics (its reporter is likewise only ever invoked on
+  the leg the chain's early-return sequence actually reaches): a `properties.visible`
+  template that a co-declared `visibleWhen` outranks is not reported for deciding
+  nothing.
+  
+  **No verdict changes and no interpolation changes.** The diagnostic call's return
+  value is discarded; the real verdict is still computed afterward, off the
+  post-evaluation, post-hoist schema, by the same code path as before this change.
+  Same two reporters as objectui#5454/#5687 (unresolvable-predicate / adapter-only-data
+  predicate), same dedupe `Set`, same `console.warn` severity, same dev-only gate —
+  only the silence moved, one render-step earlier.
+- f90b8fb: `toRenderableSchema`'s header now says the bridge is permanent, instead of instructing
+  callers to remove it (objectui#4622).
+  
+  No executable line changes — but the artifact is **not** unchanged, and that is worth
+  stating plainly rather than rounding to "comment-only". This package builds with plain
+  `tsc`, and `tsconfig.base.json` sets `"removeComments": false` deliberately, so the JSDoc
+  is emitted into `dist/schema-input.js` as well as `dist/schema-input.d.ts` — it is both
+  what an editor shows on hover at every call site and bytes that ship.
+  
+  Measured by building the package the way the repo builds it, at both revisions:
+  `dist/schema-input.js` grows from 1,486 to 2,377 bytes (1.45 KB to 2.32 KB), and from 850
+  to 1,266 bytes gzipped (0.83 KB to 1.24 KB) — **+891 bytes raw, +416 gzipped**. All 19
+  differing lines in the emitted file are JSDoc continuations and the three executable lines
+  are byte-identical, so the growth is the paragraph and nothing else. The trade is
+  deliberate: roughly 0.4 KB gzipped, against the five-hour `Build Docs` outage the old
+  paragraph's instruction produced once already.
+  
+  The old closing paragraph said the two competing repo-wide `SchemaNode` spellings "have
+  not been reconciled" and that "when it lands, the call sites using this can go back to
+  forwarding directly". Both halves went false when PR #4608 merged, and the second half is
+  the harmful one: it is an instruction whose trigger condition has now fired, sitting
+  directly above the function a future author is about to call.
+  
+  The reconciliation (objectui#4580 / PR #4608) resolved the collision in favour of
+  `@object-ui/types`' union — `@object-ui/core` now re-exports it rather than hand-declaring
+  an interface — while `SchemaRenderer`'s prop stays deliberately narrow per objectui#4548
+  ruling Q2 (`schema: BaseSchema | string | null | undefined`, no `number` / `boolean`). So
+  a `SchemaNode` became *less* assignable to that prop, not more, and the bridge is a
+  permanent crossing between two intentionally different types rather than scaffolding
+  awaiting a merge.
+  
+  Following the old instruction has a measured cost: five `apps/site` call sites were
+  forwarding directly when PR #4608 landed, and `Build Docs` was red on `main` for roughly
+  five hours until PR #4621 routed all five through this function (objectui#4617).
+- Updated dependencies [b2e85a9]
+- Updated dependencies [c7cd2b6]
+- Updated dependencies [77f846a]
+- Updated dependencies [b55a346]
+- Updated dependencies [065bba7]
+- Updated dependencies [100547e]
+- Updated dependencies [3a58149]
+- Updated dependencies [d7573b3]
+- Updated dependencies [bf3edfe]
+- Updated dependencies [6ce89da]
+- Updated dependencies [0e05aac]
+- Updated dependencies [e719ebd]
+- Updated dependencies [f9e4f91]
+- Updated dependencies [fa429cf]
+- Updated dependencies [ed8df3e]
+- Updated dependencies [8ebd57f]
+- Updated dependencies [c40f3b8]
+- Updated dependencies [199d31b]
+- Updated dependencies [7138bc1]
+- Updated dependencies [cef27e2]
+- Updated dependencies [4e8622b]
+- Updated dependencies [dffd752]
+- Updated dependencies [3ccd9e8]
+- Updated dependencies [20e317c]
+- Updated dependencies [8e00bfd]
+- Updated dependencies [8d37efb]
+- Updated dependencies [a691c0b]
+- Updated dependencies [1e66879]
+- Updated dependencies [c5200f0]
+- Updated dependencies [af3861f]
+- Updated dependencies [f2158ec]
+- Updated dependencies [78cbdb5]
+- Updated dependencies [b7543a9]
+- Updated dependencies [6c6cee7]
+- Updated dependencies [d1ab06f]
+- Updated dependencies [38a9568]
+- Updated dependencies [91783c4]
+- Updated dependencies [2d36552]
+- Updated dependencies [b2437a7]
+- Updated dependencies [7a90afd]
+- Updated dependencies [c9327c9]
+- Updated dependencies [920165d]
+- Updated dependencies [3c73d99]
+- Updated dependencies [fb96ecb]
+- Updated dependencies [4d73b07]
+  - @object-ui/data-objectstack@17.7.0
+  - @object-ui/i18n@17.7.0
+  - @object-ui/types@17.7.0
+  - @object-ui/core@17.7.0
+
 ## 17.6.0
 
 ### Minor Changes

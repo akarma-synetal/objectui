@@ -1,5 +1,162 @@
 # @object-ui/plugin-charts
 
+## 17.7.0
+
+### Minor Changes
+
+- 6f017e9: Dashboard chart widgets no longer render as a blank area when their height class
+  resolves to `auto`.
+  
+  `ChartContainer`'s min-size fallback was applied only to the wrapper `div`.
+  Recharts measures its own `width:100%;height:100%` size-detector element, and a
+  percentage height never resolves against an ancestor's `min-height`, so the
+  wrapper obediently grew to 280px while the measured element stayed at 0 — and
+  Recharts renders no children at all for a non-positive box. The result was a
+  widget card with its title over an empty chart area: no marks, no refusal, no
+  empty state, and permanent, because a box that never changes fires no resize.
+  The floor is now applied to the measured element as well, under the same
+  condition, so an author's explicit height still wins.
+
+### Patch Changes
+
+- 894d103: `ObjectChart`'s wrapper div now carries `h-full`, keeping the height chain intact from a dashboard grid cell's declared height down to the element Recharts measures. Previously the chain died at the plain auto-height wrapper: `height: 100%` on the chart container computed to `auto`, Recharts measured a permanent zero, and only the `CHART_MIN_HEIGHT` floor (#5503) kept dashboard charts visible — at a fixed floor height instead of filling the cell (#5451). Under auto-height parents `h-full` resolves to `auto`, so non-dashboard hosts are unchanged.
+- cef27e2: The value-fallback label prettifier `humanizeLabel` has one implementation instead of two byte-identical copies.
+  
+  `humanizeLabel` turns a stored value into a display string when nothing else
+  resolves it — an option with no declared label, an object name, a chart axis
+  member. It existed twice, byte for byte: once in `@object-ui/fields` (read by
+  `plugin-grid`, `plugin-gantt`, `plugin-detail` and by that package's own
+  renderers) and once as a deliberate local copy in `plugin-charts`'
+  `ObjectChart.tsx`, whose comment said it was there "to avoid a dependency on
+  `@object-ui/fields`".
+  
+  Two copies of one convention is a live hazard rather than tidiness: one
+  dashboard can hold a chart and a grid over the same stored value, so a change
+  landing on one copy alone would put that value on screen under two spellings at
+  once. The single implementation now lives in `@object-ui/core` — the shared
+  ancestor both packages already depend on, so the dependency the copy existed to
+  avoid is still avoided and no new edge is created, and core takes no React
+  (objectui#4389: core-canonical logic, plugins consume). Both former sites
+  re-export it, so `import { humanizeLabel } from '@object-ui/fields'` keeps
+  working unchanged.
+  
+  **Nothing rendered changes.** The surviving implementation is byte-identical to
+  both deleted copies, and each former call site is pinned by identity against the
+  core function — not by a copied output table that someone would have to remember
+  to edit in two places.
+  
+  The core module also writes down, for the first time, why this convention stays
+  distinct from `humanizeFieldKey` (the KEY fallback, in `@object-ui/plugin-dashboard`),
+  which additionally splits camelCase:
+  
+  ```
+  input                humanizeFieldKey     humanizeLabel
+  needs_analysis       Needs Analysis       Needs Analysis
+  NeedsAnalysis        Needs Analysis       NeedsAnalysis        <- differ
+  unitPrice            Unit Price           UnitPrice            <- differ
+  BestCase             Best Case            BestCase             <- differ
+  lost-to-competitor   Lost-To-Competitor   Lost To Competitor   <- differ
+  ```
+  
+  A field KEY is authored in the codebase and carries a machine spelling, so
+  splitting camelCase recovers words its author meant. A stored VALUE is arbitrary
+  tenant data, where a mid-token capital is not reliably a word boundary and
+  splitting it rewrites what the tenant wrote (`McDonald` to `Mc Donald`). The two
+  conventions also do not nest — on the last row each leaves alone the separator
+  the other rewrites. Whether they should ever converge is a separate decision
+  that would move rendered output in four packages at once; it is deliberately not
+  made here.
+- 6c5ee71: `ObjectChart` now depends on the `fieldOptionLabel` resolver directly instead of
+  holding it behind a ref, so a chart re-resolves its groupBy option labels when
+  the resolver genuinely changes (objectui#5587).
+  
+  The ref existed for a reason that no longer holds. `useSafeFieldLabel()` returned
+  a fresh object on every render outside an i18next provider, so a direct
+  dependency made `fetchData`'s `useCallback` identity fresh on every render, and
+  the effect that depends on `fetchData` refetched on every render — an unbounded
+  loop. `ObjectChart` worked around that locally with `fieldOptionLabelRef` plus a
+  `useEffect` keeping it current. `useObjectLabel`'s memo now holds with or without
+  an i18next instance bound (objectui#5564), so the resolver's identity is stable
+  on both paths and the indirection buys nothing.
+  
+  It did cost something, and that is the user-visible half: a ref-hidden dependency
+  meant `fetchData` did NOT re-run when the resolver changed. A chart mounted
+  before its `I18nProvider`, or rendered across a language switch, kept serving
+  groupBy labels resolved by the old resolver until some unrelated dependency
+  (object name, filter, aggregate) happened to move. It now refetches once on that
+  transition and shows labels in the active language.
+  
+  Pinned by `ObjectChart.fieldOptionLabelRefetch.test.tsx`, which counts fetches
+  across forced re-renders both outside and inside a provider. Reverting
+  `useObjectLabel.ts` to its pre-objectui#5564 state turns the no-provider case red
+  (2 fetches instead of 1, alongside React's "Maximum update depth exceeded"), so
+  the removal is pinned to the fix that unlocked it rather than to a comment.
+- Updated dependencies [77f846a]
+- Updated dependencies [b55a346]
+- Updated dependencies [065bba7]
+- Updated dependencies [dd19463]
+- Updated dependencies [100547e]
+- Updated dependencies [3a58149]
+- Updated dependencies [d7573b3]
+- Updated dependencies [bf3edfe]
+- Updated dependencies [6ce89da]
+- Updated dependencies [0e05aac]
+- Updated dependencies [e719ebd]
+- Updated dependencies [f9e4f91]
+- Updated dependencies [fa429cf]
+- Updated dependencies [ed8df3e]
+- Updated dependencies [fe76ece]
+- Updated dependencies [8ebd57f]
+- Updated dependencies [c40f3b8]
+- Updated dependencies [485f096]
+- Updated dependencies [199d31b]
+- Updated dependencies [b655a9d]
+- Updated dependencies [7138bc1]
+- Updated dependencies [cef27e2]
+- Updated dependencies [4e8622b]
+- Updated dependencies [dffd752]
+- Updated dependencies [3ccd9e8]
+- Updated dependencies [ebce5a3]
+- Updated dependencies [20e317c]
+- Updated dependencies [9850c6e]
+- Updated dependencies [a691c0b]
+- Updated dependencies [0b1326d]
+- Updated dependencies [1e66879]
+- Updated dependencies [c5200f0]
+- Updated dependencies [af3861f]
+- Updated dependencies [4f14ad7]
+- Updated dependencies [fa140b8]
+- Updated dependencies [71cba28]
+- Updated dependencies [190fbd0]
+- Updated dependencies [f2158ec]
+- Updated dependencies [72ffc34]
+- Updated dependencies [78cbdb5]
+- Updated dependencies [b7543a9]
+- Updated dependencies [6c6cee7]
+- Updated dependencies [42887e0]
+- Updated dependencies [d1ab06f]
+- Updated dependencies [38a9568]
+- Updated dependencies [f90b8fb]
+- Updated dependencies [91783c4]
+- Updated dependencies [5a07e67]
+- Updated dependencies [2d36552]
+- Updated dependencies [b2437a7]
+- Updated dependencies [7a90afd]
+- Updated dependencies [490f482]
+- Updated dependencies [27308c5]
+- Updated dependencies [8689166]
+- Updated dependencies [c9327c9]
+- Updated dependencies [920165d]
+- Updated dependencies [3c73d99]
+- Updated dependencies [c86185e]
+- Updated dependencies [fb96ecb]
+- Updated dependencies [4d73b07]
+  - @object-ui/i18n@17.7.0
+  - @object-ui/types@17.7.0
+  - @object-ui/components@17.7.0
+  - @object-ui/core@17.7.0
+  - @object-ui/react@17.7.0
+
 ## 17.6.0
 
 ### Minor Changes

@@ -1,5 +1,214 @@
 # @object-ui/plugin-view
 
+## 17.7.0
+
+### Minor Changes
+
+- 4ef29f0: Remove the inert `showRefresh` designer input from the `object-view` registration (objectui#5567).
+  
+  The `object-view` designer no longer offers a "Show Refresh Button" toggle, and the registration no longer defaults `showRefresh: true`. The key was declared, documented, and defaulted, but `ObjectView` never read it — an author who wrote `showRefresh: false` on an `object-view` node always got a no-op. **Behaviour is unchanged for every existing app**, because nothing ever consumed the key.
+  
+  Migration: nothing to do. If you wrote `showRefresh` on an `object-view` node, the key simply disappears from the designer's property panel; it never controlled anything. The live refresh channel is `userActions.refresh` (rendered by the list toolbar in `@object-ui/plugin-list`), which is unaffected. `showRefresh` on other surfaces (e.g. `CRUDToolbar`) is also unaffected.
+  
+  `@object-ui/app-shell` only drops its two producer writes of the dead key (the app `ObjectView` wrapper and the metadata-admin `ViewPreview`) — no user-visible change.
+- 2d36552: Pins `@objectstack/spec`, `@objectstack/client`, `@objectstack/formula` and `@objectstack/lint` to `17.1.0`, and adapts the two consumer surfaces the new build moves.
+  
+  The pin itself is a lockfile refresh — every manifest already declared `^17.0.0`, which admits `17.1.0`, so no dependency range changed. All four move together: a split resolution is what produced the dual-version spec graph that reddened `check:spec-symbols` in this repo's history.
+  
+  **A `icontains` filter now reaches the driver as a filter.** `icontains` is a canonical `VIEW_FILTER_OPERATORS` member as of `17.1.0`, so an author can declare it on a `ViewFilterRule` and the spec validates it — but `@object-ui/data-objectstack`'s alias table had no row for it, and an unmapped operator is how this adapter shipped an unfiltered query before (objectstack#3948). It is an identity row like `contains`: `icontains` is itself a member of `VALID_AST_OPERATORS`, so the spelling the author writes is the spelling the AST takes, and no case-sensitivity is translated away. Declared rather than left to the table's `?? op` fall-through, on the rule its own parity test states — the AST gate accepting a spelling is not the driver compiling it into a `WHERE` clause.
+  
+  The same operator reaches the list view's own bridge: `@object-ui/plugin-list`'s `mapOperator` gains an explicit `icontains` arm. The emitted spelling is identical to the input, but the arm is written out rather than left to the `default` passthrough — `icontains` is its own member of `VALID_AST_OPERATORS`, so a raw passthrough is accepted *today*, and depending on that coincidence is what the bridge's own parity test records as how it once stopped discriminating.
+  
+  `@object-ui/core` adds `onSuccess` to its spec key inventory, so an author writing the key `17.1.0` now declares is no longer warned that it is unknown. That is a diagnostic statement only — the four declared action surfaces still drop the key before it reaches the runner, which is tracked separately.
+  
+  **A stored view filtering case-insensitively still shows that operator when it is reopened.** `@object-ui/plugin-view`'s canonical-to-builder table is keyed by `ViewFilterOperator`, so `17.1.0` adding `icontains` failed to compile rather than letting the operator reach the FilterBuilder as a raw spelling its dropdown cannot select. It maps to the builder's `containsCaseInsensitive` — the id that authors the spec's `$icontains` — and deliberately not to `contains`, which would quietly rewrite a case-insensitive filter into a case-sensitive one the next time the view was saved.
+  
+  **The page-editor palette keeps one entry per renderer.** `17.1.0` retires `element:filter` from `PageComponentType` and adds `record:discussion`, leaving the member count at 34 either side — so the swap is invisible to any count-based reading. The stale `element:filter` exclusion is dropped, and `record:discussion` is excluded because it is the *same renderer* as the already-offered `record:chatter`, not because it is unauthorable. Nothing the palette offers changes.
+  
+  **The console eager-closure ceiling is re-baselined, by maintainer ruling.** The release is roughly 930 KB larger uncompressed and nearly all of it lands in `vendor-objectstack-*.js`, which put the closure past a ceiling that was deliberately sized to catch a 89 KiB regression — the gate refused the bump, correctly. Raising it was escalated rather than taken locally, because gate-strength policy had been ruled the maintainer's; the ruling on objectui#5531 authorised the raise. `MAX_EAGER_CLOSURE_GZIP_BYTES` and the `BASELINE` it is derived from move together in one commit, keeping headroom at 2.00% and below the 91,136-byte regression size the gate must still catch. The gate's *sensitivity* is untouched: a repeat of that regression from the new baseline still fails. No behaviour ships from this file — it is CI policy, recorded here because the version it governs is the one this changeset publishes.
+
+### Patch Changes
+
+- cad512f: A host-composed `tree` view is now labelled with the tree icon in `ObjectView`'s
+  view switcher instead of the grid one, and the `tree` / `chart` view types are
+  recorded as host-composition-only surfaces (objectui#5321).
+  
+  `viewSwitcherSchema`'s `iconMap` carried an entry for every view type except
+  `tree`, so a tree view fell through to the `|| 'table'` fallback and was drawn
+  with the grid glyph. objectui#2916 fixed exactly this once, for `chart`, by
+  adding a single key — nothing recorded that the map had to be COMPLETE, so the
+  next missing member went unnoticed. The map is now typed
+  `Record<ViewType, string>`, which is how `ViewSwitcher`'s own
+  `DEFAULT_VIEW_ICONS` (the consumer of these strings) has always been declared:
+  a future `ViewType` member fails `type-check` rather than silently rendering as
+  a grid. The `tree` value is `'list-tree'`, the same `ListTree` glyph
+  `DEFAULT_VIEW_ICONS` already names for this view type, and the runtime fallback
+  stays for host props that carry an unrecognised type. Reached in practice by
+  the console, whose `CreateViewDialog` offers `tree` among the view types a user
+  can create.
+  
+  No authoring surface changes. `generateViewSchema` renders eight view types
+  while `ObjectViewSchema.defaultViewType` and `NamedListView.type` admit six of
+  them, so `tree` and `chart` are selectable only through the component's `views`
+  prop. The maintainer ruled on 2026-08-20 that both stay recorded as
+  host-composition-only rather than being added to those unions, following the
+  objectui#5097 precedent; the record now lives beside that one, with the branch
+  set derived from a source fence, the authored unions pinned at the type level,
+  and host reachability measured.
+- 6c6cee7: A RETIRED field-type spelling is now refused — out loud, once — by every
+  field-type predicate in the renderer, not just by the widget road
+  (objectui#4914, maintainer ruling B of 2026-08-18).
+  
+  `@object-ui/fields` exports a single `isRetiredFieldType(t)` gate, and it runs
+  ahead of six predicate faces that previously granted a retired spelling
+  first-class treatment: the filter builder's operator buckets and its value
+  control (`@object-ui/components`), the detail page's highlight-strip picker
+  (`@object-ui/plugin-detail`), `normalizeFieldType` (`@object-ui/plugin-view`),
+  the dashboard's `$expand` whitelist and `isLookupType`
+  (`@object-ui/plugin-dashboard`), and the list toolbar's lookup-like filter
+  control (`@object-ui/plugin-list`). Each one now fires the migration
+  prescription on the console — once per spelling across all of them, never once
+  per predicate — and then answers as it would for a spelling it does not
+  recognise.
+  
+  This closes the whole CLASS rather than one word: the gate is quantified over
+  `RETIRED_FIELD_TYPES`, so the next retirement covers all seven consumers on the
+  day it lands. It is the shape objectui#4932 and objectui#4942 already
+  established for the form and inline-edit roads.
+  
+  Measured before the change, and the reason the fix is a gate rather than a
+  deletion: `owner` was not dead in these faces. `operatorsForFieldType('owner')`
+  equalled the `user` bucket item for item, `computeLookupExpand` actively
+  requested `$expand` for it, `isLookupType('owner')` was `true` alongside
+  `reference`, and `normalizeFieldType('owner')` answered `'select'` exactly as
+  `picklist` does. Deleting the members alone would have traded a visible
+  contradiction for a SILENT degradation — a filter picker collapsing to a bare id
+  box, `$expand` quietly stopping so cells show raw foreign-key ids — which is
+  verbatim the failure mode `RETIRED_FIELD_TYPES`' own docblock exists to prevent.
+  The gate keeps that fallback and adds the half that was missing: the author is
+  told.
+  
+  The boundary question is answered on record: `owner` arriving through a
+  backend-vocabulary normalizer is an authoring error to refuse loudly, not
+  legitimate foreign input to tolerate. The open backend vocabulary those
+  normalizers exist for is untouched — `reference`, `picklist`, `money`, `int`,
+  `datetime_tz` and the rest are equally absent from the spec's closed `FieldType`
+  and are equally unretired, so they classify exactly as before.
+  
+  `RETIRED_FIELD_TYPES`, `reportRetiredFieldType` and `resetRetiredFieldTypeReports`
+  move to `@object-ui/core` and are re-exported from `@object-ui/fields`, so that
+  package's published surface is unchanged apart from the newly ruled gate.
+  `@object-ui/components` is a consumer of the gate and `@object-ui/fields`
+  depends on it, so a single shared table could not live in `fields` — and a
+  second copy would have meant a second dedupe set and two console lines for one
+  spelling. No package gained a new dependency.
+  
+  A retired spelling never loses a stored value: `retypeFilterValue` is
+  deliberately not gated, and the refused filter row stays operable rather than
+  drawing a blank operator trigger.
+- 6b348d2: `ViewSwitcher` draws an icon for `chart` and `gantt` views again, and both
+  icon maps in the package now name only spellings lucide still resolves
+  (objectui#5586).
+  
+  `ViewSwitcher.resolveIcon` turns an icon NAME into a component by looking it up
+  in lucide's runtime `icons` record. lucide retires a spelling by dropping it
+  from that record while KEEPING it as a deprecated named export, so a retired
+  name still imports, still type-checks and still renders as a component — and
+  silently resolves to nothing as a string. `ObjectView` composes the switcher
+  from names, and two of them had been retired on lucide-react 1.31.0:
+  `chart: 'bar-chart-3'` and `gantt: 'gantt-chart'`. Both view types rendered as a
+  label with no icon at all while every sibling type had one, and nothing went red
+  because no lucide symbol appears in that map for the compiler to check. Measured
+  against the installed package: `BarChart3` and `GanttChart` are absent from
+  `icons`, while `ChartColumn` and `ChartGantt` are present.
+  
+  - `ObjectView`'s `iconMap`: `bar-chart-3` → `chart-column`,
+    `gantt-chart` → `chart-gantt`.
+  - `ViewSwitcher`'s `DEFAULT_VIEW_ICONS`: the adjacent entries that named
+    deprecated aliases move to the names the record carries —
+    `BarChart3` → `ChartColumn`, `GanttChartSquare` → `ChartGantt`,
+    `Grid` → `Grid3x3`. `ChartColumn`/`Grid3x3` are the same components the
+    aliases already pointed at, so those two glyphs are unchanged; the `gantt`
+    default picks up the plain gantt glyph, which is what `iconMap` now supplies
+    for that view type.
+  
+  The regression pin widens from `tree` alone to EVERY name both maps supply: a
+  pin scoped to the two names that broke would not have caught this and would not
+  catch the next lucide bump.
+- Updated dependencies [77f846a]
+- Updated dependencies [b55a346]
+- Updated dependencies [065bba7]
+- Updated dependencies [dd19463]
+- Updated dependencies [100547e]
+- Updated dependencies [3a58149]
+- Updated dependencies [d7573b3]
+- Updated dependencies [bf3edfe]
+- Updated dependencies [6ce89da]
+- Updated dependencies [0e05aac]
+- Updated dependencies [3c9fca3]
+- Updated dependencies [e719ebd]
+- Updated dependencies [f9e4f91]
+- Updated dependencies [fa429cf]
+- Updated dependencies [ed8df3e]
+- Updated dependencies [fe76ece]
+- Updated dependencies [8ebd57f]
+- Updated dependencies [c40f3b8]
+- Updated dependencies [485f096]
+- Updated dependencies [199d31b]
+- Updated dependencies [9e22085]
+- Updated dependencies [b655a9d]
+- Updated dependencies [c574dfb]
+- Updated dependencies [02f48b6]
+- Updated dependencies [7138bc1]
+- Updated dependencies [cef27e2]
+- Updated dependencies [4e8622b]
+- Updated dependencies [dffd752]
+- Updated dependencies [3ccd9e8]
+- Updated dependencies [ebce5a3]
+- Updated dependencies [20e317c]
+- Updated dependencies [9850c6e]
+- Updated dependencies [a691c0b]
+- Updated dependencies [0b1326d]
+- Updated dependencies [1e66879]
+- Updated dependencies [c5200f0]
+- Updated dependencies [af3861f]
+- Updated dependencies [83ec618]
+- Updated dependencies [4f14ad7]
+- Updated dependencies [fa140b8]
+- Updated dependencies [71cba28]
+- Updated dependencies [190fbd0]
+- Updated dependencies [f2158ec]
+- Updated dependencies [72ffc34]
+- Updated dependencies [78cbdb5]
+- Updated dependencies [b7543a9]
+- Updated dependencies [6c6cee7]
+- Updated dependencies [42887e0]
+- Updated dependencies [d1ab06f]
+- Updated dependencies [38a9568]
+- Updated dependencies [f90b8fb]
+- Updated dependencies [91783c4]
+- Updated dependencies [5a07e67]
+- Updated dependencies [2d36552]
+- Updated dependencies [b2437a7]
+- Updated dependencies [7a90afd]
+- Updated dependencies [490f482]
+- Updated dependencies [27308c5]
+- Updated dependencies [8689166]
+- Updated dependencies [c9327c9]
+- Updated dependencies [920165d]
+- Updated dependencies [26a2238]
+- Updated dependencies [3c73d99]
+- Updated dependencies [c86185e]
+- Updated dependencies [fb96ecb]
+- Updated dependencies [4d73b07]
+  - @object-ui/i18n@17.7.0
+  - @object-ui/types@17.7.0
+  - @object-ui/components@17.7.0
+  - @object-ui/core@17.7.0
+  - @object-ui/plugin-form@17.7.0
+  - @object-ui/plugin-grid@17.7.0
+  - @object-ui/react@17.7.0
+
 ## 17.6.0
 
 ### Minor Changes

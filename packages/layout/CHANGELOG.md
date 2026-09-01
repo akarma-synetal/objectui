@@ -1,5 +1,99 @@
 # @object-ui/layout
 
+## 17.7.0
+
+### Patch Changes
+
+- fe76ece: The typings both packages publish now carry an explicit extension on every relative specifier, so a consumer on `moduleResolution: nodenext` can follow them.
+  
+  `vite-plugin-dts` emits one declaration file per source file, and TypeScript
+  copies a module specifier into the declaration verbatim. `export * from './ui'`
+  therefore shipped extensionless in `dist/index.d.ts` — 21 such re-exports in
+  `@object-ui/components`, 7 in `@object-ui/layout`, 128 across the two emitted
+  trees. Node16/NodeNext resolution does not extension-search a relative
+  specifier, so the compiler could follow none of the hops and every symbol they
+  carried read as absent from the package:
+  
+  ```
+  error TS2305: Module '"@object-ui/components"' has no exported member 'Badge'.
+  ```
+  
+  Measured on `@object-ui/app-shell`, the largest consumer and the one that pulls
+  in both packages: 880 TS2305 across 162 files (864 from `components`, 16 from
+  `layout`), plus 215 TS7006 as fallout from the imports that stopped resolving.
+  On `@object-ui/fields`, 178 TS2305 and 57 TS7006. Both are zero now.
+  
+  The emitted `.js` never had the defect — rolldown resolves the same specifier
+  away — which is why `pnpm check:esm-specifiers`, whose verdict is about
+  specifier-preserving `.js` builds, correctly never scanned either package. The
+  fix is therefore in the declaration EMIT (`scripts/vite-dts-explicit-extensions.ts`,
+  shared by both `vite.config.ts` files), not in the sources: the same source line
+  produces a clean `.js` and a broken `.d.ts`, so no source edit can express the
+  difference. The rewriter resolves each specifier against the source tree the
+  output mirrors — a file hop becomes `./x.js`, a directory hop `./x/index.js` —
+  throws on anything it cannot resolve, and after the build re-parses the emitted
+  declarations to assert every relative specifier both carries an extension and
+  names a file the build really emitted.
+  
+  `packages/fields` takes the `nodenext` pin as a result — the same two lines
+  `packages/react` has carried since objectui#4538 — so the property is enforced by
+  the compiler on the consumer side rather than by review. `packages/app-shell`
+  does not: it type-checks clean without the pin and still shows 23 errors with it,
+  none of them from these two packages. That residue is filed separately.
+- Updated dependencies [b55a346]
+- Updated dependencies [065bba7]
+- Updated dependencies [dd19463]
+- Updated dependencies [100547e]
+- Updated dependencies [d7573b3]
+- Updated dependencies [bf3edfe]
+- Updated dependencies [0e05aac]
+- Updated dependencies [e719ebd]
+- Updated dependencies [f9e4f91]
+- Updated dependencies [fa429cf]
+- Updated dependencies [ed8df3e]
+- Updated dependencies [fe76ece]
+- Updated dependencies [8ebd57f]
+- Updated dependencies [485f096]
+- Updated dependencies [199d31b]
+- Updated dependencies [b655a9d]
+- Updated dependencies [7138bc1]
+- Updated dependencies [cef27e2]
+- Updated dependencies [4e8622b]
+- Updated dependencies [dffd752]
+- Updated dependencies [3ccd9e8]
+- Updated dependencies [ebce5a3]
+- Updated dependencies [9850c6e]
+- Updated dependencies [a691c0b]
+- Updated dependencies [0b1326d]
+- Updated dependencies [af3861f]
+- Updated dependencies [4f14ad7]
+- Updated dependencies [fa140b8]
+- Updated dependencies [71cba28]
+- Updated dependencies [190fbd0]
+- Updated dependencies [f2158ec]
+- Updated dependencies [72ffc34]
+- Updated dependencies [78cbdb5]
+- Updated dependencies [b7543a9]
+- Updated dependencies [6c6cee7]
+- Updated dependencies [42887e0]
+- Updated dependencies [d1ab06f]
+- Updated dependencies [f90b8fb]
+- Updated dependencies [91783c4]
+- Updated dependencies [5a07e67]
+- Updated dependencies [2d36552]
+- Updated dependencies [490f482]
+- Updated dependencies [27308c5]
+- Updated dependencies [8689166]
+- Updated dependencies [c9327c9]
+- Updated dependencies [920165d]
+- Updated dependencies [3c73d99]
+- Updated dependencies [c86185e]
+- Updated dependencies [4d73b07]
+  - @object-ui/types@17.7.0
+  - @object-ui/components@17.7.0
+  - @object-ui/core@17.7.0
+  - @object-ui/react@17.7.0
+
 ## 17.6.0
 
 ### Minor Changes

@@ -1,5 +1,103 @@
 # @object-ui/plugin-chatbot
 
+## 17.7.0
+
+### Minor Changes
+
+- 6ce89da: The 确认修改 (confirm changes) card now carries a UI-owned terminal state after approval (#5695): `detectReplayOutcome` lifts the confirm-replay envelope (`replay_*` tool results) into 应用中 / 已生效 / 已暂存为草稿（含内联发布）/ 未生效（含 publishError 首行）, rendered on the original card across the live, hydration/share, and localStorage-cache converters. A failed in-turn publish no longer rehydrates as an ordinary draft card with a live Publish button — the UI-rendered refusal is the layer a model cannot narrate over. New `console.ai.changesApplying/Applied/Drafted/Failed` keys in all ten locale packs.
+
+### Patch Changes
+
+- a31adc6: `useObjectChat` no longer rebuilds its `DefaultChatTransport` on every render
+  (objectui#4187).
+  
+  The transport `useMemo` listed the caller's `body` and `headers` in its dep list.
+  Both are object props and every caller passes a fresh literal each render — the AI
+  page's chat pane builds its `body.context` inline — so the memo never hit and a
+  transport was constructed on every render of every chat surface, which during a
+  streaming turn is once per token batch.
+  
+  `body` and `headers` are now read through refs inside
+  `prepareSendMessagesRequest`, the idiom this hook already uses for the live model
+  (`modelRef`) and the handoff conversation id (`parentConvRef`), and they are gone
+  from the dep list. Unlike memoizing at each call site, a future caller cannot
+  undo it.
+  
+  No user-visible behaviour changes: `@ai-sdk/react` keeps the transport in a ref
+  and re-keys its `Chat` only on `chat`/`id` (verified against the installed
+  4.0.68), which `useObjectChat` passes neither of, so the message thread was never
+  at risk — the rebuild was pure waste. The one real difference is *when* the two
+  values are sampled: a send now reads them at send time, so it observes the values
+  of the most recent render instead of those of the last render that happened to
+  rebuild the transport. That is never staler than before, and it is pinned by
+  `useObjectChat.transportIdentity.test.tsx`.
+- ad404e0: Confirm-replay dispatch errors (bare `{error: …}` envelopes) now resolve the 确认修改 card instead of leaving it on 应用中 forever: `detectReplayOutcome` classifies them as a provisional failure, and a later successful authoring result in the same turn (the model self-repairing, e.g. after an `object not found` on a blueprint-local name) supersedes it via `detectAuthoringVerdict` — so the card never says 未生效 over a change that actually landed. Real publish failures (`publishFailed` envelopes) are never superseded. Measured live on the local rig, 2026-08-24.
+- Updated dependencies [77f846a]
+- Updated dependencies [b55a346]
+- Updated dependencies [065bba7]
+- Updated dependencies [dd19463]
+- Updated dependencies [100547e]
+- Updated dependencies [3a58149]
+- Updated dependencies [d7573b3]
+- Updated dependencies [bf3edfe]
+- Updated dependencies [6ce89da]
+- Updated dependencies [0e05aac]
+- Updated dependencies [e719ebd]
+- Updated dependencies [f9e4f91]
+- Updated dependencies [fa429cf]
+- Updated dependencies [ed8df3e]
+- Updated dependencies [fe76ece]
+- Updated dependencies [8ebd57f]
+- Updated dependencies [c40f3b8]
+- Updated dependencies [485f096]
+- Updated dependencies [199d31b]
+- Updated dependencies [b655a9d]
+- Updated dependencies [7138bc1]
+- Updated dependencies [cef27e2]
+- Updated dependencies [4e8622b]
+- Updated dependencies [dffd752]
+- Updated dependencies [3ccd9e8]
+- Updated dependencies [ebce5a3]
+- Updated dependencies [20e317c]
+- Updated dependencies [9850c6e]
+- Updated dependencies [a691c0b]
+- Updated dependencies [0b1326d]
+- Updated dependencies [1e66879]
+- Updated dependencies [c5200f0]
+- Updated dependencies [af3861f]
+- Updated dependencies [4f14ad7]
+- Updated dependencies [fa140b8]
+- Updated dependencies [71cba28]
+- Updated dependencies [190fbd0]
+- Updated dependencies [f2158ec]
+- Updated dependencies [72ffc34]
+- Updated dependencies [78cbdb5]
+- Updated dependencies [b7543a9]
+- Updated dependencies [6c6cee7]
+- Updated dependencies [42887e0]
+- Updated dependencies [d1ab06f]
+- Updated dependencies [38a9568]
+- Updated dependencies [f90b8fb]
+- Updated dependencies [91783c4]
+- Updated dependencies [5a07e67]
+- Updated dependencies [2d36552]
+- Updated dependencies [b2437a7]
+- Updated dependencies [7a90afd]
+- Updated dependencies [490f482]
+- Updated dependencies [27308c5]
+- Updated dependencies [8689166]
+- Updated dependencies [c9327c9]
+- Updated dependencies [920165d]
+- Updated dependencies [3c73d99]
+- Updated dependencies [c86185e]
+- Updated dependencies [fb96ecb]
+- Updated dependencies [4d73b07]
+  - @object-ui/i18n@17.7.0
+  - @object-ui/types@17.7.0
+  - @object-ui/components@17.7.0
+  - @object-ui/core@17.7.0
+  - @object-ui/react@17.7.0
+
 ## 17.6.0
 
 ### Patch Changes

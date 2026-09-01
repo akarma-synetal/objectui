@@ -1,5 +1,281 @@
 # @object-ui/plugin-list
 
+## 17.7.0
+
+### Minor Changes
+
+- 2d36552: Pins `@objectstack/spec`, `@objectstack/client`, `@objectstack/formula` and `@objectstack/lint` to `17.1.0`, and adapts the two consumer surfaces the new build moves.
+  
+  The pin itself is a lockfile refresh — every manifest already declared `^17.0.0`, which admits `17.1.0`, so no dependency range changed. All four move together: a split resolution is what produced the dual-version spec graph that reddened `check:spec-symbols` in this repo's history.
+  
+  **A `icontains` filter now reaches the driver as a filter.** `icontains` is a canonical `VIEW_FILTER_OPERATORS` member as of `17.1.0`, so an author can declare it on a `ViewFilterRule` and the spec validates it — but `@object-ui/data-objectstack`'s alias table had no row for it, and an unmapped operator is how this adapter shipped an unfiltered query before (objectstack#3948). It is an identity row like `contains`: `icontains` is itself a member of `VALID_AST_OPERATORS`, so the spelling the author writes is the spelling the AST takes, and no case-sensitivity is translated away. Declared rather than left to the table's `?? op` fall-through, on the rule its own parity test states — the AST gate accepting a spelling is not the driver compiling it into a `WHERE` clause.
+  
+  The same operator reaches the list view's own bridge: `@object-ui/plugin-list`'s `mapOperator` gains an explicit `icontains` arm. The emitted spelling is identical to the input, but the arm is written out rather than left to the `default` passthrough — `icontains` is its own member of `VALID_AST_OPERATORS`, so a raw passthrough is accepted *today*, and depending on that coincidence is what the bridge's own parity test records as how it once stopped discriminating.
+  
+  `@object-ui/core` adds `onSuccess` to its spec key inventory, so an author writing the key `17.1.0` now declares is no longer warned that it is unknown. That is a diagnostic statement only — the four declared action surfaces still drop the key before it reaches the runner, which is tracked separately.
+  
+  **A stored view filtering case-insensitively still shows that operator when it is reopened.** `@object-ui/plugin-view`'s canonical-to-builder table is keyed by `ViewFilterOperator`, so `17.1.0` adding `icontains` failed to compile rather than letting the operator reach the FilterBuilder as a raw spelling its dropdown cannot select. It maps to the builder's `containsCaseInsensitive` — the id that authors the spec's `$icontains` — and deliberately not to `contains`, which would quietly rewrite a case-insensitive filter into a case-sensitive one the next time the view was saved.
+  
+  **The page-editor palette keeps one entry per renderer.** `17.1.0` retires `element:filter` from `PageComponentType` and adds `record:discussion`, leaving the member count at 34 either side — so the swap is invisible to any count-based reading. The stale `element:filter` exclusion is dropped, and `record:discussion` is excluded because it is the *same renderer* as the already-offered `record:chatter`, not because it is unauthorable. Nothing the palette offers changes.
+  
+  **The console eager-closure ceiling is re-baselined, by maintainer ruling.** The release is roughly 930 KB larger uncompressed and nearly all of it lands in `vendor-objectstack-*.js`, which put the closure past a ceiling that was deliberately sized to catch a 89 KiB regression — the gate refused the bump, correctly. Raising it was escalated rather than taken locally, because gate-strength policy had been ruled the maintainer's; the ruling on objectui#5531 authorised the raise. `MAX_EAGER_CLOSURE_GZIP_BYTES` and the `BASELINE` it is derived from move together in one commit, keeping headroom at 2.00% and below the 91,136-byte regression size the gate must still catch. The gate's *sensitivity* is untouched: a repeat of that regression from the new baseline still fails. No behaviour ships from this file — it is CI policy, recorded here because the version it governs is the one this changeset publishes.
+
+### Patch Changes
+
+- 15236e0: `list-view` harvests row-action predicate fields from the OBJECT's `userActions` block only — a view's toolbar policy can no longer shadow it.
+  
+  `userActions` names two different blocks. On a **view** it is toolbar policy —
+  the spec's `UserActionsConfigSchema` (`sort`, `search`, `filter`, `refresh`,
+  `rowHeight`, `addRecordForm`, `editInline`, `buttons`), which rejects `edit` by
+  name. On an **object** it is the CRUD-predicate block (`edit` / `delete` /
+  `create` carrying `visibleWhen` / `disabledWhen`, objectui#2614) — and that is
+  the only shape `listViewPredicates` can read, since its loop skips every
+  non-object value.
+  
+  `ListView` read the key view-first when building the `$select` projection
+  (`(schema as any).userActions ?? (objectDef as any)?.userActions`). A view
+  carrying a perfectly legal toolbar block therefore shadowed the object's CRUD
+  predicates, the harvest found none, and the predicate's operand left the
+  projection. CEL then faults on the absent key, fails closed, and the row
+  Edit/Delete button disappears for everyone with nothing pointing at the
+  projection — objectui#3501's failure, reached with a success receipt at every
+  step.
+  
+  This is the sibling of the `plugin-grid` read site fixed in objectui#5426, and
+  it was the worse of the two: `app-shell`'s `ObjectView` builds the view-level
+  `userActions` it hands down as an object literal of two spreads, so the left
+  operand was `{}` at worst — never nullish. The `??` never fell through, and the
+  object's CRUD predicates were never consumed at all on that path, whether or
+  not an author wrote any toolbar policy.
+  
+  The harvest now reads the object block only. Both `userActions` read sites in
+  `ListView.tsx` carry a comment naming the collision, and
+  `__tests__/ListView.userActionsCollision.test.tsx` pins each clause of it: the
+  two shapes, a producer that manufactures the view one, the harvest's blindness
+  to it, and the projection that must keep the object's operand with a toolbar
+  block — or an empty block — present on the view.
+  
+  Toolbar policy itself is untouched — it was never read through this path.
+- ec9fdaa: `ListView` now resolves the nested `aria.ariaLabel` against the audience's locale
+  instead of casting it to a string (objectui#5134).
+  
+  `@objectstack/spec`'s `AriaPropsSchema` types `ariaLabel` as `I18nLabel` — a plain
+  string **or** an inline locale map (`{ en: 'Accounts', 'zh-CN': '客户' }`). The only
+  read site in this repo spread it into the DOM as
+  `{ 'aria-label': schema.aria.ariaLabel as string }`, and `as string` is a cast, not a
+  conversion: a map-valued label reached the DOM as `aria-label="[object Object]"`, which
+  a screen reader announces as the list view's accessible name — in every locale. The
+  read now goes through the spec's own `resolveI18nLabel` (the resolver four other
+  in-repo read sites already use) against `useDisplayLocale()`.
+  
+  Reachability, stated plainly: the path is **live but unexercised**. `I18nLabel` was a
+  plain `string` through `@objectstack/spec` 17.0.0-rc.5, so no stored map-valued label
+  predates rc.6, and no measured author writes one today — but map values are legitimate
+  and arrive via API/import, so an imported list view carrying
+  `aria: { ariaLabel: { en: …, 'zh-CN': … } }` is spec-valid metadata that renders a wrong
+  accessible name. This is the map form working as declared, not a defect users are
+  currently hitting.
+  
+  Behaviour on the string arm is byte-identical, including `''` (falsy before and after,
+  so no attribute). One edge changes for the better: a map that matches no locale used to
+  render `aria-label="[object Object]"` (`{}` is truthy) and now omits the attribute — an
+  unnamed region beats a garbage-named one.
+  
+  The **flat** `schema.ariaLabel` is deliberately untouched: it carries a different
+  vocabulary (objectui's keyed `{ key, defaultValue?, params? }` ref, resolved by
+  `SchemaRenderer`'s `resolveKeyedI18nLabel`), and neither resolver accepts the other's
+  shape.
+- d6613a2: Two comment corrections in `ListView.tsx` (objectui#4559, objectui#4966). No runtime
+  behaviour changes and the emitted bundle is byte-identical; the published `.d.ts` does
+  change, which is why this is a `patch` rather than an empty frontmatter.
+  
+  **objectui#4559 — the sort rationale stopped prescribing a formula field.** The comment
+  block above the `sortFields` memo still called a formula field "the supported
+  alternative (… which sorts like any text column)". Since objectui#4294 the
+  `list.sortRelationalHint` string in this same file says the opposite ("Not a formula
+  field: it is virtual, so no column is stored for it and the server refuses to sort by
+  one"), the memo underneath filters formula out via `UNMATERIALIZED_FIELD_TYPES`, and the
+  server answers such a sort with `400 INVALID_SORT` (objectstack#6994). The parenthetical
+  now names the remedy the hint, the server's refusal and the README already share — a
+  stored field that denormalizes the name onto this object, written when the source
+  changes. This was the last copy of the retired advice in the repo.
+  
+  **objectui#4966 — `formatActionLabel`'s docblock now sits above `formatActionLabel`.**
+  It had drifted two declarations up, so the exported `parseSortConfig` carried two
+  stacked leading comments and the helper carried none. This one was not cosmetic: because
+  `parseSortConfig` is exported, `vite-plugin-dts` copied the misattributed block into
+  `dist/ListView.d.ts`, so every consumer's editor hover and TypeDoc introduced the sort
+  parser with a sentence about action labels. Moving the block removes it from the `.d.ts`;
+  `formatActionLabel` is module-private, so its now-correct docblock does not appear there.
+  It also matters to `scripts/check-spec-symbol-derivation.mjs`, whose rule 2 reads the
+  comment block *attached* to a declaration — a misattributed docblock is the mechanism by
+  which a claim gets scored against the wrong symbol. This block carries no spec-alignment
+  phrase, so nothing fired today.
+  
+  No tests accompany this change and none could: both edits are comment-only, and there is
+  no runtime behaviour to pin. The `.d.ts` delta was measured with the package's real
+  `vite build` before and after, not asserted.
+- 6c6cee7: A RETIRED field-type spelling is now refused — out loud, once — by every
+  field-type predicate in the renderer, not just by the widget road
+  (objectui#4914, maintainer ruling B of 2026-08-18).
+  
+  `@object-ui/fields` exports a single `isRetiredFieldType(t)` gate, and it runs
+  ahead of six predicate faces that previously granted a retired spelling
+  first-class treatment: the filter builder's operator buckets and its value
+  control (`@object-ui/components`), the detail page's highlight-strip picker
+  (`@object-ui/plugin-detail`), `normalizeFieldType` (`@object-ui/plugin-view`),
+  the dashboard's `$expand` whitelist and `isLookupType`
+  (`@object-ui/plugin-dashboard`), and the list toolbar's lookup-like filter
+  control (`@object-ui/plugin-list`). Each one now fires the migration
+  prescription on the console — once per spelling across all of them, never once
+  per predicate — and then answers as it would for a spelling it does not
+  recognise.
+  
+  This closes the whole CLASS rather than one word: the gate is quantified over
+  `RETIRED_FIELD_TYPES`, so the next retirement covers all seven consumers on the
+  day it lands. It is the shape objectui#4932 and objectui#4942 already
+  established for the form and inline-edit roads.
+  
+  Measured before the change, and the reason the fix is a gate rather than a
+  deletion: `owner` was not dead in these faces. `operatorsForFieldType('owner')`
+  equalled the `user` bucket item for item, `computeLookupExpand` actively
+  requested `$expand` for it, `isLookupType('owner')` was `true` alongside
+  `reference`, and `normalizeFieldType('owner')` answered `'select'` exactly as
+  `picklist` does. Deleting the members alone would have traded a visible
+  contradiction for a SILENT degradation — a filter picker collapsing to a bare id
+  box, `$expand` quietly stopping so cells show raw foreign-key ids — which is
+  verbatim the failure mode `RETIRED_FIELD_TYPES`' own docblock exists to prevent.
+  The gate keeps that fallback and adds the half that was missing: the author is
+  told.
+  
+  The boundary question is answered on record: `owner` arriving through a
+  backend-vocabulary normalizer is an authoring error to refuse loudly, not
+  legitimate foreign input to tolerate. The open backend vocabulary those
+  normalizers exist for is untouched — `reference`, `picklist`, `money`, `int`,
+  `datetime_tz` and the rest are equally absent from the spec's closed `FieldType`
+  and are equally unretired, so they classify exactly as before.
+  
+  `RETIRED_FIELD_TYPES`, `reportRetiredFieldType` and `resetRetiredFieldTypeReports`
+  move to `@object-ui/core` and are re-exported from `@object-ui/fields`, so that
+  package's published surface is unchanged apart from the newly ruled gate.
+  `@object-ui/components` is a consumer of the gate and `@object-ui/fields`
+  depends on it, so a single shared table could not live in `fields` — and a
+  second copy would have meant a second dedupe set and two console lines for one
+  spelling. No package gained a new dependency.
+  
+  A retired spelling never loses a stored value: `retypeFilterValue` is
+  deliberately not gated, and the refused filter row stays operable rather than
+  drawing a blank operator trigger.
+- 42887e0: Repair five retired lucide icon spellings that reach a record-reading resolver, and pin
+  the names against the runtime `icons` record so the next lucide bump goes red instead of
+  silently blanking a glyph (objectui#5622).
+  
+  lucide retires a spelling by dropping it from its runtime `icons` record while KEEPING it
+  as a deprecated named export. A retired name therefore still imports, still type-checks,
+  and still renders wherever it is used as a COMPONENT — and resolves to `null` wherever it
+  is used as a STRING, because every string lookup here reads that record. Nothing goes red
+  either way. Measured against the installed `lucide-react@1.31.0` (1767 record entries) at
+  implementation time.
+  
+  What a user sees change:
+  
+  - `DetailView`'s mobile Edit action (`icon: 'edit'` → `'square-pen'`) draws its icon
+    again. Its items become an `action:bar` schema whose renderers resolve `icon` through
+    `renderers/action/resolve-icon.ts`, so the touch-breakpoint edit affordance had been
+    drawing a label with nothing beside it. `Edit === SquarePen`, so the glyph is unchanged.
+  - The `ui:icon` renderer's own declared default (`'smile'` → `'face-slightly-smiling'`, in
+    both the registration `icon` and the `name` input's `defaultValue`) resolves again: the
+    designer palette entry's glyph was blank, and an `icon` dropped from that palette
+    rendered nothing plus a `console.warn`. `Smile === FaceSlightlySmiling`, so the palette
+    looks exactly as it did.
+  - `plugin-list`'s `ViewSwitcher` moves `Grid` → `Grid3x3`, `BarChart3` → `ChartColumn`
+    (both identical objects, no visual change) and `GanttChartSquare` → `ChartGantt`. The
+    gantt one IS a glyph change: it matches the spelling the sibling `plugin-view` switcher
+    landed in objectui#5586, so one view type no longer draws two different icons depending
+    on which switcher is on screen.
+  
+  Four resolvability pins are added — in `plugin-detail`, `plugin-list`, `components` and
+  alongside the `DeclaredActionsBar` fixtures. Each asserts `icons`-record MEMBERSHIP rather
+  than resolvability, because every retired spelling repaired here is the SAME component
+  object as its replacement (`Edit === SquarePen`, `Smile === FaceSlightlySmiling`,
+  `Grid === Grid3x3`, `BarChart3 === ChartColumn`, `CheckCircle === CircleCheckBig`,
+  `XCircle === CircleX` are all true): a pin that rendered the glyph, or reached for the
+  export, would pass on the broken name. That is the blindness that let this ship.
+- Updated dependencies [77f846a]
+- Updated dependencies [b55a346]
+- Updated dependencies [065bba7]
+- Updated dependencies [dd19463]
+- Updated dependencies [100547e]
+- Updated dependencies [3a58149]
+- Updated dependencies [d7573b3]
+- Updated dependencies [bf3edfe]
+- Updated dependencies [6ce89da]
+- Updated dependencies [0e05aac]
+- Updated dependencies [3c9fca3]
+- Updated dependencies [e719ebd]
+- Updated dependencies [f9e4f91]
+- Updated dependencies [fa429cf]
+- Updated dependencies [ed8df3e]
+- Updated dependencies [fe76ece]
+- Updated dependencies [8ebd57f]
+- Updated dependencies [9a1fb41]
+- Updated dependencies [c40f3b8]
+- Updated dependencies [485f096]
+- Updated dependencies [199d31b]
+- Updated dependencies [b655a9d]
+- Updated dependencies [a865c73]
+- Updated dependencies [7138bc1]
+- Updated dependencies [cef27e2]
+- Updated dependencies [4e8622b]
+- Updated dependencies [dffd752]
+- Updated dependencies [3ccd9e8]
+- Updated dependencies [7a28e1e]
+- Updated dependencies [ebce5a3]
+- Updated dependencies [20e317c]
+- Updated dependencies [9850c6e]
+- Updated dependencies [a691c0b]
+- Updated dependencies [0b1326d]
+- Updated dependencies [1e66879]
+- Updated dependencies [c5200f0]
+- Updated dependencies [af3861f]
+- Updated dependencies [4f14ad7]
+- Updated dependencies [4bb940b]
+- Updated dependencies [fa140b8]
+- Updated dependencies [71cba28]
+- Updated dependencies [190fbd0]
+- Updated dependencies [f2158ec]
+- Updated dependencies [72ffc34]
+- Updated dependencies [78cbdb5]
+- Updated dependencies [b7543a9]
+- Updated dependencies [6c6cee7]
+- Updated dependencies [42887e0]
+- Updated dependencies [f1690d4]
+- Updated dependencies [d1ab06f]
+- Updated dependencies [38a9568]
+- Updated dependencies [f90b8fb]
+- Updated dependencies [91783c4]
+- Updated dependencies [5a07e67]
+- Updated dependencies [2d36552]
+- Updated dependencies [b2437a7]
+- Updated dependencies [7a90afd]
+- Updated dependencies [490f482]
+- Updated dependencies [27308c5]
+- Updated dependencies [8689166]
+- Updated dependencies [c9327c9]
+- Updated dependencies [920165d]
+- Updated dependencies [3c73d99]
+- Updated dependencies [c86185e]
+- Updated dependencies [fb96ecb]
+- Updated dependencies [4d73b07]
+  - @object-ui/i18n@17.7.0
+  - @object-ui/types@17.7.0
+  - @object-ui/components@17.7.0
+  - @object-ui/core@17.7.0
+  - @object-ui/permissions@17.7.0
+  - @object-ui/fields@17.7.0
+  - @object-ui/react@17.7.0
+  - @object-ui/mobile@17.7.0
+
 ## 17.6.0
 
 ### Minor Changes

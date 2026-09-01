@@ -1,5 +1,162 @@
 # @object-ui/plugin-form
 
+## 17.7.0
+
+### Minor Changes
+
+- 3c9fca3: Create forms pre-fill the `current_user` defaultValue token with the acting user (#5683). `PermissionContextValue` gains `userId` (from `/me/permissions`; `null` = unknown), and the create-form seeding resolves `defaultValue: 'current_user'` on `user` / `lookup→sys_user` fields to that id — the same value the engine stamps at insert, so the pre-fill is a preview of the server's own resolution, not a second default contract. Unknown user (no provider / anonymous / role-based provider) seeds nothing and keeps the omit-and-let-the-engine-resolve behavior. `NOW()` and CEL defaults stay server-owned.
+- ebce5a3: `object-grid` / `object-form` / `detail-view` resolve their data source the same way, and a block that resolves none says so
+  
+  The three object-bound blocks disagreed about how the data-source adapter reached
+  them. `object-grid` and `object-form` were registered through wrappers that read
+  it from `SchemaRendererProvider` context; `detail-view` was registered as the raw
+  component, which reads a React `dataSource` prop. `SchemaRenderer` itself reads
+  only context, so the two wirings were mutually exclusive: measured with correct
+  keys in every cell, provider wiring gave the grid `find` 1 and the detail view
+  `findOne` 0, and prop wiring gave exactly the reverse. Neither reported anything.
+  
+  All three now resolve the adapter through one rule — an explicit `dataSource`
+  prop first, the provider context second. This is additive: `detail-view` keeps
+  its prop form (and direct `<DetailView dataSource={…} />` callers are untouched),
+  `object-form` gains a prop form it did not have, and `object-grid` no longer
+  throws `useSchemaContext must be used within a SchemaRendererProvider` when a
+  page has no provider.
+  
+  And the silence is over. A block in this family that resolves no adapter renders
+  a **No data source resolved** panel naming the block, the object it was about to
+  read, and the ancestor that injects the adapter — instead of a header-only grid,
+  a field-less form card, or nothing at all. The check is opt-in per block, so a
+  placement with inline rows, inline `customFields`, an inline record or an `api`
+  endpoint is untouched.
+  
+  New from `@object-ui/react`: `useResolvedDataSource`, `NoDataSourcePanel`,
+  `noDataSourceMessage`, and a `requiresDataSource` prop on `ElementDataSourceGate`.
+
+### Patch Changes
+
+- 83ec618: `README.md`'s "Not a `FormField` key" table said a field-level `className` is
+  "read on exactly one pseudo-field, `type: 'section-divider'`". That quantifier
+  holds only for the renderer's *explicit* read — `className={fp.className}` on
+  the `section-divider` branch of
+  `packages/components/src/renderers/form/form.tsx`. The same renderer forwards
+  every key it did not destructure, and `className` is not among the names taken
+  off the field config, not among the ones `stripRendererOnlyProps` removes, and
+  so rides `{...fieldProps}` into `renderFieldComponent`, whose built-in `input`
+  branch spreads it onto `<Input>`. A field-level `className` therefore lands
+  visibly on ordinary built-in controls, and a reader taking "exactly one"
+  literally concludes the opposite of what the code does (objectui#5131).
+  
+  The cell now describes the contract rather than the reader count: an undeclared
+  key still rides the props spread down to whichever component the field resolves
+  to, nothing in the contract promises that, and a registered widget honours it
+  only if it happens to spread its leftover props — the wording the docs site
+  already ships, so the two sources agree again. The advice in the row is
+  unchanged and was never wrong (`span` / `colSpan` for width,
+  `FormSchema.fieldContainerClass` for the grid), and the explicit
+  `section-divider` read is kept, now named as explicit.
+  
+  This is a documentation fix to a file `plugin-form` publishes to npm, which is
+  why it carries a version: the npm landing page only picks up the correction on a
+  release. No behaviour, export, type, or `dist` byte changes.
+- 26a2238: `navigateOnSuccess` now honours a mounted host, and says so when its destination is refused
+  
+  `ObjectForm` and `WizardForm` consume `navigateOnSuccess` through
+  `resolveSuccessNavigate`, and both arms travelled to an accepted destination with a bare
+  `window.location.assign`. A rooted path such as `/apps/x/o/record/{id}` assigned that way
+  resolves against the ORIGIN root, so under a host mounted at a sub-path (the framework CLI
+  configures one for every embedded deployment) an authored in-app destination left the
+  application. Both arms now route an app-relative destination through the injected
+  navigation seam both components already held for `submitBehavior.url`, so a mounted host's
+  basename is applied. With no host seam the behaviour is byte-for-byte what it was — a host
+  with no router has no basename, so origin-rooted resolution is already correct there. A
+  same-origin ABSOLUTE destination also keeps browser-level navigation: the seam's declared
+  input is an application-relative path, and an author who spelled out a whole address asked
+  for that address.
+  
+  A declared `navigateOnSuccess` whose destination is refused — a mistyped value, or a written
+  record carrying no usable id — used to produce a success toast identical to the one a form
+  with no `navigateOnSuccess` produces, so the navigation failed with nobody told. That toast
+  now carries a note that the declared navigation did not happen, and the template the author
+  wrote is logged for them. The write genuinely succeeded, so this stays a success rather than
+  becoming an error state.
+  
+  Which destinations are ACCEPTED is unchanged: the same-origin guard, the `{id}` /
+  `{recordId}` dialect and the unescaped interpolation are the subject of an open contract
+  question and are deliberately untouched here.
+- Updated dependencies [77f846a]
+- Updated dependencies [b55a346]
+- Updated dependencies [065bba7]
+- Updated dependencies [dd19463]
+- Updated dependencies [100547e]
+- Updated dependencies [3a58149]
+- Updated dependencies [d7573b3]
+- Updated dependencies [bf3edfe]
+- Updated dependencies [6ce89da]
+- Updated dependencies [0e05aac]
+- Updated dependencies [3c9fca3]
+- Updated dependencies [e719ebd]
+- Updated dependencies [f9e4f91]
+- Updated dependencies [fa429cf]
+- Updated dependencies [ed8df3e]
+- Updated dependencies [fe76ece]
+- Updated dependencies [8ebd57f]
+- Updated dependencies [9a1fb41]
+- Updated dependencies [c40f3b8]
+- Updated dependencies [485f096]
+- Updated dependencies [199d31b]
+- Updated dependencies [b655a9d]
+- Updated dependencies [a865c73]
+- Updated dependencies [7138bc1]
+- Updated dependencies [cef27e2]
+- Updated dependencies [4e8622b]
+- Updated dependencies [dffd752]
+- Updated dependencies [3ccd9e8]
+- Updated dependencies [7a28e1e]
+- Updated dependencies [ebce5a3]
+- Updated dependencies [20e317c]
+- Updated dependencies [9850c6e]
+- Updated dependencies [a691c0b]
+- Updated dependencies [0b1326d]
+- Updated dependencies [1e66879]
+- Updated dependencies [c5200f0]
+- Updated dependencies [af3861f]
+- Updated dependencies [4f14ad7]
+- Updated dependencies [4bb940b]
+- Updated dependencies [fa140b8]
+- Updated dependencies [71cba28]
+- Updated dependencies [190fbd0]
+- Updated dependencies [f2158ec]
+- Updated dependencies [72ffc34]
+- Updated dependencies [78cbdb5]
+- Updated dependencies [b7543a9]
+- Updated dependencies [6c6cee7]
+- Updated dependencies [42887e0]
+- Updated dependencies [f1690d4]
+- Updated dependencies [d1ab06f]
+- Updated dependencies [38a9568]
+- Updated dependencies [f90b8fb]
+- Updated dependencies [91783c4]
+- Updated dependencies [5a07e67]
+- Updated dependencies [2d36552]
+- Updated dependencies [b2437a7]
+- Updated dependencies [7a90afd]
+- Updated dependencies [490f482]
+- Updated dependencies [27308c5]
+- Updated dependencies [8689166]
+- Updated dependencies [c9327c9]
+- Updated dependencies [920165d]
+- Updated dependencies [3c73d99]
+- Updated dependencies [c86185e]
+- Updated dependencies [fb96ecb]
+- Updated dependencies [4d73b07]
+  - @object-ui/i18n@17.7.0
+  - @object-ui/types@17.7.0
+  - @object-ui/components@17.7.0
+  - @object-ui/core@17.7.0
+  - @object-ui/permissions@17.7.0
+  - @object-ui/fields@17.7.0
+  - @object-ui/react@17.7.0
+
 ## 17.6.0
 
 ### Minor Changes

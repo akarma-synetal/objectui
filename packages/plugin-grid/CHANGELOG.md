@@ -1,5 +1,216 @@
 # @object-ui/plugin-grid
 
+## 17.7.0
+
+### Minor Changes
+
+- ebce5a3: `object-grid` / `object-form` / `detail-view` resolve their data source the same way, and a block that resolves none says so
+  
+  The three object-bound blocks disagreed about how the data-source adapter reached
+  them. `object-grid` and `object-form` were registered through wrappers that read
+  it from `SchemaRendererProvider` context; `detail-view` was registered as the raw
+  component, which reads a React `dataSource` prop. `SchemaRenderer` itself reads
+  only context, so the two wirings were mutually exclusive: measured with correct
+  keys in every cell, provider wiring gave the grid `find` 1 and the detail view
+  `findOne` 0, and prop wiring gave exactly the reverse. Neither reported anything.
+  
+  All three now resolve the adapter through one rule — an explicit `dataSource`
+  prop first, the provider context second. This is additive: `detail-view` keeps
+  its prop form (and direct `<DetailView dataSource={…} />` callers are untouched),
+  `object-form` gains a prop form it did not have, and `object-grid` no longer
+  throws `useSchemaContext must be used within a SchemaRendererProvider` when a
+  page has no provider.
+  
+  And the silence is over. A block in this family that resolves no adapter renders
+  a **No data source resolved** panel naming the block, the object it was about to
+  read, and the ancestor that injects the adapter — instead of a header-only grid,
+  a field-less form card, or nothing at all. The check is opt-in per block, so a
+  placement with inline rows, inline `customFields`, an inline record or an `api`
+  endpoint is untouched.
+  
+  New from `@object-ui/react`: `useResolvedDataSource`, `NoDataSourcePanel`,
+  `noDataSourceMessage`, and a `requiresDataSource` prop on `ElementDataSourceGate`.
+
+### Patch Changes
+
+- 9e22085: `ObjectGrid` lowers the deprecated `defaultFilters` through `toFilterNode` instead of
+  byte-copying it onto `$filter` (objectui#4082).
+  
+  The query assembly already lowered the canonical `filter` key through `toFilterNode` —
+  the repo's single "last hop before the wire" (objectui#4041) — while the legacy branch
+  beside it assigned `params.$filter = schema.defaultFilters` verbatim. That made this the
+  one leg on the chain reaching the wire unlowered: `plugin-list`'s `buildEffectiveFilter`
+  and `plugin-view`'s non-grid fetch both already route the same value through
+  `toFilterNode` / `mergeFilterNodes`.
+  
+  Byte-copying is refused on the wire for both shapes the slot carries. `defaultFilters` is
+  declared `Record<string, any>` (the MongoDB-style shape) and `isFilterAST` is false for a
+  plain object; an array of `ViewFilterRule` objects fails the same predicate. Either one
+  answers `400 INVALID_FILTER` — measured against a real backend in objectui#3431.
+  
+  `toFilterNode` handles both without new logic: objects route through
+  `convertFiltersToAST`, rule arrays lower element-wise, and an AST already in the slot
+  passes through untouched, so nothing is lowered twice. It also folds an absent or empty
+  source to `undefined`, which is why the truthiness guard is gone — `defaultFilters: {}`
+  used to send `$filter: {}`, asking the server a question with no content in a shape it
+  refuses; now `$filter` is omitted, matching the canonical key's documented behaviour.
+  
+  **Grade — this is less dormant than the card assumed.** objectui#4082 was filed
+  observation-class on "no measured producer", reasoning that `defaultFilters` is not in
+  `object-grid`'s registered `inputs` so an author writing it only draws a save-gate
+  warning. That reasoning covers authors, but not the framework: `plugin-view`'s
+  `ObjectView` writes the slot itself, forwarding an active named view's `filter` as
+  `defaultFilters: viewFilter || schema.table?.defaultFilters` in its `gridSchema` memo —
+  and `plugin-view`'s own README documents `listViews.<name>.filter` as
+  `[{ field, operator, value }, …]`, the exact shape objectui#3431 measured as
+  `400 INVALID_FILTER`. The registered `object-view` / `view` renderer passes no
+  `renderListView`, so that path falls through to `ObjectGrid` rather than to `ListView`,
+  and `ListView`'s lowering does not cover it. So a schema-registration host — the
+  documented authoring path — reached the raw assignment whenever an active named view
+  carried a filter. Not asserted here: a failing request captured against a running
+  deployment. `app-shell` is unaffected either way; it supplies `renderListView` and
+  delegates to `ListView`, which lowers.
+  
+  Not in scope, and deliberately not done: retiring `defaultFilters`. This is
+  consumer-side only — the key the schema admits is unchanged, and its precedence behind
+  the canonical `filter` is unchanged.
+  
+  The sibling legacy `defaultSort` leg was graded and needs no change; see the PR for the
+  measurements.
+- c574dfb: `ObjectGrid` says which column it dropped, instead of rendering a header-only grid in silence.
+  
+  objectui#5068 retired the undeclared `accessorKey` / `header` tolerance branch, so
+  `ListColumnSchema`'s `field` / `label` is now the only column spelling the renderer
+  reads. That was right — the spec refuses `accessorKey` and `header` by name, and the
+  census found zero authored usages. But it relocated a failure mode instead of removing
+  it: a column authored in a spelling the renderer does not read contributed nothing, and
+  nothing said so. No error, no warning, no empty state — the author got a grid with its
+  row-number column and no data columns, which is a success receipt for a disagreement
+  between the renderer and the author.
+  
+  An authored column that can never resolve now emits one `console.warn` naming the
+  address rather than the symptom: which block (`object-grid` or the `view:grid` alias),
+  which object and label, which `columns[i]`, the keys that entry actually carries, and the
+  rewrite that works — for a column authored `{ accessorKey: 'amount', header: 'Amount' }`
+  the message spells out `{ field: 'amount', label: 'Amount' }`. It reuses the channel `ObjectGrid` already had for "you declared it, the renderer dropped
+  it" (the export-format warning), rather than adding a second differently-shaped one.
+  
+  Rendering is unchanged in every case: this is additive. The diagnostic reads the
+  `columns` input and nothing else — it never asks whether the grid found rows, because
+  `object-grid` legitimately draws them from five different places (a bare `data` array,
+  `data.provider: 'value'`, legacy `staticData`, `bind`, or a host that owns the fetch and
+  passes the window down as a `data` React prop, which is what `plugin-list`'s `ListView`
+  does). All five are pinned by test, in both directions. A `hidden: true` column is
+  authored intent and is never reported, and so are the arms that legitimately produce no
+  columns of their own: no `columns` key, an empty `columns` array, and the `string[]`
+  spelling.
+  
+  A throw was rejected: a grid that renders nothing today would become a page that renders
+  nothing.
+- 02f48b6: `object-grid` harvests row-action predicate fields from the OBJECT's `userActions` block only — a view's toolbar policy can no longer shadow it.
+  
+  `userActions` names two different blocks. On a **view** it is toolbar policy —
+  the spec's `UserActionsConfigSchema` (`sort`, `search`, `filter`, `refresh`,
+  `rowHeight`, `addRecordForm`, `editInline`, `buttons`), which rejects `edit` by
+  name. On an **object** it is the CRUD-predicate block (`edit` / `delete` /
+  `create` carrying `visibleWhen` / `disabledWhen`, objectui#2614) — and that is
+  the only shape `listViewPredicates` can read, since its loop skips every
+  non-object value.
+  
+  `ObjectGrid` read the key view-first when building the `$select` projection
+  (`(schema as any).userActions ?? resolvedSchema.userActions`). A view carrying a
+  perfectly legal toolbar block therefore shadowed the object's CRUD predicates,
+  the harvest found none, and the predicate's operand left the projection. CEL then
+  faults on the absent key, fails closed, and the row Edit/Delete button disappears
+  for everyone with nothing pointing at the projection — objectui#3501's failure,
+  reached with a success receipt at every step.
+  
+  The view-level block is not hypothetical: `SpecBridge.transformListView` copies
+  it onto the `object-grid` node the renderer receives, and `app-shell`'s
+  `ObjectView` builds one unconditionally.
+  
+  The harvest now reads the resolved object block only. Both `userActions` read
+  sites carry a comment naming the collision, and
+  `__tests__/gridNonAuthorKeys.test.tsx` pins each clause of it: the two shapes,
+  the producer that writes the view one, the harvest's blindness to it, and the
+  projection that must keep the object's operand with a toolbar block present.
+  
+  Toolbar policy itself is untouched — it was never read through this path.
+- Updated dependencies [77f846a]
+- Updated dependencies [b55a346]
+- Updated dependencies [065bba7]
+- Updated dependencies [dd19463]
+- Updated dependencies [100547e]
+- Updated dependencies [3a58149]
+- Updated dependencies [d7573b3]
+- Updated dependencies [bf3edfe]
+- Updated dependencies [6ce89da]
+- Updated dependencies [0e05aac]
+- Updated dependencies [3c9fca3]
+- Updated dependencies [e719ebd]
+- Updated dependencies [f9e4f91]
+- Updated dependencies [fa429cf]
+- Updated dependencies [ed8df3e]
+- Updated dependencies [fe76ece]
+- Updated dependencies [8ebd57f]
+- Updated dependencies [9a1fb41]
+- Updated dependencies [c40f3b8]
+- Updated dependencies [485f096]
+- Updated dependencies [199d31b]
+- Updated dependencies [b655a9d]
+- Updated dependencies [a865c73]
+- Updated dependencies [7138bc1]
+- Updated dependencies [cef27e2]
+- Updated dependencies [4e8622b]
+- Updated dependencies [dffd752]
+- Updated dependencies [3ccd9e8]
+- Updated dependencies [7a28e1e]
+- Updated dependencies [ebce5a3]
+- Updated dependencies [20e317c]
+- Updated dependencies [9850c6e]
+- Updated dependencies [a691c0b]
+- Updated dependencies [0b1326d]
+- Updated dependencies [1e66879]
+- Updated dependencies [c5200f0]
+- Updated dependencies [af3861f]
+- Updated dependencies [4f14ad7]
+- Updated dependencies [4bb940b]
+- Updated dependencies [fa140b8]
+- Updated dependencies [71cba28]
+- Updated dependencies [190fbd0]
+- Updated dependencies [f2158ec]
+- Updated dependencies [72ffc34]
+- Updated dependencies [78cbdb5]
+- Updated dependencies [b7543a9]
+- Updated dependencies [6c6cee7]
+- Updated dependencies [42887e0]
+- Updated dependencies [f1690d4]
+- Updated dependencies [d1ab06f]
+- Updated dependencies [38a9568]
+- Updated dependencies [f90b8fb]
+- Updated dependencies [91783c4]
+- Updated dependencies [5a07e67]
+- Updated dependencies [2d36552]
+- Updated dependencies [b2437a7]
+- Updated dependencies [7a90afd]
+- Updated dependencies [490f482]
+- Updated dependencies [27308c5]
+- Updated dependencies [8689166]
+- Updated dependencies [c9327c9]
+- Updated dependencies [920165d]
+- Updated dependencies [3c73d99]
+- Updated dependencies [c86185e]
+- Updated dependencies [fb96ecb]
+- Updated dependencies [4d73b07]
+  - @object-ui/i18n@17.7.0
+  - @object-ui/types@17.7.0
+  - @object-ui/components@17.7.0
+  - @object-ui/core@17.7.0
+  - @object-ui/permissions@17.7.0
+  - @object-ui/fields@17.7.0
+  - @object-ui/react@17.7.0
+  - @object-ui/mobile@17.7.0
+
 ## 17.6.0
 
 ### Minor Changes

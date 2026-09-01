@@ -1,5 +1,118 @@
 # @object-ui/cli
 
+## 17.7.0
+
+### Minor Changes
+
+- 94021dd: `objectui check` judges a file's `type` only when the file is recognisable as an ObjectUI schema, and reports how many it declined to judge.
+  
+  A root `type` was treated as a component key wherever it appeared. `type` heads at
+  least seven unrelated JSON vocabularies, and the most common of them is
+  `package.json`'s `"type": "module"` — so the first line a user saw running
+  `objectui check` in their own project was a warning about their own package
+  manifest. Measured at this repository's root: 46 warnings, 45 of them
+  `package.json` (objectui#5127).
+  
+  A file now enters type judgement only when its root carries a structural key
+  declared on `BaseSchema` — `children`, `body`, `className`, `placeholder`,
+  `style`, the `visible`/`hidden`/`disabled` predicate family, `testId`,
+  `ariaLabel`. Every other root-`type` vocabulary — JSON Schema's `"array"`, an
+  `.eslintrc.json`'s `"commonjs"`, a package manifest's `"module"` — is simply
+  never judged. The key set is read out of the node contract rather than invented,
+  and it is closed: it grows only when `BaseSchema` grows.
+  
+  A list of filenames to exclude was the alternative and was rejected: it is a
+  second hand-maintained list of the shape objectui#5115 had just finished
+  deleting, and it can only ever enumerate the foreign vocabularies someone already
+  thought of. This is a positive marker instead.
+  
+  Because the marker narrows what is checked, the command now also reports the
+  count of files that had a root `type` and no marker, together with the marker
+  keys that opt one back in. That number is the coverage this gate gives up until
+  schema files are recognisable, and printing it is what keeps the loss visible
+  rather than silent. The `.yaml`/`.yml` half of the scan is unchanged — it was
+  never type-judged, before this change or after it. Exit codes are untouched: a
+  JSON parse failure remains the only thing that fails the run.
+  
+  No public `$schema` URL is introduced. An earlier revision also admitted a file
+  whose root `$schema` had an `objectui.org` host; the maintainer ruled against
+  minting that identifier (2026-08-20, objectui#5127), so the structural key is the
+  only marker. Because the matching was host-based rather than literal, that arm
+  can be added later without invalidating a single file.
+
+### Patch Changes
+
+- 100547e: `objectui validate` now refuses a form field whose widget id names a namespace
+  other than `field:`, matching the verdict `@object-ui/core`'s `validateSchema`
+  has given since objectui#5375 (objectui#5449).
+  
+  The CLI reaches `FormFieldSchema` through `safeValidateSchema`, and that schema
+  declared `type` and `widget` as bare optional strings — so a field typed
+  `ui:password` validated clean while the runtime validator rejected the same
+  document with `UNRESOLVABLE_FIELD_WIDGET_NAMESPACE`. The CLI is the surface an
+  author actually runs before shipping, so it was the one handing out the false
+  green: an author did exactly the diligence objectui#5375 asks for and still
+  shipped metadata that renders a secret into a plain text box.
+  
+  A `superRefine` on `FormFieldSchema` now states the rule, mirroring core's
+  precedence (`widget` before `type`), the key it blames, its error code and its
+  message verbatim, so the two entry points cannot describe one defect two ways.
+  
+  **This rejects documents that previously validated.** Only colon-qualified
+  field widget ids outside the `field:` namespace are affected — `field:`-prefixed
+  ids and bare names such as `password` still pass, registered or not. A field
+  carrying, say, `type: 'ui:password'` must be rewritten as `password` or
+  `field:password`; it never rendered as a password box in any case.
+  
+  Which of the repo's authoring-time validators is canonical remains open
+  (objectui#4631) — this states the rule on the zod side rather than unifying
+  them.
+- Updated dependencies [b55a346]
+- Updated dependencies [065bba7]
+- Updated dependencies [dd19463]
+- Updated dependencies [100547e]
+- Updated dependencies [d7573b3]
+- Updated dependencies [0e05aac]
+- Updated dependencies [e719ebd]
+- Updated dependencies [f9e4f91]
+- Updated dependencies [fa429cf]
+- Updated dependencies [ed8df3e]
+- Updated dependencies [fe76ece]
+- Updated dependencies [485f096]
+- Updated dependencies [199d31b]
+- Updated dependencies [b655a9d]
+- Updated dependencies [4e8622b]
+- Updated dependencies [dffd752]
+- Updated dependencies [3ccd9e8]
+- Updated dependencies [ebce5a3]
+- Updated dependencies [9850c6e]
+- Updated dependencies [a691c0b]
+- Updated dependencies [0b1326d]
+- Updated dependencies [4f14ad7]
+- Updated dependencies [fa140b8]
+- Updated dependencies [71cba28]
+- Updated dependencies [190fbd0]
+- Updated dependencies [72ffc34]
+- Updated dependencies [78cbdb5]
+- Updated dependencies [b7543a9]
+- Updated dependencies [6c6cee7]
+- Updated dependencies [42887e0]
+- Updated dependencies [d1ab06f]
+- Updated dependencies [f90b8fb]
+- Updated dependencies [91783c4]
+- Updated dependencies [5a07e67]
+- Updated dependencies [490f482]
+- Updated dependencies [27308c5]
+- Updated dependencies [8689166]
+- Updated dependencies [c9327c9]
+- Updated dependencies [920165d]
+- Updated dependencies [3c73d99]
+- Updated dependencies [c86185e]
+- Updated dependencies [4d73b07]
+  - @object-ui/types@17.7.0
+  - @object-ui/components@17.7.0
+  - @object-ui/react@17.7.0
+
 ## 17.6.0
 
 ### Patch Changes

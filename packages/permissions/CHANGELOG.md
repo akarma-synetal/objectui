@@ -1,5 +1,34 @@
 # @object-ui/permissions
 
+## 17.7.0
+
+### Minor Changes
+
+- 3c9fca3: Create forms pre-fill the `current_user` defaultValue token with the acting user (#5683). `PermissionContextValue` gains `userId` (from `/me/permissions`; `null` = unknown), and the create-form seeding resolves `defaultValue: 'current_user'` on `user` / `lookup→sys_user` fields to that id — the same value the engine stamps at insert, so the pre-fill is a preview of the server's own resolution, not a second default contract. Unknown user (no provider / anonymous / role-based provider) seeds nothing and keeps the omit-and-let-the-engine-resolve behavior. `NOW()` and CEL defaults stay server-owned.
+
+### Patch Changes
+
+- Updated dependencies [b55a346]
+- Updated dependencies [065bba7]
+- Updated dependencies [100547e]
+- Updated dependencies [d7573b3]
+- Updated dependencies [0e05aac]
+- Updated dependencies [f9e4f91]
+- Updated dependencies [fa429cf]
+- Updated dependencies [ed8df3e]
+- Updated dependencies [199d31b]
+- Updated dependencies [4e8622b]
+- Updated dependencies [dffd752]
+- Updated dependencies [3ccd9e8]
+- Updated dependencies [a691c0b]
+- Updated dependencies [78cbdb5]
+- Updated dependencies [b7543a9]
+- Updated dependencies [c9327c9]
+- Updated dependencies [920165d]
+- Updated dependencies [3c73d99]
+- Updated dependencies [4d73b07]
+  - @object-ui/types@17.7.0
+
 ## 17.6.0
 
 ### Patch Changes

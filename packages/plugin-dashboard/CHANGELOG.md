@@ -1,5 +1,359 @@
 # @object-ui/plugin-dashboard
 
+## 17.7.0
+
+### Minor Changes
+
+- e719ebd: `data-table` reads the declared `header`; the producers translate `label` into it.
+  
+  `TableColumn` declares `header: string` and does not declare `label`. The
+  renderer's column normalization nonetheless read `header: col.header || col.label`,
+  so the same key had one spelling the type admits and one only the runtime did.
+  That alias is gone (objectui#5351), and the translation it used to perform happens
+  once at each producer instead: metadata vocabulary in, adapter vocabulary out.
+  
+  **This narrows what `data-table` accepts, so read this if you author `data-table`
+  nodes by hand.** A column spelled `{ label: 'Stage', accessorKey: 'stage' }` on a
+  directly authored `data-table` now renders a **headerless** column over live
+  cells. Spell it `header` — the key `TableColumn` has always declared. Columns
+  reaching `data-table` through `object-data-table`, `object-grid` or a related
+  list are unaffected: those producers resolve `header` for you from the spec's
+  `ListColumnSchema.label`, so every spelling they accepted before they still
+  accept.
+  
+  `@object-ui/core` gains `columnHeader()` alongside `columnIdentity()` — the reader
+  producers use to cross that boundary. It is adapter-first (`header` wins over
+  `label`), so an author who addressed the table directly is never overwritten.
+  
+  `object-data-table` also gains a fix from the same move: a column carrying a
+  `label` used to render a **blank** header there even while the alias existed,
+  because the widget's field-meta enrichment overwrote the authored `label` before
+  the adapter ever saw it. `{ field: 'stage', label: 'Stage' }` now renders "Stage".
+  
+  The sibling `accessorKey: col.accessorKey || col.name` alias is **unchanged** here
+  and still resolves. Retiring it is objectui#5120's remaining step, which is
+  gated on two published skill guides that teach that spelling.
+
+### Patch Changes
+
+- cc5de5c: `DashboardRenderer` no longer emits an empty dashboard header wrapper. The
+  wrapper used to render whenever `header` was declared, while each of its
+  children — title, description, actions — was additionally suppressible. With
+  the console page chrome present (`hideHeaderText`, set because the chrome
+  already renders the dashboard's title and description) and no `header.actions`,
+  every child evaluated falsy and the DOM still received
+  `<div class="col-span-full mb-4"></div>`: zero children, yet a full grid row
+  (measured 64px) plus `mb-4` of dead band above the filter bar, on every console
+  dashboard page (objectui#5812, measured on HotCRM 17.1.0).
+  
+  The three children are now computed first and the wrapper renders only if one
+  of them survives. Nothing else changes: a standalone embed (no chrome) renders
+  title and description exactly as before, and declared `header.actions` keep the
+  wrapper alive even under the chrome, since the chrome renders text only. Authors
+  needed this — dropping `header` from the metadata to reclaim the pixels would
+  have cost the standalone embed its title, which is what `header` is for.
+- 84d2e98: `DashboardRenderer` drops the unreachable `DatasetWidget` fork from its self-contained
+  (card-less) branch, leaving that branch to render `SchemaRenderer` unconditionally
+  (objectui#4620).
+  
+  `isSelfContained` is defined as `widget.type === 'metric' && !datasetBound`, and the
+  `isSelfContained` arm of `renderedNode` then forked on `datasetBound` a second time. The
+  `datasetBound` side of that inner fork could never execute: reaching it required
+  `isSelfContained` to be true, which requires `!datasetBound`. Behaviour is unchanged —
+  the removed arm never ran, and the reachable fork in the Card branch (the one that gives
+  a dataset-bound metric its title and border chrome) is untouched.
+  
+  The cost was to readers, not to users: the shape read as "both branches handle
+  dataset-bound widgets" when only one can, and a previous PR mirroring this fork onto
+  `DashboardGridLayout` had to pay for the reachability argument before it could decline to
+  copy the dead limb. A comment now names the invariant in place so the arm is not re-added.
+- f24195a: `ObjectDataTable` and `ObjectPivotTable` now use a module-scope frozen empty for
+  "no rows yet" instead of a fresh array literal per render (objectui#4629).
+  
+  Both spelled the resolved row list as `Array.isArray(rawData) ? rawData : []`, so
+  whenever `rawData` was a truthy non-array — a provider-config `data`, or a `bind`
+  path that resolves to an object — the fallback produced a NEW array identity on
+  every render. In `ObjectDataTable` that value keys the `derivedColumns` memo, so
+  every column was re-derived (`buildFieldMeta`, a fresh `cell` closure, the
+  `isSystemField` pass, the `fieldLabel` lookups) and then discarded by the
+  `finalData.length === 0` early return. In `ObjectPivotTable` the value is handed
+  straight to `PivotTable`, where it keys the cross-tabulation memo, so the pivot
+  rebuilt its row/column sets, bucket map and totals on every render over no rows
+  at all.
+  
+  Nothing rendered wrong before or after; this is wasted work in the empty window,
+  plus the live `react-hooks/exhaustive-deps` warning the conditional raised. It is
+  the same module-scope frozen empty `data-table.tsx` adopted for its own
+  `EMPTY_ROWS` (objectui#4618), applied to the `provider: 'object'` siblings.
+- 56f4e34: A dashboard table's auto-derived column headers spell a field key the same way every other path in the `table` widget family does.
+  
+  `ObjectDataTable` derives headers on two paths — from the author's declared
+  `columns`, and from the object schema when no columns were declared. The
+  declared path (and the static `data-table` half of the same widget family)
+  already used `humanizeFieldKey`, whose docstring names it "the single home for
+  the convention, because both halves of the `table` widget family need it and
+  they must agree". The auto-derived path carried a third, inline spelling that
+  split camelCase but never turned `_` into a space, so it left a raw underscore
+  on screen. Measured over the same object's columns:
+  
+  ```
+  path                                     close_date    needs_analysis
+  object-bound, AUTO-DERIVED   (before)    Close_date    Needs_analysis
+  object-bound, AUTO-DERIVED   (after)     Close Date    Needs Analysis
+  object-bound, DECLARED columns           Close Date    Needs Analysis
+  static `data-table`, no columns          Close Date    Needs Analysis
+  ```
+  
+  One dashboard can hold all three widgets over one object, so a single field key
+  rendered under two spellings — the defect class objectui#5425 rules out. The odd
+  path adopts the shared convention rather than the convention gaining a fourth
+  dialect. camelCase keys are unaffected (`unitPrice` read `Unit Price` before and
+  after — the coincidence that kept the snake_case divergence unnoticed), and a
+  translated header still wins: only the fallback handed to `fieldLabel` changed.
+  
+  Dimension MEMBER labels are untouched by this. The same card reported dashboard
+  members rendering a prettified enum instead of the picklist's translated label,
+  measured on 17.1.0; re-measured on this branch it no longer reproduces — the
+  analytics label net shipped in 17.5.0 routes every non-metric dataset dimension
+  through the field's declared options and the locale bundle. That behaviour had
+  no test stated in the card's terms and now has one, over the four dashboards the
+  card measured, including the property that a bar axis and a pivot header cannot
+  disagree about one stored value.
+- f1c27f0: Dashboard record fields: percent columns now render through the one percent
+  scaling decision instead of a second, drifted copy of it.
+  
+  `renderFieldValue`'s `%`-format branch normalised the value itself before
+  calling `formatPercent` (`const normalized = value > 1 ? value / 100 : value`,
+  then `normalized * 100`). `formatPercent` already applies `percentDisplayValue`,
+  which `@object-ui/core` documents as the single source of truth for percent
+  display scaling, so the branch was re-deciding what core owns — and its copy had
+  drifted from it in three measured ways:
+  
+  - `(value / 100) * 100` is not value-preserving in binary floating point,
+    re-introducing one call frame upstream the round trip that was removed from
+    inside `formatPercent`. On the 0.001-step grid to 200, 19,978 of 199,000
+    values change bit pattern and 1,108 rendered strings move, every one a
+    last-digit off-by-one: a stored `1.605` rendered `1.60%` where half-up is
+    `1.61%`.
+  - A stored fraction below `0.01` was scaled twice — the local `* 100` put it
+    back under 1, so core's fraction arm scaled it again. `0.005` (0.5%) rendered
+    `50.00%`.
+  - The local test was `value > 1` rather than core's symmetric `|value| < 1`, so
+    a negative already in percentage points took the fraction arm: `-5` rendered
+    `-500.00%`.
+  
+  The branch now hands the raw stored value to `formatPercent` — the identical
+  call the list-view percent cell already makes for an ordinary percent column —
+  so a percent reads the same as a record field, as a grid cell and as a dashboard
+  measure. Output moves where it was wrong: values at or above 1 whose round trip
+  lost a digit, fractions below `0.01`, negatives at or below `-1`, and exactly
+  `1`, which is one percentage point by core's convention and now renders
+  `1.00%` at two decimals, where the local `value > 1` test had made it
+  `100.00%`.
+- 0ccbdc1: `PivotTable` no longer re-runs its cross-tabulation memo on every render when it
+  has no rows (objectui#5562).
+  
+  The component spelled the empty array twice — as the destructuring default for
+  `schema.data` and as the `Array.isArray` fallback that keeps a provider-config
+  object out of iteration — so a schema declaring no `data` key, or one whose
+  `data` is a provider config rather than rows, produced a fresh array identity on
+  every render. That value is the first entry of the memo's dependency list, so
+  the memo rebuilt its two ordered key sets, its `bucket[row][col]` map, the
+  aggregated matrix and the row/column/grand totals on every render, over nothing.
+  Both spellings now resolve to one module-scope frozen empty, so "no rows" is a
+  stable value and the memo holds.
+  
+  Wasted work only: the churn feeds a memo rather than a `setState`, and
+  `PivotTable` holds no prop-to-state sync, so nothing rendered wrong and no
+  render loop was possible. The identical fix landed for `data-table` in
+  objectui#4618 and for `ObjectPivotTable` in objectui#4629; this closes the
+  direct-use path those two did not cover, where `DashboardRenderer` and
+  `DashboardGridLayout` construct pivot schemas without `ObjectPivotTable` in the
+  chain.
+- 6c6cee7: A RETIRED field-type spelling is now refused — out loud, once — by every
+  field-type predicate in the renderer, not just by the widget road
+  (objectui#4914, maintainer ruling B of 2026-08-18).
+  
+  `@object-ui/fields` exports a single `isRetiredFieldType(t)` gate, and it runs
+  ahead of six predicate faces that previously granted a retired spelling
+  first-class treatment: the filter builder's operator buckets and its value
+  control (`@object-ui/components`), the detail page's highlight-strip picker
+  (`@object-ui/plugin-detail`), `normalizeFieldType` (`@object-ui/plugin-view`),
+  the dashboard's `$expand` whitelist and `isLookupType`
+  (`@object-ui/plugin-dashboard`), and the list toolbar's lookup-like filter
+  control (`@object-ui/plugin-list`). Each one now fires the migration
+  prescription on the console — once per spelling across all of them, never once
+  per predicate — and then answers as it would for a spelling it does not
+  recognise.
+  
+  This closes the whole CLASS rather than one word: the gate is quantified over
+  `RETIRED_FIELD_TYPES`, so the next retirement covers all seven consumers on the
+  day it lands. It is the shape objectui#4932 and objectui#4942 already
+  established for the form and inline-edit roads.
+  
+  Measured before the change, and the reason the fix is a gate rather than a
+  deletion: `owner` was not dead in these faces. `operatorsForFieldType('owner')`
+  equalled the `user` bucket item for item, `computeLookupExpand` actively
+  requested `$expand` for it, `isLookupType('owner')` was `true` alongside
+  `reference`, and `normalizeFieldType('owner')` answered `'select'` exactly as
+  `picklist` does. Deleting the members alone would have traded a visible
+  contradiction for a SILENT degradation — a filter picker collapsing to a bare id
+  box, `$expand` quietly stopping so cells show raw foreign-key ids — which is
+  verbatim the failure mode `RETIRED_FIELD_TYPES`' own docblock exists to prevent.
+  The gate keeps that fallback and adds the half that was missing: the author is
+  told.
+  
+  The boundary question is answered on record: `owner` arriving through a
+  backend-vocabulary normalizer is an authoring error to refuse loudly, not
+  legitimate foreign input to tolerate. The open backend vocabulary those
+  normalizers exist for is untouched — `reference`, `picklist`, `money`, `int`,
+  `datetime_tz` and the rest are equally absent from the spec's closed `FieldType`
+  and are equally unretired, so they classify exactly as before.
+  
+  `RETIRED_FIELD_TYPES`, `reportRetiredFieldType` and `resetRetiredFieldTypeReports`
+  move to `@object-ui/core` and are re-exported from `@object-ui/fields`, so that
+  package's published surface is unchanged apart from the newly ruled gate.
+  `@object-ui/components` is a consumer of the gate and `@object-ui/fields`
+  depends on it, so a single shared table could not live in `fields` — and a
+  second copy would have meant a second dedupe set and two console lines for one
+  spelling. No package gained a new dependency.
+  
+  A retired spelling never loses a stored value: `retypeFilterValue` is
+  deliberately not gated, and the refused filter row stays operable rather than
+  drawing a blank operator trigger.
+- cfcff30: Each package's README now states, up front, that it needs a bundler: importing it from plain Node ESM fails, and that is a supported-configuration boundary rather than a defect.
+  
+  `@object-ui/plugin-dashboard` imports `react-grid-layout/css/styles.css` at module
+  scope and `@object-ui/plugin-map` imports `maplibre-gl/dist/maplibre-gl.css`;
+  `@object-ui/app-shell` reaches the first of those through the static
+  `@object-ui/plugin-dashboard` imports in `DashboardView` and `ReportView`. Node has
+  no loader for `.css` at all, so all three resolve and then die during evaluation:
+  
+  ```
+  TypeError [ERR_UNKNOWN_FILE_EXTENSION]: Unknown file extension ".css"
+    for .../react-grid-layout/css/styles.css
+  ```
+  
+  Nothing about how these packages load has changed — every supported host bundles
+  them (Vite, webpack, or Next with the package in `transpilePackages`), and that is
+  still the only supported way to consume them. What changed is that the boundary is
+  now written where a consumer meets it, instead of being learned from a red import.
+  
+  objectui#5384 ruled unbundled Node consumption **unsupported** for style-carrying
+  plugin packages — permanently, over the three packages as a group — rather than
+  moving the stylesheet imports out of module scope. No unbundled-Node consumer
+  exists, and buying permanent machinery to close a capability gap nobody is pulling
+  on was the trade the ruling declined. A real consumer request reopens it as a
+  design question, not as a defect: the READMEs say so and name the issue.
+- fb96ecb: `WidgetConfigPanel` reads an inline-locale-map title, and a save no longer destroys the other locales.
+  
+  The dashboard widget config panel carried a private `resolveLabel` documented as
+  resolving an `I18nLabel` while reading `defaultValue || key` — the key-reference
+  form `@objectstack/spec` retired at 17.0.0-rc.6 (objectstack#5055). The inline
+  per-locale map `I18nLabelSchema` actually admits has neither limb, so
+  `{ en: 'Revenue', zh: '收入' }` resolved to `''`. It was the fourth private copy
+  of that resolver; objectui#4032 swept the other three out of `DashboardRenderer`,
+  `MetricWidget` and `MetricCard`.
+  
+  This was not a display bug. The resolved value seeds the panel's editable draft,
+  so a widget whose stored title was a map opened with an **empty** Title field and
+  the next save wrote `''` over the author's map — on the ordinary path, not an
+  exotic one: open the widget, change anything, save.
+  
+  Both halves are fixed, per the maintainer's 2026-08-20 ruling on objectui#5301:
+  
+  - **Reading** goes through `pickLocalized(value, language)`, so the panel shows
+    the active locale like every sibling surface post-objectui#4032.
+  - **Writing** replaces only the active locale's entry and carries every other
+    locale across. A title the author never touched round-trips the stored object
+    itself through an unrelated config edit; an edited one merges into the entry
+    that was displayed. The live-update callback (`onFieldChange`) forwards the
+    merged map for the same reason — hosts feed it back into the widget the panel
+    re-opens from, so a bare string there dropped the map before a save ever ran.
+  
+  `@object-ui/i18n` gains `setLocalized(value, language, next)`, the write-side
+  inverse of `pickLocalized`, so the rule is stated once instead of re-derived per
+  panel. It follows `pickLocalized`'s first three limbs — exact tag, base language,
+  region-qualified sibling — and deliberately stops there: the `default` / `en` /
+  first-value limbs are display fallbacks that hand back *another* locale's string,
+  and writing to one would let an author editing in `fr` overwrite English. With no
+  entry for the active locale the edit adds one. The pairing
+  `pickLocalized(setLocalized(map, lang, s), lang) === s` is pinned, because a
+  write that lands where the read does not look is how a "saved" string disappears.
+  
+  A full multi-locale editing UI remains out of scope (objectui#4163).
+- Updated dependencies [77f846a]
+- Updated dependencies [b55a346]
+- Updated dependencies [065bba7]
+- Updated dependencies [dd19463]
+- Updated dependencies [100547e]
+- Updated dependencies [3a58149]
+- Updated dependencies [d7573b3]
+- Updated dependencies [bf3edfe]
+- Updated dependencies [6ce89da]
+- Updated dependencies [0e05aac]
+- Updated dependencies [e719ebd]
+- Updated dependencies [f9e4f91]
+- Updated dependencies [fa429cf]
+- Updated dependencies [ed8df3e]
+- Updated dependencies [fe76ece]
+- Updated dependencies [8ebd57f]
+- Updated dependencies [9a1fb41]
+- Updated dependencies [c40f3b8]
+- Updated dependencies [485f096]
+- Updated dependencies [199d31b]
+- Updated dependencies [b655a9d]
+- Updated dependencies [a865c73]
+- Updated dependencies [7138bc1]
+- Updated dependencies [cef27e2]
+- Updated dependencies [4e8622b]
+- Updated dependencies [dffd752]
+- Updated dependencies [3ccd9e8]
+- Updated dependencies [7a28e1e]
+- Updated dependencies [ebce5a3]
+- Updated dependencies [20e317c]
+- Updated dependencies [9850c6e]
+- Updated dependencies [a691c0b]
+- Updated dependencies [0b1326d]
+- Updated dependencies [1e66879]
+- Updated dependencies [c5200f0]
+- Updated dependencies [af3861f]
+- Updated dependencies [4f14ad7]
+- Updated dependencies [4bb940b]
+- Updated dependencies [fa140b8]
+- Updated dependencies [71cba28]
+- Updated dependencies [190fbd0]
+- Updated dependencies [f2158ec]
+- Updated dependencies [72ffc34]
+- Updated dependencies [78cbdb5]
+- Updated dependencies [b7543a9]
+- Updated dependencies [6c6cee7]
+- Updated dependencies [42887e0]
+- Updated dependencies [f1690d4]
+- Updated dependencies [d1ab06f]
+- Updated dependencies [38a9568]
+- Updated dependencies [f90b8fb]
+- Updated dependencies [91783c4]
+- Updated dependencies [5a07e67]
+- Updated dependencies [2d36552]
+- Updated dependencies [b2437a7]
+- Updated dependencies [7a90afd]
+- Updated dependencies [490f482]
+- Updated dependencies [27308c5]
+- Updated dependencies [8689166]
+- Updated dependencies [c9327c9]
+- Updated dependencies [920165d]
+- Updated dependencies [3c73d99]
+- Updated dependencies [c86185e]
+- Updated dependencies [fb96ecb]
+- Updated dependencies [4d73b07]
+  - @object-ui/i18n@17.7.0
+  - @object-ui/types@17.7.0
+  - @object-ui/components@17.7.0
+  - @object-ui/core@17.7.0
+  - @object-ui/fields@17.7.0
+  - @object-ui/react@17.7.0
+
 ## 17.6.0
 
 ### Minor Changes

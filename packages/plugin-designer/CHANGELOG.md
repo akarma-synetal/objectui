@@ -1,5 +1,135 @@
 # @object-ui/plugin-designer
 
+## 17.7.0
+
+### Patch Changes
+
+- 4db5989: A widget title stored as an inline per-locale map is editable again in both dashboard
+  authoring surfaces, and a save writes back only the active locale's entry
+  (objectui#5428).
+  
+  `@objectstack/spec` widened `I18nLabel` from `string` to `string | Record` at
+  17.0.0-rc.6, so a stored widget title may be an inline per-locale map while both
+  authoring panels edit a title in ONE single-line input. Writing the input's value back
+  as the whole value would collapse every other locale on the first keystroke, so both
+  surfaces took the same conservative branch: show a map-valued title resolved, and make
+  it READ-ONLY.
+  
+  That branch could not lose data, but it rested on a premise the spec had already
+  invalidated — "nothing can reach this path from stored metadata yet, `I18nLabel` was
+  plain `string` through rc.5" — stated sixty lines below a comment in the same file
+  documenting the rc.6 widening that makes a stored map reachable. Both could not hold.
+  The pinned spec is 17.0.0. What the read-only branch did in practice from rc.6 onward
+  was not protect an unreachable path: it denied an author the ability to edit a widget
+  title in their own locale.
+  
+  objectui#5301's maintainer ruling settled the write rule for the sibling surface — a
+  save replaces only the active locale's entry and preserves the others — and
+  `@object-ui/i18n` ships it as `setLocalized`, co-located with `pickLocalized` because
+  the read and the write have to agree. Both panels now adopt it:
+  
+  - `@object-ui/plugin-designer`'s `DashboardEditor` widget property panel;
+  - `@object-ui/app-shell`'s `DashboardWidgetInspector` in metadata-admin.
+  
+  A plain-string title keeps saving as a plain string, so the common path is unchanged.
+  An edit made in a locale the stored map does not carry ADDS an entry under that locale
+  rather than overwriting the entry the display fell back to.
+  
+  The pins are preservation pins, not "the input is editable" pins: at both surfaces a
+  keystroke on a map-valued title must leave every other locale's entry byte-identical.
+  Reverse-verified by mutating each write back to the flattening form and confirming those
+  assertions go red at both surfaces.
+  
+  Not a multi-locale editor: an author still reaches only the entry for the locale they
+  are in. Authoring every locale from one panel remains an open product question. The
+  stale deferrals both comments carried pointed at objectui#4163, which closed as
+  completed on 2026-08-15 while the placeholders were still in the tree; they are replaced
+  with the rule that is actually in force rather than re-pointed at another tracker.
+- Updated dependencies [b2e85a9]
+- Updated dependencies [c7cd2b6]
+- Updated dependencies [77f846a]
+- Updated dependencies [b55a346]
+- Updated dependencies [065bba7]
+- Updated dependencies [dd19463]
+- Updated dependencies [100547e]
+- Updated dependencies [3a58149]
+- Updated dependencies [d7573b3]
+- Updated dependencies [bf3edfe]
+- Updated dependencies [6ce89da]
+- Updated dependencies [0e05aac]
+- Updated dependencies [3c9fca3]
+- Updated dependencies [e719ebd]
+- Updated dependencies [f9e4f91]
+- Updated dependencies [fa429cf]
+- Updated dependencies [ed8df3e]
+- Updated dependencies [fe76ece]
+- Updated dependencies [8ebd57f]
+- Updated dependencies [9a1fb41]
+- Updated dependencies [c40f3b8]
+- Updated dependencies [485f096]
+- Updated dependencies [199d31b]
+- Updated dependencies [9e22085]
+- Updated dependencies [b655a9d]
+- Updated dependencies [c574dfb]
+- Updated dependencies [02f48b6]
+- Updated dependencies [a865c73]
+- Updated dependencies [7138bc1]
+- Updated dependencies [cef27e2]
+- Updated dependencies [4e8622b]
+- Updated dependencies [dffd752]
+- Updated dependencies [3ccd9e8]
+- Updated dependencies [7a28e1e]
+- Updated dependencies [ebce5a3]
+- Updated dependencies [20e317c]
+- Updated dependencies [8e00bfd]
+- Updated dependencies [8d37efb]
+- Updated dependencies [9850c6e]
+- Updated dependencies [a691c0b]
+- Updated dependencies [0b1326d]
+- Updated dependencies [1e66879]
+- Updated dependencies [c5200f0]
+- Updated dependencies [af3861f]
+- Updated dependencies [83ec618]
+- Updated dependencies [4f14ad7]
+- Updated dependencies [4bb940b]
+- Updated dependencies [fa140b8]
+- Updated dependencies [71cba28]
+- Updated dependencies [190fbd0]
+- Updated dependencies [f2158ec]
+- Updated dependencies [72ffc34]
+- Updated dependencies [78cbdb5]
+- Updated dependencies [b7543a9]
+- Updated dependencies [6c6cee7]
+- Updated dependencies [42887e0]
+- Updated dependencies [f1690d4]
+- Updated dependencies [d1ab06f]
+- Updated dependencies [38a9568]
+- Updated dependencies [f90b8fb]
+- Updated dependencies [91783c4]
+- Updated dependencies [5a07e67]
+- Updated dependencies [2d36552]
+- Updated dependencies [b2437a7]
+- Updated dependencies [7a90afd]
+- Updated dependencies [490f482]
+- Updated dependencies [27308c5]
+- Updated dependencies [8689166]
+- Updated dependencies [c9327c9]
+- Updated dependencies [920165d]
+- Updated dependencies [26a2238]
+- Updated dependencies [3c73d99]
+- Updated dependencies [c86185e]
+- Updated dependencies [fb96ecb]
+- Updated dependencies [4d73b07]
+  - @object-ui/data-objectstack@17.7.0
+  - @object-ui/i18n@17.7.0
+  - @object-ui/types@17.7.0
+  - @object-ui/components@17.7.0
+  - @object-ui/core@17.7.0
+  - @object-ui/plugin-form@17.7.0
+  - @object-ui/fields@17.7.0
+  - @object-ui/plugin-grid@17.7.0
+  - @object-ui/react@17.7.0
+
 ## 17.6.0
 
 ### Minor Changes

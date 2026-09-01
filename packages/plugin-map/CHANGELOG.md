@@ -1,5 +1,135 @@
 # @object-ui/plugin-map
 
+## 17.7.0
+
+### Patch Changes
+
+- ff7543c: `ObjectMapProps.clusterRadius`'s JSDoc said "in pixels"; `clusterMarkers` has
+  always used it as a coordinate-degree grid cell edge (`radius / 2 ** zoom`,
+  divided into the marker's `[lng, lat]` degrees), not a screen-space radius —
+  a host tuning clustering granularity by the documented unit would get a
+  completely different result than intended (objectui#5020).
+  
+  No behavior, default, or name changes: clustering, the >100-visible-marker
+  auto-threshold, and tap-through zoom are unaffected, and `clusterRadius` has
+  no call sites outside `plugin-map/src` today (re-confirmed repo-wide,
+  including `apps/`, `examples/`, and the `objectstack` spec/server repo — the
+  default of `50` is what runs everywhere). This is a doc-comment correction
+  only, bringing the JSDoc in line with the README's already-correct wording
+  (post objectui#5002).
+  
+  The latitude-anisotropy trade-off (a degree grid distorts east-west as
+  latitude rises) is a known design trade-off, not part of this fix.
+- b180a64: `ObjectMap` reads `schema.data` in one place again, so an array-shorthand map stops
+  making a metadata request it never uses.
+  
+  The fetch effect carried a second short-circuit beside the `props.data` one
+  objectui#5003 fixed: it read `schema.data` directly and tested whether that value was
+  itself an array. eslint reported it as `missing dependency: schema.data` — the last
+  `react-hooks/exhaustive-deps` warning on that effect.
+  
+  The dependency was never actually missing. `getDataConfig(schema)` already returns
+  `schema.data` verbatim, and the result is memoized on `JSON.stringify(rawDataConfig)`
+  into `dataConfig`, which **is** one of the effect's declared dependencies. The authored
+  rows therefore reached the effect before this change; the direct read was a duplicate of
+  an already-threaded value, which is why neither adding a dependency nor deleting the
+  branch was right.
+  
+  The array handling moved into `getDataConfig`, where `ObjectGrid`'s own `getDataConfig`
+  already pins the same normalization (`"Check if data is an array (shorthand format)"`).
+  Same rows render, and the effect now reads only `dataConfig`.
+  
+  One behavioural consequence, and it is the point: an array under `data` now yields
+  `provider: 'value'`, so `hasInlineData` is true and the sibling effect no longer calls
+  `dataSource.getObjectSchema()` for it. That request's only read site is
+  `buildExpandFields()` inside the object-provider fetch branch, which an inline schema
+  never reaches — so the call was pure waste, and the shorthand now behaves exactly like
+  the declared `{ provider: 'value', items }` form it is shorthand for.
+  
+  Deleting the branch instead was measured, not assumed: with no producer-side handling,
+  an array-shorthand map renders `Error: DataSource required for object/api providers`
+  rather than its markers. The shorthand is a live convention in six sibling blocks
+  (`ObjectGrid`, `ListView`, `ObjectTree`, `ObjectChart`, `ObjectDataTable`,
+  `calendar-view-renderer`), so `object-map` would have become the one block in the family
+  that answers it with an error box.
+- cfcff30: Each package's README now states, up front, that it needs a bundler: importing it from plain Node ESM fails, and that is a supported-configuration boundary rather than a defect.
+  
+  `@object-ui/plugin-dashboard` imports `react-grid-layout/css/styles.css` at module
+  scope and `@object-ui/plugin-map` imports `maplibre-gl/dist/maplibre-gl.css`;
+  `@object-ui/app-shell` reaches the first of those through the static
+  `@object-ui/plugin-dashboard` imports in `DashboardView` and `ReportView`. Node has
+  no loader for `.css` at all, so all three resolve and then die during evaluation:
+  
+  ```
+  TypeError [ERR_UNKNOWN_FILE_EXTENSION]: Unknown file extension ".css"
+    for .../react-grid-layout/css/styles.css
+  ```
+  
+  Nothing about how these packages load has changed — every supported host bundles
+  them (Vite, webpack, or Next with the package in `transpilePackages`), and that is
+  still the only supported way to consume them. What changed is that the boundary is
+  now written where a consumer meets it, instead of being learned from a red import.
+  
+  objectui#5384 ruled unbundled Node consumption **unsupported** for style-carrying
+  plugin packages — permanently, over the three packages as a group — rather than
+  moving the stylesheet imports out of module scope. No unbundled-Node consumer
+  exists, and buying permanent machinery to close a capability gap nobody is pulling
+  on was the trade the ruling declined. A real consumer request reopens it as a
+  design question, not as a defect: the READMEs say so and name the issue.
+- Updated dependencies [b55a346]
+- Updated dependencies [065bba7]
+- Updated dependencies [dd19463]
+- Updated dependencies [100547e]
+- Updated dependencies [d7573b3]
+- Updated dependencies [bf3edfe]
+- Updated dependencies [0e05aac]
+- Updated dependencies [e719ebd]
+- Updated dependencies [f9e4f91]
+- Updated dependencies [fa429cf]
+- Updated dependencies [ed8df3e]
+- Updated dependencies [fe76ece]
+- Updated dependencies [8ebd57f]
+- Updated dependencies [485f096]
+- Updated dependencies [199d31b]
+- Updated dependencies [b655a9d]
+- Updated dependencies [7138bc1]
+- Updated dependencies [cef27e2]
+- Updated dependencies [4e8622b]
+- Updated dependencies [dffd752]
+- Updated dependencies [3ccd9e8]
+- Updated dependencies [ebce5a3]
+- Updated dependencies [9850c6e]
+- Updated dependencies [a691c0b]
+- Updated dependencies [0b1326d]
+- Updated dependencies [af3861f]
+- Updated dependencies [4f14ad7]
+- Updated dependencies [fa140b8]
+- Updated dependencies [71cba28]
+- Updated dependencies [190fbd0]
+- Updated dependencies [f2158ec]
+- Updated dependencies [72ffc34]
+- Updated dependencies [78cbdb5]
+- Updated dependencies [b7543a9]
+- Updated dependencies [6c6cee7]
+- Updated dependencies [42887e0]
+- Updated dependencies [d1ab06f]
+- Updated dependencies [f90b8fb]
+- Updated dependencies [91783c4]
+- Updated dependencies [5a07e67]
+- Updated dependencies [2d36552]
+- Updated dependencies [490f482]
+- Updated dependencies [27308c5]
+- Updated dependencies [8689166]
+- Updated dependencies [c9327c9]
+- Updated dependencies [920165d]
+- Updated dependencies [3c73d99]
+- Updated dependencies [c86185e]
+- Updated dependencies [4d73b07]
+  - @object-ui/types@17.7.0
+  - @object-ui/components@17.7.0
+  - @object-ui/core@17.7.0
+  - @object-ui/react@17.7.0
+
 ## 17.6.0
 
 ### Minor Changes

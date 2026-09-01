@@ -1,5 +1,30 @@
 # @object-ui/mobile
 
+## 17.7.0
+
+### Patch Changes
+
+- Updated dependencies [b55a346]
+- Updated dependencies [065bba7]
+- Updated dependencies [100547e]
+- Updated dependencies [d7573b3]
+- Updated dependencies [0e05aac]
+- Updated dependencies [f9e4f91]
+- Updated dependencies [fa429cf]
+- Updated dependencies [ed8df3e]
+- Updated dependencies [199d31b]
+- Updated dependencies [4e8622b]
+- Updated dependencies [dffd752]
+- Updated dependencies [3ccd9e8]
+- Updated dependencies [a691c0b]
+- Updated dependencies [78cbdb5]
+- Updated dependencies [b7543a9]
+- Updated dependencies [c9327c9]
+- Updated dependencies [920165d]
+- Updated dependencies [3c73d99]
+- Updated dependencies [4d73b07]
+  - @object-ui/types@17.7.0
+
 ## 17.6.0
 
 ### Patch Changes
