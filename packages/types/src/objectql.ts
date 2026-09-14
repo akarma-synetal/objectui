@@ -27,7 +27,22 @@ import type { DrillDownConfig } from './data-display.js';
 import type { BulkActionOperation } from '@objectstack/spec/ui';
 import type { FormField } from './form.js';
 // ListView type is now derived from the zod schema (issue #2231) — see ListViewSchema below.
-import type { ListViewInferred } from './zod/objectql.zod.js';
+import type { ListViewInferred, ObjectCalendarBlockConfig } from './zod/objectql.zod.js';
+
+/**
+ * The type of {@link ObjectCalendarSchema.calendar}, re-exported so the
+ * published member has a NAME an importer can write (objectui#8651).
+ *
+ * ⛔ Spelled with its `from` clause deliberately: a re-export with no module
+ * specifier is judged as its own declaration by
+ * `scripts/check-spec-symbol-derivation.mjs`, which is the same reason
+ * `plugin-calendar`'s deprecated aliases carry theirs.
+ *
+ * Without this the member was typed by a name no consumer could reach — exactly
+ * the "measurably unreachable" property objectui#8651 removed from that
+ * plugin's local `CalendarSchema`, and it must not come back one layer over.
+ */
+export type { ObjectCalendarBlockConfig } from './zod/objectql.zod.js';
 
 // ============================================================================
 // Spec-Canonical Types — imported from @objectstack/spec/ui
@@ -2803,9 +2818,11 @@ export interface ObjectCalendarSchema extends BaseSchema {
   objectName?: string;
   /**
    * PRE-FETCHED RECORDS — an ARRAY, drawn in place of the calendar's own query.
-   * Read FIRST by the shared record-source ladder
-   * (`resolveRecordSourceConfig(schema, 'array')` in `@object-ui/core`), ahead
-   * of `staticData` / `objectName`.
+   * Read FIRST by the shared record-source ladder in `@object-ui/core`, on the
+   * `'array'` arm, ahead of `staticData` / `objectName`. ⛔ The ladder's ARM is
+   * the citation; its first argument is not, because that is a call SHAPE and
+   * it has already moved once — objectui#8651 now passes the three members the
+   * ladder documents itself as reading, one by one.
    *
    * Declared by objectui#7313, in the same stroke as the mirror's `data`: until
    * then the read landed on `BaseSchema`'s index signature on this side and
@@ -2843,6 +2860,39 @@ export interface ObjectCalendarSchema extends BaseSchema {
   data?: SpecObjectCalendarProps['data'];
   /** Inline records, wrapped into a `{ provider: 'value' }` config by `getDataConfig`. */
   staticData?: any[];
+  /**
+   * The configuration container, and the FIRST thing this element's renderer
+   * reads: `plugin-calendar/src/ObjectCalendar.tsx`'s `getCalendarConfig`
+   * returns this block whole when it is present, and only falls through to the
+   * flat members below when it is not.
+   *
+   * `@objectstack/spec` declares the KEY —
+   * `ComponentPropsMap['object-calendar'].calendar` — and this package's
+   * registration `inputs` publishes it, so authors are offered it. ⚠️ The spec
+   * does NOT declare its SHAPE: measured on 17.4.0 that slot is
+   * `z.unknown().optional()`, not `CalendarConfigSchema`, so the protocol
+   * accepts any value there at all. The member list below is objectui's own —
+   * see the mirror for the grounds. Both published faces of THIS package stayed
+   * silent about the key until objectui#8651,
+   * which is the objectui#6914 class: the value rode {@link BaseSchema}'s
+   * `[key: string]: any` here and `.passthrough()` on the mirror, admitted and
+   * never examined. `calendar: 42` type-checked, parsed green, and drew an
+   * empty calendar.
+   *
+   * DERIVED from the mirror rather than re-spelled, so the two faces cannot
+   * fork — the same construction {@link ListViewSchema} uses through
+   * `ListViewInferred`. What the mirror declares is the five members
+   * `ObjectCalendar`'s events pass destructures out of the resolved config: the
+   * spec's four plus objectui's own `allDayField`, on the lane objectui#8466
+   * took for the flat spelling of the same vocabulary.
+   *
+   * ⛔ `defaultView` is deliberately NOT a member of this container even though
+   * a list VIEW's calendar block carries one: this renderer seeds its view state
+   * from {@link ObjectCalendarSchema.defaultView}, the FLAT member below, and
+   * never looks inside here. The container stays `.passthrough()`, so a block
+   * carrying it still parses — it is simply not advertised.
+   */
+  calendar?: ObjectCalendarBlockConfig;
   /** Field for event start */
   startDateField?: string;
   /** Field for event end */
@@ -2877,8 +2927,11 @@ export interface ObjectCalendarSchema extends BaseSchema {
    *
    * objectui-LOCAL, and the one member here with no {@link CalendarConfig} twin
    * to derive from: `@objectstack/spec`'s `CalendarConfigSchema` is a
-   * `strictObject` of four keys and refuses this one BY NAME with an
-   * `unrecognized_keys` diagnostic. That is the class this package's mirror
+   * `strictObject` of exactly `startDateField`, `endDateField`, `titleField`
+   * and `colorField`, so it refuses this key as UNDECLARED — ⚠️ not "by name".
+   * Measured on 17.4.0: it answers `allDayField` and a nonsense key with the
+   * identical `unrecognized_keys` diagnostic, so the refusal is blanket
+   * strictness and says nothing about this key in particular (objectui#8651). That is the class this package's mirror
    * already names out loud, where `.passthrough()` is kept explicitly for this
    * key — "the renderers grow config knobs ahead of the protocol (calendar's
    * `allDayField`, for one), and stripping them here would silently disable a

@@ -671,6 +671,76 @@ const CalendarConfig = stripImportedDefaults(SpecCalendarConfigSchema).partial()
   defaultView: z.enum(['month', 'week', 'day']).optional().describe("Initial calendar view mode — 'month' | 'week' | 'day' ('agenda' was retired: objectui#5784)"),
 }).passthrough();
 
+/**
+ * The `object-calendar` ELEMENT's configuration container — a DIFFERENT contract
+ * from {@link CalendarConfig} above, which is a list VIEW's calendar block, and
+ * the reason the two are not one const (objectui#8651).
+ *
+ * Both derive from the same spec object. They differ on exactly one member, and
+ * the difference is a read site, not a preference:
+ *
+ *   - a VIEW's block carries `defaultView`, and `ListView` LIFTS it onto the
+ *     node it builds (`plugin-list/src/ListView.tsx`, the `calendar` branch),
+ *     so the key is honoured from there.
+ *   - this ELEMENT's block does not, because `ObjectCalendar` seeds its view
+ *     state from the FLAT `defaultView` member of this schema and never looks
+ *     inside the container. Declaring it here would advertise a write this
+ *     renderer drops — `plugin-calendar/src/index.tsx` names that as this
+ *     gate's own failure mode one layer in.
+ *
+ * ⚠️ THE MEMBER LIST IS objectui's OWN, and the spec does NOT supply it.
+ * MEASURED on the installed `@objectstack/spec` 17.4.0:
+ * `ComponentPropsMap['object-calendar'].calendar` is NOT `CalendarConfigSchema`
+ * — it is `z.unknown().optional()` (wrapper chain `["optional","unknown"]`, and
+ * not the same object reference), so at THIS position the protocol accepts
+ * everything: a nonsense key, a wrong-typed member, even `calendar: 42` all
+ * parse. `CalendarConfigSchema` is the strict four-key object the spec uses for
+ * a LIST VIEW's calendar block, which is a different position.
+ *
+ * ⇒ what the protocol settles here is the KEY, not its SHAPE. The shape below
+ * is objectui's, chosen as exactly the five members `ObjectCalendar.tsx`'s
+ * events pass destructures out of the resolved config — the spec's four plus
+ * objectui's own `allDayField`, the same objectui-local lane objectui#8466 took
+ * for the FLAT spelling of this vocabulary, on this same interface, for the same
+ * renderer.
+ *
+ * That makes this mirror STRICTER than the protocol at this position, which is
+ * the sanctioned direction and not the forbidden one: objectui#8327's triage
+ * ruling forbids accepting what the platform REFUSES, and under `BaseSchema`'s
+ * `.passthrough()` — which already admitted this key unexamined — a declaration
+ * can only narrow. The same asymmetry `filter` and `sort` already carry on this
+ * block.
+ *
+ * ⛔ `.passthrough()` is kept, so this declaration refuses no KEY that parses
+ * today: a `calendar` block carrying `defaultView`, or any other unexamined
+ * key, still parses exactly as it did through `BaseSchema`'s own
+ * `.passthrough()`. It does refuse VALUES, which is the whole of what declaring
+ * buys — `calendar: 42` and `calendar: { startDateField: 42 }` are refused
+ * where both were admitted unexamined before.
+ *
+ * ⚠️ The key/value split is stated that way on purpose. An earlier cut wrote
+ * "REFUSES NOTHING that parses today", which is literally false for
+ * `calendar: 42`: it parsed at the merge-base and is refused here. The colon
+ * scoped it to keys and the next sentence gave the value narrowing, so it was
+ * defensible — but a sentence that needs its own punctuation to stay true is
+ * one reader away from being wrong, and the narrowing is the point of the
+ * declaration rather than a footnote to it.
+ */
+const ObjectCalendarBlockConfigSchema = stripImportedDefaults(SpecCalendarConfigSchema).partial().extend({
+  // objectui-local, no spec counterpart — see objectui#8466 for the measurement
+  // and the lane. The renderer honours it in BOTH positions: this container and
+  // the flat member of the node.
+  allDayField: z.string().optional().describe("Field carrying the all-day flag — objectui-local: the spec's CalendarConfigSchema is a strict object of startDateField, endDateField, titleField and colorField, so it refuses this key as undeclared, exactly as it refuses any other. LOAD-BEARING since objectui#8026"),
+}).passthrough();
+
+/**
+ * The inferred twin of {@link ObjectCalendarBlockConfigSchema}, exported so the
+ * TS face of `ObjectCalendarSchema.calendar` can DERIVE from this mirror rather
+ * than re-spell it. Two faces, one declaration — the same construction
+ * `ListViewSchema` already uses through `ListViewInferred`.
+ */
+export type ObjectCalendarBlockConfig = z.infer<typeof ObjectCalendarBlockConfigSchema>;
+
 const GalleryConfig = stripImportedDefaults(SpecGalleryConfigSchema).partial().extend({
   /** @deprecated legacy alias for the spec's `coverField` */
   imageField: z.string().optional().describe('Deprecated alias for coverField'),
@@ -986,8 +1056,9 @@ export const ObjectMapConfigSchema = z.object({
  *    place of the block's own query, NOT a source to fetch from.
  *    `ComponentPropsMap['object-calendar'].data` is `z.array(z.unknown())
  *    .optional()` on `@objectstack/spec` 17.4.0 and the renderer honours that
- *    arm alone since objectui#8348 (`resolveRecordSourceConfig(schema,
- *    'array')`); objectui#9239 brought this file's member onto it.
+ *    arm alone since objectui#8348 (the shared ladder, called on the `'array'`
+ *    arm — ⛔ the arm is the citation, not the call shape, which has moved);
+ *    objectui#9239 brought this file's member onto it.
  *
  * ⛔ So do not read the message below as promising a fetchable source: on the
  * calendar, declaring `data` means handing the block rows it already has.
@@ -1232,6 +1303,23 @@ export const ObjectCalendarSchema = BaseSchema.extend({
   // `unknown[]`, which is exactly what `z.array(z.unknown())` infers here.
   data: z.array(z.unknown()).optional().describe('Pre-fetched records — an ARRAY, drawn in place of the calendar\'s own query; read FIRST by the record-source ladder. Mirrors ComponentPropsMap[\'object-calendar\'].data — the { provider, items } config object is refused by kind on this block (objectui#9239, ruling objectui#8348)'),
   staticData: z.array(z.any()).optional().describe('Inline records, wrapped into a { provider: value } data config — read SECOND by getDataConfig'),
+  // objectui#8651 — the configuration container the SPEC declares for this
+  // element (`ComponentPropsMap['object-calendar'].calendar`), which this
+  // package's registration `inputs` already publishes and which
+  // `ObjectCalendar.tsx`'s `getCalendarConfig` reads FIRST, ahead of the flat
+  // members below. Neither published face of this package named it: it rode
+  // `BaseSchema`'s `.passthrough()` here and its `[key: string]: any` on the TS
+  // side — admitted, never examined — so `calendar: 42` and
+  // `calendar: { startDateField: 42 }` both parsed green and then produced a
+  // calendar that drew nothing.
+  //
+  // The exit is the mechanical one triage ruled for this family (objectui#8327,
+  // comment 5619610246): the key IS declared by `@objectstack/spec`, so this
+  // mirror aligns to it rather than forking the contract. Mirrored at the SAME
+  // requiredness as `../objectql.ts` (both optional) so the zod-mirror-parity
+  // ratchet stays at zero drift for this pair, exactly as the `filter`/`sort`
+  // and `colorField`/`allDayField` pairs below.
+  calendar: ObjectCalendarBlockConfigSchema.optional().describe('Calendar configuration container — startDateField, endDateField, titleField, colorField (plus objectui\'s allDayField); read FIRST by getCalendarConfig, ahead of the flat spelling'),
   startDateField: z.string().optional().describe('Start date field'),
   endDateField: z.string().optional().describe('End date field'),
   titleField: z.string().optional().describe('Title field'),
@@ -1255,7 +1343,7 @@ export const ObjectCalendarSchema = BaseSchema.extend({
   // face is objectui's own lane — `titleField`/`startDateField`/`endDateField`
   // have shipped declared here, and absent from `inputs`, for releases.
   colorField: z.string().optional().describe('Field carrying the per-record event colour — a CSS colour or a semantic palette name'),
-  allDayField: z.string().optional().describe("Field carrying the all-day flag — objectui-local (the spec's CalendarConfigSchema refuses it by name); LOAD-BEARING since objectui#8026"),
+  allDayField: z.string().optional().describe("Field carrying the all-day flag — objectui-local: the spec's CalendarConfigSchema is a strict object of startDateField, endDateField, titleField and colorField, so it refuses this key as undeclared, exactly as it refuses any other. LOAD-BEARING since objectui#8026"),
   defaultView: z.enum(['month', 'week', 'day']).optional().describe("Default view — 'month' | 'week' | 'day', the renderer's rendered set ('agenda' was retired: objectui#5784)"),
   // objectui#8174 — the two query keys `ObjectCalendar.tsx` lowers onto its own
   // `dataSource.find` (`$filter: schema.filter`,
