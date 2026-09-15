@@ -2572,7 +2572,54 @@ export type ViewNavigationConfig = NavigationConfig;
  * `exportOptions`/`kanban`/`calendar`/`gantt`/`gallery`/`timeline`) remain as sanctioned
  * local `.extend()`s on the schema; migration to the spec-canonical keys is deferred (#2231).
  */
-export type ListViewSchema = ListViewInferred & ListViewRuntimeProps;
+export type ListViewSchema = ListViewAuthored & ListViewRuntimeProps;
+
+/**
+ * The zod-derived AUTHORING half of {@link ListViewSchema}, with every key
+ * {@link ListViewRuntimeProps} declares removed so the intersection cannot
+ * annihilate those declarations (objectui#7804).
+ *
+ * ## Why this is not `ListViewInferred` directly
+ *
+ * The mirror now declares `onNavigate` / `onDensityChange` (and three sibling
+ * handler keys) as `handlerKeyRefusal` arms, because a registered renderer
+ * reads them off the authored document and `BaseSchema.passthrough()` was
+ * KEEPING an authored value. A refusal arm's `z.input` is `never | undefined`,
+ * and an intersection ANDs the two halves per key:
+ *
+ *     (never | undefined) & (((recordId, action?) => void) | undefined)
+ *       === undefined
+ *
+ * Measured on this tree before the precedence was written: `ListViewSchema`'s
+ * `onNavigate` and `onDensityChange` resolved to `undefined`, down from the
+ * function types `ListViewRuntimeProps` declares — and NOTHING went red,
+ * because `undefined` is assignable to every optional callback parameter the
+ * reads hand it. That is the silent form of the defect: a `'runtime-slot'`
+ * disposition promises "the TypeScript twin stays callable", and a bare
+ * intersection quietly makes it a lie while every gate stays green.
+ *
+ * ## Why a key-remapped mapped type and ⛔ not `Omit`
+ *
+ * `ListViewInferred` carries a string index signature (`BaseSchema` is
+ * passthrough), so `keyof` it is `string | number` and
+ * `Omit<ListViewInferred, keyof ListViewRuntimeProps>` keeps ONLY that index
+ * signature — every declared member is erased. Measured the same way:
+ * under `Omit`, `objectName` resolved to `unknown` instead of `string`. It is
+ * the same trap `ListViewProps` in `@object-ui/plugin-list` documents for
+ * `PropsWithoutRef`, and it is why this is a homomorphic mapped type with an
+ * `as` clause: that form drops the named members it is asked to drop and
+ * carries the index signature through untouched.
+ *
+ * This states the precedence the {@link ListViewSchema} docblock always
+ * claimed — runtime-only props "cannot live in the zod/JSON-schema" — instead
+ * of leaving it true only for as long as the mirror happened to declare none
+ * of them. Adding a key to {@link ListViewRuntimeProps} is what takes it off
+ * the authoring half; the pair is asserted in
+ * `__tests__/list-view-handler-slots-7804.test.ts`.
+ */
+type ListViewAuthored = {
+  [K in keyof ListViewInferred as K extends keyof ListViewRuntimeProps ? never : K]: ListViewInferred[K];
+};
 
 /**
  * Non-serializable runtime-only props for the ListView component. These never belong in
@@ -2597,6 +2644,42 @@ export interface ListViewRuntimeProps {
    * Used by parent components (e.g. ObjectView) to signal that a mutation occurred.
    */
   refreshTrigger?: number;
+
+  /**
+   * ⭐ The three slots below are declared here by objectui#7804, and the reason is
+   * the one objectui#9344's slice already measured on `ObjectGallerySchema`: a key
+   * that reaches the renderer through `SchemaRenderer`'s props spread is on the
+   * TypeScript face whether or not anyone declared it — `BaseSchema`'s index
+   * signature was typing all three `unknown`, which is a declaration nobody wrote
+   * and nobody can read.
+   *
+   * `ListView` reads them off its PROPS bag (`props.onAddRecord`, not
+   * `schema.onAddRecord`), and there are two supply paths into that bag, both
+   * live: a React host renders the component and passes the prop directly — the
+   * `ListViewProps` interface in `@object-ui/plugin-list` declares all three by
+   * name for exactly that — or a host builds the NODE in TypeScript and
+   * `SchemaRenderer` spreads every non-metadata top-level key into the props it
+   * creates the component with. This declaration is the second path's contract.
+   * Declaring it is what keeps the `'runtime-slot'` disposition on the matching
+   * zod arms true: JSON cannot author a function, so the mirror refuses the key
+   * by name, while a programmatic host goes on supplying one HERE.
+   *
+   * ⚠️ Signatures match `ListViewProps` deliberately, `any` included. A host that
+   * discovered the payload from the implementation annotated its own handler
+   * against that interface, and a narrower declaration here refuses such a host
+   * CONTRAVARIANTLY — the reading objectui#9341 took on
+   * `ObjectKanbanSchema.onCardClick` and the reason `ListViewProps.onRowClick`
+   * carries the same spelling.
+   */
+
+  /** Called when the user asks for a new record (toolbar "+ New" and the empty-state CTA). */
+  onAddRecord?: () => void;
+
+  /** Called with a non-delete bulk action key and the currently selected rows. */
+  onBulkAction?: (action: string, records: any[]) => void;
+
+  /** Called when the user picks a different page size in the pager. */
+  onPageSizeChange?: (pageSize: number) => void;
 }
 
 /**
