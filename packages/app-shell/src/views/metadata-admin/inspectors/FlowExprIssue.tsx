@@ -26,6 +26,7 @@
 
 import * as React from 'react';
 import { validateExpressionClient, type ExprFieldRole } from './expression-validate.js';
+import { useMetadataLocale } from '../i18n.js';
 import { findUnknownRefs, scopeRoots, describeUnknownRefs } from './flow-ref-check.js';
 import type { ScopeGroup } from './useFlowScope.js';
 import { screenVisibleWhenScopeError, type ScreenPreviewNode } from '../previews/screen-spec.js';
@@ -53,7 +54,9 @@ function flowScopeNote(value: unknown, role: ExprFieldRole, scopeGroups: ScopeGr
 
 export function FlowExprIssue({ value, role, scopeGroups, screenNode }: FlowExprIssueProps): React.ReactElement | null {
   // Brace / shape error — CEL roles only (single-brace is valid in a template).
-  const issue = role === 'template' ? null : validateExpressionClient(role, value);
+  // In the designer locale, read here as the sibling `FlowObjectListField` does (objectui#10748).
+  const locale = useMetadataLocale();
+  const issue = role === 'template' ? null : validateExpressionClient(role, value, locale);
   if (issue) {
     return (
       <p className="text-[11px] leading-snug text-destructive" role="alert">
