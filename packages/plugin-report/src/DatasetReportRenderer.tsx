@@ -95,6 +95,7 @@ import {
   type DatasetDrillRange,
 } from '@object-ui/core';
 import { builtinAggregateLabels, useSafeFieldLabel, useSafeTranslate, useDisplayLocale, useObjectTranslation, pickLocalized } from '@object-ui/i18n';
+import { useDataInvalidation } from '@object-ui/react';
 import { mergeFilters } from './mergeFilters';
 import { useDatasetDimensionLabels, useDatasetDimensionMeta } from './useDatasetDimensionLabels';
 
@@ -390,18 +391,58 @@ function useDatasetRows(
   // exactly the sort significance that must invalidate the cache.
   const orderKey = JSON.stringify(scopedOrder ?? null);
   const signature = `${dataset}|${dimensions.join(',')}|${measures.join(',')}|${rfKey}|${totalsKey}|${orderKey}`;
+
+  // objectui#10814 — the data-invalidation bus (`notifyDataChanged` from
+  // `@object-ui/react`), read the objectui#10623 way: the nonce moves when a
+  // write to the object this selection QUERIES is declared, and the fetch effect
+  // below names it, so the report re-reads in place. Without it a page action
+  // over raw HTTP left the report stale unless its host remounted it, and
+  // `PageView` is to stop doing that (objectui#10519).
+  //
+  // A dataset selection names no object of its own: the object is the dataset's
+  // base object, which only the query's ANSWER names, the key `ObjectChart`'s
+  // dataset arm reads (objectui#10035). It is held apart from `state`, as
+  // `ObjectChart` holds its `datasetObject`, because the two outlive different
+  // things: `state` is replaced by every outcome, while the subscription must
+  // survive a FAILED re-read of the same selection. Otherwise one failed bus
+  // re-read would unsubscribe the block, and nothing would ever re-read it again
+  // (not even `'*'`) until its selection changed. So: set by an answer; kept by
+  // a failure of the same selection (the next bus event re-reads it); cleared by
+  // a new selection (it never subscribes on the previous dataset's object), and
+  // by a selection that queries nothing (idle, or no `queryDataset`). A first
+  // load that fails therefore subscribes to nothing. Every presentation (the
+  // table, the matrix, the embedded chart, each joined block) funnels through
+  // this hook, and so does a `drillDown.report` a drill-down drawer renders.
+  const [datasetObject, setDatasetObject] = React.useState<string | undefined>(undefined);
+  const invalidationNonce = useDataInvalidation(datasetObject);
+  // The signature whose query last ran. A run for the SAME signature is a
+  // re-read of the rows already on screen (the nonce moved), so it keeps them
+  // and swaps them for the answer when it lands; it does not blank the block
+  // back to "Running report…". A new signature is another selection, whose
+  // previous rows would be wrong under it, so it still starts from loading.
+  const lastQueriedSignatureRef = React.useRef<string | null>(null);
+
   React.useEffect(() => {
     const src = dataSource as DatasetCapableSource | undefined;
     if (!src || typeof src.queryDataset !== 'function') {
+      lastQueriedSignatureRef.current = null;
+      setDatasetObject(undefined);
       setState({ status: 'error', rows: [], error: 'This data source does not support dataset queries.' });
       return;
     }
     if (!dataset || measures.length === 0) {
+      lastQueriedSignatureRef.current = null;
+      setDatasetObject(undefined);
       setState({ status: 'idle', rows: [] });
       return;
     }
     let cancelled = false;
-    setState({ status: 'loading', rows: [] });
+    const inPlace = lastQueriedSignatureRef.current === signature;
+    lastQueriedSignatureRef.current = signature;
+    if (!inPlace) {
+      setDatasetObject(undefined);
+      setState({ status: 'loading', rows: [] });
+    }
     src
       .queryDataset(dataset, {
         dimensions,
@@ -412,6 +453,7 @@ function useDatasetRows(
       })
       .then((res) => {
         if (!cancelled) {
+          setDatasetObject(typeof res?.object === 'string' && res.object ? res.object : undefined);
           setState({
             status: 'ok',
             rows: Array.isArray(res?.rows) ? res.rows : [],
@@ -425,13 +467,17 @@ function useDatasetRows(
         }
       })
       .catch((e) => {
+        // The error replaces the rows, on a first load and on a failed re-read
+        // alike: the table's error branch draws the error INSTEAD of a table, so
+        // no rows are kept under it. `datasetObject` is deliberately left as it
+        // is, so a failed re-read stays subscribed (see above).
         if (!cancelled) setState({ status: 'error', rows: [], error: String((e as Error)?.message ?? e) });
       });
     return () => {
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [signature]);
+  }, [signature, invalidationNonce]);
 
   return state;
 }
@@ -760,8 +806,9 @@ export function planReportChart(t: unknown): ReportChartPlan {
  * via `registerLazy`, so a plain `ComponentRegistry.get` returns undefined
  * until the plugin-charts chunk loads — this hook kicks off `loadLazy` and
  * subscribes so the chart appears as soon as the chunk resolves. Kept decoupled
- * (no static import of plugin-charts / @object-ui/react) so plugin-report stays
- * dependency-light and its test module graph doesn't duplicate React.
+ * (no static import of plugin-charts, and no `SchemaRenderer` dispatch through
+ * @object-ui/react) so plugin-report stays dependency-light and its test module
+ * graph doesn't duplicate React.
  */
 function useRegistryComponent(
   type: string,
