@@ -53,6 +53,7 @@ import { resolvePageVarTokens } from '../utils/resolvePageVarTokens.js';
 import { interpretFlowResponse, judgeFlowLaunch } from '../utils/flowResponse.js';
 import { createConsoleServerActionHandler } from '../utils/consoleServerAction.js';
 import { modalTargetRefusalMessage } from '../utils/modalTargetDiagnostics.js';
+import { actionContextOrg } from '../utils/actionContextOrg.js';
 import type { ConsoleActionDispatch } from '../consoleActionDispatch.js';
 
 const FALLBACK_USER = { id: 'current-user', name: 'Demo User', isPlatformAdmin: false };
@@ -736,9 +737,13 @@ export function useConsoleActionRuntime(opts: ConsoleActionRuntimeOptions): Cons
       // Backend origin — lets `type: 'url'` actions issue full-page
       // navigations to API endpoints across origins in dev.
       apiBase: (import.meta as any).env?.VITE_SERVER_URL || '',
-      activeOrganization: activeOrganization
-        ? { id: activeOrganization.id, slug: activeOrganization.slug, name: activeOrganization.name }
-        : null,
+      // The spec-declared `${ctx.org.*}` scope (`ActionSchema.target` and
+      // `onSuccess.navigate` in `@objectstack/spec` `ui/action.zod.ts`).
+      // `ActionRunner.buildInterpolationContext` reads `org` from here, so
+      // without this key `${ctx.org.id}` interpolated to an empty string
+      // (objectui#10918).
+      org: actionContextOrg(activeOrganization),
+      activeOrganization: actionContextOrg(activeOrganization),
     },
     onConfirm: confirmHandler,
     onToast: toastHandler,
