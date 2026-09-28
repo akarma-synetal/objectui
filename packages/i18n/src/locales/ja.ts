@@ -148,6 +148,7 @@ const ja = {
       copyAll: 'すべてコピー',
     },
     notAvailableHere: '「{{action}}」は現在のページでは利用できません。',
+    completedSuccessfully: '操作が正常に完了しました',
   },
   validation: {
     required: "{{field}}は必須です",
@@ -1577,6 +1578,9 @@ const ja = {
       share: "共有",
       shareTitle: "この会話を共有",
       shareDisabledTitle: "共有するにはチャットを開始してください",
+      buildDoctor: "ビルド診断",
+      buildDoctorTitle: "ビルド診断 — 実際に反映された内容は？",
+      buildDoctorDisabledTitle: "先にメッセージを送信してください",
       newChat: "新規",
       searchChats: "チャットを検索…",
       noChatsYet: "チャットはまだありません",
@@ -1784,6 +1788,7 @@ const ja = {
       pages: "ページ",
       reports: "レポート",
       system: "システム",
+      marketplace: "マーケットプレイス",
     },
     // objectui#4024 — the single-namespace settings screen. Its sibling
     // `settingsHub` above already resolved through this pack; the view was the
@@ -2069,6 +2074,8 @@ const ja = {
       resendOtpCountdownText: "{seconds} 秒後に再送信",
       usePhoneOtpText: "確認コードでサインイン",
       usePasswordSignInText: "パスワードでサインインする",
+      socialButton: "{provider} で続行",
+      orText: "またはメールアドレスで続行",
     },
     register: {
       title: "アカウントを作成",
@@ -2087,6 +2094,8 @@ const ja = {
       submittingButton: "アカウント作成中…",
       hasAccountText: "すでにアカウントをお持ちですか？",
       signInText: "サインイン",
+      socialButton: "{provider} で新規登録",
+      orText: "またはメールアドレスで続行",
       errors: {
         userExists: "このメールアドレスのアカウントはすでに存在します。代わりにサインインしてください。",
       },

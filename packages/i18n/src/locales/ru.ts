@@ -158,6 +158,7 @@ const ru = {
       copyAll: 'Копировать всё',
     },
     notAvailableHere: '«{{action}}» недоступно на текущей странице.',
+    completedSuccessfully: 'Действие успешно выполнено',
   },
   validation: {
     required: "Поле {{field}} обязательно для заполнения",
@@ -1597,6 +1598,9 @@ const ru = {
       share: "Поделиться",
       shareTitle: "Поделиться этим диалогом",
       shareDisabledTitle: "Начните диалог, чтобы включить публикацию",
+      buildDoctor: "Диагностика сборки",
+      buildDoctorTitle: "Диагностика сборки — что на самом деле применено?",
+      buildDoctorDisabledTitle: "Сначала отправьте сообщение",
       newChat: "Создать",
       searchChats: "Поиск по чатам…",
       noChatsYet: "Чатов пока нет",
@@ -1804,6 +1808,7 @@ const ru = {
       pages: "Страницы",
       reports: "Отчёты",
       system: "Система",
+      marketplace: "Маркетплейс",
     },
     // objectui#4024 — the single-namespace settings screen. Its sibling
     // `settingsHub` above already resolved through this pack; the view was the
@@ -2092,6 +2097,8 @@ const ru = {
       resendOtpCountdownText: "Отправить снова через {seconds} с",
       usePhoneOtpText: "Войти по коду подтверждения",
       usePasswordSignInText: "Войти с паролем",
+      socialButton: "Продолжить через {provider}",
+      orText: "или продолжите с электронной почтой",
     },
     register: {
       title: "Создать аккаунт",
@@ -2110,6 +2117,8 @@ const ru = {
       submittingButton: "Создание аккаунта…",
       hasAccountText: "Уже есть аккаунт?",
       signInText: "Войти",
+      socialButton: "Зарегистрироваться через {provider}",
+      orText: "или продолжите с электронной почтой",
       errors: {
         userExists: "Аккаунт с таким email уже существует. Попробуйте войти.",
       },

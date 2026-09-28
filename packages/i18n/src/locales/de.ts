@@ -148,6 +148,7 @@ const de = {
       copyAll: 'Alle kopieren',
     },
     notAvailableHere: '„{{action}}“ ist auf der aktuellen Seite nicht verfügbar.',
+    completedSuccessfully: 'Aktion erfolgreich abgeschlossen',
   },
   validation: {
     required: "{{field}} ist erforderlich",
@@ -1575,6 +1576,9 @@ const de = {
       share: "Teilen",
       shareTitle: "Diese Unterhaltung teilen",
       shareDisabledTitle: "Beginnen Sie zu chatten, um das Teilen zu aktivieren",
+      buildDoctor: "Build-Diagnose",
+      buildDoctorTitle: "Build-Diagnose — was ist tatsächlich angekommen?",
+      buildDoctorDisabledTitle: "Senden Sie zuerst eine Nachricht",
       newChat: "Neu",
       searchChats: "Chats durchsuchen…",
       noChatsYet: "Noch keine Chats",
@@ -1782,6 +1786,7 @@ const de = {
       pages: "Seiten",
       reports: "Berichte",
       system: "System",
+      marketplace: "Marktplatz",
     },
     // objectui#4024 — the single-namespace settings screen. Its sibling
     // `settingsHub` above already resolved through this pack; the view was the
@@ -2067,6 +2072,8 @@ const de = {
       resendOtpCountdownText: "Erneut senden in {seconds} s",
       usePhoneOtpText: "Mit Bestätigungscode anmelden",
       usePasswordSignInText: "Stattdessen mit Passwort anmelden",
+      socialButton: "Weiter mit {provider}",
+      orText: "oder mit E-Mail fortfahren",
     },
     register: {
       title: "Konto erstellen",
@@ -2085,6 +2092,8 @@ const de = {
       submittingButton: "Konto wird erstellt…",
       hasAccountText: "Bereits ein Konto?",
       signInText: "Anmelden",
+      socialButton: "Mit {provider} registrieren",
+      orText: "oder mit E-Mail fortfahren",
       errors: {
         userExists: "Ein Konto mit dieser E-Mail existiert bereits. Versuchen Sie sich anzumelden.",
       },
