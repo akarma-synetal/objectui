@@ -1561,6 +1561,7 @@ const pt = {
         ctaUpgrade: "Faça upgrade para continuar",
         ctaTopUp: "Adicione créditos para continuar",
         ariaLabel: "Uso de IA: {{status}}",
+        breakdownTitle: "Usado até agora",
       },
       workspaceTitle: "Workspace de IA",
       workspaceSubtitle: "Pergunte, inspecione e retome conversas",

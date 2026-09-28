@@ -1562,6 +1562,7 @@ const de = {
         ctaUpgrade: "Upgraden, um weiterzumachen",
         ctaTopUp: "Credits hinzufügen, um fortzufahren",
         ariaLabel: "KI-Nutzung: {{status}}",
+        breakdownTitle: "Bisher verbraucht",
       },
       workspaceTitle: "KI-Workspace",
       workspaceSubtitle: "Fragen stellen, prüfen und Unterhaltungen fortsetzen",
