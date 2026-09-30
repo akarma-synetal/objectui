@@ -64,7 +64,7 @@ import { DrillDownConfigSchema } from './data-display.zod.js';
 import { KanbanCardSchema } from './complex.zod.js';
 import { ViewSwitcherSchema } from './views.zod.js';
 import { stripImportedDefaults } from './imported-defaults.js';
-import { PUBLIC_BLOCK_ENVELOPE, propsBag } from './public-blocks.zod.js';
+import { NODE_ENVELOPE, propsBag } from './public-blocks.zod.js';
 
 /**
  * ⭐ THE IMPORT BOUNDARY (objectui#8317, decision batch #90, 2026-09-08).
@@ -291,6 +291,11 @@ const ELEMENT_DATA_SOURCE_BINDING_DESCRIPTION =
  */
 export const ObjectGridSchema = BaseSchema.extend({
   type: z.literal('object-grid'),
+  // objectui#10872 batch 9 — the node-level `responsiveStyles` the spec's
+  // `PageComponentSchema` declares, from the ONE fragment the public blocks
+  // spread (`NODE_ENVELOPE`). A producer writes it on `object-grid` nodes, and
+  // `SchemaRenderer` compiles it on every node. The TS twin declares it too.
+  ...NODE_ENVELOPE,
   objectName: z.string().describe('ObjectQL object name'),
   // objectui#11070 — the spec's per-element binding, by reference, as
   // `public-blocks.zod.ts`'s `element:number` arm already declares it. The
@@ -754,6 +759,17 @@ const OBJECT_VIEW_TABLE_WITHHELD = {
   onNavigate: tableKeyRefusal('onNavigate', TABLE_KEY_ROW_CLICK),
   placeholder: tableKeyRefusal('placeholder', TABLE_KEY_UNREAD),
   resizableColumns: tableKeyRefusal('resizableColumns', 'it is the legacy alias of `resizable`. Write `resizable`.'),
+  // objectui#10872 batch 9 declared the node-level `responsiveStyles` on
+  // `ObjectGridSchema`; the view draws its grid as a component, so nothing
+  // compiles it inside `table`. Without this row the slot would have gained it.
+  // Its own reason, not `TABLE_KEY_NODE_LEVEL`: that one sends the key to the
+  // object-view node, whose arm does not declare `responsiveStyles`, so the
+  // strict face would refuse it there too.
+  responsiveStyles: tableKeyRefusal(
+    'responsiveStyles',
+    'the view draws its grid as a component, not as a schema node, so nothing compiles a `responsiveStyles` map '
+    + 'written here. Delete it.',
+  ),
   rowSpecActions: tableKeyRefusal('rowSpecActions', `${TABLE_KEY_UNREAD} Write \`rowActions\`.`),
   showFilters: tableKeyRefusal('showFilters', TABLE_KEY_UNREAD),
   staticData: tableKeyRefusal('staticData', TABLE_KEY_RECORD_SOURCE),
@@ -2927,6 +2943,10 @@ const OBJECT_CHART_NEITHER_CHANNEL = neitherContentChannelGuidance(
  */
 export const ObjectChartSchema = BaseSchema.extend({
   type: z.literal('object-chart'),
+  // objectui#10872 batch 9 — the node-level `responsiveStyles`, from the same
+  // `NODE_ENVELOPE` fragment as `ObjectGridSchema` above. A producer writes
+  // it on `object-chart` nodes. The TS twin declares it too.
+  ...NODE_ENVELOPE,
   // Legacy inline path (objectName + aggregate). Optional now that a chart may
   // instead bind to a semantic-layer dataset (ADR-0021, objectstack-ai/objectstack#1890).
   objectName: z.string().optional().describe('ObjectQL object name (legacy inline path)'),
@@ -3421,7 +3441,7 @@ const OBJECT_METRIC_NEITHER_CHANNEL = neitherContentChannelGuidance(
  */
 export const ObjectMetricBlockSchema = BaseSchema.extend({
   type: z.literal('object-metric'),
-  ...PUBLIC_BLOCK_ENVELOPE,
+  ...NODE_ENVELOPE,
   properties: propsBag('object-metric', stripImportedDefaults(SpecObjectMetricPropsSchema)),
   dataSource: stripImportedDefaults(SpecElementDataSourceSchema)
     .optional()
@@ -3477,7 +3497,7 @@ const OBJECT_MASTER_DETAIL_FORM_NEITHER_CHANNEL = neitherContentChannelGuidance(
  */
 export const ObjectMasterDetailFormBlockSchema = BaseSchema.extend({
   type: z.literal('object-master-detail-form'),
-  ...PUBLIC_BLOCK_ENVELOPE,
+  ...NODE_ENVELOPE,
   properties: propsBag(
     'object-master-detail-form',
     stripImportedDefaults(SpecObjectMasterDetailFormPropsSchema),
@@ -3559,7 +3579,7 @@ const OBJECT_TIMELINE_NEITHER_CHANNEL = neitherContentChannelGuidance(
  */
 export const ObjectTimelineBlockSchema = BaseSchema.extend({
   type: z.literal('object-timeline'),
-  ...PUBLIC_BLOCK_ENVELOPE,
+  ...NODE_ENVELOPE,
   properties: propsBag('object-timeline', stripImportedDefaults(SpecObjectTimelinePropsSchema)),
   dataSource: stripImportedDefaults(SpecElementDataSourceSchema)
     .optional()
@@ -3579,10 +3599,11 @@ export const ObjectTimelineBlockSchema = BaseSchema.extend({
  * member for member, and none of these blocks has a declaration there — their
  * declaration is the spec row each `properties` member reads.
  *
- * Each arm also spreads `PUBLIC_BLOCK_ENVELOPE` from `./public-blocks.zod.ts`,
+ * Each arm also spreads `NODE_ENVELOPE` from `./public-blocks.zod.ts`,
  * the node-level `responsiveStyles` every public block declares by reference to
  * the spec's `PageComponentSchema` (objectui#10872 batch 8) — the same one
- * declaration, not a copy of it.
+ * declaration, not a copy of it. `ObjectGridSchema` and `ObjectChartSchema`
+ * above spread it too (objectui#10872 batch 9).
  */
 export const ObjectQLPublicBlockComponentSchema = z.discriminatedUnion('type', [
   ObjectMetricBlockSchema,
