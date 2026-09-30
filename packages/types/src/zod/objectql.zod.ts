@@ -435,7 +435,8 @@ export const ObjectGridSchema = BaseSchema.extend({
   //
   // ⛔ Disposition MEASURED, not patterned. `'retired'` publishes "no renderer
   // reads this key" — FALSE here: `ObjectGrid` reads it (`onNavigate:
-  // schema.onNavigate` into its `useNavigationOverlay` call) and
+  // onNavigate ?? schema.onNavigate` into its `useNavigationOverlay` call —
+  // the node key is the fallback behind the component prop, objectui#9547) and
   // `gridNonAuthorKeys.test.tsx` pins the read firing on a row click from a
   // SCHEMA-supplied function. So `'runtime-slot'`, and the channel is the one
   // the maintainer's 2026-08-19 ruling on objectui#5234 (option C) preserved on
@@ -893,8 +894,9 @@ export const ObjectViewSchema = BaseSchema.extend({
   // which is the TypeScript face, never `safeParse`.
   //
   // ⚠️ Same key NAME as `ObjectGridSchema.onNavigate` above, a DIFFERENT
-  // signature (`mode: 'view' | 'edit'` rather than the grid's `action?: string`)
-  // and a different supplier. Judged separately for that reason.
+  // signature (`mode: 'view' | 'edit'` rather than the grid's
+  // `action: RecordNavigateAction`, objectui#9547) and a different supplier.
+  // Judged separately for that reason.
   onNavigate: handlerKeyRefusal('onNavigate', 'runtime-slot', 'Record navigation handler'),
   // objectui#9256 (E3 residual, ruling Q2 A on objectui#8284): the renderer reads NEITHER content
   // channel, so both are refused by name here as on the TypeScript twin, each kept a MEMBER.
