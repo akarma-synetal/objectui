@@ -54,6 +54,10 @@
  * blocks' `onSuccess`, below); `element:number`'s `dataSource`, the spec's own
  * binding schema by reference (below); and the content-channel refusals (next
  * section) — the tombstones, and `record:alert`'s flat-`body` alias refusal.
+ * Beneath all three, every arm whose row declares a member spreads the
+ * flat-prop refusals (`flatPropRefusals`, objectui#10872 batch 10): each row
+ * member written on the node instead of in the bag is refused by name. An
+ * arm's own member of the same name, declared after the spread, wins.
  *
  * ## The content channels (objectui#9256)
  *
@@ -118,24 +122,25 @@
  * synthesizer (`buildDefaultPageSchema`'s `componentNode`) and the page
  * designer both emit `{ type, properties }`.
  *
- * ⚠️ A key written FLAT on the node is not judged against the block's row. One
- * the shared node base does not declare (`{ "type": "record:details",
- * "columns": "2" }`) passes the tolerant face unjudged, exactly as every
- * undeclared key of every arm does, and the strict authoring face refuses it;
- * one `BaseSchema` does declare (`children`, `label`, `disabled`, `visible`) is
- * judged by the base's own type — unless the arm declares it again, as the
- * content-channel refusals above do for `children` on every block here (on the
- * four `page:` containers, pointing at `properties.children`). A flat `body` is
- * refused on both faces: by those refusals, and on `record:alert` by its alias
- * refusal naming `properties.body`. Whether the flat spelling is ALSO an
- * authoring channel for the `page:` / `record:` / `action:` families (their
- * renderers read the hoisted node keys) is left open on objectui#10872 rather than decided by this module —
- * declaring it later is additive, and it must never extend to `element:*`,
- * whose renderers do not read a flat key at all. ⚠️ For `action:button` it is
- * the TAUGHT spelling: AGENTS.md #4 and the guides write `label`, `actionType`
- * and `target` flat on the node, which the tolerant face passes (`label` judged
- * by the base, the other two unjudged) and the strict face refuses, as the
- * spec's own `PageComponentSchema` does.
+ * A member of the block's row written FLAT on the node
+ * (`{ "type": "record:details", "columns": "2" }`) is refused by name on both
+ * faces, at its own path, with a message naming its bag member
+ * (`properties.columns`) — objectui#10872 batch 10, `flatPropRefusals` below.
+ * The flat spelling is not a second authoring channel: triage's answer A on
+ * objectui#10872 made the bag the contract, because `@objectstack/spec`'s
+ * strict `PageComponentSchema` refuses a block's prop on the node as
+ * mis-layered (ADR-0089 D3a), and a face that kept it would accept what
+ * `os validate` refuses. That holds for the members `BaseSchema` also declares
+ * (`visible`, `disabled`, `name`, `description`, `data`), whose base type used
+ * to judge them, and for `children`, which the content-channel refusals above
+ * already restated. Two kinds of row member are left alone: one the spec's page
+ * component itself declares at node level (`label`, `aria`), which keeps its
+ * node-level meaning; and one the row retires, which keeps the row's own
+ * retirement when written flat. A key that is in neither the row nor the base
+ * is left as every arm leaves an undeclared key: unjudged by the tolerant face,
+ * refused by the strict one. Nothing at render time moves: `SchemaRenderer`
+ * still reads both spellings, so stored documents and nodes composed in code
+ * keep rendering; this face judges what is authored.
  *
  * `properties` is optional on every arm, as it is on `PageComponentSchema`:
  * the spec's own props gate (`validateComponentProps`, `@objectstack/lint`)
@@ -308,6 +313,131 @@ export const NODE_ENVELOPE = {
 };
 
 /**
+ * The node-level keys of `@objectstack/spec`'s `PageComponentSchema`: every key
+ * a page component may carry BESIDE its `properties` bag (objectui#10872
+ * batch 10).
+ *
+ * A row member with one of these names is NOT mis-layered when it is written on
+ * the node. The spec's page component declares the key there itself, so its
+ * node-level meaning is the spec's, not the row's (`label`, the display label;
+ * `aria`, the node's ARIA attributes; `type`, the discriminator `page:tabs`'s
+ * row also names). `flatPropRefusals` below leaves these keys alone, as
+ * `./objectql.zod.ts`'s `object-gantt` arm leaves its row's `label`.
+ *
+ * ⚠️ Transcribed, not imported: the spec exports the page component as a lazy,
+ * transformed strict object, and the objectui#8317 boundary admits a spec
+ * binding only when it is passed straight to `stripImportedDefaults`.
+ * `../__tests__/flat-props-refusal-10872.test.ts` re-derives the key set from the
+ * installed spec's own shape and goes red the day the two part.
+ */
+const PAGE_COMPONENT_NODE_KEYS = [
+  'type',
+  'id',
+  'label',
+  'properties',
+  'events',
+  'style',
+  'className',
+  'responsiveStyles',
+  'visibleWhen',
+  'visibility',
+  'dataSource',
+  'responsive',
+  'aria',
+] as const;
+
+/** One node-level key of the spec's page component — a TYPE position. */
+type PageComponentNodeKey = (typeof PAGE_COMPONENT_NODE_KEYS)[number];
+
+/**
+ * The refusal detail a row member written flat on a `type` node gets
+ * (objectui#10872 batch 10). `aliasKeyRefusal` puts the key and its bag member
+ * in front of it: "Did you mean `title` → `properties.title`?".
+ */
+function flatPropGuidance(type: string, key: string): string {
+  return 'A `' + type + '` node takes its props in its `properties` bag, where `@objectstack/spec`\'s '
+    + '`ComponentPropsMap[\'' + type + '\']` row declares them: write `{ "type": "' + type + '", "properties": '
+    + '{ "' + key + '": … } }` (objectui#10872). The spec\'s own page component refuses a prop written on the '
+    + 'node as mis-layered (ADR-0089 D3a), so this face and `os validate` agree. In the bag the prop reaches the '
+    + 'block on every read path: `SchemaRenderer` hoists each `properties` key onto the node before the '
+    + 'renderer runs (`type` and `id` excepted), and the `element:*` renderers read the bag alone.';
+}
+
+/** Is this row member one of the spec's own retirements — a `z.never` member? */
+function isRetiredRowMember(member: z.ZodType): boolean {
+  const def = (member as unknown as { _zod: { def: { type: string; innerType?: unknown } } })._zod.def;
+  const inner = def.type === 'optional'
+    ? (def.innerType as { _zod: { def: { type: string } } })._zod.def
+    : def;
+  return inner.type === 'never';
+}
+
+/** The members `flatPropRefusals` returns for a row of shape `S` — a TYPE position. */
+type FlatPropRefusals<S> = {
+  [K in Exclude<keyof S & string, PageComponentNodeKey>]-?: z.ZodOptional<z.ZodNever>;
+};
+
+/**
+ * One by-name refusal for every member of a public block's spec row written
+ * FLAT on the node (objectui#10872 batch 10), keyed by the row's own key set:
+ * read off the row, not transcribed, so a member the spec adds is refused flat
+ * the day it lands.
+ *
+ * ## Why (triage's answer A on objectui#10872)
+ *
+ * The bag is the contract. `@objectstack/spec`'s strict `PageComponentSchema`
+ * refuses a block's prop written on the node as mis-layered (ADR-0089 D3a), so
+ * a face that kept the flat spelling would be a second dialect: `objectui
+ * validate` accepting what `os validate` refuses. Before this, a flat key the
+ * node base does not declare passed the tolerant face unjudged and was refused
+ * by the strict face only as an unnamed `unrecognized_keys`, and a flat key the
+ * base does declare (`visible`, `disabled`, `name`, `description`, `data`)
+ * passed both faces against the base's own type. Now every one is refused on
+ * both faces, at its own path, with a message naming `properties.KEY`.
+ *
+ * ## What it leaves alone
+ *
+ *   - A key the spec's page component declares at node level
+ *     (`PAGE_COMPONENT_NODE_KEYS` above): it keeps its node-level meaning.
+ *   - A key the row itself retires (a `z.never` member, such as `page:header`'s
+ *     `icon`): written flat, it gets the row's OWN retirement, the same object
+ *     by reference, so the author meets the spec's prescription rather than a
+ *     pointer to a bag member that is refused too. `object-chart`'s retired
+ *     spellings take the same route in `./objectql.zod.ts`.
+ *   - Whatever the arm declares AFTER the spread: an arm's own refusal of a row
+ *     key (`record:alert`'s `body`, the `action:` controls' `onSuccess`, the
+ *     content-channel tombstones) overrides the generated one, because a later
+ *     member of an object shape wins.
+ *
+ * Nothing at render time changes: `SchemaRenderer` still reads both spellings,
+ * and a node composed in code (an action bar's menu, a dashboard's metric
+ * tile, a form's master-detail node) never passes through this face.
+ *
+ * The ONE copy: every public-block arm here, and `./objectql.zod.ts`'s
+ * `object-metric`, `object-master-detail-form` and `object-timeline` arms,
+ * spread it. Internal to this package's zod modules, like `propsBag`:
+ * deliberately NOT re-exported from `index.zod.ts`.
+ *
+ * @param type the registered `type`, spelled into every message
+ * @param row  the spec row, already through the import boundary
+ */
+export function flatPropRefusals<S extends Record<string, z.ZodType>>(
+  type: string,
+  row: { readonly shape: S },
+): FlatPropRefusals<S> {
+  return Object.fromEntries(
+    Object.entries(row.shape)
+      .filter(([key]) => !(PAGE_COMPONENT_NODE_KEYS as readonly string[]).includes(key))
+      .map(([key, member]) => [
+        key,
+        isRetiredRowMember(member)
+          ? member
+          : aliasKeyRefusal(key, `properties.${key}`, `this \`${type}\` node`, flatPropGuidance(type, key)),
+      ]),
+  ) as FlatPropRefusals<S>;
+}
+
+/**
  * objectui#10872 batch 6: ONE refusal string for both node-level content
  * channels of a `page:` container — `page:card`, `page:section`, `page:footer`,
  * `page:sidebar`.
@@ -349,6 +479,8 @@ const PAGE_HEADER_NEITHER_CHANNEL = neitherContentChannelGuidance(
 export const PageHeaderBlockSchema = BaseSchema.extend({
   type: z.literal('page:header'),
   ...NODE_ENVELOPE,
+  // objectui#10872 batch 10: a row member written flat on the node is refused by name, toward `properties.KEY`.
+  ...flatPropRefusals('page:header', stripImportedDefaults(SpecPageHeaderProps)),
   properties: propsBag('page:header', stripImportedDefaults(SpecPageHeaderProps)),
   // objectui#9256: the renderer reads NEITHER content channel, so both are refused by name, each
   // kept a MEMBER (see "The content channels" above).
@@ -384,6 +516,8 @@ const PAGE_TABS_NEITHER_CHANNEL = neitherContentChannelGuidance(
 export const PageTabsBlockSchema = BaseSchema.extend({
   type: z.literal('page:tabs'),
   ...NODE_ENVELOPE,
+  // objectui#10872 batch 10: a row member written flat on the node is refused by name, toward `properties.KEY`.
+  ...flatPropRefusals('page:tabs', stripImportedDefaults(SpecPageTabsProps)),
   properties: propsBag('page:tabs', stripImportedDefaults(SpecPageTabsProps)),
   onTabChange: handlerKeyRefusal('onTabChange', 'runtime-slot', 'Tab switch callback'),
   // objectui#9256: the NODE's content channels only — each item's `children` stays live.
@@ -402,6 +536,8 @@ const PAGE_CARD_CHILD_LIST = pageContainerChildListGuidance('page:card', 'PageCa
 export const PageCardBlockSchema = BaseSchema.extend({
   type: z.literal('page:card'),
   ...NODE_ENVELOPE,
+  // objectui#10872 batch 10: a row member written flat on the node is refused by name, toward `properties.KEY`.
+  ...flatPropRefusals('page:card', stripImportedDefaults(SpecPageCardProps)),
   properties: propsBag('page:card', stripImportedDefaults(SpecPageCardProps)),
   // objectui#10872 batch 6: the child list is the row's `children` member, in the bag.
   body: retirementTombstone(PAGE_CARD_CHILD_LIST),
@@ -425,6 +561,8 @@ const PAGE_ACCORDION_NEITHER_CHANNEL = neitherContentChannelGuidance(
 export const PageAccordionBlockSchema = BaseSchema.extend({
   type: z.literal('page:accordion'),
   ...NODE_ENVELOPE,
+  // objectui#10872 batch 10: a row member written flat on the node is refused by name, toward `properties.KEY`.
+  ...flatPropRefusals('page:accordion', stripImportedDefaults(SpecPageAccordionProps)),
   properties: propsBag('page:accordion', stripImportedDefaults(SpecPageAccordionProps)),
   // objectui#9256: the NODE's content channels only — each item's `children` stays live.
   body: retirementTombstone(PAGE_ACCORDION_NEITHER_CHANNEL),
@@ -444,6 +582,8 @@ const PAGE_SECTION_CHILD_LIST = pageContainerChildListGuidance('page:section', '
 export const PageSectionBlockSchema = BaseSchema.extend({
   type: z.literal('page:section'),
   ...NODE_ENVELOPE,
+  // objectui#10872 batch 10: a row member written flat on the node is refused by name, toward `properties.KEY`.
+  ...flatPropRefusals('page:section', stripImportedDefaults(SpecPageContainerProps)),
   properties: propsBag('page:section', stripImportedDefaults(SpecPageContainerProps)),
   // objectui#10872 batch 6: the child list is the row's `children` member, in the bag.
   body: retirementTombstone(PAGE_SECTION_CHILD_LIST),
@@ -457,6 +597,8 @@ const PAGE_FOOTER_CHILD_LIST = pageContainerChildListGuidance('page:footer', 'Pa
 export const PageFooterBlockSchema = BaseSchema.extend({
   type: z.literal('page:footer'),
   ...NODE_ENVELOPE,
+  // objectui#10872 batch 10: a row member written flat on the node is refused by name, toward `properties.KEY`.
+  ...flatPropRefusals('page:footer', stripImportedDefaults(SpecPageContainerProps)),
   properties: propsBag('page:footer', stripImportedDefaults(SpecPageContainerProps)),
   // objectui#10872 batch 6: the child list is the row's `children` member, in the bag.
   body: retirementTombstone(PAGE_FOOTER_CHILD_LIST),
@@ -470,6 +612,8 @@ const PAGE_SIDEBAR_CHILD_LIST = pageContainerChildListGuidance('page:sidebar', '
 export const PageSidebarBlockSchema = BaseSchema.extend({
   type: z.literal('page:sidebar'),
   ...NODE_ENVELOPE,
+  // objectui#10872 batch 10: a row member written flat on the node is refused by name, toward `properties.KEY`.
+  ...flatPropRefusals('page:sidebar', stripImportedDefaults(SpecPageContainerProps)),
   properties: propsBag('page:sidebar', stripImportedDefaults(SpecPageContainerProps)),
   // objectui#10872 batch 6: the child list is the row's `children` member, in the bag.
   body: retirementTombstone(PAGE_SIDEBAR_CHILD_LIST),
@@ -490,6 +634,8 @@ const RECORD_DETAILS_NEITHER_CHANNEL = neitherContentChannelGuidance(
 export const RecordDetailsBlockSchema = BaseSchema.extend({
   type: z.literal('record:details'),
   ...NODE_ENVELOPE,
+  // objectui#10872 batch 10: a row member written flat on the node is refused by name, toward `properties.KEY`.
+  ...flatPropRefusals('record:details', stripImportedDefaults(SpecRecordDetailsProps)),
   properties: propsBag('record:details', stripImportedDefaults(SpecRecordDetailsProps)),
   // objectui#9256: the renderer reads NEITHER content channel, so both are refused by name, each
   // kept a MEMBER (see "The content channels" above).
@@ -509,6 +655,8 @@ const RECORD_HIGHLIGHTS_NEITHER_CHANNEL = neitherContentChannelGuidance(
 export const RecordHighlightsBlockSchema = BaseSchema.extend({
   type: z.literal('record:highlights'),
   ...NODE_ENVELOPE,
+  // objectui#10872 batch 10: a row member written flat on the node is refused by name, toward `properties.KEY`.
+  ...flatPropRefusals('record:highlights', stripImportedDefaults(SpecRecordHighlightsProps)),
   properties: propsBag('record:highlights', stripImportedDefaults(SpecRecordHighlightsProps)),
   // objectui#9256: the renderer reads NEITHER content channel, so both are refused by name, each
   // kept a MEMBER (see "The content channels" above).
@@ -529,6 +677,8 @@ const RECORD_RELATED_LIST_NEITHER_CHANNEL = neitherContentChannelGuidance(
 export const RecordRelatedListBlockSchema = BaseSchema.extend({
   type: z.literal('record:related_list'),
   ...NODE_ENVELOPE,
+  // objectui#10872 batch 10: a row member written flat on the node is refused by name, toward `properties.KEY`.
+  ...flatPropRefusals('record:related_list', stripImportedDefaults(SpecRecordRelatedListProps)),
   properties: propsBag('record:related_list', stripImportedDefaults(SpecRecordRelatedListProps)),
   // objectui#9256: the renderer reads NEITHER content channel, so both are refused by name, each
   // kept a MEMBER (see "The content channels" above).
@@ -548,6 +698,8 @@ const RECORD_PATH_NEITHER_CHANNEL = neitherContentChannelGuidance(
 export const RecordPathBlockSchema = BaseSchema.extend({
   type: z.literal('record:path'),
   ...NODE_ENVELOPE,
+  // objectui#10872 batch 10: a row member written flat on the node is refused by name, toward `properties.KEY`.
+  ...flatPropRefusals('record:path', stripImportedDefaults(SpecRecordPathProps)),
   properties: propsBag('record:path', stripImportedDefaults(SpecRecordPathProps)),
   // objectui#9256: the renderer reads NEITHER content channel, so both are refused by name, each
   // kept a MEMBER (see "The content channels" above).
@@ -568,6 +720,8 @@ const RECORD_ACTIVITY_NEITHER_CHANNEL = neitherContentChannelGuidance(
 export const RecordActivityBlockSchema = BaseSchema.extend({
   type: z.literal('record:activity'),
   ...NODE_ENVELOPE,
+  // objectui#10872 batch 10: a row member written flat on the node is refused by name, toward `properties.KEY`.
+  ...flatPropRefusals('record:activity', stripImportedDefaults(SpecRecordActivityProps)),
   properties: propsBag('record:activity', stripImportedDefaults(SpecRecordActivityProps)),
   // objectui#9256: the renderer reads NEITHER content channel, so both are refused by name, each
   // kept a MEMBER (see "The content channels" above).
@@ -592,6 +746,8 @@ const RECORD_DISCUSSION_NEITHER_CHANNEL = neitherContentChannelGuidance(
 export const RecordDiscussionBlockSchema = BaseSchema.extend({
   type: z.literal('record:discussion'),
   ...NODE_ENVELOPE,
+  // objectui#10872 batch 10: a row member written flat on the node is refused by name, toward `properties.KEY`.
+  ...flatPropRefusals('record:discussion', stripImportedDefaults(SpecRecordChatterProps)),
   properties: propsBag('record:discussion', stripImportedDefaults(SpecRecordChatterProps)),
   // objectui#9256: the renderer reads NEITHER content channel, so both are refused by name, each
   // kept a MEMBER (see "The content channels" above).
@@ -611,6 +767,8 @@ const RECORD_HISTORY_NEITHER_CHANNEL = neitherContentChannelGuidance(
 export const RecordHistoryBlockSchema = BaseSchema.extend({
   type: z.literal('record:history'),
   ...NODE_ENVELOPE,
+  // objectui#10872 batch 10: a row member written flat on the node is refused by name, toward `properties.KEY`.
+  ...flatPropRefusals('record:history', stripImportedDefaults(SpecRecordHistoryProps)),
   properties: propsBag('record:history', stripImportedDefaults(SpecRecordHistoryProps)),
   // objectui#9256: the renderer reads NEITHER content channel, so both are refused by name, each
   // kept a MEMBER (see "The content channels" above).
@@ -631,6 +789,8 @@ const RECORD_QUICK_ACTIONS_NEITHER_CHANNEL = neitherContentChannelGuidance(
 export const RecordQuickActionsBlockSchema = BaseSchema.extend({
   type: z.literal('record:quick_actions'),
   ...NODE_ENVELOPE,
+  // objectui#10872 batch 10: a row member written flat on the node is refused by name, toward `properties.KEY`.
+  ...flatPropRefusals('record:quick_actions', stripImportedDefaults(SpecRecordQuickActionsProps)),
   properties: propsBag('record:quick_actions', stripImportedDefaults(SpecRecordQuickActionsProps)),
   // objectui#9256: the renderer reads NEITHER content channel, so both are refused by name, each
   // kept a MEMBER (see "The content channels" above).
@@ -650,6 +810,8 @@ const RECORD_REFERENCE_RAIL_NEITHER_CHANNEL = neitherContentChannelGuidance(
 export const RecordReferenceRailBlockSchema = BaseSchema.extend({
   type: z.literal('record:reference_rail'),
   ...NODE_ENVELOPE,
+  // objectui#10872 batch 10: a row member written flat on the node is refused by name, toward `properties.KEY`.
+  ...flatPropRefusals('record:reference_rail', stripImportedDefaults(SpecRecordReferenceRailProps)),
   properties: propsBag('record:reference_rail', stripImportedDefaults(SpecRecordReferenceRailProps)),
   // objectui#9256: the renderer reads NEITHER content channel, so both are refused by name, each
   // kept a MEMBER (see "The content channels" above).
@@ -693,14 +855,18 @@ const RECORD_ALERT_NO_CHILD_LIST =
  * ruling: `record:alert` gets its `children` narrowed, never a `body`
  * tombstone). ⛔ Not an accept either. A flat `body` does render, because the
  * renderer merges the node's own keys under `properties` (`readProps`), but
- * admitting it is the flat-props channel that objectui#10872 holds for every
- * block armed here. So the accept set stays where `BaseSchema` put it (a flat
- * `body` is refused with `invalid_type` at `body`, on both faces), and only the
- * prescription is this arm's own.
+ * admitting it would be the flat-props channel that triage's answer A on
+ * objectui#10872 ruled out: every row member written flat is refused by name
+ * (`flatPropRefusals`, batch 10). So a flat `body` is refused with
+ * `invalid_type` at `body`, on both faces, and this member, declared after the
+ * spread, keeps only its own prescription: the one that says why `children` is
+ * no remedy here.
  */
 export const RecordAlertBlockSchema = BaseSchema.extend({
   type: z.literal('record:alert'),
   ...NODE_ENVELOPE,
+  // objectui#10872 batch 10: a row member written flat on the node is refused by name, toward `properties.KEY`.
+  ...flatPropRefusals('record:alert', stripImportedDefaults(SpecRecordAlertProps)),
   properties: propsBag('record:alert', stripImportedDefaults(SpecRecordAlertProps)),
   // objectui#10872: the flat spelling of the row's `body`, refused by name with the key that holds the text.
   body: aliasKeyRefusal(
@@ -732,6 +898,8 @@ const ELEMENT_TEXT_NEITHER_CHANNEL = neitherContentChannelGuidance(
 export const ElementTextBlockSchema = BaseSchema.extend({
   type: z.literal('element:text'),
   ...NODE_ENVELOPE,
+  // objectui#10872 batch 10: a row member written flat on the node is refused by name, toward `properties.KEY`.
+  ...flatPropRefusals('element:text', stripImportedDefaults(SpecElementTextPropsSchema)),
   properties: propsBag('element:text', stripImportedDefaults(SpecElementTextPropsSchema)),
   // objectui#9256: the renderer reads NEITHER content channel, so both are refused by name, each
   // kept a MEMBER (see "The content channels" above).
@@ -838,6 +1006,8 @@ const ELEMENT_NUMBER_NEITHER_CHANNEL = neitherContentChannelGuidance(
 export const ElementNumberBlockSchema = BaseSchema.extend({
   type: z.literal('element:number'),
   ...NODE_ENVELOPE,
+  // objectui#10872 batch 10: a row member written flat on the node is refused by name, toward `properties.KEY`.
+  ...flatPropRefusals('element:number', ElementNumberPropsBag),
   properties: ElementNumberPropsBag
     .optional()
     .describe(
@@ -869,6 +1039,8 @@ const ELEMENT_BUTTON_NEITHER_CHANNEL = neitherContentChannelGuidance(
 export const ElementButtonBlockSchema = BaseSchema.extend({
   type: z.literal('element:button'),
   ...NODE_ENVELOPE,
+  // objectui#10872 batch 10: a row member written flat on the node is refused by name, toward `properties.KEY`.
+  ...flatPropRefusals('element:button', stripImportedDefaults(SpecElementButtonPropsSchema)),
   properties: propsBag('element:button', stripImportedDefaults(SpecElementButtonPropsSchema)),
   // objectui#9256: the renderer reads NEITHER content channel, so both are refused by name, each
   // kept a MEMBER (see "The content channels" above).
@@ -939,6 +1111,8 @@ const ELEMENT_DEFINITION_LIST_NEITHER_CHANNEL = neitherContentChannelGuidance(
 export const ElementDefinitionListBlockSchema = BaseSchema.extend({
   type: z.literal('element:definition-list'),
   ...NODE_ENVELOPE,
+  // objectui#10872 batch 10: a row member written flat on the node is refused by name, toward `properties.KEY`.
+  ...flatPropRefusals('element:definition-list', stripImportedDefaults(SpecElementDefinitionListPropsSchema)),
   properties: propsBag('element:definition-list', stripImportedDefaults(SpecElementDefinitionListPropsSchema)),
   // objectui#10872 batch 5: the renderer reads NEITHER content channel, so both are refused by name,
   // each kept a MEMBER (see "The content channels" above).
@@ -975,6 +1149,8 @@ const ELEMENT_REPEATER_NEITHER_CHANNEL = neitherContentChannelGuidance(
 export const ElementRepeaterBlockSchema = BaseSchema.extend({
   type: z.literal('element:repeater'),
   ...NODE_ENVELOPE,
+  // objectui#10872 batch 10: a row member written flat on the node is refused by name, toward `properties.KEY`.
+  ...flatPropRefusals('element:repeater', stripImportedDefaults(SpecElementRepeaterPropsSchema)),
   properties: propsBag('element:repeater', stripImportedDefaults(SpecElementRepeaterPropsSchema)),
   // objectui#10872 batch 5: the renderer reads NEITHER content channel, so both are refused by name,
   // each kept a MEMBER (see "The content channels" above).
@@ -1043,6 +1219,8 @@ const ACTION_BUTTON_NEITHER_CHANNEL = neitherContentChannelGuidance(
 export const ActionButtonBlockSchema = BaseSchema.extend({
   type: z.literal('action:button'),
   ...NODE_ENVELOPE,
+  // objectui#10872 batch 10: a row member written flat on the node is refused by name, toward `properties.KEY`.
+  ...flatPropRefusals('action:button', stripImportedDefaults(SpecActionButtonPropsSchema)),
   properties: propsBag('action:button', stripImportedDefaults(SpecActionButtonPropsSchema)),
   onClick: handlerKeyRefusal('onClick', 'runtime-slot', 'Click handler'),
   onSuccess: aliasKeyRefusal('onSuccess', 'properties.onSuccess', 'this `action:button` node', ACTION_BUTTON_FLAT_ON_SUCCESS),
@@ -1073,6 +1251,8 @@ const ACTION_ICON_NEITHER_CHANNEL = neitherContentChannelGuidance(
 export const ActionIconBlockSchema = BaseSchema.extend({
   type: z.literal('action:icon'),
   ...NODE_ENVELOPE,
+  // objectui#10872 batch 10: a row member written flat on the node is refused by name, toward `properties.KEY`.
+  ...flatPropRefusals('action:icon', stripImportedDefaults(SpecActionIconPropsSchema)),
   properties: propsBag('action:icon', stripImportedDefaults(SpecActionIconPropsSchema)),
   onClick: handlerKeyRefusal('onClick', 'runtime-slot', 'Click handler'),
   onSuccess: aliasKeyRefusal('onSuccess', 'properties.onSuccess', 'this `action:icon` node', ACTION_ICON_FLAT_ON_SUCCESS),
@@ -1104,6 +1284,8 @@ const ACTION_GROUP_NEITHER_CHANNEL = neitherContentChannelGuidance(
 export const ActionGroupBlockSchema = BaseSchema.extend({
   type: z.literal('action:group'),
   ...NODE_ENVELOPE,
+  // objectui#10872 batch 10: a row member written flat on the node is refused by name, toward `properties.KEY`.
+  ...flatPropRefusals('action:group', stripImportedDefaults(SpecActionGroupPropsSchema)),
   properties: propsBag('action:group', stripImportedDefaults(SpecActionGroupPropsSchema)),
   // objectui#10872 batch 5: the renderer reads NEITHER content channel, so both are refused by name,
   // each kept a MEMBER (see "The content channels" above).
@@ -1132,6 +1314,8 @@ const ACTION_MENU_NEITHER_CHANNEL = neitherContentChannelGuidance(
 export const ActionMenuBlockSchema = BaseSchema.extend({
   type: z.literal('action:menu'),
   ...NODE_ENVELOPE,
+  // objectui#10872 batch 10: a row member written flat on the node is refused by name, toward `properties.KEY`.
+  ...flatPropRefusals('action:menu', stripImportedDefaults(SpecActionMenuPropsSchema)),
   properties: propsBag('action:menu', stripImportedDefaults(SpecActionMenuPropsSchema)),
   // objectui#10872 batch 5: the renderer reads NEITHER content channel, so both are refused by name,
   // each kept a MEMBER (see "The content channels" above).

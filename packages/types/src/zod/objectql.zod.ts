@@ -70,7 +70,7 @@ import { DataTableSchema, DrillDownConfigSchema } from './data-display.zod.js';
 import { KanbanCardSchema } from './complex.zod.js';
 import { ViewSwitcherSchema } from './views.zod.js';
 import { stripImportedDefaults } from './imported-defaults.js';
-import { dataSourceSuppliesObject, NODE_ENVELOPE, propsBag } from './public-blocks.zod.js';
+import { dataSourceSuppliesObject, flatPropRefusals, NODE_ENVELOPE, propsBag } from './public-blocks.zod.js';
 
 /**
  * ⭐ THE IMPORT BOUNDARY (objectui#8317, decision batch #90, 2026-09-08).
@@ -3892,12 +3892,15 @@ const OBJECT_METRIC_NEITHER_CHANNEL = neitherContentChannelGuidance(
  * The bag is the spelling the platform's authored documents use — every
  * `object-metric` the objectstack showcase ships is `{ type, properties }` —
  * and the one the page designer writes; `SchemaRenderer` hoists it onto the
- * node before `ObjectMetricBlock` runs. ⚠️ A key written FLAT on the node is
- * not judged against the row, exactly as on the public blocks next door: one
- * `BaseSchema` does not declare passes the tolerant face unjudged and is
- * refused by the strict authoring face. Whether the flat spelling is also an
- * authoring channel for these blocks is the question objectui#10872 left open
- * for the whole family; declaring it later is additive.
+ * node before `ObjectMetricBlock` runs. A member of the row written FLAT on the
+ * node is refused by name on both faces, naming its bag member, exactly as on
+ * the public blocks next door (`flatPropRefusals`, objectui#10872 batch 10;
+ * triage's answer A there made the bag the contract for the whole family).
+ * `description`, a `BaseSchema` key the row also declares, is refused flat the
+ * same way; `label` stays on the node, where the spec's page component
+ * declares a `label` of its own. A composed flat node keeps rendering —
+ * `DashboardRenderer` builds one — because `SchemaRenderer` reads both
+ * spellings and no composed node passes through `safeValidateSchema`.
  *
  * ## `dataSource` (the node's binding)
  *
@@ -3920,6 +3923,8 @@ const OBJECT_METRIC_NEITHER_CHANNEL = neitherContentChannelGuidance(
 export const ObjectMetricBlockSchema = BaseSchema.extend({
   type: z.literal('object-metric'),
   ...NODE_ENVELOPE,
+  // objectui#10872 batch 10: a row member written flat on the node is refused by name, toward `properties.KEY`.
+  ...flatPropRefusals('object-metric', stripImportedDefaults(SpecObjectMetricPropsSchema)),
   properties: propsBag('object-metric', stripImportedDefaults(SpecObjectMetricPropsSchema)),
   dataSource: stripImportedDefaults(SpecElementDataSourceSchema)
     .optional()
@@ -3976,6 +3981,8 @@ const OBJECT_MASTER_DETAIL_FORM_NEITHER_CHANNEL = neitherContentChannelGuidance(
 export const ObjectMasterDetailFormBlockSchema = BaseSchema.extend({
   type: z.literal('object-master-detail-form'),
   ...NODE_ENVELOPE,
+  // objectui#10872 batch 10: a row member written flat on the node is refused by name, toward `properties.KEY`.
+  ...flatPropRefusals('object-master-detail-form', stripImportedDefaults(SpecObjectMasterDetailFormPropsSchema)),
   properties: propsBag(
     'object-master-detail-form',
     stripImportedDefaults(SpecObjectMasterDetailFormPropsSchema),
@@ -4030,9 +4037,12 @@ const OBJECT_TIMELINE_NEITHER_CHANNEL = neitherContentChannelGuidance(
  *
  * In the bag, as on its neighbours above: `SchemaRenderer` hoists
  * `properties` onto the node before the renderer runs, so the spec's
- * `{ type, properties }` document renders what the flat one does. ⚠️ A key
- * written FLAT on the node is not judged against the row: it passes the
- * tolerant face unjudged and is refused by the strict authoring face. Inside
+ * `{ type, properties }` document renders what the flat one does. A member of
+ * the row written FLAT on the node is refused by name on both faces, naming its
+ * bag member (`flatPropRefusals`, objectui#10872 batch 10), `data` among them,
+ * though `BaseSchema` declares a `data` of its own; a composed flat node, the
+ * one `ListView` hands over, keeps rendering because `SchemaRenderer` reads
+ * both spellings and no composed node passes through `safeValidateSchema`. Inside
  * the bag, the row itself leaves out the flat field spellings beside
  * `timeline` (`titleField`, `startDateField` and their siblings) and `scale`:
  * the spec's record for the row calls them the runtime handoff `ListView`
@@ -4058,6 +4068,8 @@ const OBJECT_TIMELINE_NEITHER_CHANNEL = neitherContentChannelGuidance(
 export const ObjectTimelineBlockSchema = BaseSchema.extend({
   type: z.literal('object-timeline'),
   ...NODE_ENVELOPE,
+  // objectui#10872 batch 10: a row member written flat on the node is refused by name, toward `properties.KEY`.
+  ...flatPropRefusals('object-timeline', stripImportedDefaults(SpecObjectTimelinePropsSchema)),
   properties: propsBag('object-timeline', stripImportedDefaults(SpecObjectTimelinePropsSchema)),
   dataSource: stripImportedDefaults(SpecElementDataSourceSchema)
     .optional()
@@ -4122,9 +4134,11 @@ const OBJECT_FORM_FLAT_PROP_REFUSALS = Object.fromEntries(
  *
  * Every member of the row written FLAT on the node is refused on both faces,
  * with a message naming its bag member (`OBJECT_FORM_FLAT_PROP_REFUSALS`
- * above). Unlike the blocks above, the flat spelling is the one this node was
- * taught in, so an author meets the remedy rather than a bare
- * `unrecognized_keys`. `description` is also a `BaseSchema` key; here the
+ * above). The flat spelling is the one this node was taught in, so an author
+ * meets the remedy rather than a bare `unrecognized_keys` — which, since
+ * objectui#10872 batch 10, is also what the blocks above give a flat row member
+ * (`flatPropRefusals`, the shared helper; this arm keeps its own map and
+ * message). `description` is also a `BaseSchema` key; here the
  * refusal overrides it, because the form's description is the row's member.
  * A key the row does not declare (`buttons`, `defaults`, `subforms`, `groups`)
  * is left as every arm leaves an undeclared key: unjudged by the tolerant face,
