@@ -570,6 +570,13 @@ export const ADJUDICATED = new Map([
     'packages/types/src/__tests__/page-breadcrumbs-refusal-8871.test.ts',
     { reads: ['content/docs/guide/layout.md'] },
   ],
+  // objectui#11318. Runs every `type: "page"` JSON fence of the layout guide
+  // through the tolerant and the strict face, and reads its Schema API block --
+  // so an edit to that page IS an edit to this test's input.
+  [
+    'packages/types/src/__tests__/page-width-padding-refusal-11318.test.ts',
+    { reads: ['content/docs/guide/layout.md'] },
+  ],
   // objectui#11321. Extracts the two `record:related_list` examples and the two
   // `action:button` route examples and runs each through both faces and the
   // spec -- so an edit to any of the three pages IS an edit to this test's input.
