@@ -66,6 +66,8 @@ export {
   NavigationItemTypeSchema,
   NavigationAreaSchema,
   MenuItemSchema as AppMenuItemSchema,
+  // objectui#11440 — the `app-schema-renderer` whole-shell node.
+  AppSchemaRendererNodeSchema,
 } from './app.zod.js';
 
 // ============================================================================
@@ -118,6 +120,8 @@ export {
   PageVariableSchema,
   PageTypeSchema,
   PageNodeSchema,
+  // objectui#11440 — the spec page kinds `record` / `home` / `utility`.
+  PageKindNodeSchema,
   LayoutSchema,
   // ⛔ `SemanticElementSchema` and `HtmlElementSchema` are deliberately NOT
   // exported (objectui#9067, decision batch #121 item 5, maintainer 2026-09-12).
@@ -350,6 +354,10 @@ export {
   ObjectChartBlockSchema,
   ObjectGanttBlockSchema,
   ObjectGridBlockSchema,
+  // objectui#11440 — two Tier A public blocks with no spec row, each bag built
+  // from the block's registration inputs.
+  ObjectPivotBlockSchema,
+  EmbeddableFormBlockSchema,
   ObjectQLPublicBlockComponentSchema,
 } from './objectql.zod.js';
 
@@ -413,6 +421,8 @@ export {
   DetailViewSectionSchema,
   DetailViewTabSchema,
   DetailViewSchema,
+  // objectui#11440 — one field section as a node.
+  DetailSectionNodeSchema,
   ViewSwitcherSchema,
   FilterUISchema,
   SortUISchema,
@@ -508,8 +518,8 @@ export { CloudPlanStatusSchema } from './cloud.zod.js';
 
 import { z } from 'zod';
 import { defineNodeComponentUnion } from './base.zod.js';
-import { AppComponentSchema } from './app.zod.js';
-import { LayoutSchema } from './layout.zod.js';
+import { AppComponentSchema, AppSchemaRendererNodeSchema } from './app.zod.js';
+import { LayoutSchema, PageKindNodeSchema } from './layout.zod.js';
 import { FormComponentSchema } from './form.zod.js';
 import { DataDisplaySchema } from './data-display.zod.js';
 import { FeedbackSchema } from './feedback.zod.js';
@@ -579,7 +589,13 @@ import { nestedComponentJudgment } from './nested-component-walk.js';
  */
 export const AnyComponentSchema = defineNodeComponentUnion(z.discriminatedUnion('type', [
   AppComponentSchema,
+  AppSchemaRendererNodeSchema,
   LayoutSchema,
+  // objectui#11440 — the spec page kinds `record` / `home` / `utility`. An arm
+  // of its own rather than a member of `LayoutSchema`, whose enum-keyed arms are
+  // the two html-tag families that `@object-ui/core`'s html-tier roster pin
+  // (`html-tier-intrinsics.test.ts`) finds by that shape.
+  PageKindNodeSchema,
   FormComponentSchema,
   DataDisplaySchema,
   FeedbackSchema,
