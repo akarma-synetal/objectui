@@ -145,6 +145,21 @@ export { resolveSectionGroupReferences } from './sectionGroups';
 export type { ResolveSectionGroupsOptions } from './sectionGroups';
 
 /**
+ * The field name a section entry resolves to — the identity rule of the three
+ * entry shapes `ObjectFormSection.fields` declares, spelled once
+ * (objectui#11615): a bare string is the name, the form view's `{ field }`
+ * entry names its field by `field`, an inline `FormField` by `name`;
+ * `undefined` when the entry names nothing.
+ *
+ * Published beside the resolver because the resolver RETURNS that union, and
+ * objectui#7324's rule applies to reading what a published function hands
+ * back as much as to naming what it takes: a consumer narrowing an entry by
+ * hand reads `.name` off a `{ field }` entry — the second dialect this one
+ * spelling exists to prevent. A pure function over plain data.
+ */
+export { sectionEntryName } from './sectionFields';
+
+/**
  * The parameter types those published signatures require, so a consumer can
  * NAME what it must pass (objectui#7324).
  *
@@ -208,10 +223,16 @@ const ObjectFormRenderer: React.FC<{ schema: any; dataSource?: unknown }> = elem
       // `ObjectForm` builds its fields from the object's metadata, which only an
       // adapter can serve — its own effect calls the branch it comments as
       // "cannot proceed" and then renders a field-less card in silence
-      // (objectui#5378 item 2). The one escape hatch is inline `customFields`,
-      // which is exactly what `hasInlineFields` gates on inside the component,
-      // so the two stay in step. A form with no `objectName` is a different
-      // defect, answered by `requiresObject` below.
+      // (objectui#5378 item 2). The one escape hatch HERE is inline
+      // `customFields`. ⚠️ This gate is narrower than the components: every
+      // layout, `simple` included since objectui#11615, treats the shared
+      // `hasInlineFieldSource` as its members-only field source — non-empty
+      // `customFields`, OR sections whose every entry is an inline `FormField`
+      // — so a form with an `objectName`, no adapter and all-inline sections is
+      // refused here although any layout would draw it as a collector. Not
+      // aligned in that card on purpose (it would move this door's behaviour);
+      // the two are known to be out of step for that shape. A form with no
+      // `objectName` is a different defect, answered by `requiresObject` below.
       requiresDataSource={
         !(schema?.customFields?.length > 0)
         && typeof schema?.objectName === 'string'
@@ -546,7 +567,7 @@ ComponentRegistry.register('object-master-detail-form', MasterDetailFormRenderer
     // Declaring them would mint choices an authoring UI offers and this block
     // cannot honour.
     { name: 'formType', type: 'enum', enum: ['simple', 'tabbed'], description: 'How the PARENT half of the form is presented. The detail grids below it are unaffected.' },
-    { name: 'fields', type: 'array', description: 'Which parent fields to show, in order — and it is NOT ignored when `sections` is given: the two INTERSECT. The parent field pool is built from this key first and every section then resolves its own members against that pool, so a section member this key does not list is dropped from the rendered form, and a section that loses EVERY member that way disappears with its heading. Each such drop is reported once via `console.warn` (objectui#9884); it is not repaired, because this key bounds what the form DRAWS and edits, not what Save writes: on a create, the submitted set is the drawn fields plus any parent value seeded through `initialValues` (or its alternate spelling `initialData`), drawn or not. A seed for an undeclared, server-owned, computed or read-only field is still stripped, as on any save. Author one or the other, or list every section member here too. Members are bare field names; NOT the spec `FormFieldSchema` object `sections[].fields` accepts (identity key `field`) — that shape resolves to no name here and is silently skipped (the parent form renders through the same `ObjectForm` / `SimpleObjectForm` as `object-form` — see its `fields` description).' },
+    { name: 'fields', type: 'array', description: 'Which parent fields to show, in order — and it is NOT ignored when `sections` is given: the two INTERSECT. The parent field pool is built from this key first and every section then resolves its NAMED members (a bare name, or the `{ field }` entry) against that pool, so such a member this key does not list is dropped from the rendered form, and a section that loses EVERY member that way disappears with its heading. An inline field entry (`{ name, type, … }`) names nothing to resolve and is drawn whatever this key lists, as on every form type (objectui#11615). Each such drop is reported once via `console.warn` (objectui#9884); it is not repaired, because this key bounds what the form DRAWS and edits, not what Save writes: on a create, the submitted set is the drawn fields plus any parent value seeded through `initialValues` (or its alternate spelling `initialData`), drawn or not. A seed for an undeclared, server-owned, computed or read-only field is still stripped, as on any save. Author one or the other, or list every section member here too. Members are bare field names; NOT the spec `FormFieldSchema` object `sections[].fields` accepts (identity key `field`) — that shape resolves to no name here and is silently skipped (the parent form renders through the same `ObjectForm` / `SimpleObjectForm` as `object-form` — see its `fields` description).' },
     // The three labels are the spec's `I18nLabel` (`ComponentPropsMap
     // ['object-master-detail-form']`), and `MasterDetailForm` resolves a map
     // with `pickLocalized` against the active UI language (objectui#10935). So
