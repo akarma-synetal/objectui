@@ -16,6 +16,8 @@ import { preferLocal } from '../utils/preferLocal.js';
 import { useAdapter } from '../providers/AdapterProvider.js';
 import { useMetadataClient } from './metadata-admin/useMetadata.js';
 import { persistRuntimeMetadata } from './runtime-metadata-persistence.js';
+import { formatMetadataError } from '@object-ui/data-objectstack';
+import { toast } from 'sonner';
 import { useWorkspaceAdminStatus } from '@object-ui/auth';
 import type { DataSource } from '@object-ui/types';
 import type { DatasetDrillArgs } from '@object-ui/plugin-report';
@@ -173,22 +175,32 @@ export function ReportView({ dataSource }: { dataSource?: DataSource }) {
   }, [editSchema, reportData, getFieldsForObject]);
 
   // ---- Save helper --------------------------------------------------------
+  // Resolves whether the draft was staged, so the editor closes only on a
+  // save that landed (objectui#11583).
   const saveSchema = useCallback(
-    async (schema: any) => {
+    async (schema: any): Promise<boolean> => {
+      if (!metadataClient) return false;
       try {
-        if (metadataClient) {
-          // ADR-0034: save stages a per-item draft; an explicit Publish
-          // promotes it (RuntimeDraftBar). `sys_report` is retired.
-          await persistRuntimeMetadata('report', reportName!, schema, {
-            metadataClient,
-          });
-          refresh().catch(() => {});
-        }
+        // ADR-0034: save stages a per-item draft; an explicit Publish
+        // promotes it (RuntimeDraftBar). `sys_report` is retired.
+        await persistRuntimeMetadata('report', reportName!, schema, {
+          metadataClient,
+        });
+        refresh().catch(() => {});
+        return true;
       } catch (err) {
         console.warn('[ReportView] Auto-save failed:', err);
+        // objectui#11583: a refused save is said, with the door's message.
+        // It fires once per press of the editor's Save (an edit only drives
+        // the live preview), so one refusal is one toast.
+        toast.error(t('form.saveError'), {
+          description: formatMetadataError(err),
+          classNames: { description: 'whitespace-pre-line' },
+        });
+        return false;
       }
     },
-    [metadataClient, reportName, refresh],
+    [metadataClient, reportName, refresh, t],
   );
 
   // ---- Open / close config panel ------------------------------------------
@@ -214,10 +226,14 @@ export function ReportView({ dataSource }: { dataSource?: DataSource }) {
   );
 
   const handleReportConfigSave = useCallback(
-    (config: Record<string, any>) => {
+    async (config: Record<string, any>): Promise<boolean> => {
       setEditSchema(config);
-      saveSchema(config);
-      setConfigVersion((v) => v + 1);
+      const saved = await saveSchema(config);
+      // Re-seat the panel's config only on a save that landed: a refused one
+      // keeps the open panel's draft, edit included, for a retry
+      // (objectui#11583).
+      if (saved) setConfigVersion((v) => v + 1);
+      return saved;
     },
     [saveSchema],
   );
