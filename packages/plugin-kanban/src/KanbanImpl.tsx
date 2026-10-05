@@ -30,8 +30,9 @@ import { resolveConditionalFormatting } from "@object-ui/core"
 import type { KanbanConditionalFormattingRule } from "@object-ui/types"
 import type { KanbanCard, KanbanColumn } from './types'
 import { createSafeTranslation } from "@object-ui/i18n"
-import { Plus } from "lucide-react"
+import { Plus, Sigma } from "lucide-react"
 import { useKanbanRecordsSettled } from './KanbanRecordsSettled'
+import { useKanbanColumnSummary, sumLaneField } from './KanbanColumnSummary'
 
 // Utility function to merge class names (inline to avoid external dependency)
 const cn = (...classes: Array<string | false | null | undefined>) => classes.filter(Boolean).join(' ')
@@ -485,6 +486,48 @@ function laneCountLabel(count: number, countsAreWindowed?: boolean): string {
   return countsAreWindowed ? `${count}+` : String(count)
 }
 
+/**
+ * A column's total of the view's `summarizeField`, painted beside its count
+ * (objectui#11629). Renders nothing when the board declares no
+ * `summarizeField` (no provider), so every other header is unchanged.
+ *
+ * The total covers the cards the lane holds — the rows the board loaded — and
+ * says so the way the count does: over a windowed fetch it carries the same
+ * `+` the count carries (`laneCountLabel`), so a total over a window never
+ * reads as the total of the group. A lane holding a value that is not a number
+ * shows no total (`sumLaneField` answers `null`), never `NaN`.
+ *
+ * The field's label is the tooltip and the screen-reader name, and a `Sigma`
+ * glyph (hidden from assistive technology) tells the total from the count
+ * badge beside it, so no new user-facing string enters the product.
+ */
+function LaneTotal({
+  cards,
+  countsAreWindowed,
+  className,
+}: {
+  cards: KanbanCard[]
+  countsAreWindowed?: boolean
+  className?: string
+}) {
+  const summary = useKanbanColumnSummary()
+  if (!summary) return null
+  const total = sumLaneField(cards, summary.field)
+  if (total === null) return null
+  return (
+    <span
+      className={cn("inline-flex items-center gap-0.5 text-[11px] font-medium text-muted-foreground tabular-nums whitespace-nowrap", className)}
+      title={summary.label}
+      data-kanban-lane-total=""
+    >
+      <Sigma aria-hidden="true" className="h-3 w-3 shrink-0" />
+      <span className="sr-only">{`${summary.label} `}</span>
+      {summary.renderTotal(total)}
+      {countsAreWindowed ? '+' : null}
+    </span>
+  )
+}
+
 function KanbanColumnView({
   column,
   cards,
@@ -598,6 +641,7 @@ function KanbanColumnView({
                 Full
               </Badge>
             )}
+            {!isCollapsed && <LaneTotal cards={safeCards} countsAreWindowed={countsAreWindowed} />}
           </div>
         </div>
       </div>
@@ -1230,6 +1274,9 @@ function KanbanBoardInner({ columns, onCardMove, onCardClick, className, dnd, qu
                   />
                   {!collapsed && (
                     <span className="ml-2 text-xs text-muted-foreground">({laneCountLabel(col.cards.length, countsAreWindowed)})</span>
+                  )}
+                  {!collapsed && (
+                    <LaneTotal cards={col.cards} countsAreWindowed={countsAreWindowed} className="ml-2" />
                   )}
                 </div>
               )
