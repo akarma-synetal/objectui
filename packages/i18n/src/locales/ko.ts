@@ -2929,6 +2929,7 @@ const ko = {
       readOnlyNote: "소유자만 설정을 변경할 수 있습니다.",
       nameLabel: "조직 이름",
       slugLabel: "슬러그",
+      slugLockedNote: "이 조직에는 활성 환경이 있어 여기에서 슬러그를 변경할 수 없습니다. 이름을 바꾸면 해당 환경의 하위 도메인도 함께 이동합니다.",
       logoLabel: "로고",
       logoUpload: "업로드",
       logoReplace: "변경",
