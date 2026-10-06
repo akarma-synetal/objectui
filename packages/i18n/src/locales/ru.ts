@@ -1761,8 +1761,7 @@ const ru = {
       },
       usage: {
         title: "Использование ИИ",
-        meterBuild: "Сборка",
-        meterAsk: "Вопрос",
+        poolUsed: "Использовано {{percent}}",
         statusOk: "Осталось много",
         statusLow: "Заканчивается",
         statusFull: "Лимит исчерпан",
@@ -1781,7 +1780,6 @@ const ru = {
         ctaUpgrade: "Повысьте тариф, чтобы продолжить",
         ctaTopUp: "Добавьте кредиты, чтобы продолжить",
         ariaLabel: "Использование ИИ: {{status}}",
-        breakdownTitle: "Использовано на данный момент",
       },
       workspaceTitle: "Рабочее пространство ИИ",
       workspaceSubtitle: "Задавайте вопросы, изучайте и возвращайтесь к диалогам",
@@ -1838,6 +1836,7 @@ const ru = {
       liveCanvasUnlisted: "Работающее приложение — {{app}} (скрыто до публикации)",
       loadingAgents: "Загрузка агентов…",
       askAnything: "Спросите о чём угодно…",
+      askOrChangeApp: "Спросите о данных или попросите меня изменить это приложение…",
       emptyTitle: "Начните диалог",
       emptyDescription: "Спросите о чём угодно — ассистент видит контекст вашего текущего приложения.",
       switchAssistant: "Сменить ассистента",
@@ -3416,6 +3415,7 @@ const ru = {
       countDashboards_many: "{{count}} дашбордов",
       countDashboards_other: "{{count}} дашборда",
       countSeedData: "демоданные",
+      extendTarget: "Добавление в существующее приложение: {{app}}",
     },
     build: {
       building: "Создание {{app}}…",

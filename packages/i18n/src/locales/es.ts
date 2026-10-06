@@ -1708,8 +1708,7 @@ const es = {
       },
       usage: {
         title: "Uso de IA",
-        meterBuild: "Crear",
-        meterAsk: "Preguntar",
+        poolUsed: "{{percent}} usado",
         statusOk: "Queda bastante",
         statusLow: "Se está agotando",
         statusFull: "Límite alcanzado",
@@ -1726,7 +1725,6 @@ const es = {
         ctaUpgrade: "Mejore el plan para continuar",
         ctaTopUp: "Añada créditos para continuar",
         ariaLabel: "Uso de IA: {{status}}",
-        breakdownTitle: "Usado hasta ahora",
       },
       workspaceTitle: "Espacio de trabajo de IA",
       workspaceSubtitle: "Pregunte, inspeccione y retome conversaciones",
@@ -1783,6 +1781,7 @@ const es = {
       liveCanvasUnlisted: "Aplicación en vivo — {{app}} (no listada hasta su publicación)",
       loadingAgents: "Cargando agentes…",
       askAnything: "Pregunte lo que quiera…",
+      askOrChangeApp: "Pregunte por sus datos o pídame que cambie esta app…",
       emptyTitle: "Iniciar una conversación",
       emptyDescription: "Pregunte lo que quiera — el asistente tiene acceso al contexto de su aplicación actual.",
       switchAssistant: "Cambiar de asistente",
@@ -3336,6 +3335,7 @@ const es = {
       countDashboards_many: "{{count}} de paneles",
       countDashboards_other: "{{count}} paneles",
       countSeedData: "datos de ejemplo",
+      extendTarget: "Se añade a la app existente: {{app}}",
     },
     build: {
       building: "Creando {{app}}…",

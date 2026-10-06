@@ -1832,8 +1832,7 @@ const zh = {
       },
       usage: {
         title: 'AI 用量',
-        meterBuild: 'AI 搭建',
-        meterAsk: '数据问询',
+        poolUsed: '已用 {{percent}}',
         statusOk: '额度充足',
         statusLow: '即将用完',
         statusFull: '额度已用完',
@@ -1848,7 +1847,6 @@ const zh = {
         ctaUpgrade: '升级以继续使用',
         ctaTopUp: '购买额度包以继续',
         ariaLabel: 'AI 用量：{{status}}',
-        breakdownTitle: '已用额度构成',
       },
       workspaceTitle: 'AI 工作区',
       workspaceSubtitle: '提问、查看并继续历史对话',
@@ -1905,6 +1903,7 @@ const zh = {
       liveCanvasUnlisted: '运行预览 · {{app}}(未发布 · 仅自己可见)',
       loadingAgents: '正在加载助手…',
       askAnything: '输入你的问题…',
+      askOrChangeApp: '问问数据，或让我改改这个应用…',
       emptyTitle: '开始对话',
       emptyDescription: '可以直接提问，助手会结合当前应用上下文提供帮助。',
       switchAssistant: '切换助手',
@@ -3419,6 +3418,7 @@ const zh = {
       countDashboards_one: '{{count}} 个仪表板',
       countDashboards_other: '{{count}} 个仪表板',
       countSeedData: '示例数据',
+      extendTarget: '添加到现有应用：{{app}}',
     },
     build: {
       building: '正在构建{{app}}…',

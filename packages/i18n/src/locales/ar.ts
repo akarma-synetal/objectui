@@ -1841,8 +1841,7 @@ const ar = {
       },
       usage: {
         title: "استخدام الذكاء الاصطناعي",
-        meterBuild: "الإنشاء",
-        meterAsk: "السؤال",
+        poolUsed: "تم استخدام {{percent}}",
         statusOk: "المتبقّي وفير",
         statusLow: "على وشك النفاد",
         statusFull: "تم بلوغ الحد",
@@ -1865,7 +1864,6 @@ const ar = {
         ctaUpgrade: "قم بالترقية للمتابعة",
         ctaTopUp: "أضف أرصدة للمتابعة",
         ariaLabel: "استخدام الذكاء الاصطناعي: {{status}}",
-        breakdownTitle: "المستخدَم حتى الآن",
       },
       workspaceTitle: "مساحة عمل الذكاء الاصطناعي",
       workspaceSubtitle: "اسأل وافحص واستأنف المحادثات",
@@ -1922,6 +1920,7 @@ const ar = {
       liveCanvasUnlisted: "تطبيق حي — {{app}} (غير مُدرج حتى النشر)",
       loadingAgents: "جارٍ تحميل الوكلاء…",
       askAnything: "اسأل عن أي شيء…",
+      askOrChangeApp: "اسأل عن بياناتك، أو اطلب مني تعديل هذا التطبيق…",
       emptyTitle: "ابدأ محادثة",
       emptyDescription: "اسأل عن أي شيء — يمكن للمساعد الاطلاع على سياق تطبيقك الحالي.",
       switchAssistant: "تبديل المساعد",
@@ -3535,6 +3534,7 @@ const ar = {
       countDashboards_many: "{{count}} لوحة معلومات",
       countDashboards_other: "{{count}} لوحة معلومات",
       countSeedData: "بيانات تجريبية",
+      extendTarget: "إضافة إلى التطبيق الحالي: {{app}}",
     },
     build: {
       building: "جارٍ إنشاء {{app}}…",

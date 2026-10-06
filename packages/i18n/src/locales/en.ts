@@ -2128,8 +2128,11 @@ const en = {
       },
       usage: {
         title: 'AI usage',
-        meterBuild: 'Build',
-        meterAsk: 'Ask',
+        // objectui#11658 — the popover's ONE figure: the share of the single
+        // AI pool already used (a formatted percentage, never a token count).
+        // It replaced the build / data-Q&A split, which could not attribute a
+        // single-composer turn honestly.
+        poolUsed: '{{percent}} used',
         statusOk: 'Plenty left',
         statusLow: 'Running low',
         statusFull: 'Limit reached',
@@ -2149,10 +2152,6 @@ const en = {
         ctaUpgrade: 'Upgrade to keep going',
         ctaTopUp: 'Add credits to continue',
         ariaLabel: 'AI usage: {{status}}',
-        // objectui#8524 — heading over the pool's read-only split (`breakdown`:
-        // app-building vs data Q&A) in the popover. The rows reuse `meterBuild` /
-        // `meterAsk`; each is a share of the ONE pool, never a second budget.
-        breakdownTitle: 'Used so far',
       },
       workspaceTitle: 'AI Workspace',
       workspaceSubtitle: 'Ask, inspect, and resume conversations',
@@ -2218,6 +2217,7 @@ const en = {
       liveCanvasUnlisted: 'Live app — {{app}} (unlisted until published)',
       loadingAgents: 'Loading agents…',
       askAnything: 'Ask anything…',
+      askOrChangeApp: 'Ask about your data, or ask me to change this app…',
       emptyTitle: 'Start a conversation',
       emptyDescription: 'Ask anything — the assistant has access to your current app context.',
       switchAssistant: 'Switch assistant',
@@ -3864,6 +3864,7 @@ const en = {
       countDashboards_one: '{{count}} dashboard',
       countDashboards_other: '{{count}} dashboards',
       countSeedData: 'sample data',
+      extendTarget: 'Adding to existing app: {{app}}',
     },
     build: {
       building: 'Building {{app}}…',

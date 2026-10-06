@@ -1664,8 +1664,7 @@ const ko = {
       },
       usage: {
         title: "AI 사용량",
-        meterBuild: "빌드",
-        meterAsk: "질문",
+        poolUsed: "{{percent}} 사용됨",
         statusOk: "여유가 충분합니다",
         statusLow: "얼마 남지 않았습니다",
         statusFull: "한도에 도달했습니다",
@@ -1680,7 +1679,6 @@ const ko = {
         ctaUpgrade: "업그레이드하고 계속하기",
         ctaTopUp: "크레딧을 추가하고 계속하기",
         ariaLabel: "AI 사용량: {{status}}",
-        breakdownTitle: "지금까지 사용 내역",
       },
       workspaceTitle: "AI 워크스페이스",
       workspaceSubtitle: "질문하고, 살펴보고, 대화를 이어가세요",
@@ -1737,6 +1735,7 @@ const ko = {
       liveCanvasUnlisted: "실시간 앱 — {{app}}(게시 전까지 비공개)",
       loadingAgents: "에이전트를 불러오는 중…",
       askAnything: "무엇이든 물어보세요…",
+      askOrChangeApp: "데이터에 대해 묻거나 이 앱을 바꿔 달라고 요청하세요…",
       emptyTitle: "대화 시작하기",
       emptyDescription: "무엇이든 물어보세요 — 어시스턴트는 현재 앱 컨텍스트에 접근할 수 있습니다.",
       switchAssistant: "어시스턴트 전환",
@@ -3271,6 +3270,7 @@ const ko = {
       countDashboards_one: "대시보드 {{count}}개",
       countDashboards_other: "대시보드 {{count}}개",
       countSeedData: "샘플 데이터",
+      extendTarget: "기존 앱에 추가: {{app}}",
     },
     build: {
       building: "{{app}} 빌드 중…",
