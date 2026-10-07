@@ -662,7 +662,8 @@ function PackageSwitcher({
 
   // A lifecycle action ran in the sheet — refresh the list AND the managed
   // snapshot (so an edit shows immediately). If the managed package was the one
-  // we're editing and it's now gone (deleted), jump to another package / home.
+  // we're editing and it's now gone (deleted), return to the Studio landing
+  // (home, when no package is left).
   const onManageChanged = React.useCallback(async () => {
     /**
      * `null` means "the refresh did not tell us anything", which is NOT the
@@ -704,9 +705,13 @@ function PackageSwitcher({
     // still refreshed (that call reports its own outcome).
     if (list !== null && !list.some((p) => p.id === managedId)) {
       // Deleted — only navigate away if it was the package we're editing.
+      // While other packages remain, that is the Studio landing
+      // (objectui#11784), where the author picks the next one or creates one;
+      // this used to open `list[0]`, whichever package the list started with,
+      // so a delete read as "Studio moved me into another app". With nothing
+      // left it is still the declared home (objectui#7373).
       if (managedId === packageId) {
-        const next = list[0];
-        navigate(next ? `/studio/${encodeURIComponent(next.id)}/${tab}` : homePath);
+        navigate(list.length > 0 ? '/studio' : homePath);
       }
       return;
     }
@@ -785,7 +790,7 @@ function PackageSwitcher({
       );
       setManageOpen(false);
     }
-  }, [manage, packageId, tab, navigate, fetchFullPackage, locale, homePath]);
+  }, [manage, packageId, navigate, fetchFullPackage, locale, homePath]);
 
   return (
     // Radix Popover (portaled to <body>) — the top bar is `overflow-x-auto`,
