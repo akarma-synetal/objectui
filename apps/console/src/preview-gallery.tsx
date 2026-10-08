@@ -66,9 +66,9 @@ for (const variant of ['chart', 'bar-chart']) {
 }
 
 import {
-  getMetadataPreview,
-  listMetadataPreviewTypes,
-  getMetadataInspector,
+  useRegisteredMetadataPreview,
+  useRegisteredMetadataPreviewTypes,
+  useRegisteredMetadataInspector,
 } from '@object-ui/app-shell';
 import type { MetadataSelection } from '@object-ui/app-shell';
 import { SAMPLES } from './preview-samples';
@@ -116,7 +116,11 @@ function galleryLocale(): 'en-US' | 'zh-CN' {
 }
 
 function DesignerCard({ type }: { type: string }) {
-  const Preview = getMetadataPreview(type);
+  // Observed reads (objectui#11939): a designer registered after the gallery
+  // rendered appears without a reload. Both are hooks, so both are read above
+  // the early return below.
+  const Preview = useRegisteredMetadataPreview(type);
+  const registeredInspector = useRegisteredMetadataInspector(type);
   const [draft, setDraft] = React.useState<Record<string, unknown>>(
     () => SAMPLES[type] ?? { name: type, label: type },
   );
@@ -127,7 +131,7 @@ function DesignerCard({ type }: { type: string }) {
   const onPatch = (patch: Record<string, unknown>) =>
     setDraft((d) => ({ ...d, ...patch }));
 
-  const Inspector = selection ? getMetadataInspector(type) : undefined;
+  const Inspector = selection ? registeredInspector : undefined;
   const locale = galleryLocale();
 
   return (
@@ -310,7 +314,7 @@ function RecordPickerSpecimen({ autoOpen }: { autoOpen: boolean }) {
 }
 
 function Gallery() {
-  const registered = new Set(listMetadataPreviewTypes());
+  const registered = new Set(useRegisteredMetadataPreviewTypes());
   const all = ORDER.filter((t) => registered.has(t));
   // Dev-harness isolation: `?only=flow` (or `#only=flow`) renders a single
   // designer full-width so browser automation can interact without the other
