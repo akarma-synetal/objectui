@@ -2695,6 +2695,7 @@ const fr = {
         dashboard: "Tableau de bord",
         page: "Page",
         report: "Rapport",
+        package: "Package",
         record: "Enregistrement",
         metadata: "Métadonnées",
       },

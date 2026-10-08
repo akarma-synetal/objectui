@@ -2649,6 +2649,7 @@ const ja = {
         dashboard: "ダッシュボード",
         page: "ページ",
         report: "レポート",
+        package: "パッケージ",
         record: "レコード",
         metadata: "メタデータ",
       },

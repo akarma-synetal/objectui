@@ -2733,6 +2733,7 @@ const zh = {
         dashboard: '仪表盘',
         page: '页面',
         report: '报表',
+        package: '软件包',
         record: '记录',
         metadata: '元数据',
       },

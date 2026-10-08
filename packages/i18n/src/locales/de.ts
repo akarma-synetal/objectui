@@ -2647,6 +2647,7 @@ const de = {
         dashboard: "Dashboard",
         page: "Seite",
         report: "Bericht",
+        package: "Paket",
         record: "Datensatz",
         metadata: "Metadaten",
       },
