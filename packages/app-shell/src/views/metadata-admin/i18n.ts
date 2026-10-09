@@ -2757,7 +2757,6 @@ const ENGINE_STRINGS_EN: Record<string, string> = {
   // ── StudioDesignSurface (ADR-0080 WYSIWYG design surface) ──────────────
   // Shared chrome
   'engine.studio.cancel': 'Cancel',
-  'engine.studio.create': 'Create',
   'engine.studio.creating': 'Creating…',
   // objectui#11792 — CreateItemDialog's preview of the name the item is saved
   // under, shown when the caller supplies that rule (an object's namespace prefix).
@@ -3370,12 +3369,11 @@ const ENGINE_STRINGS_EN: Record<string, string> = {
   'engine.studio.api.body': 'Example body',
   'engine.studio.api.bodyOmitted': 'Required fields come first. Optional fields not shown: {fields}',
   // Hooks view
+  'engine.studio.hooks.renameHeld': 'Not saved yet: a hook keeps the name it was created with. Change the name back to {name} to save your changes.',
   'engine.studio.hooks.none': 'No hooks target this object.',
   'engine.studio.hooks.async': 'async',
   'engine.studio.hooks.pick': 'Select a hook to edit it.',
   'engine.studio.hooks.newLabel': 'New hook',
-  'engine.studio.hooks.saved': 'Saved “{label}” as draft',
-  'engine.studio.hooks.save': 'Save hook',
   'engine.studio.data.addFieldTitle': 'Add a field (then set its type and properties on the right)',
   'engine.studio.data.addField': 'Add field',
   'engine.studio.data.editFieldProps': 'Edit field properties',
@@ -5992,7 +5990,6 @@ const ENGINE_STRINGS_ZH: Record<string, string> = {
   // ── StudioDesignSurface (ADR-0080 WYSIWYG design surface) ──────────────
   // Shared chrome
   'engine.studio.cancel': '取消',
-  'engine.studio.create': '创建',
   'engine.studio.creating': '创建中…',
   'engine.studio.createItem.savedAs': '保存为',
   // `383502b23` — see the English entry. This value must share no leading
@@ -6514,12 +6511,11 @@ const ENGINE_STRINGS_ZH: Record<string, string> = {
   'engine.studio.api.body': '示例请求体',
   'engine.studio.api.bodyOmitted': '必填字段排在最前。未列出的可选字段：{fields}',
   // Hooks view
+  'engine.studio.hooks.renameHeld': '尚未保存：钩子会保留创建时的名称。把名称改回 {name} 即可保存更改。',
   'engine.studio.hooks.none': '没有钩子作用于该对象。',
   'engine.studio.hooks.async': '异步',
   'engine.studio.hooks.pick': '选择一个钩子进行编辑。',
   'engine.studio.hooks.newLabel': '新钩子',
-  'engine.studio.hooks.saved': '已将「{label}」存为草稿',
-  'engine.studio.hooks.save': '保存钩子',
   'engine.studio.data.addFieldTitle': '添加一个字段(随后在右侧设置类型与属性)',
   'engine.studio.data.addField': '添加字段',
   'engine.studio.data.editFieldProps': '编辑字段属性',
