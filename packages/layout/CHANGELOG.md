@@ -1,5 +1,84 @@
 # @object-ui/layout
 
+## 17.8.0
+
+### Minor Changes
+
+- 9fc68aa: Screen readers can name and reach the controls of the view tab bar, the settings form, the sidebar menus, the table's selection column and the percent cell (objectui#11690). axe-core (wcag2a + wcag2aa) on an object list page and on a Setup settings page reported the faults below; each is fixed where it is produced and pinned by an axe run on that component.
+  
+  - **View tab bar (`ViewTabBar`).** The "+" add-view button is named, through the existing `view.addView` key, and its tooltip reads the same translated words instead of a hard-coded "Add View". Each view is now a `<button>`; the current one carries `aria-current="true"`. The views were `role="tab"` elements with no `tablist`, and the active view's actions button sat inside its tab, so it was a control inside a control. That button is now the view button's sibling, still named "View actions for …" and still one Tab stop away. Tab roles could not hold it: a tab's content is presentational and a tablist may contain only tabs. These views never had the tabs keyboard model (arrow keys, a tab panel) either. Every view stays its own Tab stop. When the bar is not reorderable, as the console renders it, Enter or Space switches to the focused view. With drag-to-reorder on, Enter or Space on a view starts a keyboard drag instead, as it did before this change, so a view is switched to by click. The rename box is now outside the view button and is named through `view.rename`. With drag-to-reorder on, the sortable attributes describe the view as a button. Breaking for anything that queried the bar by `role="tab"` or `aria-selected`: query `data-testid="view-tab-ID"` or `aria-current` instead.
+  - **Settings form (`@object-ui/console`).** Each row's label is bound to its control, so text, number, password, textarea, JSON, colour, switch and select controls are named by it. Clicking a label now focuses or toggles its control. A radio group and a multiselect checkbox group are named by the row label too.
+  - **Sidebar menus (`NavigationRenderer`).** With drag-to-reorder on (the desktop default), every row was wrapped in a `<div>` between the menu's `<ul>` and its `<li>`. The sortable node is now the row's own `<li>`. A separator and a nested group inside a menu are now list items too: the separator's item is hidden from assistive tech, and a top-level group is unchanged.
+  - **Table selection column (`data-table`).** The select-all checkbox and each row's checkbox are named through the existing `table.selectAllRows` and `table.selectRow` keys.
+  - **Percent cell (`PercentCellRenderer`).** The progress bar is named by the formatted value beside it (`aria-labelledby`), so the name is in the viewer's locale.
+  
+  No language-pack key, export or prop is added; every new name reads a key the packs already carried.
+
+### Patch Changes
+
+- b88937b: Drag-to-reorder works on a grouped sidebar menu, within each level (objectui#11626). `NavigationRenderer` had a sortable path only in its group-free arm. Every stock app's menu is grouped, so the console's `enableReorder` drew no grip anywhere a user could reach.
+  
+  **`@object-ui/layout`.** With `enableReorder` on, each group's children are now a sortable list of their own, and so is each run of top-level entries between two groups. An entry moves within its level only. It never moves into or out of a group, because which group an entry sits in is the app's structure, not a personal order. A move is reported through the existing `onReorder(reorderedItems)`, always with the top-level list. After a move within a group, that list is as drawn and the group's `children` are reordered. The moved level's entries carry their new positions as `order` (0, 1, 2, …), as a move in a group-free menu already did. While `searchQuery` narrows a grouped menu, the menu offers no grip, because a narrowed group shows only some of its children.
+  
+  The drag grip is now the row's drag activator, in both arms. dnd-kit's sortable attributes (`role="button"`, `tabIndex={0}`, the sortable description) used to sit on the row wrapper while the listeners sat on the grip, so every row was a focusable button that no key could start a drag from. The attributes and listeners now sit together on the grip. The one element a keyboard can focus per row is now the element the keyboard sensor listens on.
+  
+  **`@object-ui/app-shell`.** The sidebar's personal order store (localStorage `objectui-nav-order-APP`) keeps an order for each group under the group's `id`, beside the top level's `__root__`. The `id` is the one key a group has that holds across reloads and locales, because its label is translated. A move writes only the level that moved, so the rest of the menu keeps following the app. Every stored level is applied on load. A group-free app's `__root__` record is written and read exactly as before, so orders users already saved keep working.
+  
+  A saved order now holds where the app authors `order` on its navigation entries. The renderer sorts each level by `order`, and the store used to apply a saved order by array position only, so on such an app a drag was stored and then sorted straight back, in a group-free menu as well. A level with a saved order now carries its saved positions as `order`. A level with no saved order is passed on untouched.
+  
+  **Clause-②: no.** No export, prop, type member, callback parameter or i18n key is added or removed, and no signature changes. `NavigationRendererProps.enableReorder` and `onReorder` keep their types. Their doc comments, which ship in the published `.d.ts`, now state the within-level scope and what `onReorder` receives.
+- Updated dependencies [18d7b48]
+- Updated dependencies [172acc3]
+- Updated dependencies [f0496bd]
+- Updated dependencies [c4c506b]
+- Updated dependencies [9db9ff3]
+- Updated dependencies [c096f03]
+- Updated dependencies [92f4e2b]
+- Updated dependencies [b10c68e]
+- Updated dependencies [bdc9049]
+- Updated dependencies [2e818d0]
+- Updated dependencies [fd060f0]
+- Updated dependencies [8b14aec]
+- Updated dependencies [2abec3a]
+- Updated dependencies [9dfaca6]
+- Updated dependencies [c000398]
+- Updated dependencies [73b5d77]
+- Updated dependencies [e6dcd85]
+- Updated dependencies [7a2c60b]
+- Updated dependencies [9fc68aa]
+- Updated dependencies [d50f724]
+- Updated dependencies [17acfbb]
+- Updated dependencies [89cc738]
+- Updated dependencies [c0862c1]
+- Updated dependencies [c0862c1]
+- Updated dependencies [c0862c1]
+- Updated dependencies [c0862c1]
+- Updated dependencies [c0862c1]
+- Updated dependencies [4c0de52]
+- Updated dependencies [a80fef7]
+- Updated dependencies [e06365c]
+- Updated dependencies [1e1f09e]
+- Updated dependencies [455c646]
+- Updated dependencies [9844bbf]
+- Updated dependencies [cef0eee]
+- Updated dependencies [7241a81]
+- Updated dependencies [74add0c]
+- Updated dependencies [aaba865]
+- Updated dependencies [45d5853]
+- Updated dependencies [4f4fc03]
+- Updated dependencies [eb4552e]
+- Updated dependencies [b13ea3c]
+- Updated dependencies [d7e9e9a]
+- Updated dependencies [cf62edf]
+- Updated dependencies [5d77c09]
+- Updated dependencies [1473757]
+- Updated dependencies [d73d987]
+- Updated dependencies [b403bb3]
+  - @object-ui/types@17.8.0
+  - @object-ui/components@17.8.0
+  - @object-ui/core@17.8.0
+  - @object-ui/react@17.8.0
+
 ## 17.7.0
 
 ### Minor Changes
