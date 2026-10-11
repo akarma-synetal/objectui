@@ -712,10 +712,15 @@ function dependentLookupParents(f: FormFieldConfig | undefined): string[] {
  *    `@object-ui/types` documents each one as put on the built-in branch's
  *    native control, and the `form` docs page lists the first four as the
  *    field's validation keys. The browser enforces them at submit.
- *  - `step`, `multiple`, `accept`: `ObjectForm` in `@object-ui/plugin-form`
- *    writes them onto the entries it builds for a field whose `widget` names
- *    the built-in `input`. `step` decides whether the native number input
- *    accepts a decimal at all (`objectFormNumericStep-9574.test.tsx`).
+ *  - `step`: `FormField` declares it, the spec's number (objectui#12130).
+ *    On a number input the `input` and `default` arms resolve it from the
+ *    metadata carrier after this spread (`nativeNumberStep`), which decides
+ *    whether the input accepts a decimal at all
+ *    (`objectFormNumericStep-9574.test.tsx`); this forward is what reaches the
+ *    other input types that step, such as `time`.
+ *  - `multiple`, `accept`: `ObjectForm` in `@object-ui/plugin-form` writes
+ *    them onto the entries it builds for a `file` / `image` field it routes to
+ *    the built-in `input`.
  *
  * ⛔ Add a key here only with such a reader. A key nobody documents for the
  * built-in control and no producer writes for it is the open tail this
@@ -4360,6 +4365,32 @@ const BuiltinSelectControl = React.forwardRef<HTMLButtonElement, BuiltinSelectCo
   },
 );
 
+/**
+ * The `step` of a number input this renderer draws itself: the `input` arm,
+ * and the unregistered-widget `default` arm, under `inputType: 'number'`
+ * (objectui#12130).
+ *
+ * The registered `number` widget's rule, read off the same metadata carrier
+ * (`field`, which the call site sets to `field.field || field`): an explicit
+ * numeric `step` wins (the spec's `FieldSchema.step`, which `FormField`
+ * declares by reference), else `10^-scale` (decimal places, never
+ * `precision`'s total digits, objectui#9574), else `'any'`. Not an absent
+ * attribute: that is HTML's step of 1, which refuses every decimal a field
+ * that declares no `scale` never ruled out. This package cannot import
+ * `NumberField`, so the rule is restated here; keep the two in step.
+ *
+ * Derived where it is consumed, so no producer writes the HTML-only `'any'`
+ * onto an entry, where the spec's numeric `step` refuses it. `ObjectForm`
+ * wrote it until objectui#12130; `objectFormNumericStep-9574.test.tsx` pins
+ * both of its routes.
+ */
+function nativeNumberStep(carrier: Record<string, unknown> | undefined): number | 'any' {
+  const step = carrier?.step;
+  if (typeof step === 'number') return step;
+  const scale = carrier?.scale;
+  return typeof scale === 'number' ? Math.pow(10, -scale) : 'any';
+}
+
 function renderFieldComponent(type: string, props: RenderFieldProps) {
   // 1. Resolve the specialized FIELD WIDGET — and only a field widget.
   //    A form field's type either names a `field:`-namespaced widget or takes
@@ -4467,14 +4498,15 @@ function renderFieldComponent(type: string, props: RenderFieldProps) {
       const maxLength = (fieldProps as any).maxLength;
       if (inputType === 'file') {
         // File inputs cannot be controlled with value prop, so `value` is not
-        // passed. No cap applies to a file picker.
+        // passed. No cap applies to a file picker. The entry's `className` is
+        // merged in, not spread over (objectui#12130).
         return (
           <Input
             type="file"
             placeholder={placeholder}
-            className="min-h-[44px] sm:min-h-0"
             {...domFieldProps}
             {...builtinHostAttributes(fieldProps, 'input')}
+            className={cn('min-h-[44px] sm:min-h-0', domFieldProps.className)}
             ref={controlRef}
             onChange={onChange}
           />
@@ -4484,15 +4516,22 @@ function renderFieldComponent(type: string, props: RenderFieldProps) {
         <Input
           type={inputType || 'text'}
           placeholder={placeholder}
-          className={cn('min-h-[44px] sm:min-h-0', readonlyInputClass)}
           {...domFieldProps}
           {...builtinHostAttributes(fieldProps, 'input')}
+          // After the spread, and MERGED: an entry's `className` adds to this
+          // branch's own classes instead of replacing them (objectui#12130).
+          // Every built-in branch writes it this way.
+          className={cn('min-h-[44px] sm:min-h-0', readonlyInputClass, domFieldProps.className)}
           ref={controlRef}
           onChange={onChange}
           // After the spread, so the resolved cap is the one written (the
           // #3222 discipline). `undefined` when the field declares no
           // `maxLength`, which renders no attribute.
           maxLength={maxLength}
+          // After the spread too: a number input's step is resolved from the
+          // metadata carrier, not taken from whatever the entry spread
+          // (objectui#12130, `nativeNumberStep`).
+          {...(inputType === 'number' ? { step: nativeNumberStep(fieldProps.field) } : null)}
           onClick={(e) => {
             openNativePickerOnClick(inputType)?.(e);
             domFieldProps.onClick?.(e);
@@ -4551,15 +4590,16 @@ function renderFieldComponent(type: string, props: RenderFieldProps) {
             placeholder={placeholder}
             label={label}
             error={error}
+            {...rest}
             // `readonly` is destructured off `props` at the top of this
             // function, so — exactly like `label` and `mobile_fullscreen` — it
             // is NOT in `rest` and has to be forwarded by name (objectui#3400).
             // The non-fullscreen exit below always did this; this exit forwarded
             // neither the attribute nor the tint, which is why a read-only long
             // text field was editable in place the moment the fullscreen flag
-            // was on. (`disabled` rides `rest`: the allowlist keeps it.)
-            className={cn('min-h-[44px] sm:min-h-0', readonlyInputClass)}
-            {...rest}
+            // was on. (`disabled` rides `rest`: the allowlist keeps it.) The
+            // entry's `className` is merged in, not spread over (objectui#12130).
+            className={cn('min-h-[44px] sm:min-h-0', readonlyInputClass, rest.className)}
             ref={controlRef}
             onChange={onChange}
             // After the spread, so the resolved cap is the one written (the
@@ -4573,8 +4613,8 @@ function renderFieldComponent(type: string, props: RenderFieldProps) {
       return (
         <BuiltinTextarea
           placeholder={placeholder}
-          className={cn('min-h-[44px] sm:min-h-0', readonlyInputClass)}
           {...rest}
+          className={cn('min-h-[44px] sm:min-h-0', readonlyInputClass, rest.className)}
           ref={controlRef}
           onChange={onChange}
           maxLength={maxLength}
@@ -4595,8 +4635,8 @@ function renderFieldComponent(type: string, props: RenderFieldProps) {
           checked={value}
           onCheckedChange={onChange}
           disabled={cbDisabled || readonly}
-          className="min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0"
           {...checkboxProps}
+          className={cn('min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0', checkboxProps.className)}
           ref={controlRef}
         />
       );
@@ -4610,8 +4650,8 @@ function renderFieldComponent(type: string, props: RenderFieldProps) {
           checked={value}
           onCheckedChange={onChange}
           disabled={swDisabled || readonly}
-          className="min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0"
           {...switchProps}
+          className={cn('min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0', switchProps.className)}
           ref={controlRef}
         />
       );
@@ -4754,9 +4794,9 @@ function renderFieldComponent(type: string, props: RenderFieldProps) {
           // `secret` and `ui:password`, which the table now carries.
           type={inputType || NATIVE_INPUT_FIELD_TYPES[declaredType] || 'text'}
           placeholder={placeholder}
-          className={cn(readonlyInputClass)}
           {...domFieldProps}
           {...builtinHostAttributes(fieldProps, 'input')}
+          className={cn(readonlyInputClass, domFieldProps.className)}
           ref={controlRef}
           onChange={onChange}
           // `value` as react-hook-form holds it, `undefined` included: this arm
@@ -4770,6 +4810,9 @@ function renderFieldComponent(type: string, props: RenderFieldProps) {
           // `maxLength`, which renders no attribute — an uncapped field is
           // left exactly as it was.
           maxLength={maxLength}
+          // The `input` arm's rule (objectui#12130), for an entry that says
+          // `inputType: 'number'` and whose type names no registered widget.
+          {...(inputType === 'number' ? { step: nativeNumberStep(fieldProps.field) } : null)}
           onClick={(e) => {
             openNativePickerOnClick(inputType)?.(e);
             domFieldProps.onClick?.(e);

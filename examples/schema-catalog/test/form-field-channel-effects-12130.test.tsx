@@ -40,7 +40,7 @@ import { describe, it, expect, vi, afterEach } from 'vitest';
 import React from 'react';
 import { render, act, fireEvent, screen } from '@testing-library/react';
 import '@object-ui/components';
-import '@object-ui/fields';
+import { FORM_FIELD_TYPES } from '@object-ui/fields';
 import { SchemaRenderer, SchemaRendererProvider } from '@object-ui/react';
 
 afterEach(() => {
@@ -114,6 +114,21 @@ describe('a read field key changes what its widget does (objectui#12130)', () =>
     without.unmount();
     const withKey = await mount({ type: 'number', step: 5 });
     expect(withKey.row().querySelector('input')?.getAttribute('step')).toBe('5');
+  });
+
+  it('`step` (built-in `input`, `inputType: \'number\'`) sets the input step, by the `number` widget\'s rule', async () => {
+    // The form renderer's own number input derives its step where it draws
+    // it: an explicit `step` wins, else `10^-scale`, else `any`. No producer
+    // writes the step onto the entry for it.
+    const stepOf = async (field: Row) => {
+      const m = await mount({ type: 'input', inputType: 'number', ...field });
+      const step = m.row().querySelector('input')?.getAttribute('step');
+      m.unmount();
+      return step;
+    };
+    expect(await stepOf({})).toBe('any');
+    expect(await stepOf({ scale: 2 })).toBe('0.01');
+    expect(await stepOf({ step: 5, scale: 2 })).toBe('5');
   });
 
   it('`language` (code) names the language the editor asks for', async () => {
@@ -308,6 +323,77 @@ describe('a read field key changes what its widget does (objectui#12130)', () =>
     expect((await browseAll({})).headers).toEqual(['Name']);
     expect((await browseAll({ lookupColumns: ['email'] })).headers).toEqual(['Email']);
   });
+});
+
+/* ── `className`: the element the type renders, merged, never the row ──── */
+
+describe('`className` on a form field styles the element its type renders, beside that element\'s own classes (objectui#12130)', () => {
+  const AUTHORED = 'authored-cls-12130';
+  const hasClass = (el: Element | null | undefined, cls: string) =>
+    (el?.getAttribute('class') ?? '').split(/\s+/).includes(cls);
+  const CHOICES = [{ label: 'Alpha', value: 'a' }, { label: 'Beta', value: 'b' }];
+
+  // label, entry, the control, and one class that control carries of its own.
+  const CONTROLS: ReadonlyArray<readonly [string, Row, string, string]> = [
+    ['built-in input', { type: 'input' }, 'input', 'min-h-[44px]'],
+    ['built-in input, read-only', { type: 'input', readonly: true }, 'input', 'bg-muted/40'],
+    ['built-in textarea', { type: 'textarea' }, 'textarea', 'min-h-[44px]'],
+    ['built-in checkbox', { type: 'checkbox' }, '[role=checkbox]', 'min-w-[44px]'],
+    ['built-in switch', { type: 'switch' }, '[role=switch]', 'min-w-[44px]'],
+    ['built-in select', { type: 'select', options: CHOICES }, '[role=combobox]', 'min-h-[44px]'],
+    ['registered `number` widget', { type: 'number' }, 'input', 'border-input'],
+  ];
+
+  it.each(CONTROLS)('%s: on the control, which keeps its own classes', async (_label, field, selector, own) => {
+    const without = await mount(field);
+    expect(hasClass(without.row().querySelector(selector), own)).toBe(true);
+    expect(hasClass(without.row().querySelector(selector), AUTHORED)).toBe(false);
+    without.unmount();
+
+    const withKey = await mount({ ...field, className: AUTHORED });
+    const control = withKey.row().querySelector(selector);
+    expect(hasClass(control, AUTHORED)).toBe(true);
+    expect(hasClass(control, own)).toBe(true);
+    expect(hasClass(withKey.row(), AUTHORED)).toBe(false);
+  });
+
+  it('section-divider: on the divider, which keeps its own classes', async () => {
+    const divider = (m: Awaited<ReturnType<typeof mount>>) =>
+      [...m.container.querySelectorAll('div')].find((d) => hasClass(d, 'col-span-full') && d.textContent === 'Section S');
+    const without = await mount({ type: 'section-divider', label: 'Section S' });
+    expect(hasClass(divider(without), 'border-b')).toBe(true);
+    expect(hasClass(divider(without), AUTHORED)).toBe(false);
+    without.unmount();
+
+    const withKey = await mount({ type: 'section-divider', label: 'Section S', className: AUTHORED });
+    expect(hasClass(divider(withKey), AUTHORED)).toBe(true);
+    expect(hasClass(divider(withKey), 'border-b')).toBe(true);
+  });
+
+  // Every type the form draws, editable and read-only: wherever a widget puts
+  // the class, it is inside the field's own output. Never the field row, its
+  // label, or the read-only group the host draws around a widget's display.
+  // A widget that draws no class from it passes; the cases above pin the
+  // ones that do.
+  it.each(['input', 'textarea', 'checkbox', 'switch', 'select', ...FORM_FIELD_TYPES])(
+    '`%s`: never on the field row, its label or a wrapper the host draws',
+    async (type) => {
+      const field: Row = { type, className: AUTHORED };
+      if (['select', 'radio', 'multiselect', 'checkboxes'].includes(type)) field.options = CHOICES;
+      if (type === 'grid') field.columns = [{ name: 'product', type: 'text' }];
+      for (const readonly of [false, true]) {
+        const m = await mount({ ...field, readonly }, { dataSource: dataSourceOf() });
+        const row = m.row();
+        const misplaced = [...m.container.querySelectorAll(`.${AUTHORED}`)].filter((el) =>
+          el === row
+          || !row.contains(el)
+          || el.tagName === 'LABEL'
+          || el.getAttribute('data-slot') === 'readonly-field-group');
+        expect(misplaced.map((el) => el.outerHTML.slice(0, 120)), readonly ? 'read-only' : 'editable').toEqual([]);
+        m.unmount();
+      }
+    },
+  );
 });
 
 /* ── the two keys the card named: neither becomes the field's value ───── */
