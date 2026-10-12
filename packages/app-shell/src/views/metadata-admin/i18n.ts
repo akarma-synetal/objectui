@@ -2518,7 +2518,7 @@ const ENGINE_STRINGS_EN: Record<string, string> = {
   // set on it. The hint names the hatch only to say so, as the server's own
   // refusal sentence does.
   'perm.readOnly.artifact.hint':
-    'A code package ships this permission set, so it is locked here: an environment-scope edit would overlay a packaged item, and the metadata-type registry declares allowEnvironmentOverlay false for permission (ADR-0005 forbids per-org overlay of a packaged set: silent privilege drift). The server refuses the write with 403 not_overridable. Clone to customize: the copy is an ordinary permission set authored in this environment, under a new name, that you edit here, and upgrades keep flowing to this base. Other routes: edit the source artifact and redeploy, or create a new runtime set. The OS_METADATA_WRITABLE escape hatch does not open a set a package ships (ADR-0131 D6).',
+    'A code package ships this permission set, so it is locked here: an environment-scope edit would overlay a packaged item, and the metadata-type registry declares allowEnvironmentOverlay false for permission (ADR-0131 D6 forbids an environment overlay of a packaged set: silent privilege drift). The server refuses the write with 403 not_overridable. Clone to customize: the copy is an ordinary permission set authored in this environment, under a new name, that you edit here, and upgrades keep flowing to this base. Other routes: edit the source artifact and redeploy, or create a new runtime set. The OS_METADATA_WRITABLE escape hatch does not open a set a package ships (ADR-0131 D6).',
   // objectui#5987 — "Clone to customize", the locked editor's primary action.
   // objectui#7611 — it asks for a new name and label (`PermissionSetCloneDialog.tsx`)
   // and calls the server's clone door (`permission-set-clone.ts`), which copies
@@ -3017,7 +3017,7 @@ const ENGINE_STRINGS_EN: Record<string, string> = {
   'engine.studio.pkg.readonlyHint': 'Read-only package — switch to or create a writable package to edit.',
   'engine.studio.app.scaffoldNav': "Add this package's objects as menu items",
   'engine.studio.landing.title': 'App Builder',
-  'engine.studio.landing.description': 'Design objects, forms, automations and interfaces inside a writable package; edits save as drafts and the whole package publishes in one release. Code and installed packages are read-only: browse them here, and customize them with an org overlay.',
+  'engine.studio.landing.description': 'Design objects, forms, automations and interfaces inside a writable package; edits save as drafts and the whole package publishes in one release. Code and installed packages are read-only: browse them here, and customize them with an environment overlay.',
   'engine.studio.landing.mineHeading': 'My packages (writable)',
   'engine.studio.landing.noneWritable': 'No writable packages yet — create one to start.',
   'engine.studio.landing.dup': 'Duplicate',
@@ -3029,10 +3029,10 @@ const ENGINE_STRINGS_EN: Record<string, string> = {
   'engine.studio.landing.dupCreated': 'Duplicated into writable package “{name}”',
   'engine.studio.landing.installedHeading': 'Installed (read-only · browsable)',
   // objectui#11808 — the routes a read-only package does have (ADR-0070 D2,
-  // ADR-0005): an org overlay, and the marketplace where the runtime has one.
-  'engine.studio.landing.readonlyHint': 'Code and installed packages are read-only, so they are not edited or duplicated here. Customize one with an org overlay, for the metadata types that accept one.',
+  // ADR-0005): an environment overlay, and the marketplace where the runtime has one.
+  'engine.studio.landing.readonlyHint': 'Code and installed packages are read-only, so they are not edited or duplicated here. Customize one with an environment overlay, for the metadata types that accept one.',
   'engine.studio.landing.overlay': 'Customize with an overlay',
-  'engine.studio.landing.overlayTitle': 'Open this package’s metadata: each type shows whether it accepts an org overlay',
+  'engine.studio.landing.overlayTitle': 'Open this package’s metadata: each type shows whether it accepts an environment overlay',
   'engine.studio.landing.marketplace': 'Or install a template app from the marketplace',
   // objectui#11553 — the package-less scope: the organization's own flows.
   'engine.studio.landing.orgHeading': 'Not in a package',
@@ -5781,7 +5781,7 @@ const ENGINE_STRINGS_ZH: Record<string, string> = {
   'perm.readOnly.artifact': '只读（该权限集由代码包提供）',
   // objectui#5987 — 见 EN 表同键注释：裁定的路径（克隆后自定义）放在最前。
   'perm.readOnly.artifact.hint':
-    '该权限集由代码包提供，因此在此处被锁定：在环境作用域下编辑它属于覆盖（overlay）已打包的条目，而元数据类型注册表对 permission 声明 allowEnvironmentOverlay 为 false（ADR-0005 禁止对已打包权限集做按组织覆盖：会造成权限静默漂移）。服务端会以 403 not_overridable 拒绝该写入。请「克隆后自定义」：副本以新名称保存为本环境中创作的普通权限集、可在此编辑，升级会继续流向这个基线。其他途径：修改源工件后重新部署，或新建一个运行时权限集。OS_METADATA_WRITABLE 逃生阀不会开放由包提供的权限集（ADR-0131 D6）。',
+    '该权限集由代码包提供，因此在此处被锁定：在环境作用域下编辑它属于覆盖（overlay）已打包的条目，而元数据类型注册表对 permission 声明 allowEnvironmentOverlay 为 false（ADR-0131 D6 禁止对已打包权限集做环境覆盖：会造成权限静默漂移）。服务端会以 403 not_overridable 拒绝该写入。请「克隆后自定义」：副本以新名称保存为本环境中创作的普通权限集、可在此编辑，升级会继续流向这个基线。其他途径：修改源工件后重新部署，或新建一个运行时权限集。OS_METADATA_WRITABLE 逃生阀不会开放由包提供的权限集（ADR-0131 D6）。',
   // objectui#5987 — 见 EN 表同键注释。
   'perm.clone.action': '克隆后自定义',
   'perm.clone.hint':
@@ -6228,7 +6228,7 @@ const ENGINE_STRINGS_ZH: Record<string, string> = {
   'engine.studio.pkg.readonlyHint': '只读软件包 — 请切换或新建可写软件包后再编辑。',
   'engine.studio.app.scaffoldNav': '将本包的对象添加为菜单项',
   'engine.studio.landing.title': '应用构建',
-  'engine.studio.landing.description': '在一个可写软件包里设计对象、表单、自动化与界面;编辑存为草稿,整包一次发布。源码与已安装的软件包为只读：可在此浏览，并用组织覆盖进行定制。',
+  'engine.studio.landing.description': '在一个可写软件包里设计对象、表单、自动化与界面;编辑存为草稿,整包一次发布。源码与已安装的软件包为只读：可在此浏览，并用环境覆盖进行定制。',
   'engine.studio.landing.mineHeading': '我的软件包(可写)',
   'engine.studio.landing.noneWritable': '还没有可写软件包 — 新建一个开始。',
   'engine.studio.landing.dup': '复制',
@@ -6240,9 +6240,9 @@ const ENGINE_STRINGS_ZH: Record<string, string> = {
   'engine.studio.landing.dupCreated': '已复制为可写软件包「{name}」',
   'engine.studio.landing.installedHeading': '已安装(只读 · 可浏览)',
   // objectui#11808 — the routes a read-only package does have.
-  'engine.studio.landing.readonlyHint': '源码与已安装的软件包为只读，不能在此编辑或复制。对于接受组织覆盖的元数据类型，可用组织覆盖（overlay）进行定制。',
+  'engine.studio.landing.readonlyHint': '源码与已安装的软件包为只读，不能在此编辑或复制。对于接受环境覆盖的元数据类型，可用环境覆盖（overlay）进行定制。',
   'engine.studio.landing.overlay': '用覆盖定制',
-  'engine.studio.landing.overlayTitle': '打开该软件包的元数据：每种类型都会标明是否接受组织覆盖',
+  'engine.studio.landing.overlayTitle': '打开该软件包的元数据：每种类型都会标明是否接受环境覆盖',
   'engine.studio.landing.marketplace': '或从应用市场安装一个模板应用',
   // objectui#11553 — the package-less scope: the organization's own flows.
   'engine.studio.landing.orgHeading': '不属于软件包',
