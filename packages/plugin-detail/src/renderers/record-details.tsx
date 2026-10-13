@@ -7,7 +7,9 @@
  *
  * `record:details` — page-level record component that renders the canonical
  * field-detail block. Reads the bound record from <RecordContextProvider> and
- * synthesizes a DetailViewSchema for the existing DetailView component.
+ * synthesizes a DetailViewSchema for the existing DetailView component. A
+ * `dataSource` binding on the node supplies that record instead of the record
+ * page (objectui#12294, see `./recordBinding`).
  */
 
 import React from 'react';
@@ -31,6 +33,7 @@ import {
 import { DetailView } from '../DetailView';
 import { deriveFieldGroupDetailEntries, type FieldGroupDetailEntry } from '../synth/buildDefaultPageSchema';
 import { useRecordAriaProps } from './recordComponentAria';
+import { recordBindingBlock } from './recordBinding';
 
 /** Normalize a field entry (string | {field} | {name}) to its machine name. */
 const fieldName = (entry: any): string | null => columnIdentity(entry) ?? null;
@@ -221,7 +224,7 @@ export interface RecordDetailsRendererProps {
   [k: string]: any;
 }
 
-export const RecordDetailsRenderer: React.FC<RecordDetailsRendererProps> = ({
+const RecordDetailsBody: React.FC<RecordDetailsRendererProps> = ({
   // ⛔ NOT `{} as any` (objectui#8649). A destructuring default's type joins
   // the annotated property type at the binding, so `any` here ERASED
   // `RecordDetailsRendererProps` for every read site in this file: declared
@@ -999,5 +1002,17 @@ export const RecordDetailsRenderer: React.FC<RecordDetailsRendererProps> = ({
     </div>
   );
 };
+
+/**
+ * `record:details` with the spec's per-element `dataSource` binding honoured
+ * (objectui#12294). Unbound, the body reads the record page's record exactly as
+ * before; bound, it reads the FIRST row of the bound set. `recordBindingBlock`
+ * (`./recordBinding`, which states the semantics) wraps the body in the gate and
+ * the one-record scope, and passes the result through the declaration seam.
+ *
+ * Wraps the EXPORTED name, as `record:related_list` does, so a host that
+ * imports this renderer directly gets the binding too.
+ */
+export const RecordDetailsRenderer: React.FC<RecordDetailsRendererProps> = recordBindingBlock(RecordDetailsBody, 'record:details');
 
 export default RecordDetailsRenderer;

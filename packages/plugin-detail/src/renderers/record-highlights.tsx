@@ -16,6 +16,7 @@ import { useFieldPermissions, usePermissions } from '@object-ui/permissions';
 import type { RecordHighlightsComponentProps } from '@object-ui/types';
 import { HeaderHighlight } from '../HeaderHighlight';
 import { useRecordAriaProps } from './recordComponentAria';
+import { recordBindingBlock } from './recordBinding';
 
 const splitDesigner = (props: Record<string, any>) => {
   const { 'data-obj-id': id, 'data-obj-type': type, style, ...rest } = props || {};
@@ -28,7 +29,7 @@ export interface RecordHighlightsRendererProps {
   [k: string]: any;
 }
 
-export const RecordHighlightsRenderer: React.FC<RecordHighlightsRendererProps> = ({
+const RecordHighlightsBody: React.FC<RecordHighlightsRendererProps> = ({
   // ⛔ NOT `{} as any` — the annotation-erasing default objectui#8649 repaired.
   // The mechanism and why the spelling tracks the annotation are written once,
   // at the same site in `record-details.tsx`.
@@ -184,5 +185,17 @@ export const RecordHighlightsRenderer: React.FC<RecordHighlightsRendererProps> =
     </div>
   );
 };
+
+/**
+ * `record:highlights` with the spec's per-element `dataSource` binding honoured
+ * (objectui#12294). Unbound, the body reads the record page's record exactly as
+ * before; bound, it reads the FIRST row of the bound set. `recordBindingBlock`
+ * (`./recordBinding`, which states the semantics) wraps the body in the gate and
+ * the one-record scope, and passes the result through the declaration seam.
+ *
+ * Wraps the EXPORTED name, as `record:related_list` does, so a host that
+ * imports this renderer directly gets the binding too.
+ */
+export const RecordHighlightsRenderer: React.FC<RecordHighlightsRendererProps> = recordBindingBlock(RecordHighlightsBody, 'record:highlights');
 
 export default RecordHighlightsRenderer;
