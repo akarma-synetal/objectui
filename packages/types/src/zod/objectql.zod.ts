@@ -672,15 +672,12 @@ export const ObjectGridSchema = BaseSchema.extend({
     + 'and nothing reads it any more; the upstream protocol refuses it by name on `object-grid`. '
     + 'Rename the key to `sort` and wrap the value in an array: `sort: [{ field, order }]`.',
   ),
-  // objectui#6152 round 10 — the `object-grid` row's own `defaultFilters` member BY
-  // REFERENCE: the SAME `ViewFilterRule` array as `filter` above, with the row's
-  // refusal of the MongoDB-style record, a bare string and the AST tuple array
-  // (its message names this key as the one written). It was
-  // `z.record(z.string(), z.any())`, so the `object-view` `table` slot built from
-  // this mirror accepted the record the row refuses, and refused the rule array
-  // the row takes. The read is wider on purpose, as for
-  // `filter`: `ObjectGrid` lowers this slot through the same `toFilterNode` sink
-  // (see the TS twin's member).
+  // The `object-grid` row's own `defaultFilters` member BY REFERENCE. Since
+  // `@objectstack/spec` 18 it is a retired-key tombstone (objectstack#11509) that
+  // refuses every value by name, so this mirror and the `object-view` `table`
+  // slot built from it refuse it too, and neither `ObjectGrid` nor `ObjectView`
+  // reads it (objectui#12030; see the TS twin's member). Through 17.x it was the
+  // SAME `ViewFilterRule` array as `filter` above (objectui#6152 round 10).
   defaultFilters: stripImportedDefaults(SpecObjectGridPropsSchema).shape.defaultFilters,
   // objectui#6152 round 7 — RETIRED under ADR-0049, in lockstep with the `?: never`
   // twin on the interface. `@objectstack/spec` 17.7.0 (objectstack#21445) refuses
@@ -1760,9 +1757,9 @@ const KanbanConfig = stripImportedDefaults(SpecListViewSchema).shape.kanban.unwr
  * about the protocol; the corrected mechanism, re-derived by RUNNING
  * `@objectstack/spec` 17.4.0 (the version in the lockfile then) rather than
  * reading it — RE-RUN on 17.5.0 (objectui#11073), whose answer moved, as the
- * last bullet says, RE-RUN on 17.6.0 (objectui#11438), and again on the
- * installed 17.7.0 (objectui#11717), each of which answers every bullet below as
- * 17.5.0 did:
+ * last bullet says, RE-RUN on 17.6.0 (objectui#11438), on 17.7.0 (objectui#11717),
+ * and again on the installed 18.0.0-next.0 (objectui#12030), each of which answers
+ * every bullet below as 17.5.0 did:
  *
  *   - `CalendarConfigSchema`'s `strictObject` options carry `surface` and
  *     `history` and NOTHING ELSE. There is no `aliases` entry, so upstream holds
@@ -1785,8 +1782,8 @@ const KanbanConfig = stripImportedDefaults(SpecListViewSchema).shape.kanban.unwr
  *     not say which end of the range it binds … Write the one you mean") and
  *     prescribes neither. `endField` still draws no hint, and a one-char typo
  *     still resolves by distance (`titleFeld` → `titleField`) — all three
- *     measured on 17.5.0, again on 17.6.0 (objectui#11438), and again on the
- *     installed 17.7.0 (objectui#11717).
+ *     measured on 17.5.0, again on 17.6.0 (objectui#11438), on 17.7.0
+ *     (objectui#11717), and again on the installed 18.0.0-next.0 (objectui#12030).
  *
  * ⇒ through 17.4.0 a generic typo-distance suggester picked the wrong sibling.
  * It was not a declaration, it contradicted no declaration, and ⛔ no upstream
@@ -2599,12 +2596,9 @@ export const ObjectMapConfigSchema = z.object({
  * node. A node whose `dataSource.object` names an object therefore HAS a
  * record source although it writes none of the rungs, and the spec accepts it:
  * the `ComponentPropsMap` rows its props gate judges for these blocks require
- * no object key (`list-view` has no row), and where a row does —
- * `element:number`'s `object` — the gate waives exactly that member beside
- * `dataSource.object`. So the binding counts here, on the
+ * no object key (`list-view` has no row). So the binding counts here, on the
  * predicate the gate and the runtime both use: `dataSourceSuppliesObject`
- * from `./public-blocks.zod.ts`, the ONE copy, which `element:number`'s waiver
- * reads too. A NON-EMPTY string name only — `dataSource: { object: '' }`
+ * from `./public-blocks.zod.ts`, the ONE copy. A NON-EMPTY string name only — `dataSource: { object: '' }`
  * supplies nothing, because `isElementDataSourceConfig` refuses it and the
  * gate then lands nothing on the node.
  *

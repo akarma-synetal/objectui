@@ -200,7 +200,9 @@ export const ObjectGridRenderer: React.FC<{ schema: any; [key: string]: any }> =
  * `selectable`, `pageSize`, `showSearch`, `showPagination`, `defaultSort`,
  * `defaultFilters`, `resizableColumns`, `title` — all tagged `@deprecated` in
  * `ObjectGridSchema`, `packages/types/src/objectql.ts`). The renderer reads
- * the rest of them as back-compat fallbacks, but publishing a deprecated alias as NEW
+ * the ones not since retired as back-compat fallbacks (`defaultSort`,
+ * `resizableColumns` and, from `@objectstack/spec` 18, `defaultFilters` are not
+ * read), but publishing a deprecated alias as NEW
  * authoring surface would harden it into a second dialect (AGENTS.md #0.1), so
  * each gets a cited exemption in the console parity gate instead. Their canonical
  * spellings — `columns`, `data`, `selection`, `pagination`, `searchableFields`,
@@ -264,7 +266,7 @@ const GRID_QUERY_INPUTS: ComponentInput[] = [
       'Object this grid lists. Not required: the node\'s `dataSource` binding can name the object instead, and `dataSource.object` lands on this key, outranking an authored value. With neither, and no inline `data` rows, the grid shows an error saying an object name is required and fetches nothing.',
   },
   { name: 'columns', type: 'array', description: 'Columns to show, either field names (`["name", "email"]`) or column objects (`[{ field: "name", label: "Full Name", width: 200 }]`). The canonical spelling — the deprecated `fields` is only read when this is absent.' },
-  { name: 'filter', type: 'array', description: 'Base query filter — the `ViewFilterRule` array `[{ field, operator, value }, ...]`, lowered to `$filter`. The canonical spelling — the deprecated `defaultFilters` is only read when this is absent.' },
+  { name: 'filter', type: 'array', description: 'Base query filter — the `ViewFilterRule` array `[{ field, operator, value }, ...]`, lowered to `$filter`. The canonical spelling — the retired `defaultFilters` is not read (`@objectstack/spec` 18 refuses it by name).' },
   // ── identity ──────────────────────────────────────────────────────────────
   // `label` is an `I18nLabel` in the spec row (`ComponentPropsMap['object-grid']`),
   // and every read of it in `ObjectGrid` (the table caption, the export title,

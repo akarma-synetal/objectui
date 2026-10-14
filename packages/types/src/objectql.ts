@@ -1142,29 +1142,16 @@ export interface ObjectGridSchema extends BaseSchema {
   defaultSort?: never;
 
   /**
-   * The legacy base-filter fallback, read only when {@link ObjectGridSchema.filter}
-   * is absent — the SAME `ViewFilterRule` array, `[{ field, operator, value }, ...]`,
-   * taken BY REFERENCE from the `object-grid` row
-   * (`ComponentPropsMap['object-grid'].defaultFilters`), which has declared it so
-   * since `@objectstack/spec` 17.6.0 and refuses the MongoDB-style record, a bare
-   * string and the AST tuple array. `ObjectGrid` lowers it through the same
-   * `toFilterNode` sink as `filter`, so a rule array here sends the same `$filter`
-   * as the same rule array written as `filter`.
+   * RETIRED: the legacy base-filter fallback. `@objectstack/spec` 18 tombstones
+   * `object-grid.defaultFilters` (objectstack#11509) and refuses it by name, so
+   * this member, taken BY REFERENCE from the row
+   * (`ComponentPropsMap['object-grid'].defaultFilters`), types no value an author
+   * can write, and neither `ObjectGrid` nor `ObjectView` reads it since
+   * objectui#12030. A value that still reaches the slot at runtime is ignored.
+   * Write {@link ObjectGridSchema.filter}: the same `ViewFilterRule` array,
+   * `[{ field, operator, value }, ...]`.
    *
-   * objectui#6152 round 10: this was `Record<string, any>`, so the record form
-   * (`{ status: 'open' }`) type-checked here, and through the `object-view`
-   * `table` slot, while the protocol refused it. Write
-   * `[{ field: 'status', operator: 'equals', value: 'open' }]` instead — or, better,
-   * move it to `filter`. ⚠️ The read did not narrow: the sink still lowers a record
-   * or an AST array that reaches the slot at runtime, which is not a shape an
-   * author writes here, so this face does not publish it (the objectui#10199
-   * split, as {@link ObjectGridSchema.filter} makes it). Since objectui#11880
-   * item 5 `ObjectView` no longer writes this slot on the grid it draws: an
-   * active named view's `filter` and an authored `table.defaultFilters` both
-   * reach that grid in `filter`, so its export and page reset follow them.
-   *
-   * @deprecated Use filter instead — the same rule array; this key is read only
-   * when `filter` is absent.
+   * @deprecated Retired — use `filter`, the same rule array; this key is not read.
    */
   defaultFilters?: SpecObjectGridProps['defaultFilters'];
   
@@ -2324,9 +2311,10 @@ export interface ObjectFormSchema extends BaseSchema {
  * The list is three groups:
  *
  *   - the keys `ObjectView` reads off `table` BY NAME when it builds the grid
- *     node: `columns` / `fields`, `filter` / `defaultFilters`, `sort`,
- *     `pagination` / `pageSize`, `selection` / `selectable`, `operations`,
- *     `title` and `className`;
+ *     node: `columns` / `fields`, `filter`, `sort`, `pagination` / `pageSize`,
+ *     `selection` / `selectable`, `operations`, `title` and `className`. The
+ *     slot still declares `defaultFilters`, typed by the `object-grid` row's
+ *     retired-key tombstone, and nothing reads it (objectui#12030);
  *   - the keys it RELAYS verbatim, `OBJECT_VIEW_TABLE_RELAY_KEYS` in
  *     `@object-ui/plugin-view`'s `ObjectView.tsx` — each one a key
  *     `ObjectGrid` reads, so a value written here reaches a read. Where the
@@ -4190,7 +4178,7 @@ export interface ObjectCalendarSchema extends BaseSchema {
    * (the spec's own `ObjectCalendarPropsSchema`) declares
    * `z.array(z.unknown()).optional()`, described *"Pre-fetched records — skips
    * the internal fetch"*.
-   * MEASURED on the installed artifact at `@objectstack/spec` 17.7.0 — the
+   * MEASURED on the installed artifact at `@objectstack/spec` 18.0.0-next.0 — the
    * version this repository's `pnpm-lock.yaml` resolves — through the published
    * `@objectstack/spec/ui` entry point: the provider block returns
    * `success=false` with `expected: 'array'` at `path: ['data']`, the array
