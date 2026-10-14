@@ -2880,6 +2880,26 @@ export const ListView = React.forwardRef<ListViewHandle, ListViewProps>(({
           // for grouping before it.
           for (const f of collectGroupingFieldRefs(groupingConfig)) addSpeculative(f);
 
+          // [objectui#12376] The ROW COLOUR's field, which this harvest had no
+          // arm for. `useRowColor` looks each row's `row[field]` up in the
+          // `colors` map, and the spec's `rowColor.field` sets no column
+          // requirement — so a list tinted by a field that is not a column
+          // fetched rows without it and painted nothing, with no error.
+          //
+          // Read from `rowColorConfig`, the state a pick in the toolbar's
+          // Color section replaces, not from `schema.rowColor`: the projection
+          // follows the colour the list actually draws. ⛔ It is not in this
+          // effect's dependency list on purpose: both Color pickers (the
+          // toolbar's and `ViewSettingsPopover`'s) offer the COLUMNS only
+          // (`allFields`), which every request already carries, so a pick
+          // needs no new request; the next one simply reads the current rule.
+          // Through
+          // `addSpeculative`, like every binding here: a field the viewer may
+          // not read is never requested (`offeredRowColorConfig` withholds the
+          // whole rule from that viewer too), and a name the object does not
+          // declare is never sent.
+          addSpeculative(rowColorConfig?.field);
+
           for (const f of collectPredicateFieldRefs(listViewPredicates({
             conditionalFormatting: schema.conditionalFormatting as unknown[] | undefined,
             /**
