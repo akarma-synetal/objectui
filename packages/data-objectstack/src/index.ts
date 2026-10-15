@@ -7409,6 +7409,7 @@ export type {
   MetadataSaveAdvisoryListener,
   MetadataClientConfig,
   MetadataListOptions,
+  MetadataListAnswer,
   MetadataDraftHeader,
   MetadataClientSaveOptions,
   MetadataGetOptions,
