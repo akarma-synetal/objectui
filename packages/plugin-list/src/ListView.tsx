@@ -981,6 +981,12 @@ export const LIST_DEFAULT_TRANSLATIONS: Record<string, string> = {
   'table.search': 'Search…',
   'list.filter': 'Filter',
   'list.filterRecords': 'Filter Records',
+  // The Filter trigger's accessible name while filters are active: its
+  // `aria-label` replaces the count badge in the name, so the count rides
+  // here (objectui#12500). A count family, like `list.recordCount`.
+  'list.filterActive': 'Filter, {{count}} active',
+  'list.filterActive_one': 'Filter, {{count}} active',
+  'list.filterActive_other': 'Filter, {{count}} active',
   'list.sort': 'Sort',
   'list.sortRecords': 'Sort Records',
   'list.sortByIdSuffix': '(by ID)',
@@ -5184,6 +5190,13 @@ export const ListView = React.forwardRef<ListViewHandle, ListViewProps>(({
                   hasFilters && "text-foreground font-medium"
                 )}
                 data-testid="toolbar-filter-trigger"
+                // Below `sm` the label span is hidden and the button is
+                // icon-only, so the name rides on `aria-label` — with the
+                // active-filter count, which the badge would otherwise be
+                // alone in carrying (objectui#12500).
+                aria-label={hasFilters
+                  ? t('list.filterActive', { count: currentFilters.conditions?.length || 0 })
+                  : t('list.filter')}
               >
                 <SlidersHorizontal className="h-3.5 w-3.5 mr-1.5" />
                 <span className="hidden sm:inline">{t('list.filter')}</span>
@@ -5568,6 +5581,7 @@ export const ListView = React.forwardRef<ListViewHandle, ListViewProps>(({
                   variant="ghost"
                   size="sm"
                   className="h-7 px-2 text-muted-foreground hover:text-primary text-xs transition-colors duration-150"
+                  aria-label={t('list.export')}
                 >
                   <Download className="h-3.5 w-3.5 mr-1.5" />
                   <span className="hidden sm:inline">{t('list.export')}</span>
@@ -5720,6 +5734,7 @@ export const ListView = React.forwardRef<ListViewHandle, ListViewProps>(({
               size="sm"
               className="h-7 px-2 text-muted-foreground hover:text-primary text-xs transition-colors duration-150"
               data-testid="add-record-button"
+              aria-label={t('list.addRecord')}
               onClick={() => props.onAddRecord?.()}
             >
               <Plus className="h-3.5 w-3.5 mr-1.5" />
@@ -5966,6 +5981,7 @@ export const ListView = React.forwardRef<ListViewHandle, ListViewProps>(({
             size="sm"
             className="h-7 px-2 text-muted-foreground hover:text-primary text-xs transition-colors duration-150"
             data-testid="add-record-button"
+            aria-label={t('list.addRecord')}
             onClick={() => props.onAddRecord?.()}
           >
             <Plus className="h-3.5 w-3.5 mr-1.5" />
