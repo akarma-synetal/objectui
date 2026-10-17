@@ -270,6 +270,9 @@ function SortableCard({ card, onCardClick, conditionalFormatting, objectFields }
     // on the focusable element, where it is read.
     <div role="listitem" aria-label={card.title}>
     <div ref={setNodeRef} style={style} {...attributes} {...listeners} role="button" aria-label={card.title}
+      // objectui#12725 — names the card's record on its element, so a host
+      // (the Studio canvas) can tell which card a click landed on.
+      data-kanban-card={card.id}
       onClick={(e) => onCardClick?.(card, e)}
       onKeyDown={(e) => {
         // A key on something inside the card (a link a field renders) is that
