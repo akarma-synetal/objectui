@@ -139,8 +139,9 @@ one total-but-raw (Setup, six JSON blobs). That overlap is the problem.
   object.**
 - **`AdminScopeSchema`** (ADR-0090 D12, in `permission.zod.ts`) — the exact
   target shape for the `admin_scope` editor: `businessUnit`, `includeSubtree`,
-  `manageAssignments`, `manageBindings`, `authorEnvironmentSets`,
-  `assignablePermissionSets[]`.
+  `manageAssignments`, `assignablePermissionSets[]`. `manageBindings` and
+  `authorEnvironmentSets` were retired by objectstack-ai/objectstack#23488 (the
+  spec refuses both).
 - **`RowLevelSecurityPolicySchema`** (`spec/security/rls.zod.ts`) — the target
   shape for the RLS editor: `name` / `object` / `operation` / `using` / `check`
   (CEL-style predicates).
@@ -209,9 +210,10 @@ change framework source).
   editors (`PermissionAdvancedFacets`), collapsed by default below the object
   matrix: RLS per-policy rows (object · operation · enabled) with CEL USING/CHECK;
   tab visibility `visible | hidden | default_on | default_off`; delegated admin
-  scope (business-unit + subtree, manage-assignments / -bindings / author-env-sets
-  toggles, `assignablePermissionSets[]` allowlist). Each reads the draft's parsed
-  field, tolerating a JSON string on load so legacy rows survive.
+  scope (business-unit + subtree, manage-assignments toggle,
+  `assignablePermissionSets[]` allowlist; the -bindings / author-env-sets toggles
+  were removed with objectui#12659 when the spec retired those keys). Each reads
+  the draft's parsed field, tolerating a JSON string on load so legacy rows survive.
 
 - **P4 — Assignment moved out of the design editor.** ✅ With assignment on the
   Setup record page (P1b), `AssignedUsersSection` is removed from
