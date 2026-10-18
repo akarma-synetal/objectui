@@ -4002,6 +4002,9 @@ const de = {
       publishing: 'Wird veröffentlicht…',
       exit: 'Vorschau beenden',
       changes: 'Änderungen',
+      pendingHere: 'Entwurfsvorschau · {{count}} unveröffentlichte Änderungen auf dieser Seite',
+      pendingHere_one: 'Entwurfsvorschau · {{count}} unveröffentlichte Änderung auf dieser Seite',
+      pendingHere_other: 'Entwurfsvorschau · {{count}} unveröffentlichte Änderungen auf dieser Seite',
     },
     changes: {
       title: 'Ausstehende Änderungen',
