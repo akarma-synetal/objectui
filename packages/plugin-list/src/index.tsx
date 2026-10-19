@@ -118,15 +118,18 @@ const LIST_VIEW_TYPE_INPUT: ComponentInput = {
  * objectui#13047). The member shapes are the spec's, named in each
  * description; the spec row is the judge of values.
  *
- * Four keys of the row are NOT here, by the same measurement: `name` (read by
- * nothing on a page node), `requiredPermissions` (no audience gate on this
- * block), `sharing` (draws a Share button that does nothing) and `addRecord`
- * (draws an Add button with no handler on a page node). So is
- * `filterableFields`: the row declares it as the shorthand of
- * `userFilters.fields`, and the list reads it as the Filter panel's field list
- * instead. The console's repo-wide parity gate
+ * Three keys of the row are NOT here, by the same measurement: `name` (read
+ * by nothing on a page node), `sharing` (draws a Share button that does
+ * nothing: the spec declares no action for it) and `addRecord` (the block
+ * routes its Add button to an `onCreate` its host serves, and the console page
+ * host serves none, so on a console page the button is withheld; objectui#13089
+ * carries that host). So is `filterableFields`: the row declares it as the
+ * shorthand of `userFilters.fields`, and the list reads it as the Filter
+ * panel's field list instead. The console's repo-wide parity gate
  * (`apps/console/src/__tests__/registry-inputs-spec-parity.test.ts`) records
- * each with its reason.
+ * each with its reason. `requiredPermissions` was among them until
+ * `ListViewBlock` honoured it on a page node (objectui#13074,
+ * `__tests__/ListViewBlock.inertKeys-13074.test.tsx`).
  *
  * `data` is NOT required (objectui#11605): the page compile reads this list,
  * so `required: true` would refuse a node bound by `dataSource.object`, which
@@ -177,6 +180,14 @@ const LIST_VIEW_INPUTS: ComponentInput[] = [
     type: ['string', 'object'],
     description:
       'One line about the list, drawn as the toolbar\'s info control (its tooltip and accessible name). A plain string, or an inline per-locale map resolved against the display locale. `appearance.showDescription: false` hides it.',
+  },
+  // ── the audience ──────────────────────────────────────────────────────────
+  {
+    name: 'requiredPermissions',
+    type: 'array',
+    of: 'string',
+    description:
+      'Capabilities the viewer must ALL hold to see this list, the names permission sets grant through `systemPermissions`. A viewer missing one sees an insufficient-permissions notice in place of the list, and no records are queried. Absent or empty: no gate.',
   },
   // ── the toolbar ───────────────────────────────────────────────────────────
   {
