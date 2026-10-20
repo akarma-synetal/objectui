@@ -14,12 +14,13 @@
  *    audience gate, read the way the record blocks read it (`hasCapabilities`
  *    over the reported `systemPermissions`), with the same
  *    insufficient-permissions notice in place of the list and no query sent.
- *  - `addRecord`, routed but NOT published: the Add button calls the `onCreate`
- *    a `RelatedRecordActionsContext` provider serves for the listed object
+ *  - `addRecord`, routed: the Add button calls the `onCreate` a
+ *    `RelatedRecordActionsContext` provider serves for the listed object
  *    (`resolve({ objectName })`), and is withheld under a provider that serves
- *    none. The console's page host serves none for a parent-less list, so the
- *    key stays out of `inputs` until objectui#13089 lands that host. The rows
- *    below pin the block's contract against a provider, not a console page.
+ *    none. The rows below pin the block's contract against a provider, not a
+ *    console page; objectui#13089 published the key once the console's page
+ *    host served that `onCreate` (`PageView.listViewAddRecord-13089.test.tsx`
+ *    in `@object-ui/app-shell`).
  *
  * The third key the card names, `sharing`, stays inert and unpublished: the
  * spec declares no action for its Share button. Its control row is below.
@@ -279,10 +280,12 @@ describe('objectui#13074 — `sharing` stays inert and unpublished (CONTROL)', (
     expect(document.body.innerHTML).toBe(before);
   });
 
-  it('the registration publishes `requiredPermissions`, and neither `addRecord` (objectui#13089) nor `sharing`', () => {
+  it('the registration publishes `requiredPermissions` and `addRecord` (objectui#13089), and not `sharing`', () => {
     const inputs = (ComponentRegistry.getConfig('list-view')?.inputs ?? []).map((input: { name: string }) => input.name);
     expect(inputs).toContain('requiredPermissions');
-    expect(inputs).not.toContain('addRecord');
+    // Published once the console's page host served the create its Add button
+    // opens (`PageView.listViewAddRecord-13089.test.tsx` in `@object-ui/app-shell`).
+    expect(inputs).toContain('addRecord');
     expect(inputs).not.toContain('sharing');
   });
 });
