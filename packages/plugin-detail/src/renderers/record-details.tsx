@@ -259,6 +259,83 @@ function sectionPredicateVisible(
   });
 }
 
+/**
+ * Fold a declared pointer pair's TYPE half into its id half's card
+ * (objectui#13102).
+ *
+ * `@objectstack/spec` declares a polymorphic record pointer as a pair: the id
+ * half (`record_id`) names its sibling with `referenceVia` (`object_name`), and
+ * the sibling holds the target object's machine name. `DetailSection` draws the
+ * id half as the record card, which already names the target object by its
+ * label. Drawing the type half as a row of its own beside that card shows the
+ * stored machine name next to the label that names the same object.
+ *
+ * So a type half leaves the body when its id half is drawn in the same body.
+ * The pair is read off the OBJECT's declared fields only: a field is a type
+ * half because a declared field names it in `referenceVia`, never because of
+ * what it is called. A type half whose id half this body does not draw keeps
+ * its row, since no card on this body says what it holds.
+ *
+ * Only the row goes. The record still carries the value, so the card still
+ * resolves the pair from the row, and every other reader still reads it.
+ */
+function foldPointerTypeHalves<S>(
+  fields: unknown[] | undefined,
+  sections: S,
+  objectFields: Readonly<Record<string, { readonly referenceVia?: unknown } | null | undefined>> | undefined,
+): { fields: unknown[] | undefined; sections: S } {
+  if (!objectFields) return { fields, sections };
+  // id half -> type half, for every pair the object declares.
+  const typeHalfOf = new Map<string, string>();
+  for (const [name, def] of Object.entries(objectFields)) {
+    const via = def?.referenceVia;
+    if (typeof via === 'string' && via !== '' && via !== name && objectFields[via] != null) {
+      typeHalfOf.set(name, via);
+    }
+  }
+  if (typeHalfOf.size === 0) return { fields, sections };
+
+  const sectionFields = (s: unknown): unknown[] | undefined => {
+    const list = s && typeof s === 'object' ? (s as { fields?: unknown }).fields : undefined;
+    return Array.isArray(list) ? list : undefined;
+  };
+  const lists: unknown[][] = [];
+  if (Array.isArray(fields)) lists.push(fields);
+  if (Array.isArray(sections)) {
+    for (const s of sections) {
+      const list = sectionFields(s);
+      if (list) lists.push(list);
+    }
+  }
+  const drawn = new Set<string>();
+  for (const list of lists) {
+    for (const entry of list) {
+      const n = fieldName(entry);
+      if (n) drawn.add(n);
+    }
+  }
+  const folded = new Set<string>();
+  for (const [idHalf, typeHalf] of typeHalfOf) {
+    if (drawn.has(idHalf)) folded.add(typeHalf);
+  }
+  if (folded.size === 0) return { fields, sections };
+
+  const drop = (list: unknown[]): unknown[] =>
+    list.filter((e) => {
+      const n = fieldName(e);
+      return !(n && folded.has(n));
+    });
+  return {
+    fields: Array.isArray(fields) ? drop(fields) : fields,
+    sections: (Array.isArray(sections)
+      ? sections.map((s: unknown) => {
+          const list = sectionFields(s);
+          return list ? { ...(s as object), fields: drop(list) } : s;
+        })
+      : sections) as S,
+  };
+}
+
 export interface RecordDetailsRendererProps {
   schema?: RecordDetailsComponentProps & Record<string, any>;
   className?: string;
@@ -1028,6 +1105,11 @@ const RecordDetailsBody: React.FC<RecordDetailsRendererProps> = ({
       })
     : schema.sections;
 
+  // A pointer pair's type half is drawn by its id half's card, not as a row
+  // of its own (objectui#13102; see `foldPointerTypeHalves`). Applied after
+  // every other fold, so it reads the rows this body actually draws.
+  const body = foldPointerTypeHalves(filteredFields, filteredSections, objSchemaFields);
+
   // Inline-edit by default, but gated by the object's lifecycle: system /
   // Engine-owned system / append-only / better-auth objects are not
   // user-editable, so the per-field double-click / pencil affordances must not
@@ -1075,8 +1157,8 @@ const RecordDetailsBody: React.FC<RecordDetailsRendererProps> = ({
     // `applyAutoSpan` (which would be a tolerant reader) or in the published
     // `@object-ui/types` declaration (which would be a surface widening).
     columns: detailBodyColumns(schema.columns),
-    sections: filteredSections,
-    fields: filteredFields,
+    sections: body.sections,
+    fields: body.fields,
     showBack: false,
     // Suppress DetailView's own Airtable-style header chip. When
     // record:details is composed under a Lightning page:header the inner
