@@ -2620,9 +2620,26 @@ export interface ObjectViewSchema extends BaseSchema {
   searchableFields?: string[];
   
   /**
-   * Fields available for the filter UI
+   * RETIRED (objectui#13118) — the Filter panel's per-view field whitelist.
+   * `@objectstack/spec` retires the list view's `filterableFields` in 18.0
+   * (objectstack#24640, maintainer ruling C), and no per-view whitelist
+   * replaces it: the Filter panel offers every field the user may read, minus
+   * the fields the object marks `hidden: true`. Nothing in objectui reads the
+   * key, on this node or on a named view.
+   *
+   * Typed BY REFERENCE to the list view's spec-derived slot, ⛔ not as a local
+   * `?: never` tombstone yet: the Zod twin is the spec's own slot by reference
+   * (`zod/objectql.zod.ts`), and this package's spec pin predates the
+   * retirement, so a local tombstone would make the two faces disagree on the
+   * `object-view` arm — the drift `node-recursion-point-8344.test.ts` refuses
+   * to ledger. Both faces read the same slot, so the pin bump that takes the
+   * retirement carries the spec's `retiredKey()` tombstone onto both at once,
+   * and the key is refused by name from then on.
+   *
+   * @deprecated RETIRED (objectui#13118) — delete the key. For a curated
+   * end-user filter bar, author `userFilters` on the named list view.
    */
-  filterableFields?: string[];
+  filterableFields?: ListViewSchema['filterableFields'];
   
   /**
    * Show search box
@@ -2962,8 +2979,14 @@ export interface NamedListView {
   /** Fields that support text search */
   searchableFields?: string[];
 
-  /** Fields available for filter UI */
-  filterableFields?: string[];
+  /**
+   * @deprecated RETIRED (objectui#13118) — `@objectstack/spec` retires it in
+   * 18.0 (objectstack#24640, ruling C), and no per-view Filter-panel whitelist
+   * replaces it: delete the key, and for a curated end-user filter bar author
+   * `userFilters`. The Filter panel offers every field the user may read,
+   * minus the fields the object marks `hidden: true`.
+   */
+  filterableFields?: never;
 
   /** Allow column resizing @default false */
   resizable?: boolean;
