@@ -3720,6 +3720,7 @@ const en = {
       admin: 'Admin',
       delegatedAdmin: 'Delegated Admin',
       member: 'Member',
+      external: 'External',
     },
     errors: {
       notAllowedToInvite: 'You are not allowed to invite users to this organization',
