@@ -136,7 +136,7 @@
 
 import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
-import { basename, join } from 'node:path';
+import { basename, isAbsolute, join, relative } from 'node:path';
 
 import {
   FALSE_VERDICTS,
@@ -147,6 +147,7 @@ import {
   scanFile,
 } from './cross-file-line-citation-census.mjs';
 import { isEntrypoint } from './invoked-as.mjs';
+import { uiRoot } from './ui-root.mjs';
 
 /**
  * `report-only` | `blocking`. THE flip, and the only one.
@@ -410,11 +411,17 @@ export function resolveBase(root, argv, env) {
  * useful before a commit exists, and a reading that ignored uncommitted edits
  * would tell an author their new citation is fine right up until CI disagrees.
  * Untracked files are collected separately for the same reason.
+ *
+ * `--relative`: paths come back relative to `root` (the objectui tree, from
+ * `scripts/ui-root.mjs`), not to the git toplevel. Standalone the two are the
+ * same directory and the flag changes nothing; inside the objectstack monorepo
+ * (objectui as `ui/`) it confines the reading to this tree and keeps every
+ * path joinable with `root`, which is also why `blobAt` spells `rev:./path`.
  */
 export function changedPaths(root, mergeBase) {
   const status = execFileSync(
     'git',
-    ['diff', '--name-status', '-M', '--diff-filter=ACMRT', mergeBase, '--'],
+    ['diff', '--name-status', '-M', '--relative', '--diff-filter=ACMRT', mergeBase, '--'],
     { cwd: root, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 },
   );
   const map = new Map();
@@ -437,11 +444,11 @@ export function changedPaths(root, mergeBase) {
   return map;
 }
 
-/** The blob at `rev:path`, or `null` when the path did not exist there. */
+/** The blob at `rev:./path` (`path` relative to `root`, the cwd), or `null` when the path did not exist there. */
 function blobAt(root, rev, path) {
   if (path === null) return null;
   try {
-    return execFileSync('git', ['show', `${rev}:${path}`], {
+    return execFileSync('git', ['show', `${rev}:./${path}`], {
       cwd: root,
       encoding: 'utf8',
       maxBuffer: 64 * 1024 * 1024,
@@ -460,8 +467,26 @@ function scannable(relPath) {
   return true;
 }
 
+/**
+ * The tree this gate reads. Its subject is the REPOSITORY AT THE CWD -- `git
+ * rev-parse --show-toplevel`, so a run from any subdirectory works and the
+ * self-test can drive the gate against a scratch repository -- narrowed to the
+ * objectui tree (`scripts/ui-root.mjs`) when that tree lies inside it.
+ * Standalone the two coincide. Under the objectstack monorepo (objectui as
+ * `ui/`) the toplevel is the objectstack root and the narrowing is what
+ * `--relative` in `changedPaths` and `rev:./path` in `blobAt` rest on. In a
+ * scratch repository the objectui tree is OUTSIDE it, so the toplevel is read.
+ */
+export function gateRoot(cwd = process.cwd()) {
+  const top = execFileSync('git', ['rev-parse', '--show-toplevel'], { cwd, encoding: 'utf8' }).trim();
+  const ui = uiRoot();
+  const below = relative(top, ui);
+  const inside = below === '' || (!below.startsWith('..') && !isAbsolute(below));
+  return inside ? ui : top;
+}
+
 function main(argv, env = process.env) {
-  const root = execFileSync('git', ['rev-parse', '--show-toplevel'], { encoding: 'utf8' }).trim();
+  const root = gateRoot();
   const head = execFileSync('git', ['rev-parse', '--short', 'HEAD'], {
     cwd: root,
     encoding: 'utf8',

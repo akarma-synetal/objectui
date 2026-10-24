@@ -229,9 +229,27 @@ interface Accumulator {
 }
 
 /** Classify one `&&` segment of a build script and record what it reads. */
+/**
+ * `NAME=value` words at the head of a command are the shell's environment
+ * assignments for the program that follows, not the program:
+ * `NODE_OPTIONS=--max-old-space-size=4096 tsc` is a tsc run under a larger V8
+ * heap (the spelling `packages/spec` in objectstack uses), so the classification
+ * below starts at the first word that is not an assignment. A value may itself
+ * contain `=`; only the first `=` splits the name, and a name is a shell
+ * identifier (objectstack#25685 item 4).
+ */
+export function stripEnvAssignments(tokens: readonly string[]): string[] {
+  let i = 0;
+  while (i < tokens.length && /^[A-Za-z_][A-Za-z0-9_]*=/.test(tokens[i])) i += 1;
+  return tokens.slice(i);
+}
+
 function collectSegment(pkg: WorkspacePackage, command: string, acc: Accumulator): void {
-  const tokens = tokenize(command);
+  const tokens = stripEnvAssignments(tokenize(command));
   const tool = tokens[0];
+  if (tool === undefined) {
+    throw new Error(`${rel(pkg.dir)}: \`${command}\` sets environment variables and runs nothing.`);
+  }
 
   if (tool === 'tsc') {
     acc.tscInvocations.push(invocationForCommand(pkg.dir, command));
