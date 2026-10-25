@@ -1557,7 +1557,6 @@ export type {
 export type {
   RuntimeWidgetManifest,
   RuntimeWidgetSource,
-  WidgetSourceModule,
   WidgetSourceInline,
   WidgetSourceRegistry,
   WidgetInput,
